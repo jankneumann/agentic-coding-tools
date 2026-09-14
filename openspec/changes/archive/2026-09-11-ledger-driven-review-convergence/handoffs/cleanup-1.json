@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T03:24:07.025903+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "PR 531 was rebase-merged by merge-pull-requests. All tasks were already checked so none were migrated. Archiving the change on main and regenerating the decision index in the same convergence commit.",
+    "completed_work": [
+      "merge",
+      "task-migration-none",
+      "archive"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Rebase-merge PR 531 then archive on main",
+        "rationale": "OpenSpec agent PR; preserve plan/implement/CI-fix commits. Archive belongs on main because the code is already merged.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "No open-task migration",
+        "rationale": "tasks.md is fully checked; nothing to send to coordinator issues or a follow-up proposal.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "pack-and-parallelize-vendor-review (phase 3)",
+      "optional follow-ups from Codex review"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/ledger-driven-review-convergence/",
+        "description": "change directory to archive"
+      },
+      {
+        "path": "openspec/specs/skill-workflow/spec.md",
+        "description": "spec delta merge target"
+      }
+    ]
+  }
+}

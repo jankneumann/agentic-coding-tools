@@ -1,0 +1,17 @@
+[
+  {
+    "schema_version": 1,
+    "title": "Add review packet streaming",
+    "description": "Pass large review packets through files instead of command arguments.",
+    "rationale": "Explore-feature scored the change highly for reliability and focus fit.",
+    "provenance": {
+      "source_artifact": "docs/feature-discovery/opportunities.json",
+      "finding_ids": ["opportunity-3"],
+      "generator": "explore-feature"
+    },
+    "effort": "S",
+    "priority": 2,
+    "suggested_change_id": "add-opportunity-3-c3d4e5f6",
+    "depends_on": ["update-dispatch-retry-guidance-b2c3d4e5"]
+  }
+]

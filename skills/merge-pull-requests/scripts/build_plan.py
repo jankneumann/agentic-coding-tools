@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from classify_kind import classify_ci_failure, classify_kind
 from merge_plan import validate_plan
 from merge_pr import get_default_strategy
 
@@ -137,6 +138,13 @@ def build_plan(
         staleness = _lookup(staleness_by_pr, number)
         comments = _lookup(comments_by_pr, number)
         auto_executable, gates = _execution_policy(pr, origin)
+        files = sorted(changed_files[number])
+        kind_fields = classify_kind(
+            pr,
+            files,
+            kind_override=pr.get("kind_override"),
+        )
+        ci_state = _ci_state(pr)
         nodes.append(
             {
                 "pr": number,
@@ -149,30 +157,38 @@ def build_plan(
                 "definition": {
                     "depends_on": dependencies[number],
                     "gates": gates,
-                    "changed_files": sorted(changed_files[number]),
+                    "changed_files": files,
+                    **kind_fields,
                 },
                 "state": {
                     "outcome": "pending",
                     "needs_revalidation": False,
                     "claimed_by": None,
                     "staleness": str(staleness.get("staleness", "unknown")),
-                    "ci_state": _ci_state(pr),
+                    "ci_state": ci_state,
+                    "ci_failure_class": classify_ci_failure(
+                        pr, staleness, ci_state
+                    ),
                     "unresolved_comments": int(
                         comments.get("unresolved_count", 0),
                     ),
                     "unresolved_comment_summary": None,
                     "vendor_verdict": None,
+                    "iterate_consensus_path": None,
                     "blocking_reason": None,
                 },
             },
         )
 
     plan = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "generated_at": generated_at
         or datetime.now(timezone.utc).isoformat(),
         "storage_tier": storage_tier,
         "base_branch": base_branch,
+        "approved_at": None,
+        "last_merged_pr": None,
+        "compact_requested": False,
         "nodes": nodes,
     }
     validate_plan(plan)

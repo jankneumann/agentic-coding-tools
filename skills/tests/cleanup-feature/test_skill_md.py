@@ -76,6 +76,15 @@ def test_cleanup_feature_has_staged_rollout():
         assert marker in text, f"Staged rollout sequence missing {marker}"
 
 
+def test_pre_merge_gate_passes_change_directory_context():
+    section = _section("2.5a. Pre-Merge Validation Gate", exact=True)
+    invocation = "--change-dir openspec/changes/<change-id>"
+    assert section.count(invocation) == 2, (
+        "Both normal and forced pre-merge checks must pass the change directory; "
+        "without it, declared non-deployable changes fail closed as unknown."
+    )
+
+
 # --- ri-11 D3: merge-driven deferred-commit mode ---------------------------
 
 

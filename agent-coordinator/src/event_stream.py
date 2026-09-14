@@ -216,6 +216,7 @@ async def sse_event_generator(
     from .event_bus import CoordinatorEvent
 
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1000)
+    projection_refresh_pending = False
 
     # IMPL_REVIEW claude_code#8 (high contract_mismatch): the SSE transition
     # payload's `from`/`to` fields must come from the enum
@@ -269,7 +270,13 @@ async def sse_event_generator(
         }
 
     async def _on_task_event(evt: CoordinatorEvent) -> None:
+        nonlocal projection_refresh_pending
         if not evt.change_id or evt.change_id not in change_ids:
+            return
+        if evt.event_type == "projection.labels_changed":
+            if not projection_refresh_pending:
+                projection_refresh_pending = True
+                await queue.put({"event": "projection_snapshot", "data": ""})
             return
         await queue.put(_make_transition(evt))
 
@@ -310,6 +317,16 @@ async def sse_event_generator(
                     yield {"event": "ping", "data": "{}"}
                     continue
 
+                if item["event"] == "projection_snapshot":
+                    # Label repair can update 100 stale rows. Collapse that burst
+                    # before doing the database-backed snapshot work; clear first
+                    # so an update arriving during the query queues one follow-up.
+                    projection_refresh_pending = False
+                    item = {
+                        "event": "snapshot",
+                        "data": await _build_snapshot(change_ids),
+                    }
+
                 now = asyncio.get_event_loop().time()
                 if now - window_start > 1.0:
                     window_start = now
@@ -323,6 +340,10 @@ async def sse_event_generator(
                             queue.get_nowait()
                         except asyncio.QueueEmpty:
                             break
+                    # A queued projection marker may have been drained. Reset
+                    # only after the synchronous drain so an update arriving
+                    # during snapshot construction can enqueue one follow-up.
+                    projection_refresh_pending = False
                     snapshot_data = await _build_snapshot(change_ids)
                     yield {"event": "snapshot", "data": snapshot_data}
                     window_count = 0

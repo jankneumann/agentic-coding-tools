@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-02T10:23:05+00:00",
+  "generated_at": "2026-09-14T14:49:14+00:00",
   "python_patterns": {
     "assertions": {
       "count": 2,
@@ -13,10 +13,10 @@
       "files": {}
     },
     "broad_except": {
-      "count": 131,
+      "count": 134,
       "files": {
         "coordination_api.py": 29,
-        "work_queue.py": 15,
+        "work_queue.py": 17,
         "policy_engine.py": 9,
         "code_search_runtime.py": 7,
         "langfuse_tracing.py": 7,
@@ -27,9 +27,9 @@
         "notifications/gmail.py": 5,
         "code_search.py": 4,
         "discovery.py": 4,
+        "agents_config.py": 3,
         "github_openspec_fetcher.py": 3,
         "merge_queue.py": 3,
-        "agents_config.py": 2,
         "audit_triage.py": 2,
         "feature_registry.py": 2,
         "handoffs.py": 2,
@@ -63,28 +63,28 @@
       }
     },
     "type_hints": {
-      "count": 2031,
+      "count": 2085,
       "files": {
-        "coordination_api.py": 182,
-        "coordination_mcp.py": 133,
-        "http_proxy.py": 122,
+        "coordination_api.py": 194,
+        "coordination_mcp.py": 137,
+        "http_proxy.py": 126,
         "agents_config.py": 95,
         "policy_engine.py": 71,
         "code_search_runtime.py": 68,
+        "coordination_cli.py": 68,
         "merge_train.py": 67,
         "code_search_authorization.py": 66,
-        "coordination_cli.py": 66,
         "code_search.py": 49,
+        "work_queue.py": 44,
         "db.py": 39,
         "merge_train_service.py": 39,
         "git_adapter.py": 38,
         "openspec_proposals_api.py": 38,
+        "db_postgres.py": 36,
+        "issue_service.py": 35,
         "event_bus.py": 33,
         "feature_flags.py": 33,
-        "db_postgres.py": 31,
-        "work_queue.py": 31,
-        "github_openspec_fetcher.py": 30,
-        "issue_service.py": 29
+        "github_openspec_fetcher.py": 30
       }
     }
   },
@@ -121,13 +121,13 @@
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 998,
-    "typed_parameters": 958
+    "functions_with_return_type": 1019,
+    "typed_parameters": 989
   },
   "exception_handling": {
     "bare_except": 0,
-    "broad_except": 131,
-    "total_except_issues": 131
+    "broad_except": 134,
+    "total_except_issues": 134
   },
   "security": {
     "total": 10,

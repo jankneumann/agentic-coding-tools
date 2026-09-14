@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-14T14:03:15Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.8-flash-high",
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 175.96078487392515,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 809.3688873769715,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 671.1644213297404,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 451.658722972963,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 117.66017916891724,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a0a02e-56ed-76c9-a34e-0fbbcd992d8f\",\"timestamp\":\"2026-09-14T13:49:46.606Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/recover-ri-09-work-queue-projection\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Final independent read-only implementation convergence review for\\n`mirror-autopilot-phase-state-into-the-work-queue` at exact HEAD\\n`4c59f11f395b7c3c6e0",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 4,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-implementation.json",
+      "finding_count": 13
+    },
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 18
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 13
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 13
+    }
+  ]
+}

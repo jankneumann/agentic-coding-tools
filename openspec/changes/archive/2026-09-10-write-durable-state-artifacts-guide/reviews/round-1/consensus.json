@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: skills/coordination-bridge/SKILL.md already restates the loop-state-authoritative / queue-is-projection ownership rule that design.md step 7 requires the guide to teach, but coordination-bridge is absent from the proposal Impact allowlist and work-packages write_allow/link set. A grep-style acceptance check for 'skills that previously restated artifact semantics' can miss this source, or the guide and bridge can drift again."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan inventory comprehensively covers all five durable state artifact classes (per-change loop-state.json, roadmap checkpoint.json, roadmap learnings, phase records, and handoff documents) with explicit authority rules that prevent advisory handoffs or queue projections from overriding canonical state."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Question-scoped authority and the 7-step fresh-session rehydration algorithm cleanly separate bootstrap location from canonical verification, ensuring missing or stale authoritative state is surfaced as degradation rather than reconstructed from advisory handoffs."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The test strategy uses structural assertions in skills/tests/state-artifacts/test_state_artifacts_guide.py to ensure a clear RED failure on the parent commit and stable GREEN checks after guide/link landing without relying on fragile prose snapshots."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Work package scope, file locks, and dependency allowlists in work-packages.yaml are tightly bounded to documentation, skills, tests, and mirrors, correctly avoiding broad write permissions and justifying the single sequential work-package decision."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: The plan inventory matches ri-10's five acceptance classes exactly \u2014 per-change loop-state.json, roadmap checkpoint.json, learnings/<item>.md, phase records, and handoff documents \u2014 as required in roadmap.yaml acceptance_outcomes and restated in specs/skill-workflow/spec.md."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: D2\u2013D3 and the seven-step rehydration algorithm keep authority question-scoped: supervisor/phase handoffs are locator or advisory context only; checkpoint.json and loop-state.json are verified before learnings, phase records, handoffs, or queue projections; missing canonical state degrades rather than being synthesized from advisory data."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: Exact paths, holders, writers, consumers, and missing/stale behavior are derivable from current runtime sources without inventing contracts \u2014 e.g. openspec/changes/<id>/loop-state.json via autopilot/scripts/runner.py; openspec/roadmaps/<id>/checkpoint.json and learnings/<item>.md via roadmap-runtime checkpoint.py/learning.py; session-log.md plus coordinator/local handoffs via session-log/scripts/phase_record.py; supervise cycle_state._active_changes already fail-loud on missing/malformed loop-state."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: The pinned structural suite at skills/tests/state-artifacts/test_state_artifacts_guide.py can RED on the parent commit (guide and test both absent at 1556d815^) and GREEN via field/order/link/mirror assertions without prose snapshots, matching the established docs structural pattern in skills/tests/docs/test_workflow_docs.py and design D4."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: The single sequential documentation package is coherent \u2014 shared semantic drift boundary across guide, skill links, supervise ordering, tests, and mirrors; explicit write_allow with deny of agent-coordinator runtime; OpenSpec/work-package validation already pass; Non-Goals correctly omit schema/runtime/migration/ADR/security/deploy/browser work for a docs-only surface."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: work-packages.yaml locks.files lists only five skill/docs paths but scope.write_allow also mutates skills/implement-feature/SKILL.md and skills/validate-feature/SKILL.md (and their mirrors). With a single package this is not a parallel-write hazard, yet the lock set understates the declared mutation surface for cross-change concurrency."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: supervise Phase 1 currently reads openspec/supervise/cycle-ledger.json after handoff rehydrate; that ledger is outside ri-10's five classes. Aligning supervise to the guide order should retain the ledger read as supervise-local operational state so idempotency context is not dropped while authority stays on checkpoint.json/loop-state.json."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 12,
+    "confirmed_count": 0,
+    "unconfirmed_count": 12,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

@@ -24,6 +24,7 @@ This is a **read-only diagnostic skill** — it does not modify any code. Use `/
 - `--project-dir <path>` (directory with pyproject.toml; default: auto-detect)
 - `--out-dir <path>` (default: `docs/bug-scrub`)
 - `--format <md|json|both>` (default: both)
+- `--candidate-work-output <path>` (default: adjacent `bug-scrub-candidate-work.json`)
 
 Valid sources: `pytest`, `ruff`, `mypy`, `openspec`, `architecture`, `security`, `deferred`, `markers`
 
@@ -61,6 +62,7 @@ python3 <agent-skills-dir>/bug-scrub/scripts/main.py \
 The orchestrator produces:
 - `docs/bug-scrub/bug-scrub-report.md` — human-readable prioritized report
 - `docs/bug-scrub/bug-scrub-report.json` — machine-readable for `/fix-scrub`
+- `docs/bug-scrub/bug-scrub-candidate-work.json` — canonical candidate-work stubs for downstream prioritization; a successful clean run writes `[]`
 
 ### 3. Interpret Results
 

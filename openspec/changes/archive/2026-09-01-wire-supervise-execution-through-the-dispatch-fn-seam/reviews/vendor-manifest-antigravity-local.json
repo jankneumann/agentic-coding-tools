@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-01T07:24:20Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 30.039476725040004,
+      "error": "Timeout after 30s",
+      "error_class": "transient"
+    }
+  ],
+  "quorum_requested": 1,
+  "quorum_received": 0,
+  "vendors": []
+}

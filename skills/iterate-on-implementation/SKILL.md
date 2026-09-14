@@ -279,7 +279,7 @@ When multiple findings target **different files**, fix them concurrently:
 # Spawn parallel agents for independent fixes
 Task(
   subagent_type="general-purpose",
-  model=impl_model,  # archetype: implementer (sonnet, or opus if escalated)
+  model=impl_model,  # archetype: implementer (standard tier; frontier/premium on escalation)
   description="Fix finding 1: <type> in <file>",
   prompt="Fix this issue in OpenSpec <change-id> implementation:
 
@@ -549,6 +549,239 @@ If all vendor review findings are below the remediation threshold, proceed to th
 
 ---
 
+### 11.5. Audit Choices (non-blocking)
+
+**This step is NOT gated by `VENDOR_REVIEW`; it runs on every converged iteration, including runs that skipped Step 11.** (Step 11 opens with "Skip this step if `VENDOR_REVIEW=false`" — an `11.5` heading sitting under it would otherwise read as part of that skipped block, disabling the audit on exactly the runs that skip vendor review.)
+
+Dispatch the `audit-choices` skill against this iteration and commit the resulting ledger pair when it changed. Every branch below is wrapped in a warn-and-continue guard: nothing in this step may `exit 1`, `set -e`-abort, or return a failing outcome to autopilot. A successful commit or restore prints nothing extra; every other branch prints exactly one `audit-choices: skipped (<reason>) — continuing to summary` line. The step always falls through to Step 12.
+
+First, mint the run id you will pass to the dispatch. Note the value it
+prints — you supply it again below, because **shell state does not survive
+between bash invocations**: every fence in this step runs in its own process,
+so nothing assigned here is visible to the block at the end.
+
+```bash
+echo "iterate-on-implementation-$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+```
+
+**Dispatch the audit yourself, as the executing agent — not inside a bash fence.**
+`/audit-choices` is an agent slash command routed through sub-agent dispatch; it
+is not a shell executable. It MUST NOT be invoked inside a bash fence, via
+command substitution (`$(...)`), or have its exit status tested with `$?` — a
+shell asked to run a program literally named `/audit-choices` fails with exit
+127 on every single run, and the warn-and-continue guard around it silently
+turns that into a false "skipped" success, hiding total, permanent failure of
+this step behind a benign-looking log line. Perform these numbered actions
+directly rather than delegating them to bash:
+
+1. If `skills/audit-choices/` (or its installed runtime-mirror equivalent
+   under `.claude/skills/` / `.agents/skills/`) is not present, set
+   `SKIP_REASON="audit-choices not installed"` and do not attempt dispatch —
+   go straight to the bash block below.
+2. Otherwise, if this harness exposes no sub-agent dispatch tool, set
+   `SKIP_REASON="no sub-agent dispatch tool"` and do not attempt dispatch —
+   go straight to the bash block below. These are two distinct "unavailable"
+   causes (the skill missing vs. the harness lacking dispatch), and each
+   gets its own reason so the single warning line names what is actually
+   true.
+3. Otherwise, dispatch `/audit-choices <change-id> --run-id <the run id
+   printed above>` and capture its full output.
+   - If the dispatch errors, times out, or returns no parseable candidate
+     array, set `SKIP_REASON="audit dispatch failed"`.
+   - Else if the captured output contains the line `audit-choices: WARNING`
+     (driver `ok=False`), set `SKIP_REASON="audit reported a WARNING"`.
+   - Else leave `SKIP_REASON` empty. The driver has written (or attempted to
+     write) `choices.json`/`choices.md` under `$CHANGE_DIR`; the bash block
+     below verifies what actually landed and decides the rest.
+
+**Then run this bash block exactly once**, regardless of how the dispatch
+above ended. It performs no dispatch of its own — only the presence checks,
+the staleness/comparison logic, staging, commit, and restore, none of which
+can silently 127 the way a slash command run from a shell would.
+
+It is deliberately self-contained: it recomputes its own paths rather than
+inheriting them, because the fence above ran in a different process and left
+nothing behind. Substitute the reason you arrived at into the leading
+`SKIP_REASON=` assignment — the empty string when the dispatch succeeded, one
+of the four reasons above otherwise. Getting this wrong is not a silent
+failure: an unsubstituted or misspelled reason still routes through the same
+warn-and-continue path and prints itself in the skip line.
+
+```bash
+SKIP_REASON=""   # <- substitute the reason from the numbered steps above, or leave empty on success
+CHANGE_DIR="openspec/changes/$CHANGE_ID"
+JSON_PATH="$CHANGE_DIR/choices.json"
+MD_PATH="$CHANGE_DIR/choices.md"
+
+audit_choices_step() {
+  if [ -n "$SKIP_REASON" ]; then
+    # The agent-performed dispatch above already failed, was unavailable, or
+    # reported a WARNING. There is nothing to verify or commit, but the
+    # driver may still have written — or truncated mid-write — choices.json
+    # (or choices.md) before it failed. An early `return` here without
+    # discarding that orphan would leave a dirty, uncommitted file sitting
+    # in the worktree on every skip, even though this step is supposed to
+    # leave things clean whenever it declines to commit. Route through the
+    # same tracked/untracked discard the partial-pair case below uses,
+    # preserving the original SKIP_REASON unless the discard itself fails.
+    local reason="$SKIP_REASON"
+    for f in "$JSON_PATH" "$MD_PATH"; do
+      if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        git checkout -- "$f" || { SKIP_REASON="orphan restore failed"; return; }
+      else
+        rm -f "$f" || { SKIP_REASON="orphan removal failed"; return; }
+      fi
+    done
+    SKIP_REASON="$reason"
+    return
+  fi
+
+  # Verify both files exist and are non-empty before touching git at all.
+  # write_ledger_pair writes choices.json then renders choices.md as a
+  # second, separate operation, so an interruption between them leaves the
+  # JSON on disk with no rendering — the "partial pair" case (F6).
+  local json_ok=false md_ok=false
+  [ -s "$JSON_PATH" ] && json_ok=true
+  [ -s "$MD_PATH" ] && md_ok=true
+
+  if [ "$json_ok" = false ] && [ "$md_ok" = false ]; then
+    SKIP_REASON="audit produced no ledger"
+    return
+  fi
+
+  # Both files are non-empty, but non-emptiness alone cannot tell a fresh
+  # pair from a stale half: an interruption *between* the JSON rewrite and
+  # the Markdown re-render leaves a fresh choices.json sitting beside the
+  # *previous* run's choices.md, and both checks above pass. Detect that by
+  # requiring the Markdown's rendered `**Generated**:` value to match the
+  # JSON's `header.generated_at` exactly — render_markdown() prints that
+  # field verbatim, so any interruption between the two writes changes one
+  # without the other. A mismatch is treated exactly like a missing half.
+  if [ "$json_ok" = true ] && [ "$md_ok" = true ]; then
+    local json_generated_at md_generated_at
+    json_generated_at=$(python3 - "$JSON_PATH" <<'PYEOF'
+import json, sys
+try:
+    doc = json.load(open(sys.argv[1]))
+    print(doc.get("header", {}).get("generated_at", ""))
+except Exception:
+    print("__unreadable__")
+PYEOF
+    )
+    md_generated_at=$(grep -m1 '^\*\*Generated\*\*:' "$MD_PATH" | sed 's/^\*\*Generated\*\*: *//')
+    if [ "$json_generated_at" != "$md_generated_at" ]; then
+      md_ok=false  # stale half: route through the same discard-and-skip path below
+    fi
+  fi
+
+  if [ "$json_ok" != "$md_ok" ]; then
+    # Partial pair: discard the orphan rather than commit half of it.
+    # `git checkout --` restores a tracked path but silently does nothing
+    # for an untracked one, so each path is decided on its own: a path
+    # `git ls-files --error-unmatch` knows is restored with
+    # `git checkout --`, and a path it does not know (the first-audit case,
+    # where no ledger was ever committed) is removed with `rm -f`. Applying
+    # both commands unconditionally to both paths would delete a tracked
+    # file this branch just restored, leaving a clean pair showing as
+    # deleted in `git status`.
+    # Every git/rm invocation below is guarded: an unguarded command here
+    # could fall through with no SKIP_REASON and no warning (or abort the
+    # whole workflow under `set -e`), contradicting F6 and the "warn and
+    # continue, never fail" contract this step promises on every branch.
+    for f in "$JSON_PATH" "$MD_PATH"; do
+      if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        git checkout -- "$f" || { SKIP_REASON="orphan restore failed"; return; }
+      else
+        rm -f "$f" || { SKIP_REASON="orphan removal failed"; return; }
+      fi
+    done
+    SKIP_REASON="partial ledger pair discarded"
+    return
+  fi
+
+  # F2: compare exactly the `entries` array and `header.schema_version`
+  # against the committed revision — never the whole `header` (its other
+  # five fields, and the root-level change_id/audited_range/auditor, move
+  # on every run) and never a byte diff (D3 idempotence is about stable
+  # stable_ids, not byte-stability).
+  local compare
+  compare=$(python3 - "$JSON_PATH" <<'PYEOF'
+import json, subprocess, sys
+
+json_path = sys.argv[1]
+fresh = json.load(open(json_path))
+
+committed = subprocess.run(
+    ["git", "show", f"HEAD:{json_path}"], capture_output=True, text=True
+)
+if committed.returncode != 0:
+    print("new")  # no committed revision: nothing to compare, always commit
+    sys.exit(0)
+
+try:
+    committed_doc = json.loads(committed.stdout)
+except json.JSONDecodeError:
+    print("new")
+    sys.exit(0)
+
+fresh_key = (fresh.get("entries", []), fresh.get("header", {}).get("schema_version"))
+committed_key = (
+    committed_doc.get("entries", []),
+    committed_doc.get("header", {}).get("schema_version"),
+)
+print("unchanged" if fresh_key == committed_key else "changed")
+PYEOF
+  ) || { SKIP_REASON="comparison failed"; return; }
+
+  # Every git command below is guarded, for the same reason as the orphan
+  # cleanup above: none of them may fall through with no SKIP_REASON, and
+  # none may abort the workflow.
+  case "$compare" in
+    new|changed)
+      # Stage both paths under the change directory — not a bare
+      # `choices.md`, which resolves against the working directory and
+      # would stage a nonexistent repo-root file, committing half the pair.
+      git add "openspec/changes/$CHANGE_ID/choices.json" \
+              "openspec/changes/$CHANGE_ID/choices.md" \
+        || { SKIP_REASON="git add failed"; return; }
+      # A commit can fail after `git add` succeeded — a rejecting
+      # commit-msg hook, a signing failure. Setting SKIP_REASON and
+      # returning would print the benign skip line while leaving the pair
+      # staged (`A` on a first audit, `M` on a re-audit), so a later step
+      # could carry the skipped audit's output into someone else's commit.
+      # Unstage, then discard per path the same way the orphan branch does.
+      git commit -q -m "chore(choices): audit ledger for $CHANGE_ID" \
+        || {
+             git reset -q HEAD -- "$JSON_PATH" "$MD_PATH" 2>/dev/null || true
+             for f in "$JSON_PATH" "$MD_PATH"; do
+               if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+                 git checkout -- "$f" 2>/dev/null || true
+               else
+                 rm -f "$f"
+               fi
+             done
+             SKIP_REASON="git commit failed"
+             return
+           }
+      ;;
+    unchanged)
+      # Entries and schema_version are unchanged: restore the committed pair
+      # and commit nothing. Every re-audit of an unchanged diff is a
+      # commit-wise no-op.
+      git checkout -- "$JSON_PATH" "$MD_PATH" \
+        || { SKIP_REASON="restore of unchanged pair failed"; return; }
+      ;;
+  esac
+}
+
+audit_choices_step
+if [ -n "$SKIP_REASON" ]; then
+  echo "audit-choices: skipped ($SKIP_REASON) — continuing to summary"
+fi
+```
+
+---
+
 ### 12. Present Summary
 
 Present a summary of all iterations:
@@ -588,6 +821,9 @@ If `CAN_HANDOFF=true`, write a completion handoff containing:
 - Consensus findings: <confirmed count> confirmed, <unconfirmed count> unconfirmed, <disagreement count> disagreements
 - Remediation cycle: <ran / not needed>
 - New findings addressed in remediation: <count or "N/A">
+
+### Choices Audit
+- Choices audit: <committed <n> entries | unchanged, nothing committed | skipped (<reason>)>
 ```
 
 ## Semantic Code Context

@@ -1,0 +1,194 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Round-11 claim 1 holds at HEAD e7e299b8: `/work/submit` with `projection_key` and every `/work/reconcile` call `authorize_operation(..., operation=\"publish_work_projection\", resource=<exact change_id>)` before `WorkQueueService` mutation (`coordination_api.py:1204-1228`, `1254-1268`). Cedar/native policies and profile sync grant the operation only at trust level \u22653 (`default_policies.cedar:155-161`, `policy_engine.py:71-74`, `agents_config.py:1041-1052`). Focused pytest `test_standard_trust_cannot_publish_projection` returns HTTP 403 and never awaits submit/reconcile.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "HTTP elevated publication boundary verified by code order and regression tests.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1204,
+        "end": 1268
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Round-11 claim 2 holds: both labelled SQL paths take `pg_advisory_xact_lock`, then detect unowned rows with `projection:autopilot-phase` associated by payload `change_id` or exact `change:<id>` label, and return `projection_key_collision` before head or row mutation (`039_projection_integrity_and_insert_events.sql:97-112` submit; `:225-240` reconcile). Live `test_039_upgrade_fails_closed_until_owner_registers_verified_row` proves migration-038 generation N blocks N+1 repair with head remaining `(INIT,0)` until explicit `work_queue_projection_ownership` registration, then succeeds.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Preflight ordering and upgrade fail-closed re-verified in SQL and live migration test (passed).",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 97,
+        "end": 240
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Round-11 claim 3 holds: `WorkQueueService.reconcile_projection` re-raises `TrustResolutionError` before the blanket guardrail handler and before `db.rpc(\"reconcile_work_projection\", ...)` (`work_queue.py:955-978`). Behavioral `test_reconcile_propagates_instead_of_writing_unscanned` asserts the mutating RPC is never called; structural scan includes phase `reconcile`.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Trust fail-closed on reconcile verified by code and tests.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 955,
+        "end": 978
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Round-11 claim 4 holds on the recovered CLI triad: `_orchestrator_for_dispatch` prefers explicit `--agents-yaml`, else reviewed-cwd local `agent-coordinator/agents.yaml`, else coordinator, and falls back to disk only when both `adapters` and `sdk_adapters` are empty (`review_dispatcher.py:2575-2591`). Dispatch, `--check-vendors`, and `--list-agents` all call that helper with `Path(args.cwd)`. `test_dispatch_preserves_sdk_only_coordinator_roster` and precedence tests passed.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Shared resolver/cwd and SDK-only authority verified.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2575,
+        "end": 2591
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Critical: Documented cosmetic reserved-label bounds are insufficient for projection availability. `/issues/create` accepts arbitrary labels with no `authorize_operation` and no reserved-label rejection (`coordination_api.py:1328-1348`, `issue_service.py:241-276`). An authenticated caller can insert an unowned issue labelled `change:<victim>` and `projection:autopilot-phase`; both labelled SQL paths then fail closed with `projection_key_collision` before any repair (`039_\u2026sql:98-112`, `:226-240`), blocking legitimate publishers until an administrator deletes or otherwise clears the planted row. Ownership and heads remain unstolen, but elevated publication is denied.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Reject or strip `projection:autopilot-phase` (and optionally the paired change label when that marker is present) on ordinary issue create/update APIs, or require an elevated operation before accepting reserved projection labels outside labelled work-queue RPCs.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 241,
+        "end": 276
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Critical: Ordinary issue APIs can mutate registry-owned projection rows. `/issues/update` replaces labels wholesale and `/issues/close` sets `status=completed` with no ownership or projection guard (`coordination_api.py` update/close handlers; `issue_service.py:424-425`, `480-493`). Knowing the canonical task UUID, any API-key principal can clear `projection:autopilot-phase` / `change:<id>` markers or close the board-visible row until the next labelled submit/reconcile restores owned state. This exceeds the documented \u201ccosmetic only / cannot obtain ownership or advance heads\u201d bound for board and SSE integrity.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Refuse label/status mutations on rows present in `work_queue_projection_ownership` from ordinary issue APIs, or require `publish_work_projection` (or an admin operation) before mutating owned projection issues.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 424,
+        "end": 493
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Optional: In-process Autopilot `converge()` still builds `ReviewOrchestrator.from_coordinator()` when `agents_yaml_path` is omitted (`convergence_loop.py:610-614`), bypassing `_orchestrator_for_dispatch` local-before-coordinator resolution keyed to `worktree_path`. Round-11 disposition claimed this construction did not exist; it does. This can revive the stale coordinator/global roster class outside the fixed CLI dispatcher.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "When `orchestrator` is None and `agents_yaml_path` is absent, resolve via `_orchestrator_for_dispatch(None, worktree_path)` (or equivalent explicit \u2192 reviewed-cwd-local \u2192 coordinator \u2192 disk chain, including SDK-only authority).",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "line_range": {
+        "start": 610,
+        "end": 614
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "low",
+      "description": "FYI: Local MCP `db` transport still reaches `WorkQueueService.submit` / `reconcile_projection`, which authorize `submit_work` rather than `publish_work_projection` (`coordination_mcp.py:357-422`, `work_queue.py:777-780`, `907-910`). Autopilot\u2019s bridge path uses HTTP and therefore hits the elevated gate; D12 relies on coordinator-only MCP and trust-level-3 local publishers. Mis-pointing local MCP at a trust-level-2 process identity would bypass the elevated operation name while still satisfying `submit_work`.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "fyi",
+      "resolution": "Accepted under D12\u2019s coordinator-only/TL3 local-publisher assumption; optionally align service-layer policy with `publish_work_projection` when a projection key/labels are present for defense in depth.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 777,
+        "end": 910
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: With `POLICY_ENGINE=cedar`, `CedarPolicyEngine` defaults missing `context.trust_level` to 1 (`policy_engine.py:735`), and HTTP `authorize_operation` does not inject resolved trust. Live probe: Cedar deny without trust context, allow with `trust_level=3`. Default `native` engine resolves trust and correctly permits TL3 / denies TL2 for `publish_work_projection`. Spec D12 requires native/profile retention, which holds; Cedar HTTP publishers remain fail-closed unless callers pass trust.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "resolution": "No change required for the default native path; if Cedar is a supported production mode, resolve and inject trust in `authorize_operation` or inside `CedarPolicyEngine` as Native does.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/policy_engine.py",
+      "line_range": {
+        "start": 725,
+        "end": 736
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Coordinator-free isolation remains intact: `QueueProjectionAdapter` is constructed only for coordinated hosts; isolation tests fail closed if `try_submit_work` / `try_reconcile_work_projection` / label helpers are imported or called from free tiers (`test_phase_projection_isolation.py`). Spec D10 scenario satisfied.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Isolation suite passed at HEAD.",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 12,
+        "end": 86
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Validation ledger commit `e7e299b8` is the sole delta after implementation/architecture commit `92aa8a34` and records the secured round-11 recovery; locally re-run projection authz, trust-fail-open, dispatcher precedence/SDK-only, isolation, adapter, and live migration-038 upgrade tests passed at this HEAD.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Provenance and focused re-test evidence align with the convergence prompt.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/validation-report.md",
+      "line_range": {
+        "start": 1,
+        "end": 56
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

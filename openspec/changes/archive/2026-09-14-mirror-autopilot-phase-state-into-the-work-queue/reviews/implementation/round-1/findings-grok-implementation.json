@@ -1,0 +1,199 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: agent-coordinator/src/event_stream.py backpressure drain discards queued `projection_snapshot` markers without clearing `projection_refresh_pending`. After `window_count > _BACKPRESSURE_LIMIT`, the queue is emptied and a snapshot is emitted, but the flag can remain True, so later `projection.labels_changed` events take the early return and never enqueue another refresh. An already-connected kanban SSE client can then miss projection label updates for the rest of the connection lifetime, breaking the \u22645s live refresh acceptance path after ordinary traffic bursts.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "resolution": "In the backpressure coalesce branch, set `projection_refresh_pending = False` after draining (or whenever a full snapshot is emitted). Add a regression that enqueues a projection marker, forces backpressure drain, then asserts a subsequent labels_changed event still triggers a fresh snapshot.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 336,
+        "end": 346
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: agent-coordinator/tests/test_autopilot_projection_visibility.py only string-scans migration 037 and unit-tests SSE coalescing with a FakeBus. Tasks 3.1\u20133.3 / 4.3 require live coordinator + real PostgreSQL proof for absolute `task_type=issue` claim exclusion, label-change notify/OLD-label fallback, interrupted cleanup bounds, >50 lower-priority issue seeding, and connected SSE plus `/issues/list` visibility within 5 seconds. Those behaviors are marked done without live-PostgreSQL evidence in the shipped test surface.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add postgres-backed tests (skip when DATABASE_URL/fixture unavailable) that apply 037, assert issue rows are never claimed even for unfiltered claims, fire label add/remove notifies with OLD-label fallback, and exercise the live SSE snapshot plus label-only issue list path against seeded ordinary issues.",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/tests/test_autopilot_projection_visibility.py",
+      "line_range": {
+        "start": 13,
+        "end": 71
+      }
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Critical: openspec/contracts/agent-coordinator/openapi/work-queue.yaml revision 2 declares Problem403/409/422 as `application/json` with schema `{detail}` only, but runtime `/work/submit` and `/work/reconcile` handlers return `application/problem+json` bodies that also include `type`, `title`, and `status`. Generated clients and contract tests keyed off the OpenAPI media type/shape will not match production problem responses.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Update the OpenAPI problem responses to `application/problem+json` and document the full problem object fields emitted by `projection_problem_handler` / related handlers, or change runtime to the documented media type and schema\u2014keep them identical.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 194,
+        "end": 211
+      }
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Critical: skills/tests/autopilot/test_phase_projection_isolation.py only AST-checks that `autopilot.py`/`runner.py` do not top-level-import `queue_projection` and greps SKILL.md prose. Design D10 and task 1.3 require fail-fast call-spy regressions proving local-parallel/sequential hosts never call `try_submit_work`, `try_reconcile_work_projection`, or the coordinator-only projection label helpers. Import absence alone does not prove the no-call isolation contract.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add fail-fast monkeypatch spies on the bridge projection submit/reconcile/label helpers around coordinator-free host entrypoints and assert zero calls while allowing pre-existing detection/archetype bridge use.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 12,
+        "end": 43
+      }
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/contracts/README.md still names the additive helpers `try_coordinator_issue_list` / `try_coordinator_issue_update`, but the shipped bridge API is `try_projection_issue_list` / `try_projection_issue_update`. Reviewers and later adapters following the contract text will look for the wrong symbols.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Rename the README (and any design prose) to the shipped `try_projection_issue_*` names, or rename the functions to the documented `try_coordinator_issue_*` identifiers and update call sites/tests.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/contracts/README.md",
+      "line_range": {
+        "start": 8,
+        "end": 8
+      }
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: task 4.2 requires synchronized runtime skill mirrors, and `.agents`/`.claude` copies of `queue_projection.py` still differ from canonical `skills/autopilot/scripts/queue_projection.py`: mirrors use `replace(\"\\\\n\", ...)` (literal backslash-n) while canonical correctly scrubs newlines with `replace(\"\\n\", ...)`. Agents executing from the installed skill tree can emit multi-line degraded reasons.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Re-run `skills/install.sh` (or otherwise resync mirrors) so `.agents`/`.claude` autopilot scripts match canonical `skills/autopilot`, and verify `queue_projection.py` is byte-identical.",
+      "package_id": "wp-live-integration",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 24,
+        "end": 26
+      }
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Migration 037 hard-excludes every `task_type='issue'` row from `claim_task` ahead of the optional `p_task_types` filter, matching the documented issue-row non-claimability intent even for unfiltered claims, without widening the RPC signature or weakening submitter/archetype/trust predicates copied from migration 027.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Keep the absolute `task_type <> 'issue'` predicate; cover it with a live PostgreSQL claim attempt against an issue-typed row.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql",
+      "line_range": {
+        "start": 18,
+        "end": 21
+      }
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: `QueueProjectionAdapter._requires_reconciliation` advances to reconcile only for the exact nested bridge envelope `status==\"error\"`, `status_code==409`, and `response.detail==\"reconciliation_required\"`; other 409 details such as `projection_generation_mismatch` and non-error envelopes correctly degrade without head advancement.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Retain the strict predicate; keep unit coverage for both the allowlisted detail and non-matching 409 details.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 141,
+        "end": 151
+      }
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: `enter_escalate` now increments `total_iterations` exactly once when entering ESCALATE and is a no-op for sequence/phase when already escalated, preventing same-sequence phase collisions for gate parks, phase exceptions, and other direct helper transitions while leaving reason/timestamp updates intact.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep the guarded increment; continue projecting after these durable writes via the host `project-state` / `persist_and_project` seams.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 505,
+        "end": 509
+      }
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Full-array label replacement is confined to exclusively owned projection rows: canonical labeling uses the projection task id, reconcile cleanup lists only rows carrying both `change:<id>` and `projection:autopilot-phase` (limit capped at 100), and bridge helpers `try_projection_issue_*` always hit the coordinator HTTP endpoints without GitHub backend dispatch.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Preserve the dual-label list filter and coordinator-only helpers; do not reuse ordinary `try_issue_update` for projection repair.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 95,
+        "end": 125
+      }
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: `runner.py project-state` lazily imports `QueueProjectionAdapter`, requires an explicit `--coordinator-url`, loads durable state read-only, prints the projection envelope, and exits 0 only for `status==\"ok\"` (non-ok degrades to exit 1; validation errors exit 2), so coordinator-free hosts never import the publisher and queue responses cannot mutate loop-state through this boundary.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Keep lazy import + explicit URL injection; continue suppressing projection after non-zero mutation exits in the skill protocol.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 407,
+        "end": 427
+      }
+    },
+    {
+      "id": 12,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: `sse_event_generator` still unregisters both bus callbacks in a `finally` on normal close, cancellation, and exception paths, so the new projection coalescing flag/closures do not reintroduce the historical connect/disconnect callback leak.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Keep the identity-based `off_event` cleanup; pair it with resetting `projection_refresh_pending` on backpressure snapshot emission (finding 1).",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 351,
+        "end": 356
+      }
+    }
+  ]
+}

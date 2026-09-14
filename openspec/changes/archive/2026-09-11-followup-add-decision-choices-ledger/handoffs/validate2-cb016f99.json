@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T00:00:00Z",
+  "payload": {
+    "agent_name": "validate2-cb016f99 (VALIDATE rerun, non-isolated)",
+    "session_id": null,
+    "summary": "Re-ran /validate-feature followup-add-decision-choices-ledger at HEAD e649daae, after VAL_FIX commit e649daae added two parametrized executable tests (TestCleanupFeatureStep5_5::test_step_5_5_branch_selection, TestValidateFeatureChoicesRow::test_choices_row_branch_selection) closing the nominal-coverage gap the prior validation pass (validate-aadfeb07) found on scenario skill-workflow.11. Rather than trusting the new tests because they exist and are green, I independently mutation-tested them: swapped the two empty-case branches in both skills/cleanup-feature/SKILL.md Step 5.5 and skills/validate-feature/SKILL.md Step 11, re-ran tests/audit-choices, and confirmed 6 tests failed (the 3 cleanup-gate cases + 3 of 4 validation-gate cases from the new parametrized tests, plus one pre-existing test that also checks the 'no ledger' wording) while the old string-presence test (test_both_empty_case_wordings_present) still passed under the mutation -- proving it really was blind to a branch swap and that the new tests genuinely discriminate. Restored both files with `git checkout --` (never git stash) and confirmed the tree matched HEAD exactly (git diff --stat empty) and the full suite returned to 133 passed. Then re-ran the rest of validation on its own terms: all four quality gates pass at expected counts (133 audit-choices, 124 ci_coverage, both linters clean), openspec validate --strict passes, every skill-workflow.8-.12 scenario re-assessed against spec.md and found REAL (fixture-driven, executable) including .10 and .11 which now have full branch coverage at both gates, all F1-F8 design decisions re-checked against design.md and shipped SKILL.md/script content including the F8 wording fix that landed in the same commit, all tasks.md items re-verified checked and shipped, and the two pre-existing out-of-scope conditions (make context-refresh repo-wide pending-merge failures including spec:skill-workflow, and tests/roadmap-runtime + tests/project-context-refresh collection ImportErrors) re-confirmed unchanged and unrelated to this diff. Result: PASS.",
+    "completed_work": [
+      "Read the prior FAIL report (validation-report.md at a481fb89) and its handoff (validate-aadfeb07.json) to understand exactly what gap was identified",
+      "Read the VAL_FIX commit e649daae in full (git show), including its own claimed verification ('five of the new parametrized cases fail, while the old string-presence test still passes')",
+      "Read the new test code added to skills/tests/audit-choices/test_workflow_hooks.py: TestValidateFeatureChoicesRow::test_choices_row_branch_selection (4 parametrized cases) and TestCleanupFeatureStep5_5::test_step_5_5_branch_selection (3 parametrized cases)",
+      "Ran baseline: cd skills && uv run pytest tests/audit-choices -q -> 133 passed",
+      "Located and read the actual shipped Step 5.5 block in skills/cleanup-feature/SKILL.md (lines 553-581) and the Step 11 CHOICES_ROW block in skills/validate-feature/SKILL.md (lines 1042-1060)",
+      "Performed an independent mutation test: used Edit to swap the 'no choices ledger'/'no open choices' strings in cleanup-feature Step 5.5, and swapped 'no ledger'/'0 needs-user' CHOICES_ROW assignments in validate-feature Step 11",
+      "Re-ran tests/audit-choices with both mutations in place: 6 failed, 127 passed -- confirmed the failures were exactly the new parametrized branch-selection tests (5 of 7 new cases) plus one pre-existing test (test_no_ledger_path_survives_set_u) that also happened to pin the swapped wording",
+      "Confirmed test_both_empty_case_wordings_present (the old string-presence test that drove the prior FAIL) still PASSED under the mutation, via a targeted -k run -- proving it is genuinely blind to the swap and that the mutation was a fair test",
+      "Restored both files with git checkout -- (never git stash), verified git diff --stat was empty (tree identical to HEAD), and re-ran the suite to confirm 133 passed again",
+      "Ran all four required quality gates: uv run pytest tests/audit-choices -q (133 passed), bash install.sh --check (passed), validate-feature/scripts/linters/dependency_direction.py --skills-root . (passed), uv run pytest tests/ci_coverage -q (124 passed)",
+      "Ran openspec validate followup-add-decision-choices-ledger --strict -> 'Change ... is valid'",
+      "Re-ran make context-refresh PYTHON=skills/.venv/bin/python and confirmed spec:skill-workflow still appears among the ~30 pre-existing pending-merge failures, as expected (delta merges at archive time)",
+      "Re-ran uv run pytest tests/roadmap-runtime tests/project-context-refresh -q and confirmed the same pre-existing LearningEntry/Checkpoint/Effort ImportErrors, unrelated to this diff's files",
+      "Read specs/skill-workflow/spec.md in full and re-assessed all five scenarios (.8-.12) against the current shipped code and tests on their own terms, not by copying the prior report's text",
+      "Re-read design.md F1-F8 in full and cross-checked each against shipped SKILL.md content via targeted grep (Step 11.5 placement/wording, Step 5.5 placement, no '## Choices' heading, tracked/untracked orphan discard paths)",
+      "Verified the F8 design.md wording fix (git show e649daae -- design.md) landed correctly and now matches proposal.md's already-correct scope statement",
+      "Verified git diff --stat main...HEAD scope is unchanged from the prior pass plus this round's fix (design.md wording + the new test file additions) -- no unrelated files",
+      "Re-verified tasks.md: every task 3.0-3.7 and both checkpoints checked [x] and mapped to real shipped code",
+      "Wrote openspec/changes/followup-add-decision-choices-ledger/validation-report.md documenting the independent mutation-test verification and the full re-run",
+      "Committed the validation report and pushed the branch"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Returned outcome=passed only after independently reproducing the mutation test, not because the fix commit claimed to have done so",
+        "rationale": "The phase brief was explicit: do not take the new tests at face value because they exist and are green. I performed the branch-swap mutation myself (not by reading the commit's description of it), observed the actual failing test names, confirmed the old nominal test still passed under the same mutation, and restored the files before re-running the full suite. This directly closes the same gap the prior FAIL identified, with fresh evidence rather than trust in the commit message.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Restored mutated files with git checkout -- and verified an empty diff before proceeding",
+        "rationale": "The phase instructions required restoring afterwards and forbade git stash. I ran git diff --stat after the restore (not just git checkout) to have positive evidence the tree matched HEAD exactly before treating the test suite's subsequent 133-passed run as valid baseline evidence.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "None required for this change from a validation standpoint -- result is PASS.",
+      "Proceed to /cleanup-feature followup-add-decision-choices-ledger per the normal workflow ladder."
+    ],
+    "relevant_files": [
+      "openspec/changes/followup-add-decision-choices-ledger/validation-report.md",
+      "skills/tests/audit-choices/test_workflow_hooks.py",
+      "skills/cleanup-feature/SKILL.md",
+      "skills/validate-feature/SKILL.md",
+      "skills/iterate-on-implementation/SKILL.md",
+      "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "openspec/changes/followup-add-decision-choices-ledger/specs/skill-workflow/spec.md",
+      "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "openspec/changes/followup-add-decision-choices-ledger/handoffs/validate-aadfeb07.json"
+    ]
+  },
+  "notes": {}
+}

@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: D8's collision guard appends `-2`, `-3`, \u2026 to the run directory name and requires that the suffixed name still satisfy `parse_run_id` so retention keeps counting it, but the `RUN_ID_RE` that tasks 2.1\u20132.2 move unchanged from `priorities_paths.py` rejects those names (`2026-09-12-000000-abc1234-2` does not match). Task 2.1 also says anything outside the existing forms raises `ValueError`, which directly contradicts task 4.1. An implementer following the plan literally either fails 4.1 or ships suffixed directories that `list_active_runs` skips, so scenario 14's bound no longer holds for the collision case the guard exists to create.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Pick a collision strategy that stays inside the moved `RUN_ID_RE`, or widen `RUN_ID_RE`/`parse_run_id` deliberately and update task 2.1. Preferred options: (a) loop bumping the UTC `now` by one second and feed that same adjusted datetime into both the directory name and `make_header` (stays within today's regex and preserves D7 derivability), or (b) extend the regex with an optional numeric suffix, add round-trip coverage in task 2.1, and assert retention counts suffixed siblings in task 4.1/5.2. Do not claim `parse_run_id` accepts `-N` while also moving today's regex unchanged.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 207,
+        "end": 216
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: D7's rationale is that a ledger's location is derivable from its own header (`resolved_now` + `resolved_git_sha` \u2192 `build_run_id`). D8's `-N` sibling breaks that: the suffix depends on what already exists on disk and is not recorded in the six-field header, so the path is no longer recoverable from ledger contents alone. The delta correctly requires only that the audited range be recoverable from contents, but D7 over-claims and then D8 silently falsifies the claim.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Either keep D7's derivability claim and choose a collision strategy that preserves it (bump the datetime used for both path and header; or record the final directory run-id in the ledger), or amend D7 to say location is derivable only in the non-collision case and that collision siblings are discoverable only by scanning `openspec/choices/`. Do not leave both claims as written.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 175,
+        "end": 200
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Phase 5's checkpoint in `tasks.md` requires `make context-refresh` as one of the four skill gates, and `work-packages.yaml` declares `context_impact.surfaces: [documentation]` because `docs/guides/workflow.md` is in scope, but `wp-main` verification steps omit that gate. Coordinator-driven verification will not run what the task graph treats as mandatory.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "resolution": "Add a `make context-refresh PYTHON=skills/.venv/bin/python` verification step to `wp-main` (or remove it from the Phase 5 checkpoint and justify why a documentation-surface edit does not need it). Keep tasks and work-package verification in sync.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/work-packages.yaml",
+      "line_range": {
+        "start": 78,
+        "end": 120
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "D4's strengthened three-part guard is sufficient for the failure mode iteration 1 identified: the install-layout `shared` import bootstrap. Verified against the tree \u2014 `SKILL.md` only invokes `priorities_paths.py run-id` and `retention.py` (paths are inline bash); no existing prioritize-proposals test subprocesses those two CLIs (`test_smoke_e2e.py` subprocesses only `artifact_header.py`); function pins plus runtime-shaped subprocesses plus byte-unchanged preexisting tests cover the migration's real risk. Residual gap that can still pass D4: it does not run the full SKILL.md bash compose path (`mkdir`/`cat`/`cp`/retention), so report-body authorship is unpinned \u2014 acceptable because that path is outside this migration's blast radius and `SKILL.md` is frozen by the git-diff step.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No change required for D4 itself. Keep the three parts; do not weaken the subprocess runtime-shaped cases.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 109,
+        "end": 132
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "D6's closed write set of three range-form effects (run-dir pair, `latest.*` copies, retention archive move) is complete and checkable against the current driver. `write_ledger_pair` only creates the pair (plus parent dirs, which the existing file-snapshot posture test ignores); `collect_evidence.py` only reads; no other writer exists under `skills/audit-choices/scripts/`. Tasks 5.1 and 5.2 split the under-limit and over-limit snapshots correctly, so a fourth durable working-tree effect would fail those assertions. D7 on its merits is also sound (name the directory from the same `resolved_now`/`resolved_git_sha` handed to `make_header`; keep the caller `run_id` out of the path) \u2014 the defect is the D8 interaction in findings 1\u20132, not D7's identity choice.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep D6's three-effect contract. Keep D7's identity choice unless a human overturns it at approval; fix the collision mechanism instead.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 153,
+        "end": 173
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: Plan factual claims checked against the code hold: `run_audit.py:145` derives `openspec/changes/<change_id>`; `collect_evidence.py:276` uses the same path read-only; `priorities_paths.py` exports `build_run_id`/`RUN_ID_RE`/`parse_run_id` with the stated legacy tuple; `retention.py` archives via `shutil.move` and prints `active=\u2026 archived=\u2026` with CLI default 30; `install-manifest.json` lists `shared` under `shared_libraries` and `install.sh` ships it via `SHARED_LIBS`; dependency-direction docs allow `skills/shared/` imports. No additional factual-claim defects beyond findings 1\u20132.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "resolution": "No action. Treat findings 1\u20132 as the only claim failures.",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": {
+        "start": 145,
+        "end": 145
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

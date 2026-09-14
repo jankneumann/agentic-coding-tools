@@ -1,0 +1,121 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Migration 039's projection-key collision guard rejects only rows whose task_type is not issue. An existing ordinary, unowned issue with the exact projection tuple therefore passes the guard; submit and reconcile subsequently overwrite its status, lifecycle fields, result, and labels, silently converting or reopening it as the canonical projection row. This violates the requirement that projection reconciliation cannot mutate ordinary change-labelled issues. The purported legacy-drift test seeds task_type test and omits projection_labels, so it does not exercise this collision.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Before any head, cancellation, label, or lifecycle mutation, require an existing conflicting issue row to carry the reserved autopilot:phase-state ownership marker and the matching change label. Otherwise return projection_key_collision. Add PostgreSQL acceptance cases for pending and terminal unowned issue rows through both submit and reconcile, asserting that row contents, labels, status, and projection head remain unchanged.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_harden_projection_recovery.sql",
+      "line_range": {
+        "start": 85,
+        "end": 115
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: The current change context states that round-5 findings R5-12 through R5-18 were recorded in the round-5 dispositions, but reviews/implementation/round-5/dispositions.md is zero bytes. Consequently, the durable audit trail contains no finding-by-finding disposition for that round's critical and high recovery claims.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "resolution": "Populate the round-5 disposition ledger with each consensus and out-of-band Pi finding, its accepted/fixed/rejected status, rationale, and exact implementation or validation evidence; otherwise correct the change-context claim.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/change-context.md",
+      "line_range": {
+        "start": 25,
+        "end": 26
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: ESCALATE entry is centralized and idempotent: it records previous_phase and resume metadata and advances total_iterations only when crossing into ESCALATE, while retries refresh recovery metadata without incrementing the generation again.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 514,
+        "end": 533
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Project-state derives its payload from the saved state file, treats structured degraded queue responses as non-authoritative success, and does not mutate LoopState; coordinator-free execution remains isolated through lazy adapter construction.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 497,
+        "end": 522
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Runtime projection requests enforce the same bounded tuple, exact two-label cardinality, and forbidden-extra-field contract represented by the conditional OpenAPI schemas; the Antigravity review command also requests JSON output when dispatching with a JSON schema.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/agent_coordinator/coordination_api.py",
+      "line_range": {
+        "start": 194,
+        "end": 248
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Migration 039 installs an INSERT notification trigger for newly created owned projection rows, closing the first-insert refresh gap; subsequent label and status changes continue through the update trigger and the current-only EventBus/SSE refresh path.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_harden_projection_recovery.sql",
+      "line_range": {
+        "start": 230,
+        "end": 260
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Byte-level comparison of the canonical Autopilot and coordination-bridge payloads against both installed runtime mirrors is clean at exact HEAD, and the installer check now recursively detects missing, extra, or changed portable payload files.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 232,
+        "end": 269
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

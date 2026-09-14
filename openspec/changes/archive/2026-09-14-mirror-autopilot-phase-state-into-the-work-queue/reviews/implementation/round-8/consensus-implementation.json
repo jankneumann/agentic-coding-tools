@@ -1,0 +1,653 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "mirror-autopilot-phase-state-into-the-work-queue",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 13,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi",
+      "success": true,
+      "findings_count": 15,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "observability",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: The requested commit 112b040921a9292c2a57d682a5976dd797a990b5 does not exist in this checkout, while actual HEAD is 112b0409a09a725885fcb40b715b25c0936c74a3. The requested exact-object review therefore cannot be certified; findings 2-12 independently audit the actual checkout HEAD against the specified parent."
+    },
+    {
+      "id": 2,
+      "status": "disagreement",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "pi",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "A console-approved escalate_resume never advances out of ESCALATE, so the human-approved resume path has no canonical writer and the projection keeps publishing the parked generation. `_evaluate_gate` parks escalate_resume via `session.park(..., context=context)` with no `edge` (runner.py:187), and `_cmd_gate_answer` treats a missing edge as 'record the answer and leave the phase where it is' (runner.py:265-270). Only the auto-approved path applies `_apply_transition(state, 'resolved')` (runner.py:170-176, pinned by test_auto_escalate_resume_transitions_and_flushes_before_continue). SKILL.md now forbids hand-editing `current_phase` and names no `transition --outcome resolved` step after `gate-answer --decision approved` (SKILL.md:126-146). Consequence: after the operator approves, `loop-state.json` still says ESCALATE, `project-state --mode submit` replays the ESCALATE tuple (board never shows the resumed phase), `apply-outcome --phase <previous_phase>` fails the phase guard in apply_phase_outcome (exit 2), and any ordinary `transition --outcome <x>` hits ESCALATE's table, is converted to a 'logical transition failure', overwrites escalation_reason and exits 0 while still parked. This breaks the recovery claim that every ESCALATE edge records resume metadata and advances exactly once; the round-5 fix covered only the auto posture. No test covers gate-answer approved for escalate_resume (test_the_printed_request_is_answerable_by_gate_answer uses pr_creation).",
+      "vendor_dispositions": {
+        "claude_code": "fix",
+        "pi": "accept"
+      }
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: Migration 039 uses the UUID ownership registry only when checking an exact-key collision. After ensuring the target, reconcile lines 226-240 cancel every active row with the same input_data.change_id and a different tuple, without a task-type, marker-label, or ownership-registry predicate; lines 243-248 and submit lines 122-129 likewise clear labels based only on mutable payload and the reserved label. An unowned ordinary issue spoofing a noncanonical projection tuple and reserved labels can therefore be cancelled, have its result overwritten, and lose all labels. The round-7 collision test covers only an unowned row at the target tuple, which returns before these mutations. This contradicts design.md lines 70-74 and the claim that registry ownership is the sole mutation authority."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: Migration 039's upgrade seed permanently grants database ownership using only mutable task_type, projection-shaped input_data, and the reserved label. An ordinary keyed issue carrying spoofed projection labels before migration 039 is inserted into work_queue_projection_ownership and subsequently passes the exact-key ownership check, allowing relabeling or terminal reactivation instead of projection_key_collision. IssueService.update and PATCH /issues/{id}/labels permit those labels, while the live spoof regressions insert rows only after all migrations have run. The documented caveat covers ambiguous unlabeled rows but not falsely adopted labeled rows."
+    },
+    {
+      "id": 5,
+      "status": "disagreement",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "pi",
+          "finding_id": 14
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Critical: apply_outcome_or_escalate records the caller-supplied phase as previous_phase after a failed apply-outcome instead of using the authoritative current_phase loaded from loop-state. A stale caller reporting VALIDATE while durable state is IMPLEMENT causes the phase-mismatch guard to fail, after which the wrapper parks ESCALATE with previous_phase=VALIDATE; an approved resume then skips IMPLEMENT. Existing tests cover a matching first failure and an already-ESCALATE retry, not this mismatch path.",
+      "vendor_dispositions": {
+        "codex": "fix",
+        "pi": "accept"
+      }
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: The complete branch diff contains implementation changes outside both work packages' write_allow and lock declarations, including .github/workflows/ci.yml, agent-coordinator/agents.yaml, skills/install.sh, skills/parallel-infrastructure scripts/tests, skills/tests/install_sh, and docs/cross-repo-setup.md. These include material recovery fixes, not only generated architecture artifacts. The package ledger was not revised to authorize or serialize them, despite the validation report claiming work-package scope checks passed."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Degraded projection envelopes hide the coordinator's precise problem reason. For any non-2xx/401/403/404 response the bridge returns `{'status': 'error', 'status_code': N, 'response': <problem json>, 'error': str(HTTPError)}` (coordination_bridge.py:322-328, 508-517), and `_degraded` computes `reason = envelope.get('reason') or envelope.get('error')`, only falling back to `response.detail` when both are None. So `project-state` prints `reason: 'HTTP Error 409: Conflict'` / `'HTTP Error 422: Unprocessable Entity'` instead of `stale_projection`, `projection_generation_mismatch`, `projection_key_collision`, or `invalid_projection_labels`. The design's documented operator recovery for the fail-closed pre-038 case (D9 upgrade caveat, round-7 Claude 6) depends on the operator seeing `projection_key_collision`; with this precedence it is indistinguishable from a stale replay. test_only_exact_reconciliation_required_conflict_advances_head asserts only `status == 'degraded'` with a fake envelope lacking the `error` key, so the real bridge shape is untested. Head advancement itself is unaffected because `_requires_reconciliation` reads `response.detail` directly."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "`install.sh --check` validates only the manifest-listed portable skill directories: `check_install_payload` iterates `${skills[@]}` per agent and diffs each `<dest>/<skill>`. The same installer also mirrors `SHARED_LIBS` (`shared`, install.sh:623 and 880-935), the `references/` library (sync_references_library, 673-698) and `install-manifest.json` into every runtime mirror, and installed skills import from that shared tree (autopilot imports shared.approval_gate/trust_posture; discover_prs loads shared/github_classifier.py per test_consumer_portability). A stale or hand-edited `.claude/skills/shared/*.py` or `references/*` therefore passes `--check` green, so the round-5/7 claim of byte-level installed-payload validation across both runtime mirrors and the CI gate added in ci.yml:105 are narrower than stated. I verified locally that autopilot, coordination-bridge and shared mirrors currently match canonical in this worktree (diff -qr clean), so this is a gate gap rather than present drift."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The successful in-process apply_outcome_or_escalate path returns immediately when the writer exits zero and never invokes its supplied queue_projection_fn. The canonical write matrix requires apply-outcome to submit an unchanged-generation replay, and the failure branch does project. A process ending after successful bookkeeping but before the following transition therefore misses the specified repair opportunity."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: JSON-schema Antigravity reviews still fail protocol ingestion. The configuration now requests JSON output, but _extract_findings unwraps only a direct findings object or Grok's structuredOutput field. The real Antigravity envelope stores the schema-valid review as JSON text in response; round-7 review-manifest.json lines 8-17 records status SUCCESS as Invalid JSON output, requiring manual out-of-band recovery."
+    },
+    {
+      "id": 11,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Nit: Runtime request models and the authored OpenAPI still expose different projection-label constraints. OpenAPI defines an ordered tuple whose first item has maxLength 135 and whose second item is a fixed constant, while WorkSubmitRequest and WorkReconcileRequest use one homogeneous maxLength-160 item type for both positions. Consequently runtime model validation accepts first-label lengths 136-160 and arbitrary second labels; only the later service check rejects them. The regression tests only length 161 and therefore does not exercise the mismatch."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: docs/guides/work-queue-truth-projection.md:143-145 still tells operators that completed/failed/cancelled current projection rows are already satisfied, but migration 039 reactivates owned terminal rows to pending and emits projection.labels_changed (039:130-141 submit, 250-261 reconcile). The live SSE regression test_terminal_reactivation_refreshes_connected_sse proves the board refreshes to pending. The operator guide therefore documents the pre-recovery semantics and can cause false confidence that same-generation reconcile is a no-op against a closed current row."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: docs/cross-repo-setup.md:31-35 says that after syncing skills into a consumer --target, operators should verify installed runtime mirrors, but the shown command is `bash skills/install.sh --check` with no --target. install.sh defaults TARGET_ROOT to the source git toplevel (install.sh:53-55), so the check validates the donor checkout mirrors rather than the consumer payload just installed. Round 7 reframed this prose as post-sync consumer verification without wiring --target through."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "`runner.py transition` is an idempotent no-op once `current_phase == 'DONE'` (runner.py:419, round-7 Claude 3), but the sibling durable writer `runner.py escalate` has no terminal guard. A stray host `escalate` after DONE calls `enter_escalate`, which sets previous_phase=DONE, current_phase=ESCALATE and bumps total_iterations, and the mandated `project-state --mode submit` then advances the projection head to an ESCALATE generation for a completed change (the DONE row is cancelled by reconcile). A later `resolved` edge resolves `_previous_phase` to DONE and re-runs the goal gate via `_check_done_evidence`. The DONE-idempotence claim therefore holds for only one of the two host-facing writers."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "`enter_escalate` guards the phase change and sequence increment when already in ESCALATE but unconditionally overwrites `escalation_reason` and `phase_started_at`. `apply_outcome_or_escalate` deliberately preserves the original reason on retry (autopilot.py:670-681), so the two ESCALATE writers have different retry semantics. Through `runner.py escalate` retries and, more importantly, the `_cmd_transition` ValueError branch (any unsupported outcome issued while parked), the durable root cause such as 'goal gate refused: <reason>' is replaced by 'logical transition failure: Invalid outcome ... for phase ESCALATE' while the run stays parked and exits 0. The original text survives only indirectly (goal_gate.reason or a phase_history note), which weakens the operator-facing resume prompt that SKILL.md renders from escalation_reason."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The runtime/OpenAPI bound test pins only the per-item `max_length` of `projection_labels` (161-char item rejected). The list-level `min_length=2, max_length=2` declared on the `list[ProjectionLabel] | None` fields (coordination_api.py:224-226, 242-244) is not exercised by any request-model or endpoint test, and the OpenAPI `prefixItems` pattern/const are enforced only by the service layer's exact-pair check (`_projection_labels_are_valid`). Behaviour is still fail-closed because the service returns `invalid_projection_labels` (422) for any non-exact pair, so this is a coverage gap, not a defect."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The dispatched prompt names exact HEAD `112b040921a9292c2a57d682a5976dd797a990b5`, which does not exist in this repository (`git cat-file -t` fails). The checked-out HEAD is `112b0409a09a725885fcb40b715b25c0936c74a3` ('docs(validation): record ri-09 recovery gates'); only the 8-character prefix matches, so the full SHA in the audit ledger is mistyped. The parent SHA `2b755a5d\u2026` resolves and equals the merge base. This review was performed against the actual HEAD. Review sandbox limitation: pytest, the live PostgreSQL stack and podman were not executable under this session's permissions, so all verification is static code/migration analysis plus local mirror diffs; the validation report's live-test evidence was not independently re-run."
+    },
+    {
+      "id": 18,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 5
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive verification of the round-6/7 ownership claims. Ownership is consulted only via `work_queue_projection_ownership` (EXISTS at 039:100-102 and 202-204), seeded once from labelled rows (039:11-17); neither `input_data` markers nor labels confer ownership at runtime. The collision check runs before the head insert (`v_head_missing` deferred to 039:118-121) and, in reconcile, before the head upsert and the cancel CTE (039:200-224), so an unowned collision has no transaction effect (live tests test_submit_collision_with_nonissue_is_fail_closed, test_owned_projection_cannot_take_over_unowned_issue_key assert head and row untouched). Reactivation resets only cancelled/completed/failed rows (039:130-134) and emits projection.labels_changed (039:136-142); claimed/running rows keep lifecycle state. Legacy `p_projection_labels IS NULL` paths are equivalent to migration 035 apart from head-insert ordering, and ordinary IssueService rows (input_data is `{body}` or NULL, issue_service.py:270-272) can never match the tuple predicates used by the cancel, relabel or ownership statements, so ordinary change-labelled issues cannot be mutated."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive verification of the API contract claims. `projection_key_collision` is in `_PROJECTION_CONFLICTS` (409) and `invalid_projection_labels` in `_PROJECTION_INVALID` (422); a success result without task_id raises `canonical_task_id_missing` (422). Request models forbid extra fields and bound `projection_labels` items to 160 chars, matching the OpenAPI `additionalProperties: false`, ordered `prefixItems`, conditional `if projection_labels then projection_key+task_type=issue` block, and typed Problem401/403/409/422 responses (work-queue.yaml:88-192); the problem handlers emit exactly the four required Problem keys. The bridge decodes `application/problem+json` bodies with `json.loads` regardless of content type (coordination_bridge.py:269-278), so `_requires_reconciliation` sees `response.detail == 'reconciliation_required'` and head advancement works end to end. agents.yaml:275 now passes `--output-format json` before `--json-schema`, pinned by test_repo_antigravity_schema_review_uses_json_output_mode."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive verification of visibility, isolation and mirror claims. SSE converts `projection.labels_changed` (emitted by the 037 UPDATE trigger with OLD-label fallback and the 039 AFTER INSERT trigger) into a coalesced fresh snapshot, clearing the pending flag before the query and after the backpressure drain so a burst of up to 100 label repairs yields one bounded refresh with one follow-up. `_build_snapshot` reads `list_issues(labels=[change:<id>])`, which now excludes cancelled rows implicitly while `status='all'` retains them (issue_service.py:319-322); ordinary issue closure writes `completed`, never `cancelled`, so no ordinary board rows disappear. `claim_task` excludes `task_type='issue'` for unfiltered claims (037:25). `queue_projection` is imported only inside `_cmd_project_state`, autopilot.py never imports it, `_GateSession` in runner leaves the callback unset, and the coordinator-free run test fails fast on any transport call. `.claude/skills` and `.agents/skills` are untracked and `diff -qr` of autopilot, coordination-bridge and shared against canonical is clean; ci.yml:105 materialises both mirrors before `--check`. Architecture provenance `generated_at` 2026-09-14T09:12:19Z equals the source commit b98f1435 timestamp and was committed in c8f8e37e, so the deterministic artifacts are fresh for the code state."
+    },
+    {
+      "id": 21,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 9,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 8
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Direct transition-table edges to ESCALATE route through enter_escalate, which records previous_phase and escalation_reason and increments total_iterations only when entering ESCALATE. Goal-gate refusal is durably parked for host projection, DONE transition replay is a no-op, and runner init persists force/review flags."
+    },
+    {
+      "id": 22,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Queue projection remains one-way and observability-only. QueueProjectionAdapter derives its key exclusively from LoopState and returns only bounded status/reason/task_id data, while runner project-state loads the durable file, performs the lazy coordinated-only import, and returns zero for structured degradation without writing loop-state."
+    },
+    {
+      "id": 23,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 11,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 13
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "correctness",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Current committed live evidence covers three generations, idempotent replay, stale rejection and cancellation, issue claim exclusion, a board window containing more than 50 ordinary issues, connected real EventBus/SSE refresh for reconciliation and first insert, terminal reactivation refresh, file-derived read-only resume, and the FastAPI-to-service-to-PostgreSQL-to-board path."
+    },
+    {
+      "id": 24,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Implicit label-filtered issue reads exclude cancelled rows while explicit status=all remains available; projection_key_collision maps to HTTP 409; CI materializes both ignored runtime mirrors before install.sh --check; both installed Autopilot and coordination-bridge mirrors are byte-identical to their canonical payloads; and architecture provenance names the current implementation revision b98f1435 with passed validation."
+    },
+    {
+      "id": 25,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Migration 039's one-time ownership seed still adopts issue rows by complete projection identity plus the mutable projection:autopilot-phase label (039:10-17). Post-seed runtime ownership is registry-only (039:100-111, 202-213) and live spoofed payload+label collisions fail closed (test_autopilot_projection_acceptance_postgres.py:380-423). A pre-upgrade spoof that already carried the reserved label at the exact tuple can still be canonized during migration; design.md:74 documents the adjacent unlabeled fail-closed upgrade caveat and treats label-seeded adoption as the intentional 037/038 backfill."
+    },
+    {
+      "id": 26,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Same-generation replay preserves nonterminal claimed/running lifecycle while reactivating only cancelled/completed/failed owned rows and notifying SSE clients (039:130-141, 250-261); pinned by test_owned_same_generation_replay_preserves_nonterminal_status, test_owned_same_generation_request_reactivates_terminal_canonical_issue, and test_terminal_reactivation_refreshes_connected_sse."
+    },
+    {
+      "id": 27,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: runner.py transition is an idempotent no-op on DONE (runner.py:419-420) with byte-identical state proven by test_runner_cli.py:212-223; init persists --force/--val-review/--no-review on first creation and leaves an existing file untouched (runner.py:388-398, 545-547; test_runner_cli.py:358-374)."
+    },
+    {
+      "id": 28,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Structured degraded projection cannot halt authoritative work: project-state always exits 0 after printing the envelope (runner.py:525-528), QueueProjectionAdapter returns only status/reason/task_id and never mutates LoopState (queue_projection.py:52-100), and only status=error/409/detail=reconciliation_required advances to reconcile (queue_projection.py:102-112)."
+    },
+    {
+      "id": 29,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Projection labels and stale owned-label cleanup run inside the per-change advisory transaction for concurrent N/N+1 publishers (039:73-79, 122-129, 181-187, 242-249). Legacy unkeyed submit remains intact and rejects labels (039:38-47); ordinary change-labelled issues are outside owned-label predicates; cancelled rows stay hidden from implicit label-filtered issue reads (issue_service.py:319-322)."
+    },
+    {
+      "id": 30,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: CI materializes both runtime mirrors before install.sh --check (.github/workflows/ci.yml:103-106), the ordering is regression-pinned (test_consumer_portability.py:64-71), and check_install_payload performs byte-level diff -qr across .claude and .agents mirrors (install.sh:232-268). Antigravity review dispatch pairs --output-format json with --json-schema (agents.yaml:275). projection_key_collision maps to HTTP 409 (coordination_api.py:96-126; test_autopilot_projection_visibility.py:260-273)."
+    },
+    {
+      "id": 31,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Coordinator-free tiers remain isolated: runner.py imports queue_projection only inside project-state (runner.py:508-509), autopilot/runner have no top-level projection import (test_phase_projection_isolation.py:12-27), and a coordinator-free run_loop with queue_projection_fn=None cannot call projection transport helpers (test_phase_projection_isolation.py:47-86)."
+    },
+    {
+      "id": 32,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Migration 037 correctly adds task_type <> 'issue' predicate to claim_task and emits projection.labels_changed events with NEW/OLD label fallback for change-id derivation. Verified in agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql lines 12-15 and 34-56."
+    },
+    {
+      "id": 33,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Migration 038 atomically maintains projection labels inside per-change advisory lock: submits/reconciles with exact projection_labels, cancels stale active rows, clears owned labels from non-canonical rows, and excludes cancelled rows from implicit issue-list reads. Verified in agent-coordinator/database/migrations/038_atomic_projection_labels.sql lines 56-137."
+    },
+    {
+      "id": 34,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "QueueProjectionAdapter derives exact projection_key from LoopState (change_id, current_phase, total_iterations), routes submit\u2192reconcile only on reconciliation_required detail, validates stricter change_id grammar before transport, returns degraded status for all non-ok envelopes without mutating loop-state. Verified in skills/autopilot/scripts/queue_projection.py lines 30-100."
+    },
+    {
+      "id": 35,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "coordination_bridge try_submit_work and try_reconcile_work_projection validate projection_key, projection_labels, and reserved keys before HTTP call; return structured failed envelopes for invalid payloads; reuse single capability snapshot across calls. Verified in skills/coordination-bridge/scripts/coordination_bridge.py lines 400-550."
+    },
+    {
+      "id": 36,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "WorkQueueService submit and reconcile_projection enforce projection label validation, guardrails, and policy checks before RPC; ProjectionKey.parse validates change_id pattern, phase enum, and sequence bounds; _projection_labels_are_valid enforces exact canonical pair. Verified in agent-coordinator/src/work_queue.py lines 100-250."
+    },
+    {
+      "id": 37,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "event_stream sse_event_generator emits initial snapshot and coalesces projection.labels_changed into single snapshot refresh; _build_snapshot queries IssueService.list_issues per change_id which implicitly excludes cancelled rows (status filter pending/claimed/running/completed/failed/blocked); backpressure drain preserves later projection refresh. Verified in agent-coordinator/src/event_stream.py lines 100-250."
+    },
+    {
+      "id": 38,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "coordination_api /work/submit and /work/reconcile endpoints map service results to RFC 7807 problem responses: 403 for policy/forbidden, 409 for conflicts (stale_projection, projection_generation_mismatch, reconciliation_required, projection_key_collision), 422 for invalid requests; _projection_mutation_payload enforces canonical_task_id presence. Verified in agent-coordinator/src/coordination_api.py lines 100-250."
+    },
+    {
+      "id": 39,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "OpenAPI work-queue.yaml declares ProjectionKey with exact pattern/enum/bounds, ProjectionMutationResult, and Problem responses 401/403/409/422; projection_labels constrained to ordered canonical pair with minItems=maxItems=2, prefixItems pattern matching change:<id> and const projection:autopilot-phase; conditional requirement projection_key+task_type=issue when projection_labels present. Verified in openspec/contracts/agent-coordinator/openapi/work-queue.yaml lines 70-180."
+    },
+    {
+      "id": 40,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Live PostgreSQL acceptance tests cover three generations with head advancement, idempotent replay, stale rejection, reconciliation cancellation, >50 ordinary issues with priority-1 projection in first label-query page, connected SSE refresh on first insert and reconciliation, terminal reactivation with SSE notification, collision fail-closed for non-issue and unowned issue rows, same-generation replay preserving claimed/running rows. Verified in agent-coordinator/tests/integration/postgres/test_autopilot_projection_acceptance_postgres.py lines 1-300."
+    },
+    {
+      "id": 41,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "CI test-infra-skills job materializes runtime mirrors via install.sh --mode copy --force before running install.sh --check for byte-level parity validation; diff excludes tests/__pycache__/node_modules. Verified in .github/workflows/ci.yml lines 180-210 and skills/install.sh lines 100-140."
+    },
+    {
+      "id": 42,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Autopilot enter_escalate increments total_iterations exactly once per ESCALATE entry; runner.py transition and escalate commands durably persist ESCALATE generation; auto escalate_resume (gate-answer for ESCALATE_RESUME approved) applies resolved edge and flushes before exit 3; exits 1/2 suppress projection. Verified in skills/autopilot/scripts/autopilot.py lines 350-380 and skills/autopilot/scripts/runner.py lines 300-350."
+    },
+    {
+      "id": 43,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 15,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Migration 038/039 preserve legacy non-projection submit/reconcile behavior: ordinary rows without projection_labels bypass all label logic; claim_task excludes task_type='issue' rows; work_queue_projection_ownership only seeded from rows with projection:autopilot-phase label; ambiguous pre-038 unlabeled rows fail closed with documented operator recovery (repair ownership or advance generation). Verified in migrations and round-7 dispositions."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 43,
+    "confirmed_count": 4,
+    "unconfirmed_count": 37,
+    "disagreement_count": 2,
+    "blocking_count": 0,
+    "advisory_count": 43
+  }
+}

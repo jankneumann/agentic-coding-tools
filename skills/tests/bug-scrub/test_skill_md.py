@@ -30,3 +30,9 @@ def test_related_resolve():
 
 def test_tail_block_present():
     assert_tail_block_present(SKILL_DIR)
+
+
+def test_candidate_work_sidecar_is_documented():
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    assert "--candidate-work-output" in text
+    assert "bug-scrub-candidate-work.json" in text

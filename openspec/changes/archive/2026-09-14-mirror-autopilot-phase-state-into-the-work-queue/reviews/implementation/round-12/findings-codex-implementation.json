@@ -1,0 +1,109 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: The elevated projection authorization can be bypassed through ordinary issue mutation endpoints. `/issues/update` and `/issues/close` verify an API key but never authorize `publish_work_projection` or reject UUIDs present in `work_queue_projection_ownership` (`agent-coordinator/src/coordination_api.py:1421-1477`). `IssueService.update` and `IssueService.close` consequently write labels, status, priority, description, and lifecycle fields for any supplied work-queue UUID without checking registry ownership (`agent-coordinator/src/issue_service.py:390-497`). A trust-level-2 caller can discover the canonical UUID through `/issues/list`, remove its projection labels, falsify its title or status, or close it despite being forbidden from publishing projections through `/work/submit` and `/work/reconcile`. This also defeats the documented claim that coordinator-only projection helpers bound authoritative projection mutation.",
+      "resolution": "Make registry-owned rows immutable through ordinary issue update and close paths, enforced transactionally at the database mutation boundary. If administrative mutation is required, expose a separate operation that authorizes `publish_work_projection` against the row's exact payload change ID. Add HTTP regressions proving trust-level-2 callers cannot update or close an owned projection row.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1421,
+        "end": 1477
+      },
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Allowing the reserved label pair as merely cosmetic permits persistent projection spoofing and denial of repair. `IssueService.create` inserts arbitrary labels directly into `work_queue` without ownership registration (`agent-coordinator/src/issue_service.py:235-286`); the migration-039 insert trigger emits `projection.labels_changed` for every row carrying the marker without checking `work_queue_projection_ownership` (`agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql:338-358`); and the board query selects by task type and labels without an ownership join (`agent-coordinator/src/issue_service.py:314-340`). The same unowned cosmetic row is then detected by both labelled projection preflights and blocks all later repair (`039_projection_integrity_and_insert_events.sql:98-112,226-240`). A rollback-only live PostgreSQL probe at exact HEAD created a legitimate canonical row, inserted one ordinary issue with the exact label pair, observed two board-visible rows, and then observed N+1 reconcile return `projection_key_collision` while the head remained at INIT/0. Thus an ordinary caller can forge visible projection state and indefinitely wedge a change until administrator intervention.",
+      "resolution": "Do not treat an unowned cosmetic label as authoritative projection visibility. Either reserve the exact projection marker pair by rejecting it on ordinary issue create/update, or introduce database-owned ordinary/projection classification so SSE and board reads require ownership while only explicitly quarantined pre-039 rows block upgrade repair. Add live HTTP/PostgreSQL tests for post-migration ordinary-label creation, unique board visibility, SSE isolation, and successful subsequent projection advancement.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 338,
+        "end": 358
+      },
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: The direct HTTP projection paths now perform the required pre-service authorization: submit requests carrying `projection_key` and every reconcile request select `publish_work_projection`, use the exact requested change ID as the resource, and include the same change ID plus mode in policy audit context (`agent-coordinator/src/coordination_api.py:1196-1279`). Native policy classifies the operation as trust-level-3 administrative work, and synchronized profiles grant it only at trust level 3.",
+      "resolution": "Retain these exact operation, resource, context, and ordering guarantees while closing the ordinary-issue mutation bypass.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1196,
+        "end": 1279
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Both labelled migration-039 functions acquire the per-change advisory transaction lock and scan for an associated unowned reserved-labelled row before reading or mutating the projection head or inserting, cancelling, relabelling, or reactivating rows (`agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql:97-126,225-247`). The fresh-upgrade regression models a migration-038 generation N row, proves N+1 reconcile preserves the row and N head with `projection_key_collision`, and proves explicit administrator registration permits convergence. The focused live upgrade and ownership suite was independently rerun at exact HEAD: 4 tests passed.",
+      "resolution": "Retain the lock-before-preflight ordering and explicit administrator-registration upgrade rule.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 97,
+        "end": 126
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: `WorkQueueService.reconcile_projection` resolves trust and completes the guardrail scan before constructing or invoking the mutating RPC, explicitly re-raises `TrustResolutionError`, and leaves only unrelated guardrail failures in the best-effort exception branch (`agent-coordinator/src/work_queue.py:925-978`). The focused coordinator suite, including behavioral and structural fail-closed regressions, was independently rerun at exact HEAD: 176 tests passed.",
+      "resolution": "Retain the typed re-raise immediately before the generic exception handler and the assertion that the reconciliation RPC remains untouched.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 925,
+        "end": 978
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Review dispatch, `--check-vendors`, and `--list-agents` all call `_orchestrator_for_dispatch` with the reviewed `--cwd`. Its precedence is explicit configuration, reviewed-checkout-local `agent-coordinator/agents.yaml`, coordinator roster, then global disk fallback, and the fallback condition checks both CLI and SDK adapter maps so SDK-only coordinator rosters remain authoritative (`skills/parallel-infrastructure/scripts/review_dispatcher.py:2520-2591,2662-2677,2723-2745`). The exact resolver suites were independently rerun at HEAD: 110 tests passed.",
+      "resolution": "Retain this single resolver and ensure future dispatch entry points pass the reviewed checkout rather than process cwd.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2575,
+        "end": 2591
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

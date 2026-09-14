@@ -1,0 +1,103 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Retained Validation Fix 2 ZAP artifacts remain integrity-checked against execution.json: zap.stdout.log and zap-report.json SHA-256 digests match the recorded stdout_sha256/json_report_sha256 values exactly, and gate.json reports decision=PASS with fail_on=high and triggered_count=0. Post-scan product diffs through 0106b8fa are typing/ProjectionKey narrowing plus bootstrap/migration ledger work; dependency manifests are unchanged, so reused DAST still covers the Validation 5 product HTTP surface.",
+      "resolution": "No action. Keep the retained validation-fix-2 ZAP bundle as the auditable Security-phase evidence for Validation 5.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/execution.json",
+      "line_range": {
+        "start": 27,
+        "end": 28
+      },
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Raw-bootstrap ledger helper 999_record_schema_migrations.sh validates migration filenames before SQL interpolation, hashes with sha256sum values that match Python migrations._checksum on all 38 SQL files, writes schema_migrations inside one ON_ERROR_STOP transaction, and is ordered after every *.sql file for docker-entrypoint-initdb.d and the remediated test-integration CI loop. Fresh exact-head claims (38/38 ledger, ensure_schema []/[], overload cleanup) align with the 0106b8fa product tree and green test-integration evidence.",
+      "resolution": "No action. Bootstrap ledger behavior and tests adequately pin the VAL_FIX remediation Validation 5 reuses.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "agent-coordinator/database/migrations/999_record_schema_migrations.sh",
+      "line_range": {
+        "start": 30,
+        "end": 49
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Migration 035 idempotently drops only the obsolete five-argument coordinator_notify(TEXT,TEXT,TEXT,TEXT,TEXT) overload before taking SHARE ROW EXCLUSIVE on work_queue and creating projection heads/indexes with IF NOT EXISTS, which closes the raw-bootstrap replay ambiguity that broke lifecycle E2E and remains present at exact product HEAD 0106b8fa.",
+      "resolution": "No action. Overload cleanup plus locking semantics are correctly scoped for bootstrap/replay resilience.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "agent-coordinator/database/migrations/035_work_queue_projection.sql",
+      "line_range": {
+        "start": 11,
+        "end": 13
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: GitHub check-runs at exact product commit 0106b8fab44c6c7e61eb0c045205afb2779fb764 show 15 SUCCESS conclusions (including test, test-integration, coverage-ratchet, validate-specs, docker-smoke-import, requirement-traceability-sweep, and context gates) with dependency-update-remediation SKIPPED, matching the Validation 5 CI claim. Evidence head be1bada1 changes only OpenSpec validation artifacts, so the product tree Validation 5 attested remains identical.",
+      "resolution": "No action. Exact-head CI attestation remains valid for the Validation 5 product tree.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+      "line_range": {
+        "start": 198,
+        "end": 207
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Package Evidence \"pass with warning\" and Architecture \"DEGRADED (advisory)\" are honestly scoped and non-blocking: missing per-package work-result JSON is explicitly residual while schema/DAG/overlap/context gates and CI/live coverage substitute; architecture remains degraded only for the pre-existing source-root refresh configuration with architecture_gate_mode advisory and no degraded-phase override of the Validation 5 PASS.",
+      "resolution": "Accept as documented residual advisories; no Validation 5 PASS invalidation.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+      "line_range": {
+        "start": 192,
+        "end": 213
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "FYI: architecture-impact.md header still labels Validated commit 59fdb05f while the Canonical Validation 5 Audit section correctly cites 0106b8fa / tree 04610c62. This header drift does not contradict the advisory DEGRADED conclusion or invalidate PASS, but future readers should trust the Validation 5 Audit subsection over the stale header.",
+      "resolution": "Optional follow-up: refresh the document header validated-commit field to 0106b8fa when touching architecture-impact.md again.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md",
+      "line_range": {
+        "start": 3,
+        "end": 20
+      },
+      "axis": "observability",
+      "severity": "fyi"
+    }
+  ]
+}

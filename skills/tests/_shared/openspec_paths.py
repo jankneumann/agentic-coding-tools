@@ -44,6 +44,14 @@ def change_dir(repo_root: Path, change_id: str) -> Path:
     date-stamped, hence the glob; sorting puts the latest date last, which
     matters only in the rare case of an id archived more than once.
 
+    The date portion is matched as exactly `????-??-??` rather than `*`. A bare
+    `*` also matches a longer id that merely *ends* with the one asked for:
+    looking up `add-decision-choices-ledger` matched
+    `2026-09-11-followup-add-decision-choices-ledger`, and because sorting
+    takes the latest date, the follow-up shadowed its own parent. The
+    `followup-<parent-id>` convention makes that collision systematic rather
+    than rare — every follow-up archived after its parent would shadow it.
+
     When neither exists the *active* path is returned rather than raising, so
     the caller's own assertion reports the path a contributor would look for
     first instead of an opaque lookup error from in here.
@@ -52,7 +60,7 @@ def change_dir(repo_root: Path, change_id: str) -> Path:
     active = changes / change_id
     if active.is_dir():
         return active
-    archived = sorted(changes.glob(f"archive/*-{change_id}"))
+    archived = sorted(changes.glob(f"archive/????-??-??-{change_id}"))
     if archived:
         return archived[-1]
     return active

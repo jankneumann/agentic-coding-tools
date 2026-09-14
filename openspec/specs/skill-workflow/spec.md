@@ -1769,22 +1769,30 @@ Every skill selected by `skills/install.sh` SHALL function from the installed co
 
 ### Requirement: Review Dispatcher Protocol
 
-The system SHALL provide a `ReviewDispatcher` that can invoke review skills on different AI vendor CLIs (Claude Code, Codex, antigravity, grok, pi).
+The system SHALL provide a `ReviewDispatcher` that can invoke review skills on
+different AI vendor CLIs (Claude Code, Codex, antigravity, grok, pi). Parsed
+stdout SHALL be coerced, schema-validated, and optionally repair-retried
+before it is written as a findings file.
 
 #### Scenario: Dispatch review to Codex
 
-- GIVEN a completed implementation package
-- WHEN the orchestrator dispatches a review to Codex
-- THEN the Codex CLI is invoked with the review skill prompt and artifact paths
-- AND a structured findings JSON file is produced at the expected output path
+- **GIVEN** a completed implementation package
+- **WHEN** the orchestrator dispatches a review to Codex
+- **THEN** the Codex CLI is invoked with the schema-derived review skill prompt
+  and artifact paths
+- **AND** a structured findings JSON file is produced at the expected output
+  path if Codex returns a valid (after coercion/repair) document
 
 #### Scenario: Dispatch review to grok
 
-- GIVEN a completed implementation package
-- WHEN the orchestrator dispatches a review to grok
-- THEN the grok CLI is invoked with the review skill prompt and artifact paths
-- AND the invocation SHALL use `--output-format json` so the result is a structured envelope rather than scraped stdout
-- AND a structured findings JSON file is produced at the expected output path
+- **GIVEN** a completed implementation package
+- **WHEN** the orchestrator dispatches a review to grok
+- **THEN** the grok CLI is invoked with the review skill prompt and artifact
+  paths
+- **AND** the invocation SHALL use `--output-format json` so the result is a
+  structured envelope rather than scraped stdout
+- **AND** a structured findings JSON file is produced at the expected output
+  path
 
 ### Requirement: Reviewer Discovery via Coordinator
 
@@ -1820,14 +1828,27 @@ The `ReviewDispatcher` SHALL dispatch reviews to at least one vendor different f
 
 ### Requirement: Parallel Review Dispatch
 
-The `ReviewDispatcher` SHALL execute vendor reviews in parallel (concurrent subprocess invocation).
+The `ReviewDispatcher` SHALL execute vendor reviews in parallel (concurrent
+subprocess invocation). Wall-clock time for a round SHALL be dominated by
+the slowest vendor, not the sum of vendors. Async submit+poll vendors SHALL
+be submitted concurrently, then polled. Review cwd SHALL be read-only; if a
+vendor CLI fails because of concurrent git access, the dispatcher SHALL
+retry that vendor on a detached snapshot worktree.
 
 #### Scenario: Parallel dispatch to multiple vendors
 
-- GIVEN Codex and grok are both available
-- WHEN the dispatcher dispatches reviews
-- THEN both vendor subprocesses are started concurrently
-- AND results are collected as each completes
+- **GIVEN** Codex and grok are both available
+- **WHEN** the dispatcher dispatches reviews
+- **THEN** both vendor subprocesses are started concurrently
+- **AND** results are collected as each completes
+- **AND** a test with two 2-second stub processes SHALL finish in under 3
+  seconds
+
+#### Scenario: Sequential dispatch is a bug
+
+- **GIVEN** two stub vendors that each sleep 2 seconds
+- **WHEN** `dispatch_and_wait` runs
+- **THEN** elapsed time SHALL be less than 4 seconds
 
 ### Requirement: Config-Driven Generic Adapter
 
@@ -1842,14 +1863,20 @@ A single `CliVendorAdapter` class SHALL handle all vendors, parameterized by CLI
 
 ### Requirement: Vendor Timeout Enforcement
 
-The `ReviewDispatcher` SHALL enforce a configurable per-vendor timeout (default: 300 seconds) and terminate timed-out processes.
+The `ReviewDispatcher` SHALL enforce a configurable **per-vendor** timeout from
+the dispatch-timeout budget table (default table values replace the previous
+global 300-second default) and terminate timed-out processes. The result SHALL
+be marked timed out with an error message and `error_class=transient`. A timed
+out vendor SHALL NOT be treated as a successful review.
 
 #### Scenario: Vendor times out
 
-- GIVEN a vendor review is dispatched with a 300-second timeout
-- WHEN the vendor process exceeds the timeout
-- THEN the process is terminated
-- AND the result is marked as timed out with an error message
+- **GIVEN** a vendor review is dispatched with that vendor's budget (or an
+  override)
+- **WHEN** the vendor process exceeds the timeout
+- **THEN** the process is terminated
+- **AND** the result is marked as timed out with an error message
+- **AND** `success` is false
 
 ### Requirement: Consensus Synthesizer
 
@@ -1894,14 +1921,18 @@ A finding reported by only one vendor SHALL be classified as `unconfirmed` in th
 
 ### Requirement: Disagreement Classification
 
-When vendors disagree on disposition (e.g., `fix` vs `accept`), the finding SHALL be classified as `disagreement` and escalated.
+When vendors disagree on disposition (e.g., `fix` vs `accept`), the finding
+SHALL be classified as `disagreement` in the consensus report and **parked**
+on the ledger. Parking SHALL NOT abort the convergence loop.
 
 #### Scenario: Vendors disagree on disposition
 
-- GIVEN Codex says disposition=`fix` and grok says disposition=`accept` for matched findings
-- WHEN consensus is computed
-- THEN the finding status is `disagreement`
-- AND the recommended disposition is `escalate`
+- **GIVEN** Codex says disposition=`fix` and grok says disposition=`accept`
+  for matched findings
+- **WHEN** consensus is computed
+- **THEN** the finding status is `disagreement`
+- **AND** the recommended disposition is `escalate`
+- **AND** the ledger item status is `parked`
 
 ### Requirement: Consensus Report Schema Conformance
 
@@ -1935,13 +1966,25 @@ The integration gate SHALL use consensus findings: `confirmed` findings with dis
 
 ### Requirement: Disagreement Findings Escalate
 
-`Disagreement` findings SHALL trigger escalation (BLOCKED_ESCALATE).
+`Disagreement` findings SHALL be parked for human review. At SUBMIT_PR, if
+parked items remain, the merge-authorization path MAY surface them as
+`BLOCKED_ESCALATE`. Mid-loop `converge()` SHALL NOT stop solely because a
+disagreement exists.
+
+#### Scenario: Disagreement finding is parked not a loop abort
+
+- **GIVEN** a consensus report with a disagreement finding and no blocking
+  items
+- **WHEN** the convergence exit condition is checked
+- **THEN** the loop SHALL return converged with parked leftovers
+- **AND** `parked-disagreements.json` SHALL contain the finding
 
 #### Scenario: Disagreement finding escalates
 
-- GIVEN a consensus report with a disagreement finding
-- WHEN the integration gate checks
-- THEN the gate returns BLOCKED_ESCALATE
+- **GIVEN** a consensus report with a disagreement finding
+- **WHEN** the integration gate checks at SUBMIT_PR
+- **THEN** the gate MAY return BLOCKED_ESCALATE for parked leftovers
+- **AND** mid-loop `converge()` SHALL NOT abort solely because a disagreement exists
 
 ### Requirement: Quorum Reporting
 
@@ -1966,15 +2009,19 @@ If no secondary vendors are available, the system SHALL proceed with single-vend
 
 ### Requirement: Vendor Failure Resilience
 
-If a vendor fails (timeout, invalid output, crash), the system SHALL skip that vendor's findings and proceed with available results.
+If a vendor fails (timeout, invalid output after repair, crash, blinded-empty,
+classified AUTH/UNAVAILABLE/CAPACITY), the system SHALL skip that vendor's
+findings and proceed with available **valid** results. A failed vendor SHALL
+not be recorded as a successful empty review.
 
 #### Scenario: One vendor fails
 
-- GIVEN Codex and grok are dispatched
-- AND Codex times out
-- WHEN results are collected
-- THEN grok's findings are used alone
-- AND the consensus report notes Codex's failure
+- **GIVEN** Codex and grok are dispatched
+- **AND** Codex times out
+- **WHEN** results are collected
+- **THEN** grok's findings are used
+- **AND** the consensus report notes Codex's failure
+- **AND** Codex does not contribute `findings: []` as a successful vote
 
 ### Requirement: Total Failure Warning
 
@@ -2163,7 +2210,22 @@ The system SHALL provide an `/autopilot` skill that orchestrates the full plan-r
 
 ### Requirement: State Machine Phases
 
-The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW (optional), VAL_FIX, SUBMIT_PR, DONE, ESCALATE. The state machine SHALL persist its state to `loop-state.json` after every state transition, enabling resumability.
+The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX,
+IMPLEMENT, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW (optional), VAL_FIX,
+SUBMIT_PR, DONE, ESCALATE. PLAN_FIX and IMPL_FIX SHALL be recorded as
+fix-steps of the surrounding review phase (observability in `phase_history`)
+and SHALL NOT re-enter PLAN_REVIEW or IMPL_REVIEW as a cold multi-vendor
+review of the whole artifact. The state machine SHALL persist its state to
+`loop-state.json` after every state transition, enabling resumability.
+
+#### Scenario: Plan review with fixes stays in one engine
+
+- **GIVEN** a feature where plan review finds blocking issues
+- **WHEN** the loop processes plan review
+- **THEN** `converge()` SHALL apply fixes via `fix_callback` and re-review
+  as compact+delta inside the same PLAN_REVIEW phase
+- **AND** the outer machine SHALL NOT bounce PLAN_REVIEW → PLAN_FIX →
+  PLAN_REVIEW as a second engine
 
 #### Scenario: Normal phase progression (simple feature)
 
@@ -2175,13 +2237,8 @@ The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLE
 
 - **GIVEN** a feature where plan review finds medium-severity issues
 - **WHEN** the loop processes plan review
-- **THEN** phases SHALL progress: PLAN_REVIEW -> PLAN_FIX -> PLAN_REVIEW (re-review)
-
-#### Scenario: Resume after interruption
-
-- **GIVEN** the loop was interrupted during IMPL_REVIEW phase at iteration 2
-- **WHEN** the loop is re-invoked with the same change-id
-- **THEN** the system SHALL load state from `loop-state.json` and resume from IMPL_REVIEW iteration 2
+- **THEN** `converge()` SHALL apply fixes via `fix_callback` inside PLAN_REVIEW
+- **AND** the outer machine SHALL NOT bounce PLAN_REVIEW -> PLAN_FIX -> PLAN_REVIEW as a second engine
 
 #### Scenario: Complex feature with VAL_REVIEW
 
@@ -2189,9 +2246,25 @@ The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLE
 - **WHEN** validation passes
 - **THEN** phases SHALL include VAL_REVIEW before SUBMIT_PR
 
+#### Scenario: Resume after interruption
+
+- **GIVEN** the loop was interrupted during IMPL_REVIEW phase at iteration 2
+- **WHEN** the loop is re-invoked with the same change-id
+- **THEN** the system SHALL load state from `loop-state.json` and resume from
+  IMPL_REVIEW iteration 2
+
 ### Requirement: Review Convergence Loop
 
-The convergence loop SHALL dispatch reviews to all available vendors via `ReviewOrchestrator.dispatch_and_wait()`, synthesize findings via `ConsensusSynthesizer.synthesize()`, and exit when no confirmed or unconfirmed findings at medium or higher severity remain AND quorum is met. The loop SHALL enforce a maximum iteration cap (default 3 rounds per phase).
+The convergence loop SHALL dispatch reviews to all available vendors via
+`ReviewOrchestrator.dispatch_and_wait()`, merge results into the gate-time
+ledger, compact before round N>1, synthesize findings via
+`ConsensusSynthesizer.synthesize()`, and exit when no blocking ledger items
+remain AND quorum is met. Blocking means `deterministic` open items, or
+`confirmed` open items with criticality `high` or `critical`. Unconfirmed
+medium items SHALL NOT block. The loop SHALL enforce a maximum iteration
+cap (default 3 rounds per phase). PLAN_FIX and IMPL_FIX SHALL run as the
+loop's `fix_callback`, not as an outer state machine that re-dispatches a
+cold review.
 
 #### Scenario: Multi-vendor review dispatch
 
@@ -2201,10 +2274,18 @@ The convergence loop SHALL dispatch reviews to all available vendors via `Review
 
 #### Scenario: Convergence achieved with quorum
 
-- **GIVEN** consensus shows 3 low-severity findings and 0 medium+ findings
+- **GIVEN** compact leaves 0 blocking ledger items
 - **AND** at least 2 vendors returned valid results
 - **WHEN** the exit condition is checked
-- **THEN** convergence SHALL be declared and the loop SHALL advance to the next phase
+- **THEN** convergence SHALL be declared and the loop SHALL advance to the
+  next phase
+
+#### Scenario: Unconfirmed medium does not block
+
+- **GIVEN** a single-vendor medium-severity judgment finding
+- **WHEN** the exit condition is checked
+- **THEN** the finding SHALL NOT block convergence
+- **AND** `fix_callback` SHALL NOT receive it
 
 #### Scenario: Convergence blocked by insufficient quorum
 
@@ -2215,29 +2296,44 @@ The convergence loop SHALL dispatch reviews to all available vendors via `Review
 
 #### Scenario: Max iterations reached
 
-- **GIVEN** the plan review has run 3 rounds without convergence
-- **WHEN** the 3rd round completes with remaining medium+ findings
+- **GIVEN** the plan review has run 3 rounds without zero blocking items
+- **WHEN** the 3rd round completes with remaining blocking items
 - **THEN** the system SHALL transition to ESCALATE state
 
 ### Requirement: Finding Trend Tracking and Stall Detection
 
-The convergence loop SHALL track finding counts per round and escalate if findings are not decreasing over a 3-round sliding window (i.e., count at round N >= count at round N-2). Unconfirmed findings (single-vendor, medium+) SHALL block in rounds 1 through N-1 but SHALL NOT block in the final round. Findings with `disagreement` status SHALL always trigger escalation.
+The convergence loop SHALL track **post-compact blocking** counts per round
+and escalate if the count is not strictly decreasing versus the previous
+round. Unconfirmed medium findings SHALL NOT block in any round.
+Disagreement SHALL park rather than stall or abort.
+
+#### Scenario: Decreasing blocking continues
+
+- **GIVEN** round 1 has 4 blocking items and round 2 has 2
+- **WHEN** trend analysis runs after round 2
+- **THEN** the system SHALL NOT escalate
+
+#### Scenario: Non-decreasing blocking stalls
+
+- **GIVEN** round 1 has 3 blocking items and round 2 has 3
+- **WHEN** trend analysis runs after round 2
+- **THEN** the system SHALL escalate with reason `stalled`
 
 #### Scenario: Decreasing trend continues (no stall)
 
-- **GIVEN** round 1 has 10 blocking findings, round 2 has 5, and round 3 has 6
+- **GIVEN** round 1 has 10 blocking findings, round 2 has 5, and round 3 has 3
 - **WHEN** trend analysis runs after round 3
-- **THEN** the system SHALL NOT escalate because round 3 count (6) < round 1 count (10)
+- **THEN** the system SHALL NOT escalate because post-compact blocking is strictly decreasing
 
 #### Scenario: Flat trend triggers stall
 
 - **GIVEN** round 1 has 5 blocking findings, round 2 has 5, and round 3 has 5
 - **WHEN** trend analysis runs after round 3
-- **THEN** the system SHALL escalate because round 3 count (5) >= round 1 count (5)
+- **THEN** the system SHALL escalate because post-compact blocking is not strictly decreasing
 
 #### Scenario: Unconfirmed finding in final round
 
-- **GIVEN** a single-vendor medium-severity finding in round 3 (final round)
+- **GIVEN** a single-vendor medium-severity judgment finding in round 3 (final round)
 - **WHEN** the exit condition is checked
 - **THEN** the finding SHALL NOT block convergence
 
@@ -2245,26 +2341,40 @@ The convergence loop SHALL track finding counts per round and escalate if findin
 
 - **GIVEN** claude recommends "fix" and codex recommends "accept" for the same finding
 - **WHEN** consensus synthesis classifies this as "disagreement"
-- **THEN** the system SHALL transition to ESCALATE state
+- **THEN** the finding SHALL be parked rather than aborting the loop
 
 ### Requirement: Fix Dispatch
 
 Fix dispatch SHALL differ by phase:
-- **PLAN_FIX**: The conductor SHALL apply fixes **inline** (directly editing plan artifacts) since it already has full context. No CLI subprocess dispatch.
-- **IMPL_FIX**: Fixes SHALL be dispatched to the **recorded lead vendor** for the package (stored in `LoopState.package_authors`), scoped to the package's `write_allow` paths. Post-fix verification SHALL reject edits outside declared scope.
-- **VAL_FIX**: Fixes SHALL be applied inline for configuration/test changes, or targeted to the relevant package's author for code changes.
+
+- **PLAN_FIX**: The conductor SHALL apply fixes **inline** (directly editing
+  plan artifacts) since it already has full context. No CLI subprocess
+  dispatch. Allowed paths SHALL be the blocking items' `file_path`s.
+- **IMPL_FIX**: Fixes SHALL be dispatched to the **recorded lead vendor**
+  for the package (stored in `LoopState.package_authors`), scoped to the
+  intersection of the package's `write_allow` paths and the finding
+  `file_path`s. Post-fix verification SHALL reject edits outside that
+  intersection.
+- **VAL_FIX**: Fixes SHALL be applied inline for configuration/test changes,
+  or targeted to the relevant package's author for code changes.
+
+The fix prompt SHALL forbid adding architecture and expanding scope.
 
 #### Scenario: Plan fix applied inline
 
-- **GIVEN** plan review found 2 medium-severity confirmed findings in design.md
+- **GIVEN** plan review found 2 confirmed-high findings in design.md
 - **WHEN** fix dispatch runs
-- **THEN** the conductor SHALL edit design.md directly and re-validate with `openspec validate`
+- **THEN** the conductor SHALL edit design.md directly and re-validate with
+  `openspec validate`
 
 #### Scenario: Implementation fix targeted to lead vendor
 
-- **GIVEN** implementation review found a medium-severity finding in wp-api authored by codex
+- **GIVEN** implementation review found a blocking finding in wp-api
+  authored by codex
 - **WHEN** fix dispatch runs
-- **THEN** the system SHALL dispatch the fix to codex in alternative mode, scoped to wp-api's write_allow paths
+- **THEN** the system SHALL dispatch the fix to codex in alternative mode,
+  scoped to the intersection of wp-api's write_allow and the finding
+  `file_path`
 
 #### Scenario: Fix scope enforcement
 
@@ -2540,12 +2650,14 @@ After every session-log append, the workflow SHALL run sanitization and agent ve
 
 ### Requirement: Merge Log Artifact
 
-The `/merge-pull-requests` skill SHALL produce a dated merge log capturing cross-PR triage reasoning, user decisions, and observations.
+The `/merge-pull-requests` skill SHALL produce a dated merge log capturing
+plan-level reasoning (merge order, kind overrides, runtime edges, remediations,
+compact/resume), user decisions, and observations.
 
 #### Scenario: Merge log written to dated file
 - **WHEN** `/merge-pull-requests` completes a merge session
 - **THEN** it SHALL write to `docs/merge-logs/YYYY-MM-DD.md` (using the current date)
-- **AND** the entry SHALL contain: session timestamp (HH:MM), agent type, PR triage table (PR number, origin, action, rationale), vendor review findings, user decisions, and observations
+- **AND** the entry SHALL contain: session timestamp (HH:MM), agent type, plan revision identity, PR table (PR number, origin, kind, action, rationale), iterate remediations run, vendor review / disagreement outcomes, user decisions, and observations
 
 #### Scenario: Merge log directory auto-creation
 - **WHEN** `/merge-pull-requests` attempts to write the merge log and `docs/merge-logs/` does not exist
@@ -2558,13 +2670,13 @@ The `/merge-pull-requests` skill SHALL produce a dated merge log capturing cross
 - **AND** each entry SHALL include its own session timestamp
 
 #### Scenario: Merge log captures cross-PR reasoning
-- **WHEN** merge triage decisions span multiple PRs
-- **THEN** the merge log SHALL capture the reasoning that connects them (e.g., "merged A and B together because related", "skipped C due to conflict with A")
-- **AND** SHALL record user steering decisions (e.g., "user requested skipping all Renovate PRs")
+- **WHEN** merge plan decisions span multiple PRs
+- **THEN** the merge log SHALL capture the reasoning that connects them (order, runtime edges, cheap-path vs remediate)
+- **AND** SHALL record user steering decisions (kind overrides, deferrals, close-obsolete)
 
 #### Scenario: Merge log captures vendor review findings
-- **WHEN** vendor reviews were dispatched during the merge session
-- **THEN** the merge log SHALL summarize confirmed findings, unconfirmed findings, and blocking issues per PR
+- **WHEN** vendor reviews were dispatched during iterate remediations or residual merge-time review
+- **THEN** the merge log SHALL summarize confirmed findings, unconfirmed findings, disagreements, and blocking issues per PR
 
 #### Scenario: Vendor review incomplete or timed out
 - **WHEN** vendor reviews were dispatched but one or more vendors did not respond or timed out
@@ -2572,7 +2684,7 @@ The `/merge-pull-requests` skill SHALL produce a dated merge log capturing cross
 - **AND** SHALL record findings from responding vendors only
 
 #### Scenario: PR comments for contributor visibility
-- **WHEN** a PR is closed or skipped during merge triage
+- **WHEN** a PR is closed or skipped during the pass
 - **THEN** the skill SHALL still post a brief PR comment explaining the action
 - **AND** the detailed rationale SHALL be in the merge log, not duplicated in the PR comment
 
@@ -2926,16 +3038,26 @@ The `/parallel-review-implementation` skill SHALL support reviewing changes when
 
 ### Requirement: Merge-Time Review Resilience
 
-The `/merge-pull-requests` skill's vendor review dispatch (Step 9) SHALL handle PRs regardless of whether planning artifacts exist.
+When `/merge-pull-requests` still dispatches PR-diff vendor review (nodes
+without a current iterate consensus artifact), that dispatch SHALL handle PRs
+regardless of whether planning artifacts exist. Nodes that completed iterate
+with a consensus artifact whose HEAD matches the live PR head SHALL skip this
+PR-diff dispatch; iterate's `/parallel-review-*` output is the review of record
+for those nodes.
 
 #### Scenario: Vendor review for PR with universal artifacts
-- **WHEN** a PR has contracts and work-packages in its change directory
+- **WHEN** a PR has contracts and work-packages in its change directory and merge-time PR-diff review runs
 - **THEN** vendor review SHALL include contract and scope information in the review prompt
 
 #### Scenario: Vendor review for PR without planning artifacts
-- **WHEN** a PR lacks contracts or work-packages (legacy, external contribution, non-OpenSpec)
+- **WHEN** a PR lacks contracts or work-packages (legacy, external contribution, non-OpenSpec) and merge-time PR-diff review runs
 - **THEN** vendor review SHALL proceed using only the PR diff as context
 - **AND** the review SHALL NOT fail or skip due to missing artifacts
+
+#### Scenario: Iterate consensus is the review of record
+- **WHEN** a node completed iterate with a consensus artifact matching the live PR head
+- **THEN** merge-time PR-diff vendor review SHALL be skipped
+- **AND** the merge log SHALL cite the iterate consensus path instead
 
 ### Requirement: Updated Tier Documentation
 
@@ -4967,7 +5089,7 @@ The binding removes one cause of drift; other causes remain, including a hand-ed
 
 ### Requirement: Autopilot Gate Call Sites
 
-The autopilot loop in `skills/autopilot/scripts/autopilot.py` SHALL evaluate every member of `skills/shared/trust_posture.Gate` through `ApprovalGate.evaluate()` at exactly one code call site each, via an injected `GateEvaluator` seam whose default is `approval_gate.build_default_gate()`. The call sites SHALL be: `gatekeeper_escalation` on the GATEKEEPER `escalate` verdict; `proposal_approval` on the PLAN → PLAN_ITERATE edge; `plan_review_convergence_failure` on PLAN_REVIEW `max_iter` and PLAN_FIX `stuck`; `validation_failure` on VALIDATE `failed` and VAL_FIX `stuck`; `escalate_resume` on the ESCALATE → `_previous_phase` edge; `pr_creation` in SUBMIT_PR before the PR is created; `merge` on the SUBMIT_PR → DONE edge. (`replan_required` is evaluated by `autopilot-roadmap`; see the `roadmap-orchestration` capability.) A `merge` decision of `proceed` SHALL record merge authorization only; the loop SHALL NOT perform a merge.
+The autopilot loop in `skills/autopilot/scripts/autopilot.py` SHALL evaluate every member of `skills/shared/trust_posture.Gate` through `ApprovalGate.evaluate()` at exactly one code call site each, via an injected `GateEvaluator` seam whose default is `approval_gate.build_default_gate()`. The call sites SHALL be: `gatekeeper_escalation` on the GATEKEEPER `escalate` verdict; `proposal_approval` on the PLAN → PLAN_ITERATE edge; `plan_review_convergence_failure` on PLAN_REVIEW `max_iter` and PLAN_FIX `stuck`; `validation_failure` on VALIDATE `failed` and VAL_FIX `stuck`; `escalate_resume` on the ESCALATE → `_previous_phase` edge; `pr_creation` in SUBMIT_PR before the PR is created; `merge` on the SUBMIT_PR → DONE edge. (`replan_required` is evaluated by `autopilot-roadmap`, and `roadmap_approval` by the supervise skill's gate router; see the `roadmap-orchestration` and `supervise` capabilities.) A `merge` decision of `proceed` SHALL record merge authorization only; the loop SHALL NOT perform a merge.
 
 Every `ApprovalDecision` returned by a call site SHALL be appended to `LoopState.gate_decisions` as `ApprovalDecision.to_audit_record()` before the loop acts on it. The orchestrator SHALL remain the only actor that mutates `LoopState.current_phase`.
 
@@ -4979,7 +5101,7 @@ Every `ApprovalDecision` returned by a call site SHALL be appended to `LoopState
 - **AND** `current_phase` SHALL remain `PLAN` until a decision is recorded
 
 #### Scenario: Auto posture reaches SUBMIT_PR without interaction
-- **GIVEN** a `TRUST_POSTURE.md` whose eight gates are all `auto`
+- **GIVEN** a `TRUST_POSTURE.md` whose gates are all `auto` (the count is deliberately unstated here — this scenario is about the seven gates autopilot itself evaluates, not the total in `Gate`, which grows independently of this requirement)
 - **WHEN** `run_loop()` executes a change whose phases all succeed
 - **THEN** the run SHALL reach `SUBMIT_PR` with zero `gate_pending` outcomes
 - **AND** `LoopState.gate_decisions` SHALL contain one record per evaluated gate, each with `resolution=auto`
@@ -5224,14 +5346,17 @@ The decision logic SHALL be implemented as a single auditable structure (table, 
 
 ### Requirement: Compact-Hook Phase-Boundary Gate on Applied Handoff
 
-The `check_compact.py` Stop hook's phase-boundary detector (`_recent_phase_boundary()`) SHALL only treat a recently-modified handoff JSON as a phase-completion signal when that handoff has been recorded as the change's most-recently-applied phase outcome.
+The `check_compact.py` Stop hook's phase-boundary detector (`_recent_phase_boundary()`) SHALL only treat a recently-modified handoff JSON as a phase-completion signal when that handoff has been recorded as the change's most-recently-applied phase outcome AND belongs to the session named in the hook payload.
 
 The applied-handoff state is canonically captured by the orchestrator (e.g. autopilot's `apply-outcome` step) in `openspec/changes/<id>/loop-state.json` as the `last_handoff_id` field. The hook SHALL cross-reference handoff filenames against `last_handoff_id` before classifying them as boundaries.
+
+A handoff belongs to the session when the most specific worktree root containing it is a worktree the session has worked in, per the `cwd` recorded on the session's transcript rows or the payload `cwd`, AND the handoff's change id appears in the session's transcript.
 
 #### Scenario: Applied handoff inside the recent window triggers compaction
 
 - **WHEN** a handoff JSON under `openspec/changes/<id>/handoffs/` has an mtime newer than `PHASE_BOUNDARY_WINDOW_SEC` (300s)
 - **AND** the same change directory contains a `loop-state.json` whose `last_handoff_id` filename component matches the handoff filename
+- **AND** the handoff belongs to the session in the hook payload
 - **THEN** `_recent_phase_boundary()` SHALL return the handoff's phase name
 - **AND** the hook SHALL emit a `{"decision": "block", "reason": "..."}` JSON object requesting `/compact`
 
@@ -5262,6 +5387,18 @@ The applied-handoff state is canonically captured by the orchestrator (e.g. auto
 - **WHEN** the hook globs handoff files across all worktrees known to the current repository
 - **AND** a handoff from a sibling worktree falls inside the recent window but does not match its own change's `last_handoff_id`
 - **THEN** that handoff SHALL NOT propagate as a boundary signal into the current session
+
+#### Scenario: Another session's applied handoff does not trigger compaction
+
+- **WHEN** an applied handoff falls inside the recent window
+- **AND** it lives in a worktree the session never worked in, OR its change id does not appear in the session's transcript
+- **THEN** `_recent_phase_boundary()` SHALL skip that handoff
+- **AND** a session that worked only in the main checkout SHALL NOT own handoffs in linked worktrees nested beneath it
+
+#### Scenario: Session ownership is evaluated only for applied candidates
+
+- **WHEN** no handoff passes the recency and applied-handoff gates
+- **THEN** the hook SHALL NOT read the session transcript for the ownership check
 
 ### Requirement: Scoped Semantic Context Retrieval
 
@@ -5563,4 +5700,1062 @@ The section MUST be additive (a new heading + paragraph) and MUST NOT modify the
 - **WHEN** a reader searches for "Self-Healing at Milestone Boundaries"
 - **THEN** they MUST find a heading
 - **AND** the section under it MUST cross-reference the existing escalation_handler.py documentation (without duplicating it)
+
+### Requirement: Choices ledger artifact pair
+
+Each change MAY carry a choices ledger recording implementation-time decisions
+made where the spec was silent. When present, the ledger SHALL consist of
+`openspec/changes/<change-id>/choices.json` (machine-readable source of truth,
+valid against `openspec/schemas/decision-choices.schema.json`) and
+`openspec/changes/<change-id>/choices.md` (human-readable rendering derived
+from the JSON). `choices.json` SHALL carry the six-field codeviz artifact
+header (`schema_version`, `generated_at`, `git_sha`, `generator`, `run_id`,
+`event_kind`). The artifact SHALL be optional: its absence MUST NOT fail
+validation or block archive.
+
+#### Scenario: Ledger pair is schema-valid
+
+- WHEN an audit run completes for a change
+- THEN `choices.json` SHALL validate against
+  `openspec/schemas/decision-choices.schema.json`
+- AND the artifact header SHALL contain all six required fields
+- AND `choices.md` SHALL be regenerated from `choices.json` in the same run
+
+#### Scenario: Missing ledger does not block archive
+
+- WHEN a change without a `choices.json` reaches validation or archive
+- THEN validation SHALL NOT fail on the missing artifact
+- AND archive SHALL proceed without it
+
+### Requirement: Independent read-only choices audit
+
+The choices ledger SHALL be produced by an auditor pass that is independent of
+the implementing agent: a separately dispatched sub-agent whose input is the
+change's git history (`git log` / `git diff` over the change branch) and its
+planning artifacts (`proposal.md`, `design.md`, spec deltas, `session-log.md`,
+`impl-findings.md` when present). The auditor MUST NOT write to
+`session-log.md`, `docs/decisions/`, or any source file, and MUST exit with
+status 0 regardless of the verdicts recorded.
+
+The set of files the auditor may create or modify depends on which form it was
+invoked in, and is closed in both. For a change-id audit it is
+`openspec/changes/<change-id>/choices.json` and `choices.md`. For a standalone
+commit-range audit it is that run's ledger pair under the standalone-audit
+root, the `latest.json` and `latest.md` copies at that root, and the archive
+move retention performs. Nothing else, in either form.
+
+#### Scenario: Auditor writes only the ledger pair
+
+- WHEN the audit-choices skill runs against a change
+- THEN the only files created or modified SHALL be
+  `openspec/changes/<change-id>/choices.json` and
+  `openspec/changes/<change-id>/choices.md`
+- AND a snapshot comparison of the rest of the working tree SHALL show no
+  changes
+
+#### Scenario: A standalone audit writes only its run directory and the latest pointers
+
+- WHEN the audit-choices skill runs in its standalone commit-range form
+- THEN the only files created or modified SHALL be that run's `choices.json`
+  and `choices.md`, the `latest.json` and `latest.md` copies at the
+  standalone-audit root, and any archive move retention performs
+- AND a snapshot comparison of the rest of the working tree SHALL show no
+  changes, including no file under `openspec/changes/`
+
+#### Scenario: Adverse verdicts never block
+
+- WHEN the audit records entries with verdict `unsound` or `needs-user`
+- THEN the audit process SHALL still exit with status 0
+- AND no workflow step SHALL be halted by the audit itself
+
+### Requirement: Choices ledger entry content
+
+Each ledger entry SHALL record: the choice (headline plus a concrete scenario),
+the gap (what the spec or design left unspecified), the reach (what the choice
+constrains or enables for future work), a verdict (`sound`, `unsound`, or
+`needs-user`) with rationale, a confidence level (`low`, `medium`, or `high`),
+and provenance (commit range and touched files). Each entry SHALL carry a
+content-derived `stable_id` so that re-running the audit is idempotent for
+unchanged decisions. Each entry SHALL either cross-reference the matching
+self-reported decision as `<change-id>#D<n>` (optionally phase-qualified) or
+be flagged `self_reported: false` when the implementer did not report it.
+
+#### Scenario: Unreported decision is flagged
+
+- WHEN the auditor identifies a decision in the diff that has no matching
+  `Decisions` bullet in the change's `session-log.md`
+- THEN the ledger entry SHALL set `self_reported: false`
+- AND the entry SHALL still include gap, reach, verdict, and confidence
+
+#### Scenario: Re-audit is idempotent
+
+- WHEN the audit runs twice over the same commit range with no new commits
+- THEN entries for unchanged decisions SHALL keep the same `stable_id`
+- AND no duplicate entries SHALL be appended
+
+### Requirement: Least-confident-first ranking
+
+The rendered `choices.md` SHALL order entries ascending by confidence
+(`low` before `medium` before `high`), and within equal confidence SHALL order
+verdicts `needs-user`, then `unsound`, then `sound`. The ranking SHALL be a
+property of the renderer so it can be verified by a unit test against
+`choices.json` fixtures.
+
+#### Scenario: Rendering enforces the ranking invariant
+
+- WHEN `choices.md` is rendered from a `choices.json` containing mixed
+  confidence levels
+- THEN the first entry SHALL be a lowest-confidence entry
+- AND no entry SHALL appear before another entry of strictly lower confidence
+
+### Requirement: Merge Conductor Invokes Iterate Skills
+
+`/merge-pull-requests` in its default plan-then-execute path SHALL be allowed to
+invoke `/iterate-on-plan` and `/iterate-on-implementation` as remediations for
+open pull requests. Those invocations SHALL run in the iterate skill's managed
+feature worktree and SHALL NOT write `main`. The merge skill remains the
+user-invoked sync-point for merges into `main`.
+
+<!-- Scenario ID: skill-workflow.merge-invokes-iterate -->
+#### Scenario: Merge-triggered iterate writes the feature branch only
+
+- **WHEN** `/merge-pull-requests` invokes `/iterate-on-plan` or `/iterate-on-implementation` for a node
+- **THEN** iterate SHALL enter or create the change's managed worktree before any mutation
+- **AND** SHALL commit on the feature branch
+- **AND** SHALL NOT commit to local `main`
+
+<!-- Scenario ID: skill-workflow.merge-still-sync-point -->
+#### Scenario: Merge remains the only main writer in the loop
+
+- **WHEN** iterate returns and the node is mergeable
+- **THEN** only `/merge-pull-requests` SHALL merge into `main`
+- **AND** iterate SHALL NOT call `gh pr merge` or otherwise land the PR
+
+### Requirement: Iterate Multi-Vendor Review Required When Called From Merge
+
+When `/iterate-on-plan` or `/iterate-on-implementation` is invoked by the merge
+conductor, multi-vendor review SHALL run as the iterate exit (the existing
+`--vendor-review` path, which is already automatic in the coordinated tier).
+The merge conductor SHALL pass `--vendor-review` explicitly so sequential-tier
+sessions still dispatch. Disagreement on a finding at or above the remediation
+threshold SHALL escalate to a human and SHALL NOT be treated as a merge signal.
+Unanimous agreement SHALL NOT by itself prove correctness or release an
+OpenSpec `proposal_acceptance` gate.
+
+<!-- Scenario ID: skill-workflow.merge-iterate-always-vendor-review -->
+#### Scenario: Merge-triggered iterate always requests vendor review
+
+- **WHEN** the merge conductor invokes iterate for a node
+- **THEN** the invocation SHALL include `--vendor-review`
+- **AND** iterate SHALL dispatch `/parallel-review-plan` or `/parallel-review-implementation` after the iterate loop (subject to vendor CLI availability)
+- **AND** a blocking disagreement SHALL be returned to the merge conductor as a halt, not a merge
+
+### Requirement: Schema-Derived Review Prompt
+
+Every review prompt the dispatcher, `converge()`, plan/implementation review
+skills, or PR vendor-review path sends SHALL be built from the canonical
+`review-findings.schema.json` via a shared helper. The prompt SHALL list every
+required finding field and every enum value. The prompt SHALL NOT carry a
+hand-copied field list that can drift from the schema.
+
+#### Scenario: Converge prompt includes axis and severity
+
+- **WHEN** `build_review_prompt()` is invoked
+- **THEN** the returned prompt SHALL include the fields `axis` and `severity`
+- **AND** SHALL include the enum values defined on those fields in
+  `openspec/schemas/review-findings.schema.json`
+
+#### Scenario: Skill prompt uses the same helper
+
+- **WHEN** a plan or implementation review skill writes `review-prompt.md`
+- **THEN** the required-field list in that prompt SHALL be produced by the
+  same helper `vendor_review.py` uses
+- **AND** a test SHALL fail if the helper's required-field set and the schema
+  required-field set differ
+
+### Requirement: Finding Coercion Before Validation
+
+The dispatcher SHALL apply a contracted alias table to a parsed findings
+payload before schema validation. Coercion SHALL NOT invent findings. Coercion
+SHALL be logged. After coercion, schema validation remains mandatory and
+fail-closed.
+
+#### Scenario: Known type alias is coerced
+
+- **WHEN** a vendor finding has `"type": "bug"`
+- **THEN** coercion SHALL set `type` to `correctness`
+- **AND** the wrapper SHALL record that a coercion occurred
+- **AND** schema validation SHALL then pass for that field
+
+#### Scenario: Iterate-on-plan axis rejected as type is coerced
+
+- **WHEN** a vendor finding has `"type": "completeness"` or `"type": "testability"`
+- **THEN** coercion SHALL replace `type` with a legal review-findings `type`
+  enum value and SHALL set `axis` to `architecture` (completeness) or
+  `correctness` (testability) when `axis` is missing
+- **AND** schema validation SHALL NOT fail solely because of the original
+  illegal `type`
+
+#### Scenario: Missing severity filled from criticality
+
+- **WHEN** a finding has `criticality` but omits `severity`
+- **THEN** coercion SHALL fill `severity` from the contracted map
+- **AND** the reverse fill SHALL apply when `severity` is present and
+  `criticality` is omitted
+
+#### Scenario: Unknown enum still fails closed
+
+- **WHEN** a finding has `"type": "not-a-real-type"` that is not in the alias
+  table
+- **THEN** schema validation SHALL fail
+- **AND** the dispatcher SHALL proceed to the repair retry rather than
+  accepting the payload
+
+### Requirement: Schema Repair Retry
+
+On parse failure or post-coercion schema failure, the dispatcher SHALL
+re-dispatch that vendor exactly once with the validator (or parse) errors and
+an instruction to emit only a findings JSON object. A second failure SHALL
+mark the vendor unsuccessful. The retry SHALL use the same timeout budget as
+the original dispatch.
+
+#### Scenario: Invalid JSON is repaired
+
+- **WHEN** the first dispatch returns stdout that does not parse as a findings
+  object
+- **THEN** the dispatcher SHALL send one repair dispatch whose prompt includes
+  the parse error
+- **AND** if the repair stdout parses and validates, the vendor SHALL be
+  `success=True`
+
+#### Scenario: Repair is not unbounded
+
+- **WHEN** the repair dispatch also fails to parse or validate
+- **THEN** the vendor SHALL be `success=False`
+- **AND** the dispatcher SHALL NOT send a third dispatch for that vendor in
+  that round
+
+### Requirement: Raw Vendor Output Sidecar
+
+The dispatcher and in-process `converge()` checkpoint SHALL persist the full
+stdout (and stderr if non-empty) of every vendor dispatch next to the findings
+file, for both success and failure. The sidecar SHALL NOT be truncated to 500
+characters.
+
+#### Scenario: Failed dispatch keeps full stdout
+
+- **WHEN** a vendor returns invalid JSON longer than 500 characters
+- **THEN** a sidecar file under the output / checkpoint directory SHALL contain
+  the complete stdout
+- **AND** the `ReviewResult.error` message MAY still be a short summary
+
+#### Scenario: Successful dispatch also keeps stdout
+
+- **WHEN** a vendor returns valid findings
+- **THEN** the sidecar SHALL still be written
+- **AND** the findings file SHALL still be written as today
+
+### Requirement: Per-Vendor Dispatch Timeout Budget
+
+`dispatch_and_wait` and `CliVendorAdapter.dispatch` SHALL take a per-vendor
+timeout from a versioned budget table. `converge()` SHALL pass that budget (or
+an explicit override) into `dispatch_and_wait` and SHALL NOT rely on the
+function's default `timeout_seconds=300`. A CLI `--timeout` flag SHALL override
+the table for every vendor in that invocation.
+
+#### Scenario: Converge passes a timeout
+
+- **WHEN** `converge()` dispatches a review round
+- **THEN** the call to `dispatch_and_wait` SHALL include a `timeout_seconds`
+  argument derived from the budget table or an override
+- **AND** it SHALL NOT omit the argument
+
+#### Scenario: Claude uses a longer budget than the historical 300s default
+
+- **WHEN** a `claude_code` review is dispatched with the default table
+- **THEN** the subprocess timeout SHALL be at least 720 seconds
+
+#### Scenario: CLI override wins
+
+- **WHEN** the dispatcher CLI is invoked with `--timeout 120`
+- **THEN** every vendor in that invocation SHALL be killed at 120 seconds
+
+### Requirement: Judgment Ingest for Model Reviewers
+
+Findings produced by CLI or SDK model-review dispatch SHALL be ingested with
+`evidence_class=judgment` unless the caller explicitly declares the ingest as
+deterministic. A findings payload SHALL NOT be allowed to promote itself to
+`deterministic`. Deterministic emitters (tests, linters, playwright-validator,
+gen-eval) SHALL pass `evidence_class=deterministic` at ingest.
+
+#### Scenario: CLI review findings are judgment
+
+- **WHEN** `CliVendorAdapter.dispatch` returns a valid findings object
+- **THEN** each finding that the caller did not declare deterministic SHALL
+  have `evidence_class` equal to `judgment` after ingest
+
+#### Scenario: Payload cannot self-promote
+
+- **WHEN** a model returns `"evidence_class": "deterministic"`
+- **AND** the caller did not declare deterministic ingest
+- **THEN** the ingested finding SHALL still be `judgment`
+
+### Requirement: Empty Or Blinded Review Is Not Success
+
+A vendor dispatch SHALL be `success=True` only when a findings object parsed
+and validated (after coercion and optional repair). An empty `findings` array
+SHALL NOT count as success if the elapsed time is below a configured floor
+(default 15 seconds) or if the raw output classified as AUTH, UNAVAILABLE, or
+CAPACITY.
+
+#### Scenario: Fast empty findings do not meet quorum
+
+- **WHEN** a vendor returns `{"findings": []}` in under 15 seconds
+- **THEN** `success` SHALL be false
+- **AND** the vendor SHALL NOT increment `quorum_received`
+
+#### Scenario: Timeout does not produce a successful empty review
+
+- **WHEN** a vendor is killed by the timeout
+- **THEN** `success` SHALL be false
+- **AND** if at least two other vendors returned valid findings, synthesis
+  SHALL proceed
+- **AND** `converge()` SHALL NOT return `reason="quorum_lost"` solely because
+  of that timeout
+
+### Requirement: Choices audit workflow integration
+
+The implementation workflow SHALL invoke the choices audit non-blockingly after
+its converged review step and before its final summary, and the audit SHALL
+also be invocable standalone against any change id or commit range. Validation
+and cleanup gates SHALL surface open `needs-user` entries from the ledger at
+their existing human decision points, in the same manner deferred tasks are
+surfaced; they MUST NOT introduce a new blocking gate for the audit.
+
+A standalone commit-range audit SHALL NOT write into `openspec/changes/`. Its
+ledger pair SHALL be persisted under a run-scoped directory dedicated to
+standalone audits, and the audited range SHALL be recoverable from the ledger's
+own contents rather than from the path it was written to.
+
+#### Scenario: Workflow invocation is non-blocking
+
+- WHEN `iterate-on-implementation` completes its convergence loop and the
+  choices audit fails (the driver reports an internal error or the step
+  raises) or is unavailable (the skill is not installed, or no independent
+  sub-agent can be dispatched)
+- THEN the workflow SHALL log a single warning naming the reason
+- AND SHALL continue to its summary step with a non-failing outcome
+- AND the workflow SHALL NOT commit a partial ledger pair: when only one of
+  `choices.json` and `choices.md` was produced, the workflow SHALL treat the
+  audit as failed and leave neither file staged
+
+#### Scenario: needs-user entries surface at the validation gate
+
+- WHEN `validate-feature` reaches its human gate and the change's ledger
+  contains entries with verdict `needs-user`
+- THEN each such entry SHALL be listed in the gate presentation with its
+  `stable_id`, confidence and choice headline, least-confident first
+- AND the validation result (`PASS`/`FAIL`) SHALL be the same as it would be
+  without the ledger
+- AND the gate's approve/reject semantics SHALL otherwise remain unchanged
+
+#### Scenario: needs-user entries surface at the cleanup gate
+
+- WHEN `cleanup-feature` reaches its pre-archive decision point and the
+  change's ledger contains entries with verdict `needs-user`
+- THEN each such entry SHALL be listed with its `stable_id`, confidence and
+  choice headline, least-confident first
+- AND archive SHALL proceed on the user's existing confirmation without an
+  additional gate
+- AND the entries SHALL be archived unchanged with the change directory
+
+#### Scenario: Absent or empty ledger is silent at the gates
+
+- WHEN `validate-feature` or `cleanup-feature` reaches its decision point and
+  the change has no `choices.json`, or has one with no `needs-user` entries
+- THEN the presentation SHALL say so explicitly, in that gate's own
+  established form, rather than omitting the subject
+- AND the two cases SHALL be distinguishable from each other: "no ledger" and
+  "a ledger with nothing open" MUST NOT render identically
+- AND neither skill SHALL fail, warn, or prompt on the missing entries
+
+#### Scenario: Standalone invocation against a commit range
+
+- WHEN `/audit-choices` is invoked with a single `<base-sha>..<head-sha>`
+  argument and no change directory
+- THEN the skill SHALL take the audited base and head from that argument
+  rather than resolving them from a change's base commit
+- AND the ledger it persists SHALL record `change_id` as
+  `range:<base-sha>..<head-sha>`
+- AND the ledger pair SHALL be written to a run-scoped directory outside
+  `openspec/changes/`, leaving no directory named after the commit range
+- AND `audited_range` SHALL carry both full shas, so the audited range is
+  recoverable without reading the path
+- AND `latest.json` and `latest.md` at the standalone-audit root SHALL be
+  updated to copies of that run's pair, so the most recent standalone audit is
+  reachable without knowing its run id
+- AND the driver SHALL exit with status 0
+
+#### Scenario: A change-id audit is unaffected by the range-form destination
+
+- WHEN `/audit-choices` is invoked with a change id
+- THEN the ledger pair SHALL be written to
+  `openspec/changes/<change-id>/choices.json` and `choices.md`, exactly as
+  before
+- AND no file SHALL be written under the standalone-audit directory
+
+#### Scenario: Standalone audit output is bounded
+
+- WHEN the number of run directories under the standalone-audit root exceeds
+  the configured retention count
+- THEN the oldest of those run directories SHALL be moved to an archive
+  subdirectory of that root rather than deleted
+- AND no run's ledger pair SHALL be destroyed by retention
+- AND a retention failure SHALL NOT change the outcome of a run whose ledger
+  pair was written: the run SHALL still report success with both paths set
+
+### Requirement: Gate-Time Review Ledger
+
+The convergence loop SHALL persist findings to
+`openspec/changes/<change-id>/.review-ledger/ledger.json` with statuses
+`open`, `addressed`, `retired`, and `parked`. Each item SHALL have a stable
+id that survives rounds. New consensus findings SHALL merge into an existing
+id when the synthesizer match score meets the threshold or the fingerprint
+matches.
+
+#### Scenario: Same defect keeps its id
+
+- **WHEN** round 2 synthesizes a finding that matches a round-1 ledger item
+- **THEN** the ledger SHALL keep the same `id`
+- **AND** SHALL update `last_seen_round` to 2
+
+#### Scenario: Ledger created on first round
+
+- **WHEN** `converge()` runs and `.review-ledger/` does not exist
+- **THEN** the directory and `ledger.json` SHALL be created
+- **AND** the loop SHALL NOT fail solely because the ledger was absent
+
+### Requirement: Compact Before New Hunt
+
+Before dispatching round N>1, the loop SHALL compact the ledger against
+current `HEAD`: retire items whose file is gone or whose description tokens
+no longer appear in the file (or line window); return `addressed` items to
+`open` if tokens remain.
+
+#### Scenario: Fixed finding is retired
+
+- **GIVEN** an open finding whose description tokens no longer appear in
+  `file_path`
+- **WHEN** compact runs
+- **THEN** the item status SHALL be `retired`
+
+#### Scenario: Claimed fix that did not take reopens
+
+- **GIVEN** an `addressed` finding whose tokens still appear in `file_path`
+- **WHEN** compact runs
+- **THEN** the item status SHALL be `open`
+
+### Requirement: Delta Review After Round One
+
+Round N>1 review prompts SHALL include open ledger items and the last-fix
+diff, and SHALL forbid re-opening `retired` or `parked` items. Round N>1
+SHALL NOT be a cold review of the whole artifact.
+
+#### Scenario: Round 2 prompt carries the ledger
+
+- **WHEN** `build_review_prompt` is called for round 2
+- **THEN** the prompt SHALL contain the open ledger item descriptions
+- **AND** SHALL contain the last-fix diff or an explicit empty-diff marker
+- **AND** SHALL instruct the reviewer not to re-open retired or parked items
+
+### Requirement: Parked Disagreement Does Not Abort
+
+When consensus classifies a finding as `disagreement`, the loop SHALL set
+that ledger item to `parked`, append it to
+`openspec/changes/<change-id>/reviews/parked-disagreements.json`, and
+continue with remaining blocking items. The loop SHALL NOT return
+`reason="disagreement"`.
+
+#### Scenario: Disagreement plus agreed blocking continues
+
+- **GIVEN** one disagreement finding and one confirmed high deterministic
+  finding
+- **WHEN** the round's consensus is processed
+- **THEN** `fix_callback` SHALL be invoked with the confirmed finding
+- **AND** the disagreement SHALL be written to `parked-disagreements.json`
+- **AND** `converge()` SHALL NOT return `reason="disagreement"`
+
+#### Scenario: Only disagreement remaining is convergence with leftovers
+
+- **GIVEN** the only remaining consensus findings are disagreements
+- **WHEN** the exit condition is checked
+- **THEN** the loop SHALL return `converged=True`
+- **AND** `escalate_findings` SHALL contain the parked items
+
+### Requirement: Scoped Fix Cluster
+
+`fix_callback` SHALL receive only current blocking ledger items. Allowed
+write paths SHALL be each item's `file_path` (plus the spec file when
+`type` is `spec_gap`). The fix prompt SHALL forbid new architecture and
+out-of-scope edits. Post-fix Layer A validation SHALL run before the next
+vendor panel.
+
+#### Scenario: Fix is scoped to cited files
+
+- **GIVEN** a blocking finding with `file_path=src/api.py`
+- **WHEN** `fix_callback` is invoked
+- **THEN** the allowed-path list SHALL contain `src/api.py`
+- **AND** SHALL NOT contain unrelated package paths
+
+#### Scenario: Out of scope fix is rejected
+
+- **GIVEN** a fix dispatch scoped to `src/api.py`
+- **WHEN** the fix modifies `src/frontend/app.tsx`
+- **THEN** the system SHALL reject the fix as a scope violation
+
+### Requirement: Supervised Background Dispatch Boundary
+
+The skill workflow SHALL treat a supervised background Autopilot agent as an isolated write-capable worker whose public result is the supervised-dispatch result contract rather than its conversation transcript.
+
+#### Scenario: Background agent completes normally
+- **WHEN** a supervised Autopilot agent finishes in its verified managed worktree
+- **THEN** the host returns a schema-valid outcome and handoff identifier through `dispatch_fn`
+- **AND** the parent supervisor does not copy the child transcript into its session or durable state
+
+#### Scenario: Background agent fails without a handoff
+- **WHEN** a supervised Autopilot agent exits unsuccessfully and produces no valid handoff
+- **THEN** the host returns a correlated failed outcome with a bounded reason
+- **AND** the roadmap failure policy handles the failure without treating transcript text as executable context
+
+#### Scenario: Inspect the parent session after two child runs
+- **WHEN** a fake host-event capture adapter drives two background child sessions whose transcripts contain unique sentinels and whose public results are schema-valid
+- **THEN** the adapter-captured parent-session event stream contains only requests, task handles, lease events, and the two structured outcomes, with no transcript sentinel
+- **AND** checkpoint, learning, handoff, and supervisor-record outputs contain no transcript sentinel
+
+### Requirement: Outbox-Ordered Optional Queue Projection
+
+The autopilot state machine SHALL provide an optional queue-projection callback that runs only after the authoritative `loop-state.json` write succeeds. Projection failure SHALL leave the new loop-state durable and SHALL be repairable by invoking reconciliation from the loaded loop-state on resume. With no callback, the state machine SHALL perform no coordinator import, probe, or request.
+
+#### Scenario: State persists before projection
+
+- **GIVEN** a phase transition produces a new loop-state
+- **AND** a coordinated caller injected a projection callback
+- **WHEN** the transition is persisted
+- **THEN** the loop-state write SHALL complete before the callback begins
+- **AND** a callback failure SHALL NOT revert the persisted state
+
+#### Scenario: Crash window repairs on resume
+
+- **GIVEN** a process terminates after loop-state persistence but before queue submission
+- **WHEN** autopilot resumes with a coordinated reconciliation callback
+- **THEN** it SHALL load the authoritative loop-state first
+- **AND** it SHALL request reconciliation for the loaded `(change_id, phase, transition_sequence=total_iterations)` before phase execution
+- **AND** it SHALL set `transition_sequence` from `LoopState.total_iterations`, not `LoopState.iteration`
+- **AND** it SHALL NOT derive any loop-state field from the queue response
+
+#### Scenario: Fallback tiers remain coordinator-free
+
+- **GIVEN** local-parallel or sequential execution supplies no projection callback
+- **WHEN** the state machine starts, transitions, or resumes
+- **THEN** it SHALL make zero coordinator queue calls
+- **AND** existing execution behavior SHALL remain unchanged
+
+### Requirement: Roadmap Approval Gate
+
+The trust-posture contract SHALL define a ninth gate, `roadmap_approval`, that fires when the supervise `cycle` verb asks the operator to authorize a roadmap's DAG of items. `shared.trust_posture.Gate` SHALL enumerate it, `TRUST_POSTURE.template.md` SHALL ship it as `block`, and every schema that embeds the gate enum — `openspec/schemas/trust-posture.schema.json`, `gate-decision.schema.json`, `gate-request.schema.json`, `supervisor-record.schema.json`, and `supervisor-record-mirror.schema.json` — SHALL accept it. An absent `TRUST_POSTURE.md` or an omitted entry SHALL resolve `roadmap_approval` to `block`. `shared.approval_gate` SHALL expose public `console_decision(gate, posture, approved, note)` and `build_gate_decision_record(decision, *, phase, extra)` helpers and an `ApprovalGate.check_filed(gate, approval_id, *, notified)` method that interprets a previously filed coordinator approval with the same status mapping `evaluate` uses (`approved` → proceed, `denied` → rejected, `expired` → the default action, `pending` → no decision), resolving the gate's disposition from the live posture and taking `notified` from the caller's prior record rather than assuming delivery, so an undelivered notification can never be upgraded from a fail-closed block to a `proceed` default; `skills/autopilot/scripts/runner.py` and `autopilot.py` SHALL delegate to the shared helpers so console decisions and ledger records share one shape. The prose-free gate test SHALL cover `skills/supervise/SKILL.md` as well as `skills/autopilot/SKILL.md`.
+
+#### Scenario: Nine gates enumerated and representable
+- **WHEN** `test_trust_posture.py` enumerates `Gate` and validates a contract that sets every gate
+- **THEN** there SHALL be exactly nine members including `roadmap_approval`
+- **AND** the template SHALL validate and resolve every gate to `block`
+- **AND** `test_gate_schemas.py::test_gate_enum_matches_trust_posture` SHALL find the same nine values in `gate-request.schema.json` and `gate-decision.schema.json`, and the supervisor-record and mirror schemas SHALL accept a `pending_gates[]` entry with `gate: roadmap_approval`
+
+#### Scenario: Absent posture keeps roadmap approval human
+- **GIVEN** no `TRUST_POSTURE.md`
+- **WHEN** `ApprovalGate.evaluate(Gate.ROADMAP_APPROVAL, …)` runs
+- **THEN** the decision SHALL be `BLOCKED` with resolution `posture_block` and `posture_present: false`
+
+#### Scenario: Autopilot call-site invariant is unchanged
+- **WHEN** `test_gate_call_sites.py` runs
+- **THEN** each of autopilot's seven gates still has exactly one `gates.evaluate(Gate.X` call site
+- **AND** `roadmap_approval`, like `replan_required`, has no call site in `autopilot.py`
+- **AND** `roadmap_approval` SHALL have exactly one call site in `skills/supervise/scripts/gate_router.py`, as `replan_required` has exactly one in the roadmap orchestrator, so excluding it from autopilot's set does not exempt it from the one-call-site invariant
+
+#### Scenario: Grep finds no prose-only gate in the supervise skill
+- **WHEN** the prose-free gate test scans `skills/supervise/SKILL.md` for the phrases `Then **stop**`, `Accept only durable roadmap-altitude approval`, and `Only a parked `pending_gate` or `policy_pause` may resume with a durable `approval_ref``
+- **THEN** none SHALL be present outside a `gate-check` / `gate-answer` / `gate-log` protocol block
+- **AND** every backticked or `Gate.`-qualified occurrence of a gate name in that file SHALL be inside such a block, the backtick rule being what keeps the ordinary English word `merge` in unrelated prose from reading as a gate reference
+- **AND** the gates supervise is expected to name — `roadmap_approval`, `escalate_resume`, and a parked child's gate — SHALL each have such a block, and the check SHALL be keyed by `trust_posture.Gate` so a renamed member fails rather than silently disappears
+
+#### Scenario: Late coordinator answer is interpreted by the gate service
+- **GIVEN** an `ApprovalGate` whose coordinator reports a previously filed approval as `approved`
+- **WHEN** `check_filed(Gate.ROADMAP_APPROVAL, approval_id, notified=True)` is called
+- **THEN** it SHALL return a decision with outcome `proceed`, resolution `approved`, and that `approval_id`, and SHALL record it to the audit sink
+- **AND** when the coordinator reports `pending` it SHALL return `None` and record nothing, regardless of `notified`
+- **AND** when the coordinator reports `expired` and the caller passes `notified=True`, it SHALL apply the live posture's `default_action`
+- **AND** when the coordinator reports `expired` and the caller passes `notified=False` — the state a `default_action: proceed` gate reaches today because `BridgeCoordinatorClient.push_notification` always returns `False` — it SHALL return `None` and leave the fail-closed block standing
+- **AND** the caller SHALL supply `notified` from the gate-decision record's own persisted `notified` field, never a literal or a default, so the block-standing arm above is the one every production `roadmap_approval` timeout reaches
+- **AND** when the coordinator is unreachable it SHALL return a `BLOCKED` / `coordinator_unreachable` decision rather than raise
+
+### Requirement: Canonical durable state-artifact inventory
+
+The repository SHALL provide one canonical guide that documents the five durable orchestration artifact classes: per-change loop state, roadmap checkpoint state, roadmap learning entries, phase records, and handoff documents. For each class, the guide SHALL state its path, holder/scope, canonical writer, authority, consumers, and missing or stale behavior.
+
+#### Scenario: All durable classes are discoverable
+
+- **WHEN** a contributor opens the durable state-artifacts guide
+- **THEN** all five artifact classes SHALL be named with their exact repository or coordinator path
+- **AND** every class SHALL identify its holder, writer, authority, consumers, and missing/stale behavior
+
+#### Scenario: Advisory state conflicts with authoritative state
+
+- **WHEN** a handoff, phase record, learning entry, or queue projection conflicts with a valid loop-state or roadmap checkpoint record for the same scope
+- **THEN** the authoritative record SHALL win
+- **AND** the conflict SHALL be reported rather than silently merged
+
+### Requirement: Deterministic fresh-session rehydration
+
+The guide SHALL distinguish bootstrap discovery from canonical verification and SHALL define this ordered rehydration sequence for a fresh supervisor session: bootstrap locator, roadmap definition, roadmap execution state, change execution state, learning context, phase history, handoff context, and projection rebuild. The learning-context stage SHALL use a bounded recent-learning window without making its numeric bound part of this documentation contract.
+
+#### Scenario: Fresh supervisor session resumes active work
+
+- **WHEN** a fresh supervisor session receives a supervisor handoff or tracked mirror
+- **THEN** it SHALL use that artifact only to locate candidate active roadmaps and changes
+- **AND** it SHALL verify roadmap checkpoints before per-change loop state
+- **AND** it SHALL load learnings, phase records, and bounded handoff context only after authoritative state
+- **AND** it SHALL rebuild coordinator and queue projections only after advisory context has been reconciled with authoritative state
+
+#### Scenario: Never-started roadmap has no checkpoint
+
+- **WHEN** a roadmap definition exists but no locator or advisory record claims prior execution progress
+- **AND** its canonical checkpoint does not yet exist
+- **THEN** rehydration SHALL treat the roadmap as never started rather than degraded
+- **AND** it SHALL NOT synthesize a checkpoint from the roadmap definition or advisory context
+
+#### Scenario: Canonical state is missing
+
+- **WHEN** a bootstrap handoff names an active roadmap or change whose canonical checkpoint or loop-state artifact is missing
+- **THEN** rehydration SHALL report a degraded or inconsistent state
+- **AND** it SHALL NOT reconstruct authoritative phase state from the handoff, learning log, phase record, or queue
+
+### Requirement: Workflow skill documentation references the canonical guide
+
+The canonical `autopilot`, `autopilot-roadmap`, `session-log`, `supervise`, `implement-feature`, and `validate-feature` skill sources SHALL carry the repository-relative `docs/guides/state-artifacts.md` reference for shared ownership and replay semantics while retaining their phase-specific commands and gate rules.
+
+#### Scenario: Relevant skill documentation is audited
+
+- **WHEN** the focused state-artifact documentation test inspects the relevant canonical skill sources
+- **THEN** each of the six named sources SHALL reference `docs/guides/state-artifacts.md`
+- **AND** the supervise rehydration section SHALL follow the guide's ordered canonical verification sequence
+
+#### Scenario: Runtime skill mirrors are installed
+
+- **WHEN** the canonical changed skills are installed into `.agents` and `.claude`
+- **THEN** each changed mirror SHALL be byte-identical to its canonical `skills/` source
+
+### Requirement: Review Packet As Default Input
+
+The dispatcher and `converge()` SHALL build a review packet before dispatch
+containing: the schema-derived prompt contract, a unified or last-fix diff,
+traced spec excerpts, and open ledger items when a ledger exists. The packet
+SHALL be written to the round directory with a checksum. When the packet is
+under the contracted size budget, the prompt SHALL tell the reviewer the
+packet is complete and not to explore the repo for missing artifacts.
+
+#### Scenario: Packet includes diff and schema contract
+
+- **WHEN** a review round is dispatched
+- **THEN** the round directory SHALL contain a packet file whose body includes
+  a diff hunk header or an explicit empty-diff marker
+- **AND** includes the required finding fields from the canonical schema
+
+#### Scenario: Missing ledger still builds a packet
+
+- **WHEN** `.review-ledger/` is absent
+- **THEN** the packet SHALL still be built from diff, specs, and schema
+  contract
+- **AND** dispatch SHALL proceed
+
+#### Scenario: Over-budget packet sets tools overflow
+
+- **WHEN** the packet body exceeds the contracted size budget
+- **THEN** the packet metadata SHALL set `tools_overflow` true
+- **AND** the prompt SHALL allow Read/Grep to recover truncated context
+
+### Requirement: Verify-Then-Wire Structured Output
+
+A vendor's review-mode CLI SHALL gain structured-output / JSON-schema flags
+only after an empirical probe recorded in this change's contracts marks that
+vendor `verified`. Unprobed or absent flags SHALL leave the vendor on the
+phase-1 prompt path. The dispatcher SHALL NOT guess flags.
+
+#### Scenario: Grok remains schema-injected
+
+- **WHEN** a grok review is dispatched
+- **THEN** the command SHALL include `--json-schema` with the canonical
+  schema sentinel or its injected value
+
+#### Scenario: Unprobed vendor is not given Grok's flags
+
+- **WHEN** a vendor whose structured-output row is `unprobed` or `absent`
+  is dispatched
+- **THEN** the command SHALL NOT include Grok's `--json-schema` sentinel
+  unless that vendor's own probe recorded `verified`
+
+### Requirement: Review Mode Model and Thinking from Tier Map
+
+The review dispatcher (`review_dispatcher.py`) SHALL resolve each reviewer's
+model and optional thinking level from the provider tier map (YAML-backed
+`model_aliases`, typically the `premium` tier for review) and SHALL inject
+vendor-specific thinking/effort flags via a shared `thinking_flags` helper
+when building the review CLI command.
+
+`agents.yaml` SHALL NOT hardcode premium model ids or effort/reasoning flags
+as the source of truth for review mode. Non-review dispatch modes MAY retain
+`cli.model` / fallbacks for capacity retry, but review-mode model and thinking
+policy SHALL come from the tier map.
+
+#### Scenario: Review resolves premium from the tier map
+
+- **GIVEN** `archetypes.yaml::model_aliases.<provider>.premium` defines a
+  model (and optional thinking)
+- **WHEN** the dispatcher builds a `--mode review` command for that provider's
+  agent
+- **THEN** the effective model SHALL be the premium map entry's model
+- **AND** when thinking is present, vendor thinking flags SHALL be injected by
+  the helper
+- **AND** review SHALL NOT depend on a hardcoded premium model id in
+  `agents.yaml` as policy
+
+#### Scenario: Thinking flags are vendor-translated
+
+- **GIVEN** a resolved thinking value for a known vendor
+- **WHEN** `thinking_flags` runs
+- **THEN** it SHALL return that vendor's CLI flag fragment(s) (e.g. Claude
+  `--effort`, Codex `model_reasoning_effort`, Grok reasoning-effort)
+- **AND** for an unknown vendor it SHALL return no flags without failing model
+  selection
+
+#### Scenario: agents.yaml does not author review premium policy
+
+- **WHEN** review-mode configuration in `agents.yaml` is inspected for policy
+  source
+- **THEN** it SHALL NOT be the authored source of premium model ids or
+  effort/reasoning flags for review
+- **AND** changing `model_aliases.<provider>.premium` alone SHALL be
+  sufficient to change review model/thinking after reload
+
+### Requirement: Compact-Pending Flag Keyed on Session Identity
+
+The compact hooks SHALL key the compact-pending flag file on an identity that the Stop and PreCompact hooks each derive from their own hook payload, so that one session's pending `/compact` request neither suppresses nor re-arms another session's triggers.
+
+The identity SHALL be resolved in the order: hook-payload `session_id`, `SESSION_ID` environment variable, `AGENT_ID` environment variable, a hash of the payload `transcript_path`, and finally `unknown`. It SHALL be sanitized to be filesystem-safe.
+
+#### Scenario: Flag named after the payload session id
+
+- **WHEN** the Stop hook requests `/compact` and its payload carries `session_id` `S`
+- **AND** `AGENT_ID` is unset
+- **THEN** the hook SHALL create `~/.claude/compact-pending-S.flag`
+- **AND** SHALL NOT create `compact-pending-unknown.flag`
+- **AND** the block reason SHALL identify the session as `session=S`
+
+#### Scenario: One session's flag does not suppress another session
+
+- **WHEN** `compact-pending-A.flag` exists
+- **AND** the Stop hook runs for session `B` above the threshold
+- **THEN** the hook SHALL request `/compact` for session `B`
+
+#### Scenario: PreCompact clears the flag its session's Stop hook created
+
+- **WHEN** the Stop hook created the flag for session `S`
+- **AND** the PreCompact hook runs with a payload carrying `session_id` `S`
+- **THEN** the PreCompact hook SHALL remove that flag
+- **AND** the next Stop above the threshold SHALL request `/compact` again
+
+### Requirement: Pre-Compact Snapshot Uses Only the Session's Handoffs
+
+The `precompact_handoff.py` hook SHALL build its pre-compact snapshot from the newest handoff that belongs to the session in its payload, using the same ownership rule as the phase-boundary detector.
+
+#### Scenario: Another session's newer handoff is ignored
+
+- **WHEN** the session owns handoff `H1`
+- **AND** a newer handoff `H2` exists for a change the session never mentioned
+- **THEN** the snapshot SHALL be built from `H1`
+
+### Requirement: Skill-Authored Model Vocabulary from Archetypes
+
+Skills under `skills/**/SKILL.md` (and skill-owned templates that instruct
+dispatch) SHALL treat `agent-coordinator/archetypes.yaml` as the vocabulary
+source for model and thinking selection. When describing which model to use,
+skills SHALL name archetypes and/or tiers from that file (via phase mapping
+or explicit tier), not raw harness model names or versions as default policy.
+
+Dispatch examples that invoke a harness (`Task`, `Agent`, or vendor CLI) SHALL
+resolve to harness-specific model ids at runtime and MUST NOT embed those ids
+as the authored selection policy. Observed resolved ids MAY appear in run
+artifacts or escape-hatch override documentation when clearly labeled as
+non-default.
+
+#### Scenario: Dispatch examples do not hardcode model versions
+
+- **WHEN** a skill documents a fenced harness dispatch that selects a model
+- **THEN** the selection policy in that example SHALL reference archetype/tier
+  resolution (or an already-resolved variable produced by that resolution)
+- **AND** SHALL NOT use a string-literal raw model id as the policy source
+
+#### Scenario: Narrative defaults use tier or vendor-role language
+
+- **WHEN** a skill describes a default generator or annotator model in prose
+- **THEN** it SHALL name an archetype, tier, or vendor role resolved from the
+  tier map
+- **AND** SHALL NOT present a concrete model version string as the standing
+  default
+
+#### Scenario: Dual-vendor annotation resolves two economy tiers
+
+- **WHEN** `cite-requirements` (or similar) dispatches two annotators for
+  diversity
+- **THEN** each annotator’s model SHALL be obtained by resolving a cheap/fast
+  (`economy`) tier for a distinct provider
+- **AND** the skill SHALL NOT hardcode the two model ids as selection policy
+
+### Requirement: Discovery generators emit canonical candidate work
+
+Bug-scrub, improve-harness, and explore-feature MUST be capable of emitting
+candidate-work stubs that conform to `openspec/schemas/candidate-work.schema.json`
+while preserving their existing rich artifacts.
+
+#### Scenario: Bug-scrub promotes a finding
+
+- **WHEN** an eligible bug-scrub finding is promoted to candidate work
+- **THEN** the emitted stub SHALL validate against the canonical schema
+- **AND** provenance SHALL identify the bug-scrub report and finding ID
+- **AND** the existing bug-scrub report SHALL remain unchanged
+
+#### Scenario: Improve-harness emits a capability-gap candidate
+
+- **WHEN** improve-harness emits candidate work for a ranked capability gap
+- **THEN** the emitted stub SHALL validate against the canonical schema
+- **AND** provenance SHALL identify the report and source entry IDs
+- **AND** the legacy markdown proposal-stub path SHALL remain available during the migration window
+
+#### Scenario: Explore-feature emits shortlist candidates
+
+- **WHEN** explore-feature persists a ranked shortlist
+- **THEN** every eligible untracked opportunity SHALL have a schema-valid candidate-work projection
+- **AND** the rich HMW, lens, and rejected-alternative data SHALL remain in `opportunities.json`
+- **AND** every projected opportunity SHALL provide a stable opportunity ID
+- **AND** already-scaffolded opportunities SHALL NOT create duplicate candidate work
+- **AND** hinted or derived IDs SHALL be normalized to the canonical change-ID prefixes
+- **AND** only blockers resolving to exact change IDs SHALL populate `depends_on`
+- **AND** prose blockers SHALL remain inert rationale or tags
+
+#### Scenario: Producers assign comparable priority
+
+- **WHEN** supported generators project entries into a mixed candidate batch
+- **THEN** each adapter SHALL map source evidence onto the shared five-band priority scale
+- **AND** source-local rank SHALL NOT be treated as an unbounded cross-generator priority
+- **AND** explore-feature SHALL apply its documented 1.0..3.3 weighted-score formula (`focus_match` 0 through 3) and fixed bands rather than mapping shortlist position
+- **AND** explore-feature SHALL NOT emit priority 1 because its source contract has no critical or immediate field
+
+#### Scenario: Producer prefixes are normalized
+
+- **WHEN** bug-scrub or improve-harness receives a `fix-` or unprefixed suggested ID
+- **THEN** the adapter SHALL normalize it to the canonical `update-` prefix
+- **AND** an already canonical add/update/remove/refactor prefix SHALL remain unchanged
+
+#### Scenario: Derived candidate identity is stable
+
+- **WHEN** the same producer source is projected after line, title, report path, collector order/rank, or non-identity provenance changes
+- **THEN** its derived suggested ID SHALL remain unchanged
+- **AND** the identity object SHALL contain exactly `generator` and `source_id`
+- **AND** bug-scrub SHALL use `bug-finding-<semantic-hash>`, improve-harness SHALL use the trimmed, whitespace-collapsed, lowercase capability gap, and explore-feature SHALL use the exact stable opportunity ID
+- **AND** bug-scrub base semantic JSON SHALL contain exactly `source`, `source_key`, `category`, `file_path`, `detail`, `origin_change_id`, and `origin_artifact_path`, with one-based `occurrence` as the exact eighth final fingerprint field
+- **AND** paths SHALL map `None` to empty and otherwise only slash-normalize while preserving internal whitespace
+- **AND** detail SHALL lstrip before matching, strip only an exact full `<file_path>:<numeric-line>:` prefix independent of line metadata, SHALL NOT strip a basename-only prefix, SHALL slash-normalize only the prefix comparison while preserving message backslashes, and SHALL then whitespace-collapse
+- **AND** bug-scrub `source_key` SHALL retain exact pytest/security/other collector key strings while applying only the specified volatile ruff/mypy/marker line-suffix, architecture/deferred ordinal, and OpenSpec transformations
+- **AND** equal base identities SHALL receive deterministic occurrence ordinals after sorting by `(line_missing, line, origin_task_number, raw str(original_finding_id), report_index)` with no redundant origin path, so repeated equivalent findings remain distinct while singleton line shifts and global collector reorder remain stable
+- **AND** bug-scrub SHALL exclude the unmodified finding ID, line, age, origin line/task/index, severity, title, report path, and collector order/rank from base semantic identity while retaining the original finding ID in provenance
+- **AND** `semantic-hash` SHALL be the first 16 lowercase SHA-256 hex characters of final canonical JSON, and distinct final fingerprints that collide on the compact source ID MUST fail the complete batch
+- **AND** the readable base SHALL derive only from `source_id` by the documented ASCII slug algorithm and `item` fallback
+- **AND** canonical serialization SHALL use sorted keys, compact comma/colon separators, unescaped Unicode, and UTF-8 before SHA-256
+- **AND** explicit source hints SHALL remain normalized but unsuffixed
+- **AND** duplicate final IDs MUST fail the whole batch before replacement
+
+#### Scenario: Bug-scrub mappings reject unknown labels
+
+- **WHEN** bug-scrub projects findings from its supported categories and severities
+- **THEN** effort SHALL follow the exhaustive category-only mapping
+- **AND** severity SHALL be trimmed, lowercased, and mapped through the critical/high/medium/low/info priority vocabulary
+- **AND** an unknown category or severity MUST fail the complete sidecar with a concise validation error before replacement
+
+#### Scenario: Improve-harness effort is independent of urgency
+
+- **WHEN** improve-harness projects gaps with equal `max_severity` but different affected-skill counts
+- **THEN** priority SHALL remain equal while effort SHALL follow the documented affected-skill bands
+- **AND** missing affected-skill evidence SHALL map to M with an `effort-estimate-default` tag
+- **AND** `max_severity` SHALL be trimmed, lowercased, and mapped through the critical/high/medium/low vocabulary
+- **AND** an unknown `max_severity` MUST fail with a concise validation error before candidate-sidecar replacement
+
+#### Scenario: Explicit sidecar destination collides
+
+- **WHEN** a producer targets an existing valid non-empty candidate batch owned by another generator
+- **THEN** it MUST refuse replacement and identify the generator collision
+- **AND** the existing destination bytes SHALL remain unchanged
+
+#### Scenario: Candidate batch validation fails
+
+- **WHEN** any projected candidate violates the canonical schema
+- **THEN** the generator MUST fail with a field-level error
+- **AND** it MUST NOT replace the destination with a partial batch
+
+#### Scenario: Candidate sidecar is deterministic and complete
+
+- **WHEN** the same input and repository state are processed twice
+- **THEN** complete sidecar bytes SHALL be identical
+- **AND** every stub SHALL retain generator and source provenance
+
+#### Scenario: Candidate text is rendered safely
+
+- **WHEN** candidate ranking renders title, rationale, tags, or provenance
+- **THEN** source text SHALL be escaped as inert Markdown or terminal text
+- **AND** provenance URIs SHALL NOT be dereferenced, fetched, or executed
+
+#### Scenario: Requested candidate discovery returns no eligible entries
+
+- **WHEN** a generator with a file-backed or explicitly requested candidate destination succeeds with no eligible entries
+- **THEN** it SHALL atomically persist an empty candidate array
+- **AND** stale candidates SHALL NOT remain
+- **AND** improve-harness stdout-only mode without an explicit candidate destination SHALL remain write-free
+
+### Requirement: Prioritize-proposals ranks mixed candidate work
+
+`/prioritize-proposals` SHALL accept one or more candidate-work objects or arrays through
+a repeatable `--candidate-work PATH` option and rank candidate stubs from all supported generators with deterministic tie-breakers.
+
+#### Scenario: Mixed producer batch is ranked
+
+- **WHEN** three supplied sidecars contain valid stubs from bug-scrub, improve-harness, and explore-feature
+- **THEN** the loader SHALL validate each file, concatenate them in argument order, and reject duplicate final IDs across the union
+- **AND** the prioritization output SHALL include every stub exactly once
+- **AND** each entry SHALL retain its generator and provenance
+- **AND** repeated ranking of identical input SHALL produce the same order
+- **AND** a missing optional provenance generator SHALL use the empty-string tie-break key
+
+#### Scenario: Mixed batch contains a malformed stub
+
+- **WHEN** any member of the candidate batch is malformed
+- **THEN** prioritization MUST refuse the entire batch before scoring
+- **AND** the error SHALL identify the offending batch index and field
+
+#### Scenario: Mixed batch contains dependencies
+
+- **WHEN** valid candidates contain an acyclic dependency edge and stable-key ties
+- **THEN** the dependency SHALL precede its dependent
+- **AND** deterministic tie-breakers SHALL produce a stable order
+- **AND** candidate entries SHALL remain distinct from proposal entries
+- **AND** the shared resolver SHALL collapse duplicate completed/archive lifecycle records and preserve one unique live match
+- **AND** an active-incomplete or unknown external dependency SHALL mark its candidate and all transitive in-batch dependents blocked
+- **AND** ready components SHALL precede blocked components without violating dependency order
+
+#### Scenario: Mixed batch has a cycle or duplicate change ID
+
+- **WHEN** candidates form a cycle, repeat a suggested change ID, or a dependency has multiple live matches
+- **THEN** prioritization MUST refuse the lane before scoring
+- **AND** the error SHALL name the conflicting candidates
+
+### Requirement: Coordinated Autopilot Phase Projection
+
+A coordinated Autopilot host SHALL project every durably persisted phase generation to the work queue using the existing idempotent projection contract. The projected identity SHALL be derived only from `(LoopState.change_id, LoopState.current_phase, LoopState.total_iterations)`. Every `task_type=issue` row SHALL be excluded from all work claims. The canonical priority-1 projection row SHALL receive the adapter-owned labels `change:<change_id>` and `projection:autopilot-phase` so the current kanban query path can select it; stale projection rows SHALL lose both labels without modifying ordinary issues. Queue responses SHALL NOT mutate authoritative loop state.
+
+#### Scenario: Live phase transition is mirrored
+
+- **GIVEN** Autopilot is running in the coordinated tier with a projection adapter
+- **WHEN** it durably advances to a new phase generation
+- **THEN** the matching keyed queue row SHALL be submitted after the loop-state write
+- **AND** only a bridge `status=error`, HTTP-409 problem response whose `response.detail` is `reconciliation_required` SHALL advance through reconciliation rather than degrade
+- **AND** every direct transition to ESCALATE SHALL increment `total_iterations` exactly once before persistence and projection
+- **AND** the canonical `task_type=issue` row SHALL be idempotently labelled `change:<change_id>` and `projection:autopilot-phase`
+- **AND** the existing kanban `/issues/list` query and an already connected SSE client SHALL expose that phase within 5 seconds without a reload
+- **AND** the row SHALL be derivable from the persisted loop-state tuple
+
+#### Scenario: Host-driven execution uses the same projection
+
+- **GIVEN** the Autopilot skill drives phases through its CLI protocol
+- **WHEN** a canonical CLI state mutation is persisted in coordinated mode
+- **THEN** `runner.py init` and `runner.py transition` SHALL durably own initialization and ordinary phase advances
+- **AND** the host SHALL invoke `runner.py project-state --mode submit` after every successfully persisted runner state mutation
+- **AND** resume SHALL invoke `runner.py project-state --mode reconcile` before gate handling or phase work
+- **AND** the shared projection adapter SHALL project the resulting durable tuple
+- **AND** a supervise-dispatched run SHALL require no supervise-specific phase publisher
+
+#### Scenario: Crash after persistence repairs on resume
+
+- **GIVEN** loop-state advanced but the process ended before queue submission
+- **AND** an older queue generation remains active
+- **WHEN** coordinated Autopilot resumes
+- **THEN** it SHALL reconcile from the loaded loop-state before phase work
+- **AND** stale active rows SHALL be cancelled
+- **AND** exactly one active canonical row carrying both adapter-owned labels SHALL represent the loaded generation
+- **AND** interrupted cleanup across at most 100 concurrently double-labelled projection rows SHALL be retried without modifying ordinary change-labelled issues
+
+#### Scenario: Projection publication is elevated and change-scoped
+
+- **GIVEN** a trust-level-2 principal may submit ordinary work
+- **WHEN** it submits a request carrying `projection_key` or calls projection reconciliation
+- **THEN** authorization SHALL evaluate the distinct `publish_work_projection` operation against the exact requested change ID
+- **AND** the request SHALL fail with HTTP 403 before any projection service or database mutation
+- **AND** trust-resolution failure during submit or reconcile SHALL fail closed before the mutating RPC
+- **AND** a trust-level-3 coordinator publisher SHALL retain the operation through native policy and synchronized capability profiles
+
+#### Scenario: Pre-registry rows block every labelled generation repair
+
+- **GIVEN** a pre-migration active row carries the reserved projection label and identifies a change by payload or exact change label but lacks registry ownership
+- **WHEN** a labelled submit or reconcile requests either the same generation or a newer generation for that change
+- **THEN** it SHALL return `projection_key_collision` before head advancement, insertion, cancellation, reactivation, or relabelling
+- **AND** the legacy row, requested row, and projection head SHALL remain unchanged
+- **AND** repair SHALL succeed only after an administrator verifies provenance and explicitly registers every complete keyed row UUID for the change, including cancelled historical generations; registering only the current row is insufficient
+
+#### Scenario: Reserved projection identity and owned rows reject ordinary issue mutation
+
+- **GIVEN** migration 039 is active
+- **WHEN** an ordinary issue create, update, or label-PATCH supplies `projection:autopilot-phase`
+- **OR** an ordinary issue update, label-PATCH, or close targets a registry-owned projection row
+- **THEN** the issue API SHALL return HTTP 403 before changing the target row
+- **AND** a database insert or label update SHALL reject the reserved marker unless the row UUID is already registry-owned
+- **AND** a projection RPC SHALL insert without labels, register ownership, and apply the canonical label pair within one transaction
+- **AND** ordinary mutation of an unowned pre-registry reserved-labelled row SHALL return a structured `reserved_projection_label` refusal without reaching the label trigger
+- **AND** no forged board or SSE projection and no future reconciliation wedge SHALL be created
+- **AND** a close request containing multiple issue IDs SHALL lock and validate the complete issue batch before mutation, so any protected projection member leaves every ordinary member unchanged
+
+#### Scenario: Labelled and legacy unlabelled projection modes cannot collide
+
+- **GIVEN** a change has any registry-owned labelled projection row
+- **WHEN** a keyed submit or reconcile omits `projection_labels`
+- **THEN** it SHALL return `projection_mode_mismatch` before head or row mutation
+- **AND** the canonical owned row SHALL retain its status and exact label pair
+- **AND** a labelled submit or reconcile SHALL return `projection_key_collision` before mutation when the change already contains any complete unowned projection tuple
+- **AND** direct MCP and HTTP-proxy projection calls SHALL accept and forward the exact label pair
+- **AND** an associated unowned reserved-labelled upgrade row SHALL return `projection_key_collision` in either mode
+- **AND** legacy unlabelled tuple cancellation SHALL remain available for changes with neither owned nor reserved-labelled projection state
+
+#### Scenario: Projection outage is degraded, not authoritative
+
+- **GIVEN** loop-state persistence succeeds
+- **AND** the coordinator projection call fails or returns a non-success envelope
+- **WHEN** the host reports the transition
+- **THEN** the durable loop-state SHALL remain unchanged
+- **AND** a failed canonical-row label update or stale-label cleanup SHALL also report projection degradation with a bounded reason
+- **AND** label-removal events SHALL derive change identity from OLD labels when NEW labels are empty
+- **AND** label operations SHALL target the configured coordinator even when GitHub issues are enabled
+- **AND** it SHALL NOT derive state from a queue response
+
+#### Scenario: Coordinator-free tiers stay isolated
+
+- **GIVEN** execution selected local-parallel or sequential tier
+- **WHEN** Autopilot starts, transitions, or resumes
+- **THEN** no projection adapter SHALL be registered or constructed
+- **AND** the projection module SHALL NOT be imported
+- **AND** no projection submit, reconcile, or coordinator-only projection-label helper SHALL be called
+- **AND** pre-existing coordinator detection and archetype-resolution imports are outside this projection-isolation guarantee
 

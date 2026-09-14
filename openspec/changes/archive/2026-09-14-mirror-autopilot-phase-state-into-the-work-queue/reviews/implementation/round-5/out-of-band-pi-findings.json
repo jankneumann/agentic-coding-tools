@@ -1,0 +1,347 @@
+{
+  "review_type": "implementation",
+  "target": "mirror-autopilot-phase-state-into-the-work-queue",
+  "reviewer_vendor": "independent-recovery-reviewer",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "ESCALATE transitions now correctly set previous_phase and escalation_reason via enter_escalate(). _apply_transition routes ESCALATE through enter_escalate, and enter_escalate increments total_iterations exactly once only on real phase change (not when already in ESCALATE). This fixes the critical resume metadata defect from Codex #3 and Pi #1.",
+      "resolution": "Fixed in autopilot.py:517-532 (enter_escalate) and autopilot.py:824-830 (_apply_transition ESCALATE branch). Verified by test_every_table_transition_to_escalate_is_resumable and test_runner_transition_persists_goal_gate_refusal_as_escalate.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 517,
+        "end": 532
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "apply_outcome_or_escalate now increments total_iterations and calls projection via _project_saved_state after internal ESCALATE write. This fixes Codex #5 and Pi #2 where the failure path bypassed the projection seam and generation advancement.",
+      "resolution": "Fixed in autopilot.py:669-682: raw[\"total_iterations\"] incremented and _project_saved_state called after ESCALATE write. Verified by test_runner_project_state_reports_degraded_without_halting_authoritative_work and integration test coverage.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 669,
+        "end": 682
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "runner.py transition (_cmd_transition) now catches GoalGateRefused, calls enter_escalate with refusal reason, saves state, and returns 0 (matching gate-answer semantics). This fixes Codex #4 and Claude Code #1 where the refusal escaped as unhandled traceback.",
+      "resolution": "Fixed in runner.py:392-410: GoalGateRefused caught, enter_escalate called, state saved, stderr written, returns 0. Verified by test_runner_transition_persists_goal_gate_refusal_as_escalate.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 392,
+        "end": 410
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Migration 038 atomically maintains projection labels inside the per-change advisory transaction: submit/reconcile now accept optional exact p_projection_labels, apply canonical labels to the current row, cancel stale active rows, and clear owned labels from non-canonical rows while holding pg_advisory_xact_lock. This fixes the N/N+1 concurrent publisher race from Codex #1.",
+      "resolution": "Fixed in 038_atomic_projection_labels.sql: submit_task and reconcile_work_projection both accept p_projection_labels, validate exact label set [\"change:<id>\", \"projection:autopilot-phase\"], and perform atomic label repair inside the advisory lock transaction. Verified by test_three_generations_replay_cancel_stale_and_exclude_issues_from_claim.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/038_atomic_projection_labels.sql",
+      "line_range": {
+        "start": 1,
+        "end": 197
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "SSE projection.refresh now coalesces label-change bursts and filters cancelled rows from snapshots. event_stream.py handles projection.labels_changed events via projection_refresh_pending flag, emits projection_snapshot marker, and _build_snapshot queries only active issues (status IN pending,claimed,running,completed,failed,blocked). issue_service.py list_issues excludes cancelled rows when labels filter is used and status is None. This fixes Codex #2 and Grok #6.",
+      "resolution": "Fixed in event_stream.py:269-348 (projection_snapshot handling, backpressure) and issue_service.py:316-320 (status filter for label queries). Verified by test_connected_sse_refreshes_after_atomic_projection_reconciliation and test_projection_label_events_coalesce_into_one_fresh_snapshot.",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 269,
+        "end": 348
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "OpenAPI work-queue.yaml revision 2.1.0 now declares ProjectionKey, /work/reconcile, ProjectionMutationResult with cancelled_task_ids, and typed Problem 401/403/409/422 responses matching runtime handlers. Request schemas include additionalProperties:false, minLength constraints, priority 1-10 bounds, UUID format for depends_on, and exact projection_labels array (minItems=2, maxItems=2). This fixes Codex #7.",
+      "resolution": "Fixed in work-queue.yaml:85-194 and coordination_api.py:219-233, 1210-1242. Verified by test_projection_openapi_problem_contract_matches_runtime.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 85,
+        "end": 194
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Live PostgreSQL integration tests now cover three successive generations with head advancement, idempotent replay, stale rejection/cancellation, unfiltered claim exclusion (task_type=issue), >50 ordinary issues with priority-1 projection visibility, connected EventBus/SSE refresh, and crash/resume reconciliation from durable file. This fixes Codex #6, Grok #1, Grok #2, and Claude Code #2.",
+      "resolution": "Added test_autopilot_projection_acceptance_postgres.py with test_three_generations_replay_cancel_stale_and_exclude_issues_from_claim, test_priority_one_projection_survives_exact_label_query_window_over_50, test_connected_sse_refreshes_after_atomic_projection_reconciliation. Verified by live PostgreSQL test execution (30 tests passed).",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/tests/integration/postgres/test_autopilot_projection_acceptance_postgres.py",
+      "line_range": {
+        "start": 1,
+        "end": 217
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Migration 038's submit_task validates p_projection_labels when no projection key is present (v_any=false) and returns invalid_projection_labels. This correctly enforces that projection labels are only valid with a complete projection identity. Legacy unkeyed submissions without projection_labels continue to work.",
+      "resolution": "Verified in 038_atomic_projection_labels.sql:26-31: IF NOT v_any THEN IF p_projection_labels IS NOT NULL RETURN invalid_projection_labels. No breaking change for legacy callers.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/038_atomic_projection_labels.sql",
+      "line_range": {
+        "start": 26,
+        "end": 31
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 9,
+      "type": "performance",
+      "criticality": "medium",
+      "description": "Event stream backpressure handles projection_snapshot by immediately converting to snapshot via _build_snapshot, then checking window_count. If backpressure triggers in same iteration, _build_snapshot runs a second time (draining queue). The first snapshot result is discarded. Not a correctness issue (second snapshot is fresher) but wastes one DB-backed snapshot query during 100-row label repair bursts.",
+      "resolution": "Run backpressure window bookkeeping before converting projection_snapshot marker, or continue after yielding marker-built snapshot with window_count reset. File: event_stream.py lines 317-348.",
+      "disposition": "fix",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 317,
+        "end": 348
+      },
+      "axis": "performance",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Isolation test test_coordinator_free_run_cannot_call_projection_transport uses queue_projection_fn=None which causes persist_and_project to short-circuit before any bridge call. The patched bridge functions are never reached, so the test cannot fail for the actual isolation property (a host constructing the adapter on coordinator-free tier). The real isolation guard is the AST top-level import test which is sound.",
+      "resolution": "Make the isolation test spy on QueueProjectionAdapter construction via sys.modules inspection after a local-parallel/sequential runner.py command sequence (init, transition, apply-outcome without project-state). File: skills/tests/autopilot/test_phase_projection_isolation.py lines 46-86.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 46,
+        "end": 86
+      },
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "OpenAPI test test_projection_openapi_problem_contract_matches_runtime only parses the YAML contract and asserts schema fields. It does not compare against FastAPI app's actual problem handlers (e.g., call /work/submit without key through TestClient and verify application/problem+json with Problem required fields). The name overstates what it proves.",
+      "resolution": "Extend the test to assert runtime handler output via TestClient integration, or rename to reflect static YAML validation only. File: agent-coordinator/tests/test_autopilot_projection_visibility.py lines 145-173.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/tests/test_autopilot_projection_visibility.py",
+      "line_range": {
+        "start": 145,
+        "end": 173
+      },
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "_phase_gatekeeper returns 'escalate' outcome after calling enter_escalate (which mutates state to ESCALATE). The main loop sees state.current_phase != phase, persists via persist_and_project, and continues — the returned outcome is discarded. Functionally correct but confusing; violates pattern where phase handlers return outcomes for _apply_transition to apply.",
+      "resolution": "Refactor _phase_gatekeeper to not return an outcome when enter_escalate is called, or restructure so ESCALATE transitions follow the same pattern. File: autopilot.py lines 1507-1515.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 1507,
+        "end": 1515
+      },
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "runner.py project-state (_cmd_project_state) correctly returns exit 0 for all projection results including degraded envelopes, with the degraded JSON on stdout. The comment confirms: 'Projection is observability-only. A structured degraded envelope is a successfully reported projection attempt and must not halt phase work.' This matches the design requirement and fixes the earlier Grok #3 concern.",
+      "resolution": "Verified in runner.py:430-436: returns 0 unconditionally after writing result JSON. No change needed.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 430,
+        "end": 436
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Migration 037 correctly drops legacy claim_task overloads (3-arg and 5-arg) and creates single implementation with task_type <> 'issue' filter, making projection rows unclaimable even for unfiltered claims. Trigger emits projection.labels_changed with NEW label preferred, OLD label fallback on removal. This enforces the issue-row non-claimability intent.",
+      "resolution": "Verified in 037_autopilot_phase_projection_visibility.sql:7-25, 96-116. Tested by test_migration_excludes_all_issue_rows_and_uses_old_label_fallback and live integration test claim exclusion.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql",
+      "line_range": {
+        "start": 7,
+        "end": 116
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 15,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "QueueProjectionAdapter derives projection identity exactly from (change_id, current_phase, total_iterations) with stricter change-id grammar checked before transport. Only exact 409 reconciliation_required advances to reconcile; projection_generation_mismatch and other conflicts degrade. Duplicate replay returns canonical task. One capability snapshot reused across all bridge calls. All 7 adapter unit tests pass.",
+      "resolution": "Verified in queue_projection.py:1-158 and test_queue_projection.py. Matches design D7, D9 and spec scenarios.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 1,
+        "end": 158
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 16,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Coordination bridge HTTP-200 business failures correctly treated as projection failures. _require_projection_operation_success wraps try_projection_issue_list and try_projection_issue_update: if HTTP 200 but response.success is not True, converts to status=failed with bounded reason. Prevents silent label-update failures.",
+      "resolution": "Verified in coordination_bridge.py:1250-1365. Matches design D9.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/coordination-bridge/scripts/coordination_bridge.py",
+      "line_range": {
+        "start": 1250,
+        "end": 1365
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 17,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Installed skill mirror parity holds at HEAD. Canonical sources under skills/ for autopilot (SKILL.md, queue_projection.py, runner.py, autopilot.py) and coordination-bridge (coordination_bridge.py) are byte-identical to both .agents/skills/ and .claude/skills/ mirrors. Verified by diff.",
+      "resolution": "No action required. Verified by manual diff comparison.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 18,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Runner pending/validation/operational/escalation exit semantics match SKILL.md protocol. All subcommands return documented exit codes: init (0 success/idempotent, 1 op-fail, 2 validation), transition (0 success/gate-pending, 1 op-fail, 2 validation), apply-outcome (0 success/gate-pending, 1 op-fail, 2 validation), record-state-only-archetype (0 success, 1 op-fail, 2 validation), gate-answer (0 success, 2 no-pending/mismatch, 1 op-fail), gate-check (0 ask, 3 continue, 4 parked, 1 eval-fail, 2 validation), project-state (0 ok/degraded, 1 op-fail, 2 validation). Verified by test_runner_transition_validation_and_project_state_io_exit_codes.",
+      "resolution": "No action required. Implementation matches SKILL.md protocol.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 1,
+        "end": 400
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 19,
+      "type": "observability",
+      "criticality": "low",
+      "description": "SSE snapshot coalescing and unsubscribe behavior correctly implemented. sse_event_generator registers callbacks in try/finally with off_event on all exit paths (normal close, CancelledError, exception). Backpressure coalesces >100 events/sec into single snapshot. projection.labels_changed events set projection_refresh_pending flag, deduplicated to one snapshot. Verified by test_projection_label_events_coalesce_into_one_fresh_snapshot and test_backpressure_drain_does_not_suppress_later_projection_refresh.",
+      "resolution": "No action required. Implementation matches design D5.",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 1,
+        "end": 200
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 20,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "OpenAPI parity and test quality verified. openspec/contracts/agent-coordinator/openapi/work-queue.yaml declares ProjectionKey, /work/reconcile, typed 403/409/422 problem responses. test_projection_openapi_problem_contract_matches_runtime validates schema matches runtime. All 90 OpenSpec validations pass. Ruff linting passes. Full test suites pass: 432 autopilot, 96 coordination-bridge, 127 coordinator queue/issue/projection tests, 30 live PostgreSQL/E2E tests, 224 Kanban (6 skipped), build passes.",
+      "resolution": "No action required. Implementation matches work-packages.yaml verification steps.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 1,
+        "end": 122
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

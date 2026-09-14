@@ -1,0 +1,211 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Ordinary issue create/update rejects the reserved `projection:autopilot-phase` marker before persistence. `IssueService.create` and `IssueService.update` call `_reject_reserved_projection_label` which raises `ProjectionIssueMutationError` mapped to HTTP 403 in `coordination_api.py:1328-1348,1421-1477`. Database trigger `enforce_projection_label_ownership` (`039_projection_integrity_and_insert_events.sql:318-336`) rejects any INSERT/UPDATE supplying the marker before `work_queue_projection_ownership` registration. Verified by live test `test_database_rejects_unowned_spoofed_projection_issue` and HTTP test `test_ordinary_issue_api_cannot_cross_projection_boundary[create]`.",
+      "disposition": "accept",
+      "resolution": "Reserved marker is database-owned; ordinary issue APIs cannot create or update it. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 196,
+        "end": 210
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Ordinary issue update/close cannot mutate a registry-owned projection row. `mutate_issue_if_unowned` RPC (`039_projection_integrity_and_insert_events.sql:360-427`) takes a row lock (`FOR UPDATE`), checks `work_queue_projection_ownership` before applying any allowlisted patch, and returns `projection_issue_immutable` which the HTTP layer maps to 403 (`coordination_api.py:1421-1477`). Verified by live tests `test_owned_same_generation_request_reactivates_terminal_canonical_issue` (owned row reactivation only through projection RPC) and HTTP test `test_ordinary_issue_api_cannot_cross_projection_boundary[update/close]`. The row-locking RPC closes check/write races for all patched fields and batched closes.",
+      "disposition": "accept",
+      "resolution": "Registry-owned rows are immutable through ordinary issue APIs. HTTP 403 mapping verified. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 360,
+        "end": 427
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Migration 039 projection RPCs insert an unlabelled row, register its UUID in `work_queue_projection_ownership`, then apply the exact canonical label pair transactionally. `submit_task` and `reconcile_work_projection` insert with `labels=ARRAY[]::TEXT[]`, then `INSERT INTO work_queue_projection_ownership(task_id) VALUES(v_id) ON CONFLICT DO NOTHING`, then `UPDATE work_queue SET labels=p_projection_labels WHERE id=v_id` (`039_projection_integrity_and_insert_events.sql:138-155, 270-285`). The `enforce_projection_label_ownership` trigger rejects post-migration unowned inserts/label updates (`318-336`). First-insert SSE works via `notify_projection_insert` trigger on the labelled UPDATE (`338-358`). Replay, concurrent generation serialization, and explicit administrator adoption of pre-039 rows all verified by live tests `test_same_generation_submit_replay_clears_noncanonical_owned_labels`, `test_owned_projection_cannot_take_over_unowned_issue_key`, `test_039_upgrade_fails_closed_until_owner_registers_verified_row`.",
+      "disposition": "accept",
+      "resolution": "Transactional ownership registration with trigger enforcement verified. Upgrade path preserves fail-closed for pre-039 rows. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 138,
+        "end": 155
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Keyed submit and reconcile authorize `publish_work_projection` in the service layer with the exact change resource and mode/change audit context. `WorkQueueService.submit` and `reconcile_projection` call `get_policy_engine().check_operation` with `operation=\"publish_work_projection\"`, `resource=key.change_id`, and `context={\"mode\": \"submit|reconcile\", \"change_id\": key.change_id}` (`work_queue.py:777-780, 907-910`). HTTP layer `coordination_api.py:1196-1279` does the same before delegating to the service. Direct MCP/service callers cannot fall back to ordinary `submit_work` because the service layer itself selects the elevated operation when `projection_key` is present. Verified by test `test_standard_trust_cannot_publish_projection` returning HTTP 403.",
+      "disposition": "accept",
+      "resolution": "Elevated operation authorization enforced at both HTTP and service layers. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 777,
+        "end": 780
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Cedar policy mode resolves omitted trust through the same shared fail-closed resolver as native policy. `CedarPolicyEngine._do_check_operation` calls `resolve_trust_level` and on `TrustResolutionError` returns a deny decision without reaching mutation (`policy_engine.py:725-736`). Native policy does the same (`policy_engine.py:140-150`). Both engines deny before any mutating RPC. Verified by test `test_admin_resolves_trust_when_context_omits_it` and trust-resolution fail-open test `test_reconcile_propagates_instead_of_writing_unscanned`.",
+      "disposition": "accept",
+      "resolution": "Cedar and native modes share fail-closed trust resolution. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/policy_engine.py",
+      "line_range": {
+        "start": 725,
+        "end": 736
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: In-process `converge()` resolves the vendor panel using the reviewed `worktree_path` with explicit/local/coordinator/global precedence and retains SDK-only coordinator rosters. `convergence_loop.py:610-614` calls `_orchestrator_for_dispatch(None, worktree_path)` when `orchestrator` and `agents_yaml_path` are omitted, matching the fixed CLI dispatcher resolution chain. Regression test `test_converge_resolves_vendor_panel_from_reviewed_worktree` fails if the stale coordinator-first constructor is used.",
+      "disposition": "accept",
+      "resolution": "Vendor resolution precedence corrected and regression-tested. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "line_range": {
+        "start": 610,
+        "end": 614
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Pre-registry N-to-N+1 fail-close is enforced. Both labelled SQL paths acquire `pg_advisory_xact_lock` then scan for associated unowned `projection:autopilot-phase` rows by payload `change_id` or exact `change:<id>` label, returning `projection_key_collision` before head or row mutation (`039_projection_integrity_and_insert_events.sql:97-112, 225-240`). Live test `test_039_upgrade_fails_closed_until_owner_registers_verified_row` proves migration-038 generation N blocks N+1 repair with head remaining `(INIT,0)` until explicit `work_queue_projection_ownership` registration.",
+      "disposition": "accept",
+      "resolution": "Preflight ordering and upgrade fail-closed verified in SQL and live migration test. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 97,
+        "end": 240
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Projection-head/ownership invariants hold. `work_queue_projection_heads` is updated atomically within the per-change advisory transaction. `work_queue_projection_ownership` is the sole ownership authority; mutable payload fields and labels cannot confer ownership. Active canonical rows preserve lifecycle state; owned terminal rows are reactivated to pending with lifecycle fields cleared and emit projection refresh event (`039_projection_integrity_and_insert_events.sql:156-165, 286-295`). Verified by live tests `test_owned_same_generation_replay_preserves_nonterminal_status`, `test_owned_same_generation_request_reactivates_terminal_canonical_issue`, `test_terminal_reactivation_refreshes_connected_sse`.",
+      "disposition": "accept",
+      "resolution": "Head/ownership invariants transactionally enforced and tested. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 156,
+        "end": 295
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Canonical CLI persistence and ESCALATE resume work correctly. `runner.py init`, `transition`, `escalate`, `apply-outcome`, `record-state-only-archetype`, and `project-state` commands persist state before projection (design D8). `enter_escalate` increments `total_iterations` exactly once. Console-approved `escalate_resume` applies the canonical `resolved` edge before host projection. Resume reconciliation runs before gates/work. Verified by autopilot test suites: `test_apply_outcome_contract.py` (40 tests), `test_runner_cli.py` (15 tests), `test_console_interviewer.py` (10 tests).",
+      "disposition": "accept",
+      "resolution": "CLI protocol and ESCALATE resume fully tested. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 1,
+        "end": 450
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Connected-client visibility via SSE works for first-insert, reconciliation, and terminal reactivation. Migration 037 emits label-update events; migration 039 emits first-insert event via `notify_projection_insert` trigger. `event_stream.py` converts both to SSE snapshot replacement. Verified by live tests `test_connected_sse_refreshes_after_atomic_projection_reconciliation`, `test_connected_sse_refreshes_for_first_canonical_projection_insert`, `test_terminal_reactivation_refreshes_connected_sse` \u2014 all complete within 1 second.",
+      "disposition": "accept",
+      "resolution": "SSE visibility for all projection lifecycle events verified. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 1,
+        "end": 50
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Coordinator-free isolation is preserved. `QueueProjectionAdapter` is constructed only for coordinated hosts; `runner.py project-state` imports it lazily. Local-parallel and sequential tiers perform zero projection-module imports/construction and zero projection submit/reconcile/label-helper calls. Isolation test `test_phase_projection_isolation.py` fails closed if `try_submit_work`, `try_reconcile_work_projection`, or coordinator-only label helpers are imported or called from free tiers. Pre-existing coordinator detection/archetype resolution imports are retained per D10.",
+      "disposition": "accept",
+      "resolution": "Projection isolation scope verified by import/module and fail-fast call spies. No defect remains.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 12,
+        "end": 86
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: Local MCP `db` transport reaches `WorkQueueService.submit`/`reconcile_projection` which authorize `submit_work` rather than `publish_work_projection` when called directly (not via HTTP bridge). This is accepted under D12's coordinator-only MCP and trust-level-3 local publisher assumption. Defense-in-depth alignment of service-layer policy with `publish_work_projection` when projection key/labels are present was strengthened in round 12 (Grok finding 8) \u2014 the service layer now selects the elevated operation for keyed submit/reconcile regardless of transport.",
+      "disposition": "accept",
+      "resolution": "Accepted under documented D12 assumption; service-layer elevation added as defense in depth. No action required.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 777,
+        "end": 910
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

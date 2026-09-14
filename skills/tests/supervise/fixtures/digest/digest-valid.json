@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "generated_at": "2026-09-11T01:00:00Z",
+  "state_updated_at": "2026-09-11T01:00:00Z",
+  "weights": {
+    "relevance": 3,
+    "value": 3,
+    "readiness": 2,
+    "scope_fit": 1,
+    "risk": 1,
+    "staleness_penalty_per_30d": 1,
+    "staleness_penalty_cap": 5,
+    "risk_higher_is_safer": true,
+    "decision_bucket_order": ["pending", "future_deferred"],
+    "dependency_bucket_order": ["ready", "blocked"],
+    "tie_breaker": "stub_key:asc"
+  },
+  "sections": {"needs_decision": [], "new_this_cycle": ["change:add-candidate-digest"], "degraded": []},
+  "ranked": [
+    {
+      "stub_key": "change:add-candidate-digest",
+      "rank": 1,
+      "score": 42,
+      "decision": "pending",
+      "suggested_change_id": "add-candidate-digest",
+      "title": "Add candidate digest",
+      "effort": "S",
+      "factors": {"relevance": 5, "value": 4, "readiness": 3, "scope_fit": 5, "risk": 4},
+      "justifications": {
+        "relevance": "The gap is still present.",
+        "value": "It improves operator decisions.",
+        "readiness": "Its contracts are approved.",
+        "scope_fit": "It fits one focused change.",
+        "risk": "The change is isolated and reversible."
+      },
+      "signals": {"dependency_ready": true, "staleness_days": 0, "prior_decision": null, "deferred_until": null},
+      "provenance": {
+        "source_artifact": "openspec/changes/add-candidate-digest/proposal.md",
+        "finding_ids": ["finding-1"],
+        "generator": "fixture"
+      }
+    }
+  ]
+}

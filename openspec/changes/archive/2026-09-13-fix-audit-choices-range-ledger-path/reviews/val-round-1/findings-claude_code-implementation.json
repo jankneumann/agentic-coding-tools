@@ -1,0 +1,85 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/validation-report.md",
+      "line_range": "82-92",
+      "description": "The report says there is 'No nominal (non-discriminating) coverage found among scenarios 12\u201315'. That is false for scenario 12. Implementation review round 3 raised a medium finding (claude_code #2) that was never fixed: test_end_to_end.py::TestStandaloneRangeInvocation::test_cli_exit_code_and_no_range_directory_under_changes (lines 423-465) passes even when the range run fails completely. `_cli()` always returns 0, and a failed run writes nothing, so both of its assertions (exit 0, no `range:`/`..` entry under openspec/changes/) still hold. It is also the only range-form test that takes the real un-injected path, where now=None and git_sha=None and `_head_sha()` and `datetime.now()` feed build_run_id through route_output_dir. Every other range test injects both values. The report's scenario-12 spot-check (forcing is_range_change_id to False) breaks routing, not that path, so it could not expose the gap. commit 5dbc1c7c did not touch test_end_to_end.py, and the finding is not in the report's known-unfixed list.",
+      "resolution": "Either (a) extend the CLI case to assert that exactly one `openspec/choices/<YYYY-MM-DD>-<HHMMSS>-<sha7>*/choices.json` exists, that `openspec/choices/latest.json` exists, and that its `change_id` equals the range id, then re-run the discrimination spot-check by making `_head_sha` return '' and confirming the test fails; or (b) record round-3 claude_code #2 as a known-unfixed medium finding and remove the 'no nominal coverage' claim."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "observability",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/validation-report.md",
+      "line_range": "134-170",
+      "description": "The report says 'All four quality gates green', but its four are not the tasks.md Phase 5 set. The checkpoint's four skill gates are install.sh --check, dependency_direction.py, `make context-refresh`, and tests/ci_coverage. The report quietly swaps the combined pytest run in for context-refresh. context-refresh was never run: the report calls it 'pre-existing, unrelated to this change, not re-verified here'. That relevance is asserted, not shown. This branch changes a managed output of that producer (docs/decisions/skill-workflow.md, +22 lines of decisions-timeline entries) and skill documentation (skills/audit-choices/SKILL.md, docs/guides/workflow.md). A gate that did not run is being counted as green.",
+      "resolution": "Run the read-only `make context-refresh-check` (exit 2 = drift), or `make context-drift-gate CONTEXT_GATE_EVENT=pull_request`, which reports drift inherited from main without failing. Record whether any drift is attributable to files this branch touches. If it cannot run, list the gate as not run or DEGRADED and change 'all four gates green' to name the three that actually ran."
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/validation-report.md",
+      "line_range": "171-179",
+      "description": "The known-unfixed list is incomplete. The report says three low findings were deliberately left. Round 3 raised 11 findings (commit 5dbc1c7c message). Fixed: grok #1 and #2, claude_code #1, #5 and #8(a). claude_code #7 was only documented in a code comment. Besides the three the report lists (grok #3, claude_code #3, claude_code #6), these remain unfixed and unrecorded: claude_code #2 [medium] (see finding 1); claude_code #4 [low], where `_assert_names_all_three_effects` accepts 'run director', so the archive clause alone satisfies the run-directory pin in the Read-Only Contract and Output passages; claude_code #7 [low], the RUN_ID_RE widening (see finding 4); and claude_code #8(b)/(c) [low]. For #8(b), skills/prioritize-proposals/scripts/retention.py:5 still says retention 'sorts lexically'. For #8(c), the list_active_runs docstring at shared/artifact_paths.py:120-121 runs two sentences together and repeats the comment below it.",
+      "resolution": "List every round-3 finding that is still open, with its original criticality, or fix them. At minimum, add claude_code #2, #4, #7 and #8(b)/(c)."
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/validation-report.md",
+      "line_range": "94-113",
+      "description": "D4's guard mostly holds, but the report claims more than it shows. Independently confirmed: `git diff` against both the merge base 4b6d10c3 and main is empty for test_priorities_paths.py, test_retention.py, test_smoke_e2e.py and prioritize-proposals/SKILL.md. The characterization test (e5889133) was committed before the shared tests (cdbe78ac), the shared module (971944ea) and the migration (1867c3dd). It has not been edited since. Its subprocess cases really do exercise the parents[2] import bootstrap from a <tmp>/prioritize-proposals/scripts beside <tmp>/shared layout. Two gaps go unmentioned. (a) D4 says the test pins '`latest.*` contents', and task 1.1 says report.* files 'land'. The test only asserts computed path values and never writes or reads a file. Real-world risk is low, because SKILL.md's inline bash cp writes those files and SKILL.md is byte-unchanged. (b) After the migration, shared/artifact_paths.py, which prioritize-proposals now runs, was edited four more times (6600d172, a931230e, bf6133c6, 5dbc1c7c). The RUN_ID_RE widening from those edits is an observable change to `retention.py --base openspec/priorities`: names that main's regex rejects, such as `2026-06-10-7`, `2026-06-10-1234567` or `<run-id>-2`, are now counted toward the retain limit and can be archived. None of D4's three guard layers covers this, which contradicts D4's 'may not change a byte' in spirit. Order for names main already accepted is preserved: their sort key is (name, 1).",
+      "resolution": "Replace 'the characterization test covers the one migration failure mode that matters' with a statement that the guard pins produced names and CLI bootstrap only. Record that the RUN_ID_RE widening knowingly changes which directory names prioritize-proposals retention admits. Optionally add a characterization case with a `<date>-N` directory under a priorities base, pinning the new accepted behavior on purpose."
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/validation-report.md",
+      "line_range": "178-179",
+      "description": "Two of the recorded known items are misdescribed. (1) The report puts the Red Flags item in SKILL.md, calling it 'broader in wording'. The SKILL.md bullet at line 119 is correct and names all three effects. The defect is in skills/tests/audit-choices/test_skill_md.py: `_paragraph_containing` splits on blank lines, and the Red Flags list (SKILL.md:119-124) has none, so the 'bullet' under test is the whole six-bullet section. Task 5.1 explicitly requires that 'a mention elsewhere cannot satisfy it', so the Red Flags half of D6's doc pin is nominal. (2) The report says the `_snapshot` helper 'skips directories rather than walking into them'. In fact `rglob` does walk into them. The helper omits directory entries, so empty directories are invisible to the scenario-15 closed-write-set assertion. On the success path, a double reservation that leaves an empty base directory behind (D8's 'fourth effect') would pass. Low is still the right rating, because TestFailedRangeRunLeavesNoOrphanDirectory covers the failure path and scenario 12's no-range-directory check is separate.",
+      "resolution": "Reword both entries. Red Flags: 'test_skill_md.py scopes the Red Flags pin to the whole section, not the contract-violation bullet'. Snapshot: 'closed-write-set snapshots record files only, so an empty directory created on the success path is not detected'."
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/validation-report.md",
+      "line_range": "181-204",
+      "description": "Claims confirmed, plus limits on this review. The not-applicable rating for Smoke, Security and E2E is correct: the diff (14 non-openspec files) is local path construction, filesystem moves, docs and tests, with no service, network, auth or dependency surface. The `latest.*` non-atomic pair update is correctly rated low: a copy failure between the two copies is logged, the canonical pair is intact, and latest.* is a convenience pointer. This reviewer could not re-run pytest; the session is non-interactive and running the command needed approval. So the 253+124 / 1-skipped counts were not independently reproduced. A static trace of the spot-check claims is consistent: forcing is_range_change_id to False fails 12 range tests in test_output_routing.py plus 3 range tests in TestStandaloneRangeInvocation, which is 15, matching the report. The scenario-13 test does assert that `openspec/choices` is absent (test_end_to_end.py:593). The working tree shows no leftover source mutations from the spot-checks.",
+      "resolution": "No change needed beyond findings 1\u20135. Have a session that can run tests confirm the counts before DONE."
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "observability",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/context-checkpoints/wp-state-artifacts-docs.json",
+      "line_range": {
+        "start": 9,
+        "end": 15
+      },
+      "description": "The declared context-impact surfaces and the durable checkpoint evidence for those surfaces disagree, and the disagreement is exactly on the surface the branch added last. work-packages.yaml:88-92 declares three surfaces (`documentation`, `decisions`, `semantic_code`), and plan-findings.md:37 states the `decisions` surface was added because the validator requires it once `PhaseRecord.write_both()` regenerates `docs/decisions/skill-workflow.md`. But the checkpoint artifact that is cited as the evidence for that declaration records only two: `context_impact.status: \"declared\"` with `surfaces: [\"documentation\", \"semantic_code\"]` (lines 10-14), captured at `merge_base_revision: 4f794962` (line 16) \u2014 i.e. before the amendment. change-context.md:29 then repeats the stale two-surface pair verbatim (\"declaration status `declared` for `documentation` and `semantic_code`\"), so the plan asserts three surfaces in the package and two everywhere it offers proof. The checkpoint does contain a passing `decisions.timeline` producer result (`validation_id: \"decisions\"`, \"docs/decisions is current\"), which shows the producer ran but not that the surface was declared at capture time. A reviewer auditing the `decisions` surface against its evidence finds no record that it was ever declared, and the same mismatch will re-surface in any context-drift gate that compares the declaration to the checkpoint.",
+      "resolution": "Re-capture `context-checkpoints/wp-state-artifacts-docs.json` at the current branch tip so `context_impact.surfaces` includes `decisions`, and update change-context.md:29 to name all three declared surfaces (or state explicitly that the checkpoint predates the `decisions` amendment and why that is acceptable)."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/change-context.md",
+      "line_range": {
+        "start": 32,
+        "end": 38
+      },
+      "description": "The Coverage Summary was not updated when d2342a85 added a seventh traceability row, so the change's own coverage accounting is now off by one. The Requirement Traceability Matrix holds seven rows at change-context.md:7-13 (`state-artifacts-inventory`, `-authority`, `-rehydration`, `-missing`, `-links`, `-mirrors`, and the newly added `-ci-discovery` at line 13), while the Coverage Summary immediately below still reports `Requirements traced: 6`, `Tests mapped: 6`, `Evidence collected: 6` (lines 34-36). The same commit that introduced the seventh row also updated the GREEN count from 15 to 16 in five other places in this file, which shows the counts are maintained as live claims rather than prose \u2014 making this specific one measurably false. Any downstream reader or gate that trusts the summary over the table will under-count the traced requirement set by exactly the CI-discovery row this round was supposed to add.",
+      "resolution": "Update change-context.md:34-36 to `Requirements traced: 7`, `Tests mapped: 7`, `Evidence collected: 7`."
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/change-context.md",
+      "line_range": {
+        "start": 13,
+        "end": 13
+      },
+      "description": "The new traceability row `skill-workflow.state-artifacts-ci-discovery` cites `specs/skill-workflow/spec.md` as its Spec Source, using the identical relative form as the six rows above it \u2014 but the change's delta spec at openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md contains only three ADDED requirements (\"Canonical durable state-artifact inventory\", \"Deterministic fresh-session rehydration\", \"Skill documentation links to the canonical guide\") and five scenarios, none of which mentions CI collection, testpaths, or default-suite registration. The other six rows each map onto one of those requirements or scenarios; this seventh row maps onto nothing in the delta. The nearest existing normative text is in the main spec at openspec/specs/skill-workflow/spec.md:4301 (\"`skills/pyproject.toml`'s `[tool.pytest.ini_options]` `testpaths` SHALL list every new test directory\"), but that sentence is scoped to the per-skill `skills/tests/<skill-name>/test_skill_md.py` obligation and does not cover a feature test directory such as `skills/tests/state-artifacts/`. The behavior itself is implemented correctly (pyproject.toml:129 plus the tests/ci_coverage guard); what is missing is the spec anchor the matrix claims to have, so the row is traceability that traces to nothing.",
+      "resolution": "Either add a scenario to the change's skill-workflow delta covering default-CI collection of the structural drift guard, or change the row's Spec Source to name the existing main-spec requirement (`openspec/specs/skill-workflow/spec.md:4301`) and note that the row records conformance rather than a new delta requirement."
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/proposal.md",
+      "line_range": {
+        "start": 55,
+        "end": 62
+      },
+      "description": "The proposal's declaration no longer matches the branch diff for two files. `git diff 4f794962..HEAD --stat` shows the change touches `skills/pyproject.toml` (+1, the `tests/state-artifacts` testpaths entry from task 1.3) and `docs/decisions/skill-workflow.md` (+11, the regenerated capability index), and both are declared in work-packages.yaml `locks.files` and `scope.write_allow` (lines 43-44, 59-60). The proposal's Impact list (lines 57-62) names only the guide, documentation index, six skill sources, runtime mirrors, focused tests and the modified capability; What Changes (lines 11-16) likewise ends at \"Add repository tests that enforce guide coverage, links, and order\" with no mention of CI registration or a regenerated decision index. This repository already treats that exact shape as a defect: the archived decision at docs/decisions/skill-workflow.md:34-37 records amending \"the proposal's Impact claim ... so the declaration matches the diff\" as the correct remedy. plan-findings.md:37 reconciled the work-package scope for the decision index but stopped short of the proposal.",
+      "resolution": "Add `skills/pyproject.toml` (default-CI registration of the structural suite) and the regenerated `docs/decisions/skill-workflow.md` projection to the proposal's Impact list, and add the CI-registration bullet to What Changes."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 66,
+        "end": 79
+      },
+      "description": "The eight-step ordering is checked three times but with two different strengths, and the weakest check sits on the file most likely to drift. `test_guide_pins_rehydration_order_and_conflict_rules` (lines 43-54) and `test_design_rehydration_matches_canonical_order` (lines 82-95) both search for number-bound markers (\"1. Bootstrap locator\" \u2026 \"8. Rebuild projections\"), so a renumbering in docs/guides/state-artifacts.md or design.md fails the suite. `test_supervise_rehydration_matches_canonical_order` (lines 66-79) searches for the bare phrases only, so it verifies prose order but not step identity: swapping the visible numbers on skills/supervise/SKILL.md:148-149 (`3. **Roadmap execution state.**` / `4. **Change execution state.**`) while leaving the paragraphs in place would publish a supervisor order that inverts checkpoint-before-loop-state verification \u2014 the exact D3 invariant this change exists to pin \u2014 and all 16 tests would still pass. None of the three tests bounds the list at eight either, so an inserted ninth step passes everywhere. This is a guard-strength gap, not a current wrong answer: all three files are correct at d2342a85 (guide lines 21-28, supervise lines 139-153, design lines 39-46).",
+      "resolution": "Give the supervise assertion the same number-bound markers the guide and design assertions use (e.g. `\"1. **Bootstrap locator\"` \u2026 `\"8. **Rebuild projections\"`), and optionally assert the step count so a ninth step must be added to the guide deliberately."
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/validation/red-state-artifacts.md",
+      "line_range": {
+        "start": 3,
+        "end": 8
+      },
+      "description": "The preserved RED artifact and the GREEN claim describe suites of different sizes with nothing reconciling them. red-state-artifacts.md:4 records \"9 failed, 6 passed\" \u2014 a 15-test run \u2014 while change-context.md:28 now claims \"focused suite passed 16 tests\" and the D4 trace row (line 22) reads \"RED evidence and 16-test GREEN result\". The 16th test is `test_design_rehydration_matches_canonical_order`, added by d2342a85 (test file lines 82-95) against a design.md that already carried the ordered list, so it could never have been red and is deliberately absent from the RED evidence. That is defensible, but the artifact does not say so: a reader reconciling 9+6=15 against 16 sees an unexplained gap in the change's own TDD evidence chain, which is the one thing this validation file exists to make auditable.",
+      "resolution": "Append one line to red-state-artifacts.md noting that the suite was 15 tests at RED capture and that the design-order test was added later as a drift guard over already-correct prose, so it has no RED counterpart by construction."
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "fyi",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/loop-state.json",
+      "line_range": {
+        "start": 4,
+        "end": 31
+      },
+      "description": "The canonical execution record currently advertises an open blocker that the same commit fixed. d2342a85 advanced `current_phase` from PLAN_FIX to PLAN_REVIEW and `iteration` 1\u21922 (lines 4-5) while leaving `blocking_findings[0]` with `\"status\": \"confirmed\"` and `\"recommended_disposition\": \"fix\"` (lines 12-30); its description is the round-three finding about the stale \"portable canonical guide links\" decision, which that commit resolved at session-log.md:11 and in the regenerated docs/decisions/skill-workflow.md:12. The field is overwritten wholesale by the next review result (autopilot.py:1618 `state.blocking_findings = blocking`), so this self-corrects on the round-four write and is transitional rather than wrong-by-construction; `previous_phase` also stays null (line 49) so there is no in-state record of the PLAN_FIX\u2192PLAN_REVIEW transition. Worth noting only because this change's own guide (docs/guides/state-artifacts.md:34) makes loop-state authoritative over the advisory session-log that says the blocker is fixed \u2014 a consumer applying the guide's rule literally right now reaches the stale answer.",
+      "resolution": "No action required if the next PLAN_REVIEW write lands; if the branch is handed off or paused before that, clear or mark-resolved the fixed entry so canonical state does not outrank the correct advisory record."
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "fyi",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/reviews/canonical-plan-round-3/review-manifest.json",
+      "line_range": {
+        "start": 3,
+        "end": 6
+      },
+      "description": "The durable dispatch manifests for all three canonical plan-review rounds are not self-identifying: each carries `\"change_id\": null` and `\"target\": \"cli-dispatch\"` (round-1 line 3/6, round-2 line 3/6, round-3 line 3/6) rather than the change under review. The sibling consensus.json does record `\"target\": \"write-durable-state-artifacts-guide\"`, and the directory path supplies attribution, so nothing is actually ambiguous in place \u2014 but the manifest alone cannot be attributed to a change once copied, quoted in a PR, or aggregated across changes. This is uniform pre-existing behavior of the CLI dispatch path rather than something this branch introduced, so it is reported as context for the evidence bundle, not as a defect of the plan.",
+      "resolution": "No change needed on this branch; if it recurs, file it against the review dispatcher so manifests inherit `change_id`/`target` from the dispatch request."
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "none",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/session-log.md",
+      "line_range": {
+        "start": 40,
+        "end": 65
+      },
+      "description": "Verified clean: the operator's review-destination authorization is recorded durably, verbatim, and with its limits intact, and it leaks nothing. session-log.md:45-46 records both decisions in the user's own words \u2014 the PLAN_FIX application at 9666149e, and bounded diff/context sharing with the defined review harnesses \u2014 with the exclusions preserved in the same sentence (\"This excludes secrets, credentials, unrelated private data, and PR merge authority\"). The Context block (line 65) restates the boundary rather than widening it. The mirrored handoff at handoffs/plan-fix-1.json:20-32 carries identical decision text with no API keys, tokens, endpoints, or account identifiers anywhere in the payload, and it exists as a tracked local fallback because the coordinator write failed (`coordinator_error.error_type: \"rpc_failed\"`, lines 4-8) \u2014 precisely the degraded path docs/guides/state-artifacts.md:13 documents. Merge authority is separately withheld in canonical state: both `proposal_approval` approvals in loop-state.json (lines 90, 121) end \"proposal/implementation only, merge not authorized\"."
+    },
+    {
+      "id": 10,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "none",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 57,
+        "end": 57
+      },
+      "description": "Verified accurate: the fresh-checkout mirror-skip story is documented correctly and its compensating control really exists. design.md:57 states the byte-compare is a pre-push local gate and that fresh CI checkouts intentionally lack the ignored runtime mirrors, so the six mirror cases skip there while `install.sh --check` validates payload portability \u2014 and .github/workflows/ci.yml:63-65 does run `bash install.sh --check`, a flag that install.sh itself documents at line 40 as \"Validate the complete install payload and exit without syncing\". The test's skip is conditional on both mirrors being absent (test_state_artifacts_guide.py:103-104), not unconditional, so the local gate is not silently disabled. The arithmetic in change-context.md:12 also checks out: the suite collects 16 tests (2 guide/order + 6 parametrized reference + 1 supervise + 1 design + 6 parametrized mirror), leaving exactly 10 structural tests in CI and 6 skipped mirror cases, and \"compares 12 files\" locally matches 6 skills \u00d7 2 mirror roots. I byte-compared all twelve pairs in this worktree (`cmp` across .agents and .claude for autopilot, autopilot-roadmap, session-log, supervise, implement-feature, validate-feature): all identical."
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "file_path": "docs/decisions/skill-workflow.md",
+      "line_range": {
+        "start": 10,
+        "end": 15
+      },
+      "description": "Verified resolved: the round-three confirmed blocker is fixed at its canonical source and the derived index agrees byte-for-byte with it. session-log.md:11 now reads \"**Use portable repository-relative guide references** `architectural: skill-workflow` \u2014 Installed skill payloads cannot use relative Markdown links that escape the skill directory, so canonical and mirrored skills use the established bare backticked repository path `docs/guides/state-artifacts.md`\", and docs/decisions/skill-workflow.md:12 carries that same corrected sentence with the same capability tag, phase heading and `(D1)` source ref \u2014 so the generated capability timeline no longer publishes a rationale for the abandoned URL convention, and it was corrected by regeneration from the session log rather than by hand-editing the generated file (which PhaseRecord step four would overwrite). The claim the decision now makes is true of the payload: all six canonical skills carry the bare backticked reference (implement-feature:22, supervise:17, autopilot-roadmap:16, session-log:15, validate-feature:22, autopilot:17), matching the test's `GUIDE_REFERENCE` constant, and the surrounding text in session-log.md:36 and change-context.md:11 was updated from \"link\" to \"reference\" language consistently. `tests/state-artifacts` is likewise registered in skills/pyproject.toml:129 for the default sweep, backed by the tests/ci_coverage guard that fails when a test directory is reached by neither CI mechanism."
+    }
+  ]
+}

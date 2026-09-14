@@ -1,0 +1,139 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "56-66",
+      "description": "D7 restricts the submit-to-reconcile head advance to an exact `reconciliation_required` reply, and the D8 write matrix requires `submit` on the `pending/stay/refusal/ESCALATE` and `gate-check`/`gate-answer` rows. But `autopilot.enter_escalate` (skills/autopilot/scripts/autopilot.py:496-513) sets `state.current_phase = \"ESCALATE\"` WITHOUT touching `total_iterations`; `total_iterations` is incremented in exactly one place, `_apply_transition` (autopilot.py:805). Every escalation therefore persists a NEW phase at the SAME transition_sequence. `submit_task` (agent-coordinator/database/migrations/035_work_queue_projection.sql:113-115) answers that exact tuple with `projection_generation_mismatch`, which D7 explicitly classifies as \"other non-success envelopes remain degraded\" \u2014 so the ESCALATE generation is never projected. It is not self-healing in-process either: run_loop `break`s immediately after the escalate persist (autopilot.py:1072-1073 and 1117-1118), `runner.py` gate-check exit 4 parks and the caller \"must stop\" (runner.py:184-188), and `gate-answer` returns 0 after enter_escalate (runner.py:244-246, 264-268, 275-278). Only a later resume-reconcile repairs it. Round-1 disposition 'Claude 1 / fixed' therefore closed the inverted-mode-mapping half of the problem while leaving the collision half open, and the required three-generation test (all produced by `_apply_transition`) will not detect it.",
+      "resolution": "Either (a) extend the D7 head-advance fallthrough to include `projection_generation_mismatch` \u2014 `reconcile_work_projection` accepts `p_transition_sequence == v_head_seq` and upserts phase (035_work_queue_projection.sql:163-170), so this is safe and is the smaller change; or (b) make `enter_escalate` bump the projection sequence. Add a RED test that persists an escalation via `enter_escalate` and asserts the ESCALATE row becomes the active board-visible generation, and add the ESCALATE-without-sequence-bump row explicitly to the canonical write matrix.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "critical",
+      "axis": "observability",
+      "severity": "critical",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "25-27",
+      "description": "D5 pins the proof surface to the `/issues/list` label-only query, and proposal.md:34 accepts \"within one existing kanban poll interval\". That is the SPA's FALLBACK path only. `useCoordinator` (apps/kanban-viz/src/hooks/useCoordinator.ts:226-239) clears the poll interval as soon as the SSE `snapshot` event arrives, and the only incremental SSE event is `transition`, whose handler is `current.map(...)` (useCoordinator.ts:249-255) \u2014 it patches the status of cards already on the board and can never ADD a card. The backing NOTIFY is `AFTER UPDATE ON work_queue` gated on `NEW.status IN ('completed','failed','claimed','running','blocked')` (agent-coordinator/database/migrations/025_notify_enrich_change_id.sql:76-77, 113-118). A projection row INSERT (status `pending`), a reconcile cancellation (status `cancelled`), and the D9 label-only `/issues/update` all fall outside that trigger and emit nothing. So on the default connected-SSE board the newly projected phase never appears until the operator reloads or SSE errors \u2014 exactly the \"kanban-viz shows no current phase\" symptom proposal.md:5 says this change exists to fix. The planned tests would pass while the stated Why remains unmet. Neither package can close it as written: `agent-coordinator/database/migrations/**` is in the `deny` list of both packages (work-packages.yaml:55-56, 120-121) and wp-projection-adapter has no `agent-coordinator/**` write_allow at all.",
+      "resolution": "Add a task and scope allowance to emit a coordinator event on projection INSERT and on reconcile cancellation (a migration extending `notify_work_queue_change` to fire on INSERT and on `cancelled`, or an application-level `event_bus` publish from the reconcile/submit path), and have the D5 proof assert the row reaches a CONNECTED SSE client \u2014 not only the polling fallback. If that is genuinely out of scope, restate proposal.md:34 and the spec scenario at specs/skill-workflow/spec.md:14 to say the guarantee holds only on the polling-fallback path, and record the SSE gap as a known limitation.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "67-68",
+      "description": "D9 asserts projection rows are \"deliberately unclaimable by `/work/claim`\". That is not true of the pinned contract. `claim_task` (agent-coordinator/database/migrations/027_claim_task_exclude_submitter.sql:22-24) filters only `status = 'pending' AND (p_task_types IS NULL OR task_type = ANY(p_task_types))` \u2014 there is no `task_type <> 'issue'` exclusion anywhere. `WorkQueueService.claim` passes `p_task_types` straight through (src/work_queue.py:399-409) and the MCP `get_work` tool defaults `task_types` to None (src/coordination_mcp.py:257-259), so an unfiltered claim is a reachable, in-repo call path. The docstrings that assert unclaimability (issue_service.py:4-5, coordination_mcp.py:506-507) are unenforced comments, and the round-1 disposition 'Claude 3 / fixed' adopted them as a verified property. Choosing priority 1 (D9) makes the exposure strictly worse than the default: `ORDER BY priority ASC, created_at ASC` (027:48) puts the phase-projection row ahead of every real priority-5 work item, so the FIRST unfiltered claim in a coordinated run takes the Autopilot mirror row, flips it `pending`->`claimed` (making the board render the current phase as claimed by an unrelated agent), and hands that agent a task description it cannot execute.",
+      "resolution": "Do not rely on `task_type='issue'` for unclaimability. Either add an explicit `AND task_type <> 'issue'` (or an `input_data ? 'change_id'` exclusion) to `claim_task` \u2014 which needs a migration and a widened package scope \u2014 or set an unsatisfiable `agent_requirements` on projection rows; note `reconcile_work_projection` accepts `p_agent_requirements` (035:144) but `try_submit_work` does not currently forward it (coordination_bridge.py:666-696), so the bridge helper must be extended to keep submit- and reconcile-created rows identical. Add a RED test that calls claim with `task_types=None` against a board containing a live projection row and asserts the row is not returned.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "optional",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "58",
+      "description": "D7 says \"an exact `reconciliation_required` response is a normal head-advance signal\" without pinning where that token lives in the envelope the adapter actually receives. The bridge never surfaces it as `reason`: `_normalize_operation_response` sets `reason` only on `skipped` envelopes (coordination_bridge.py:442-460, 470-488), and a 409 falls through to the terminal `status: \"error\"` branch (coordination_bridge.py:509-517), which carries `status_code: 409` and puts the coordinator's problem+json body under `response`. The coordinator emits the token as `type: \"urn:coordinator:work-projection:reconciliation_required\"` / `detail: \"reconciliation_required\"` (src/coordination_api.py:843-849). An implementer reading D7 will plausibly write `result.get(\"reason\") == \"reconciliation_required\"`, which never matches, silently turning head advancement into dead code that degrades on every generation past the first.",
+      "resolution": "Pin the exact predicate in D7: head-advance iff `status_code == 409` AND `response.get(\"detail\")` (or the `urn:coordinator:work-projection:` suffix of `response.get(\"type\")`) equals `reconciliation_required`; every other 409 reason (`stale_projection`, `projection_generation_mismatch` unless finding #1 is resolved by option (a)) stays degraded. Make the task-1.1 three-generation RED test assert against a real 409 problem+json envelope, not a hand-built `{\"reason\": ...}` dict.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "optional",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "72-74",
+      "description": "D10 requires that coordinator-free tiers \"SHALL NOT import or construct the new queue-projection module\", and task 1.3 makes that an import/module-spy regression. D2 simultaneously puts `project-state --mode submit|reconcile` on `runner.py`. Autopilot has no separate local-tier host \u2014 the same `runner.py` is what the sequential/local-parallel prose path shells into for `build-dispatch`, `apply-outcome`, `record-state-only-archetype`, `gate-check` and `gate-answer` (skills/autopilot/SKILL.md:72, 168, 200, 208, ...), and `runner.py` imports its dependencies at module scope today. A top-level `import queue_projection` in `runner.py` would therefore load the projection module on every local-tier CLI invocation and fail the very test task 1.3 mandates. The plan never states the import must be deferred.",
+      "resolution": "State in D2/D10 that the `project-state` handler performs a function-local import of the projection module (the same lazy-import idiom already used for `goal_gate` at autopilot.py:835), and phrase the task-1.3 assertion concretely: after a local-tier `runner.py apply-outcome` / `build-dispatch` / `gate-check` subprocess, the projection module name is absent from `sys.modules`.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "optional",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "70",
+      "description": "D9's interrupted-cleanup repair is \"in reconcile mode lists rows with both adapter-owned labels and clears any non-canonical leftovers\", with no page size named. `IssueService.list_issues` defaults `limit=50` and hard-caps at `MAX_PAGE_SIZE = 100` (agent-coordinator/src/issue_service.py:26, 288-307), and `try_issue_list` omits `limit` entirely unless the caller passes one (coordination_bridge.py:1213-1214). A long-running change whose label writes have been failing accumulates one labelled row per generation; once the backlog exceeds the page size, a single resume clears at most one page, so convergence to \"exactly one active labelled projection generation\" (spec.md:34) requires as many resumes as pages. The plan states the repair is retried \"without changing LoopState\" but never says it repeats until the leftover set is empty.",
+      "resolution": "Have D9 pass an explicit `limit` and loop the cleanup until the both-labels query returns nothing but the canonical row (bounded by a stated max iteration count), and make the task-3.1 interrupted-cleanup case seed more leftovers than one page so the single-pass behavior is actually exercised.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "none",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "70",
+      "description": "VERIFIED POSITIVE \u2014 the priority-1 / 50-row-window claim holds against real source. `IssueService.list_issues` applies `order=priority.asc,created_at.asc` and `limit` as PostgREST query parts BEFORE the fetch (issue_service.py:309-336), not as a Python post-filter, and the kanban SPA sends `{labels: [\"change:<id>\"]}` with no `limit`, taking the server default of 50 (apps/kanban-viz/src/hooks/useCoordinator.ts:69-76; IssueListRequest.limit=50 at coordination_api.py:254-260). A priority-1 projection row therefore sorts first and survives even with >50 ordinary priority-5 change-labelled issues, so the task-3.3 seeding proof is well-founded. The SSE snapshot builder calls the identical `list_issues(labels=[f\"change:{cid}\"])` (agent-coordinator/src/event_stream.py:174-184), so the filter semantics D5 tests are representative of both board paths \u2014 the divergence is in event delivery only (finding #2), not in the query.",
+      "resolution": "No change needed.",
+      "disposition": "accept"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "none",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "67-70",
+      "description": "VERIFIED POSITIVE \u2014 the two-label ownership boundary is genuinely safe against ordinary issues, and the whole-array replacement risk D9 flags is correctly bounded. `list_issues` label matching is AND at both layers (PostgREST `cs.` contains at issue_service.py:330 plus the defensive Python `all(...)` re-filter at 340-344), so requiring BOTH `change:<id>` and `projection:autopilot-phase` cannot select an ordinary change-labelled issue. Independently, `reconcile_work_projection`'s cancellation predicate keys on `input_data->>'change_id'` (035_work_queue_projection.sql:179-182), and ordinary submissions cannot set that field \u2014 both the bridge (`_validate_projection_payload`, coordination_bridge.py:745-747) and the service (`work_queue.py:711-713`) reject it as `reserved_projection_key`, and `WorkSubmitRequest` is `extra=\"forbid\"` (coordination_api.py:216-225). So reconcile cannot collaterally cancel non-projection work for the same change. D6's allowlist plus \"logs expose status/reason/task IDs but not credentials or queue payload echo\" is consistent with the bridge's existing redaction posture.",
+      "resolution": "No change needed.",
+      "disposition": "accept"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "60-64",
+      "description": "VERIFIED POSITIVE \u2014 the round-1 'missing canonical writer' finding was real and D8's fix targets the right boundary. `runner.py` today exposes only `build-dispatch`, `apply-outcome`, `record-state-only-archetype`, `gate-check`, `gate-answer` (skills/autopilot/scripts/runner.py:379-482); there is no `init` and no `transition`, and `apply-outcome`'s own help text states it \"NEVER modifies current_phase \u2014 the orchestrator is the sole writer of phase transitions\" (runner.py:400-403). Phase advancement on the host-driven path is genuinely prose-only today, so a projection registered only in `run_loop` would never fire for the SKILL-driven runs the proposal targets. Save-failure suppression is also structurally real rather than aspirational: `persist_and_project` calls `save_state` first and lets its exception propagate before the callback is reached (autopilot.py:198-202), and `run_loop` already invokes the callback in `reconcile` mode immediately after `load_state` on resume (autopilot.py:1002-1003), matching D8's resume-before-gate ordering \u2014 the `pending_gate` early-return sits after it at autopilot.py:1027-1037.",
+      "resolution": "No change needed.",
+      "disposition": "accept"
+    },
+    {
+      "id": 10,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "none",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": "68",
+      "description": "VERIFIED POSITIVE \u2014 D9's requirement for additive coordinator-only issue list/update helpers is necessary, not defensive boilerplate. The existing `try_issue_list` and `try_issue_update` both call `_github_issue_dispatch` first and return the GitHub result whenever `github_issues.issues_backend() == \"github\"`, never reaching the coordinator HTTP path (coordination_bridge.py:1098-1124, 1191-1201). Reusing them for label repair would silently address GitHub issue numbers with coordinator task UUIDs. The spec's \"label operations SHALL target the configured coordinator even when GitHub issues are enabled\" (specs/skill-workflow/spec.md:44) and the task-3.1 \"GitHub-backend override resistance\" case are the correct guards. `/issues/update` also supports exactly what the repair needs \u2014 whole-array `labels` replacement with no other field touched (issue_service.py:420-421, 445-450).",
+      "resolution": "No change needed.",
+      "disposition": "accept"
+    },
+    {
+      "id": 11,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "none",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/work-packages.yaml",
+      "line_range": "1-166",
+      "description": "PACKAGE VALIDITY \u2014 checked structurally rather than by executing the validator: `openspec validate --strict` and the jsonschema check were both denied Bash approval in this session, so this is a manual read against openspec/schemas/work-packages.schema.json, not a tool result. Both packages carry every `WorkPackage` required key (package_id, task_type, description, depends_on, priority, locks, scope, worktree, timeout_minutes, retry_budget, min_trust_level, verification, outputs); top-level `schema_version`, `feature` (id + plan_revision), `contracts` (revision + openapi.primary/files) and `packages` are present; `locks` carries files+keys and `scope` carries write_allow+read_allow. Task-to-package coverage is complete and non-overlapping (1.1-2.3 -> wp-projection-adapter, 3.1-4.3 -> wp-live-integration) and the file locks match the write_allow sets. Task 4.2's runtime skill mirrors are not a scope violation: `.claude/skills/` and `.agents/skills/` are gitignored (.gitignore:280-281). Two scope notes worth confirming at implementation time: (a) if finding #2 or #3 is resolved by a migration, both packages currently `deny: agent-coordinator/database/migrations/**`; (b) wp-projection-adapter has no `agent-coordinator/**` write_allow, so any coordinator-side change must land in wp-live-integration or a third package.",
+      "resolution": "Re-run `openspec validate --strict --all` and the work-packages schema check in an approved shell to confirm mechanically; widen scope only if findings #2/#3 are resolved coordinator-side.",
+      "disposition": "accept"
+    }
+  ]
+}

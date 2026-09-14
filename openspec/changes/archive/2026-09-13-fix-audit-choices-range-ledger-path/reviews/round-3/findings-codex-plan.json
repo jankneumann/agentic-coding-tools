@@ -1,0 +1,29 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "description": "Critical: D7 promises the run directory is derivable from the ledger header values, but D8 appends `-2`, `-3`, etc. on collisions without recording that suffix in the ledger. Two audits in the same UTC second at the same `HEAD` can therefore have header values that derive the unsuffixed path while the actual second ledger lives at a suffixed path.",
+      "resolution": "Either remove or qualify the derivability invariant in D7/proposal wording, or make collision disambiguation part of the recorded derivation. Since the plan's non-goals forbid schema/header changes, the narrow fix is to state that only the base run id is header-derived and collision suffixes are filesystem disambiguators, then align task assertions with that contract."
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "medium",
+      "axis": "resilience",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md",
+      "description": "Nit: D8's uniqueness guard is only specified and tested for an existing active run directory. Because retention moves old runs to `openspec/choices/archive/<run-id>/`, the active path can disappear while the archived destination still exists; a later audit with the same computed run id could reuse the active name and then collide with the archive destination on retention.",
+      "resolution": "Specify that the routing helper checks both `openspec/choices/<run-id>/` and `openspec/choices/archive/<run-id>/` when choosing suffixes, and add a task 4.1 or 5.2 assertion that a pre-existing archived run id forces the next suffix before retention runs."
+    }
+  ]
+}

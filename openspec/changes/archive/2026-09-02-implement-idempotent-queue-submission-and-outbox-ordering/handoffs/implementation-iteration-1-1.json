@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T00:46:53.706696+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Reviewed the complete queue-projection implementation and fixed five contract defects with RED-to-GREEN tests. Persist ordering, reconciliation authorization, bridge failure envelopes, reserved-key isolation, and CLI failure parity now match the approved specification; all available local gates pass.",
+    "completed_work": [
+      "Fixed normal transition persist-then-project ordering",
+      "Enforced submit_work authorization for direct reconciliation",
+      "Restored bridge no-raise validation envelopes",
+      "Rejected reserved projection identity on unkeyed submissions",
+      "Removed success-only fields from CLI failure envelopes"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Treat projection persistence and transport parity as merge-blocking contracts",
+        "rationale": "The queue is derived state, so missed post-persistence publication or transport-specific authorization behavior breaks crash recovery and boundary consistency.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run validation with a real PostgreSQL service when available",
+      "Proceed to implementation review using the committed local evidence"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/impl-findings.md",
+        "description": "Iteration findings and verification evidence"
+      },
+      {
+        "path": "skills/autopilot/scripts/autopilot.py",
+        "description": "Persist-before-project transition seam"
+      },
+      {
+        "path": "agent-coordinator/src/work_queue.py",
+        "description": "Projection validation and authorization"
+      }
+    ]
+  }
+}

@@ -7,3 +7,4 @@
 | ri-04 | implementation | Single fallback path dict.get(gate, BLOCK) to one frozen module-level BLOCK; rep |
 | ri-05 | implementation | CoordinatorUnavailable at any notify step -> BLOCKED/COORDINATOR_UNREACHABLE imm |
 | ri-15 | implementation | scorer.py evaluates goal gates against post-run workspace with no LLM; judge.py  |
+| ri-06 | implementation | PR #441 merged 2026-08-31 (33558e58) and the change is archived at openspec/chan |

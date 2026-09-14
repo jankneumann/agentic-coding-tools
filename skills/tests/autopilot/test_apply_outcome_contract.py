@@ -201,6 +201,78 @@ def test_apply_outcome_success_does_not_escalate(chdir_tmp: Path) -> None:
     assert state["current_phase"] == "IMPLEMENT"
 
 
+def test_apply_outcome_success_projects_durable_unchanged_generation(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="IMPLEMENT",
+        total_iterations=7,
+    )
+    projected: list[tuple[str, int, str]] = []
+
+    rc = autopilot.apply_outcome_or_escalate(
+        change_id="demo",
+        phase="IMPLEMENT",
+        outcome="complete",
+        handoff_id="h-ok",
+        state_path=state_path,
+        apply_runner=lambda **_kwargs: 0,
+        queue_projection_fn=lambda state, *, mode: projected.append(
+            (state.current_phase, state.total_iterations, mode)
+        )
+        or {"status": "degraded", "reason": "coordinator_unreachable"},
+    )
+
+    assert rc == 0
+    assert projected == [("IMPLEMENT", 7, "submit")]
+
+
+def test_repeated_enter_escalate_preserves_original_incident() -> None:
+    state = autopilot.LoopState(
+        change_id="demo",
+        current_phase="ESCALATE",
+        previous_phase="IMPLEMENT",
+        escalation_reason="original implementation failure",
+        phase_started_at="2026-09-14T10:00:00+00:00",
+        total_iterations=7,
+    )
+
+    autopilot.enter_escalate(state, "retry encountered another error")
+
+    assert state.escalation_reason == "original implementation failure"
+    assert state.phase_started_at == "2026-09-14T10:00:00+00:00"
+    assert state.previous_phase == "IMPLEMENT"
+    assert state.total_iterations == 7
+
+
+def test_apply_outcome_failure_resumes_authoritative_durable_phase(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="IMPLEMENT",
+        total_iterations=4,
+    )
+
+    rc = autopilot.apply_outcome_or_escalate(
+        change_id="demo",
+        phase="VALIDATE",
+        outcome="failed",
+        handoff_id="h-stale-caller",
+        state_path=state_path,
+        apply_runner=lambda **_kwargs: 2,
+    )
+
+    assert rc == 2
+    state = json.loads(state_path.read_text())
+    assert state["current_phase"] == "ESCALATE"
+    assert state["previous_phase"] == "IMPLEMENT"
+    assert state["phase_history"][-1]["phase"] == "VALIDATE"
+
+
 # ---------------------------------------------------------------------------
 # v5 pass-through (encode-autopilot-gates-and-goal-gate-in-code, D7)
 # ---------------------------------------------------------------------------
@@ -254,3 +326,69 @@ def test_escalate_wrapper_preserves_existing_gate_records(chdir_tmp: Path) -> No
     )
 
     assert json.loads(state_path.read_text())["gate_decisions"] == decisions
+
+
+def test_apply_outcome_failure_advances_generation_and_projects_escalate(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="IMPLEMENT",
+        total_iterations=4,
+        unknown_extension={"preserve": True},
+    )
+    projected: list[tuple[str, int, str]] = []
+
+    def project(state: autopilot.LoopState, *, mode: str) -> dict[str, str]:
+        projected.append((state.current_phase, state.total_iterations, mode))
+        return {"status": "ok"}
+
+    rc = autopilot.apply_outcome_or_escalate(
+        change_id="demo",
+        phase="IMPLEMENT",
+        outcome="complete",
+        handoff_id="h-generation",
+        state_path=state_path,
+        apply_runner=lambda **_kwargs: 1,
+        queue_projection_fn=project,
+    )
+
+    assert rc == 1
+    state = json.loads(state_path.read_text())
+    assert state["total_iterations"] == 5
+    assert state["unknown_extension"] == {"preserve": True}
+    assert projected == [("ESCALATE", 5, "submit")]
+
+
+def test_apply_outcome_failure_retry_while_escalated_preserves_resume_generation(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="ESCALATE",
+        previous_phase="PLAN_REVIEW",
+        total_iterations=9,
+        escalation_reason="original failure",
+    )
+    projected: list[tuple[str, int, str | None]] = []
+
+    autopilot.apply_outcome_or_escalate(
+        change_id="demo",
+        phase="VALIDATE",
+        outcome="failed",
+        handoff_id="h-retry",
+        state_path=state_path,
+        apply_runner=lambda **_kwargs: 1,
+        queue_projection_fn=lambda state, *, mode: projected.append(
+            (state.current_phase, state.total_iterations, state.previous_phase)
+        )
+        or {"status": "ok"},
+    )
+
+    state = json.loads(state_path.read_text())
+    assert state["current_phase"] == "ESCALATE"
+    assert state["previous_phase"] == "PLAN_REVIEW"
+    assert state["total_iterations"] == 9
+    assert projected == [("ESCALATE", 9, "PLAN_REVIEW")]

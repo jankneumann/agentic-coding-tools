@@ -1250,19 +1250,27 @@ class TestLocalRosterValidation:
             assert entry["active_params_b"] < entry["total_params_b"], tier
             assert isinstance(entry["reviewed"], str), tier
 
-    def test_default_map_local_tiers_match_the_yaml_roster(self) -> None:
-        """1.4: DEFAULT_PROVIDER_MODEL_MAP is the tier->model-id view of the roster."""
+    def test_loaded_map_matches_yaml_roster_for_all_providers(
+        self, _clean_archetypes: None,
+    ) -> None:
+        """Authored YAML is the sole tier→model source after load."""
         import yaml as _yaml
 
-        from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP, LOCAL_PROVIDER
+        from src.agents_config import get_provider_model_map, load_archetypes_config
 
+        load_archetypes_config(_REAL_ARCHETYPES_YAML)
         raw = _yaml.safe_load(_REAL_ARCHETYPES_YAML.read_text())
-        yaml_roster = raw["model_aliases"][LOCAL_PROVIDER]
-        default_roster = DEFAULT_PROVIDER_MODEL_MAP["providers"][LOCAL_PROVIDER]
+        yaml_aliases = raw["model_aliases"]
+        loaded = get_provider_model_map()["providers"]
 
-        assert set(default_roster) == set(yaml_roster)
-        for tier, entry in yaml_roster.items():
-            assert _tier_model(default_roster[tier]) == entry["model"]
+        assert set(loaded) == set(yaml_aliases)
+        for provider, tiers in yaml_aliases.items():
+            for tier, entry in tiers.items():
+                expected = entry["model"] if isinstance(entry, dict) else entry
+                got = _tier_model(loaded[provider][tier])
+                assert got == expected, f"{provider}.{tier}"
+                if isinstance(entry, dict) and entry.get("thinking"):
+                    assert loaded[provider][tier]["thinking"] == entry["thinking"]
 
 
 class TestLocalTierDegradation:

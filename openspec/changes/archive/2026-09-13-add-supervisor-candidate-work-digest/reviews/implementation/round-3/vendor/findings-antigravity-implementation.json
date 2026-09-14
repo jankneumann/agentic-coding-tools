@@ -1,0 +1,82 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "correctness",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1264,
+        "end": 1308
+      },
+      "description": "none: decision drift detection in _decision_drift_keys correctly identifies standing decision and deferral target modifications between the prior digest and current maintenance state, triggering _lifecycle_rebuild to update state and re-rank cached candidates without unnecessary analyst re-scoring."
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "architecture",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 278,
+        "end": 285
+      },
+      "description": "none: the host workflow procedure explicitly integrates the non-empty force-reuse probe branch using rank without --scores before analyst dispatch, falling back gracefully to scoring when reuse is unavailable."
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "resilience",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 290,
+        "end": 298
+      },
+      "description": "none: candidate store admission strictly rejects re-admission of stubs with terminal approved or rejected decisions, preventing capacity loss and invisible work duplication while preserving durable history in the mirror."
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 380,
+        "end": 393
+      },
+      "description": "none: legacy digested stub sanitization strictly validates refine-roadmap references against the canonical roadmap_ref regex pattern, discarding malformed historical entries to guarantee schema-valid mirror persistence."
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "security",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 361,
+        "end": 385
+      },
+      "description": "none: digest publication transactions restrict replacement and deletion targets strictly to canonical supervisor-owned files, enforcing path authorization checks before staging or recovering durable journal operations."
+    }
+  ]
+}

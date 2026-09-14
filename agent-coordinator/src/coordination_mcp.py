@@ -327,6 +327,8 @@ async def submit_work(
     priority: int = 5,
     depends_on: list[str] | None = None,
     agent_requirements: dict[str, Any] | None = None,
+    projection_key: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Submit a new task to the work queue.
@@ -360,6 +362,9 @@ async def submit_work(
             input_data=input_data,
             priority=priority,
             depends_on=depends_on,
+            agent_requirements=agent_requirements,
+            projection_key=projection_key,
+            projection_labels=projection_labels,
         )
     from uuid import UUID
 
@@ -376,11 +381,61 @@ async def submit_work(
         priority=priority,
         depends_on=depends_on_uuids,
         agent_requirements=agent_requirements,
+        projection_key=projection_key,
+        projection_labels=projection_labels,
     )
 
+    if not result.success:
+        return {"success": False, "reason": result.reason}
     return {
-        "success": result.success,
-        "task_id": str(result.task_id) if result.task_id else None,
+        "success": True,
+        "task_id": str(result.task_id),
+        "created": result.created,
+        "deduplicated": result.deduplicated,
+        "status": result.status,
+        "cancelled_task_ids": [],
+    }
+
+
+@mcp.tool
+async def reconcile_work_projection(
+    projection_key: dict[str, Any],
+    task_type: str,
+    description: str,
+    input_data: dict[str, Any] | None = None,
+    priority: int = 5,
+    agent_requirements: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
+) -> dict[str, Any]:
+    """Reconcile derived work rows to an authoritative loop-state generation."""
+    if _transport == "http":
+        return await http_proxy.proxy_reconcile_work_projection(
+            projection_key=projection_key,
+            task_type=task_type,
+            description=description,
+            input_data=input_data,
+            priority=priority,
+            agent_requirements=agent_requirements,
+            projection_labels=projection_labels,
+        )
+    result = await get_work_queue_service().reconcile_projection(
+        projection_key=projection_key,
+        task_type=task_type,
+        description=description,
+        input_data=input_data,
+        priority=priority,
+        agent_requirements=agent_requirements,
+        projection_labels=projection_labels,
+    )
+    if not result.success:
+        return {"success": False, "reason": result.reason}
+    return {
+        "success": True,
+        "task_id": str(result.task_id),
+        "created": result.created,
+        "deduplicated": result.deduplicated,
+        "status": result.status,
+        "cancelled_task_ids": [str(value) for value in result.cancelled_task_ids],
     }
 
 

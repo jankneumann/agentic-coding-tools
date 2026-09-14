@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import threading
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -14,11 +17,15 @@ from review_dispatcher import (
     CliVendorAdapter,
     ErrorClass,
     ModeConfig,
+    PollConfig,
     ReviewOrchestrator,
+    _orchestrator_for_dispatch,
     ReviewResult,
     SdkConfig,
     SdkVendorAdapter,
     classify_error,
+    create_review_snapshot,
+    review_snapshot_path,
 )
 
 # ---------------------------------------------------------------------------
@@ -56,6 +63,14 @@ def _adapter(
         vendor=vendor,
         cli_config=_cli_config(**kwargs),  # type: ignore[arg-type]
     )
+
+
+def _resolved_primary(vendor: str = "codex") -> str:
+    """Primary model label when cli.model is null (archetypes.yaml premium)."""
+    from review_dispatcher import _resolve_review_model_spec
+
+    model, _ = _resolve_review_model_spec(vendor)
+    return model or "(default)"
 
 
 VALID_FINDINGS_JSON = json.dumps({
@@ -272,7 +287,7 @@ class TestDispatch:
         adapter = _adapter(model_fallbacks=["o3"])
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is True
-        assert result.models_attempted == ["(default)", "o3"]
+        assert result.models_attempted == [_resolved_primary(), "o3"]
         assert result.model_used == "o3"
 
     @patch("review_dispatcher.subprocess.run")
@@ -285,7 +300,7 @@ class TestDispatch:
         adapter = _adapter(model_fallbacks=["o3", "gpt-4.1"])
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
-        assert result.models_attempted == ["(default)", "o3", "gpt-4.1"]
+        assert result.models_attempted == [_resolved_primary(), "o3", "gpt-4.1"]
         assert result.error_class == ErrorClass.CAPACITY
 
     @patch("review_dispatcher.subprocess.run")
@@ -299,7 +314,7 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
         assert result.error_class == ErrorClass.AUTH
-        assert result.models_attempted == ["(default)"]  # No fallback attempted
+        assert result.models_attempted == [_resolved_primary()]  # No fallback attempted
 
     @patch("review_dispatcher.subprocess.run")
     def test_timeout(self, mock_run: MagicMock, tmp_path: Path) -> None:
@@ -351,7 +366,7 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
         assert result.error_class == ErrorClass.UNAVAILABLE
-        assert result.models_attempted == ["(default)"]  # account-scoped: no fallback
+        assert result.models_attempted == [_resolved_primary()]  # account-scoped: no fallback
         assert "Insufficient credits" in (result.error or "")
 
     @patch("review_dispatcher.subprocess.run")
@@ -366,7 +381,7 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
         assert result.error_class == ErrorClass.UNAVAILABLE
-        assert result.models_attempted == ["(default)"]
+        assert result.models_attempted == [_resolved_primary()]
 
     @patch("review_dispatcher.subprocess.run")
     def test_json_embedded_in_text(self, mock_run: MagicMock, tmp_path: Path) -> None:
@@ -411,6 +426,37 @@ class TestDispatch:
         )
         adapter = _adapter()
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_antigravity_response_json_string(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """agy JSON mode nests schema-valid JSON text under response."""
+        envelope = json.dumps({"response": VALID_FINDINGS_JSON, "usage": {}})
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_antigravity_structured_output_dict(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """agy JSON mode may return the schema object under structured_output."""
+        envelope = json.dumps(
+            {"structured_output": json.loads(VALID_FINDINGS_JSON)}
+        )
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is True
         assert result.findings is not None
         assert len(result.findings["findings"]) == 1
@@ -660,6 +706,85 @@ class TestAsyncDispatch:
         assert result.task_id == "abc123"
 
     @patch("review_dispatcher.subprocess.run")
+    def test_poll_placeholder_is_unsuccessful(
+        self, mock_run: MagicMock,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = "Placeholder while review runs"
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=f"Status: completed\n{json.dumps(payload)}",
+            stderr="",
+        )
+        adapter = _async_adapter()
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            task_id_pattern=r"task[_\s:]+(\w+)",
+            success_pattern="completed",
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result("abc123", poll_cfg)
+
+        assert result.success is False
+        assert result.error == "non_substantive_placeholder"
+        assert result.task_id == "abc123"
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_poll_accepts_clean_findings_when_remote_runtime_is_unknown(
+        self, mock_run: MagicMock,
+    ) -> None:
+        """Poll-loop elapsed time is not the remote review runtime."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout='Status: completed\n{"findings": []}', stderr="",
+        )
+        adapter = _async_adapter()
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            task_id_pattern=r"task[_\s:]+(\w+)",
+            success_pattern="completed",
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result("abc123", poll_cfg)
+
+        assert result.success is True
+        assert result.findings == {"findings": []}
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_poll_rejects_clean_findings_when_submission_runtime_is_fast(
+        self, mock_run: MagicMock,
+    ) -> None:
+        """Production polling retains the fast-empty quorum guard."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout='Status: completed\n{"findings": []}', stderr="",
+        )
+        adapter = _async_adapter()
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            task_id_pattern=r"task[_\s:]+(\w+)",
+            success_pattern="completed",
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result(
+            "abc123",
+            poll_cfg,
+            review_started_at=time.monotonic(),
+        )
+
+        assert result.success is False
+        assert result.error == "empty_findings_too_fast"
+        assert result.task_id == "abc123"
+        assert result.task_id == "abc123"
+
+    @patch("review_dispatcher.subprocess.run")
     @patch("review_dispatcher.time.sleep")
     def test_poll_failure(
         self, mock_sleep: MagicMock, mock_run: MagicMock,
@@ -781,6 +906,36 @@ class TestSdkDispatch:
         assert result.success is True
         assert result.findings is not None
         assert result.model_used == "claude-sonnet-4-6"
+
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_dispatch_parse_failure_does_not_invent_raw_null(
+        self, mock_call: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_call.return_value = None
+        adapter = _sdk_adapter()
+
+        result = adapter.dispatch(
+            "review", "prompt", cwd=tmp_path, api_key="sk-test",
+        )
+
+        assert result.raw_stdout is None
+
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_dispatch_placeholder_is_unsuccessful(
+        self, mock_call: MagicMock, tmp_path: Path,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = "Placeholder pending plan artifact review."
+        mock_call.return_value = payload
+        adapter = _sdk_adapter()
+
+        result = adapter.dispatch(
+            "review", "prompt", cwd=tmp_path, api_key="sk-test",
+        )
+
+        assert result.success is False
+        assert result.error == "non_substantive_placeholder"
+        assert result.raw_stdout == json.dumps(payload)
 
     @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
     def test_dispatch_model_fallback(self, mock_call: MagicMock, tmp_path: Path) -> None:
@@ -955,3 +1110,809 @@ class TestThreeTierSelection:
             reviewers = orch.discover_reviewers(exclude_vendor="claude_code")
         assert len(reviewers) == 1
         assert reviewers[0].vendor == "codex"
+
+
+class TestDispatchRobustness:
+    """Coerce, repair, judgment ingest, fast-empty, sidecars."""
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_bug_type_is_coerced_to_valid_findings(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        payload = {
+            "findings": [
+                {
+                    "id": 1,
+                    "type": "bug",
+                    "criticality": "high",
+                    "description": "Critical: off by one",
+                    "disposition": "fix",
+                    "axis": "correctness",
+                    "severity": "critical",
+                }
+            ]
+        }
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=json.dumps(payload), stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert result.findings["findings"][0]["type"] == "correctness"
+        assert result.coercions
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_schema_repair_retry_succeeds(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.side_effect = [
+            subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="not json", stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr="",
+            ),
+        ]
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert mock_run.call_count == 2
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_schema_repair_is_not_unbounded(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="not json", stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is False
+        assert mock_run.call_count == 2
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_cli_findings_are_stamped_judgment(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert result.findings["findings"][0]["evidence_class"] == "judgment"
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_payload_cannot_self_promote_to_deterministic(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["evidence_class"] = "deterministic"
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=json.dumps(payload), stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.findings is not None
+        assert result.findings["findings"][0]["evidence_class"] == "judgment"
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_fast_empty_findings_are_unsuccessful(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout='{"findings": []}', stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is False
+        assert result.error == "empty_findings_too_fast"
+
+    @pytest.mark.parametrize("description", [
+        "Placeholder while review runs",
+        "Placeholder while review is in progress",
+        "Placeholder pending review",
+        "Placeholder until analysis finishes",
+    ])
+    def test_nonempty_placeholder_is_unsuccessful(
+        self, description: str,
+    ) -> None:
+        payload = json.dumps({
+            "review_type": "plan",
+            "target": "test-feature",
+            "reviewer_vendor": "grok",
+            "findings": [{
+                "id": 1,
+                "type": "correctness",
+                "criticality": "medium",
+                "description": description,
+                "disposition": "fix",
+                "axis": "correctness",
+                "severity": "critical",
+            }],
+        })
+
+        result = _adapter(vendor="grok")._ingest_stdout(
+            payload,
+            "",
+            elapsed=16.0,
+            model_name="grok-4.5",
+            models_attempted=["grok-4.5"],
+        )
+
+        assert result.success is False
+        assert result.findings is None
+        assert result.error == "non_substantive_placeholder"
+        assert result.raw_stdout == payload
+
+    def test_placeholder_wrapper_is_unsuccessful_after_grace_period(self) -> None:
+        envelope = json.dumps({
+            "text": "Placeholder while review runs",
+            "structuredOutput": {"findings": []},
+        })
+
+        result = _adapter(vendor="grok")._ingest_stdout(
+            envelope,
+            "",
+            elapsed=16.0,
+            model_name="grok-4.5",
+            models_attempted=["grok-4.5"],
+        )
+
+        assert result.success is False
+        assert result.findings is None
+        assert result.error == "non_substantive_placeholder"
+        assert result.raw_stdout == envelope
+
+    def test_substantive_finding_with_placeholder_context_succeeds(self) -> None:
+        envelope = json.dumps({
+            "text": "Placeholder marker appeared in the source fixture.",
+            "structuredOutput": json.loads(VALID_FINDINGS_JSON),
+        })
+
+        result = _adapter(vendor="grok")._ingest_stdout(
+            envelope,
+            "",
+            elapsed=16.0,
+            model_name="grok-4.5",
+            models_attempted=["grok-4.5"],
+        )
+
+        assert result.success is True
+        assert result.findings is not None
+        assert result.findings["findings"][0]["description"] == "test"
+
+    def test_real_finding_starting_with_review_pending_succeeds(self) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = (
+            "Review pending state is never cleared when the dispatcher times out"
+        )
+
+        result = _adapter()._ingest_stdout(
+            json.dumps(payload),
+            "",
+            elapsed=16.0,
+            model_name="test-model",
+            models_attempted=["test-model"],
+        )
+
+        assert result.success is True
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_placeholder_does_not_trigger_schema_repair(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = "Placeholder while review runs"
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=json.dumps(payload), stderr="",
+        )
+
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+
+        assert result.success is False
+        assert result.error == "non_substantive_placeholder"
+        assert mock_run.call_count == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_raw_stdout_is_kept_on_success(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.raw_stdout == VALID_FINDINGS_JSON
+
+    def test_timeout_for_claude_exceeds_historical_300s(self) -> None:
+        from review_findings_schema import timeout_for_vendor
+
+        assert timeout_for_vendor("claude_code") >= 720
+        assert timeout_for_vendor("claude_code", override=120) == 120
+
+
+# ---------------------------------------------------------------------------
+# Concurrent dispatch (OpenSpec pack-and-parallelize-vendor-review D2/D4)
+# ---------------------------------------------------------------------------
+
+_STUB_SLEEP_SECONDS = 2.0
+_CONCURRENT_WALL_LIMIT_SECONDS = 3.0
+
+
+def _write_sleep_stub(path: Path, stamp_path: Path, sleep_seconds: float) -> None:
+    """Write an executable fake vendor CLI that sleeps, then prints findings."""
+    path.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, os, time\n"
+        "from pathlib import Path\n"
+        f"stamp = Path({str(stamp_path)!r})\n"
+        "stamp.write_text(json.dumps({\n"
+        '    "start": time.time(),\n'
+        '    "cwd": os.getcwd(),\n'
+        '    "pid": os.getpid(),\n'
+        "}))\n"
+        f"time.sleep({sleep_seconds!r})\n"
+        "data = json.loads(stamp.read_text())\n"
+        'data["end"] = time.time()\n'
+        "stamp.write_text(json.dumps(data))\n"
+        f"print({VALID_FINDINGS_JSON!r})\n"
+    )
+    path.chmod(0o755)
+
+
+def _intervals_overlap(a: dict[str, float], b: dict[str, float]) -> bool:
+    return a["start"] < b["end"] and b["start"] < a["end"]
+
+
+class TestConcurrentDispatch:
+    """D4: two 2s stubs finish in <3s with overlapping subprocess lifetimes."""
+
+    def test_concurrent_stub_vendors_overlap_under_three_seconds(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        stamp_a = tmp_path / "codex-stamp.json"
+        stamp_b = tmp_path / "grok-stamp.json"
+        _write_sleep_stub(bin_dir / "review-stub-codex", stamp_a, _STUB_SLEEP_SECONDS)
+        _write_sleep_stub(bin_dir / "review-stub-grok", stamp_b, _STUB_SLEEP_SECONDS)
+        monkeypatch.setenv(
+            "PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        )
+
+        adapters = {
+            "codex-local": _adapter(
+                "codex-local", "codex", command="review-stub-codex",
+            ),
+            "grok-local": _adapter(
+                "grok-local", "grok", command="review-stub-grok",
+            ),
+        }
+        orch = ReviewOrchestrator(adapters)
+        started = time.monotonic()
+        results = orch.dispatch_and_wait(
+            review_type="plan",
+            dispatch_mode="review",
+            prompt="Review this packet",
+            cwd=tmp_path,
+            timeout_seconds=15,
+        )
+        elapsed = time.monotonic() - started
+
+        assert elapsed < _CONCURRENT_WALL_LIMIT_SECONDS, (
+            f"concurrent dispatch took {elapsed:.2f}s; sequential 2s stubs "
+            "would take >=4s, overlap must finish in <3s"
+        )
+        assert elapsed < 4.0  # sequential dispatch is a bug (spec scenario)
+        assert len(results) == 2
+        assert all(r.success for r in results)
+
+        a = json.loads(stamp_a.read_text())
+        b = json.loads(stamp_b.read_text())
+        assert _intervals_overlap(a, b), (
+            f"subprocess lifetimes did not overlap: codex={a} grok={b}"
+        )
+        assert a["cwd"] == str(tmp_path)
+        assert b["cwd"] == str(tmp_path)
+
+    def test_async_poll_starts_without_waiting_for_slow_submit(self, tmp_path: Path) -> None:
+        """A completed submission starts polling while peers still submit."""
+        submit_ends: list[float] = []
+        poll_starts: list[float] = []
+        lock = threading.Lock()
+
+        def _async_cli(agent_id: str, vendor: str) -> CliVendorAdapter:
+            return CliVendorAdapter(
+                agent_id=agent_id,
+                vendor=vendor,
+                cli_config=CliConfig(
+                    command=f"cloud-{vendor}",
+                    dispatch_modes={
+                        "review": ModeConfig(
+                            args=["cloud", "exec"],
+                            async_dispatch=True,
+                            poll=PollConfig(
+                                command_template=["status", "{task_id}"],
+                                task_id_pattern=r"task[_\s:]+(\w+)",
+                                success_pattern="completed",
+                                interval_seconds=1,
+                                timeout_seconds=10,
+                            ),
+                        ),
+                    },
+                    model_flag="-m",
+                ),
+            )
+
+        adapters = {
+            "codex-remote": _async_cli("codex-remote", "codex"),
+            "grok-remote": _async_cli("grok-remote", "grok"),
+        }
+
+        def fake_submit(self: CliVendorAdapter, mode: str, prompt: str, cwd: Path) -> ReviewResult:
+            delay = 0.05 if self.vendor == "codex" else 0.35
+            time.sleep(delay)
+            with lock:
+                submit_ends.append(time.monotonic())
+            return ReviewResult(
+                vendor=self.vendor,
+                success=True,
+                async_dispatch=True,
+                task_id=f"task-{self.vendor}",
+            )
+
+        def fake_poll(
+            self: CliVendorAdapter,
+            task_id: str,
+            poll_config: PollConfig,
+            cwd: Path | None = None,
+            *,
+            review_started_at: float | None = None,
+        ) -> ReviewResult:
+            assert review_started_at is not None
+            with lock:
+                poll_starts.append(time.monotonic())
+            return ReviewResult(
+                vendor=self.vendor,
+                success=True,
+                findings=json.loads(VALID_FINDINGS_JSON),
+                task_id=task_id,
+            )
+
+        orch = ReviewOrchestrator(adapters)
+        with patch("shutil.which", return_value="/usr/bin/mock"), patch.object(
+            CliVendorAdapter, "dispatch_async", fake_submit,
+        ), patch.object(CliVendorAdapter, "poll_for_result", fake_poll):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+                timeout_seconds=15,
+            )
+
+        assert len(results) == 2
+        assert all(r.success for r in results)
+        assert len(submit_ends) == 2
+        assert len(poll_starts) == 2
+        assert min(poll_starts) < max(submit_ends), (
+            "fast async vendor waited for every peer submission "
+            f"(submit_ends={submit_ends}, poll_starts={poll_starts})"
+        )
+
+    def test_result_callback_fires_in_completion_order(
+        self, tmp_path: Path,
+    ) -> None:
+        callback_results: list[tuple[str, int]] = []
+        second_completed = threading.Event()
+        first = _adapter("codex-local", "codex")
+        second = _adapter("grok-local", "grok")
+
+        def first_dispatch(*_args: object, **_kwargs: object) -> ReviewResult:
+            assert second_completed.wait(timeout=1.0)
+            return ReviewResult(vendor="codex", success=True)
+
+        def second_dispatch(*_args: object, **_kwargs: object) -> ReviewResult:
+            time.sleep(0.02)
+            return ReviewResult(vendor="grok", success=True)
+
+        def on_result(result: ReviewResult, expected_count: int) -> None:
+            callback_results.append((result.vendor, expected_count))
+            if result.vendor == "grok":
+                second_completed.set()
+
+        orch = ReviewOrchestrator({"codex-local": first, "grok-local": second})
+        with (
+            patch("shutil.which", return_value="/usr/bin/mock"),
+            patch.object(first, "dispatch", side_effect=first_dispatch),
+            patch.object(second, "dispatch", side_effect=second_dispatch),
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+                result_callback=on_result,
+            )
+
+        assert callback_results == [("grok", 2), ("codex", 2)]
+        assert [result.vendor for result in results] == ["codex", "grok"]
+
+    def test_async_poll_starts_before_slow_sync_finishes(
+        self, tmp_path: Path,
+    ) -> None:
+        poll_started = threading.Event()
+        sync = _adapter("codex-local", "codex")
+        async_adapter = CliVendorAdapter(
+            agent_id="grok-remote",
+            vendor="grok",
+            cli_config=CliConfig(
+                command="cloud-grok",
+                dispatch_modes={
+                    "review": ModeConfig(
+                        args=["cloud", "exec"],
+                        async_dispatch=True,
+                        poll=PollConfig(
+                            command_template=["status", "{task_id}"],
+                            task_id_pattern=r"task[_\s:]+(\w+)",
+                            success_pattern="completed",
+                            interval_seconds=1,
+                            timeout_seconds=10,
+                        ),
+                    ),
+                },
+                model_flag="-m",
+            ),
+        )
+
+        def slow_sync(*_args: object, **_kwargs: object) -> ReviewResult:
+            if not poll_started.wait(timeout=0.5):
+                return ReviewResult(vendor="codex", success=False, error="poll delayed")
+            return ReviewResult(vendor="codex", success=True)
+
+        def poll_result(*_args: object, **_kwargs: object) -> ReviewResult:
+            poll_started.set()
+            return ReviewResult(vendor="grok", success=True)
+
+        orch = ReviewOrchestrator({
+            "codex-local": sync,
+            "grok-remote": async_adapter,
+        })
+        with (
+            patch("shutil.which", return_value="/usr/bin/mock"),
+            patch.object(sync, "dispatch", side_effect=slow_sync),
+            patch.object(
+                async_adapter,
+                "dispatch_async",
+                return_value=ReviewResult(
+                    vendor="grok",
+                    success=True,
+                    async_dispatch=True,
+                    task_id="task-grok",
+                ),
+            ),
+            patch.object(
+                async_adapter, "poll_for_result", side_effect=poll_result,
+            ),
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+            )
+
+        assert all(result.success for result in results)
+
+    def test_result_callback_waits_for_async_poll(self, tmp_path: Path) -> None:
+        adapter = CliVendorAdapter(
+            agent_id="grok-remote",
+            vendor="grok",
+            cli_config=CliConfig(
+                command="cloud-grok",
+                dispatch_modes={
+                    "review": ModeConfig(
+                        args=["cloud", "exec"],
+                        async_dispatch=True,
+                        poll=PollConfig(
+                            command_template=["status", "{task_id}"],
+                            task_id_pattern=r"task[_\s:]+(\w+)",
+                            success_pattern="completed",
+                            interval_seconds=1,
+                            timeout_seconds=10,
+                        ),
+                    ),
+                },
+                model_flag="-m",
+            ),
+        )
+        callbacks: list[ReviewResult] = []
+        submission = ReviewResult(
+            vendor="grok", success=True, async_dispatch=True, task_id="task-grok",
+        )
+        terminal = ReviewResult(
+            vendor="grok", success=True, findings=json.loads(VALID_FINDINGS_JSON),
+        )
+        orch = ReviewOrchestrator({"grok-remote": adapter})
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/mock"),
+            patch.object(adapter, "dispatch_async", return_value=submission),
+            patch.object(adapter, "poll_for_result", return_value=terminal),
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+                result_callback=lambda result, _count: callbacks.append(result),
+            )
+
+        assert callbacks == [terminal]
+        assert results == [terminal]
+
+
+class TestConcurrentGitSnapshotFallback:
+    """D2: shared cwd is the default; snapshot is the git-lock escape hatch."""
+
+    def test_concurrent_git_access_error_retries_on_snapshot_path(
+        self, tmp_path: Path,
+    ) -> None:
+        adapter = _adapter("codex-local", "codex")
+        snapshot = (
+            tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1" / "codex"
+        )
+        cwds: list[Path] = []
+
+        def fake_dispatch(
+            mode: str,
+            prompt: str,
+            cwd: Path,
+            timeout_seconds: int = 300,
+            **_kwargs: object,
+        ) -> ReviewResult:
+            cwds.append(Path(cwd))
+            if len(cwds) == 1:
+                return ReviewResult(
+                    vendor="codex",
+                    success=False,
+                    error=(
+                        "fatal: Unable to create '.git/index.lock': File exists. "
+                        "Another git process seems to be running in this repository"
+                    ),
+                )
+            return ReviewResult(
+                vendor="codex",
+                success=True,
+                findings=json.loads(VALID_FINDINGS_JSON),
+            )
+
+        packet = tmp_path / "round-1" / "review-packet.md"
+        packet.parent.mkdir()
+        packet.write_text("# packet\n")
+        orch = ReviewOrchestrator({"codex-local": adapter})
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/codex"),
+            patch.object(adapter, "dispatch", side_effect=fake_dispatch),
+            patch(
+                "review_dispatcher.create_review_snapshot",
+                return_value=snapshot,
+            ) as mock_create,
+            patch("review_dispatcher.destroy_review_snapshot") as mock_destroy,
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+                timeout_seconds=15,
+                packet_path=packet,
+            )
+
+        assert len(results) == 1
+        assert results[0].success is True
+        assert cwds[0] == tmp_path
+        assert cwds[1] == snapshot
+        mock_create.assert_called_once()
+        assert mock_create.call_args.args[1] == "round-1"
+        assert mock_create.call_args.args[2] == "codex"
+        mock_destroy.assert_called_once()
+        mock_destroy.assert_called_with(snapshot, tmp_path)
+
+    def test_non_git_error_does_not_create_snapshot(self, tmp_path: Path) -> None:
+        adapter = _adapter("codex-local", "codex")
+        cwds: list[Path] = []
+
+        def fake_dispatch(
+            mode: str,
+            prompt: str,
+            cwd: Path,
+            timeout_seconds: int = 300,
+            **_kwargs: object,
+        ) -> ReviewResult:
+            cwds.append(Path(cwd))
+            return ReviewResult(
+                vendor="codex",
+                success=False,
+                error="401 UNAUTHENTICATED token expired",
+                error_class=ErrorClass.AUTH,
+            )
+
+        orch = ReviewOrchestrator({"codex-local": adapter})
+        with (
+            patch("shutil.which", return_value="/usr/bin/codex"),
+            patch.object(adapter, "dispatch", side_effect=fake_dispatch),
+            patch("review_dispatcher.create_review_snapshot") as mock_create,
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="review",
+                cwd=tmp_path,
+                timeout_seconds=15,
+            )
+
+        assert len(results) == 1
+        assert results[0].success is False
+        assert cwds == [tmp_path]
+        mock_create.assert_not_called()
+
+    def test_review_snapshot_path_layout(self, tmp_path: Path) -> None:
+        with patch("review_dispatcher._main_repo_from_cwd", return_value=tmp_path):
+            dest = review_snapshot_path(tmp_path, "round-1", "codex")
+        assert dest == (
+            tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1" / "codex"
+        )
+
+    def test_create_review_snapshot_uses_detached_worktree(
+        self, tmp_path: Path,
+    ) -> None:
+        dest = tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1" / "codex"
+        with (
+            patch("review_dispatcher._main_repo_from_cwd", return_value=tmp_path),
+            patch("review_dispatcher.subprocess.run") as mock_run,
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr="",
+            )
+            result = create_review_snapshot(tmp_path, "round-1", "codex")
+        assert result == dest
+        cmd = mock_run.call_args.args[0]
+        assert cmd[:4] == ["git", "worktree", "add", "--detach"]
+        assert str(dest) in cmd
+        assert "HEAD" in cmd
+
+
+def test_dispatch_prefers_review_cwd_agents_yaml(
+    tmp_path: Path,
+) -> None:
+    local = tmp_path / "agent-coordinator" / "agents.yaml"
+    local.parent.mkdir()
+    local.write_text("agents: {}\n")
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=local
+        ) as find_local,
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_local,
+        patch.object(ReviewOrchestrator, "from_coordinator") as from_coordinator,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is expected
+    find_local.assert_called_once_with(tmp_path)
+    from_local.assert_called_once_with(local)
+    from_coordinator.assert_not_called()
+
+
+def test_dispatch_explicit_agents_yaml_bypasses_local_and_coordinator(
+    tmp_path: Path,
+) -> None:
+    explicit = tmp_path / "explicit-agents.yaml"
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_explicit,
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml"
+        ) as find_local,
+        patch.object(ReviewOrchestrator, "from_coordinator") as from_coordinator,
+    ):
+        actual = _orchestrator_for_dispatch(str(explicit), tmp_path)
+
+    assert actual is expected
+    from_explicit.assert_called_once_with(explicit)
+    find_local.assert_not_called()
+    from_coordinator.assert_not_called()
+
+
+def test_dispatch_without_local_config_falls_back_to_global_disk(
+    tmp_path: Path,
+) -> None:
+    empty = ReviewOrchestrator({})
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=None
+        ),
+        patch.object(
+            ReviewOrchestrator, "from_coordinator", return_value=empty
+        ) as from_coordinator,
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_global,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is expected
+    from_coordinator.assert_called_once_with()
+    from_global.assert_called_once_with()
+
+
+def test_dispatch_preserves_sdk_only_coordinator_roster(
+    tmp_path: Path,
+) -> None:
+    coordinator = ReviewOrchestrator({}, {"sdk-agent": object()})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=None
+        ),
+        patch.object(
+            ReviewOrchestrator, "from_coordinator", return_value=coordinator
+        ),
+        patch.object(ReviewOrchestrator, "from_agents_yaml") as from_disk,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is coordinator
+    from_disk.assert_not_called()
+
+
+def test_repo_antigravity_schema_review_uses_json_output_mode() -> None:
+    repo_root = Path(__file__).resolve().parents[4]
+    orchestrator = ReviewOrchestrator.from_agents_yaml(
+        repo_root / "agent-coordinator" / "agents.yaml"
+    )
+    adapter = orchestrator.adapters["antigravity-local"]
+
+    command = adapter.build_command("review", "review", "gemini-3.8-flash-high")
+
+    schema_index = command.index("--json-schema")
+    output_index = command.index("--output-format")
+    assert command[output_index + 1] == "json"
+    assert output_index < schema_index
+    schema = json.loads(command[schema_index + 1])
+    assert schema["type"] == "object"
+    assert command[command.index("--prompt") + 1] == "review"
+
+
+@patch("review_dispatcher.subprocess.run")
+def test_repo_antigravity_live_dispatch_pairs_json_mode_and_schema(
+    mock_run: MagicMock, tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[4]
+    orchestrator = ReviewOrchestrator.from_agents_yaml(
+        repo_root / "agent-coordinator" / "agents.yaml"
+    )
+    adapter = orchestrator.adapters["antigravity-local"]
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0,
+        stdout=json.dumps({"response": VALID_FINDINGS_JSON}), stderr="",
+    )
+
+    result = adapter.dispatch(
+        "review", "review this", cwd=tmp_path,
+        archetype_model="gemini-3.8-flash-high",
+    )
+
+    assert result.success is True
+    command = mock_run.call_args.args[0]
+    output_index = command.index("--output-format")
+    schema_index = command.index("--json-schema")
+    assert command[output_index + 1] == "json"
+    assert output_index < schema_index
+    assert json.loads(command[schema_index + 1])["type"] == "object"

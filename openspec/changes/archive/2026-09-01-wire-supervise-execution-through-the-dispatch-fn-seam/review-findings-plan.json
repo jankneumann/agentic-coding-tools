@@ -1,0 +1,62 @@
+{
+  "review_type": "plan",
+  "target": "wire-supervise-execution-through-the-dispatch-fn-seam",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "NONE: The generation-specific acknowledgement/go protocol prevents pre-ack Autopilot entry, permits safe pre-go CAS reclaim, and requires positive death evidence after go.",
+      "resolution": "Preserve the claimed, acknowledged, launched, and quarantined state invariants during implementation.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "file_path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/design.md"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "NONE: Unknown liveness is a non-resumable quarantine with an uncertain lease, distinct from gate or policy parking and its authorized continuation.",
+      "resolution": "Keep approval_ref continuation restricted to pending_gate and policy_pause parked attempts.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/delegated-dispatch-attempt.schema.json"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "NONE: Request and attempt contracts share a recursively bounded four-level context schema that rejects mixed-case secret-like keys at every object level.",
+      "resolution": "Retain the structural schema checks and the runtime 16 KiB canonical-size guard fixtures.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "file_path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/bounded-dispatch-context.schema.json"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "NONE: The explicit prepare_delegated_batch and apply_delegated_batch protocol preserves synchronous once-per-result dispatch_fn semantics while measuring concurrency only at host task handles.",
+      "resolution": "Keep the neutral scheduler, orchestrator, and downstream host adapter dependency direction.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/design.md"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "NONE: Scope, isolation, parent-session sentinel, TDD ownership, recursive mirror, and package-validation requirements remain traceable and internally consistent.",
+      "resolution": "Execute the declared package DAG and final verification gates without widening scopes.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "file_path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/work-packages.yaml"
+    }
+  ]
+}

@@ -27,6 +27,7 @@ POSTGRES_DSN = os.environ.get(
 # audit_log is immutable (has a trigger preventing DELETE) — skip it.
 _TABLES = [
     "handoff_documents",
+    "work_queue_projection_heads",
     "memory_episodic",
     "work_queue",
     "file_locks",
@@ -91,8 +92,11 @@ def setup_postgres_env(monkeypatch):
     """
     monkeypatch.setenv("DB_BACKEND", "postgres")
     monkeypatch.setenv("POSTGRES_DSN", POSTGRES_DSN)
-    monkeypatch.setenv("AGENT_ID", "integ-pg-agent-1")
-    monkeypatch.setenv("AGENT_TYPE", "test_agent")
+    # Projection publication is a coordinator-only trust-3 operation. These
+    # fixtures exercise that publisher path; claim/complete tests still pass
+    # their ordinary worker identity explicitly at the call site.
+    monkeypatch.setenv("AGENT_ID", "claude-local")
+    monkeypatch.setenv("AGENT_TYPE", "claude_code")
     monkeypatch.setenv("SESSION_ID", "integ-pg-session-1")
     monkeypatch.setenv("LOCK_TTL_MINUTES", "5")
     monkeypatch.setenv("COORDINATOR_PROFILE", "local")

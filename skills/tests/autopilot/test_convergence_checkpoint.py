@@ -15,6 +15,7 @@ Spec scenarios: skill-workflow.R2.S1..S4, skill-workflow.R4.S1..S4.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,7 @@ def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
             "target": "test-feature",
             "findings": findings,
         },
+        raw_stdout=json.dumps({"findings": findings}),
     )
 
 
@@ -77,6 +79,16 @@ class _FakeOrchestrator:
 
     def dispatch_and_wait(self, **_kwargs: Any) -> list[ReviewResult]:
         return self._results
+
+
+class _InterruptAfterFirstVendor:
+    def __init__(self, result: ReviewResult) -> None:
+        self.result = result
+
+    def dispatch_and_wait(self, **kwargs: Any) -> list[ReviewResult]:
+        callback = kwargs["result_callback"]
+        callback(self.result, 2)
+        raise KeyboardInterrupt("simulated supervisor interruption")
 
 
 class _FakeSynthesizer:
@@ -183,6 +195,34 @@ def test_synthesis_failure_preserves_checkpoint(
     assert set(loaded) == {"claude_code", "codex"}
     assert loaded["claude_code"][0]["id"] == 1
     assert loaded["codex"][0]["id"] == 2
+
+
+def test_completed_vendor_is_recoverable_when_panel_is_interrupted(
+    tmp_path: Path,
+) -> None:
+    orch = _InterruptAfterFirstVendor(
+        _review_result("codex", [_vendor_finding(1)])
+    )
+
+    with pytest.raises(KeyboardInterrupt, match="simulated supervisor interruption"):
+        converge(
+            change_id="test-feature",
+            review_type="plan",
+            artifacts_dir=tmp_path,
+            worktree_path=tmp_path,
+            orchestrator=orch,  # type: ignore[arg-type]
+            max_rounds=1,
+        )
+
+    checkpoint_dir = tmp_path / ".review-cache" / "round-1"
+    manifest = read_manifest(checkpoint_dir)
+    assert manifest["quorum_requested"] == 2
+    assert manifest["quorum_received"] == 1
+    assert set(read_vendor_findings(checkpoint_dir)) == {"codex"}
+    raw_path = checkpoint_dir / "raw-codex-plan.txt"
+    assert raw_path.read_text(encoding="utf-8") == json.dumps({
+        "findings": [_vendor_finding(1)],
+    })
 
 
 def test_synthesis_failure_emits_log_entry(

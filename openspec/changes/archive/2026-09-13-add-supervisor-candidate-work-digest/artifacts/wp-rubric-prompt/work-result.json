@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "feature_id": "add-supervisor-candidate-work-digest",
+  "package_id": "wp-rubric-prompt",
+  "attempt": 1,
+  "plan_revision": 5,
+  "contracts_revision": 5,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/supervise/templates/rubric-prompt.md"
+    ],
+    "keys": [
+      "feature:add-supervisor-candidate-work-digest:prompt"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "skills/supervise/templates/rubric-prompt.md",
+      "skills/tests/supervise/test_rubric_prompt.py"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": [
+      "**/.venv/**",
+      "skills/supervise/scripts/**"
+    ]
+  },
+  "files_modified": [
+    "skills/supervise/templates/rubric-prompt.md",
+    "skills/tests/supervise/test_rubric_prompt.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "a92e647b525c6e2bf89356674444da792c0cee4b"
+    },
+    "head": {
+      "commit": "1698e88a772395ba9672f165f25191a4bfc09258",
+      "branch": "openspec/add-supervisor-candidate-work-digest--wp-rubric-prompt",
+      "worktree": ".git-worktrees/add-supervisor-candidate-work-digest/wp-rubric-prompt"
+    }
+  },
+  "verification": {
+    "tier": "C",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Prompt contract passes",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/supervise/test_rubric_prompt.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "prompt_suite": {
+              "passed": 4,
+              "failed": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "TDD RED confirmed four failures because the prompt was absent; GREEN passed all four behavioral prompt tests. Context checkpoint ran and is degraded only by expected active-change projection drift."
+}

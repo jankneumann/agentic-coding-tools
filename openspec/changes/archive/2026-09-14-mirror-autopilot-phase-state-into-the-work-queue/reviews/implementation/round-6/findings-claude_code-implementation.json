@@ -1,0 +1,332 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "optional",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 110,
+        "end": 116
+      },
+      "evidence_class": "judgment",
+      "description": "Owned-row reactivation is unconditional, broader than the design's 'terminal row' statement. The UPDATE at lines 110-116 (and 217-223 in reconcile) runs on every labelled submit/reconcile with only `WHERE id=v_id`: it rewrites the canonical tuple on every idempotent replay (the SKILL protocol replays after apply-outcome, record-state-only-archetype and gate-answer) and resets status/claimed_by/attempt_count even when the row is `blocked`, `claimed` or `running` (statuses reachable via /issues/update). Only the label-clear at 107-109 is guarded by `status<>'pending'`. Failure scenario: operator sets the projection card to `blocked` via /issues/update; the next `project-state --mode submit` replay silently returns it to `pending`. Design D9/039 promises reactivation only for rows 'made terminal out of band'.",
+      "resolution": "Guard the reactivation UPDATE with `AND (status<>'pending' OR labels IS DISTINCT FROM p_projection_labels)` or restrict it to terminal statuses (completed, failed, cancelled) so no-op replays do not rewrite the row and non-terminal operator statuses survive."
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "nit",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 95,
+        "end": 130
+      },
+      "evidence_class": "judgment",
+      "description": "The new `projection_key_collision` reason introduced by migration 039 is not registered in `_PROJECTION_CONFLICTS` or `_PROJECTION_INVALID`, so it falls through to the generic branch at line 130 and is served as HTTP 422 under the OpenAPI Problem422 description 'Projection request validation failed'. A key owned by a non-issue row is a server-side state conflict, not a malformed request; the adapter degrades correctly either way, but a generated client cannot distinguish it from a validation error and the reason is undocumented in work-queue.yaml.",
+      "resolution": "Add `projection_key_collision` to `_PROJECTION_CONFLICTS` (409) and mention it in the Problem409 description, or explicitly document it as a 422 reason."
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "nit",
+      "disposition": "fix",
+      "package_id": "wp-live-integration",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/reviews/implementation/round-5/dispositions.md",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "evidence_class": "judgment",
+      "description": "The round-5 dispositions file is committed empty (0 bytes at HEAD b796aaed), while change-context.md line 26 states R5-12-18 'are recorded in round-5 dispositions' and the round-6 prompt asks reviewers to read them. Round-5 consensus item 7 was a vendor disagreement (codex fix vs grok accept, recommended escalate) whose resolution is only inferable from the validation report prose. The audit chain from findings to fixes is broken for round 5.",
+      "resolution": "Populate round-5/dispositions.md with per-consensus-id dispositions and the commit that closed each, mirroring the round-4 file."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 471,
+        "end": 480
+      },
+      "evidence_class": "judgment",
+      "description": "`runner.py escalate` is retry-idempotent for the projection generation (enter_escalate at autopilot.py:520-524 does not re-increment when already in ESCALATE), but each retry still appends another `host_escalate` phase_history entry and `enter_escalate` unconditionally overwrites `escalation_reason`, so a second invocation with a different reason discards the original diagnosis. Bounded and consistent with existing gate-path semantics; noted for operators reading loop-state after retries.",
+      "resolution": "Optionally skip the history append and reason overwrite when state.current_phase == 'ESCALATE' and the reason is unchanged."
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "fyi",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/validation-report.md",
+      "line_range": {
+        "start": 24,
+        "end": 27
+      },
+      "evidence_class": "judgment",
+      "description": "This reviewer's environment denied execution of pytest suites and `install.sh --check`, so the 436/96/143/18 pass counts in the validation report were not independently re-executed; verification here is static (code, SQL, tests read, `diff -qr` mirror comparison). All test files cited in the report exist at HEAD and their assertions match the reviewed code paths.",
+      "resolution": "No change required; recorded as a limitation of this round's evidence."
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 832,
+        "end": 837
+      },
+      "evidence_class": "judgment",
+      "description": "Every ESCALATE edge records resume metadata and advances exactly once. `_apply_transition` returns through `enter_escalate` before the generic `total_iterations += 1` at line 841, and `enter_escalate` (520-524) sets previous_phase and increments only when the phase actually changes. gate-answer rejection/escalation edges (runner.py:256, 276) and goal-gate refusal (runner.py:283-290, 425-431) use the same writer. Covered by test_phase_projection_runner.py:171-200 and :203-219."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 419,
+        "end": 461
+      },
+      "evidence_class": "judgment",
+      "description": "Goal-gate refusals and unsupported logical edges persist ESCALATE and exit 0 so the mandatory project-state step publishes the new generation; `runner.py escalate` (443-482) gives the prose host an executable apply-outcome failure writer. In-process `apply_outcome_or_escalate` (autopilot.py:674-686) is retry-safe and projects after the raw write. GatePending in `transition` (415-417) is raised before any mutation, so the exit-0 no-write is correct. Covered by test_runner_cli.py:139-255."
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 517,
+        "end": 522
+      },
+      "evidence_class": "judgment",
+      "description": "A structured degraded projection cannot halt authoritative work: project-state writes the envelope and returns 0; only exceptions that prevent an envelope return 1. The adapter (queue_projection.py:93-100) returns only status/reason/task_id and never touches LoopState; auto escalate_resume applies and flushes the resolved edge before exit 3 (runner.py:169-183, test_gate_evaluate_cli.py:181-211)."
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 58,
+        "end": 117
+      },
+      "evidence_class": "judgment",
+      "description": "Labels are applied and stale owned labels cleared inside the per-change advisory transaction for both submit (100-117, including same-generation replay cleanup) and reconcile (153-224). A delayed older publisher is rejected at the head check (63-65, 156-159) while the lock is held, closing the N/N+1 race; live coverage at test_work_queue_postgres.py:343-396 and test_autopilot_projection_acceptance_postgres.py:38-141, :253-295."
+    },
+    {
+      "id": 10,
+      "type": "behavioral_failure",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 230,
+        "end": 260
+      },
+      "evidence_class": "judgment",
+      "description": "First-insert SSE refresh is closed: an AFTER INSERT trigger emits projection.labels_changed with change_id from NEW.labels (substr offset 8 is correct for the 7-char change: prefix); ON CONFLICT DO NOTHING does not fire it. event_stream.py:273-279 coalesces into one marker and :320-328 builds a current-only snapshot via list_issues, which excludes cancelled rows. Live test at test_autopilot_projection_acceptance_postgres.py:220-250."
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 83,
+        "end": 99
+      },
+      "evidence_class": "judgment",
+      "description": "Non-issue key collisions fail closed before any effect: the collision return (90-94) precedes the head insert (96-99) in submit, and precedes head update and cancellation (186-205) in reconcile; the conflicting INSERT is DO NOTHING. Live tests :297-377 assert the ordinary row, its labels, and the head table are untouched."
+    },
+    {
+      "id": 12,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/038_atomic_projection_labels.sql",
+      "line_range": {
+        "start": 22,
+        "end": 32
+      },
+      "evidence_class": "judgment",
+      "description": "Migrations 038/039 preserve legacy non-projection behaviour: the unkeyed path (039:23-33) is equivalent to 035 apart from rejecting labels; keyed calls with NULL labels skip every label/reactivation branch and the collision check, retaining 035 dedupe (live test :432-460). Ordinary change-labelled issues cannot be selected: IssueService.create (issue_service.py:265-272) never stores change_id/phase/transition_sequence in input_data, and every label-clear predicate requires both the reserved marker label and complete projection identity."
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 316,
+        "end": 322
+      },
+      "evidence_class": "judgment",
+      "description": "Implicit label-filtered reads exclude cancelled rows while status='all' remains explicit. The kanban client sends a labels-only body (apps/kanban-viz/src/hooks/useCoordinator.ts:69-76) and IssueListRequest.status defaults to None (coordination_api.py:266-272), so the board and the SSE snapshot builder (event_stream.py:180-184) both take the filtered path."
+    },
+    {
+      "id": 14,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 88,
+        "end": 122
+      },
+      "evidence_class": "judgment",
+      "description": "Runtime and OpenAPI request constraints match: additionalProperties:false, minLength, priority 1-10, uuid depends_on, ordered prefixItems with items:false, and the conditional requiring projection_key plus task_type: issue when labels are present mirror _projection_labels_are_valid (work_queue.py:255-267). The runtime per-item bound of 160 (coordination_api.py:219) is looser than the schema's 135, but exact-equality against change:<id> (max 135) rejects any longer value identically. Problem bodies (coordination_api.py:859-868) emit exactly the four required fields."
+    },
+    {
+      "id": 15,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/agents.yaml",
+      "line_range": {
+        "start": 275,
+        "end": 275
+      },
+      "evidence_class": "judgment",
+      "description": "Antigravity schema dispatch now pairs --output-format json ahead of --json-schema; test_review_dispatcher.py:1751-1763 asserts the ordering from the repository configuration. vendor_health.py:84 tolerates sdk: null."
+    },
+    {
+      "id": 16,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 232,
+        "end": 276
+      },
+      "evidence_class": "judgment",
+      "description": "Installed mirrors match at HEAD: diff -qr --exclude=tests --exclude=__pycache__ of skills/autopilot and skills/coordination-bridge against both .claude/skills and .agents/skills produced no output. --check now runs the byte-level payload comparison after manifest validation instead of exiting early, and test_consumer_portability.py:65-115 seeds mirror drift and asserts non-zero exit."
+    },
+    {
+      "id": 17,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 503,
+        "end": 508
+      },
+      "evidence_class": "judgment",
+      "description": "Coordinator-free tiers stay isolated: the only import of queue_projection in non-test code is lazy inside _cmd_project_state; autopilot.py has no reference to the module, run_loop keeps queue_projection_fn=None, and the SKILL protocol scopes project-state to the coordinated tier. AST guard at test_phase_projection_isolation.py:12-27."
+    },
+    {
+      "id": 18,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "docs/architecture-analysis/architecture.provenance.json",
+      "line_range": {
+        "start": 169,
+        "end": 175
+      },
+      "evidence_class": "judgment",
+      "description": "Generated artifacts satisfy the freshness contract: source_revision 5693a320 equals the last commit touching migrations/src/kanban input roots, worktree_dirty=false, validation status passed; HEAD b796aaed changes only docs/architecture-analysis and validation-report.md."
+    },
+    {
+      "id": 19,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 86,
+        "end": 100
+      },
+      "evidence_class": "judgment",
+      "description": "Queue responses remain non-authoritative and file-derived resume holds: the adapter derives identity only from LoopState, advances to reconcile only on the exact status=error/409/detail=reconciliation_required envelope produced by the bridge's _normalize_operation_response (coordination_bridge.py:509-517 with parsed problem body from _http_request 322-328), and project-state never writes the state file (runner.py:496-522; byte-equality tests test_phase_projection_runner.py:33-130). In-process resume reconciles before phase work (autopilot.py:1044-1045)."
+    },
+    {
+      "id": 20,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql",
+      "line_range": {
+        "start": 112,
+        "end": 131
+      },
+      "evidence_class": "judgment",
+      "description": "Migration 037 preserves the prior trigger contract from 025 (same status set, same from/to context, change_id from NEW.labels) while adding the label-change branch with OLD-label fallback, and the single claim_task implementation adds only the task_type <> 'issue' predicate to 027's body, so ordinary claim filtering is unchanged."
+    }
+  ]
+}
