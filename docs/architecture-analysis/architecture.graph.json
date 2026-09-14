@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-09-14T03:18:47+00:00",
-      "git_sha": "5d9885c4b804044042410c598d3ed5928398bbec",
+      "generated_at": "2026-09-14T05:30:41+00:00",
+      "git_sha": "0ca4a72941416d9aeefc2727685c3467b4aa1aeb",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -21076,21 +21076,6 @@
       }
     },
     {
-      "id": "pg:public.public.file_locks.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.work_queue",
       "kind": "table",
       "language": "sql",
@@ -21209,10 +21194,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.enable",
+      "id": "pg:public.public.work_queue.depends_on",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "depends_on",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21220,44 +21205,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "UUID[]"
       }
     },
     {
-      "id": "pg:public.public.work_queue.labels",
+      "id": "pg:public.public.work_queue.status",
       "kind": "column",
       "language": "sql",
-      "name": "labels",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.parent_id",
-      "kind": "column",
-      "language": "sql",
-      "name": "parent_id",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UUID"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.issue_type",
-      "kind": "column",
-      "language": "sql",
-      "name": "issue_type",
+      "name": "status",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21269,10 +21224,25 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.assignee",
+      "id": "pg:public.public.work_queue.result",
       "kind": "column",
       "language": "sql",
-      "name": "assignee",
+      "name": "result",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.error_message",
+      "kind": "column",
+      "language": "sql",
+      "name": "error_message",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21284,10 +21254,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.closed_at",
+      "id": "pg:public.public.work_queue.created_at",
       "kind": "column",
       "language": "sql",
-      "name": "closed_at",
+      "name": "created_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21299,10 +21269,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.close_reason",
+      "id": "pg:public.public.work_queue.started_at",
       "kind": "column",
       "language": "sql",
-      "name": "close_reason",
+      "name": "started_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21310,14 +21280,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TIMESTAMPTZ"
       }
     },
     {
-      "id": "pg:public.public.work_queue.metadata",
+      "id": "pg:public.public.work_queue.completed_at",
       "kind": "column",
       "language": "sql",
-      "name": "metadata",
+      "name": "completed_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21325,14 +21295,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "TIMESTAMPTZ"
       }
     },
     {
-      "id": "pg:public.public.work_queue.agent_requirements",
+      "id": "pg:public.public.work_queue.deadline",
       "kind": "column",
       "language": "sql",
-      "name": "agent_requirements",
+      "name": "deadline",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21340,7 +21310,52 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.attempt_count",
+      "kind": "column",
+      "language": "sql",
+      "name": "attempt_count",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.max_attempts",
+      "kind": "column",
+      "language": "sql",
+      "name": "max_attempts",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.IF",
+      "kind": "column",
+      "language": "sql",
+      "name": "IF",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "NOT EXISTS labels TEXT[]"
       }
     },
     {
@@ -21473,7 +21488,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21492,21 +21507,6 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.agent_sessions.capabilities",
       "kind": "column",
       "language": "sql",
@@ -21518,7 +21518,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21567,10 +21567,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.delegated_from",
+      "id": "pg:public.public.agent_sessions.IF",
       "kind": "column",
       "language": "sql",
-      "name": "delegated_from",
+      "name": "IF",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21578,22 +21578,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_sessions.phase_archetype",
-      "kind": "column",
-      "language": "sql",
-      "name": "phase_archetype",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS delegated_from TEXT"
       }
     },
     {
@@ -21760,10 +21745,10 @@
       }
     },
     {
-      "id": "pg:public.public.handoff_documents.enable",
+      "id": "pg:public.public.handoff_documents.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "002_handoff_documents.sql",
       "span": {
         "start": 1,
@@ -21771,22 +21756,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.handoff_documents.supervisor_record",
-      "kind": "column",
-      "language": "sql",
-      "name": "supervisor_record",
-      "file": "002_handoff_documents.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "JSONB"
+        "type": "NOT EXISTS supervisor_record JSONB"
       }
     },
     {
@@ -21919,7 +21889,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21934,7 +21904,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21965,21 +21935,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.memory_episodic.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "004_memory_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22146,21 +22101,6 @@
       }
     },
     {
-      "id": "pg:public.public.changesets.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.verification_results",
       "kind": "table",
       "language": "sql",
@@ -22215,7 +22155,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_tier"
       }
     },
     {
@@ -22230,7 +22170,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_executor"
       }
     },
     {
@@ -22245,7 +22185,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_status"
       }
     },
     {
@@ -22339,21 +22279,6 @@
       }
     },
     {
-      "id": "pg:public.public.verification_results.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.verification_policies",
       "kind": "table",
       "language": "sql",
@@ -22438,7 +22363,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_tier"
       }
     },
     {
@@ -22453,7 +22378,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_executor"
       }
     },
     {
@@ -22514,21 +22439,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.verification_policies.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22677,21 +22587,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.operation_guardrails.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "006_guardrails_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22873,21 +22768,6 @@
       }
     },
     {
-      "id": "pg:public.public.guardrail_violations.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "006_guardrails_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.agent_profiles",
       "kind": "table",
       "language": "sql",
@@ -22987,7 +22867,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -23002,7 +22882,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -23126,10 +23006,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_profiles.enable",
+      "id": "pg:public.public.agent_profiles.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "007_agent_profiles.sql",
       "span": {
         "start": 1,
@@ -23137,22 +23017,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_profiles.synced_from_registry_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "synced_from_registry_at",
-      "file": "007_agent_profiles.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
+        "type": "NOT EXISTS synced_from_registry_at TIMESTAMPTZ"
       }
     },
     {
@@ -23241,21 +23106,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_profile_assignments.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "007_agent_profiles.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -23422,10 +23272,10 @@
       }
     },
     {
-      "id": "pg:public.public.audit_log.enable",
+      "id": "pg:public.public.audit_log.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "008_audit_log.sql",
       "span": {
         "start": 1,
@@ -23433,22 +23283,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.audit_log.delegated_from",
-      "kind": "column",
-      "language": "sql",
-      "name": "delegated_from",
-      "file": "008_audit_log.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS delegated_from TEXT"
       }
     },
     {
@@ -23585,21 +23420,6 @@
       }
     },
     {
-      "id": "pg:public.public.network_policies.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "009_network_policies.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.network_access_log",
       "kind": "table",
       "language": "sql",
@@ -23715,21 +23535,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.network_access_log.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "009_network_policies.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -23866,10 +23671,10 @@
       }
     },
     {
-      "id": "pg:public.public.cedar_policies.enable",
+      "id": "pg:public.public.cedar_policies.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "010_cedar_policy_store.sql",
       "span": {
         "start": 1,
@@ -23877,22 +23682,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.cedar_policies.policy_version",
-      "kind": "column",
-      "language": "sql",
-      "name": "policy_version",
-      "file": "010_cedar_policy_store.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "INTEGER"
+        "type": "NOT EXISTS policy_version INTEGER"
       }
     },
     {
@@ -24011,21 +23801,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.cedar_entities.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "010_cedar_policy_store.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -24158,7 +23933,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -24189,6 +23964,21 @@
       "tags": [],
       "signatures": {
         "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.metadata",
+      "kind": "column",
+      "language": "sql",
+      "name": "metadata",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
       }
     },
     {
@@ -24651,21 +24441,6 @@
       }
     },
     {
-      "id": "pg:public.public.approval_queue.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "014_fix_approval_queue_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.notification_tokens",
       "kind": "table",
       "language": "sql",
@@ -24872,21 +24647,6 @@
       }
     },
     {
-      "id": "pg:public.public.issue_comments.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "017_issue_tracking.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.code_search_registry",
       "kind": "table",
       "language": "sql",
@@ -25020,10 +24780,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_registry.canonical_index_id",
+      "id": "pg:public.public.code_search_registry.IF",
       "kind": "column",
       "language": "sql",
-      "name": "canonical_index_id",
+      "name": "IF",
       "file": "028_code_search_registry.sql",
       "span": {
         "start": 1,
@@ -25031,22 +24791,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UUID"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_registry.git_common_dir_fingerprint",
-      "kind": "column",
-      "language": "sql",
-      "name": "git_common_dir_fingerprint",
-      "file": "028_code_search_registry.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS canonical_index_id UUID"
       }
     },
     {
@@ -25127,6 +24872,21 @@
       "kind": "column",
       "language": "sql",
       "name": "namespace_key",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.code_search_indexes.source_revision",
+      "kind": "column",
+      "language": "sql",
+      "name": "source_revision",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25363,10 +25123,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.policy_fingerprint",
+      "id": "pg:public.public.code_search_indexes.CONSTRAINT",
       "kind": "column",
       "language": "sql",
-      "name": "policy_fingerprint",
+      "name": "CONSTRAINT",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25374,14 +25134,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "code_search_indexes_natural_key"
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.pipeline_fingerprint",
+      "id": "pg:public.public.code_search_indexes.IF",
       "kind": "column",
       "language": "sql",
-      "name": "pipeline_fingerprint",
+      "name": "IF",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25389,37 +25149,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.embedder_fingerprint",
-      "kind": "column",
-      "language": "sql",
-      "name": "embedder_fingerprint",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.parent_index_id",
-      "kind": "column",
-      "language": "sql",
-      "name": "parent_index_id",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UUID"
+        "type": "NOT EXISTS policy_fingerprint TEXT"
       }
     },
     {
