@@ -44,3 +44,46 @@
 ### Context
 Planned the adoption of Open Code Review's deterministic engineering split into the multi-vendor review pipeline: file selection with reasons, existing_code line resolver, glob rule groups, per-vendor coverage, a diff-grounded fact-check pass, and OCR as an optional vendor. Gate 1 selected Approach 1 (pure-Python ports, OCR optional) with fact-check and the OCR vendor delivered first. Coordinated tier; nine work packages.
 
+---
+
+## Phase: Implementation (2026-09-14)
+
+**Agent**: claude_code | **Session**: session_01EFcxuxU66D4u1B7ir1VqYb
+
+### Decisions
+1. **Recover the packet's selected-file list from the rendered prompt, not a new parameter** `architectural: review-coverage` — review_dispatcher._ingest_stdout only ever sees the prompt text. Rather than widen review_dispatcher.py's scope to import review_packet, coverage scoring parses the packet's own "### Rule groups" section (every selected file is listed there under some group before any budget truncation runs) — the same trick already used for the diff fence.
+2. **eligible_vendors narrows, never widens, existing consensus counts** `architectural: review-coverage` — VendorResult.reviewed_files defaults to None (full eligibility), so a caller that never wires in coverage info gets identical eligible_vendors counts to before the field existed — Rule 4 applied at the data-flow level, not just config defaults.
+3. **Ledger fingerprint keys on the normalized snippet when present, tokens otherwise** `architectural: review-ledger` — OCR's sliding-window resolver and LLM line drift both break line-number-anchored fingerprints. fingerprint() now hashes on existing_code when a finding carries one, falling back to the prior token-based scheme so a defect keeps its ledger id across rewordings without losing legacy findings that never set existing_code.
+
+### Trade-offs
+- Accepted A dedicated test_review_dispatcher_coverage.py file over Appending to the 1748-line test_review_dispatcher.py that tasks.md literally named because matches the precedent already set by test_review_dispatcher_resolver.py in wp-resolver — keeps each feature's tests independently reviewable.
+
+### Completed Work
+- wp-fact-check: diff-grounded fact-check pass (fact_check.py) wired into converge()
+- wp-ocr-vendor: optional ocr-local reviewer vendor (ocr_adapter.py)
+- wp-packet: five-gate file selection and path-glob rule groups in the review packet
+- wp-resolver: ingest-time line resolution (line_resolver.py) wired into the dispatcher
+- wp-ledger-match: snippet-equality match band and snippet-aware ledger fingerprinting
+- wp-coverage: per-vendor coverage scoring, narrowed consensus eligibility, manifest fields
+- wp-fixtures: 10-finding labeled fixture set with recorded fact-check transcript
+- wp-integration: full suite green, SKILL.md/workflow.md docs, validation-report.md, closed a finding-coercion.json/review-rules.json root-mirror drift found while running install.sh
+
+### Next Steps
+- Live-vendor validation run: fact-check precision and round token-spend delta against real vendor CLIs (validation-report.md's DEGRADED rows)
+- Create the pull request for branch claude/alibaba-code-review-cli-p1p48p
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/fact_check.py` — diff-grounded fact-check pass
+- `skills/parallel-infrastructure/scripts/ocr_adapter.py` — optional OCR reviewer vendor
+- `skills/parallel-infrastructure/scripts/file_selection.py` — five-gate file selection
+- `skills/parallel-infrastructure/scripts/review_rules.py` — path-glob rule resolution
+- `skills/parallel-infrastructure/scripts/line_resolver.py` — ingest-time line resolution
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — snippet matching, eligible_vendors
+- `skills/parallel-infrastructure/scripts/review_ledger.py` — snippet-aware fingerprint and compact
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — coverage scoring, coercion, line resolution
+- `skills/tests/parallel-infrastructure/fixtures/review-fixtures/manifest.json` — labeled fixture set
+- `openspec/changes/add-deterministic-review-preprocessing/validation-report.md` — gate results and DEGRADED live-vendor rows
+
+### Context
+Implemented all 9 work packages of the OpenSpec change: deterministic file selection and path-glob rule groups, a diff-grounded fact-check pass, an optional OCR reviewer vendor, ingest-time line resolution, snippet-based cross-vendor matching and ledger fingerprinting, per-vendor coverage scoring, a labeled fixture set, and documentation. 1115 tests pass, ruff and install.sh --check are clean, and `openspec validate --strict` passes.
+
