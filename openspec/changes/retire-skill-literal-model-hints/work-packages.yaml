@@ -1,0 +1,107 @@
+schema_version: 1
+
+feature:
+  id: retire-skill-literal-model-hints
+  title: "Retire skill literal model hints — archetype/tier vocabulary + CI guard"
+  plan_revision: 1
+  created_by: grok-build
+  created_at: "2026-09-14T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/retire-skill-literal-model-hints/contracts/README.md"
+    files:
+      - "openspec/changes/retire-skill-literal-model-hints/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "WP1–WP3 sequential — CI guard, skill vocabulary, spec verify"
+    task_type: implementation
+    description: |
+      Sequential package: harden test_skill_model_hints (ban string literals /
+      CLI -m pins; keep variable model=), rewrite cite-requirements dual
+      economy-tier resolve, replace plan-roadmap narrative defaults, rewrite
+      lifecycle illustrative comments, label autopilot override escape hatch,
+      confirm openspec validate --strict.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/validate-packages/scripts/tests/test_skill_model_hints.py"
+        - "skills/cite-requirements/SKILL.md"
+        - "skills/plan-roadmap/SKILL.md"
+        - "skills/plan-roadmap/templates/generation-prompt.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+        - "skills/autopilot/SKILL.md"
+      keys:
+        - "feature:retire-skill-literal-model-hints:main"
+      ttl_minutes: 120
+      reason: "Sequential skill-doc + CI guard; avoid partial guard red states"
+    scope:
+      write_allow:
+        - "skills/validate-packages/scripts/tests/test_skill_model_hints.py"
+        - "skills/cite-requirements/SKILL.md"
+        - "skills/plan-roadmap/SKILL.md"
+        - "skills/plan-roadmap/templates/generation-prompt.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+        - "skills/autopilot/SKILL.md"
+        - "openspec/changes/retire-skill-literal-model-hints/**"
+      read_allow:
+        - "**"
+      deny: []
+    context_impact:
+      surfaces:
+        - documentation
+        - capabilities
+      rationale:
+        apis:
+          reason: "No API surface; skill instructions + CI fitness + OpenSpec deltas only."
+          approved_by: plan
+    worktree:
+      name: retire-skill-literal-model-hints-wp-main
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Skill model hint guard tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-packages/scripts/tests/test_skill_model_hints.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["guard_tests_passed"]
+        - name: "OpenSpec strict validation"
+          kind: command
+          command: "openspec validate retire-skill-literal-model-hints --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_validate_passed"]
+    outputs:
+      result_keys:
+        - guard_tests_passed
+        - openspec_validate_passed
+      artifacts:
+        - "openspec/changes/retire-skill-literal-model-hints/"
+        - "skills/validate-packages/scripts/tests/test_skill_model_hints.py"
+        - "skills/cite-requirements/SKILL.md"
