@@ -147,6 +147,132 @@ def test_distinct_pytest_nodes_with_empty_detail_get_distinct_ids() -> None:
     assert candidates[0]["suggested_change_id"] != candidates[1]["suggested_change_id"]
 
 
+def test_internal_path_whitespace_is_semantic() -> None:
+    compact = project_candidate_work(
+        _report(_finding(id="stable", source="custom", file_path="src/a b.py")),
+        "report.json",
+    )[0]
+    doubled = project_candidate_work(
+        _report(_finding(id="stable", source="custom", file_path="src/a  b.py")),
+        "report.json",
+    )[0]
+
+    assert compact["suggested_change_id"] != doubled["suggested_change_id"]
+
+
+def test_semantic_detail_does_not_strip_a_basename_only_prefix() -> None:
+    basename = project_candidate_work(
+        _report(
+            _finding(
+                id="stable",
+                source="custom",
+                file_path="src/test_same.py",
+                detail="test_same.py:12: error: failure",
+            )
+        ),
+        "report.json",
+    )[0]
+    plain = project_candidate_work(
+        _report(
+            _finding(
+                id="stable",
+                source="custom",
+                file_path="src/test_same.py",
+                detail="error: failure",
+            )
+        ),
+        "report.json",
+    )[0]
+
+    assert basename["suggested_change_id"] != plain["suggested_change_id"]
+
+
+def test_semantic_detail_strips_full_path_line_without_line_metadata() -> None:
+    prefixed = project_candidate_work(
+        _report(
+            _finding(
+                id="stable",
+                source="custom",
+                file_path="src/test_same.py",
+                line=None,
+                detail="src/test_same.py:12: error: failure",
+            )
+        ),
+        "report.json",
+    )[0]
+    plain = project_candidate_work(
+        _report(
+            _finding(
+                id="stable",
+                source="custom",
+                file_path="src/test_same.py",
+                line=None,
+                detail="error: failure",
+            )
+        ),
+        "report.json",
+    )[0]
+
+    assert prefixed["suggested_change_id"] == plain["suggested_change_id"]
+
+
+def test_repeated_equivalent_findings_are_distinct_and_stable_after_line_shifts() -> None:
+    first = project_candidate_work(
+        _report(
+            _finding(
+                id="ruff-E501-same.py:10",
+                source="ruff",
+                category="lint",
+                detail="Line too long",
+                file_path="same.py",
+                line=10,
+            ),
+            _finding(
+                id="ruff-E501-same.py:20",
+                source="ruff",
+                category="lint",
+                detail="Line too long",
+                file_path="same.py",
+                line=20,
+            ),
+        ),
+        "first.json",
+    )
+    shifted_and_reordered = project_candidate_work(
+        _report(
+            _finding(
+                id="ruff-E501-same.py:21",
+                source="ruff",
+                category="lint",
+                detail="Line too long",
+                file_path="same.py",
+                line=21,
+            ),
+            _finding(id="pytest-unrelated", detail="Different"),
+            _finding(
+                id="ruff-E501-same.py:11",
+                source="ruff",
+                category="lint",
+                detail="Line too long",
+                file_path="same.py",
+                line=11,
+            ),
+        ),
+        "second.json",
+    )
+
+    first_ids = [item["suggested_change_id"] for item in first]
+    shifted_by_finding = {
+        item["provenance"]["finding_ids"][0]: item["suggested_change_id"]
+        for item in shifted_and_reordered
+    }
+    assert first_ids[0] != first_ids[1]
+    assert first_ids == [
+        shifted_by_finding["ruff-E501-same.py:11"],
+        shifted_by_finding["ruff-E501-same.py:21"],
+    ]
+
+
 def test_semantic_source_id_hash_collision_fails_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -346,3 +472,58 @@ def test_cli_unsupported_category_is_concise_and_preserves_report(
     assert "Traceback" not in captured.err
     assert (out_dir / "bug-scrub-report.json").exists()
     assert not (out_dir / "bug-scrub-candidate-work.json").exists()
+
+
+def test_cli_unsupported_severity_is_concise_and_preserves_outputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import main as bug_main
+    from models import SourceResult
+
+    monkeypatch.setitem(
+        bug_main.ALL_SOURCES,
+        "fake-unsupported-severity",
+        lambda _project: SourceResult(
+            source="fake-unsupported-severity",
+            status="ok",
+            findings=[_finding(severity="urgent")],
+        ),
+    )
+    out_dir = tmp_path / "reports"
+    destination = tmp_path / "candidate-work.json"
+    destination.write_text("owned before\n", encoding="utf-8")
+    before = destination.read_bytes()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "main.py",
+            "--source",
+            "fake-unsupported-severity",
+            "--severity",
+            "info",
+            "--project-dir",
+            str(tmp_path),
+            "--out-dir",
+            str(out_dir),
+            "--format",
+            "json",
+            "--candidate-work-output",
+            str(destination),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        bug_main.main()
+
+    captured = capsys.readouterr()
+    assert exc_info.value.code == 2
+    assert captured.err.startswith("error: candidate-work sidecar not written:")
+    assert "unsupported bug-scrub severity" in captured.err
+    assert "urgent" in captured.err
+    assert captured.err.count("\n") == 1
+    assert "Traceback" not in captured.err
+    assert (out_dir / "bug-scrub-report.json").exists()
+    assert destination.read_bytes() == before

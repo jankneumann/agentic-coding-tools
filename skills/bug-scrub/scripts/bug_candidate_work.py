@@ -32,7 +32,7 @@ def _normalized_text(value: object) -> str:
 
 
 def _normalized_path(value: object) -> str:
-    return _normalized_text(value).replace("\\", "/")
+    return str(value).replace("\\", "/")
 
 
 def _source_key(finding: Finding) -> str:
@@ -48,28 +48,53 @@ def _source_key(finding: Finding) -> str:
     return key
 
 
+def _detail_and_line(finding: Finding) -> tuple[str, int | None]:
+    """Normalize detail and remove only an exact full-path numeric prefix."""
+    detail = str(finding.detail).replace("\\", "/")
+    path = _normalized_path(finding.file_path)
+    if path:
+        match = re.fullmatch(
+            rf"{re.escape(path)}:(\d+):(.*)", detail, flags=re.DOTALL
+        )
+        if match is not None:
+            return _normalized_text(match.group(2)), int(match.group(1))
+    return _normalized_text(detail), None
+
+
 def _semantic_detail(finding: Finding) -> str:
-    """Normalize meaning while removing a leading volatile line coordinate."""
-    detail = _normalized_text(finding.detail)
-    if finding.line is None or not detail:
-        return detail
-    paths = {_normalized_path(finding.file_path)}
-    paths.add(Path(_normalized_path(finding.file_path)).name)
-    for path in sorted(paths, key=len, reverse=True):
-        prefix = f"{path}:{finding.line}:"
-        if path and detail.startswith(prefix):
-            return detail.removeprefix(prefix).strip()
-    return detail
+    return _detail_and_line(finding)[0]
 
 
-def _semantic_fingerprint(finding: Finding) -> str:
-    """Serialize the stable semantic identity of one bug-scrub finding."""
+def _source_position(finding: Finding) -> tuple[bool, int, str, str, str]:
+    detail_line = _detail_and_line(finding)[1]
+    explicit_line = (
+        finding.line
+        if isinstance(finding.line, int) and not isinstance(finding.line, bool)
+        else None
+    )
+    line = explicit_line if explicit_line is not None else detail_line
+    origin_path = ""
+    origin_task = ""
+    if finding.origin is not None:
+        origin_path = _normalized_path(finding.origin.artifact_path)
+        origin_task = _normalized_text(finding.origin.task_number or "")
+    return (
+        line is None,
+        line if line is not None else 0,
+        origin_path,
+        origin_task,
+        _normalized_text(finding.id),
+    )
+
+
+def _base_semantic_identity(finding: Finding) -> dict[str, str]:
+    """Return stable semantic fields before occurrence disambiguation."""
     origin_change_id = ""
     origin_artifact_path = ""
     if finding.origin is not None:
         origin_change_id = _normalized_text(finding.origin.change_id)
         origin_artifact_path = _normalized_path(finding.origin.artifact_path)
-    identity = {
+    return {
         "category": _normalized_text(finding.category).lower(),
         "detail": _semantic_detail(finding),
         "file_path": _normalized_path(finding.file_path),
@@ -78,9 +103,23 @@ def _semantic_fingerprint(finding: Finding) -> str:
         "source": _normalized_text(finding.source).lower(),
         "source_key": _source_key(finding),
     }
+
+
+def _canonical_fingerprint(identity: dict[str, Any]) -> str:
     return json.dumps(
         identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     )
+
+
+def _base_semantic_fingerprint(finding: Finding) -> str:
+    return _canonical_fingerprint(_base_semantic_identity(finding))
+
+
+def _semantic_fingerprint(finding: Finding, occurrence: int) -> str:
+    """Serialize semantic identity with its deterministic occurrence."""
+    identity: dict[str, Any] = _base_semantic_identity(finding)
+    identity["occurrence"] = occurrence
+    return _canonical_fingerprint(identity)
 
 
 def _compact_source_id(fingerprint: str) -> str:
@@ -135,10 +174,24 @@ def project_candidate_work(
     report: BugScrubReport, source_artifact: str
 ) -> list[dict[str, Any]]:
     """Return one candidate for every finding retained in the rich report."""
+    indexed_findings = list(enumerate(report.findings))
+    groups: dict[str, list[tuple[int, Finding]]] = {}
+    for index, finding in indexed_findings:
+        base = _base_semantic_fingerprint(finding)
+        groups.setdefault(base, []).append((index, finding))
+
+    occurrences: dict[int, int] = {}
+    for members in groups.values():
+        ordered = sorted(
+            members, key=lambda item: (_source_position(item[1]), item[0])
+        )
+        for occurrence, (index, _finding) in enumerate(ordered, start=1):
+            occurrences[index] = occurrence
+
     candidates: list[dict[str, Any]] = []
     fingerprints_by_source_id: dict[str, str] = {}
-    for finding in report.findings:
-        fingerprint = _semantic_fingerprint(finding)
+    for index, finding in indexed_findings:
+        fingerprint = _semantic_fingerprint(finding, occurrences[index])
         source_id = _compact_source_id(fingerprint)
         previous = fingerprints_by_source_id.get(source_id)
         if previous is not None and previous != fingerprint:

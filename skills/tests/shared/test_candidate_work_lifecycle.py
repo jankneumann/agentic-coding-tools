@@ -221,3 +221,74 @@ def test_portable_item_status_vocabulary_matches_canonical_schema() -> None:
     )
 
     assert runtime._ROADMAP_ITEM_STATUSES == schema_statuses
+
+
+def test_shared_collector_includes_additional_out_of_tree_roadmap(
+    tmp_path: Path,
+) -> None:
+    import candidate_work as runtime
+
+    target = tmp_path / "operator-workspaces/target.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "roadmap_id: target\n"
+        "items:\n"
+        "  - item_id: ri-01\n"
+        "    change_id: add-local\n"
+        "    status: approved\n",
+        encoding="utf-8",
+    )
+
+    records = runtime.collect_lifecycle_records(
+        tmp_path, additional_roadmap_paths=[target]
+    )
+
+    assert records == [
+        LifecycleRecord("add-local", "roadmap", "approved", "target", "ri-01")
+    ]
+
+
+def test_shared_collector_deduplicates_resolved_additional_canonical_path(
+    tmp_path: Path,
+) -> None:
+    import candidate_work as runtime
+
+    target = tmp_path / "openspec/roadmaps/target/roadmap.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "roadmap_id: target\n"
+        "items:\n"
+        "  - item_id: ri-01\n"
+        "    change_id: add-local\n"
+        "    status: approved\n",
+        encoding="utf-8",
+    )
+    resolved_alias = target.parent / ".." / "target" / "roadmap.yaml"
+
+    records = runtime.collect_lifecycle_records(
+        tmp_path, additional_roadmap_paths=[resolved_alias, target]
+    )
+
+    assert records.count(
+        LifecycleRecord("add-local", "roadmap", "approved", "target", "ri-01")
+    ) == 1
+
+
+def test_shared_collector_wraps_malformed_additional_path_outside_repo(
+    tmp_path: Path,
+) -> None:
+    import candidate_work as runtime
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    target = tmp_path / "external/target.yaml"
+    target.parent.mkdir()
+    target.write_text("[]\n", encoding="utf-8")
+
+    with pytest.raises(
+        runtime.LifecycleCollectionError,
+        match="must contain a mapping",
+    ):
+        runtime.collect_lifecycle_records(
+            repo_root, additional_roadmap_paths=[target]
+        )

@@ -36,6 +36,8 @@ def _effort(finding: dict[str, Any]) -> tuple[str, bool]:
 
 
 def _severity(value: object) -> str:
+    if value is None:
+        raise ValueError("unsupported improve-harness max_severity: null")
     severity = " ".join(str(value).split()).lower()
     if severity not in _PRIORITY:
         raise ValueError(

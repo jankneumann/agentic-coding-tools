@@ -471,6 +471,7 @@ def test_lifecycle_collection_errors_remain_candidate_intake_errors(
 
 def test_out_of_tree_target_resolves_local_dependency_exactly_once(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo_root = _repo(tmp_path)
     target = repo_root / "operator-workspaces/target.yaml"
@@ -486,10 +487,23 @@ def test_out_of_tree_target_resolves_local_dependency_exactly_once(
     )
     candidate = _candidate()
     candidate["depends_on"] = ["add-local"]
+    import candidate_work as lifecycle
+
+    original_parser = lifecycle._roadmap_lifecycle_records
+    target_parse_count = 0
+
+    def track_target_parse(path: Path, root: Path):
+        nonlocal target_parse_count
+        if path.resolve() == target.resolve():
+            target_parse_count += 1
+        return original_parser(path, root)
+
+    monkeypatch.setattr(lifecycle, "_roadmap_lifecycle_records", track_target_parse)
 
     item = _preview(candidate, repo_root, target).request["operations"][0]["item"]
 
     assert item["depends_on"] == ["ri-01"]
+    assert target_parse_count == 1
     assert item.get("external_depends_on", []) == []
     assert item["rationale"].count("Resolved dependency: add-local -> ri-01") == 1
 

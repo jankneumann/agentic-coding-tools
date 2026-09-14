@@ -122,51 +122,21 @@ def _active_roadmaps(repo_root: Path) -> dict[str, Roadmap]:
     return roadmaps
 
 
-def _canonical_lifecycle_roadmap_paths(repo_root: Path) -> set[Path]:
-    roadmaps = repo_root / "openspec" / "roadmaps"
-    if not roadmaps.is_dir():
-        return set()
-    paths = list(roadmaps.glob("*/roadmap.yaml"))
-    archive = roadmaps / "archive"
-    if archive.is_dir():
-        paths.extend(archive.glob("*/roadmap.yaml"))
-    return {path.resolve() for path in paths}
-
-
-def _target_lifecycle_records(roadmap: Roadmap) -> list[LifecycleRecord]:
-    return [
-        LifecycleRecord(
-            change_id=item.change_id,
-            source="roadmap",
-            status=item.status.value,
-            roadmap_id=roadmap.roadmap_id,
-            item_id=item.item_id,
-        )
-        for item in roadmap.items
-        if item.change_id
-    ]
-
-
 def _lifecycle_records(
     repo_root: Path,
     *,
     target_path: Path | None = None,
-    target_roadmap: Roadmap | None = None,
 ) -> list[LifecycleRecord]:
-    """Collect lifecycle records, including an explicit out-of-tree target once."""
+    """Collect lifecycle records, including an explicit target exactly once."""
+    additional_paths = () if target_path is None else (target_path,)
     try:
-        records = collect_lifecycle_records(repo_root)
+        return collect_lifecycle_records(
+            repo_root, additional_roadmap_paths=additional_paths
+        )
     except LifecycleCollectionError as exc:
         raise CandidateIntakeError(
             "roadmap lifecycle registry could not be loaded: " + str(exc)
         ) from exc
-    if (
-        target_path is not None
-        and target_roadmap is not None
-        and target_path.resolve() not in _canonical_lifecycle_roadmap_paths(repo_root)
-    ):
-        records.extend(_target_lifecycle_records(target_roadmap))
-    return records
 
 
 def _load_target_roadmap(path: Path, repo_root: Path) -> Roadmap:
@@ -430,9 +400,7 @@ def preview_existing_roadmap(
         roadmap = _load_target_roadmap(target_path, root)
         if target_path.read_bytes() != base_bytes:
             continue
-        records = _lifecycle_records(
-            root, target_path=target_path, target_roadmap=roadmap
-        )
+        records = _lifecycle_records(root, target_path=target_path)
         if target_path.read_bytes() != base_bytes:
             continue
         _assert_available(stub["suggested_change_id"], records)

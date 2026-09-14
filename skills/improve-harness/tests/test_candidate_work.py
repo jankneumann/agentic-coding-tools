@@ -275,3 +275,35 @@ def test_cli_unknown_max_severity_is_concise_and_preserves_report(
     assert "Traceback" not in captured.err
     assert report_path.exists()
     assert not destination.exists()
+
+
+def test_missing_max_severity_still_defaults_to_low() -> None:
+    finding = _finding()
+    del finding["max_severity"]
+
+    candidate = project_candidate_work([finding], "reports/gaps.md")[0]
+
+    assert candidate["priority"] == 4
+    assert "maximum severity low" in candidate["rationale"]
+
+
+def test_cli_null_max_severity_names_null_and_preserves_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    result, report_path, destination = _run_file_cli(
+        tmp_path,
+        monkeypatch,
+        [_finding(max_severity=None)],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err == (
+        "error: candidate-work sidecar not written: "
+        "unsupported improve-harness max_severity: null\n"
+    )
+    assert "Traceback" not in captured.err
+    assert report_path.exists()
+    assert not destination.exists()

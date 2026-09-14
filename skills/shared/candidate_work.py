@@ -143,6 +143,13 @@ def _archive_change_id(directory_name: str) -> str:
     return match.group(1) if match else directory_name
 
 
+def _lifecycle_path_label(path: Path, repo_root: Path) -> str:
+    try:
+        return str(path.relative_to(repo_root))
+    except ValueError:
+        return str(path)
+
+
 def _roadmap_lifecycle_records(
     path: Path, repo_root: Path
 ) -> list[LifecycleRecord]:
@@ -153,24 +160,24 @@ def _roadmap_lifecycle_records(
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise LifecycleCollectionError(
-            f"roadmap {path.relative_to(repo_root)} could not be loaded: {exc}"
+            f"roadmap {_lifecycle_path_label(path, repo_root)} could not be loaded: {exc}"
         ) from exc
     if not isinstance(data, Mapping):
         raise LifecycleCollectionError(
-            f"roadmap {path.relative_to(repo_root)} must contain a mapping"
+            f"roadmap {_lifecycle_path_label(path, repo_root)} must contain a mapping"
         )
     roadmap_id = data.get("roadmap_id")
     items = data.get("items")
     if not isinstance(roadmap_id, str) or not isinstance(items, list):
         raise LifecycleCollectionError(
-            f"roadmap {path.relative_to(repo_root)} requires roadmap_id and items"
+            f"roadmap {_lifecycle_path_label(path, repo_root)} requires roadmap_id and items"
         )
 
     records: list[LifecycleRecord] = []
     for index, item in enumerate(items):
         if not isinstance(item, Mapping):
             raise LifecycleCollectionError(
-                f"roadmap {path.relative_to(repo_root)} item #{index} "
+                f"roadmap {_lifecycle_path_label(path, repo_root)} item #{index} "
                 "must be a mapping"
             )
         change_id = item.get("change_id")
@@ -182,12 +189,12 @@ def _roadmap_lifecycle_records(
             isinstance(value, str) for value in (change_id, item_id, status)
         ):
             raise LifecycleCollectionError(
-                f"roadmap {path.relative_to(repo_root)} item #{index} "
+                f"roadmap {_lifecycle_path_label(path, repo_root)} item #{index} "
                 "has invalid lifecycle fields"
             )
         if status not in _ROADMAP_ITEM_STATUSES:
             raise LifecycleCollectionError(
-                f"roadmap {path.relative_to(repo_root)} item #{index} "
+                f"roadmap {_lifecycle_path_label(path, repo_root)} item #{index} "
                 f"has unknown roadmap item status {status!r}"
             )
         records.append(
@@ -202,12 +209,18 @@ def _roadmap_lifecycle_records(
     return records
 
 
-def collect_lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
+def collect_lifecycle_records(
+    repo_root: Path,
+    *,
+    additional_roadmap_paths: Iterable[Path] = (),
+) -> list[LifecycleRecord]:
     """Collect one exact lifecycle model for ranking, intake, and producers.
 
     Roadmaps are intentionally decoded against the stable lifecycle field subset
     instead of today's full roadmap schema. This keeps archived history readable
     across schema revisions while rejecting malformed identity or status fields.
+    Additional explicit roadmap paths use the same lifecycle parser and are
+    deduplicated by resolved path against canonical and earlier explicit paths.
     """
     root = Path(repo_root)
     roadmaps = root / "openspec" / "roadmaps"
@@ -219,9 +232,20 @@ def collect_lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
             roadmap_paths.extend(
                 sorted(archived_roadmaps.glob("*/roadmap.yaml"))
             )
+    roadmap_paths.extend(Path(path) for path in additional_roadmap_paths)
+
+    unique_roadmap_paths: list[Path] = []
+    seen_roadmap_paths: set[Path] = set()
+    for path in roadmap_paths:
+        resolved = path.resolve()
+        if resolved in seen_roadmap_paths:
+            continue
+        seen_roadmap_paths.add(resolved)
+        unique_roadmap_paths.append(path)
+
     records = [
         record
-        for path in roadmap_paths
+        for path in unique_roadmap_paths
         for record in _roadmap_lifecycle_records(path, root)
     ]
 
