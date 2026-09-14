@@ -12,10 +12,13 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 
-from candidate_work import derive_suggested_change_id, write_candidate_work
+from candidate_work import (
+    collect_lifecycle_records,
+    derive_suggested_change_id,
+    write_candidate_work,
+)
 
 _CHANGE_ID = re.compile(r"^(?:add|update|remove|refactor)-[a-z0-9]+(?:-[a-z0-9]+)*$")
-_ARCHIVE_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-(.+)$")
 _LEVEL = {"low": 1, "med": 2, "medium": 2, "high": 3}
 _EFFORT_SCORE = {"XS": 1, "S": 1, "M": 2, "L": 3, "XL": 3}
 
@@ -152,7 +155,10 @@ def project_candidate_work(
 def _find_repo_root(source: Path) -> Path | None:
     for start in (source.resolve().parent, Path.cwd().resolve()):
         for candidate in (start, *start.parents):
-            if (candidate / "openspec" / "changes").is_dir():
+            openspec = candidate / "openspec"
+            if (openspec / "changes").is_dir() or (
+                openspec / "roadmaps"
+            ).is_dir():
                 return candidate
     return None
 
@@ -160,20 +166,9 @@ def _find_repo_root(source: Path) -> Path | None:
 def _lifecycle_change_ids(repo_root: Path | None) -> set[str]:
     if repo_root is None:
         return set()
-    changes = repo_root / "openspec" / "changes"
-    identifiers = {
-        path.name
-        for path in changes.iterdir()
-        if path.is_dir() and path.name != "archive"
+    return {
+        record.change_id for record in collect_lifecycle_records(repo_root)
     }
-    archive = changes / "archive"
-    if archive.is_dir():
-        for path in archive.iterdir():
-            if not path.is_dir():
-                continue
-            match = _ARCHIVE_NAME.fullmatch(path.name)
-            identifiers.add(match.group(1) if match else path.name)
-    return identifiers
 
 
 def run(source: Path, destination: Path | None = None) -> Path:

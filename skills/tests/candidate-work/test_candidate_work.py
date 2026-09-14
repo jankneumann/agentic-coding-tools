@@ -146,3 +146,35 @@ def test_multi_file_loader_rejects_duplicates_across_the_union(tmp_path: Path) -
 
     with pytest.raises(CandidateWorkValidationError, match="duplicate suggested_change_id"):
         load_candidate_work_files([first, second])
+
+
+def test_collision_probe_uses_the_writer_supplied_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import candidate_work as runtime
+
+    destination = tmp_path / "candidate-work.json"
+    destination.write_text(
+        json.dumps(_load("improve-harness.json")), encoding="utf-8"
+    )
+    before = destination.read_bytes()
+    supplied_schema = json.loads(
+        (REPO_ROOT / "openspec/schemas/candidate-work.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    def unavailable_schema(*_args: object, **_kwargs: object) -> Path:
+        raise FileNotFoundError("canonical schema intentionally unavailable")
+
+    monkeypatch.setattr(runtime, "find_schema_path", unavailable_schema)
+
+    with pytest.raises(CandidateWorkCollisionError, match="improve-harness"):
+        write_candidate_work(
+            destination,
+            _load("bug-scrub.json"),
+            generator="bug-scrub",
+            schema=supplied_schema,
+        )
+
+    assert destination.read_bytes() == before

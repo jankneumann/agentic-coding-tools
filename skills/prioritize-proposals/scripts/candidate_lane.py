@@ -7,15 +7,12 @@ import argparse
 import copy
 import heapq
 import json
-import re
 import sys
 import unicodedata
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 _SHARED = Path(__file__).resolve().parents[2] / "shared"
 if str(_SHARED) not in sys.path:
@@ -23,6 +20,8 @@ if str(_SHARED) not in sys.path:
 
 from candidate_work import (  # type: ignore[import-untyped]
     CandidateWorkValidationError,
+    collect_lifecycle_records,
+    LifecycleCollectionError,
     LifecycleRecord,
     load_candidate_work_files,
     resolve_dependency,
@@ -30,7 +29,6 @@ from candidate_work import (  # type: ignore[import-untyped]
 )
 
 _EFFORT_ORDER = {"XS": 0, "S": 1, "M": 2, "L": 3, "XL": 4}
-_ARCHIVE_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}-(.+)$")
 _MARKDOWN_SPECIAL = frozenset("\\`*_{}[]<>()#+-.!|>")
 
 
@@ -88,91 +86,6 @@ def load_candidate_inputs(paths: Sequence[Path]) -> list[dict[str, Any]]:
         return load_candidate_work_files(Path(path) for path in paths)
     except CandidateWorkValidationError as exc:
         raise CandidateLaneError(str(exc)) from exc
-
-
-def _archive_change_id(name: str) -> str:
-    match = _ARCHIVE_PREFIX.fullmatch(name)
-    return match.group(1) if match else name
-
-
-def _roadmap_records(path: Path, repo_root: Path) -> list[LifecycleRecord]:
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as exc:
-        raise CandidateLaneError(
-            f"roadmap {path.relative_to(repo_root)} could not be loaded: {exc}"
-        ) from exc
-    if not isinstance(data, Mapping):
-        raise CandidateLaneError(
-            f"roadmap {path.relative_to(repo_root)} must contain a mapping"
-        )
-    roadmap_id = data.get("roadmap_id")
-    items = data.get("items")
-    if not isinstance(roadmap_id, str) or not isinstance(items, list):
-        raise CandidateLaneError(
-            f"roadmap {path.relative_to(repo_root)} requires roadmap_id and items"
-        )
-
-    records: list[LifecycleRecord] = []
-    for index, item in enumerate(items):
-        if not isinstance(item, Mapping):
-            raise CandidateLaneError(
-                f"roadmap {path.relative_to(repo_root)} item #{index} must be a mapping"
-            )
-        change_id = item.get("change_id")
-        if not change_id:
-            continue
-        item_id = item.get("item_id")
-        status = item.get("status")
-        if not isinstance(change_id, str) or not isinstance(item_id, str) or not isinstance(status, str):
-            raise CandidateLaneError(
-                f"roadmap {path.relative_to(repo_root)} item #{index} has invalid lifecycle fields"
-            )
-        records.append(
-            LifecycleRecord(
-                change_id=change_id,
-                source="roadmap",
-                status=status,
-                roadmap_id=roadmap_id,
-                item_id=item_id,
-            )
-        )
-    return records
-
-
-def collect_lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
-    """Read roadmap, active-change, and archive observations without precedence."""
-
-    root = Path(repo_root)
-    roadmaps = root / "openspec/roadmaps"
-    paths: list[Path] = []
-    if roadmaps.is_dir():
-        paths.extend(sorted(roadmaps.glob("*/roadmap.yaml")))
-        archive_roadmaps = roadmaps / "archive"
-        if archive_roadmaps.is_dir():
-            paths.extend(sorted(archive_roadmaps.glob("*/roadmap.yaml")))
-    records = [
-        record
-        for path in paths
-        for record in _roadmap_records(path, root)
-    ]
-
-    changes = root / "openspec/changes"
-    if not changes.is_dir():
-        return records
-    for path in sorted(changes.iterdir()):
-        if path.is_dir() and path.name != "archive":
-            records.append(LifecycleRecord(path.name, "active_change", "active"))
-    archive = changes / "archive"
-    if archive.is_dir():
-        for path in sorted(archive.iterdir()):
-            if path.is_dir():
-                records.append(
-                    LifecycleRecord(
-                        _archive_change_id(path.name), "archive", "completed"
-                    )
-                )
-    return records
 
 
 def _validated_candidates(
@@ -391,7 +304,10 @@ def load_and_rank_candidate_work(
     """Load repeatable inputs and rank them against the repository lifecycle."""
 
     candidates = load_candidate_inputs(paths)
-    lifecycle = collect_lifecycle_records(repo_root)
+    try:
+        lifecycle = collect_lifecycle_records(repo_root)
+    except LifecycleCollectionError as exc:
+        raise CandidateLaneError(str(exc)) from exc
     return rank_candidate_work(candidates, lifecycle_records=lifecycle)
 
 

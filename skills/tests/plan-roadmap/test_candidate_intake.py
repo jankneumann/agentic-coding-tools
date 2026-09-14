@@ -425,3 +425,45 @@ def test_apply_rejects_stale_roadmap_after_candidate_preview(tmp_path: Path) -> 
             repo_root,
             expected_base_sha256=result.preview.base_sha256,
         )
+
+
+def test_intake_tolerates_lifecycle_readable_legacy_archived_roadmap(
+    tmp_path: Path,
+) -> None:
+    repo_root = _repo(tmp_path)
+    target = _write_roadmap(
+        repo_root, "target", [_item("ri-01", "add-existing", 1)]
+    )
+    archived = repo_root / "openspec/roadmaps/archive/legacy/roadmap.yaml"
+    archived.parent.mkdir(parents=True)
+    archived.write_text(
+        "roadmap_id: legacy\n"
+        "items:\n"
+        "  - item_id: ri-07\n"
+        "    change_id: add-legacy\n"
+        "    status: completed\n",
+        encoding="utf-8",
+    )
+    candidate = _candidate()
+    candidate["depends_on"] = ["add-legacy"]
+
+    item = _preview(candidate, repo_root, target).request["operations"][0]["item"]
+
+    assert "Satisfied dependency: add-legacy (completed)" in item["rationale"]
+
+
+def test_lifecycle_collection_errors_remain_candidate_intake_errors(
+    tmp_path: Path,
+) -> None:
+    repo_root = _repo(tmp_path)
+    target = _write_roadmap(
+        repo_root, "target", [_item("ri-01", "add-existing", 1)]
+    )
+    archived = repo_root / "openspec/roadmaps/archive/broken/roadmap.yaml"
+    archived.parent.mkdir(parents=True)
+    archived.write_text("roadmap_id: broken\n", encoding="utf-8")
+
+    with pytest.raises(
+        CandidateIntakeError, match="requires roadmap_id and items"
+    ):
+        _preview(_candidate(), repo_root, target)

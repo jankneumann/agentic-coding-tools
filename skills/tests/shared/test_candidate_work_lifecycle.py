@@ -153,3 +153,32 @@ def test_unknown_exact_change_id_is_unresolved() -> None:
 
     assert resolution.outcome == "unresolved"
     assert resolution.matches == ()
+
+
+def test_shared_collector_reads_legacy_archived_roadmap_lifecycle(
+    tmp_path: Path,
+) -> None:
+    import candidate_work as runtime
+
+    archived = tmp_path / "openspec/roadmaps/archive/legacy/roadmap.yaml"
+    archived.parent.mkdir(parents=True)
+    archived.write_text(
+        "roadmap_id: legacy\n"
+        "items:\n"
+        "  - item_id: ri-07\n"
+        "    change_id: add-legacy\n"
+        "    status: completed\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "openspec/changes/add-live").mkdir(parents=True)
+    (tmp_path / "openspec/changes/archive/2026-09-13-add-done").mkdir(
+        parents=True
+    )
+
+    records = runtime.collect_lifecycle_records(tmp_path)
+
+    assert LifecycleRecord(
+        "add-legacy", "roadmap", "completed", "legacy", "ri-07"
+    ) in records
+    assert LifecycleRecord("add-live", "active_change", "active") in records
+    assert LifecycleRecord("add-done", "archive", "completed") in records

@@ -94,3 +94,37 @@ def test_existing_suggested_change_prefix_is_not_projected() -> None:
     )
 
     assert candidates == []
+
+
+def test_cli_skips_candidate_already_owned_only_by_a_roadmap(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "docs/feature-discovery/opportunities.json"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        json.dumps(
+            {
+                "items": [
+                    _opportunity(
+                        id="already-roadmapped",
+                        suggested_change_id="add-already-roadmapped",
+                    )
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    roadmap = tmp_path / "openspec/roadmaps/work/roadmap.yaml"
+    roadmap.parent.mkdir(parents=True)
+    roadmap.write_text(
+        "roadmap_id: work\n"
+        "items:\n"
+        "  - item_id: ri-01\n"
+        "    change_id: add-already-roadmapped\n"
+        "    status: approved\n",
+        encoding="utf-8",
+    )
+
+    destination = run(source)
+
+    assert load_candidate_work(destination) == []

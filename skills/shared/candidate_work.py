@@ -8,7 +8,7 @@ import json
 import os
 import re
 import tempfile
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -39,6 +39,10 @@ class CandidateWorkValidationError(ValueError):
 
 class CandidateWorkCollisionError(ValueError):
     """Raised when an explicit destination belongs to another generator."""
+
+
+class LifecycleCollectionError(ValueError):
+    """Raised when repository lifecycle records cannot be read consistently."""
 
 
 def normalize_source_identity(generator: str, source_id: str) -> str:
@@ -115,6 +119,112 @@ class DependencyResolution:
     live_record: LifecycleRecord | None
     matches: tuple[LifecycleRecord, ...]
     reason: str
+
+
+
+_ARCHIVE_CHANGE_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}-(.+)$")
+
+
+def _archive_change_id(directory_name: str) -> str:
+    match = _ARCHIVE_CHANGE_PREFIX.fullmatch(directory_name)
+    return match.group(1) if match else directory_name
+
+
+def _roadmap_lifecycle_records(
+    path: Path, repo_root: Path
+) -> list[LifecycleRecord]:
+    """Read only stable lifecycle fields, tolerating legacy roadmap schemas."""
+    import yaml
+
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise LifecycleCollectionError(
+            f"roadmap {path.relative_to(repo_root)} could not be loaded: {exc}"
+        ) from exc
+    if not isinstance(data, Mapping):
+        raise LifecycleCollectionError(
+            f"roadmap {path.relative_to(repo_root)} must contain a mapping"
+        )
+    roadmap_id = data.get("roadmap_id")
+    items = data.get("items")
+    if not isinstance(roadmap_id, str) or not isinstance(items, list):
+        raise LifecycleCollectionError(
+            f"roadmap {path.relative_to(repo_root)} requires roadmap_id and items"
+        )
+
+    records: list[LifecycleRecord] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, Mapping):
+            raise LifecycleCollectionError(
+                f"roadmap {path.relative_to(repo_root)} item #{index} "
+                "must be a mapping"
+            )
+        change_id = item.get("change_id")
+        if not change_id:
+            continue
+        item_id = item.get("item_id")
+        status = item.get("status")
+        if not all(
+            isinstance(value, str) for value in (change_id, item_id, status)
+        ):
+            raise LifecycleCollectionError(
+                f"roadmap {path.relative_to(repo_root)} item #{index} "
+                "has invalid lifecycle fields"
+            )
+        records.append(
+            LifecycleRecord(
+                change_id=change_id,
+                source="roadmap",
+                status=status,
+                roadmap_id=roadmap_id,
+                item_id=item_id,
+            )
+        )
+    return records
+
+
+def collect_lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
+    """Collect one exact lifecycle model for ranking, intake, and producers.
+
+    Roadmaps are intentionally decoded against the stable lifecycle field subset
+    instead of today's full roadmap schema. This keeps archived history readable
+    across schema revisions while rejecting malformed identity or status fields.
+    """
+    root = Path(repo_root)
+    roadmaps = root / "openspec" / "roadmaps"
+    roadmap_paths: list[Path] = []
+    if roadmaps.is_dir():
+        roadmap_paths.extend(sorted(roadmaps.glob("*/roadmap.yaml")))
+        archived_roadmaps = roadmaps / "archive"
+        if archived_roadmaps.is_dir():
+            roadmap_paths.extend(
+                sorted(archived_roadmaps.glob("*/roadmap.yaml"))
+            )
+    records = [
+        record
+        for path in roadmap_paths
+        for record in _roadmap_lifecycle_records(path, root)
+    ]
+
+    changes = root / "openspec" / "changes"
+    if not changes.is_dir():
+        return records
+    records.extend(
+        LifecycleRecord(path.name, "active_change", "active")
+        for path in sorted(changes.iterdir())
+        if path.is_dir() and path.name != "archive"
+    )
+    archive = changes / "archive"
+    if archive.is_dir():
+        records.extend(
+            LifecycleRecord(
+                _archive_change_id(path.name), "archive", "completed"
+            )
+            for path in sorted(archive.iterdir())
+            if path.is_dir()
+        )
+    return records
 
 
 def _record_key(record: LifecycleRecord) -> tuple[str, str, str, str]:
@@ -340,11 +450,13 @@ def canonical_candidate_work_bytes(
     return text.encode("utf-8")
 
 
-def _existing_generators(path: Path) -> set[str | None]:
+def _existing_generators(
+    path: Path, *, schema: dict[str, Any] | None = None
+) -> set[str | None]:
     if not path.is_file():
         return set()
     try:
-        loaded = load_candidate_work(path)
+        loaded = load_candidate_work(path, schema=schema)
     except (json.JSONDecodeError, CandidateWorkValidationError):
         return set()
     batch = loaded if isinstance(loaded, list) else [loaded]
@@ -396,7 +508,7 @@ def write_candidate_work(
         )
 
     content = canonical_candidate_work_bytes(batch, schema=schema)
-    conflicting = _existing_generators(destination) - {generator}
+    conflicting = _existing_generators(destination, schema=schema) - {generator}
     if conflicting:
         labels = ", ".join(sorted(owner or "unknown" for owner in conflicting))
         raise CandidateWorkCollisionError(
@@ -437,9 +549,11 @@ __all__ = [
     "CandidateWorkCollisionError",
     "CandidateWorkValidationError",
     "DependencyResolution",
+    "LifecycleCollectionError",
     "LifecycleRecord",
     "canonical_candidate_work_bytes",
     "cli",
+    "collect_lifecycle_records",
     "derive_suggested_change_id",
     "find_schema_path",
     "group_lifecycle_records",
