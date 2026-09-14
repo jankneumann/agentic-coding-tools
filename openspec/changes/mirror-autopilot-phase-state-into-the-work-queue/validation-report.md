@@ -1,7 +1,7 @@
 # Validation Report: mirror-autopilot-phase-state-into-the-work-queue
 
-**Date**: 2026-09-14T09:18:46-04:00
-**Validated commit**: `66c76650a83ffe947bd601b467c49833d79a9792`
+**Date**: 2026-09-14T09:45:00-04:00
+**Validated commit**: `3444157a`
 **Branch**: `openspec/recover-ri-09-work-queue-projection`
 **Surface**: non-deployable change with locally validated API, PostgreSQL, and Kanban paths
 
@@ -23,7 +23,7 @@
 
 - 445 Autopilot tests passed.
 - 96 coordination-bridge tests passed.
-- 2,513 coordinator CI-selected tests passed with 11 declared skips and 131 live-marker deselections.
+- 2,514 coordinator CI-selected tests passed with 11 declared skips and 131 live-marker deselections.
 - 71 live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed with 6 optional code-search skips.
 - 224 Kanban tests passed with 6 declared skips; the production build passed.
 - 4,767 canonical skills tests passed with 13 declared skips.
@@ -50,6 +50,8 @@ Round 12 again reached four-vendor schema-valid quorum from Antigravity, Codex, 
 Round 13 reached schema-valid quorum from Antigravity, Grok, and Pi after Claude failed and Codex exhausted the configured timeout. Grok exposed three production defects that were reproduced before repair: unlabelled reconcile could cross into an owned labelled namespace, direct MCP and HTTP-proxy surfaces dropped the exact label pair, and unlabelled repair of an unowned reserved upgrade row raised a trigger exception instead of a structured collision. The fixes isolate labelled and legacy modes before mutation, preserve mode-specific cancellation, carry labels across every transport, and return typed conflict responses. A final symmetric test-first hardening step also prevents labelled publication from entering any change namespace containing a complete unowned projection tuple. Both directions now fail closed without advancing the head or mutating existing rows.
 
 Round 14 again addressed all five configured harnesses and reached schema-valid quorum from Antigravity, Codex, and Grok; Pi produced a schema-valid out-of-band result after emitting protocol NDJSON, while Claude failed transport. Grok reproduced a critical HTTP contract gap in the Kanban label-PATCH route and a pre-registry reserved-row trigger leak. Both were fixed test-first: every HTTP issue-mutation surface now maps reserved/owned projection refusals to 403, and the row-locking mutation RPC returns structured `reserved_projection_label` before an UPDATE can fire the ownership trigger. Durable design text now correctly attributes first-generation SSE visibility to the migration-037 labelled UPDATE after migration-039 ownership staging.
+
+Round 15 reached schema-valid quorum from Antigravity, Claude Code, Grok, and Pi; Codex exhausted the configured timeout. No reviewer found a blocking implementation defect. The bounded follow-up declares the Kanban label-PATCH projection-refusal 403 in OpenAPI, corrects event and issue-row terminology, and makes the fail-closed upgrade procedure explicit: an administrator must verify and adopt every complete keyed row for the change, including cancelled historical generations. The optional suggestion to make multi-row batch close atomic is a separate contract; current row-level ownership integrity remains correct.
 
 The explicit monolithic `pytest tests` command was rejected as an invalid gate:
 it bypasses the curated skills `testpaths` ordering and creates known flat-module
