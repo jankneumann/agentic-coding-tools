@@ -17,6 +17,10 @@ triggers:
 
 # Validate Feature
 
+## Durable state artifact authority
+
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+
 Deploy the feature locally with DEBUG logging, run security scans and behavioral tests against live services, check CI/CD status, and verify OpenSpec spec compliance. Produces a structured validation report and posts it to the PR.
 
 ## Arguments
@@ -875,7 +879,8 @@ Checks per package:
 - No unresolved escalations with disposition fix or escalate
 
 Cross-package consistency:
-- No two packages report modifications to the same file
+- No two packages report modifications to the same file, with one bounded exception: the exact change-local task record `openspec/changes/<change-id>/tasks.md` MAY be shared when every reporting package declared the path in `write_allow` and the approved plan revision explicitly permits task-coupled commits. Keep that path in each truthful `files_modified` list and report the exception explicitly with the affected package IDs; never hide it by rewriting package evidence.
+- Every other duplicated modified file remains a failure, including source, test, contract, schema, runtime-mirror, and other OpenSpec files.
 - All packages used the same contracts_revision and plan_revision
 
 If change-context.md exists, populate the Evidence column from work-queue results.
@@ -1020,6 +1025,9 @@ Produce a structured summary of all phases:
 ⚠ Log Analysis: 3 warnings found
   - [WARNING] Deprecated function call: old_api_handler (line 142)
 ✓ CI/CD: All checks passing
+○ Choices: no ledger _or_ ✓ Choices: 0 needs-user _or_ ⚠ Choices: 2 needs-user entries (choices.md)
+  - a1b2c3d4e5f6  low  Chose per-request retry budget of 3
+  - f6e5d4c3b2a1  medium  Chose synchronous validation
 
 ### Result
 
@@ -1036,9 +1044,31 @@ Use these symbols:
 - ⚠ — Phase passed with warnings
 - ○ — Phase skipped
 
+**Choices row.** Compute it by testing for the ledger's presence first — the reader below is silent for both "no ledger" and "a ledger with nothing open" by design, so the row's own `○`/`✓`/`⚠` choice is what tells those two cases apart, never the reader's (lack of) output. Root both the presence check and the reader at the checkout under validation — `$OPENSPEC_PATH`/`$PROJECT_ROOT` may still name the **main** repository here (worktree.py detect's convention), not this feature worktree, so this uses the same `git rev-parse --show-toplevel` convention as `CHANGE_DIR` in Step 2:
+
+```bash
+VALIDATION_ROOT="$(git rev-parse --show-toplevel)"
+CHOICES_JSON="$VALIDATION_ROOT/openspec/changes/$CHANGE_ID/choices.json"
+CHOICES_LINES=""
+if [ ! -f "$CHOICES_JSON" ]; then
+  CHOICES_ROW="○ Choices: no ledger"
+else
+  CHOICES_LINES=$(python3 "<skill-base-dir>/../audit-choices/scripts/needs_user.py" \
+    --change-id "$CHANGE_ID" --repo-root "$VALIDATION_ROOT")
+  CHOICES_COUNT=$(printf '%s\n' "$CHOICES_LINES" | grep -c . || true)
+  if [ "$CHOICES_COUNT" -gt 0 ]; then
+    CHOICES_ROW="⚠ Choices: $CHOICES_COUNT needs-user entries (choices.md)"
+  else
+    CHOICES_ROW="✓ Choices: 0 needs-user"
+  fi
+fi
+```
+
+Always invoke the reader through the skill-relative path above (`<skill-base-dir>/../audit-choices/scripts/needs_user.py`), the way this repo invokes every sibling-skill script — never a bare `needs_user.py` command or a repo-root `skills/audit-choices/...` path, neither of which resolves inside the `.claude/skills/` and `.agents/skills/` runtime mirrors. The `Choices:` row never changes `Result`: `⚠` is already defined above as "passed with warnings" and never flips PASS/FAIL, exactly like every other warning row in this report. Never emit a `## Choices` heading — `gate_logic.py` (Step 7.0's pre-merge gate) reads a fixed allow-list of `##` phase headings with a `**Status**` line, and the row form is deliberately invisible to that parser so it cannot be picked up by a future allow-list edit.
+
 ### 12. Persist Report
 
-Write the validation report to the OpenSpec change directory:
+Write the validation report to the OpenSpec change directory. `$CHOICES_ROW` (and the reader's entry lines, if any) computed above is part of the phase results and MUST be carried into the persisted file below — the `<phase results from Step 10>` placeholder in the heredoc stands for the full Step 11 phase-results block, this row included, not just the container phases:
 
 ```bash
 REPORT_FILE="$OPENSPEC_PATH/changes/$CHANGE_ID/validation-report.md"
@@ -1058,6 +1088,8 @@ cat > "$REPORT_FILE" << EOF
 ## Phase Results
 
 <phase results from Step 10>
+$CHOICES_ROW
+$CHOICES_LINES
 
 ## Result
 
@@ -1186,6 +1218,16 @@ Option 3: Skip non-critical failures and proceed:
 ```
 
 Present the validation report and let the user decide the next step.
+
+**Echo open choices, if any.** When the Choices row computed in Step 11 is the `⚠` form (open `needs-user` entries), echo it once more here, alongside its entry lines, so the human deciding the next step sees it at the same point they make the decision:
+
+```
+⚠ Choices: 2 needs-user entries (choices.md)
+  - a1b2c3d4e5f6  low  Chose per-request retry budget of 3
+  - f6e5d4c3b2a1  medium  Chose synchronous validation
+```
+
+This is presentation only — it never changes PASS/FAIL and introduces no new gate.
 
 ## Semantic Code Context
 

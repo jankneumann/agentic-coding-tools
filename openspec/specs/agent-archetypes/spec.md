@@ -93,10 +93,18 @@ Each predefined archetype SHALL include a `system_prompt` tuned to its role. Eac
 
 ### Requirement: Skill Model Hint Integration
 
-All skills that use `Task()` calls SHALL be updated to include either a `model`
-parameter (Phase 1) or an `archetype` parameter (Phase 2+) on each Task() call.
+All skills that document `Task()` (or equivalent harness dispatch such as
+`Agent(...)` / vendor CLI) for model selection SHALL author **archetype or
+tier** vocabulary from `archetypes.yaml` (and `phase_mapping`), not raw
+harness model names or versions as policy.
 
-The mapping from workflow stage to archetype SHALL be:
+At dispatch time, skills SHALL resolve to a harness-specific model id via
+`try_resolve_archetype_for_phase` (or an equivalent tier-map resolution) and
+pass `model=<resolved_variable>` into the harness, **or** omit `model=` /
+CLI model flags when resolution fails. Skills SHALL NOT pass unresolved
+archetype names into harness APIs that only accept model ids.
+
+The mapping from workflow stage to archetype SHALL remain:
 
 | Skill | Task Type | Archetype |
 |-------|-----------|-----------|
@@ -109,26 +117,36 @@ The mapping from workflow stage to archetype SHALL be:
 | iterate-on-implementation | Quality checks | runner |
 | fix-scrub | Agent-assisted fixes | implementer |
 
+Phase 1 string literals such as `model="sonnet"` or `model="haiku"` SHALL NOT
+be treated as a valid end state for skill-authored policy.
+
 #### Scenario: Plan-feature uses analyst for exploration
 
-**WHEN** `/plan-feature` dispatches parallel Explore tasks in Step 2
-**THEN** each Task() call SHALL include `model="sonnet"` (Phase 1)
-or `archetype="analyst"` (Phase 2+)
+- **WHEN** `/plan-feature` dispatches parallel Explore tasks in Step 2
+- **THEN** the skill SHALL resolve the analyst archetype (or mapped tier) before dispatch
+- **AND** each Task() call SHALL use `model=<resolved_variable>` when resolution succeeds
+- **AND** the skill SHALL omit `model=` when resolution fails
+- **AND** the skill SHALL NOT hardcode a raw model id string (including `model="sonnet"`) as the selection policy
 
 #### Scenario: Implement-feature uses runner for quality checks
 
-**WHEN** `/implement-feature` dispatches quality check tasks in Step 6
-**THEN** each Task() call SHALL include `model="haiku"` (Phase 1)
-or `archetype="runner"` (Phase 2+)
+- **WHEN** `/implement-feature` dispatches quality check tasks in Step 6
+- **THEN** the skill SHALL resolve the runner archetype (or mapped tier) before dispatch
+- **AND** each Task() call SHALL use `model=<resolved_variable>` when resolution succeeds
+- **AND** the skill SHALL omit `model=` when resolution fails
+- **AND** the skill SHALL NOT hardcode `model="haiku"` (or any raw model version) as policy
 
 #### Scenario: Skill Task() call missing model or archetype parameter
 
-**WHEN** a skill SKILL.md file contains a `Task(` call without a `model=`
-parameter (Phase 1) or `archetype=` parameter (Phase 2+)
-**THEN** the validation test SHALL fail
-**AND** the test output SHALL identify the skill file and line number
+- **WHEN** a target lifecycle skill SKILL.md contains a fenced `Task(` dispatch example without a `model=` parameter and without an omit-on-failure instruction for that call
+- **THEN** the validation test SHALL fail
+- **AND** the test output SHALL identify the skill file and line number
 
----
+#### Scenario: String-literal model pins are rejected
+
+- **WHEN** a skill SKILL.md fenced dispatch example contains `model="…"` with a string literal, or a vendor CLI `-m <literal-model-id>`
+- **THEN** the validation test SHALL fail
+- **AND** `model=<variable_name>` forms SHALL remain valid
 
 ### Requirement: Complexity-Based Escalation
 
@@ -465,4 +483,58 @@ The policy MUST be configurable in `agents.yaml` under a top-level `policies.ven
 - **AND** the state file MUST be created with mode `0600` (owner read/write only)
 - **AND** when `/cleanup-feature <change-id>` runs, the `.dispatch-state/` directory MUST be removed alongside other change artifacts
 - **AND** state from a different change-id MUST NOT influence vendor selection for the active change (no cross-change contamination)
+
+### Requirement: Sole Authored Provider Tier Map
+
+The single authored tier→model source SHALL be
+`agent-coordinator/archetypes.yaml` under `model_aliases` (bare model id or
+`{model, thinking}` per tier). Task/phase → tier SHALL be authored only via
+`archetypes` and `phase_mapping` in the same file.
+
+`DEFAULT_PROVIDER_MODEL_MAP` in `agents_config.py` SHALL be an **emergency
+fallback only**, used when `archetypes.yaml` cannot be loaded. It SHALL NOT be
+a second authored roster operators keep in sync with YAML.
+
+Consumers of the provider tier map (resolution, dispatch, contract tests)
+MUST load YAML (directly or via `load_archetypes_config` /
+`get_provider_model_map` after a successful load). Tests SHALL derive expected
+models and thinking levels from the loaded YAML map, not from Python-map
+literals as policy.
+
+The normalized runtime/contract shape remains
+`openspec/schemas/provider-model-map.schema.json`.
+
+#### Scenario: YAML is the authored tier map
+
+- **WHEN** an operator changes a provider's `premium` entry in
+  `archetypes.yaml::model_aliases` and the coordinator reloads config
+- **THEN** `get_provider_model_map()` / `resolve_provider_model_spec` SHALL
+  reflect that entry
+- **AND** no edit to `DEFAULT_PROVIDER_MODEL_MAP` SHALL be required for the
+  change to take effect
+
+#### Scenario: Emergency fallback when YAML unavailable
+
+- **GIVEN** `archetypes.yaml` is missing or unreadable
+- **WHEN** provider model resolution runs
+- **THEN** the system SHALL use `DEFAULT_PROVIDER_MODEL_MAP` as fallback
+- **AND** SHALL emit a structured warning that the emergency map is in use
+- **AND** SHALL NOT treat the Python map as an alternate authored source under
+  normal operation
+
+#### Scenario: Consumers must load YAML
+
+- **WHEN** a consumer needs tier→model or phase→tier policy
+- **THEN** it SHALL obtain values from the loaded YAML-backed map / phase
+  mapping (or the coordinator resolve-for-phase endpoint that loads them)
+- **AND** it SHALL NOT hardcode a parallel phase→model or tier→model table as
+  policy
+
+#### Scenario: Tests do not pin Python-map literals as policy
+
+- **WHEN** contract or resolution tests assert resolved models or thinking
+- **THEN** expected values SHALL be derived from the loaded
+  `model_aliases` fixture or live YAML
+- **AND** tests SHALL NOT require `DEFAULT_PROVIDER_MODEL_MAP` to equal YAML
+  as a correctness condition
 

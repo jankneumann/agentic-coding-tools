@@ -65,6 +65,7 @@ live code references.
 | `project-context-refresh` | `context-drift-gate.schema.json` | `add-deterministic-context-drift-gates` (ri-10) |
 | `project-context-refresh` | `context-convergence-record.schema.json` | `integrate-main-context-convergence` (ri-11) |
 | `code-search` | `semantic-context-section.schema.json`, `semantic-context-hit.schema.json` | `inject-scoped-semantic-context-into-coding-jobs` (ri-12) |
+| `roadmap-orchestration` | `bounded-dispatch-context.schema.json`, `supervised-dispatch-request.schema.json`, `supervised-dispatch-result.schema.json`, `delegated-dispatch-attempt.schema.json` | `wire-supervise-execution-through-the-dispatch-fn-seam` (ri-03) |
 | `gen-eval-framework` | `schemas/cli-contract.schema.json`, `cli/gen-eval.yaml` | `derive-descriptors-from-contracts` (**in flight**) |
 | `semantic-context-evaluation` | `context-eval-report.schema.json`, `context-eval-corpus.schema.json`, `context-eval-case.schema.json` | `gate-semantic-context-default-enablement` (ri-13) |
 

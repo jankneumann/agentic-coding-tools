@@ -1,0 +1,37 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "summary": "The scope text contradicts the planned audit-choices reader addition.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "description": "Nit: F8 says the optional `--run-id` documentation is the one place this change touches `audit-choices` and adds no behavior, but F3 and task 3.0 add `skills/audit-choices/scripts/needs_user.py` plus reader behavior consumed by two gates. That makes the scope statement internally inconsistent.",
+      "recommendation": "Revise F8 and the matching proposal wording to say `audit-choices` changes are limited to the read-only `needs_user.py` reader plus the `--run-id` argument documentation; remove the `one place` / `adds no behavior` phrasing.",
+      "resolution": "Revise F8 and the matching proposal wording to say `audit-choices` changes are limited to the read-only `needs_user.py` reader plus the `--run-id` argument documentation; remove the `one place` / `adds no behavior` phrasing.",
+      "disposition": "fix",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "summary": "Scenario 12's executable driver claims are left to prose-only tests.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "description": "Nit: task 3.6 explicitly excludes `skill-workflow.12`, and task 3.7 covers the range form only with SKILL.md content assertions. That leaves the scenario's executable claims that the driver exits 0 and records `change_id` as `range:<base-sha>..<head-sha>` untested, even though `run_audit._cli()` or `run_audit.run_audit()` can be exercised with explicit `--base-sha`, `--head-sha`, and `change_id=\"range:...\"`.",
+      "recommendation": "Add a pytest under task 3.6, or a small separate task, that invokes the driver with `change_id=f\"range:{base}..{head}\"`, asserts exit/status 0, and verifies the persisted ledger records that `change_id` and audited range. Keep task 3.7's content assertion for the SKILL.md argument-resolution rule.",
+      "resolution": "Add a pytest under task 3.6, or a small separate task, that invokes the driver with `change_id=f\"range:{base}..{head}\"`, asserts exit/status 0, and verifies the persisted ledger records that `change_id` and audited range. Keep task 3.7's content assertion for the SKILL.md argument-resolution rule.",
+      "disposition": "fix",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

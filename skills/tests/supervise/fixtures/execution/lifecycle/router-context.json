@@ -1,0 +1,13 @@
+{
+  "router_vendor": "codex",
+  "routing": {
+    "model": "gpt-test",
+    "decision": {
+      "location": "local",
+      "cost_policy": [
+        "bounded",
+        17
+      ]
+    }
+  }
+}

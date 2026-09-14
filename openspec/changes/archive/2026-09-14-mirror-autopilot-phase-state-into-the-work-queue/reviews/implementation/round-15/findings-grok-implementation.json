@@ -1,0 +1,228 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Ordinary issue create/update reject reserved `projection:autopilot-phase` via `_reject_reserved_projection_label` before persistence (`issue_service.py:51-53,274,425`); update/close mutate only through row-locking `mutate_issue_if_unowned`, which `FOR UPDATE`s, refuses registry-owned UUIDs (`projection_issue_immutable`) and reserved markers, then allowlists every patched field including close metadata (`039_projection_integrity_and_insert_events.sql:419-464`). HTTP create/update/close/label-PATCH all map `ProjectionIssueMutationError` to 403 (`coordination_api.py:1355-1356,1446-1447,1478-1479,3272-3273`). Re-tested: `test_ordinary_issue_api_cannot_cross_projection_boundary`, `test_patch_issue_labels_maps_projection_refusal_to_forbidden`, live `test_reserved_projection_rows_are_database_owned_and_issue_immutable`.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Retain service + locked RPC + HTTP 403 layering.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 419,
+        "end": 464
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Migration 039 labelled `submit_task`/`reconcile_work_projection` insert `labels=ARRAY[]::TEXT[]`, register `work_queue_projection_ownership`, then apply the exact canonical pair in one transaction (`039_...sql:151-193,297-374`). `enforce_projection_label_ownership` rejects post-migration unowned reserved inserts/label updates (`398-417`). Concurrent generations serialize via `pg_advisory_xact_lock` (`98,248`). Explicit admin adoption remains the only pre-039 upgrade path (`test_039_upgrade_fails_closed_until_owner_registers_verified_row`).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Retain insert/register/label ordering and fail-closed upgrade.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 151,
+        "end": 193
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Keyed `WorkQueueService.submit` selects `publish_work_projection` with `resource=change_id` and mode/change audit context; unkeyed submit remains `submit_work` (`work_queue.py:777-809`). `reconcile_projection` always authorizes `publish_work_projection` before the RPC (`922-940`). Direct MCP db transport calls these service methods (`coordination_mcp.py:377-386,421-429`), so callers cannot fall back to ordinary `submit_work` for keyed publication. HTTP authorize mirrors the same operation/resource/context (`coordination_api.py:1208-1266`).",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Retain service-layer elevated operation selection.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 777,
+        "end": 940
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Cedar omitted-trust resolution uses the same shared `resolve_trust_level` fail-closed path as native policy and returns `PolicyDecision.deny('trust_resolution_failed: ...')` before evaluation/mutation (`policy_engine.py:195-211,736-752`). `authorize_operation` and `WorkQueueService` stop on deny before RPCs; `reconcile_projection` also re-raises `TrustResolutionError` from guardrails before the mutating RPC (`work_queue.py:972-973`).",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Retain shared resolver wiring in both engines.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/policy_engine.py",
+      "line_range": {
+        "start": 736,
+        "end": 752
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: In-process `converge()` resolves the vendor panel via `_orchestrator_for_dispatch(None, worktree_path)` when no orchestrator/agents YAML is supplied (`convergence_loop.py:610-615`). Shared precedence is explicit YAML, reviewed-checkout-local YAML, coordinator roster, then global disk only when both `adapters` and `sdk_adapters` are empty (`review_dispatcher.py:2575-2591`), retaining SDK-only coordinator rosters.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Retain the shared resolver for converge and CLI dispatch.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "line_range": {
+        "start": 610,
+        "end": 615
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Labelled and legacy unlabelled modes are isolated before head or row mutation. Unlabelled keyed submit/reconcile against any registry-owned row returns `projection_mode_mismatch` (`039_...sql:128-135,279-286`). Labelled requests against any complete unowned keyed row return `projection_key_collision` (`113-127,264-278`). Unowned reserved-labelled association also fail-closes with `projection_key_collision` in both modes (`99-112,249-262`). Live both-direction tests preserve head: `test_unlabelled_projection_cannot_mutate_owned_labelled_namespace`, `test_labelled_projection_cannot_enter_unlabelled_keyed_namespace`.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Retain bidirectional preflight ordering before head FOR UPDATE.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 99,
+        "end": 135
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Direct MCP and HTTP-proxy submit/reconcile accept and forward the exact `projection_labels` pair (`coordination_mcp.py:330-367,408-428`; `http_proxy.py:481-530`). HTTP models enforce the ordered canonical pair (`coordination_api.py:225-248`). Projection conflicts map to structured HTTP 409 via `_PROJECTION_CONFLICTS` including `projection_mode_mismatch` and `projection_key_collision` (`coordination_api.py:95-132`). Trigger exceptions remain a spoof backstop, not the publish conflict channel.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Retain transport label parity and 409 problem mapping.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 95,
+        "end": 132
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "none: Every HTTP issue-mutation entry point maps both `projection_issue_immutable` and `reserved_projection_label` to HTTP 403 while preserving the row. `PATCH /issues/{issue_id}/labels` catches `ProjectionIssueMutationError` (`coordination_api.py:3267-3273`). Parameterized `test_patch_issue_labels_maps_projection_refusal_to_forbidden` re-tests both refusal reasons \u2192 403. Round-14 critical gap is closed at HEAD `fd7ff904` (validated impl `66c76650` + validation ledger only).",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Retain uniform HTTP 403 mapping on create/update/close/label-PATCH.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 3239,
+        "end": 3273
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: `mutate_issue_if_unowned` rejects an existing unowned pre-registry reserved-labelled row with structured `reserved_projection_label` before the UPDATE that would fire `UPDATE OF labels` ownership trigger (`039_...sql:438-446` before `448-462`). Live `test_039_issue_mutation_fails_closed_on_reserved_upgrade_row` proves a non-label status patch returns that reason and leaves status=`pending` and labels unchanged.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Retain pre-UPDATE reserved-row structured refusal.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 438,
+        "end": 462
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: First-generation SSE on the owned labelled path is driven by migration 037 AFTER UPDATE `notify_work_queue_change` when labels are applied (`037_...sql:75-110,136-140`) after migration 039 stages unlabelled INSERT + ownership (`039_...sql:151-193`). `notify_projection_insert` (`039_...sql:468-498`) is inert on this path because inserts are intentionally unlabelled. Durable design/context text agree (`design.md:27`; `change-context.md:15,35`). Live `test_connected_sse_refreshes_for_first_canonical_projection_insert` passes.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Retain 037 UPDATE as authoritative first-generation notification.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql",
+      "line_range": {
+        "start": 75,
+        "end": 140
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Earlier recovery seams hold under re-audit: pre-registry N-to-N+1 fail-close before head mutation (`039_...sql:99-112`; `test_039_upgrade_fails_closed_until_owner_registers_verified_row`); projection-head/ownership invariants with database-owned UUIDs only; canonical CLI persistence and ESCALATE resume; connected-client SSE refresh on label apply/reconcile/reactivation; coordinator-free isolation (`test_phase_projection_isolation.py`). Focused unit (70), live Postgres projection (30), and skills projection/converge (61) suites passed at this HEAD.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No remaining blocking defect on audited recovery seams.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/validation-report.md",
+      "line_range": {
+        "start": 59,
+        "end": 62
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Optional: `openspec/contracts/agent-coordinator/openapi/kanban-viz.yaml` documents `PATCH /issues/{issue_id}/labels` responses as 200/401 only (`kanban-viz.yaml:113-116`) and omits HTTP 403, while skill-workflow SHALL and implementation return 403 for `projection_issue_immutable`/`reserved_projection_label`. Behavior and issue-API regressions are correct; the published Kanban contract is incomplete for generated clients.",
+      "disposition": "regenerate",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Add Problem403 (or equivalent 403) to the Kanban labels PATCH responses to match create/update/close and the skill-workflow SHALL.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/kanban-viz.yaml",
+      "line_range": {
+        "start": 113,
+        "end": 116
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "style",
+      "criticality": "low",
+      "description": "FYI: Migration 039 header still says \"notify first labelled inserts\" (`039_...sql:1`), which contradicts the corrected first-generation attribution to the migration-037 labelled UPDATE path and the inert insert-trigger reality on the owned labelled RPC path. Durable design/operator docs are already correct.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "resolution": "Optionally reword the migration 039 header so operators do not credit `notify_projection_insert` for first-generation SSE.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

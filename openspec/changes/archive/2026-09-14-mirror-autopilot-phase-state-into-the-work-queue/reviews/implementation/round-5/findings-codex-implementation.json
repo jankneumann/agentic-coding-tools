@@ -1,0 +1,92 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: A first projection generation inserted after an SSE client connects emits no refresh event. Migration 038 inserts the canonical row with both owned labels already present, but migration 037 installs `trg_work_queue_notify` as `AFTER UPDATE` only and `notify_work_queue_change` emits `projection.labels_changed` only when OLD and NEW labels differ. With no stale row and no conflict, the initial submit performs no UPDATE, so `event_stream.py` never builds a fresh snapshot and the connected board remains stale until unrelated traffic or polling. The live SSE test starts from an already-inserted generation and therefore exercises only reconciliation cleanup, not this first-insert path.",
+      "resolution": "Emit a change-scoped projection snapshot notification for canonical INSERTs as well as label-changing UPDATEs (with TG_OP-safe OLD handling), and add a live EventBus test that connects before the first projection submit and observes the new current-only snapshot within five seconds.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql",
+      "line_range": {
+        "start": 75,
+        "end": 140
+      },
+      "axis": "observability",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The real prose-driven host still has no executable apply-outcome failure writer. It invokes `runner.py apply-outcome`, whose exception paths only return 1/2 without mutating loop-state; the protocol then says every non-zero mutation suppresses projection and merely tells the host to transition to ESCALATE. The recovered `apply_outcome_or_escalate()` logic is only a Python helper that reruns apply-outcome and is not exposed by `runner.py`, so the shell-driven path cannot reliably persist the failure generation\u2014several phases such as PLAN_REVIEW and VAL_REVIEW do not even have a generic `failed` transition outcome. Thus the production host can retain the old phase and old queue generation despite the round-4 recovery claim.",
+      "resolution": "Expose one canonical runner command that performs apply-outcome and, on failure, atomically records the failure history, resumable ESCALATE metadata, and one sequence increment; make the host invoke it and submit-project its successful persisted-failure result. Add a runner-level test using an actual failing apply-outcome path rather than calling the Python helper directly.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/SKILL.md",
+      "line_range": {
+        "start": 368,
+        "end": 381
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: The installed Autopilot runtime mirrors do not match the canonical implementation at this exact review checkout. `.agents/skills/autopilot/scripts/queue_projection.py` and the identical `.claude` mirror still omit `projection_labels` from submit/reconcile and instead perform post-transaction issue label/update/list cleanup at lines 99-146, while the canonical file passes exact labels into the PostgreSQL transaction and performs no client-side cleanup. Agents launched through either installed mirror therefore retain the round-4 N/N+1 race and can remove the newer canonical generation's labels, contradicting validation-report.md's mirror-parity claim.",
+      "resolution": "Run the repository's canonical skill installation/synchronization flow after the recovery edits and add a validation gate that byte-compares executable runtime mirror files against `skills/autopilot` in the actual checkout used for dispatch.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": ".agents/skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 70,
+        "end": 146
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Critical: The OpenAPI projection-label schema still accepts requests the runtime deterministically rejects. Both endpoints declare any two strings of at most 160 characters, and `/work/submit` permits those labels without a projection key and with any task_type; `_projection_labels_are_valid` instead requires a projection key, `task_type == \"issue\"`, the first item to equal `change:<projection_key.change_id>`, the second item to equal `projection:autopilot-phase`, and that exact order. A generated client can therefore send a schema-valid request and receive 422 `invalid_projection_labels`, so the claimed runtime/OpenAPI request-constraint parity is incomplete.",
+      "resolution": "Encode the representable constraints with OpenAPI 3.1 JSON Schema (`prefixItems`, `const`/`pattern`, `items: false`, and conditional requirements tying labels to a projection key and issue task type), and document the cross-field equality check that JSON Schema cannot express directly. Add contract tests that validate accepted and rejected bodies against both schemas.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 102,
+        "end": 146
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: `submit_task` is not an exact set-idempotent label repair despite D9 stating that both submit and reconcile clear owned labels from every noncanonical row inside the per-change transaction. On a same-generation replay, lines 83-92 select and relabel only the canonical row, then return success; they never clear `projection:autopilot-phase` from another row for the same change. Any pre-existing or externally introduced double-labelled stale row therefore survives ordinary submit replay and remains board-visible alongside the canonical row, while the adapter reports `status=ok`. Only the reconcile function contains the noncanonical cleanup.",
+      "resolution": "While holding the same advisory transaction in `submit_task`, clear the owned labels from every noncanonical complete projection identity for that change before returning success, with the same task_type/marker restrictions used by reconcile. Add a live same-generation replay test seeded with a stale double-labelled row and assert exactly one labelled row remains.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/038_atomic_projection_labels.sql",
+      "line_range": {
+        "start": 83,
+        "end": 95
+      },
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    }
+  ]
+}

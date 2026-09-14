@@ -1,0 +1,63 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "summary": "Cleanup gate fallback collapses absent ledger and zero-open ledger into the same presentation.",
+      "description": "Critical: Task 3.3 tells cleanup-feature to print either the reader lines or `no open choices`, while scenario skill-workflow.11 requires both gates to distinguish `no ledger` from `ledger with nothing open`. The shared reader in F3 also prints nothing for both cases, so the cleanup hook as planned has no specified way to satisfy the scenario.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "recommendation": "Update task 3.3, task 3.7, and likely F3/3.0 so cleanup-feature renders distinct forms for missing `choices.json` and present ledger with zero `needs-user` entries, either by having the reader expose status/entry counts or by requiring the hook to inspect the ledger safely.",
+      "resolution": "Update task 3.3, task 3.7, and likely F3/3.0 so cleanup-feature renders distinct forms for missing `choices.json` and present ledger with zero `needs-user` entries, either by having the reader expose status/entry counts or by requiring the hook to inspect the ledger safely.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "resilience",
+      "severity": "critical",
+      "summary": "The partial-ledger recovery command does not remove untracked first-run orphans.",
+      "description": "Critical: F6/task 3.1 say a partial first audit is cleaned up with `git checkout --` for both ledger paths, but `git checkout -- <path>` does not remove an untracked `choices.json` or `choices.md` when no committed pair exists. That leaves the partial artifact in the worktree despite the design claiming the orphan is discarded.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "recommendation": "Specify separate cleanup for tracked and untracked ledger paths, and add 3.7 coverage for the first-audit partial-pair case so the hook leaves neither path staged or present as an untracked orphan.",
+      "resolution": "Specify separate cleanup for tracked and untracked ledger paths, and add 3.7 coverage for the first-audit partial-pair case so the hook leaves neither path staged or present as an untracked orphan.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "nit",
+      "summary": "The planned reader call sites do not require installed-skill-relative path resolution.",
+      "description": "Nit: Tasks 3.2, 3.3, and 3.7 only require the hooks to call `needs_user.py`, and task 3.3 shows a bare `needs_user.py --change-id \"$CHANGE_ID\"` invocation. Existing skill-workflow requirements require runtime commands and sibling skill references to resolve from `<skill-base-dir>/../...`; a bare command can fail in `.claude/skills` or `.agents/skills` mirrors even if it works from the source tree.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "recommendation": "Make the hook tasks and content tests require `python3 \"<skill-base-dir>/../audit-choices/scripts/needs_user.py\" --change-id \"$CHANGE_ID\" --repo-root ...` or an equivalent installed-skill-relative helper, and reject bare or repo-root `skills/...` paths.",
+      "resolution": "Make the hook tasks and content tests require `python3 \"<skill-base-dir>/../audit-choices/scripts/needs_user.py\" --change-id \"$CHANGE_ID\" --repo-root ...` or an equivalent installed-skill-relative helper, and reject bare or repo-root `skills/...` paths.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "nit",
+      "summary": "Task 3.6 encourages a real change id as a synthetic active fixture path.",
+      "description": "Nit: Task 3.6 says the tmp fixture repo's active `openspec/changes/<id>/` should hold artifacts for `add-decision-choices-ledger`. The repository's path-stability guard explicitly warns that tmp fixtures should use synthetic ids, while real ids should be resolved with `change_dir()` only when reading source artifacts; a straightforward implementation risks tripping the guard or encoding the exact archival coupling the rule is meant to prevent.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "recommendation": "Revise 3.6 to use `change_dir(real_repo_root, \"add-decision-choices-ledger\")` only for reading the archived source artifacts, then copy them into a tmp repo under a synthetic change id such as `fixture-decision-choices-ledger`.",
+      "resolution": "Revise 3.6 to use `change_dir(real_repo_root, \"add-decision-choices-ledger\")` only for reading the archived source artifacts, then copy them into a tmp repo under a synthetic change id such as `fixture-decision-choices-ledger`.",
+      "disposition": "fix"
+    }
+  ]
+}

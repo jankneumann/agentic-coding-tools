@@ -315,6 +315,8 @@ class TestDeriveAllowedOperations:
         }
         assert merge_ops.isdisjoint(low)
         assert merge_ops.issubset(high)
+        assert "publish_work_projection" not in low
+        assert "publish_work_projection" in high
 
     def test_output_is_sorted_and_deduplicated(self) -> None:
         # feature_registry and trust>=3 both grant register_feature.
@@ -331,7 +333,7 @@ class TestClaudeCodeLocalRegression:
     """Task 2.5 — the derived grants must reproduce migrations 007/019/022.
 
     ``claude_code_cli`` was seeded by 007, renamed to ``claude_code_local`` by
-    019, and topped up by 022. The union below is what a live deployment's row
+    019, and topped up by 022 and 039. The union below is what a live deployment's row
     holds today; the projection must not silently drop any of it.
     """
 
@@ -360,6 +362,7 @@ class TestClaudeCodeLocalRegression:
         "run_pre_merge_checks",
         "mark_merged",
         "remove_from_merge_queue",
+        "publish_work_projection",
     }
 
     def test_derived_operations_match_migrations(self) -> None:

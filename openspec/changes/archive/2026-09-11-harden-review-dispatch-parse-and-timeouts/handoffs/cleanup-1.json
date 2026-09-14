@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T01:39:44.696198+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Merged PR #529 with rebase strategy. All tasks were checked so none were migrated. Archiving the OpenSpec change and regenerating the decision index.",
+    "completed_work": [
+      "merge",
+      "archive"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Rebase-merge PR 529",
+        "rationale": "OpenSpec agent PR; preserve plan then implement then CI-fix commits.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "implement ledger-driven-review-convergence"
+    ],
+    "relevant_files": []
+  }
+}

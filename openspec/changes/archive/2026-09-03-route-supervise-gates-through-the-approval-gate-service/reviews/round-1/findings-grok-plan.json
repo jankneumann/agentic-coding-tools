@@ -1,0 +1,167 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Design D7 and tasks 2.1/2.2 project `pending_gates[]` entries with `decision_id` through `cycle_state.write_mirror`, but `skills/supervise/scripts/cycle_state.py` `_clean_pending_gate` (used by every `write_mirror` / `build_supervisor_record` path) builds a new dict that keeps only `gate`, `change_id`, `requested_at`, `deadline`, optional `disposition`/`approval_id`, and `source` \u2014 it never copies `decision_id`. Task 1.3 grows the schemas to allow `decision_id`, and task 2.8 only swaps `_GATES`/`_DISPOSITIONS` imports; no task updates the cleaner. After D7 lands, schema-valid router projections are silently stripped on write, so scenario \"Router projects gate state into the mirror\" and keyed re-surface by `decision_id` cannot hold.",
+      "resolution": "Add an explicit task (before or inside 2.2) that extends `_clean_pending_gate` to pass through `decision_id` when present, and pin it in `test_cycle_state.py` / projection tests so a round-trip through `write_mirror` preserves the field.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 231,
+        "end": 260
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Task sequencing leaves D7 projection red after its own implement step. Task 2.2 implements evaluate/answer/projection via `write_mirror` while `_GATES` is still the eight-literal frozenset in `cycle_state.py`; `roadmap_approval` is only added when task 2.8 later imports `Gate`. Until then `_clean_pending_gate` returns `None` for `gate: roadmap_approval`, so blocked roadmap approvals are dropped from the mirror even if `decision_id` were preserved. Task 2.1's projection assertions therefore cannot go green at 2.2.",
+      "resolution": "Move the `_GATES`/`_DISPOSITIONS` import from `shared.trust_posture` (and the `_clean_pending_gate` `decision_id` passthrough) ahead of or into task 2.2, and list `cycle_state.py` in that task's Files so projection tests can pass in the same commit as the router.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/tasks.md",
+      "line_range": {
+        "start": 47,
+        "end": 88
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: `ApprovalGate.check_filed(gate, approval_id)` is specified to map `expired` exactly like `_interpret_status`, which calls `_apply_default(..., notified=...)`. During `evaluate`, `notified` is the real push result; on a later cycle `check_filed` has no delivery bit. With today's `BridgeCoordinatorClient.push_notification` always returning `False`, a `notify_with_timeout` + `default_action: proceed` gate fail-closes to `timeout_default_block` and stores `approval_id`. If a later `gate-check` hits D4 step 0.3 and the coordinator reports `expired`, a `check_filed` that defaults `notified=True` can apply `proceed` and unpark work nobody was notified about \u2014 bypassing the fail-closed rule `approval_gate.py` documents.",
+      "resolution": "Specify that `check_filed` must not re-apply a proceed default without proof of delivery: e.g. treat `expired` as non-decision (`None`) and fall through to a fresh evaluate, or require the prior ledger record's resolution/`default_action` and never upgrade an undelivered fail-closed block to proceed. Add a regression test for undelivered + expired.",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "skills/shared/approval_gate.py",
+      "line_range": {
+        "start": 367,
+        "end": 420
+      },
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: D2/D7 have `gate_router` call `cycle_state.write_mirror`, while tasks 2.7\u20132.9 have `cycle_state` `gate-check`/`gate-answer` call the router. Both modules would need top-level imports of each other; `cycle_state.py` already runs heavy import-time setup (`_load_runtime_models`). The plan never specifies lazy imports or a third module, so the obvious implementation risks an import cycle.",
+      "resolution": "Either lazy-import inside the call sites (`gate_router` imports `write_mirror` only inside the project helper; `cycle_state` imports `gate_router` only inside subcommand handlers), or move mirror projection into `cycle_state` and have the router return the pending/standing deltas for the CLI to persist.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "axis": "architecture",
+      "severity": "nit"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: ADDED scenario \"Router is the only seam\" requires an AST scan where `.evaluate(` appears only in `gate_router.py`. If `cycle_state.py` implements `gate-check` as `gate_router.evaluate(...)` (the natural call), that attribute access matches `.evaluate(` and fails the scenario even though the seam is correct.",
+      "resolution": "Narrow the AST forbid list to `ApprovalGate(...).evaluate` / `evaluator.evaluate` / `build_default_gate` usage, or require `from gate_router import evaluate` (bare call) in `cycle_state` and state that explicitly in D2 and task 2.1.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/specs/supervise/spec.md",
+      "line_range": {
+        "start": 167,
+        "end": 170
+      },
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: Design D2 and tasks 1.3/2.1 require gate-decision records to carry `verb` (`cycle` / `execute` / `resume`), but the change contract `contracts/schemas/gate-decision.schema.json` and the ADDED Supervise Gate Routing requirement list `decision_id`/`source`/correlation ids and omit `verb`. Records remain schema-valid via `additionalProperties: true`, so implementers and tests can disagree on whether `verb` is required.",
+      "resolution": "Declare optional `verb` with its enum in the change `gate-decision` schema and mention it in the ADDED requirement, or remove `verb` from D2/tasks if it is not part of the contract.",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/gate-decision.schema.json",
+      "axis": "compatibility",
+      "severity": "nit"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: ADDED Supervise Gate Routing opens with \"SHALL append a gate-decision\u2026 record \u2026 before acting on the decision\", but the prior-record rule and scenarios \"Approved roadmap is not re-asked\u2026\" / re-surface paths require appending nothing. The scenarios are clear; the absolute SHALL is not.",
+      "resolution": "Reword to: when producing a new decision, append before acting; reuse and unchanged re-surface append nothing and leave the mirror untouched.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/specs/supervise/spec.md",
+      "line_range": {
+        "start": 117,
+        "end": 119
+      },
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": 8,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Nit: D5 says exit codes \"mirror `runner.py gate-check`\" yet redefine exit 4: runner's `EXIT_GATE_PARKED` means no console question remains (ESCALATE; `gate-answer` has nothing pending), while supervise exit 4 still keeps a `pending_gates` entry and explicitly allows `gate-answer`. Hosts or operators who reuse runner semantics will treat exit 4 as unanswerable.",
+      "resolution": "Drop the \"mirror\" claim and document the deliberate divergence (0 = askable posture_block, 3 = proceed, 4 = terminal block that remains answerable via supervise `gate-answer`), or align exit 4 with runner and use another code for answerable terminal blocks.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "axis": "compatibility",
+      "severity": "nit"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Optional: D7 sets `change_id` on a `roadmap_approval` `pending_gates` entry to \"the roadmap's first ready item's change\" because `pendingGate` requires `change_id`. A roadmap with no ready item (or no `change_id`s yet) has no value that satisfies the schema, so `write_mirror` validation would reject the projection and the gate could not be surfaced.",
+      "resolution": "Define a stable fallback (e.g. a sentinel tied to `roadmap_id`, or relax `change_id` when `gate` is `roadmap_approval`) and add a test for an empty/not-yet-scaffolded roadmap.",
+      "disposition": "accept",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "axis": "resilience",
+      "severity": "optional"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "FYI: wp-contracts `write_allow` includes `skills/tests/supervise/test_supervisor_record_schema.py` (task 1.1), but package verification only runs `skills/shared/tests` and selected autopilot gate tests \u2014 not that supervise schema file. A broken nine-gate schema assertion there is only caught after wp-router's full supervise suite.",
+      "resolution": "Add `skills/.venv/bin/python -m pytest skills/tests/supervise/test_supervisor_record_schema.py -q` to wp-contracts verification, or move that test edit into wp-router.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/work-packages.yaml",
+      "axis": "observability",
+      "severity": "fyi"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The plan correctly grounds the prior-record / `check_filed` design in real gate-service behaviour: `ApprovalGate.evaluate` is synchronous and never returns pending under `notify_with_timeout`, and `build_gate_request` is only used for `posture_block` and never carries `approval_id`. That avoids re-implementing notify polling in the router.",
+      "resolution": "Keep D4's ledger-first rule; fix the `expired`/`notified` gap in finding 3 without reintroducing an async pending path.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "MODIFIED OpenSpec requirements reproduce every live scenario (often strengthened), and wp-router \u2225 wp-skill-docs keep non-overlapping write scopes (`scripts/**` vs `SKILL.md` / prose tests) with skill-docs denying `scripts/**` and router denying `SKILL.md`, so the parallel cut is sound once the `_clean_pending_gate` sequencing gap is fixed.",
+      "resolution": "No change to the package DAG; land findings 1\u20132 inside wp-router before treating projection as done.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/work-packages.yaml",
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

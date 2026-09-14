@@ -295,7 +295,7 @@ class TestStallDetection:
 
         assert result.converged is False
         assert result.reason == "stalled"
-        assert result.rounds == 3
+        assert result.rounds == 2
 
 
 class TestStallNotTriggeredWhenDecreasing:
@@ -335,6 +335,7 @@ class TestStallNotTriggeredWhenDecreasing:
                 worktree_path=tmp_path,
                 orchestrator=ctx["orchestrator"],
                 max_rounds=5,
+                fix_callback=MagicMock(),
             )
 
         assert result.converged is True
@@ -342,7 +343,7 @@ class TestStallNotTriggeredWhenDecreasing:
 
 
 class TestDisagreementEscalate:
-    """Disagreement finding → reason='disagreement'."""
+    """Disagreement is parked; the loop does not abort."""
 
     def test_disagreement(self, tmp_path: Path) -> None:
         finding = _make_consensus_finding(1, status="disagreement", criticality="medium")
@@ -371,10 +372,12 @@ class TestDisagreementEscalate:
                 orchestrator=ctx["orchestrator"],
             )
 
-        assert result.converged is False
-        assert result.reason == "disagreement"
+        assert result.converged is True
+        assert result.reason != "disagreement"
         assert result.escalate_findings is not None
         assert len(result.escalate_findings) == 1
+        parked = ctx["artifacts_dir"] / "reviews" / "parked-disagreements.json"
+        assert parked.exists()
 
 
 class TestUnconfirmedRelaxedFinalRound:
@@ -409,18 +412,8 @@ class TestUnconfirmedRelaxedFinalRound:
             ]),
         ])
         f2_unconfirmed = _make_consensus_finding(2, status="unconfirmed", criticality="medium")
+        f2_unconfirmed.evidence_class = "judgment"
         reports_per_round.append(_make_consensus_report(findings=[f2_unconfirmed]))
-
-        # Round 3 (final): only unconfirmed medium → relaxed
-        results_per_round.append([
-            _make_review_result("vendor_a", success=True, findings=[]),
-            _make_review_result("vendor_b", success=True, findings=[
-                {"id": 3, "type": "style", "criticality": "medium",
-                 "description": "Minor nit", "disposition": "accept"}
-            ]),
-        ])
-        f3_unconfirmed = _make_consensus_finding(3, status="unconfirmed", criticality="medium")
-        reports_per_round.append(_make_consensus_report(findings=[f3_unconfirmed]))
 
         ctx = _setup_converge(results_per_round, reports_per_round, tmp_path)
 
@@ -432,10 +425,11 @@ class TestUnconfirmedRelaxedFinalRound:
                 worktree_path=tmp_path,
                 orchestrator=ctx["orchestrator"],
                 max_rounds=3,
+                fix_callback=MagicMock(),
             )
 
         assert result.converged is True
-        assert result.rounds == 3
+        assert result.rounds == 2
 
 
 class TestUnconfirmedBlocksEarlyRounds:
@@ -473,11 +467,10 @@ class TestUnconfirmedBlocksEarlyRounds:
                 fix_callback=fix_cb,
             )
 
-        # Rounds 1-2: unconfirmed medium blocks, fix_callback called
-        assert fix_cb.call_count == 2
-        # Round 3 (final): unconfirmed relaxed, 0 blocking, converged
-        assert result.converged is True
-        assert result.rounds == 3
+        # Deterministic unconfirmed medium still blocks; window-2 stall fires.
+        assert result.converged is False
+        assert result.reason == "stalled"
+        assert fix_cb.call_count == 1
 
     def test_unconfirmed_blocks_round_1(self, tmp_path: Path) -> None:
         """With more rounds available, unconfirmed medium blocks round 1."""
@@ -610,6 +603,8 @@ class TestMemoryCallbackCalled:
         call_arg = memory_cb.call_args_list[0][0][0]
         assert "Round 1" in call_arg
         assert "0 blocking" in call_arg
+        kwargs = ctx["orchestrator"].dispatch_and_wait.call_args.kwargs
+        assert kwargs.get("timeout_seconds") is None
 
 
 class TestBuildReviewPrompt:
@@ -619,6 +614,8 @@ class TestBuildReviewPrompt:
         prompt = build_review_prompt(tmp_path, 2)
         assert "Round 2" in prompt
         assert "findings" in prompt.lower()
+        assert "axis" in prompt
+        assert "severity" in prompt
 
     def test_with_proposal(self, tmp_path: Path) -> None:
         (tmp_path / "proposal.md").write_text("# My Proposal\nDetails here.")
@@ -645,8 +642,18 @@ class TestIsBlocking:
         assert _is_blocking({"status": "unconfirmed", "agreed_criticality": "medium"}) is True
 
     def test_unconfirmed_medium_relaxed(self) -> None:
+        # D3 dropped the last-round unconfirmed relaxation. Deterministic
+        # unconfirmed medium still blocks; judgment does not.
         assert _is_blocking(
             {"status": "unconfirmed", "agreed_criticality": "medium"},
+            relax_unconfirmed=True,
+        ) is True
+        assert _is_blocking(
+            {
+                "status": "unconfirmed",
+                "agreed_criticality": "medium",
+                "evidence_class": "judgment",
+            },
             relax_unconfirmed=True,
         ) is False
 

@@ -1,0 +1,296 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: CLI review config recovery at HEAD `71f34700` matches the round-10 contract: `_orchestrator_for_dispatch` uses explicit `--agents-yaml` first, else `_find_local_agents_yaml(cwd)` before `from_coordinator()` / disk; `--check-vendors`, `--list-agents`, and dispatch all call that helper with `Path(args.cwd)`.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Independent code+test verification closed round-10 Grok 14/15 for the review_dispatcher CLI surface.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2575,
+        "end": 2724
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Precedence regressions assert the reviewed cwd and each branch: local wins (`find_local.assert_called_once_with(tmp_path)`), explicit bypasses local/coordinator, missing-local falls through coordinator then disk; `--check-vendors` records `(None, tmp_path)`. Focused pytest: 9 dispatcher + 9 check-vendors tests passed.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Test evidence confirms exact-cwd and precedence-branch coverage claimed in round-10 dispositions.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py",
+      "line_range": {
+        "start": 1783,
+        "end": 1852
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Antigravity structured review still pairs `--output-format json` before `--json-schema` in `agent-coordinator/agents.yaml` review args, and `_extract_findings` unwraps `structuredOutput`, `structured_output`, and JSON-text `response`. Live adapter build + envelope parse checks succeeded at HEAD.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-8/9 Antigravity command and envelope claims hold at exact HEAD.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 869,
+        "end": 893
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Migration 039 keeps `work_queue_projection_ownership` as sole ownership authority with no mutable-field auto-adopt seed; labelled submit/reconcile return `projection_key_collision` before head upsert, cancel, or relabel when the exact tuple is unowned or non-issue; API maps that reason to HTTP 409.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Ownership fail-closed and conflict status claims re-verified in 039 SQL and coordination_api mapper.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 5,
+        "end": 218
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Migration 038 preserves legacy non-projection submit (plain insert; labels rejected without projection keys) and gates label mutation on `p_projection_labels IS NOT NULL`, so ordinary change-labelled issues are not selected by the projection repair path.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Legacy non-projection behavior remains intact beside 039 ownership hardening.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/038_atomic_projection_labels.sql",
+      "line_range": {
+        "start": 22,
+        "end": 183
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Label apply and owned stale-label clear run under `pg_advisory_xact_lock` inside the per-change transaction; same-generation replay reactivates only owned terminal rows (`cancelled|completed|failed`) while preserving claimed/running; first-insert and terminal-reactivation emit `projection.labels_changed`.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Concurrency, replay, and SSE notify claims hold in 039 function/trigger bodies.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 73,
+        "end": 314
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Projection SSE visibility is current-only: `projection.labels_changed` coalesces into one snapshot rebuild via label-filtered `IssueService.list_issues`, and implicit label reads exclude cancelled rows (`status=in.(pending,claimed,running,completed,failed,blocked)`).",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "SSE current-only and cancelled-exclusion claims match event_stream + issue_service.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 319,
+        "end": 322
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Automatic and console-approved `escalate_resume` share one persisted resolved edge; `enter_escalate` advances generation once and preserves the original incident; failed `apply_outcome_or_escalate` resumes from durable `current_phase`; DONE transition/escalate writers are byte-preserving no-ops.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "ESCALATE durability and generation-correct recovery claims hold with Autopilot unit coverage green (68 projection/apply-outcome tests passed).",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 514,
+        "end": 700
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "none: Runtime Pydantic `ProjectionLabels` and OpenAPI `projection_labels` both require the heterogeneous ordered pair (change-label pattern with maxLength 135, then const `projection:autopilot-phase`, minItems=maxItems=2).",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Runtime/OpenAPI request-contract parity claim holds.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 220,
+        "end": 227
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Degraded projection prefers canonical problem detail over transport text and `project-state` exits 0 on structured degradation, so authoritative loop-state is never halted or rewritten by queue responses.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Non-authority / non-halting degradation claim holds.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 512,
+        "end": 537
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Coordinator-free tiers remain isolated: `queue_projection` is imported only inside `project-state`, `run_loop` defaults to `queue_projection_fn=None`, and isolation tests fail if submit/reconcile/label helpers are called. Isolation suite passed.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Spec D10 isolation scenario remains satisfied.",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 12,
+        "end": 86
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: `install.sh --check` byte-compares skill trees, shared libraries, and install-manifest across both runtime mirrors; consumer portability/mirror tests passed (18 passed including install_sh + coordination-bridge helpers).",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Installed-payload parity claim holds at HEAD.",
+      "package_id": "whole-branch",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 237,
+        "end": 298
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Optional: In-process Autopilot `converge()` still constructs `ReviewOrchestrator.from_coordinator()` when `agents_yaml_path` is omitted, so HTTP/MCP/global config can still win over checkout-local `agent-coordinator/agents.yaml` under `worktree_path` \u2014 the same stale-template class that broke Antigravity in round 9, outside the fixed CLI `_orchestrator_for_dispatch` path.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Route `converge()` through `_orchestrator_for_dispatch(None, worktree_path)` (or equivalent local-before-coordinator resolution keyed to the reviewed worktree) whenever `agents_yaml_path` is absent.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "line_range": {
+        "start": 609,
+        "end": 614
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: `vendor_health.load_agents_yaml` still prefers `COORDINATION_API_URL` HTTP dispatch-configs over checkout-local agents.yaml and only falls back to `Path.cwd()/agent-coordinator/agents.yaml` (no reviewed `--cwd` walk). Consumers such as vendor-status/prototype-feature can therefore probe a different roster than review_dispatcher after the round-9/10 fix.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Align vendor_health resolution with `_orchestrator_for_dispatch` precedence, or document that only review_dispatcher probes are authoritative for checkout-local review config.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "line_range": {
+        "start": 110,
+        "end": 155
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 15,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: Ordinary issue create/label APIs still accept the reserved `projection:autopilot-phase` label without registry ownership. This cannot commandeer projection rows (039 fail-closed remains), but can pollute change-label board/SSE snapshots with non-owned cosmetic markers.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Accept as residual board-hygiene gap while ownership authority stays database-registry-only; optionally reject reserved projection labels on non-projection issue APIs in a follow-up.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 241,
+        "end": 276
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 16,
+      "type": "observability",
+      "criticality": "low",
+      "description": "FYI: `validation-report.md` still pins validated commit `4982835fe14c0c2e2cb8b3398fe3758444d0164a`, not review HEAD `71f34700\u2026`; later review-infra commits are outside that ledger even though focused regressions at HEAD are green.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi",
+      "resolution": "Process/provenance lag only; not a runtime behavioral break in the projection or CLI resolver seams.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/validation-report.md",
+      "line_range": {
+        "start": 1,
+        "end": 8
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 17,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: `parallel-review-implementation` / `parallel-review-plan` skill docs still describe agent discovery as coordinator-MCP-first with `--agents-yaml` only as fallback, which contradicts the HEAD CLI resolver that prefers checkout-local config under `--cwd`.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Update discovery prose to match `_orchestrator_for_dispatch` precedence to avoid reintroducing operator confusion from round 9.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-review-implementation/SKILL.md",
+      "line_range": {
+        "start": 348,
+        "end": 348
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

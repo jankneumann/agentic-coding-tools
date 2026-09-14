@@ -44,6 +44,8 @@ from pathlib import Path
 
 import pytest
 
+from openspec_paths import change_dir
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CHANGES = REPO_ROOT / "openspec" / "changes"
 
@@ -356,3 +358,47 @@ def test_a_longer_id_that_extends_a_real_one_is_not_flagged(tmp_path: Path) -> N
     bare = ast.parse(f'P = "openspec/changes/{real_id}"\n')
     assert _offending_literals(bare, _CHANGE_IDS), "a trailing-boundary id counts"
 
+
+
+def test_change_dir_does_not_let_a_followup_shadow_its_parent(tmp_path):
+    """`followup-<parent-id>` ends with its parent's id, so a bare `*-<id>`
+    archive glob matches both — and since the archive prefix is a date and
+    sorting takes the latest, the follow-up wins. Looking up the parent then
+    silently returns the follow-up's directory, which holds different files.
+
+    This is not hypothetical: archiving `followup-add-decision-choices-ledger`
+    on 2026-09-11 made `change_dir(root, "add-decision-choices-ledger")`
+    resolve to it instead of the parent archived the day before, and broke
+    `tests/audit-choices/test_schema.py::test_canonical_matches_contract` on
+    main. The `followup-` convention makes the collision systematic, so the
+    date portion is matched as `????-??-??` rather than `*`.
+    """
+    archive = tmp_path / "openspec" / "changes" / "archive"
+    parent = archive / "2026-09-10-add-decision-choices-ledger"
+    followup = archive / "2026-09-11-followup-add-decision-choices-ledger"
+    parent.mkdir(parents=True)
+    followup.mkdir(parents=True)
+
+    assert change_dir(tmp_path, "add-decision-choices-ledger") == parent
+    assert change_dir(tmp_path, "followup-add-decision-choices-ledger") == followup
+
+
+def test_change_dir_still_prefers_the_latest_of_a_genuine_redundant_archive(tmp_path):
+    """The control for the fix: when one id really is archived twice, the
+    latest date must still win. Narrowing the glob must not cost that."""
+    archive = tmp_path / "openspec" / "changes" / "archive"
+    (archive / "2026-01-02-widget").mkdir(parents=True)
+    latest = archive / "2026-05-06-widget"
+    latest.mkdir(parents=True)
+
+    assert change_dir(tmp_path, "widget") == latest
+
+
+def test_change_dir_prefers_an_active_change_over_any_archive(tmp_path):
+    """Unchanged behavior, pinned here because the glob edit sits next to it."""
+    changes = tmp_path / "openspec" / "changes"
+    active = changes / "widget"
+    active.mkdir(parents=True)
+    (changes / "archive" / "2026-05-06-widget").mkdir(parents=True)
+
+    assert change_dir(tmp_path, "widget") == active

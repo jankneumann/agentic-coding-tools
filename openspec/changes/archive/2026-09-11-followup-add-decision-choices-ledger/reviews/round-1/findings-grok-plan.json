@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "design.md F2 stages the ledger with `git add openspec/changes/$CHANGE_ID/choices.json choices.md`. The second path is repo-root `choices.md`, not `openspec/changes/$CHANGE_ID/choices.md`. As written, Step 11.5 would miss the rendered ledger (or stage an unrelated file), so validate-feature/cleanup-feature and archive would not see a committed pair even after a successful audit.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Correct F2 and task 3.1 to stage both files under the change directory, e.g. `git add \"openspec/changes/$CHANGE_ID/choices.json\" \"openspec/changes/$CHANGE_ID/choices.md\"` (or an equivalent pathspec).",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "line_range": {
+        "start": 72,
+        "end": 79
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Task 3.3 / F1 insert `### 5.5` immediately before `### 6. Archive OpenSpec Proposal`, but cleanup-feature Step 5a still says: if all tasks are checked, skip to Step 6. That early exit is the common happy path and would jump over 5.5, so open `needs-user` entries would not surface before archive whenever there are no unchecked tasks. Scenario skill-workflow.9 therefore fails on the path the plan does not update.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "In task 3.3 (and F1), require updating the Step 5a early-exit to continue into 5.5 (e.g. retarget 'skip to Step 5.5' / 'skip remaining migration substeps, then continue through session-log/pre-launch/rollout/5.5'). Add a 3.7 assertion that the skip target no longer bypasses the choices step.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 78,
+        "end": 89
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "F1 correctly requires Step 11.5 to run even when `VENDOR_REVIEW=false`, but the chosen heading `### 11.5` sits between conditional Step 11 (`Skip this step if VENDOR_REVIEW=false`) and Step 12. On non-coordinated runs without `--vendor-review`, agents can treat 11.5 as part of the skipped Step 11 and never invoke the audit\u2014the main hook for producing ledgers. Task 3.1 does not spell an explicit always-run / outside-conditional invariant.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Make the always-run rule impossible to miss: first line of the new step must say it is not gated by VENDOR_REVIEW, and/or use a heading not under the 11.x conditional (still between After Loop and Present Summary). Have 3.7 assert that always-run wording.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "line_range": {
+        "start": 50,
+        "end": 56
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Task 3.1 says invoke `/audit-choices $CHANGE_ID` with `run_id=iterate-on-implementation-<UTC ISO timestamp>`, but `skills/audit-choices/SKILL.md` Arguments accept only `<change-id>` or `<base>..<head>`\u2014no run_id flag. The driver CLI already requires `--run-id`, yet the skill entrypoint the plan delegates to has no way to receive the prescribed value without an undocumented side channel or an unplanned Arguments change.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Either add an optional `--run-id` to audit-choices Arguments (skill.md only; driver already supports it) and cite that in task 3.1, or drop the hard-coded run_id requirement and let audit-choices choose one.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 50,
+        "end": 64
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Task 3.6 lists skill-workflow.7 and depends on 3.1\u20133.3, but its assertions only force driver `ok=False` with CLI exit 0. Scenario 7's THEN clauses (single warning, continue to summary with non-failing outcome, no half-written ledger) are iterate-on-implementation behavior covered\u2014if at all\u2014by 3.7 content checks. plan-findings' parallelizability graph already omits 3.1\u21923.6, so tasks.md both overclaims scenario 7 and over-constrains the dependency graph.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Remove skill-workflow.7 from 3.6's scenario list (keep driver failure under 1\u20136 / D6); drop the 3.1 dependency (retain 3.0 for reader coverage of 8\u201310); put scenario 7 solely on 3.1+3.7 and strengthen 3.7 to assert warn-and-continue / summary-line wording.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 111,
+        "end": 130
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Scenario skill-workflow.10 requires gate presentation to state that no open choices exist when the ledger is absent or has zero `needs-user` entries. Tasks 3.2/3.3 specify `\u25cb`/`\u2713` and `no open choices`, and 3.6 only checks that `needs_user.py` prints empty stdout. Task 3.7 pins scenarios 7\u20139 only and does not assert the empty-ledger presentation strings, so scenario 10's gate-side SHALL is unpinned.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Extend 3.7 (and its scenario list) to assert validate-feature's no-ledger / zero-needs-user Phase Results row forms and cleanup-feature's `no open choices` (or equivalent) wording for the empty case.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 131,
+        "end": 143
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Delta scenario 'Workflow invocation is non-blocking' requires that no ledger file be left half-written on failure/unavailability. F6 and task 3.1 enumerate skip/continue behavior but not pair cleanup or atomicity. `choices_ledger.write_ledger_pair` writes `choices.json` then `choices.md` as separate operations; a failure between them yields a partial pair, and `run_audit` catching that still leaves the JSON behind. Nothing in 3.6/3.7 asserts the half-written THEN.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "resolution": "Either specify Step 11.5 cleanup (remove incomplete pair / treat non-paired files as failure artifacts before continue), or narrow the scenario's half-written clause to match shipped driver guarantees and test that contract explicitly.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 14,
+        "end": 22
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

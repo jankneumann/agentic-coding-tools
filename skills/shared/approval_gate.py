@@ -56,6 +56,7 @@ from __future__ import annotations
 import enum
 import logging
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Protocol, Union
 
@@ -139,6 +140,11 @@ class ApprovalDecision:
     ``default_action`` — the applied default, when the timer expired.
     ``posture_present`` — whether a TRUST_POSTURE.md was loaded (vs. the absent-file
                           all-block default), so audit can distinguish them.
+    ``timeout_seconds`` — the posture's `notify_with_timeout` window in effect when
+                          this decision was made, when `approval_id` is set. A caller
+                          computing a pending-gate deadline for a filed approval needs
+                          this window; it is not otherwise recoverable from a persisted
+                          record.
     """
 
     gate: Gate
@@ -149,6 +155,8 @@ class ApprovalDecision:
     approval_id: Optional[str] = None
     default_action: Optional[DefaultAction] = None
     posture_present: bool = False
+    notified: Optional[bool] = None
+    timeout_seconds: Optional[int] = None
 
     @property
     def proceed(self) -> bool:
@@ -171,7 +179,71 @@ class ApprovalDecision:
                 self.default_action.value if self.default_action is not None else None
             ),
             "posture_present": self.posture_present,
+            "notified": self.notified,
+            "timeout_seconds": self.timeout_seconds,
         }
+
+
+# --------------------------------------------------------------------------- #
+# Console + ledger record helpers (D2, moved here from autopilot.py / runner.py
+# so supervise can share them without importing autopilot.py)
+# --------------------------------------------------------------------------- #
+
+def console_decision(
+    gate: Gate, posture: dict[str, Any], approved: bool, note: Optional[str]
+) -> ApprovalDecision:
+    """Build the ApprovalDecision for an answer a human gave in-conversation.
+
+    Deliberately the SAME record shape a coordinator decision produces (design
+    D4) — the console is a different interviewer, not a different concept.
+    ``posture`` is a ``{disposition, posture_present}`` mapping (as carried by a
+    ``GateRequest.posture`` or resolved by the caller some other way); a missing
+    or unrecognised ``disposition`` defaults to :attr:`Disposition.BLOCK`.
+    """
+    posture = posture or {}
+    try:
+        disposition = Disposition(posture.get("disposition", Disposition.BLOCK.value))
+    except ValueError:
+        disposition = Disposition.BLOCK
+    suffix = f" — {note}" if note else ""
+    return ApprovalDecision(
+        gate=gate,
+        outcome=Outcome.PROCEED if approved else Outcome.BLOCKED,
+        resolution=(
+            Resolution.CONSOLE_APPROVED if approved else Resolution.CONSOLE_REJECTED
+        ),
+        disposition=disposition,
+        reason=(
+            f"gate {gate.value!r} "
+            f"{'approved' if approved else 'rejected'} by the operator"
+            f"{suffix}"
+        ),
+        posture_present=bool(posture.get("posture_present", False)),
+    )
+
+
+def build_gate_decision_record(
+    decision: ApprovalDecision,
+    *,
+    phase: str,
+    extra: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    """Flatten an ApprovalDecision to a gate-decision.schema.json record.
+
+    The single source of truth for the record shape both ``autopilot.py``'s
+    seven gates and supervise's ``gate_router.py`` write — ``autopilot.py`` keeps
+    a delegating alias of the same name so its own call sites and
+    ``test_gate_call_sites`` are untouched.
+    """
+    record = decision.to_audit_record()
+    # The schema names `disposition`; to_audit_record() calls the same value
+    # `authorizing_disposition`. Carry both so neither reader has to translate.
+    record["disposition"] = record.get("authorizing_disposition")
+    record["phase"] = phase
+    record["recorded_at"] = datetime.now(timezone.utc).isoformat()
+    if extra:
+        record.update(extra)
+    return record
 
 
 # --------------------------------------------------------------------------- #
@@ -262,6 +334,55 @@ class ApprovalGate:
     posture_path: Optional[str] = None
     _logger: logging.Logger = field(default=logger, repr=False)
 
+    def check_filed(
+        self,
+        gate: Union[Gate, str],
+        approval_id: str,
+        *,
+        notified: bool,
+    ) -> Optional[ApprovalDecision]:
+        """Check a previously-filed approval without re-filing or re-notifying.
+
+        Wraps the gate service's own status interpretation (:meth:`_interpret_status`)
+        so a caller (the supervise gate router's D4 prior-record rule) can honour a
+        coordinator decision that arrived after a local timeout, without
+        re-implementing any of the timeout / default-action / undelivered-
+        notification-fail-closed logic outside this module.
+
+        Returns ``None`` — nothing to record, the caller should re-surface its
+        existing parked entry unchanged — for a still-``pending`` status, OR
+        for an ``expired`` status when ``notified`` is ``False``: an
+        undelivered notification means the human never had a chance to
+        answer, so a server-side ``expired`` tells us nothing new beyond the
+        block a prior :meth:`evaluate` already decided and audited. Otherwise
+        returns a terminal :class:`ApprovalDecision` for ``approved`` /
+        ``denied`` / an ``expired`` status with ``notified=True`` (resolved
+        through the SAME fail-closed :meth:`_apply_default` path
+        :meth:`evaluate` uses on its own local timeout). The disposition is
+        resolved from the LIVE posture (hot reload), never from the stale
+        record that filed the original approval. Audit is recorded only for a
+        terminal (non-``None``) decision.
+        """
+        gate_enum = gate if isinstance(gate, Gate) else Gate(gate)
+        posture = self.posture_loader(self.repo_root, path=self.posture_path)
+        gd = posture.disposition_for(gate_enum)
+        try:
+            status = self.coordinator.check_approval(approval_id)
+        except CoordinatorUnavailable as exc:
+            return self._finalize(
+                self._unreachable(
+                    gate_enum, gd, f"check_approval failed: {exc}",
+                    approval_id=approval_id, notified=notified,
+                ),
+                posture,
+            )
+        draft = self._interpret_status(
+            gate_enum, gd, status, approval_id, notified=notified
+        )
+        if draft is None:
+            return None
+        return self._finalize(draft, posture)
+
     def evaluate(
         self, gate: Union[Gate, str], context: Optional[dict[str, Any]] = None
     ) -> ApprovalDecision:
@@ -341,8 +462,13 @@ class ApprovalGate:
             try:
                 status = self.coordinator.check_approval(approval_id)
             except CoordinatorUnavailable as exc:
+                # `notified` was already resolved by the push_notification call
+                # above (True/False, never re-attempted here) -- carry it
+                # through so a delivered-but-poll-failed filing is not later
+                # mistaken for an undelivered one.
                 return self._unreachable(
-                    gate, gd, f"check_approval failed: {exc}", approval_id=approval_id
+                    gate, gd, f"check_approval failed: {exc}",
+                    approval_id=approval_id, notified=notified,
                 )
 
             resolved = self._interpret_status(
@@ -383,6 +509,8 @@ class ApprovalGate:
                 disposition=gd.disposition,
                 reason=f"gate {gate.value!r} approved by human",
                 approval_id=approval_id,
+                notified=notified,
+                timeout_seconds=gd.timeout_seconds,
             )
         if normalized in ("denied", "rejected"):
             return _Draft(
@@ -392,8 +520,22 @@ class ApprovalGate:
                 disposition=gd.disposition,
                 reason=f"gate {gate.value!r} denied by human",
                 approval_id=approval_id,
+                notified=notified,
+                timeout_seconds=gd.timeout_seconds,
             )
         if normalized == "expired":
+            if not notified:
+                # An undelivered notification means the human never had a
+                # chance to answer, so a server-side "expired" tells us
+                # nothing new -- there is no fresh decision to report or
+                # audit. In evaluate()'s own poll loop this is equivalent to
+                # "keep waiting": the loop's local-timeout fallback still
+                # applies the posture's default_action exactly once after the
+                # deadline via a direct _apply_default call, unaffected by
+                # this branch. In check_filed's caller (a later re-check of
+                # an already-decided block), None means "nothing changed" --
+                # the prior decision stands, unaudited again.
+                return None
             # Server-side expiry is the same terminal condition as our local timeout.
             default_action = gd.default_action or DefaultAction.BLOCK
             return self._apply_default(
@@ -431,6 +573,8 @@ class ApprovalGate:
                 ),
                 approval_id=approval_id,
                 default_action=DefaultAction.BLOCK,
+                notified=notified,
+                timeout_seconds=gd.timeout_seconds,
             )
         if default_action is DefaultAction.PROCEED:
             return _Draft(
@@ -443,6 +587,8 @@ class ApprovalGate:
                 ),
                 approval_id=approval_id,
                 default_action=DefaultAction.PROCEED,
+                notified=notified,
+                timeout_seconds=gd.timeout_seconds,
             )
         return _Draft(
             gate=gate,
@@ -452,6 +598,8 @@ class ApprovalGate:
             reason=f"gate {gate.value!r} timed out; default_action=block applied",
             approval_id=approval_id,
             default_action=DefaultAction.BLOCK,
+            notified=notified,
+            timeout_seconds=gd.timeout_seconds,
         )
 
     def _unreachable(
@@ -460,6 +608,7 @@ class ApprovalGate:
         gd: GateDisposition,
         detail: str,
         approval_id: Optional[str] = None,
+        notified: Optional[bool] = None,
     ) -> _Draft:
         self._logger.warning(
             "approval gate %s degrading to block: coordinator unreachable (%s)",
@@ -473,6 +622,8 @@ class ApprovalGate:
             disposition=gd.disposition,
             reason=f"gate {gate.value!r} parked: coordinator unreachable ({detail})",
             approval_id=approval_id,
+            notified=notified,
+            timeout_seconds=gd.timeout_seconds if approval_id else None,
         )
 
     # -- finalize + audit ---------------------------------------------------- #
@@ -487,6 +638,8 @@ class ApprovalGate:
             approval_id=draft.approval_id,
             default_action=draft.default_action,
             posture_present=posture.present,
+            notified=draft.notified,
+            timeout_seconds=draft.timeout_seconds,
         )
         self._record_audit(decision)
         return decision
@@ -544,6 +697,8 @@ class _Draft:
     reason: str
     approval_id: Optional[str] = None
     default_action: Optional[DefaultAction] = None
+    notified: Optional[bool] = None
+    timeout_seconds: Optional[int] = None
 
 
 # --------------------------------------------------------------------------- #

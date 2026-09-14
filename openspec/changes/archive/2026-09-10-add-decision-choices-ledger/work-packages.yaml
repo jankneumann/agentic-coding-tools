@@ -1,0 +1,273 @@
+schema_version: 1
+
+feature:
+  id: add-decision-choices-ledger
+  title: "Decision choices ledger: independent read-only audit of implementation-time choices"
+  plan_revision: 1
+  created_by: plan-feature
+
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/changes/add-decision-choices-ledger/contracts/README.md
+    files:
+      - openspec/changes/add-decision-choices-ledger/contracts/README.md
+      - openspec/changes/add-decision-choices-ledger/contracts/decision-choices.schema.json
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Validate the decision-choices contract schema"
+    task_type: contracts
+    description: >-
+      Verify contracts/decision-choices.schema.json is a valid JSON Schema
+      (draft 2020-12), that its header block matches the field set of
+      skills/prioritize-proposals/scripts/artifact_header.py, and that the
+      README's sub-type evaluation matches the change scope.
+    depends_on: []
+    priority: 1
+    locks:
+      files: []
+      keys:
+        - "contract:decision-choices"
+      ttl_minutes: 60
+      reason: "Contract validation for add-decision-choices-ledger"
+    scope:
+      write_allow:
+        - "openspec/changes/add-decision-choices-ledger/contracts/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+    worktree:
+      name: add-decision-choices-ledger--wp-contracts
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: contract-schema-valid
+          kind: command
+          command: >-
+            python3 -c "import json, jsonschema;
+            s=json.load(open('openspec/changes/add-decision-choices-ledger/contracts/decision-choices.schema.json'));
+            jsonschema.Draft202012Validator.check_schema(s); print('ok')"
+          evidence:
+            artifacts: []
+            result_keys: ["contracts_valid"]
+    outputs:
+      result_keys: ["contracts_valid"]
+
+  - package_id: wp-artifact-registration
+    title: "Canonical schema + feature-workflow artifact registration (tasks 1.1-1.6)"
+    task_type: implementation
+    description: >-
+      Tasks 1.1-1.6: land openspec/schemas/decision-choices.schema.json with
+      its tests, register the optional choices artifact in
+      feature-workflow/schema.yaml, add templates/choices.md, mirror both into
+      skills/plan-feature/install_assets byte-identically, and add the choices
+      rules block to openspec/config.yaml.
+    depends_on: [wp-contracts]
+    priority: 2
+    metadata:
+      complexity: low
+      package_kind: data_model
+    locks:
+      files:
+        - "openspec/schemas/feature-workflow/schema.yaml"
+        - "openspec/config.yaml"
+      keys:
+        - "contract:decision-choices"
+      ttl_minutes: 120
+      reason: "Artifact registration for choices ledger"
+    scope:
+      write_allow:
+        - "openspec/schemas/decision-choices.schema.json"
+        - "openspec/schemas/feature-workflow/**"
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/**"
+        - "openspec/config.yaml"
+        - "skills/tests/audit-choices/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+      deny:
+        - "openspec/schemas/review-findings.schema.json"
+        - "docs/decisions/**"
+    worktree:
+      name: add-decision-choices-ledger--wp-artifact-registration
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: schema-tests
+          kind: command
+          command: >-
+            cd skills && uv run pytest tests/audit-choices/ -q
+          evidence:
+            artifacts: []
+            result_keys: ["schema_tests_pass"]
+        - name: mirror-identical
+          kind: command
+          command: >-
+            diff -q openspec/schemas/feature-workflow/schema.yaml
+            skills/plan-feature/install_assets/openspec/schemas/feature-workflow/schema.yaml
+            && diff -q openspec/schemas/feature-workflow/templates/choices.md
+            skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/choices.md
+          evidence:
+            artifacts: []
+            result_keys: ["mirror_identical"]
+    outputs:
+      result_keys: ["schema_tests_pass", "mirror_identical"]
+
+  - package_id: wp-auditor-skill
+    title: "audit-choices skill: ledger writer, evidence collector, SKILL.md (tasks 2.1-2.8)"
+    task_type: implementation
+    description: >-
+      Tasks 2.1-2.8: choices_ledger.py (entry dataclasses, stable_id, JSON
+      writer, least-confident-first choices.md renderer), collect_evidence.py
+      (git range + artifact bundle, session-log cross-reference resolver),
+      read-only posture and exit-0 tests, and the SKILL.md dispatching one
+      independent read-only auditor sub-agent. No LLM SDK calls in skill
+      Python (host-assisted invariant).
+    depends_on: [wp-artifact-registration]
+    priority: 3
+    metadata:
+      complexity: medium
+      package_kind: algorithm
+    locks:
+      files: []
+      keys:
+        - "contract:decision-choices"
+      ttl_minutes: 240
+      reason: "Auditor skill implementation"
+    scope:
+      write_allow:
+        - "skills/audit-choices/**"
+        - "skills/tests/audit-choices/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "docs/**"
+      deny:
+        - "skills/iterate-on-implementation/**"
+        - "skills/validate-feature/**"
+        - "skills/cleanup-feature/**"
+        - "docs/decisions/**"
+    worktree:
+      name: add-decision-choices-ledger--wp-auditor-skill
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: auditor-tests
+          kind: command
+          command: >-
+            cd skills && uv run pytest tests/audit-choices/ -q
+          evidence:
+            artifacts: []
+            result_keys: ["auditor_tests_pass"]
+    outputs:
+      result_keys: ["auditor_tests_pass"]
+
+  - package_id: wp-workflow-hooks
+    title: "Workflow hooks, gate surfacing, and docs (tasks 3.1-3.5)"
+    task_type: implementation
+    description: >-
+      Tasks 3.1-3.5: add the non-blocking Step 11.5 invocation to
+      iterate-on-implementation, surface needs-user ledger entries at the
+      validate-feature and cleanup-feature human gates (deferred-tasks
+      pattern), update docs/guides/workflow.md, and add the positioning note
+      at the decision-index README producer (never the generated file).
+    depends_on: [wp-auditor-skill]
+    priority: 4
+    metadata:
+      complexity: low
+      package_kind: integration
+    locks:
+      files:
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+      keys: []
+      ttl_minutes: 120
+      reason: "Workflow hook wiring for choices audit"
+    scope:
+      write_allow:
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+        - "skills/explore-feature/scripts/decision_index.py"
+        - "skills/project-context-refresh/**"
+        - "docs/guides/workflow.md"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "docs/**"
+      deny:
+        - "docs/decisions/**"
+    worktree:
+      name: add-decision-choices-ledger--wp-workflow-hooks
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: decisions-freshness
+          kind: command
+          command: >-
+            make decisions && git diff --exit-code docs/decisions/
+          evidence:
+            artifacts: []
+            result_keys: ["decisions_gate_green"]
+    outputs:
+      result_keys: ["decisions_gate_green"]
+
+  - package_id: wp-integration
+    title: "Merge, end-to-end fixture audit, full test suite (task 3.6)"
+    task_type: integration
+    description: >-
+      Merge all package branches, run the full skills test suite, and execute
+      task 3.6: an end-to-end /audit-choices run against an archived-change
+      fixture, asserting schema validity, header completeness, ranking order,
+      read-only posture, and exit code 0.
+    depends_on: [wp-artifact-registration, wp-auditor-skill, wp-workflow-hooks]
+    priority: 9
+    locks:
+      files: []
+      keys: []
+      ttl_minutes: 120
+      reason: "Integration for add-decision-choices-ledger"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: add-decision-choices-ledger--wp-integration
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: full-skill-tests
+          kind: command
+          command: >-
+            cd skills && uv run pytest tests/ -q
+          evidence:
+            artifacts: []
+            result_keys: ["all_tests_pass"]
+    outputs:
+      result_keys: ["all_tests_pass"]

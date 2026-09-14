@@ -20,6 +20,7 @@ Analyze capability-gap failure patterns recorded in episodic memory and generate
 - `--time-window <days>` (default: 30)
 - `--create-proposal` (create an OpenSpec proposal stub from the top finding)
 - `--output <path>` (write report to file; default: stdout)
+- `--candidate-work-output <path>` (explicit candidate sidecar; file reports default to adjacent `improve-harness-candidate-work.json`)
 
 ## How It Works
 
@@ -27,7 +28,8 @@ Analyze capability-gap failure patterns recorded in episodic memory and generate
 2. Groups findings by capability_gap value
 3. Ranks by (frequency x severity_weight) where severity weights: critical=4, high=3, medium=2, low=1
 4. Generates a markdown report with summary stats, ranked findings table, and recommendations
-5. Optionally creates an OpenSpec proposal stub from the top finding
+5. Writes schema-valid candidate-work stubs when a file report or explicit candidate destination is requested; stdout-only runs remain write-free
+6. Optionally creates an OpenSpec proposal stub from the top finding
 
 ## Data Sources
 

@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "feature_id": "add-supervisor-candidate-work-digest",
+  "package_id": "wp-digest-module",
+  "attempt": 1,
+  "plan_revision": 5,
+  "contracts_revision": 5,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/supervise/scripts/digest.py",
+      "skills/supervise/scripts/cycle_state.py"
+    ],
+    "keys": [
+      "feature:add-supervisor-candidate-work-digest:module"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "skills/supervise/scripts/digest.py",
+      "skills/supervise/scripts/cycle_state.py",
+      "skills/tests/supervise/test_digest.py",
+      "skills/tests/supervise/test_digest_routing.py",
+      "skills/tests/supervise/test_digest_evidence.py",
+      "skills/tests/supervise/test_supervisor_record.py"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": [
+      "**/.venv/**",
+      "skills/supervise/SKILL.md",
+      "skills/refine-roadmap/**",
+      "openspec/roadmaps/**"
+    ]
+  },
+  "files_modified": [
+    "skills/supervise/scripts/cycle_state.py",
+    "skills/supervise/scripts/digest.py",
+    "skills/tests/supervise/test_digest.py",
+    "skills/tests/supervise/test_digest_evidence.py",
+    "skills/tests/supervise/test_digest_routing.py",
+    "skills/tests/supervise/test_supervisor_record.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "a92e647b525c6e2bf89356674444da792c0cee4b"
+    },
+    "head": {
+      "commit": "65d9bf336b80e6ab4f37d23d1a39af1573af6a88",
+      "branch": "openspec/add-supervisor-candidate-work-digest--wp-digest-module",
+      "worktree": ".git-worktrees/add-supervisor-candidate-work-digest/wp-digest-module"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Digest and supervisor-record suites pass",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/supervise/test_digest.py skills/tests/supervise/test_digest_routing.py skills/tests/supervise/test_digest_evidence.py skills/tests/supervise/test_supervisor_record.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "digest_suite": {
+              "passed": 71,
+              "failed": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "Host-assisted invariant passes",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/supervise/test_cycle_state.py -k HostAssistedInvariant -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "host_assisted": {
+              "passed": 2,
+              "failed": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "Runtime is ruff-clean",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m ruff check skills/supervise/scripts/digest.py skills/supervise/scripts/cycle_state.py",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "ruff_clean": {
+              "passed": 0,
+              "failed": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "TDD RED proved each absent surface before GREEN. Package tests: 71 passed; full cycle-state regression: 79 passed. Context checkpoint ran and is degraded only by expected active-change projection drift. NOTICED BUT NOT TOUCHING: legacy supervisor-record fixtures outside write_allow use a noncanonical key and omit approval route metadata; tests adapt them narrowly at load time."
+}

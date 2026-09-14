@@ -1,0 +1,219 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: docs/guides/work-queue-truth-projection.md:143-145 still tells operators that completed/failed/cancelled current projection rows are already satisfied, but migration 039 reactivates owned terminal rows to pending and emits projection.labels_changed (039:130-141 submit, 250-261 reconcile). The live SSE regression test_terminal_reactivation_refreshes_connected_sse proves the board refreshes to pending. The operator guide therefore documents the pre-recovery semantics and can cause false confidence that same-generation reconcile is a no-op against a closed current row.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Replace the already-satisfied sentence with the current contract: owned terminal current rows are restored to pending with lifecycle fields cleared and a projection refresh event; only unowned collisions fail closed.",
+      "package_id": "whole-branch",
+      "file_path": "docs/guides/work-queue-truth-projection.md",
+      "line_range": {
+        "start": 143,
+        "end": 145
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: docs/cross-repo-setup.md:31-35 says that after syncing skills into a consumer --target, operators should verify installed runtime mirrors, but the shown command is `bash skills/install.sh --check` with no --target. install.sh defaults TARGET_ROOT to the source git toplevel (install.sh:53-55), so the check validates the donor checkout mirrors rather than the consumer payload just installed. Round 7 reframed this prose as post-sync consumer verification without wiring --target through.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Document `bash skills/install.sh --check --target ~/Coding/<your-repo>` (or equivalent) so the verified tree is the consumer install destination.",
+      "package_id": "whole-branch",
+      "file_path": "docs/cross-repo-setup.md",
+      "line_range": {
+        "start": 31,
+        "end": 36
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: OpenAPI projection_labels first prefix item declares maxLength 135 (openspec/contracts/agent-coordinator/openapi/work-queue.yaml:117), while runtime ProjectionLabel allows max_length=160 (coordination_api.py:220). test_projection_label_runtime_item_length_matches_openapi only proves length 161 fails Pydantic (test_autopilot_projection_visibility.py:220-238) and does not pin the OpenAPI 135 bound. Exact-pair validation in work_queue.py:255-267 still rejects non-canonical labels, so behavior converges for honest clients, but the claimed request-schema parity is incomplete at the wire edge.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Align ProjectionLabel max_length with OpenAPI 135 (or raise OpenAPI to 160) and assert the shared bound in the runtime/OpenAPI contract test.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 220,
+        "end": 231
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "FYI: Migration 039's one-time ownership seed still adopts issue rows by complete projection identity plus the mutable projection:autopilot-phase label (039:10-17). Post-seed runtime ownership is registry-only (039:100-111, 202-213) and live spoofed payload+label collisions fail closed (test_autopilot_projection_acceptance_postgres.py:380-423). A pre-upgrade spoof that already carried the reserved label at the exact tuple can still be canonized during migration; design.md:74 documents the adjacent unlabeled fail-closed upgrade caveat and treats label-seeded adoption as the intentional 037/038 backfill.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "fyi",
+      "resolution": "Accept as the designed one-time upgrade seed; optionally tighten the seed to rows also present in work_queue_projection_heads if a future hardening pass is warranted.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 10,
+        "end": 17
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Database-owned work_queue_projection_ownership is the sole post-migration runtime ownership authority; submit/reconcile decide v_existing_owned only via EXISTS on that registry (039:100-111, 202-213), return projection_key_collision before head/ownership/label/cancel effects, and the live test seeds both spoofed input_data and reserved labels yet leaves the ordinary row and head untouched (test_autopilot_projection_acceptance_postgres.py:400-443).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 100,
+        "end": 112
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Same-generation replay preserves nonterminal claimed/running lifecycle while reactivating only cancelled/completed/failed owned rows and notifying SSE clients (039:130-141, 250-261); pinned by test_owned_same_generation_replay_preserves_nonterminal_status, test_owned_same_generation_request_reactivates_terminal_canonical_issue, and test_terminal_reactivation_refreshes_connected_sse.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 130,
+        "end": 141
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: runner.py transition is an idempotent no-op on DONE (runner.py:419-420) with byte-identical state proven by test_runner_cli.py:212-223; init persists --force/--val-review/--no-review on first creation and leaves an existing file untouched (runner.py:388-398, 545-547; test_runner_cli.py:358-374).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 419,
+        "end": 420
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Every ESCALATE edge records previous_phase/escalation_reason and advances total_iterations exactly once when entering ESCALATE (autopilot.py:514-524, 832-837); retries while already escalated do not bump the generation. Host escalate, goal-gate refusal, unsupported transition, and apply-outcome failure paths reuse that writer and remain projectable (runner.py:429-460, 494; test_phase_projection_runner.py:186-219; test_runner_cli.py:227-268).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 514,
+        "end": 524
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Structured degraded projection cannot halt authoritative work: project-state always exits 0 after printing the envelope (runner.py:525-528), QueueProjectionAdapter returns only status/reason/task_id and never mutates LoopState (queue_projection.py:52-100), and only status=error/409/detail=reconciliation_required advances to reconcile (queue_projection.py:102-112).",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 525,
+        "end": 528
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Projection labels and stale owned-label cleanup run inside the per-change advisory transaction for concurrent N/N+1 publishers (039:73-79, 122-129, 181-187, 242-249). Legacy unkeyed submit remains intact and rejects labels (039:38-47); ordinary change-labelled issues are outside owned-label predicates; cancelled rows stay hidden from implicit label-filtered issue reads (issue_service.py:319-322).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 73,
+        "end": 129
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: CI materializes both runtime mirrors before install.sh --check (.github/workflows/ci.yml:103-106), the ordering is regression-pinned (test_consumer_portability.py:64-71), and check_install_payload performs byte-level diff -qr across .claude and .agents mirrors (install.sh:232-268). Antigravity review dispatch pairs --output-format json with --json-schema (agents.yaml:275). projection_key_collision maps to HTTP 409 (coordination_api.py:96-126; test_autopilot_projection_visibility.py:260-273).",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": ".github/workflows/ci.yml",
+      "line_range": {
+        "start": 103,
+        "end": 106
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Coordinator-free tiers remain isolated: runner.py imports queue_projection only inside project-state (runner.py:508-509), autopilot/runner have no top-level projection import (test_phase_projection_isolation.py:12-27), and a coordinator-free run_loop with queue_projection_fn=None cannot call projection transport helpers (test_phase_projection_isolation.py:47-86).",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 12,
+        "end": 86
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Live PostgreSQL evidence covers three generations with stale rejection/cancellation and claim exclusion, >50 ordinary issues inside the label query window, first-insert and terminal-reactivation EventBus/SSE refresh, same-generation label cleanup, non-issue and spoofed-ownership collisions, and FastAPI-to-PostgreSQL board query (test_autopilot_projection_acceptance_postgres.py:38-250, 253-443, 570-612; test_work_queue_live.py projection submit/reconcile/board path). File-derived resume is covered by test_crash_resume_reconcile_derives_adapter_key_only_from_durable_file.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/tests/integration/postgres/test_autopilot_projection_acceptance_postgres.py",
+      "line_range": {
+        "start": 38,
+        "end": 250
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

@@ -487,6 +487,38 @@ def test_patch_issue_labels_adds_and_removes(
     fake_service.update.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    "reason", ["projection_issue_immutable", "reserved_projection_label"]
+)
+def test_patch_issue_labels_maps_projection_refusal_to_forbidden(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+) -> None:
+    import uuid
+
+    from src import issue_service as ism
+
+    issue_id = str(uuid.uuid4())
+    fake_issue = MagicMock()
+    fake_issue.labels = ["change:abc"]
+    fake_service = AsyncMock()
+    fake_service.show = AsyncMock(return_value=fake_issue)
+    fake_service.update = AsyncMock(
+        side_effect=ism.ProjectionIssueMutationError(reason)
+    )
+    monkeypatch.setattr(ism, "IssueService", lambda: fake_service)
+
+    response = client.patch(
+        f"/issues/{issue_id}/labels",
+        json={"add": ["projection:autopilot-phase"], "remove": []},
+        headers=_auth_headers(),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == reason
+
+
 def test_patch_issue_labels_requires_auth(client: TestClient) -> None:
     """2.7d: PATCH /issues/{id}/labels requires API key → 401 without key."""
     resp = client.patch(

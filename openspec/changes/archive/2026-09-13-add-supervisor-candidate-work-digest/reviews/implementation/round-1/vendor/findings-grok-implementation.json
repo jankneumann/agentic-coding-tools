@@ -1,0 +1,171 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Due-deferral wake from `store --prune-only` is not durable across the rest of the same CYCLE when the tree also changes. `_maintenance` correctly flips due stubs to pending and `_lifecycle_rebuild` publishes that pending state, but `SKILL.md` keeps using the pre-maintenance `$SUPERVISE_RECORD` for later `prepare-batch` and `rank`. Those commands re-read the stale deferred+until entry, put the stub back in the future-deferred bucket, and overwrite the mirror with deferred again. Independently reproduced: after wake the mirror is pending; after prepare-batch+rank with the stale record it is deferred/`2026-09-15` again.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "After successful non-dry-run prune-only, reload the supervisor record from the updated mirror (or have store return the maintained decisions) before prepare-batch/rank; also make prepare-batch/rank apply the same due-wake rule from as_of so a stale host record cannot re-defer already-due work.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 185,
+        "end": 290
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `prepare_batch` trusts host-supplied decision state and never applies due-wake itself (lines 845-868), while `rank_candidates` copies `decision`/`until` from that same prior index into the published digest and mirror (lines 618-628 and 703-716). This is the code-side half of finding 1: even with a corrected SKILL reload, any caller that passes a pre-maintenance record can silently undo lifecycle wake on a scored cycle.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Share one decision-normalization helper used by store maintenance, prepare-batch, and rank so due deferred entries become pending before ranking/publication, regardless of which record snapshot the host threaded in.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 845,
+        "end": 716
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: After a terminal reject/approve is pruned, `store_candidates` will re-admit the same stub_key as fresh and count it toward the 20-candidate cap, but `prepare_batch` unconditionally skips approved/rejected decisions and therefore omits that file from the manifest. Independently reproduced: re-admitted rejected key is stored and listed in `fresh_keys`, yet `prepare_batch` returns `requested_keys: []`, so the slot is consumed by invisible work until the next prune-only pass.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "On fresh admission of a key with a terminal durable decision, either refuse with an explicit error, or supersede that terminal history to pending for the new payload; do not leave store files that prepare-batch will always ignore.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 849,
+        "end": 851
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "style",
+      "criticality": "low",
+      "description": "FYI: `test_prepare_batch_output_is_deterministic_and_at_most_64_kib` asserts length using compact `separators=(',', ':')` JSON without the trailing newline, while production `_manifest_bytes` / CLI stdout use default-spaced `json.dumps(...)+'\\n'`. The production bound itself is correct and covered by the stdout-serialization rejection test; this assertion would not catch a regression that only overflows the real encoding.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi",
+      "resolution": "Align the assertion with `_manifest_bytes` / exact stdout encoding, or assert via the same helper the runtime uses.",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/supervise/test_digest_evidence.py",
+      "line_range": {
+        "start": 179,
+        "end": 187
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Journal recovery now fail-closes correctly: `_authorize_transaction_target` allowlists only candidate/cache/digest/mirror paths with operation-appropriate verbs, and `recover_transaction` validates schema version, bounds, duplicates, and checksums for every operation before mutating any target. Tampered-target and oversized-journal tests pin the bypass that impl-findings #1 closed.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 343,
+        "end": 474
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: The rubric trust boundary matches the hardened contract: `prepare_batch` embeds `ready_set` inside the single manifest, measures exact stdout serialization via `_manifest_bytes`, enforces the 64 KiB cap (including individually oversized stubs), frames provenance as untrusted data after `sanitize_string`, and the prompt places trusted instructions before the untrusted manifest block.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 815,
+        "end": 894
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Terminal lifecycle history is handled cleanly at the module boundary: active pending/deferred entries are ranked from the live backlog, while `_merge_terminal_history` preserves approved/rejected decisions in the durable mirror without keeping those keys in the active store or ranked digest. That matches design D5 and closes impl-findings #4 without conflating payload files and supervisor facts.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 525,
+        "end": 560
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "performance",
+      "criticality": "low",
+      "description": "none: Provenance loading is bounded the way impl-findings #9 required: `_artifact_evidence` opens a binary handle and reads only `MAX_EVIDENCE_BYTES + 1`, with a regression test that fails if the full artifact is slurped via `Path.read_bytes`.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 791,
+        "end": 812
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Publication resilience is solid for the scored and lifecycle paths: operations are staged in a fsynced roll-forward journal, non-digest targets are applied first, `digest.json` is replaced last, checksums make recovery idempotent, and read-only/dry-run entry points refuse mixed state while mutating commands recover first.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 368,
+        "end": 474
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 10,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Compatibility with the existing supervisor record surface is preserved: canonical and mirror schemas gain optional decision metadata with conditional requirements, `cycle_state._clean_digested_stub` round-trips those fields, fingerprint exclusions keep store/cache/digest/journal commits from self-invalidating the cycle, and the `.agents`/`.claude` supervise mirrors are byte-identical to the canonical skill.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 86,
+        "end": 358
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

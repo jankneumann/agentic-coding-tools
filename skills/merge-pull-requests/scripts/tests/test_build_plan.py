@@ -120,9 +120,11 @@ def test_emit_plan_writes_json_and_markdown_projection(tmp_path: Path) -> None:
 
     assert destination.exists()
     assert projection == tmp_path / "merge-plan.md"
-    assert "| #20 | Base feature | openspec | pending |" in projection.read_text(
-        encoding="utf-8",
-    )
+    rendered = projection.read_text(encoding="utf-8")
+    assert "#20" in rendered
+    assert "openspec" in rendered
+    assert "pending" in rendered
+    assert "implementation" in rendered
 
 
 def test_emit_plan_recovers_consistent_projection_after_second_replace_fails(

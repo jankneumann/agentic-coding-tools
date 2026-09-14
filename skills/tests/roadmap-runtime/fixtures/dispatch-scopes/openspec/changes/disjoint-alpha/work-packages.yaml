@@ -1,0 +1,107 @@
+schema_version: 1
+feature:
+  id: disjoint-alpha
+  plan_revision: 1
+packages:
+- package_id: wp-core
+  scope:
+    write_allow:
+    - src/alpha/**
+    read_allow:
+    - '**'
+  locks:
+    keys:
+    - contract:alpha
+    files: []
+  task_type: implementation
+  description: Scope fixture for wp-core
+  depends_on: []
+  priority: 1
+  worktree:
+    name: wp-core
+  timeout_minutes: 10
+  retry_budget: 0
+  min_trust_level: 0
+  verification:
+    tier_required: C
+    steps:
+    - name: fixture
+      kind: command
+      command: 'true'
+      evidence:
+        artifacts: []
+        result_keys:
+        - fixture
+  outputs:
+    result_keys:
+    - fixture
+- package_id: wp-integration
+  scope:
+    write_allow:
+    - docs/alpha/**
+    read_allow:
+    - '**'
+  locks:
+    keys:
+    - feature:alpha:integration
+    files: []
+  task_type: implementation
+  description: Scope fixture for wp-integration
+  depends_on: []
+  priority: 1
+  worktree:
+    name: wp-integration
+  timeout_minutes: 10
+  retry_budget: 0
+  min_trust_level: 0
+  verification:
+    tier_required: C
+    steps:
+    - name: fixture
+      kind: command
+      command: 'true'
+      evidence:
+        artifacts: []
+        result_keys:
+        - fixture
+  outputs:
+    result_keys:
+    - fixture
+- package_id: wp-runtime-mirror
+  scope:
+    write_allow:
+    - .agents/skills/alpha/**
+    read_allow:
+    - '**'
+  locks:
+    keys:
+    - feature:alpha:runtime-mirror
+    files: []
+  task_type: implementation
+  description: Scope fixture for wp-runtime-mirror
+  depends_on: []
+  priority: 1
+  worktree:
+    name: wp-runtime-mirror
+  timeout_minutes: 10
+  retry_budget: 0
+  min_trust_level: 0
+  verification:
+    tier_required: C
+    steps:
+    - name: fixture
+      kind: command
+      command: 'true'
+      evidence:
+        artifacts: []
+        result_keys:
+        - fixture
+  outputs:
+    result_keys:
+    - fixture
+contracts:
+  revision: 1
+  openapi:
+    primary: contracts/openapi.yaml
+    files:
+    - contracts/openapi.yaml

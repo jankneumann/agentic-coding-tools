@@ -125,6 +125,11 @@ action "cleanup_agents" appliesTo {
     resource: Task,
 };
 
+action "publish_work_projection" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
 // Approval actions
 action "request_approval" appliesTo {
     principal: Agent,

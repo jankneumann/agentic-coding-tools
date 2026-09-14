@@ -26,6 +26,7 @@ role permitted to CREATE DATABASE; skipped otherwise.
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 
 import asyncpg
@@ -63,6 +64,8 @@ REQUIRED_FUNCTIONS = [
     "coordinator_notify",
     "get_agent_profile",
     "is_domain_allowed",
+    "mutate_issue_if_unowned",
+    "close_issues_if_unowned",
 ]
 
 
@@ -146,6 +149,234 @@ async def migrated_database():
             pass
 
 
+@pytest.fixture
+async def pre039_upgrade_database(tmp_path):
+    """A 038-era database upgraded through 039 with ambiguous labelled rows."""
+    if not _postgres_available:
+        pytest.skip("PostgreSQL not running (start with: docker-compose up -d)")
+
+    name = f"migtest_{uuid.uuid4().hex[:12]}"
+    try:
+        admin = await asyncio.wait_for(_connect(POSTGRES_DSN), timeout=ADMIN_TIMEOUT)
+    except (TimeoutError, OSError) as exc:
+        pytest.skip(f"could not reach PostgreSQL to create a test database: {exc}")
+
+    try:
+        await admin.execute(f'CREATE DATABASE "{name}"')
+    except asyncpg.InsufficientPrivilegeError:
+        pytest.skip("role may not CREATE DATABASE")
+    finally:
+        await admin.close()
+
+    dsn = _admin_dsn_for(name)
+    pre039_dir = tmp_path / "pre039"
+    post039_dir = tmp_path / "post039"
+    pre039_dir.mkdir()
+    post039_dir.mkdir()
+    for sequence, filename, path in discover_migrations():
+        if sequence < 39:
+            (pre039_dir / filename).symlink_to(path)
+        elif sequence == 39:
+            (post039_dir / filename).symlink_to(path)
+
+    try:
+        await asyncio.wait_for(
+            run_migrations(dsn, migrations_dir=pre039_dir), timeout=MIGRATE_TIMEOUT
+        )
+        conn = await _connect(dsn)
+        try:
+            legitimate_raw = await conn.fetchval(
+                "SELECT submit_task('issue', 'Autopilot phase INIT', $1::jsonb, "
+                "1, NULL::uuid[], NULL::timestamptz, NULL::jsonb, $2::text[])",
+                json.dumps(
+                    {
+                        "change_id": "upgrade-legitimate",
+                        "phase": "INIT",
+                        "transition_sequence": 0,
+                    }
+                ),
+                ["change:upgrade-legitimate", "projection:autopilot-phase"],
+            )
+            legitimate = json.loads(legitimate_raw)
+            assert legitimate["success"] is True
+            assert legitimate["created"] is True
+            legitimate_id = uuid.UUID(legitimate["task_id"])
+            spoof_id = await conn.fetchval(
+                "INSERT INTO work_queue "
+                "(task_type, description, input_data, priority, labels) "
+                "VALUES ('issue', 'ordinary spoof', $1::jsonb, 5, $2::text[]) "
+                "RETURNING id",
+                json.dumps(
+                    {
+                        "change_id": "upgrade-spoof",
+                        "phase": "PLAN",
+                        "transition_sequence": 7,
+                    }
+                ),
+                ["change:upgrade-spoof", "projection:autopilot-phase"],
+            )
+        finally:
+            await conn.close()
+
+        await asyncio.wait_for(
+            run_migrations(dsn, migrations_dir=post039_dir), timeout=MIGRATE_TIMEOUT
+        )
+        yield dsn, legitimate_id, spoof_id
+    finally:
+        try:
+            admin = await asyncio.wait_for(_connect(POSTGRES_DSN), timeout=ADMIN_TIMEOUT)
+            try:
+                await admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+            finally:
+                await admin.close()
+        except Exception:
+            pass
+
+
+async def test_039_upgrade_fails_closed_until_owner_registers_verified_row(
+    pre039_upgrade_database,
+) -> None:
+    dsn, legitimate_id, spoof_id = pre039_upgrade_database
+    labels = ["change:upgrade-legitimate", "projection:autopilot-phase"]
+    conn = await _connect(dsn)
+    try:
+        ownership = await conn.fetch(
+            "SELECT task_id FROM work_queue_projection_ownership ORDER BY task_id"
+        )
+        assert ownership == []
+
+        collision_raw = await conn.fetchval(
+            "SELECT submit_task('issue', 'Autopilot phase INIT', $1::jsonb, "
+            "1, NULL::uuid[], NULL::timestamptz, NULL::jsonb, $2::text[])",
+            json.dumps(
+                {
+                    "change_id": "upgrade-legitimate",
+                    "phase": "INIT",
+                    "transition_sequence": 0,
+                }
+            ),
+            labels,
+        )
+        collision = json.loads(collision_raw)
+        assert collision["success"] is False
+        assert collision["reason"] == "projection_key_collision"
+
+        reconcile_raw = await conn.fetchval(
+            "SELECT reconcile_work_projection('upgrade-legitimate', 'PLAN', 1, "
+            "'issue', 'Autopilot phase PLAN', '{}'::jsonb, 1, NULL::jsonb, "
+            "$1::text[])",
+            labels,
+        )
+        reconcile = json.loads(reconcile_raw)
+        assert reconcile["success"] is False
+        assert reconcile["reason"] == "projection_key_collision"
+        assert (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM work_queue WHERE input_data->>'change_id'="
+                "'upgrade-legitimate'"
+            )
+            == 1
+        )
+        assert await conn.fetchrow(
+            "SELECT phase, transition_sequence FROM work_queue_projection_heads "
+            "WHERE change_id='upgrade-legitimate'"
+        ) == ("INIT", 0)
+
+        await conn.execute(
+            "INSERT INTO work_queue_projection_ownership(task_id) VALUES ($1)",
+            legitimate_id,
+        )
+        replay_raw = await conn.fetchval(
+            "SELECT reconcile_work_projection('upgrade-legitimate', 'PLAN', 1, "
+            "'issue', 'Autopilot phase PLAN', '{}'::jsonb, 1, NULL::jsonb, "
+            "$1::text[])",
+            labels,
+        )
+        replay = json.loads(replay_raw)
+        assert replay["success"] is True
+        assert replay["created"] is True
+        assert str(legitimate_id) in replay["cancelled_task_ids"]
+        legitimate = await conn.fetchrow(
+            "SELECT status, labels FROM work_queue WHERE id=$1", legitimate_id
+        )
+        assert legitimate["status"] == "cancelled"
+        assert legitimate["labels"] == []
+
+        spoof = await conn.fetchrow(
+            "SELECT status, labels, result FROM work_queue WHERE id=$1", spoof_id
+        )
+        assert spoof["status"] == "pending"
+        assert spoof["labels"] == [
+            "change:upgrade-spoof",
+            "projection:autopilot-phase",
+        ]
+        assert spoof["result"] is None
+        assert (
+            await conn.fetchval(
+                "SELECT EXISTS (SELECT 1 FROM work_queue_projection_ownership WHERE task_id=$1)",
+                spoof_id,
+            )
+            is False
+        )
+    finally:
+        await conn.close()
+
+
+async def test_039_unlabelled_reconcile_fails_closed_on_reserved_upgrade_row(
+    pre039_upgrade_database,
+) -> None:
+    dsn, _legitimate_id, spoof_id = pre039_upgrade_database
+    conn = await _connect(dsn)
+    try:
+        result = json.loads(
+            await conn.fetchval(
+                "SELECT reconcile_work_projection('upgrade-spoof','IMPLEMENT',8,"
+                "'issue','legacy caller','{}'::jsonb,1,NULL::jsonb,NULL::text[])"
+            )
+        )
+        assert result["success"] is False
+        assert result["reason"] == "projection_key_collision"
+        assert await conn.fetchrow(
+            "SELECT status,labels FROM work_queue WHERE id=$1", spoof_id
+        ) == (
+            "pending",
+            ["change:upgrade-spoof", "projection:autopilot-phase"],
+        )
+        assert (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM work_queue_projection_heads WHERE change_id='upgrade-spoof'"
+            )
+            == 0
+        )
+    finally:
+        await conn.close()
+
+
+async def test_039_issue_mutation_fails_closed_on_reserved_upgrade_row(
+    pre039_upgrade_database,
+) -> None:
+    dsn, _legitimate_id, spoof_id = pre039_upgrade_database
+    conn = await _connect(dsn)
+    try:
+        result = json.loads(
+            await conn.fetchval(
+                "SELECT mutate_issue_if_unowned($1, $2::jsonb)",
+                spoof_id,
+                json.dumps({"status": "completed"}),
+            )
+        )
+        assert result["success"] is False
+        assert result["reason"] == "reserved_projection_label"
+        assert await conn.fetchrow(
+            "SELECT status,labels FROM work_queue WHERE id=$1", spoof_id
+        ) == (
+            "pending",
+            ["change:upgrade-spoof", "projection:autopilot-phase"],
+        )
+    finally:
+        await conn.close()
+
+
 async def test_every_migration_applies_to_an_empty_database(migrated_database) -> None:
     """No migration may be skipped, and none may fail.
 
@@ -161,6 +392,148 @@ async def test_every_migration_applies_to_an_empty_database(migrated_database) -
     )
 
 
+async def test_reserved_projection_rows_are_database_owned_and_issue_immutable(
+    migrated_database,
+) -> None:
+    dsn, _applied = migrated_database
+    change_id = "ordinary-issue-isolation"
+    labels = [f"change:{change_id}", "projection:autopilot-phase"]
+    conn = await _connect(dsn)
+    try:
+        with pytest.raises(asyncpg.InsufficientPrivilegeError, match="reserved_projection_label"):
+            await conn.execute(
+                "INSERT INTO work_queue "
+                "(task_type,description,input_data,priority,labels) "
+                "VALUES ('issue','spoof','{}'::jsonb,5,$1::text[])",
+                labels,
+            )
+
+        ordinary_id = await conn.fetchval(
+            "INSERT INTO work_queue "
+            "(task_type,description,input_data,priority,labels) "
+            "VALUES ('issue','ordinary','{}'::jsonb,5,ARRAY[]::text[]) RETURNING id"
+        )
+        reserved_patch = json.loads(
+            await conn.fetchval(
+                "SELECT mutate_issue_if_unowned($1, $2::jsonb)",
+                ordinary_id,
+                json.dumps({"labels": labels}),
+            )
+        )
+        assert reserved_patch == {
+            "success": False,
+            "reason": "reserved_projection_label",
+        }
+
+        projected = json.loads(
+            await conn.fetchval(
+                "SELECT reconcile_work_projection($1,'INIT',0,'issue',"
+                "'Autopilot phase INIT','{}'::jsonb,1,NULL::jsonb,$2::text[])",
+                change_id,
+                labels,
+            )
+        )
+        assert projected["success"] is True
+        projection_id = uuid.UUID(projected["task_id"])
+        assert (
+            await conn.fetchval(
+                "SELECT labels=$2::text[] FROM work_queue WHERE id=$1",
+                projection_id,
+                labels,
+            )
+            is True
+        )
+
+        immutable = json.loads(
+            await conn.fetchval(
+                "SELECT mutate_issue_if_unowned($1, $2::jsonb)",
+                projection_id,
+                json.dumps({"description": "tampered", "status": "completed"}),
+            )
+        )
+        assert immutable == {
+            "success": False,
+            "reason": "projection_issue_immutable",
+        }
+        assert await conn.fetchrow(
+            "SELECT description,status,labels FROM work_queue WHERE id=$1",
+            projection_id,
+        ) == ("Autopilot phase INIT", "pending", labels)
+
+        second_ordinary_id = await conn.fetchval(
+            "INSERT INTO work_queue "
+            "(task_type,description,input_data,priority,labels) "
+            "VALUES ('issue','second ordinary','{}'::jsonb,5,ARRAY[]::text[]) "
+            "RETURNING id"
+        )
+        refused_batch = json.loads(
+            await conn.fetchval(
+                "SELECT close_issues_if_unowned($1::jsonb)",
+                json.dumps(
+                    {
+                        "issue_ids": [
+                            str(ordinary_id),
+                            str(projection_id),
+                            str(second_ordinary_id),
+                        ],
+                        "closed_at": "2026-09-14T14:00:00+00:00",
+                        "reason": None,
+                    }
+                ),
+            )
+        )
+        assert refused_batch == {
+            "success": False,
+            "reason": "projection_issue_immutable",
+        }
+        assert (
+            await conn.fetchval("SELECT status FROM work_queue WHERE id=$1", ordinary_id)
+            == "pending"
+        )
+        assert (
+            await conn.fetchval("SELECT status FROM work_queue WHERE id=$1", second_ordinary_id)
+            == "pending"
+        )
+
+        closed_batch = json.loads(
+            await conn.fetchval(
+                "SELECT close_issues_if_unowned($1::jsonb)",
+                json.dumps(
+                    {
+                        "issue_ids": [str(ordinary_id), str(second_ordinary_id)],
+                        "closed_at": "2026-09-14T14:00:00+00:00",
+                        "reason": "batch complete",
+                    }
+                ),
+            )
+        )
+        assert closed_batch["success"] is True
+        assert [uuid.UUID(row["id"]) for row in closed_batch["issues"]] == [
+            ordinary_id,
+            second_ordinary_id,
+        ]
+
+        advanced = json.loads(
+            await conn.fetchval(
+                "SELECT reconcile_work_projection($1,'PLAN',1,'issue',"
+                "'Autopilot phase PLAN','{}'::jsonb,1,NULL::jsonb,$2::text[])",
+                change_id,
+                labels,
+            )
+        )
+        assert advanced["success"] is True
+        assert (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM work_queue WHERE task_type='issue' "
+                "AND status='pending' AND labels @> $1::text[]",
+                labels,
+            )
+            == 1
+        )
+    finally:
+        await conn.close()
+
+
 async def test_fresh_database_has_the_objects_the_code_calls(migrated_database) -> None:
     """A migrated database must actually contain what the services dereference.
 
@@ -173,9 +546,7 @@ async def test_fresh_database_has_the_objects_the_code_calls(migrated_database) 
     try:
         tables = {
             r["tablename"]
-            for r in await conn.fetch(
-                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
-            )
+            for r in await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
         }
         functions = {
             r["proname"]
@@ -254,9 +625,7 @@ async def test_seeded_database_survives_the_first_run_pass(migrated_database) ->
 
     conn = await _connect(dsn)
     try:
-        body = await conn.fetchval(
-            "SELECT pg_get_functiondef('notify_work_queue_change'::regproc)"
-        )
+        body = await conn.fetchval("SELECT pg_get_functiondef('notify_work_queue_change'::regproc)")
         recorded = await conn.fetchval("SELECT count(*) FROM schema_migrations")
     finally:
         await conn.close()

@@ -1,0 +1,194 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Config precedence resolution verified: explicit --agents-yaml overrides everything; otherwise checkout-local agent-coordinator/agents.yaml beneath reviewed --cwd precedes coordinator/global state; missing-local config falls back to coordinator then disk. dispatch, --check-vendors, and --list-agents all use the same _orchestrator_for_dispatch resolver. Tests assert exact reviewed cwd plus each precedence branch.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Independent verification at HEAD 71f34700 confirms _orchestrator_for_dispatch(agents_yaml, cwd) passes cwd to _find_local_agents_yaml; test_dispatch_prefers_review_cwd_agents_yaml asserts call with reviewed cwd; test_dispatch_explicit_agents_yaml_bypasses_local_and_coordinator and test_dispatch_without_local_config_falls_back_to_global_disk cover all branches; test_check_vendors_resolves_config_from_review_cwd proves --check-vendors uses same resolver.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2583,
+        "end": 2595
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Antigravity structured review command and envelope parsing verified: CLI command includes --output-format json before --json-schema with prompt via --prompt flag; _extract_findings unwraps structuredOutput, structured_output, and JSON-text response envelopes. Live dispatch tests pass.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Tests test_repo_antigravity_schema_review_uses_json_output_mode and test_repo_antigravity_live_dispatch_pairs_json_mode_and_schema validate flag ordering and envelope extraction at agent-coordinator/agents.yaml:275 and review_dispatcher.py:869-893.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 869,
+        "end": 893
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Coordinator-free isolation verified: queue_projection module imported only inside project-state handler; run_loop defaults queue_projection_fn=None; AST guards forbid eager imports; local-parallel/sequential tiers perform zero projection module imports, zero adapter construction, zero submit/reconcile/label-helper calls. Pre-existing coordinator detection/archetype bridge use unchanged.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "test_phase_projection_isolation.py:12-86 proves isolation with import spies and fail-fast transport spies; runner.py:512-524 confirms project-state never writes state file.",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 12,
+        "end": 86
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Database-owned UUID registry prevents ownership spoofing: work_queue_projection_ownership is sole authority; submit_task and reconcile_work_projection check EXISTS on registry before any mutation; spoofed input_data markers and labels cannot confer ownership. Labelled collision fails closed with projection_key_collision (HTTP 409) before head advance/cancel/relabel.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Migration 039 lines 86-113 (submit) and 185-215 (reconcile) enforce registry check; live tests test_owned_projection_cannot_take_over_unowned_issue_key and test_submit_collision_with_nonissue_is_fail_closed verify fail-closed behavior.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 86,
+        "end": 215
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "ESCALATE recovery is executable and retry-idempotent: enter_escalate increments total_iterations exactly once when phase changes to ESCALATE; retries while parked preserve original generation and incident metadata; automatic and console-approved escalate_resume share one persisted resolved edge; failed apply_outcome_or_escalate derives resume phase from authoritative durable current_phase.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "autopilot.py:514-528 (enter_escalate) and 674-690 (apply_outcome_or_escalate); runner.py:169-185 (gate-answer flushes resolved edge); test_apply_outcome_contract.py:259-289 and test_gate_evaluate_cli.py:181-211 cover regression.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 514,
+        "end": 690
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "SSE visibility is current-only and within bounds: projection.labels_changed coalesces into single snapshot via label-filtered list_issues; cancelled rows excluded on implicit label board path; first-insert and terminal-reactivation emit coordinator_notify with snapshot_required inside per-change transaction; connected real EventBus/SSE client observes refresh within 1 second.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "event_stream.py:272-328 (coalescing); issue_service.py:319-322 (cancelled exclusion); migration 039 lines 255-285 (insert trigger) and 130-141/242-252 (reactivation notify); test_autopilot_projection_acceptance_postgres.py:175-218, 220-250, 570-612 verify live SSE.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 272,
+        "end": 328
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Concurrent label repair serialized under pg_advisory_xact_lock: submit_task and reconcile_work_projection acquire lock before any mutation; same-generation submit clears noncanonical owned labels before setting canonical; delayed older publisher rejected as stale_projection while lock held; legacy unlabelled reconcile (p_projection_labels IS NULL) retains pre-039 tuple-cancellation contract.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Migration 039 lines 72, 122-129, 166, 180-215; test_autopilot_projection_acceptance_postgres.py:38-141 (three generations), 297-377 (collision), 446-569 (same-gen replay) verify concurrency.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 72,
+        "end": 215
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Runtime Pydantic and OpenAPI contracts align: ProjectionLabels requires heterogeneous ordered pair (change-label pattern maxLength 135, const projection:autopilot-phase); projection_key_collision maps to HTTP 409 in API mapper; conditional requiring projection_key + task_type:issue when labels present enforced at both layers.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "coordination_api.py:95-227 (ProjectionLabels, _PROJECTION_CONFLICTS); openspec/contracts/agent-coordinator/openapi/work-queue.yaml:88-192 (prefixItems exact equality); test_autopilot_projection_visibility.py:260-273 regresses 409 mapping.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 95,
+        "end": 227
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Degraded projection never halts authoritative work: QueueProjectionAdapter._degraded extracts reason from envelope.reason \u2192 RFC 7807 response.detail \u2192 generic error; runner.py project-state exits 0 on structured degradation; queue responses never feed back into loop-state transitions.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "queue_projection.py:28-35, 93-100 (_degraded); runner.py:512-537 (project-state exits 0); test_queue_projection.py covers degraded reporting without state mutation.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 28,
+        "end": 100
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Migration integrity and legacy compatibility: 038 preserves non-projection submit/reconcile; 039 fail-closes ambiguous pre-038 unlabeled rows (no auto-seeding from mutable fields); operator recovery documented in work-queue-truth-projection.md; install.sh --check validates byte-level parity across .claude/skills and .agents/skills mirrors.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Migration 038 lines 30-47; 039 lines 11-17, 37-47; docs/guides/work-queue-truth-projection.md; install.sh:237-298; test_consumer_portability.py:64-115 asserts mirror parity.",
+      "package_id": "whole-branch",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 237,
+        "end": 298
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Full behavioral test coverage confirmed: 445 Autopilot tests, 100 review_dispatcher tests, 9 check_vendors tests, 204 parallel-infrastructure tests, 96 coordination-bridge tests, 32 install_sh tests, 38 work_queue tests, 11 projection_visibility tests, 37 issue_service tests, 16 live PostgreSQL acceptance tests, 5 fresh migration tests \u2014 all pass at exact HEAD 71f34700.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Independent test execution in fresh environment validates all round-9/10 seams; no critical/high/medium correctness, safety, data-integrity, concurrency, migration, API, durable recovery, SSE visibility, isolation, or operability defects remain.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/validation-report.md",
+      "line_range": {
+        "start": 1,
+        "end": 52
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

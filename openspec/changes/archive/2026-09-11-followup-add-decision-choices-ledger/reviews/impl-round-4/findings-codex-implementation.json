@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "resilience",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/audit-choices/scripts/needs_user.py",
+      "line_range": {
+        "start": 75,
+        "end": 84
+      },
+      "description": "Critical: `needs_user.py` still lets argparse exit non-zero before the reader's total-return contract takes effect. For example, `skills/.venv/bin/python skills/audit-choices/scripts/needs_user.py --format xml` exits 2 at `parse_args`, violating F3 and the audit-choices red flag that every script entry point exits 0.",
+      "resolution": "Make CLI parsing total as well as ledger loading: catch `SystemExit` from `parse_args` and return 0 after printing a single warning, or configure a non-exiting parser/error path and always return 0."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "resilience",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 744,
+        "end": 748
+      },
+      "description": "Critical: Step 11.5 stages both ledger files before running `git commit`, but the `git commit failed` branch only sets `SKIP_REASON` and returns. If commit fails after `git add` succeeds, the workflow prints the non-blocking skip line while leaving the changed ledger pair staged, so later workflow steps can accidentally carry or commit the skipped audit output.",
+      "resolution": "On `git commit` failure, restore/unstage the ledger pair before returning, using the same guarded per-path cleanup discipline as the orphan paths while preserving `SKIP_REASON=\"git commit failed\"`."
+    }
+  ]
+}

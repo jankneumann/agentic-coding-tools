@@ -1,0 +1,97 @@
+{
+  "review_type": "plan",
+  "target": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "reviewer_vendor": "codex-gpt-5",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "none",
+      "description": "None: The plan correctly addresses the critical correctness issue identified in round one by implementing a per-change high-water table (`work_queue_projection_heads`) that tracks the monotonic sequence numbers, ensuring that reconciliation advances the head in the same transaction and keyed submit consults this while holding the same lock. This prevents stale submissions from creating active rows after reconciliation.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "none",
+      "description": "None: The plan correctly specifies that reconciliation uses the existing `submit_work` policy operation with `context.mode=\"reconcile\"`, addressing the authorization concern from round one. This approach leverages the existing policy infrastructure without requiring schema modifications.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "testability",
+      "criticality": "none",
+      "description": "None: The verification gates have been improved to include dedicated direct MCP projection tests and run comprehensive coordinator test directories, addressing the spec gap identified in round one. The plan now includes specific test modules for transport parity.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "none",
+      "description": "None: The plan correctly maintains backward compatibility by keeping unkeyed submissions unchanged while adding keyed submission behavior. The partial unique expression index approach properly isolates the new functionality from existing operations.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "none",
+      "description": "None: The plan properly implements the persist-before-project seam with resume reconciliation, maintaining filesystem state as authoritative. The crash recovery mechanisms are well-defined with clear failure matrix and recovery paths.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "contract_consistency",
+      "criticality": "none",
+      "description": "None: The contracts are consistent across HTTP, MCP, and CLI transports. All interfaces use the same `ProjectionKey` structure and `ProjectionMutationSuccess` response format for successes, with standardized RFC 7807 Problem responses for failures. MCP and CLI use discriminated failure envelopes as appropriate for their protocols.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 7,
+      "type": "concurrency",
+      "criticality": "none",
+      "description": "None: The concurrency design correctly uses PostgreSQL's `ON CONFLICT` with expression indexes for atomic duplicate prevention, combined with per-change advisory transaction locks to serialize different-key operations. The design handles concurrent same-key submissions and different-sequence submit/reconcile races appropriately.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 8,
+      "type": "migration",
+      "criticality": "none",
+      "description": "None: The migration strategy includes proper preflight validation with deterministic SQLSTATE codes for different error conditions, atomic rollback capability, and clear remediation paths. The approach prevents unsafe index creation while allowing safe retry after remediation.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 9,
+      "type": "boundary_validation",
+      "criticality": "none",
+      "description": "None: The boundary validation comprehensively covers bounds checking for change_id, phase, and transition_sequence, including strict validation of integer types, rejection of reserved fields in input_data, and proper 422 responses for malformed requests. The validation is consistent across all transport layers.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 10,
+      "type": "scope_validity",
+      "criticality": "none",
+      "description": "None: The package DAG and scope definitions are valid and properly constrained. Dependencies are correctly specified with wp-contracts as the root, followed by wp-coordinator-queue and wp-bridge-projection, with wp-integration as the final integration package. File locks and scope restrictions appropriately protect the implementation boundaries.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

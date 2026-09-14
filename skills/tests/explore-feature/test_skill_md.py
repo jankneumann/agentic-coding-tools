@@ -43,3 +43,9 @@ def test_artifact_producing_exploration_requires_worktree():
     assert "artifact-producing" in text.lower()
     assert "worktree.py" in text
     assert "checkout_policy.py" in text
+
+
+def test_candidate_projection_is_documented():
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    assert "candidate_projection.py" in text
+    assert "explore-feature-candidate-work.json" in text

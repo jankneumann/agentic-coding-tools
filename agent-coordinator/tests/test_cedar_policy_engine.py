@@ -130,6 +130,25 @@ class TestCedarAdminActions:
             )
             assert result.allowed is True, f"{action} should be allowed at trust 3"
 
+    @pytest.mark.asyncio
+    async def test_admin_resolves_trust_when_context_omits_it(
+        self, cedar_engine, monkeypatch
+    ):
+        async def _resolve(_agent_id: str, _agent_type: str) -> int:
+            return 3
+
+        monkeypatch.setattr("src.trust_resolution.resolve_trust_level", _resolve)
+
+        result = await cedar_engine.check_operation(
+            agent_id="coordinator-publisher",
+            agent_type="codex",
+            operation="publish_work_projection",
+            resource="change-a",
+            context={"mode": "reconcile", "change_id": "change-a"},
+        )
+
+        assert result.allowed is True
+
 
 class TestCedarSuspendedAgent:
     """Test Cedar forbid policy for suspended agents (trust 0)."""

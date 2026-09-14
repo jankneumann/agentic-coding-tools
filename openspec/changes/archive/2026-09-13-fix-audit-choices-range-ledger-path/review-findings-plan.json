@@ -1,0 +1,31 @@
+{
+  "review_type": "plan",
+  "target": "fix-audit-choices-range-ledger-path",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/specs/skill-workflow/spec.md",
+      "description": "The scenario 'Standalone audit output is bounded' says the oldest runs SHALL be moved to an archive subdirectory once the retention count is exceeded, with no allowance for failure. D8 decides the opposite for the failure path: retention runs last, wrapped on its own, and a move that cannot complete logs a warning and leaves the result ok=True. Those two readings collide. An implementer following the scenario literally would let a failed shutil.move propagate or report failure, which is exactly the false-failure D8 exists to prevent; an implementer following D8 ships behavior the scenario does not sanction. The scenario is also the only place a reader looking for the contract would check.",
+      "resolution": "Add a clause to the scenario covering the failure path, so the spec states both halves of D8: retention moves rather than deletes, AND a retention failure does not fail a run whose ledger pair was persisted. Something like 'AND a retention failure SHALL NOT change the outcome of a run whose ledger pair was written'. Then task 5.2 has a scenario clause to assert against rather than only a design decision."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "description": "D1 calls the run directory 'tracked, like openspec/priorities/', but nothing states whether openspec/choices/ exists in a clean checkout or only appears after the first standalone audit. It matters for two readers: apply_retention already handles a missing base directory (list_active_runs returns [] when it does not exist), so the code is safe either way, but a contributor seeding an empty tracked directory would need a .gitkeep, and one who does not will find the path absent on a fresh clone. Leaving it unsaid invites both.",
+      "resolution": "State it in D1 in one clause: openspec/choices/ is created on first standalone audit and is absent from a clean checkout until then, which is not drift. No .gitkeep."
+    }
+  ]
+}

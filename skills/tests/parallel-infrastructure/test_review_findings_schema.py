@@ -137,3 +137,24 @@ def test_existing_required_fields_preserved():
 def test_schema_is_valid_jsonschema():
     """Sanity check: the schema is itself a valid Draft 2020-12 schema."""
     Draft202012Validator.check_schema(SCHEMA)
+
+
+def test_prompt_contract_required_matches_schema():
+    from review_findings_schema import prompt_contract
+
+    required, enums = prompt_contract()
+    finding = _finding_schema()
+    assert set(required) == set(finding["required"])
+    assert "axis" in required
+    assert "severity" in required
+    assert "criticality" in enums
+    assert "severity" in enums
+
+
+def test_prompt_contract_block_names_axis_and_severity():
+    from review_findings_schema import prompt_contract_block
+
+    block = prompt_contract_block()
+    assert "axis" in block
+    assert "severity" in block
+    assert "criticality" in block

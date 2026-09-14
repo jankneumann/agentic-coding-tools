@@ -217,17 +217,91 @@ if [[ ! -f "$INSTALL_MANIFEST" || ! -f "$MANIFEST_VALIDATOR" ]]; then
 fi
 
 python3 "$MANIFEST_VALIDATOR" --skills-root "$SCRIPT_DIR" --manifest "$INSTALL_MANIFEST"
-if [[ $CHECK_ONLY -eq 1 ]]; then
-  exit 0
-fi
 
 skills=()
 while IFS= read -r skill_name; do
   [[ -n "$skill_name" ]] && skills+=("$SCRIPT_DIR/$skill_name")
 done < <(python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); print("\n".join(sorted(name for name, meta in data["skills"].items() if meta["distribution"] == "portable")))' "$INSTALL_MANIFEST")
 
+shared_libraries=()
+while IFS= read -r library_name; do
+  [[ -n "$library_name" ]] && shared_libraries+=("$library_name")
+done < <(python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); print("\n".join(sorted(data["shared_libraries"])))' "$INSTALL_MANIFEST")
+
 if [[ ${#skills[@]} -eq 0 ]]; then
   echo "No skills found in $SCRIPT_DIR" >&2
+  exit 1
+fi
+
+
+check_install_payload() {
+  local drift=0
+  local agent rel_dir dest_dir skill_path skill_name dest_path library_name
+
+  for agent in "${agent_list[@]}"; do
+    agent="${agent//[[:space:]]/}"
+    [[ -n "$agent" ]] || continue
+    if ! rel_dir="$(agent_dir_for "$agent")"; then
+      echo "Unsupported agent in --check: $agent" >&2
+      drift=1
+      continue
+    fi
+    dest_dir="$TARGET_ROOT/$rel_dir"
+
+    for skill_path in "${skills[@]}"; do
+      skill_name="$(basename "$skill_path")"
+      dest_path="$dest_dir/$skill_name"
+      if [[ ! -e "$dest_path" && ! -L "$dest_path" ]]; then
+        echo "Installed skill mirror missing: $dest_path" >&2
+        drift=1
+        continue
+      fi
+      if ! diff -qr --exclude=tests --exclude=__pycache__ --exclude=node_modules \
+        "$skill_path" "$dest_path" >/dev/null; then
+        echo "Installed skill mirror differs: $agent/$skill_name" >&2
+        diff -qr --exclude=tests --exclude=__pycache__ --exclude=node_modules \
+          "$skill_path" "$dest_path" >&2 || true
+        drift=1
+      fi
+    done
+
+    for library_name in "${shared_libraries[@]}"; do
+      dest_path="$dest_dir/$library_name"
+      if [[ ! -e "$dest_path" && ! -L "$dest_path" ]]; then
+        echo "Installed shared payload missing: $agent/$library_name" >&2
+        drift=1
+        continue
+      fi
+      if ! diff -qr --exclude=tests --exclude=__pycache__ --exclude=node_modules \
+        "$SCRIPT_DIR/$library_name" "$dest_path" >/dev/null; then
+        echo "Installed shared payload differs: $agent/$library_name" >&2
+        diff -qr --exclude=tests --exclude=__pycache__ --exclude=node_modules \
+          "$SCRIPT_DIR/$library_name" "$dest_path" >&2 || true
+        drift=1
+      fi
+    done
+
+    dest_path="$dest_dir/install-manifest.json"
+    if [[ ! -e "$dest_path" && ! -L "$dest_path" ]]; then
+      echo "Installed manifest missing: $agent/install-manifest.json" >&2
+      drift=1
+    elif ! cmp -s "$INSTALL_MANIFEST" "$dest_path"; then
+      echo "Installed manifest differs: $agent/install-manifest.json" >&2
+      drift=1
+    fi
+  done
+
+  if [[ $drift -ne 0 ]]; then
+    echo "Installed skill mirror validation failed" >&2
+    return 1
+  fi
+  echo "Installed skill mirrors match canonical payload"
+}
+
+if [[ $CHECK_ONLY -eq 1 ]]; then
+  if check_install_payload; then
+    exit 0
+  fi
   exit 1
 fi
 

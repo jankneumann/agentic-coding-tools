@@ -12,6 +12,10 @@ triggers:
 
 # Autopilot
 
+## Durable state artifact authority
+
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+
 Orchestrate the full plan-review-implement-validate-PR lifecycle with multi-vendor review convergence. For simple features, runs fully automatically from proposal to PR. Stops at merge for human approval.
 
 ## Arguments
@@ -50,6 +54,57 @@ If coordinator is unavailable, emit a warning and fall back to sequential skill 
 
 ## Steps
 
+### Coordinated phase-projection protocol
+
+The queue mirror is enabled **only** after coordinator detection selected the
+coordinated tier. The host must pass the detected coordinator URL explicitly as
+`<coordinator-url>`; local-parallel and sequential hosts do not import,
+construct, register, submit, reconcile, or label through the projection adapter.
+
+For a coordinated resume, load no queue state into the loop. First repair the
+queue solely from the durable file, before pending-gate handling or phase work:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" project-state \
+  --change-id <change-id> --mode reconcile \
+  --coordinator-url "<coordinator-url>"
+```
+
+The host must use `runner.py init` for initialization and `runner.py
+transition --outcome <outcome>` for every ordinary phase edge; it must not
+hand-edit `current_phase`. After **every successfully persisted** runner
+mutation — `init`, `transition`, `apply-outcome`,
+`escalate`, `record-state-only-archetype`, and `gate-answer` — immediately run
+`project-state --mode submit`. A non-zero mutation exit suppresses projection. Runner mutation exit codes are
+0 for a successful write or a clean gate-pending stop, 1 for operational
+failure, and 2 for invalid caller input. A clean gate-pending transition writes
+nothing and remains parked for `gate-answer`.
+An invalid logical phase edge is different from invalid CLI input: `transition`
+records `transition_failed`, enters ESCALATE with the current phase as
+`previous_phase`, and exits 0 so the required projection publishes the parked
+generation. If host-side phase bookkeeping fails before `transition` can run,
+use the explicit durable writer:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" escalate \
+  --change-id <change-id> \
+  --reason "apply-outcome failed; retained handoff <handoff_id>"
+```
+
+After its exit-0 write, submit projection and stop the run.
+For `gate-check`, exits 0, 3, and 4 all mean a decision or park was durably
+recorded, so submit projection before asking, continuing, or stopping; exits 1
+and 2 suppress projection. Projection failure is reported as degraded but never
+reverts or rewrites `loop-state.json`. A `project-state` command that emits a
+structured degraded JSON envelope exits 0 so authoritative phase work continues;
+exit 1 is reserved for failures that prevent producing that envelope.
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" project-state \
+  --change-id <change-id> --mode submit \
+  --coordinator-url "<coordinator-url>"
+```
+
 ### 0. Parse Arguments and Check for Resume
 
 Parse the argument to determine:
@@ -85,12 +140,23 @@ the decision before returning: exit 3 means the posture authorized the resume an
 the run continues from `previous_phase`; exit 0 means a person has to answer first;
 exit 4 means the gate was blocked in a way no console answer resolves (a rejection
 already recorded, a timeout that defaulted to block, or an unreachable coordinator)
-and the run stays parked in ESCALATE. `--decision approved` records the resume
-authorization; `--decision rejected` leaves it parked with the note as the reason.
+and the run stays parked in ESCALATE. `--decision approved` applies the canonical
+`resolved` edge, persists the resumed phase, and records authorization before the
+host submits projection; `--decision rejected` leaves it parked with the note as
+the reason.
 The loop cannot be advanced around this: `apply-outcome` refuses to record anything
 while a gate is pending.
 
 ### 1. INIT Phase
+
+Create state through the canonical writer. In coordinated mode, follow it with
+the submit call from the protocol above; if `init` fails, do not project.
+
+Append only the flags present in the Autopilot invocation; `init` persists them once, and an idempotent resume retains the original options.
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" init --change-id <change-id> [--force] [--val-review] [--no-review]
+```
 
 **Detect CLI mode** — check whether multi-vendor review is available:
 
@@ -275,6 +341,19 @@ disposition `gate-check` records the decision, exits 3, and there is nothing to 
 An exit of 4 is not a "continue": the decision was blocked in a way no console answer
 resolves, the run is in ESCALATE, and this run stops.
 
+### Canonical phase edges
+
+Whenever a phase section below says **transition to** a phase, apply the named
+outcome through the durable writer, then submit the projection in coordinated
+mode:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" transition \
+  --change-id <change-id> --outcome <outcome>
+```
+
+A failed transition is a stop: do not project and do not advance work.
+
 ### Per-Phase Sub-Agent Dispatch Protocol
 
 **Authorization.** Sub-agent dispatch is the defined execution model of this skill,
@@ -311,13 +390,13 @@ provider adapter. Each block follows the same 3-step protocol:
 
    **On non-zero exit (design D9): do NOT advance to the next phase.** A
    failed `apply-outcome` means the bookkeeping did not land. Retain the
-   un-applied handoff file (do not delete it) and transition to `ESCALATE`
-   with `previous_phase` set to the failing phase. The
-   `apply_outcome_or_escalate()` helper in `autopilot.py` encapsulates this
-   exact sequence (run → on failure append `phase_history`, set
-   `current_phase = ESCALATE`, retain handoff); an in-process orchestrator
-   calls it in place of a bare `apply-outcome`. A silent continue is worse
-   than the bug this protocol prevents.
+   un-applied handoff file (do not delete it), invoke `runner.py escalate`
+   with a reason naming the failed phase and retained handoff, then project the
+   exit-0 ESCALATE write and stop. `apply_outcome_or_escalate()` remains the
+   equivalent in-process API. On apply success, invoke `runner.py transition`
+   with the recorded outcome; an unsupported logical edge is itself converted
+   to a durable, projectable ESCALATE write. A silent continue is worse than
+   the bug this protocol prevents.
 
 **Fallback (D5)**: If `runner.py build-dispatch` returns `archetype: null`
 (coordinator unreachable or fallback), OR if no provider-neutral dispatch
@@ -390,11 +469,20 @@ directly. After the slash command returns, run `apply-outcome` so
 
 **Skipped when `cli_review_enabled=false`** — transitions directly to IMPLEMENT.
 
-Multi-vendor plan review with convergence — outcome is `"converged"` if
-no blocking findings, `"not_converged"` otherwise, `"max_iter"` once
-`max_phase_iterations` is exhausted.
+Multi-vendor plan review with a **single** convergence engine. `converge()`
+compacts the gate-time ledger, hunts the last-fix delta after round 1,
+parks disagreements, and applies scoped fixes via `fix_callback`. PLAN_FIX
+is recorded as a `phase_history` sub-step; the outer machine does **not**
+bounce `PLAN_REVIEW → PLAN_FIX → PLAN_REVIEW` as a second cold review.
 
-Dispatch protocol (3 steps):
+Outcome is `"converged"` if no blocking ledger items remain, `"max_iter"`
+if the inner loop stalled or exhausted rounds. `"not_converged"` remains
+in the transition table only for resume of in-flight PLAN_FIX loop-state.
+
+Dispatch protocol (3 steps) — the dispatched agent **executes `converge()`
+as the whole review phase**. Do not instruct it to run `/parallel-review-plan`
+as a one-shot cold review; that re-introduces the outer PLAN_FIX bounce
+this phase exists to remove.
 
 1. Build kwargs:
    ```bash
@@ -403,8 +491,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real PLAN_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)` — outcome is `"converged"` or `"max_iter"`.
 
 3. Apply the outcome:
    ```bash
@@ -435,13 +525,17 @@ result = converge(
 Then run `apply-outcome` to record `phase_archetype = null`.
 
 **If converged**: Report findings summary, transition to IMPLEMENT.
-**If not converged**: Report reason (max_rounds, stalled, quorum_lost, disagreement), transition to ESCALATE.
+**If not converged**: Report reason (max_rounds, stalled, quorum_lost).
+Disagreement is parked to `reviews/parked-disagreements.json` and does
+not abort the loop. Transition to ESCALATE.
 
-For **inline plan fixes** (PLAN_FIX, NOT a sub-agent dispatch): Read the
-blocking findings, edit the relevant plan files directly (proposal.md,
-design.md, specs, work-packages.yaml), re-validate with `openspec
-validate`. PLAN_FIX inherits `phase_archetype` from the preceding
-PLAN_REVIEW — convergence_loop never overwrites the field.
+For **inline plan fixes** (PLAN_FIX sub-step inside `converge()`, NOT an
+outer-machine phase and NOT a sub-agent dispatch): Read the blocking
+ledger items, edit only their cited `file_path`s (proposal.md, design.md,
+specs, work-packages.yaml), re-validate with `openspec validate`. PLAN_FIX
+inherits `phase_archetype` from the preceding PLAN_REVIEW —
+convergence_loop never overwrites the field. Do not add architecture or
+expand scope.
 
 #### Convergence Durability Contract
 
@@ -584,10 +678,14 @@ inline path — invoke `/iterate-on-implementation <change-id>`. Then run
 
 **Skipped when `cli_review_enabled=false`** — transitions directly to VALIDATE.
 
-Multi-vendor implementation review with `fix_mode="targeted"`. Outcome
-is `"converged"` if no blocking findings, `"not_converged"` otherwise.
+Multi-vendor implementation review with `fix_mode="targeted"`. Same
+one-engine contract as PLAN_REVIEW: IMPL_FIX is a `fix_callback` sub-step
+inside `converge()`, not an outer bounce that re-dispatches a cold review.
+Outcome is `"converged"` if no blocking ledger items remain, `"max_iter"`
+otherwise.
 
-Dispatch protocol (3 steps):
+Dispatch protocol (3 steps) — same one-engine contract as PLAN_REVIEW:
+the dispatched agent executes `converge()` as the whole review phase.
 
 1. Build kwargs:
    ```bash
@@ -596,8 +694,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real IMPL_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)` — outcome is `"converged"` or `"max_iter"`.
 
 3. Apply the outcome:
    ```bash
@@ -611,11 +711,12 @@ inline path — invoke the convergence loop with `fix_mode="targeted"`
 and a `post_fix_validator` callback for scoped pytest/mypy/openspec
 checks. Then run `apply-outcome` to record `phase_archetype = null`.
 
-For **targeted implementation fixes** (IMPL_FIX, NOT a sub-agent
-dispatch): Look up the lead vendor from `package_authors`, use
+For **targeted implementation fixes** (IMPL_FIX sub-step, NOT a
+sub-agent dispatch): Look up the lead vendor from `package_authors`, use
 `CliVendorAdapter.dispatch()` to send the fix to that specific vendor,
-scoped to the package's `write_allow` paths. IMPL_FIX inherits
-`phase_archetype` from the preceding IMPL_REVIEW.
+scoped to the intersection of the package's `write_allow` paths and the
+finding `file_path`s. IMPL_FIX inherits `phase_archetype` from the
+preceding IMPL_REVIEW.
 
 ### 6. VALIDATE Phase
 
@@ -657,7 +758,8 @@ Only runs if enabled by complexity gate or `--val-review` flag. Reviews
 validation evidence — outcome is `"converged"` if validation passes
 critique, `"not_converged"` otherwise.
 
-Dispatch protocol (3 steps):
+Dispatch protocol (3 steps) — the dispatched agent executes `converge()`
+as the whole VAL_REVIEW phase.
 
 1. Build kwargs:
    ```bash
@@ -666,8 +768,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real VAL_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)`.
 
 3. Apply the outcome:
    ```bash
@@ -811,18 +915,23 @@ phase-to-archetype mapping lives under `phase_mapping`.
 | `GATEKEEPER` | `gatekeeper` | premium |
 | `INIT`, `SUBMIT_PR` | `runner` | economy |
 
-**Operator override** — force a specific model for one or more phases via the
-`AUTOPILOT_PHASE_MODEL_OVERRIDE` env var. Format:
-`<PHASE>=<model>[,<PHASE>=<model>]*`. Example:
+**Operator override (explicit escape hatch)** — bypass YAML archetype/tier
+selection and force harness model ids directly for one or more phases via the
+`AUTOPILOT_PHASE_MODEL_OVERRIDE` env var. This is **non-default operator
+policy**, not the authored selection path: normal runs resolve phases through
+`archetypes.yaml` / `phase_mapping`. Format:
+`<PHASE>=<harness-model-id>[,<PHASE>=<harness-model-id>]*`. Example (ids are
+illustrative harness strings the override injects as-is):
 
 ```bash
 export AUTOPILOT_PHASE_MODEL_OVERRIDE="PLAN=gpt-5.5,IMPL_REVIEW=gpt-5.4,VALIDATE=gpt-5.4-mini"
 ```
 
-Override sets `options["model"]` only; the `system_prompt` is left to the
-provider adapter default to keep override behavior predictable. Unknown phase
-names are warned and ignored; unknown model names pass through to the selected
-provider adapter for validation.
+Override sets `options["model"]` only (harness model ids, not archetype
+names); the `system_prompt` is left to the provider adapter default to keep
+override behavior predictable. Unknown phase names are warned and ignored;
+unknown model names pass through to the selected provider adapter for
+validation.
 
 **Failure mode** — if the coordinator endpoint is unreachable or returns an
 error, the bridge logs a structured warning and the phase dispatches with the
@@ -841,6 +950,8 @@ See `docs/autopilot-phase-archetype-resolution.md` for the full operator guide.
 - `openspec/changes/<change-id>/loop-state.json` — Full loop state (resumable)
 - `openspec/changes/<change-id>/reviews/round-N/` — Per-round CLI-dispatched review artifacts (PLAN_REVIEW, IMPL_REVIEW, VAL_REVIEW)
 - `openspec/changes/<change-id>/.review-cache/round-N/` — Per-round in-process `converge()` checkpoints (durability path)
+- `openspec/changes/<change-id>/.review-ledger/ledger.json` — Gate-time finding ledger (open/addressed/retired/parked)
+- `openspec/changes/<change-id>/reviews/parked-disagreements.json` — Human queue for disposition disagreements
 - Pull request with evidence trail
 - Coordinator memory entries (episodic)
 - Coordinator handoff documents

@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The exact eight-step rehydration order is not on the plan's declared normative surface. contracts/README.md says the behavioral contract is the skill-workflow delta plus design.md D1\u2013D4, but the numbered eight-step sequence lives only in the separate Rehydration Algorithm section (design.md:39-46). Decision D3 (design.md:22-25) collapses roadmap.yaml/cycle-ledger validation into checkpoint verification and never names step 8 (Rebuild projections). The OpenSpec scenario Fresh supervisor session resumes active work (specs/skill-workflow/spec.md:23-28) only requires locator use, checkpoint-before-loop-state, and advisory-after-authoritative. Consequence: a future editor can drop steps 2 or 8 from the guide while remaining scenario-green under the contracts pointer, recreating the projection/authority ambiguity this change exists to prevent.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Update contracts/README.md to cite the Rehydration Algorithm (or an equivalently numbered D-decision) as normative; tighten D3 so it names all eight steps; and extend the Fresh supervisor session scenario with AND clauses for roadmap definition before checkpoint verification and projection rebuild last.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md",
+      "line_range": {
+        "start": 1,
+        "end": 5
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: proposal.md What Changes requires documenting each class's mutation boundary, but design.md D1 (line 11), the inventory requirement in specs/skill-workflow/spec.md:5, and Success Criteria (proposal.md:67) all omit that field and list only path, holder/scope, writer, authority, consumers, and missing/stale behavior. Consequence: an implementer following the proposal bullet will add a column the structural contract (tasks.md 1.1 required ownership fields / D1) does not expect, or an implementer following D1/spec will omit a field the proposal still claims is in scope.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Either remove mutation boundary from proposal.md What Changes, or add it to design.md D1, the inventory SHALL clause, Success Criteria, and the task 1.1/2.1 ownership-field coverage so all four surfaces agree.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/proposal.md",
+      "line_range": {
+        "start": 11,
+        "end": 12
+      }
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: proposal.md Impact lists the guide, documentation index, six skill sources, runtime mirrors, focused tests, and the skill-workflow capability, but work-packages.yaml locks.files/write_allow also include skills/pyproject.toml (task 1.3 CI registration) and docs/decisions/skill-workflow.md (D5 derived decision index). Consequence: reviewers comparing the proposal declaration to the package allowlist see an unexplained scope expansion, and a later archive/diff audit cannot tell those two writes were intentional plan scope.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Add skills/pyproject.toml and the regenerated docs/decisions/skill-workflow.md projection to proposal.md Impact (and a brief What Changes bullet for CI registration of the structural suite).",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/proposal.md",
+      "line_range": {
+        "start": 55,
+        "end": 62
+      }
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Single sequential package wp-state-artifacts-docs with depends_on: [] is the right decomposition: guide prose, six canonical skill sources, generated mirrors, and one structural test module share one semantic drift boundary, with an explicit write_allow and denies on agent-coordinator and apps.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action; keep the single-package DAG and allowlist.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 26,
+        "end": 88
+      }
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Missing-canonical-state behavior is fail-loud and non-synthesizing: Canonical state is missing requires reporting degraded/inconsistent state and forbids reconstructing authoritative phase state from handoff, learning log, phase record, or queue, matching design.md D3 and the ri-09 motivation in proposal.md.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No action; retain the degrade-don't-invent rule.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 30,
+        "end": 34
+      }
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Non-goals and contracts/README.md correctly exclude artifact schema, runtime state machine, coordinator API, persistence, and rename/migration work, so the documentation-only change cannot be misread as authorizing behavioral rewrites.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action; keep runtime and schema changes out of scope.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/proposal.md",
+      "line_range": {
+        "start": 18,
+        "end": 23
+      }
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Advisory-versus-authoritative conflicts are observable by requirement: Advisory state conflicts with authoritative state requires the authoritative record to win and the conflict to be reported rather than silently merged, giving operators a detectable signal when handoffs or learnings disagree with loop/checkpoint state.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "No action; keep conflict reporting as a required outcome.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 13,
+        "end": 17
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "change_id": "rescope-merge-pull-requests-to-plan-execute",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "grok"
+  ]
+}

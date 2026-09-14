@@ -10,17 +10,41 @@
       "enum": [1, 2, 3],
       "description": "Schema version. v1 = legacy; v2 enables phase_mapping; v3 adds model_aliases / tier models."
     },
+    "local_host_class": {
+      "type": ["object", "null"],
+      "required": ["name", "active_params_ceiling_b"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "active_params_ceiling_b": {"type": "number", "exclusiveMinimum": 0},
+        "dense_params_limit_b": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
     "model_aliases": {
       "type": ["object", "null"],
-      "description": "Optional map of alias name to a {premium, standard, economy} tier→model mapping (schema_version 3).",
+      "description": "Sole authored tier→model(+thinking) map per provider (schema_version 3).",
+      "properties": {
+        "local": {
+          "type": "object",
+          "required": ["standard", "economy"],
+          "additionalProperties": false,
+          "properties": {
+            "frontier": {"$ref": "#/$defs/localTierEntry"},
+            "premium": {"$ref": "#/$defs/localTierEntry"},
+            "standard": {"$ref": "#/$defs/localTierEntry"},
+            "economy": {"$ref": "#/$defs/localTierEntry"}
+          }
+        }
+      },
       "additionalProperties": {
         "type": "object",
         "required": ["premium", "standard", "economy"],
         "additionalProperties": false,
         "properties": {
-          "premium": {"type": "string", "minLength": 1},
-          "standard": {"type": "string", "minLength": 1},
-          "economy": {"type": "string", "minLength": 1}
+          "frontier": {"$ref": "#/$defs/tierEntry"},
+          "premium": {"$ref": "#/$defs/tierEntry"},
+          "standard": {"$ref": "#/$defs/tierEntry"},
+          "economy": {"$ref": "#/$defs/tierEntry"}
         }
       }
     },
@@ -39,8 +63,8 @@
         "properties": {
           "model": {
             "type": "string",
-            "enum": ["premium", "standard", "economy", "opus", "sonnet", "haiku"],
-            "description": "Primary model for this archetype — a tier (premium/standard/economy) or a legacy model name."
+            "enum": ["frontier", "premium", "standard", "economy", "opus", "sonnet", "haiku"],
+            "description": "Primary model tier for this archetype (or a legacy Claude alias)."
           },
           "system_prompt": {
             "type": "string",
@@ -48,7 +72,7 @@
           },
           "write_capable": {
             "type": "boolean",
-            "description": "Whether this archetype may write files/artifacts. Required on every archetype (no implicit default). Write-capable autopilot phases must resolve to an archetype with write_capable: true."
+            "description": "Whether this archetype may write files/artifacts. Required on every archetype (no implicit default)."
           },
           "escalation": {
             "type": ["object", "null"],
@@ -56,24 +80,11 @@
             "properties": {
               "escalate_to": {
                 "type": "string",
-                "enum": ["premium", "standard", "economy", "opus", "sonnet", "haiku"],
-                "description": "Model/tier to escalate to when complexity thresholds are exceeded."
+                "enum": ["frontier", "premium", "standard", "economy", "opus", "sonnet", "haiku"]
               },
-              "max_write_dirs": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Escalate when write_allow spans more than this many directory prefixes."
-              },
-              "max_dependencies": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Escalate when package has more than this many cross-module dependencies."
-              },
-              "loc_threshold": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Escalate when package loc_estimate exceeds this threshold."
-              }
+              "max_write_dirs": {"type": "integer", "minimum": 1},
+              "max_dependencies": {"type": "integer", "minimum": 1},
+              "loc_threshold": {"type": "integer", "minimum": 1}
             },
             "required": ["escalate_to"],
             "additionalProperties": false
@@ -84,7 +95,7 @@
     },
     "phase_mapping": {
       "type": ["object", "null"],
-      "description": "Optional per-phase archetype resolution (schema_version 2+). Maps a non-terminal autopilot phase to an archetype (+ optional signals).",
+      "description": "Optional per-phase archetype resolution (schema_version 2+).",
       "additionalProperties": {
         "type": "object",
         "required": ["archetype"],
@@ -103,5 +114,32 @@
       }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "tierEntry": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {
+          "type": "object",
+          "required": ["model"],
+          "additionalProperties": false,
+          "properties": {
+            "model": {"type": "string", "minLength": 1},
+            "thinking": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "localTierEntry": {
+      "type": "object",
+      "required": ["model"],
+      "additionalProperties": false,
+      "properties": {
+        "model": {"type": "string", "minLength": 1, "maxLength": 128},
+        "total_params_b": {"type": "number", "exclusiveMinimum": 0},
+        "active_params_b": {"type": "number", "exclusiveMinimum": 0},
+        "reviewed": {"type": "string", "minLength": 1}
+      }
+    }
+  }
 }

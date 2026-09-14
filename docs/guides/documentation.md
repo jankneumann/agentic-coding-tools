@@ -3,6 +3,7 @@
 ## Foundational
 
 Read these before contributing infrastructure changes:
+- [Durable State Artifacts](state-artifacts.md) — Canonical holders, writers, authority boundaries, failure behavior, and fresh-session rehydration order.
 - [Parallel Agentic Development](../parallel-agentic-development.md) — Worktree isolation, scope discipline, parallel DAG execution (the canonical multi-agent safety reference)
 - [Mental Models](../mental-models.md) — Conceptual framework: orchestrators/workers/validators, scope isolation, structured handoffs
 - [Skills Workflow](../skills-workflow.md) — Stage-by-stage workflow guide and design principles

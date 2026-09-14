@@ -54,12 +54,18 @@ _DISPATCHING_PHASES: tuple[str, ...] = (
 # (Claude 4 series base context). Operators can override via --context-window.
 _DEFAULT_CONTEXT_WINDOWS: dict[str, int] = {
     "opus": 200_000,
+    "fable": 200_000,
     "sonnet": 200_000,
     "haiku": 200_000,
+    "gpt-5.6-sol": 400_000,
+    "gpt-5.6-terra": 400_000,
+    "gpt-5.6-luna": 400_000,
     "gpt-5.5": 400_000,
     "gpt-5.4": 400_000,
     "gpt-5.4-mini": 400_000,
     "grok-4.5": 256_000,
+    "gemini-3.8-flash-high": 200_000,
+    "nvidia/nemotron-3-ultra-550b-a55b": 256_000,
     "qwen/qwen3-coder-plus": 256_000,
     "qwen/qwen3-coder": 256_000,
     "qwen/qwen3-coder-flash": 256_000,
@@ -69,40 +75,80 @@ _DEFAULT_CONTEXT_WINDOWS: dict[str, int] = {
     "default": 200_000,
 }
 
-# Phase → fallback model when the bridge can't resolve. Pulled from the
-# default phase_mapping in archetypes.yaml so the CI gate measures the
-# realistic worst case.
-_FALLBACK_MODEL_BY_PHASE: dict[str, str] = {
-    "PLAN_ITERATE":  "opus",
-    "PLAN_REVIEW":   "opus",
-    "IMPLEMENT":     "opus",   # implementer escalates to opus on size signals
-    "IMPL_ITERATE":  "opus",
-    "IMPL_REVIEW":   "opus",
-    "VALIDATE":      "sonnet",
-    "VAL_REVIEW":    "opus",
-}
+def _load_roster_module() -> Any:
+    import importlib.util
 
-# Static fallback tier→model map for context-window reporting. The
-# antigravity provider is intentionally absent: its model family resolves
-# through the coordinator's DEFAULT_PROVIDER_MODEL_MAP at runtime, and its
-# slugs are not duplicated here. When absent, resolution falls through to the
-# legacy Claude-family model and the conservative default context window.
-_PROVIDER_MODEL_BY_TIER: dict[str, dict[str, str]] = {
-    "claude_code": {"premium": "opus", "standard": "sonnet", "economy": "haiku"},
-    "codex": {"premium": "gpt-5.5", "standard": "gpt-5.4", "economy": "gpt-5.4-mini"},
-    "grok": {
-        # Single model across three reasoning-effort budgets (E5).
-        "premium": "grok-4.5",
-        "standard": "grok-4.5",
-        "economy": "grok-4.5",
-    },
-    "pi": {
-        "premium": "qwen/qwen3-coder-plus",
-        "standard": "qwen/qwen3-coder",
-        "economy": "qwen/qwen3-coder-flash",
-    },
-}
-_LEGACY_TO_TIER = {"opus": "premium", "sonnet": "standard", "haiku": "economy"}
+    shared = Path(__file__).resolve().parents[2] / "shared" / "archetype_roster.py"
+    spec = importlib.util.spec_from_file_location("archetype_roster", shared)
+    if not spec or not spec.loader:
+        raise ImportError(f"cannot load archetype_roster from {shared}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
+
+
+def _provider_model_by_tier() -> dict[str, dict[str, str]]:
+    """Tier→model ids from archetypes.yaml (sole authored map)."""
+    roster = _load_roster_module()
+    out: dict[str, dict[str, str]] = {}
+    for provider, tiers in roster.model_aliases().items():
+        if not isinstance(tiers, dict):
+            continue
+        mapped: dict[str, str] = {}
+        for tier, entry in tiers.items():
+            model = roster.tier_entry_model(entry)
+            if model:
+                mapped[str(tier)] = model
+        if mapped:
+            out[str(provider)] = mapped
+    return out
+
+
+def _fallback_model_by_phase() -> dict[str, str]:
+    """Worst-case model per phase from phase_mapping + archetype tiers."""
+    roster = _load_roster_module()
+    raw = roster.load_archetypes_raw()
+    archetypes = raw.get("archetypes") or {}
+    mapping = raw.get("phase_mapping") or {}
+    claude = roster.model_aliases().get("claude_code") or {}
+    out: dict[str, str] = {}
+    for phase, entry in mapping.items():
+        if not isinstance(entry, dict):
+            continue
+        arch_name = entry.get("archetype")
+        arch = archetypes.get(arch_name) or {}
+        tier = arch.get("model") if isinstance(arch, dict) else None
+        # Prefer escalated premium when the archetype declares escalation —
+        # CI gate measures the realistic worst case.
+        if isinstance(arch, dict) and isinstance(arch.get("escalation"), dict):
+            tier = arch["escalation"].get("escalate_to") or tier
+        if not isinstance(tier, str):
+            continue
+        model = roster.tier_entry_model(claude.get(tier))
+        if model:
+            out[str(phase)] = model
+    return out
+
+
+# Derived at import from archetypes.yaml — do not hand-edit.
+try:
+    _PROVIDER_MODEL_BY_TIER: dict[str, dict[str, str]] = _provider_model_by_tier()
+    _FALLBACK_MODEL_BY_PHASE: dict[str, str] = _fallback_model_by_phase()
+except Exception as _roster_exc:  # noqa: BLE001 — keep CI importable
+    _PROVIDER_MODEL_BY_TIER = {
+        "claude_code": {"premium": "fable", "standard": "sonnet", "economy": "haiku"},
+    }
+    _FALLBACK_MODEL_BY_PHASE = {
+        "PLAN_REVIEW": "fable",
+        "IMPL_REVIEW": "fable",
+        "VALIDATE": "sonnet",
+    }
+    print(
+        f"WARN: token_budget_check could not load archetypes.yaml roster: {_roster_exc}",
+        file=sys.stderr,
+    )
+
+_LEGACY_TO_TIER = {"opus": "premium", "sonnet": "standard", "haiku": "economy", "fable": "premium"}
 
 
 @dataclass
