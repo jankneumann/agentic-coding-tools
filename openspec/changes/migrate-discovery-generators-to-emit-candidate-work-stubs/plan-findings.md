@@ -83,3 +83,19 @@ Plan revision 5 passes strict OpenSpec validation, package schema/DAG/scope/over
 | 8 | infrastructure | high | Antigravity had a flag mismatch, Codex repair remained schema-invalid, and Pi timed out; Claude and Grok supplied substantive 2/5 quorum. | Preserved every terminal result; harness failures did not count as reviews. |
 
 Plan revision 7 resolves every confirmed finding and the operator-approved immutable source-identity decision. It is ready for the final all-harness convergence round.
+
+## Recovery Review Round 3 and Operator Adjudication (2026-09-13)
+
+All five configured local harnesses were attempted. Claude Code, Codex, and Grok produced schema-valid substantive reviews (3/5 quorum); Antigravity failed its output-format preflight and Pi returned schema-invalid string IDs. The terminal gate identified four unconfirmed high-impact judgment findings and one confirmed testability finding.
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | spec gap | high | Three producer sidecars had no hand-edit-free merge path. | **Operator accepted:** `--candidate-work PATH` is repeatable; the shared loader validates each file, merges in argument order, and rejects union duplicates. |
+| 2 | resilience | high | Generic adjacent filenames could overwrite another producer batch. | **Operator accepted:** defaults are producer-specific and an explicit destination containing another generator fails unchanged. |
+| 3 | correctness | high | Registry lookup order could resolve lifecycle duplicates inconsistently between ranking and intake. | **Operator accepted:** one shared resolver collapses terminal lineage records, preserves exactly one live match, and fails multiple live matches. |
+| 4 | correctness | high | Mutable titles still influenced derived IDs despite immutable hashes. | **Operator accepted:** both derived base and hash use only the immutable source ID, with an exact ASCII slug algorithm and fallback. |
+| 5 | testability | medium | Cross-producer atomic/deterministic scenarios and refine-roadmap verification were incomplete. | **Fixed:** every producer test owns those scenarios and the roadmap package runs both plan-roadmap and refine-roadmap suites. |
+| 6 | consistency | medium | Existing-roadmap item-ID ownership and `source_proposal` were ambiguous. | **Fixed:** the helper assigns the next free ID from a fresh load immediately before preview; refine validates it; `source_proposal` is `provenance.source_artifact`. |
+| 7 | consistency | low | Pretty-print serialization and the resolved historical question were stale or incomplete. | **Fixed:** contracts pin `indent=2`, sorted keys, and trailing newline; Plan Iteration 3 is marked resolved. |
+
+Plan revision 8 incorporates the terminal operator adjudication and is approved for implementation.

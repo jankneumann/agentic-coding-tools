@@ -13,6 +13,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 0.2 Test and implement the shared candidate-work validator, canonical batch
       serializer, duplicate guard, and atomic writer; retain the ri-11 CLI wrapper;
       declare every new shared-runtime consumer in `skills/install-manifest.json` — **S**
+      **Spec scenarios**: sw *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Explicit sidecar destination collides*
       **Design decisions**: D1, D2
       **Dependencies**: 0.1
 - [ ] 0.3 Document sidecar paths, mapping tables, stable ordering, and intake
@@ -26,7 +27,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 1.1 Test: bug-scrub maps an eligible finding to a schema-valid stub with stable
       provenance/common priority/exhaustive effort/normalized slug, writes byte-stable
       JSON, and leaves no partial file on validation failure — **S**
-      **Spec scenarios**: sw *Bug-scrub promotes a finding*, *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Producer prefixes are normalized*, *Derived candidate identity is stable*, *Requested candidate discovery returns no eligible entries*
+      **Spec scenarios**: sw *Bug-scrub promotes a finding*, *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Producer prefixes are normalized*, *Derived candidate identity is stable*, *Bug-scrub effort rejects unknown categories*, *Explicit sidecar destination collides*, *Requested candidate discovery returns no eligible entries*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.2 Implement bug-scrub candidate projection, CLI/output wiring, and canonical skill documentation — **S**
@@ -34,7 +35,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 1.3 Test: improve-harness maps a ranked gap to a schema-valid stub and retains the
       legacy markdown proposal helper/flag, decouples effort from severity, and keeps
       stdout-only mode write-free — **S**
-      **Spec scenarios**: sw *Improve-harness emits a capability-gap candidate*, *Producer prefixes are normalized*, *Derived candidate identity is stable*, *Improve-harness effort is independent of urgency*, *Requested candidate discovery returns no eligible entries*
+      **Spec scenarios**: sw *Improve-harness emits a capability-gap candidate*, *Producer prefixes are normalized*, *Derived candidate identity is stable*, *Improve-harness effort is independent of urgency*, *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Explicit sidecar destination collides*, *Requested candidate discovery returns no eligible entries*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.4 Implement improve-harness candidate projection/output, compatibility wrapper, and canonical skill documentation — **S**
@@ -42,7 +43,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 1.5 Test: explore-feature projects only untracked shortlist items, preserves rich
       opportunities, normalizes change-ID prefixes, separates prose blockers from exact
       dependency IDs, validates the sidecar, and skips existing/scaffolded entries — **S**
-      **Spec scenarios**: sw *Explore-feature emits shortlist candidates*, *Producers assign comparable priority*, *Derived candidate identity is stable*
+      **Spec scenarios**: sw *Explore-feature emits shortlist candidates*, *Producers assign comparable priority*, *Derived candidate identity is stable*, *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Explicit sidecar destination collides*, *Requested candidate discovery returns no eligible entries*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.6 Implement explore-feature projection helper and canonical skill output contract — **S**
@@ -51,7 +52,8 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 
 ## Phase 2 — candidate prioritization
 
-- [ ] 2.1 Test: a mixed three-generator batch is validated, ranked exactly once per
+- [ ] 2.1 Test: three producer sidecars supplied through repeatable inputs are validated, merged, and
+      ranked exactly once per
       stub on the shared five-band priority scale, retains provenance, safely renders
       inert source text, topologically orders in-batch edges with blocked propagation,
       has stable ties, and fails closed on malformed, cyclic, or duplicate input — **S**
@@ -84,8 +86,8 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 
 ## Phase 4 — integration and documentation
 
-- [ ] 4.1 Test: exercise representative outputs from all three producers through mixed
-      ranking and approved-stub roadmap intake without hand-edited intermediate data — **S**
+- [ ] 4.1 Test: exercise representative outputs from all three producers through repeatable
+      candidate-work inputs, deterministic mixed ranking and approved-stub roadmap intake without hand-edited intermediate data — **S**
       **Spec scenarios**: sw *Mixed producer batch is ranked*; ro *Approved stub creates a new-roadmap item*, *Existing-roadmap request is previewable*
       **Dependencies**: 2.2, 3.3
 - [ ] 4.2 Run `skills/install.sh` once to sync canonical skill/shared sources into

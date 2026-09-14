@@ -10,7 +10,7 @@ without hand-editing intermediate artifacts.
 
 - **WHEN** an approved canonical stub targets a new roadmap and supplies measurable acceptance outcomes, a roadmap ID, and a capability
 - **THEN** plan-roadmap SHALL create a schema-valid roadmap item
-- **AND** it SHALL create a complete schema-version-1 roadmap envelope using candidate provenance as `source_proposal`
+- **AND** it SHALL create a complete schema-version-1 roadmap envelope using `provenance.source_artifact` as `source_proposal`
 - **AND** the item SHALL preserve title, rationale, effort, priority, and exact suggested change ID
 - **AND** the scaffolded spec delta SHALL use the approved capability
 - **AND** the item's description SHALL retain candidate provenance
@@ -31,13 +31,14 @@ without hand-editing intermediate artifacts.
 
 #### Scenario: Candidate dependencies retain explicit resolution
 
-- **WHEN** a stub dependency resolves to a target-roadmap item, a unique item in another active roadmap, or a completed archived change
-- **THEN** plan-roadmap SHALL map it respectively to the local item ID, the canonical external roadmap item reference, or an explicit satisfied-archive rationale entry
+- **WHEN** the shared resolver groups exact dependency matches across candidate, roadmap, active-change, and archive sources
+- **THEN** plan-roadmap SHALL collapse duplicate terminal lifecycle records and record an all-terminal group as satisfied rationale
+- **AND** exactly one live target-roadmap item SHALL map to its local item ID and exactly one live item in another roadmap SHALL map to the canonical external reference
 - **AND** the preview SHALL show that conversion without silently dropping the source change ID
 
 #### Scenario: Candidate dependency cannot be resolved
 
-- **WHEN** a stub dependency is unknown, ambiguous, or points to active work without a unique roadmap item
+- **WHEN** a stub dependency is unknown, has multiple live matches, or points to active work without a unique roadmap item
 - **THEN** plan-roadmap MUST fail with the unresolved dependency name
 - **AND** it MUST NOT silently drop or rewrite the dependency
 
@@ -50,6 +51,6 @@ without hand-editing intermediate artifacts.
 #### Scenario: Existing-roadmap request is previewable
 
 - **WHEN** one approved stub and nonblank outcomes target an existing roadmap
-- **THEN** the request SHALL contain exactly one add operation and the next free item ID
-- **AND** refine-roadmap preview SHALL accept it without direct mutation
+- **THEN** plan-roadmap SHALL freshly load the workspace and place exactly one add operation with the next free item ID into the request immediately before preview
+- **AND** refine-roadmap preview SHALL validate that helper-assigned ID without direct mutation
 - **AND** apply SHALL refuse a stale preview base if the next item ID or priority changed
