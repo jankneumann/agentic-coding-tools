@@ -36,6 +36,8 @@ from models import (  # type: ignore[import-untyped]  # noqa: E402
     validate_delegated_dispatch_attempt,
 )
 from orchestrator import (  # type: ignore[import-untyped]  # noqa: E402
+    _batch_attempts,
+    _has_current_effects_applied,
     apply_delegated_batch,
     prepare_delegated_batch,
 )
@@ -923,7 +925,6 @@ class ExecutionAdapter:
         manager.save(checkpoint)
         return request
 
-    @_serialized_transition
     def apply(
         self,
         workspace: Path,
@@ -965,16 +966,49 @@ class ExecutionAdapter:
             if self.result_file_observer is not None:
                 self.result_file_observer(temporary_path)
             bounded_results = json.loads(temporary_path.read_text())
-            return apply_delegated_batch(
-                workspace,
-                batch_id,
-                bounded_results,
-                dispatch_fn,
-                repo_root=repo_root,
+            with workspace_state_lock(workspace):
+                applied = apply_delegated_batch(
+                    workspace,
+                    batch_id,
+                    bounded_results,
+                    dispatch_fn,
+                    repo_root=repo_root,
+                )
+            applied["escalation_route"] = self.route_parked_escalations(
+                workspace, batch_id=batch_id, repo_root=repo_root
             )
+            return applied
         finally:
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
+
+    def route_parked_escalations(
+        self,
+        workspace: Path,
+        *,
+        batch_id: str,
+        repo_root: Path,
+        evaluator: Any = None,
+    ) -> dict[str, Any]:
+        """Route only fully-applied policy pauses; partial batches are never gated."""
+        manager = CheckpointManager(workspace)
+        checkpoint = manager.load()
+        batch = _batch_attempts(checkpoint, batch_id)
+        if not all(_has_current_effects_applied(attempt) for attempt in batch):
+            raise ExecutionStateError("delegated batch is not fully effects-applied")
+        routed: list[str] = []
+        already_routed: list[str] = []
+        for candidate in sorted(batch, key=lambda attempt: str(attempt["dispatch_id"])):
+            if candidate.get("status") == "prepared" and candidate.get("continuation", {}).get("kind") == "policy_pause":
+                already_routed.append(candidate["dispatch_id"])
+                continue
+            if candidate.get("status") != "parked" or candidate.get("parked", {}).get("kind") != "policy_pause":
+                continue
+            gate_router.resolve_parked(
+                candidate, workspace=workspace, repo_root=repo_root, adapter=self, evaluator=evaluator
+            )
+            routed.append(candidate["dispatch_id"])
+        return {"batch_id": batch_id, "routed_dispatch_ids": routed, "already_routed_dispatch_ids": already_routed}
 
     def _validate_exact_evidence(
         self,

@@ -26,7 +26,7 @@ for script_dir in (_RUNTIME_SCRIPTS, _SCRIPTS):
 from models import Effort, ItemStatus, Roadmap, RoadmapItem  # noqa: E402
 import execution  # noqa: E402
 import gate_router  # noqa: E402
-from execution import ExecutionAdapter  # noqa: E402
+from execution import ExecutionAdapter, ExecutionStateError  # noqa: E402
 from shared.trust_posture import Gate  # noqa: E402
 
 
@@ -1433,3 +1433,25 @@ def test_adapter_source_has_no_model_provider_or_network_boundary() -> None:
         for alias in node.names
     }
     assert imported.isdisjoint({"anthropic", "openai", "google", "litellm", "httpx", "requests"})
+
+
+def test_route_parked_escalations_rejects_partial_batch_before_gate_evaluation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        gate_router,
+        "resolve_parked",
+        lambda *_args, **_kwargs: calls.append("evaluated"),
+    )
+
+    with pytest.raises(ExecutionStateError, match="fully effects-applied"):
+        adapter.route_parked_escalations(
+            workspace, batch_id=request["dispatch_id"].split(":", 1)[0], repo_root=repo
+        )
+
+    assert calls == []
