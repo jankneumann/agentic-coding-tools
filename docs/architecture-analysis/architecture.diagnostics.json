@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T03:18:47+00:00",
+  "generated_at": "2026-09-14T05:30:41+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -25229,13 +25229,94 @@
       "file": "worktrees_view.py",
       "line": 41,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'IF' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.agent_sessions.IF",
+      "file": "001_core_schema.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'IF' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.work_queue.IF",
+      "file": "001_core_schema.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'IF' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.handoff_documents.IF",
+      "file": "002_handoff_documents.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'IF' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.agent_profiles.IF",
+      "file": "007_agent_profiles.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'IF' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.audit_log.IF",
+      "file": "008_audit_log.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'IF' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.cedar_policies.IF",
+      "file": "010_cedar_policy_store.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'IF' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.code_search_registry.IF",
+      "file": "028_code_search_registry.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'CONSTRAINT' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.code_search_indexes.CONSTRAINT",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'IF' uses PascalCase but most columns use snake_case",
+      "node_id": "pg:public.public.code_search_indexes.IF",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "line": 1,
+      "suggestion": "Rename to follow snake_case convention"
     }
   ],
   "summary": {
-    "total_findings": 2803,
+    "total_findings": 2812,
     "errors": 0,
     "warnings": 2714,
-    "info": 89,
+    "info": 98,
     "entrypoints_checked": 97,
     "flows_with_coverage": 0,
     "flows_without_coverage": 1366

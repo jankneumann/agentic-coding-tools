@@ -81,7 +81,7 @@ Closed the material semantic gaps in the ri-12 plan. The refined contracts now d
 - Run an independent vendor confirmation review of plan revision 3 before implementation.
 
 ### Relevant Files
-- [original round-1 consensus](https://github.[REDACTED:high-entropy].json) — round-1 five-vendor consensus
+- Original round-1 five-vendor consensus was an ephemeral review artifact and is not part of the archive.
 - `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md` — remediated executable contracts
 - `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml` — revision-3 DAG, scopes, and gates
 
@@ -112,8 +112,8 @@ Five-vendor consensus met quorum and identified seven blocking findings. All mat
 - Run another independent confirmation review against plan revision 4 before implementation.
 
 ### Relevant Files
-- [original round-2 consensus](https://github.[REDACTED:high-entropy].json) — round-2 no-quorum consensus
-- [original round-2 manifest](https://github.[REDACTED:high-entropy].json) — interrupted dispatch record
+- Original round-2 no-quorum consensus was an ephemeral review artifact and is not part of the archive.
+- Original round-2 interrupted manifest was an ephemeral review artifact and is not part of the archive.
 - `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md` — revision-4 exact mappings
 
 ### Context
@@ -284,4 +284,30 @@ Implemented ri-12 candidate-work sidecars, deterministic multi-producer ranking,
 
 ### Context
 ri-12 validation completed with converged multi-vendor evidence and all canonical repository gates green; only the existing main-branch autopilot failures tracked by GitHub issue 440 remain outside this change.
+
+---
+
+## Phase: Cleanup (2026-09-14)
+
+**Agent**: codex-supervisor | **Session**: N/A
+
+### Decisions
+1. **Use rebase merge** — Preserve the reviewed conventional commit history for an agent-authored OpenSpec change.
+2. **No task migration** — Every task in tasks.md is checked and no needs-user ledger exists.
+3. **Archive after merge** — Merge canonical spec deltas and close the ri-12 lifecycle before roadmap reconciliation.
+4. **No staged rollout** — The declared surface is non-deployable skills, documentation, and OpenSpec artifacts; no traffic gate exists or applies.
+
+### Completed Work
+- exact-head CI
+- gate-enforced rebase merge
+- architecture refresh
+- task migration check
+
+### Next Steps
+- archive the OpenSpec change
+- reconcile roadmap item ri-12
+- recover roadmap item ri-09
+
+### Context
+PR #540 landed by gate-enforced rebase after exact-head CI and security checks passed. All tasks were complete, no migration was required, and the non-deployable change proceeds directly to archive with rollout stages not applicable.
 

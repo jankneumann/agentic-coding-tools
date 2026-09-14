@@ -27,14 +27,14 @@
 
 ---
 
-## 2026-09-10 — migrate-discovery-generators-to-emit-candidate-work-stubs
+## 2026-09-10 — 2026-09-14-migrate-discovery-generators-to-emit-candidate-work-stubs
 
 ### Phase: Plan
 
 **Keep roadmap mutation behind existing transactions** — Plan-roadmap maps approved stubs, while new-roadmap or refine-roadmap remains the writer.
 
 - Status: `active`
-- Source: [openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md](/openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-14-migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md](/openspec/changes/archive/2026-09-14-migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md) (D2)
 
 ---
 
