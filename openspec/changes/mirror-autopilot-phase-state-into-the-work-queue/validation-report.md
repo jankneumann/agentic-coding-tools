@@ -1,7 +1,7 @@
 # Validation Report: mirror-autopilot-phase-state-into-the-work-queue
 
-**Date**: 2026-09-14T03:58:34-04:00
-**Validated commit**: `5693a3206ab0ffb0a232c69f569629f975be1635`
+**Date**: 2026-09-14T04:41:43-04:00
+**Validated commit**: `ac220f7b5c26da17e28be8ce785bcf9fa1ae906e`
 **Branch**: `openspec/recover-ri-09-work-queue-projection`
 **Surface**: non-deployable change with locally validated API, PostgreSQL, and Kanban paths
 
@@ -23,8 +23,8 @@
 
 - 436 Autopilot tests passed.
 - 96 coordination-bridge tests passed.
-- 143 coordinator queue, issue, projection-visibility, and API tests passed.
-- 18 focused live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed; the broader earlier live run passed 30 tests.
+- 129 final coordinator work-queue, issue, projection-visibility, and API tests passed; the earlier broader coordinator run passed 143 tests.
+- 22 final live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed; the broader earlier live run passed 30 tests.
 - 224 Kanban tests passed with 6 declared skips; the production build passed.
 - 4,763 canonical skills tests passed with 13 declared skips.
 - All 90 OpenSpec artifacts passed strict validation.
