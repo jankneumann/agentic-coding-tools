@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 import bug_candidate_work as projection
 from bug_candidate_work import project_candidate_work, write_projection
 from candidate_work import load_candidate_work, write_candidate_work
-from models import BugScrubReport, Finding
+from models import BugScrubReport, Finding, FindingOrigin
 
 
 def _report(*findings: Finding) -> BugScrubReport:
@@ -40,6 +40,10 @@ def _finding(**overrides: object) -> Finding:
     }
     values.update(overrides)
     return Finding(**values)  # type: ignore[arg-type]
+
+
+def _project(finding: Finding) -> list[dict[str, object]]:
+    return project_candidate_work(_report(finding), "report.json")
 
 
 def test_projects_every_filtered_finding_with_exact_mappings(tmp_path: Path) -> None:
@@ -271,6 +275,102 @@ def test_repeated_equivalent_findings_are_distinct_and_stable_after_line_shifts(
         shifted_by_finding["ruff-E501-same.py:11"],
         shifted_by_finding["ruff-E501-same.py:21"],
     ]
+
+
+def test_semantic_detail_preserves_message_backslashes() -> None:
+    with_backslashes = _project(
+        _finding(
+            id="stable-finding",
+            source="custom",
+            file_path=r"src\test.py",
+            line=None,
+            detail=r"src\test.py:12: error: use C:\temp\value",
+        )
+    )
+    with_slashes = _project(
+        _finding(
+            id="stable-finding",
+            source="custom",
+            file_path=r"src\test.py",
+            line=None,
+            detail=r"src\test.py:12: error: use C:/temp/value",
+        )
+    )
+
+    assert (
+        with_backslashes[0]["suggested_change_id"]
+        != with_slashes[0]["suggested_change_id"]
+    )
+
+
+def test_leading_whitespace_before_full_path_coordinate_is_ignored() -> None:
+    prefixed = _project(
+        _finding(
+            id="stable-finding",
+            source="custom",
+            file_path="src/test.py",
+            line=None,
+            detail=" \t src/test.py:12: error: failure",
+        )
+    )
+    plain = _project(
+        _finding(
+            id="stable-finding",
+            source="custom",
+            file_path="src/test.py",
+            line=None,
+            detail="error: failure",
+        )
+    )
+
+    assert prefixed[0]["suggested_change_id"] == plain[0]["suggested_change_id"]
+
+
+def test_none_paths_and_origins_are_empty_in_base_identity() -> None:
+    finding = _finding(
+        file_path=None,
+        origin=FindingOrigin(change_id=None, artifact_path=None),
+    )
+
+    identity = projection._base_semantic_identity(finding)
+
+    assert identity["file_path"] == ""
+    assert identity["origin_artifact_path"] == ""
+    assert identity["origin_change_id"] == ""
+
+
+@pytest.mark.parametrize(
+    ("source", "finding_id"),
+    [
+        ("pytest", "pytest-Test  One"),
+        ("security", "sec-SCAN  42"),
+        ("custom", "custom  stable"),
+    ],
+)
+def test_stable_source_keys_preserve_exact_string(
+    source: str, finding_id: str
+) -> None:
+    assert projection._source_key(_finding(source=source, id=finding_id)) == finding_id
+
+
+def test_occurrence_fallback_uses_raw_id_and_omits_redundant_origin_path() -> None:
+    finding = _finding(
+        id="fallback  exact",
+        line=None,
+        detail="No coordinate",
+        origin=FindingOrigin(
+            change_id="change-id",
+            artifact_path="path/identical/within/group.json",
+            task_number="task-7",
+        ),
+    )
+
+    assert projection._source_position(finding) == (
+        True,
+        0,
+        "task-7",
+        "fallback  exact",
+    )
 
 
 def test_semantic_source_id_hash_collision_fails_closed(

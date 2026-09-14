@@ -62,16 +62,18 @@ Bug-scrub uses `bug-finding-<semantic-hash>`. It first builds a base semantic
 identity containing exactly `source`, `source_key`, `category`, `file_path`, `detail`,
 `origin_change_id`, and `origin_artifact_path`. Source and category are
 whitespace-collapsed and lowercased. Paths only replace backslashes with forward
-slashes, preserving all whitespace. Detail removes only an exact leading full
-`<file_path>:<numeric-line>:` prefix, independent of `finding.line`, never a basename
-prefix, and then whitespace-collapses. `source_key` preserves the normalized collector
-finding key, except ruff/mypy/markers strip trailing `:<line>`,
-architecture/deferred strip trailing `-<ordinal>`, and OpenSpec uses `openspec` because
-detail/path carry its semantic key; pytest, security, and other stable keys remain
-intact. Empty origin values are empty strings.
+slashes, preserving internal whitespace; missing paths map to empty strings. Detail
+lstrips leading whitespace before attempting to remove an exact full
+`<file_path>:<numeric-line>:` prefix, independent of `finding.line` and never a
+basename prefix. Only prefix comparison slash-normalizes; message text preserves its
+backslashes before the remaining semantic detail whitespace-collapses. `source_key`
+preserves the exact collector finding key, except ruff/mypy/markers strip trailing
+`:<line>`, architecture/deferred strip trailing `-<ordinal>`, and OpenSpec uses
+`openspec` because detail/path carry its semantic key; pytest, security, and other
+stable keys remain exact. Missing origin values are empty strings.
 
 Equivalent base identities form an occurrence group. Members sort by
-`(line_missing, line, origin_artifact_path, origin_task_number, original_finding_id,
+`(line_missing, line, origin_task_number, raw str(original_finding_id),
 report_index)`, where line uses integer `finding.line`, then the stripped full-path
 detail coordinate when metadata is absent. One-based `occurrence` is added as the
 eighth and final semantic field. The first 16 lowercase SHA-256 hex characters over

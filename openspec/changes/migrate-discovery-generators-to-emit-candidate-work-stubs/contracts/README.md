@@ -31,16 +31,18 @@ keys. Improve-harness trims, whitespace-collapses, and lowercases `capability_ga
 explore-feature requires the exact stable opportunity ID. Bug-scrub uses `bug-finding-<semantic-hash>`. Its base semantic object contains
 exactly `source`, `source_key`, `category`, `file_path`, `detail`, `origin_change_id`,
 and `origin_artifact_path`. Source/category whitespace-collapse and lowercase. Paths
-only slash-normalize and preserve whitespace. Detail strips only an exact leading full
-`<file_path>:<numeric-line>:` prefix, even without line metadata and never by basename,
-then whitespace-collapses. `source_key` preserves stable collector keys:
-ruff/mypy/markers strip `:<line>`, architecture/deferred strip the trailing ordinal,
-OpenSpec uses `openspec`, and pytest/security keys remain intact. Missing origin values
-use empty strings.
+only slash-normalize and preserve internal whitespace; missing paths map to empty
+strings. Detail lstrips leading whitespace before attempting to remove an exact full
+`<file_path>:<numeric-line>:` prefix, even without line metadata and never by basename.
+Only prefix comparison slash-normalizes; message text preserves its backslashes before
+the remaining semantic detail whitespace-collapses. `source_key` preserves exact stable
+collector keys: ruff/mypy/markers strip `:<line>`, architecture/deferred strip the
+trailing ordinal, OpenSpec uses `openspec`, and pytest/security/other keys remain exact.
+Missing origin values use empty strings.
 
-Equal base objects form a group sorted by `(line_missing, line, origin_artifact_path,
-origin_task_number, original_finding_id, report_index)`; line metadata wins, with the
-stripped full-path coordinate as fallback. One-based `occurrence` is added as the exact
+Equal base objects form a group sorted by
+`(line_missing, line, origin_task_number, raw str(original_finding_id), report_index)`;
+line metadata wins, with the stripped full-path coordinate as fallback. One-based `occurrence` is added as the exact
 eighth field before canonical JSON and the first 16 SHA-256 hex characters are taken.
 Singletons therefore survive line shifts and global reorder while repeated equivalent
 findings stay distinct by relative source position. Unmodified finding ID, line/index
