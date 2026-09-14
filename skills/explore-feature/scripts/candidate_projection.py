@@ -38,6 +38,8 @@ def _marked_existing(item: dict[str, Any]) -> bool:
         or bool(item.get("tracked"))
         or bool(item.get("existing_change_id"))
         or bool(item.get("scaffolded_change_id"))
+        or str(item.get("suggested_change_prefix", "")).strip().lower()
+        == "(existing)"
     )
 
 

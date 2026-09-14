@@ -13,7 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 
 from bug_candidate_work import project_candidate_work, write_projection
-from candidate_work import load_candidate_work
+from candidate_work import load_candidate_work, write_candidate_work
 from models import BugScrubReport, Finding
 
 
@@ -117,3 +117,73 @@ def test_normal_run_writes_adjacent_candidate_sidecar(
     assert loaded[0]["provenance"]["source_artifact"].endswith(
         "bug-scrub-report.json"
     )
+
+
+def test_collision_returns_concise_error_and_preserves_reports(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import main as bug_main
+    from models import SourceResult
+
+    monkeypatch.setitem(
+        bug_main.ALL_SOURCES,
+        "fake",
+        lambda _project: SourceResult(
+            source="fake", status="ok", findings=[_finding()]
+        ),
+    )
+    out_dir = tmp_path / "reports"
+    destination = tmp_path / "candidate-work.json"
+    other = project_candidate_work(_report(_finding()), "other-report.json")[0]
+    other["provenance"]["generator"] = "improve-harness"
+    write_candidate_work(destination, [other], generator="improve-harness")
+    before = destination.read_bytes()
+
+    result = bug_main.run(
+        sources=["fake"],
+        severity="info",
+        project_dir=str(tmp_path),
+        out_dir=str(out_dir),
+        fmt="json",
+        candidate_work_output=str(destination),
+    )
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err.startswith("error: candidate-work sidecar not written:")
+    assert "improve-harness" in captured.err
+    assert "Traceback" not in captured.err
+    assert destination.read_bytes() == before
+    assert (out_dir / "bug-scrub-report.json").exists()
+
+
+def test_validation_failure_returns_concise_error_and_preserves_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import main as bug_main
+    from models import SourceResult
+
+    monkeypatch.setitem(
+        bug_main.ALL_SOURCES,
+        "fake-invalid",
+        lambda _project: SourceResult(
+            source="fake-invalid", status="ok", findings=[_finding(title="")]
+        ),
+    )
+    out_dir = tmp_path / "reports"
+
+    result = bug_main.run(
+        sources=["fake-invalid"],
+        severity="info",
+        project_dir=str(tmp_path),
+        out_dir=str(out_dir),
+        fmt="json",
+    )
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err.startswith("error: candidate-work sidecar not written:")
+    assert "title" in captured.err
+    assert "Traceback" not in captured.err
+    assert (out_dir / "bug-scrub-report.json").exists()
+    assert not (out_dir / "bug-scrub-candidate-work.json").exists()

@@ -85,3 +85,12 @@ def test_explicit_hint_is_normalized_without_identity_suffix() -> None:
         [_opportunity(suggested_change_id="Fix Trace UI")], "opportunities.json"
     )[0]
     assert candidate["suggested_change_id"] == "update-trace-ui"
+
+
+def test_existing_suggested_change_prefix_is_not_projected() -> None:
+    candidates = project_candidate_work(
+        [_opportunity(suggested_change_prefix="(existing)")],
+        "opportunities.json",
+    )
+
+    assert candidates == []
