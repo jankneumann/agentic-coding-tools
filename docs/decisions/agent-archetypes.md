@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-14 — retire-skill-literal-model-hints
+
+### Phase: Plan
+
+**Approach A — authored vocabulary vs dispatch payload** — Harnesses need concrete model ids; skills must not author raw versions as policy. Resolve at dispatch from YAML.
+
+- Status: `active`
+- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — retire-skill-literal-model-hints
+
+### Phase: Plan
+
+**Stay off archetypes.yaml / adaptive router** — Coexist with concurrent roster and routing proposals.
+
+- Status: `active`
+- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D4)
+
+---
+
 ## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
