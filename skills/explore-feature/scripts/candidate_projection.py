@@ -24,7 +24,7 @@ def _items(document: Any) -> list[dict[str, Any]]:
     if isinstance(document, list):
         return document
     if isinstance(document, dict):
-        for key in ("opportunities", "ranked_opportunities", "candidates", "ranked"):
+        for key in ("items", "opportunities", "ranked_opportunities", "candidates", "ranked"):
             value = document.get(key)
             if isinstance(value, list):
                 return value
@@ -78,7 +78,9 @@ def _candidate_id(item: dict[str, Any]) -> str:
     if not source_id:
         raise ValueError("untracked opportunity requires a stable non-empty id")
     return derive_suggested_change_id(
-        "explore-feature", source_id, item.get("suggested_change_id")
+        "explore-feature",
+        source_id,
+        item.get("suggested_change_id") or item.get("change_id_hint"),
     )
 
 
