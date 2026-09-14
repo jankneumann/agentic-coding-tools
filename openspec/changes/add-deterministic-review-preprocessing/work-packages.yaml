@@ -59,6 +59,7 @@ packages:
       surfaces:
         - "apis"
         - "documentation"
+        - "semantic_code"
     worktree:
       name: wp-contracts
       mode: isolated
@@ -114,6 +115,7 @@ packages:
       surfaces:
         - "capabilities"
         - "semantic_code"
+        - "documentation"
     worktree:
       name: wp-fact-check
       mode: isolated
@@ -169,6 +171,7 @@ packages:
       surfaces:
         - "capabilities"
         - "apis"
+        - "semantic_code"
     worktree:
       name: wp-ocr-vendor
       mode: isolated
@@ -230,6 +233,7 @@ packages:
       surfaces:
         - "capabilities"
         - "semantic_code"
+        - "apis"
     worktree:
       name: wp-packet
       mode: isolated
@@ -451,6 +455,7 @@ packages:
     context_impact:
       surfaces:
         - "capabilities"
+        - "semantic_code"
     worktree:
       name: wp-fixtures
       mode: isolated
