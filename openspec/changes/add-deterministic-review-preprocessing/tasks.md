@@ -138,13 +138,13 @@ flagged in design D9 as the chained dispatcher work.
 
 - [ ] Checkpoint: run resolver and schema tests, review diff, verify scope
 
-- [ ] 5.5 Write dispatcher tests for resolution after validation and the `unanchored_findings` manifest count (size: S)
+- [x] 5.5 Write dispatcher tests for resolution after validation and the `unanchored_findings` manifest count (size: S)
   **Spec scenarios**: skill-workflow Finding Coercion Before Validation (line resolution runs after validation), Review Manifest Generation
   **Design decisions**: D3
   **Dependencies**: 5.2, 5.4, 2.4
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`
 
-- [ ] 5.6 Call the resolver from `_ingest_stdout` after validation and report unanchored counts (size: S)
+- [x] 5.6 Call the resolver from `_ingest_stdout` after validation and report unanchored counts (size: S)
   **Dependencies**: 5.5
   **Files**: `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `skills/parallel-infrastructure/scripts/checkpoint_findings.py`
 

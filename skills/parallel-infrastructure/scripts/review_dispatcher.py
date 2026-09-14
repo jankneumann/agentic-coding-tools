@@ -38,6 +38,8 @@ from typing import Any, Callable
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+import line_resolver
+
 logger = logging.getLogger(__name__)
 
 
@@ -161,6 +163,27 @@ def _schema_mod() -> Any:
                 logger.warning("review_findings_schema load failed: %s", exc)
                 return None
         return None
+
+
+_DIFF_FENCE_RE = re.compile(r"### Diff\n```diff\n(.*?)\n```", re.DOTALL)
+
+
+def _extract_diff_from_prompt(prompt: str) -> str:
+    """Pull the fenced diff block out of a review_packet-rendered prompt.
+
+    Returns ``""`` when the prompt has no ``### Diff`` fence (a test-
+    authored prompt, or a future packet format change) or when the fence
+    holds only the empty-diff marker — the ingest-time line resolver then
+    simply finds nothing to match against and every finding is kept with
+    ``line_resolution: unresolved``, never an error.
+    """
+    match = _DIFF_FENCE_RE.search(prompt)
+    if not match:
+        return ""
+    text = match.group(1)
+    if text.strip() == "(empty-diff)":
+        return ""
+    return text
 
 
 def _validate_findings_or_error(
@@ -467,6 +490,11 @@ class ReviewResult:
     raw_stdout: str | None = None
     raw_stderr: str | None = None
     coercions: list[str] = field(default_factory=list)
+    # Count of findings whose existing_code snippet did not resolve to a
+    # line_range (line_resolution="unresolved"). 0 when resolution did not
+    # run (no packet_diff available to _ingest_stdout) — see
+    # _extract_diff_from_prompt and line_resolver.resolve_all.
+    unanchored_findings: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -655,6 +683,7 @@ class CliVendorAdapter:
                         elapsed=elapsed,
                         model_name=model_name,
                         models_attempted=models_attempted,
+                        packet_diff=_extract_diff_from_prompt(prompt),
                     )
                     if ingested.success or ingested.error_class in (
                         ErrorClass.AUTH, ErrorClass.UNAVAILABLE,
@@ -755,8 +784,19 @@ class CliVendorAdapter:
         model_name: str,
         models_attempted: list[str],
         enforce_empty_findings_grace: bool = True,
+        packet_diff: str | None = None,
     ) -> ReviewResult:
-        """Parse, coerce, validate, and stamp one vendor stdout blob."""
+        """Parse, coerce, validate, stamp, and line-resolve one vendor stdout blob.
+
+        ``packet_diff`` is the raw diff text the reviewer was shown (see
+        ``_extract_diff_from_prompt``). When supplied and non-empty, every
+        validated finding runs through ``line_resolver.resolve_all`` so a
+        vendor-supplied ``existing_code`` snippet gets a ``line_range``
+        without a model call. When absent (the async-poll path today does
+        not thread the prompt through), resolution is simply skipped —
+        findings are returned exactly as validated, same as before this
+        parameter existed.
+        """
         from review_findings_schema import (
             coerce_findings_payload,
             empty_findings_min_seconds,
@@ -767,11 +807,17 @@ class CliVendorAdapter:
         excerpt = raw[:500]
         findings = self._parse_findings(stdout)
         coercions: list[str] = []
+        unanchored_findings = 0
         if findings is not None:
             findings, coercions = coerce_findings_payload(findings)
             findings, schema_error = _validate_findings_or_error(findings)
             if findings is not None:
                 findings = stamp_judgment_ingest(findings)
+                if packet_diff:
+                    resolved, unanchored_findings = line_resolver.resolve_all(
+                        findings.get("findings", []), packet_diff,
+                    )
+                    findings["findings"] = resolved
                 if _is_placeholder_only_response(findings, stdout):
                     return ReviewResult(
                         vendor=self.vendor,
@@ -811,6 +857,7 @@ class CliVendorAdapter:
                     raw_stdout=stdout,
                     raw_stderr=stderr or None,
                     coercions=coercions,
+                    unanchored_findings=unanchored_findings,
                 )
             zero_exit_class = classify_error(raw)
             if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
