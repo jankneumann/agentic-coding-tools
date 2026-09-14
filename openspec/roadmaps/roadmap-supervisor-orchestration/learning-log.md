@@ -11,3 +11,4 @@
 | ri-16 | implementation | Item executed successfully through all phases |
 | ri-13 | implementation | Item executed successfully through all phases |
 | ri-12 | implementation | Recovery landed through commit f3094662 after full validation; the original supe |
+| ri-09 | implementation | Recovery landed through PR #542 / 70aa92dd and archived in PR #543; the original |
