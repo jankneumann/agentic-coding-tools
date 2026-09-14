@@ -3244,7 +3244,7 @@ def create_coordination_api() -> FastAPI:
     ) -> dict[str, Any]:
         """Add or remove labels on a work_queue row (drag-to-Ready interaction).
 
-        Wraps IssueService.update with a labels-only mutation path.
+        Wraps IssueService.update with a labels-only mutation path on an issue row.
         Reversibility: reversible-write; audit emitted.
         """
         from uuid import UUID

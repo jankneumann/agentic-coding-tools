@@ -1,4 +1,4 @@
--- 039: close projection collision/replay gaps and notify first labelled inserts.
+-- 039: close projection collision/replay gaps and enforce ownership integrity.
 
 BEGIN;
 
@@ -36,7 +36,7 @@ ON CONFLICT (name) DO UPDATE SET
 -- administrator verifies provenance out of band and explicitly inserts the row id.
 COMMENT ON TABLE work_queue_projection_ownership IS
   'Database-owned Autopilot projection identities. Upgrade from 038: after '
-  'verifying provenance out of band, a database administrator may adopt a row '
+  'verifying provenance out of band, a database administrator must adopt every verified keyed row for the change '
   'with INSERT INTO work_queue_projection_ownership(task_id) VALUES (<verified-id>). '
   'Runtime projection functions never infer ownership from work_queue fields.';
 

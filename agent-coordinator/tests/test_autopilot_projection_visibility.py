@@ -217,6 +217,20 @@ def test_projection_openapi_problem_contract_matches_runtime() -> None:
     )
 
 
+def test_kanban_label_patch_openapi_declares_projection_forbidden() -> None:
+    import yaml
+
+    contract_path = (
+        Path(__file__).parents[2]
+        / "openspec/contracts/agent-coordinator/openapi/kanban-viz.yaml"
+    )
+    document = yaml.safe_load(contract_path.read_text())
+    responses = document["paths"]["/issues/{issue_id}/labels"]["patch"]["responses"]
+
+    assert "403" in responses
+    assert "projection" in responses["403"]["description"].lower()
+
+
 def test_projection_label_runtime_item_length_matches_openapi() -> None:
     from pydantic import ValidationError
 

@@ -34,6 +34,9 @@
 | R14-Grok-1,2 | wp-projection-adapter | contract/resilience | critical-medium | fixed | Label-PATCH now maps reserved/owned refusals to HTTP 403; pre-registry reserved rows return structured refusal before the label trigger. |
 | R14 remainder | both | verification/documentation | low-none | accepted | Three protocol-valid reviews plus schema-valid out-of-band Pi evidence confirm the recovery seams; first-generation SSE attribution is corrected to the migration-037 labelled UPDATE path. |
 
+| R15-Grok-12 / Claude-2,3,4 | wp-projection-adapter | contract/operability/documentation | low | fixed | Kanban OpenAPI declares projection 403; event attribution, issue-row scope, and every-row administrator adoption guidance match runtime. |
+| R15-Claude-1,5,6 / remainder | both | optional/verification | low-none | accepted | Four-vendor quorum found no blocking implementation defect; atomic batch-close semantics require a separate contract, while all current row-level integrity guarantees hold. |
+
 ## Coverage Summary
 
 - **Requirements traced**: 1/1

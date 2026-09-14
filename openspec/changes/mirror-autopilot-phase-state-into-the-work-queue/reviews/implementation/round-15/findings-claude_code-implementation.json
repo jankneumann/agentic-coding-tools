@@ -1,0 +1,178 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "correctness",
+      "evidence_class": "judgment",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 491,
+        "end": 508
+      },
+      "description": "Batched close is not atomic across the ownership boundary. IssueService.close() calls mutate_issue_if_unowned once per id and _issue_from_mutation_result raises ProjectionIssueMutationError on the first registry-owned or reserved-labelled id, after earlier ids in the same batch were already committed as completed. POST /issues/close (coordination_api.py 1477-1481) maps that to HTTP 403 and discards the partial results list, so the caller receives a refusal that implies no change while some ordinary issues were closed and cannot tell which. Each individual row mutation is still race-safe (row lock + ownership check inside the RPC); only the batch contract leaks side effects. Not reproducible in this session: the sandbox refused interpreter execution.",
+      "resolution": "Either preflight every id in the batch (ownership registry + reserved marker) before the first mutating RPC and refuse the whole batch, or return a per-id outcome document (closed / refused / not_found) with a non-403 status when the batch is mixed. Add a unit test with rpc side_effect [success, projection_issue_immutable] asserting no partial commit or an explicit per-id report."
+    },
+    {
+      "id": 2,
+      "type": "style",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "evidence_class": "judgment",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 468,
+        "end": 498
+      },
+      "description": "notify_projection_insert / trg_work_queue_projection_insert_notify is unreachable code. The BEFORE INSERT ownership trigger (lines 398-417) rejects any insert carrying projection:autopilot-phase whose UUID is not yet registered, and the FK on work_queue_projection_ownership means a UUID cannot be registered before the row exists; the labelled RPCs insert with ARRAY[]::TEXT[] (lines 151-154, 297-299). So no insert can ever reach the AFTER INSERT notifier with the marker present. design.md D5 and round-14 dispositions correctly attribute first-generation SSE to the migration-037 label UPDATE (fires at 039:193 and 039:374), but the migration header comment on line 1 ('notify first labelled inserts'), the filename, and tasks.md 2.7 ('first-insert refresh') still credit the inert trigger.",
+      "resolution": "Either drop the insert trigger in a follow-up migration or reword the line-1 comment and tasks.md 2.7 to state that first-generation visibility is carried by the 037 label-UPDATE trigger after ownership staging, so future readers do not rely on the dead path."
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "docs/guides/work-queue-truth-projection.md",
+      "line_range": {
+        "start": 150,
+        "end": 152
+      },
+      "description": "Administrator adoption after a 038-to-039 upgrade must cover every complete keyed row of the change, not one row. The labelled preflight at migration 039 lines 113-127 (submit) and 264-278 (reconcile) returns projection_key_collision whenever any unowned row with a complete projection tuple exists for the change, regardless of status, so a change that went through several 038-era generations has one active and N cancelled unowned rows and every one must be inserted into work_queue_projection_ownership before labelled publication resumes. The guide and the table COMMENT (039:37-41) describe adopting 'its UUID' / 'a row' in the singular, and the live upgrade test seeds exactly one legitimate row, so the multi-generation operator procedure is untested and undocumented. Fail-closed behavior itself is correct and intentional.",
+      "resolution": "Document that the operator must adopt every complete-tuple row for the change (an example SELECT over input_data->>'change_id' with a NOT EXISTS ownership filter), and extend the pre039 upgrade fixture with a cancelled prior generation to pin the procedure."
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "compatibility",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 426,
+        "end": 431
+      },
+      "description": "mutate_issue_if_unowned selects WHERE id=p_issue_id AND task_type='issue', so POST /issues/update, POST /issues/close, and PATCH /issues/{id}/labels can no longer mutate non-issue work_queue rows; they now return issue_not_found / 404, and a batch close silently drops such ids from its results. Before this change db.update matched by id alone. The Kanban snapshot only lists task_type=issue rows so the board is unaffected, but the PATCH route docstring (coordination_api.py 3245) still says 'on a work_queue row'.",
+      "resolution": "Accept as an intentional tightening; update the PATCH docstring to say issue row."
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "compatibility",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 327,
+        "end": 333
+      },
+      "description": "The implicit cancelled-row exclusion is asymmetric: it applies only when labels are supplied and status is None. A status-less, label-less list still returns cancelled rows (no status filter is appended at all), while the same call with labels hides them. The board and SSE snapshot always pass labels so the defense-in-depth goal is met, but API consumers see two different default status sets for one endpoint.",
+      "resolution": "Accept, or apply the same default exclusion whenever status is None regardless of labels and pin it in test_issue_service."
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "correctness",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 3264,
+        "end": 3273
+      },
+      "description": "PATCH /issues/{id}/labels against a registry-owned projection row is refused with detail reserved_projection_label rather than projection_issue_immutable in the common case: show() returns the owned row's current labels including the marker, the route merges add/remove, and IssueService.update's Python precheck (issue_service.py 425) rejects the retained marker before the RPC can report ownership. Only a request that explicitly removes the marker reaches the RPC and surfaces projection_issue_immutable. Both reasons map to 403 and the row is untouched, so the spec scenario holds; the unit test parametrizes both reasons via a mock rather than exercising which one the live path emits.",
+      "resolution": "Accept; optionally have the route check ownership first so the more specific reason is returned, or document that either reason may appear."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "security",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 419,
+        "end": 466
+      },
+      "description": "Audit item 1 and 9 verified statically. Ordinary create rejects the marker before insert (issue_service.py 274) and the BEFORE INSERT/UPDATE OF labels trigger (039:398-417) backstops direct writes. Update and close route through mutate_issue_if_unowned, which takes FOR UPDATE on the row, refuses registry-owned ids (432-437), refuses an existing unowned pre-registry reserved row (438-440) and a reserved label in the patch (441-446) before its UPDATE, and applies exactly the fields the Python service emits: description, status, priority, labels, assignee, issue_type, metadata (JSONB, migration 017:26), completed_at, closed_at, close_reason. Every HTTP issue-mutation entry point maps ProjectionIssueMutationError to 403 (coordination_api.py 1343-1346, 1443-1447, 1477-1481, 3272-3273). Live suites (test_fresh_database_migration.py 347-369, 387-467) cover both refusals with status/labels unchanged, but could not be re-executed in this session because the sandbox refused interpreter and pytest execution."
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "correctness",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 97,
+        "end": 213
+      },
+      "description": "Audit items 2, 6 and 10 verified statically. Both RPCs take the per-change advisory lock (97, 248), run all four preflights (unowned reserved row 98-112/249-263, unowned complete tuple for labelled 113-127/264-278, owned row for unlabelled 128-135/279-286) and the head read/compare (136-149/287-292) before any insert, head write, cancellation, relabel or reactivation; every refusal path RETURNs before the head INSERT/UPSERT (180-183, 326-329), so heads and rows are preserved. Fresh rows are inserted unlabelled (151-154, 297-299), ownership is registered only for the canonical id which is either freshly inserted or already owned (170-179, 315-324), then the exact pair is applied (193, 374), so the 037 AFTER UPDATE trigger (037:80-110) is what emits projection.labels_changed for a first generation; cancellation and label cleanup in labelled mode are restricted to owned rows (344-373, 184-192). Exact-key replay lands on the ON CONFLICT DO NOTHING path and re-labels idempotently; a terminal owned canonical row is reactivated with an explicit notify (194-209, 375-390). Admin adoption is documented in the table COMMENT (34-41) and exercised in the upgrade test (test_fresh_database_migration.py 281-299)."
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "security",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 777,
+        "end": 802
+      },
+      "description": "Audit items 3 and 4 verified statically. WorkQueueService.submit selects publish_work_projection with resource=change_id and mode/change_id context whenever a projection key is parsed (777-802) and reconcile_projection always does (923-937), so direct MCP and service callers cannot fall back to submit_work; the HTTP routes do the same against the caller identity (coordination_api.py 1205-1226, 1255-1266). TrustResolutionError is re-raised rather than swallowed in both guardrail blocks (839-844, 1033-1034). Cedar _do_check_operation resolves omitted trust through trust_resolution.resolve_trust_level and returns a logged deny on TrustResolutionError before loading policies (policy_engine.py 735-751), mirroring the native engine (180-211); publish_work_projection is in ADMIN_ACTIONS, TRUST_DERIVED_OPERATIONS for trust 3, the Cedar schema/action set, and the migration-seeded cedar_policies and agent_profiles rows (039:10-32). _determine_resource_type returns Task for the new action (672-682), matching the schema appliesTo."
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "architecture",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "line_range": {
+        "start": 612,
+        "end": 618
+      },
+      "description": "Audit items 5 and 7 verified statically. converge() now calls _orchestrator_for_dispatch(None, worktree_path) when no explicit agents_yaml_path is given; that resolver (review_dispatcher.py 2575-2592) applies explicit > reviewed-worktree local agents.yaml > coordinator > global on-disk precedence and only falls through the coordinator when both adapters and sdk_adapters are empty, retaining SDK-only rosters. Direct MCP submit_work/reconcile_work_projection accept projection_labels and forward it on both the local service path and the HTTP proxy (coordination_mcp.py 331-427; http_proxy.py 481-530); the bridge helpers validate and forward the exact pair (coordination_bridge.py 648-653, 695-700, 791-795). projection_mode_mismatch and projection_key_collision are in _PROJECTION_CONFLICTS and map to 409 problems (coordination_api.py 95-101, 118-131), and the adapter treats every 409 other than reconciliation_required as degraded (queue_projection.py 331-341)."
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "resilience",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 167,
+        "end": 200
+      },
+      "description": "Earlier recovery seams re-checked statically. Console and automatic escalate_resume share the canonical resolved edge: _evaluate_gate applies and persists _apply_transition(state, 'resolved') on proceed and parks with edge={'outcome':'resolved','target':previous_phase} otherwise (167-200), and gate-answer replays the recorded edge (runner.py ~290-340). enter_escalate is idempotent and increments total_iterations exactly once (autopilot.py 516-527), apply_outcome_or_escalate mirrors that from the authoritative durable phase and projects only after the write (610-660). run_loop routes every save through persist_and_project including initial creation and gate flushes (1070-1213); runner leaves the gate-session callback unset and projects only via the explicit project-state command, which imports queue_projection lazily (runner.py 511-536), preserving coordinator-free isolation. SSE coalesces projection.labels_changed into a single snapshot rebuild with the pending flag reset before the query (event_stream.py 272-345). The validation ledger commit (fd7ff904) touches only validation-report.md relative to the fully validated 66c76650."
+    }
+  ]
+}
