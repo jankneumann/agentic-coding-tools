@@ -18,13 +18,19 @@ D6 (the evaluation log), D7 (the mirror projection).
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
+import hashlib
 import json
+import os
 import sys
+import tempfile
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional, Union
+from collections.abc import Iterator
+from typing import Any, Callable, Optional, Union
 
 _SKILLS_ROOT = Path(__file__).resolve().parents[2]
 if str(_SKILLS_ROOT) not in sys.path:
@@ -67,6 +73,37 @@ DEFAULT_BLOCK_HORIZON = timedelta(days=7)
 _PHASE = "SUPERVISE"
 
 _TERMINAL_BLOCK_RESOLUTIONS = frozenset({"rejected", "console_rejected"})
+
+
+@contextlib.contextmanager
+def _escalate_subject_lock(workspace: Path, dispatch_id: str, generation: int) -> Iterator[None]:
+    """Serialize one parked escalation generation without blocking other work."""
+    identity = hashlib.sha256(f"{workspace.resolve()}|{dispatch_id}|{generation}".encode()).hexdigest()
+    lock_dir = Path(tempfile.gettempdir()) / "supervise-escalate-subject-locks"
+    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor = os.open(lock_dir / f"{identity}.lock", os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def _serialize_policy_pause_resolution(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Keep approval I/O single-flight for a policy-pause generation."""
+    def wrapped(attempt: dict[str, Any], *args: Any, **kwargs: Any) -> Any:
+        parked = attempt.get("parked") or {}
+        if parked.get("kind") != "policy_pause":
+            return method(attempt, *args, **kwargs)
+        dispatch_id = attempt.get("dispatch_id")
+        generation = attempt.get("lease_generation")
+        workspace = kwargs.get("workspace")
+        if not isinstance(dispatch_id, str) or not isinstance(generation, int) or not isinstance(workspace, Path):
+            return method(attempt, *args, **kwargs)
+        with _escalate_subject_lock(workspace, dispatch_id, generation):
+            return method(attempt, *args, **kwargs)
+    return wrapped
 
 
 class ApprovalRefError(ValueError):
@@ -632,6 +669,7 @@ def answer(
 # --------------------------------------------------------------------------- #
 
 
+@_serialize_policy_pause_resolution
 def resolve_parked(
     attempt: dict[str, Any],
     *,
