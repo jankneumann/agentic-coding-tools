@@ -518,7 +518,7 @@ async def proxy_reconcile_work_projection(
     extra fields and the route takes identity from the principal, so no identity is
     injected into the body.
     """
-    body = {
+    body: dict[str, Any] = {
         "projection_key": projection_key,
         "task_type": task_type,
         "task_description": description,
