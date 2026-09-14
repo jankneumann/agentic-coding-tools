@@ -150,10 +150,13 @@ def roadmap_fingerprint(roadmap: Roadmap) -> str:
 
 
 def _subject_key(
-    gate: Gate, *, roadmap_id: str, dispatch_id: Optional[str], fingerprint: Optional[str]
+    gate: Gate, *, roadmap_id: str, dispatch_id: Optional[str], fingerprint: Optional[str],
+    lease_generation: Optional[int] = None,
 ) -> tuple:
     if gate is Gate.ROADMAP_APPROVAL:
         return (gate.value, roadmap_id, fingerprint)
+    if gate is Gate.ESCALATE_RESUME:
+        return (gate.value, roadmap_id, dispatch_id, lease_generation)
     return (gate.value, roadmap_id, dispatch_id)
 
 
@@ -164,7 +167,12 @@ def _matches_subject(record: dict[str, Any], gate: Gate, key: tuple) -> bool:
         return False
     if gate is Gate.ROADMAP_APPROVAL:
         return record.get("roadmap_fingerprint") == key[2]
-    return record.get("dispatch_id") == key[2]
+    if record.get("dispatch_id") != key[2]:
+        return False
+    if gate is Gate.ESCALATE_RESUME:
+        record_generation = record.get("lease_generation")
+        return record_generation is None or record_generation == key[3]
+    return True
 
 
 def _latest_record_for_subject(
@@ -368,6 +376,11 @@ def _correlation_extra(
         value = context.get(key)
         if value is not None:
             extra[key] = value
+    if gate is Gate.ESCALATE_RESUME:
+        generation = context.get("lease_generation")
+        if isinstance(generation, bool) or not isinstance(generation, int) or generation < 1:
+            raise GateRefusalError("escalate_resume requires a positive lease_generation")
+        extra["lease_generation"] = generation
     if gate is Gate.ROADMAP_APPROVAL:
         extra["roadmap_fingerprint"] = fingerprint
     return extra
@@ -386,6 +399,7 @@ def evaluate(
     repo_root: Path,
     evaluator: Optional[ApprovalGate] = None,
     now: Optional[datetime] = None,
+    persist: bool = True,
 ) -> RoutedDecision:
     """Evaluate `gate` for the roadmap at `workspace`, applying the D4 prior-record
     rule first. `context` may carry `dispatch_id` / `change_id` / `item_id` (for a
@@ -405,7 +419,10 @@ def evaluate(
 
     fingerprint = roadmap_fingerprint(roadmap) if gate_enum is Gate.ROADMAP_APPROVAL else None
     dispatch_id = ctx.get("dispatch_id")
-    key = _subject_key(gate_enum, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id, fingerprint=fingerprint)
+    key = _subject_key(
+        gate_enum, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id, fingerprint=fingerprint,
+        lease_generation=ctx.get("lease_generation"),
+    )
 
     service = evaluator or build_default_gate(agent_id="supervise", repo_root=str(repo_root))
 
@@ -417,13 +434,14 @@ def evaluate(
             # decision naming no `change_id`) BEFORE persisting a NEW record --
             # a refusal must never follow a partial write. A reused record was
             # already persisted on a prior call and is not re-recorded here.
-            _project(
-                gate_enum, routed.decision, routed.record, key,
-                roadmap=roadmap, repo_root=repo_root,
-                prior_decision_id=prior.get("decision_id"), now=moment,
-            )
-            if not routed.reused:
-                manager.record_gate_decision(checkpoint, routed.record)
+            if persist:
+                _project(
+                    gate_enum, routed.decision, routed.record, key,
+                    roadmap=roadmap, repo_root=repo_root,
+                    prior_decision_id=prior.get("decision_id"), now=moment,
+                )
+                if not routed.reused:
+                    manager.record_gate_decision(checkpoint, routed.record)
             return routed
 
     verb = str(ctx.get("verb", "cycle"))
@@ -439,13 +457,14 @@ def evaluate(
     extra = _correlation_extra(gate_enum, ctx, roadmap=roadmap, fingerprint=fingerprint, verb=verb)
     record = build_gate_decision_record(decision, phase=_PHASE, extra=extra)
     # Project before persisting -- see the prior-record branch above for why.
-    _project(
-        gate_enum, decision, record, key,
-        roadmap=roadmap, repo_root=repo_root,
-        prior_decision_id=prior.get("decision_id") if prior is not None else None,
-        now=moment,
-    )
-    manager.record_gate_decision(checkpoint, record)
+    if persist:
+        _project(
+            gate_enum, decision, record, key,
+            roadmap=roadmap, repo_root=repo_root,
+            prior_decision_id=prior.get("decision_id") if prior is not None else None,
+            now=moment,
+        )
+        manager.record_gate_decision(checkpoint, record)
     return RoutedDecision(decision=decision, record=record, reused=False)
 
 
@@ -576,7 +595,10 @@ def answer(
 
     fingerprint = roadmap_fingerprint(roadmap) if gate_enum is Gate.ROADMAP_APPROVAL else None
     dispatch_id = ctx.get("dispatch_id")
-    key = _subject_key(gate_enum, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id, fingerprint=fingerprint)
+    key = _subject_key(
+        gate_enum, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id, fingerprint=fingerprint,
+        lease_generation=ctx.get("lease_generation"),
+    )
 
     prior = _latest_record_for_subject(checkpoint, gate_enum, key)
     if prior is not None and prior.get("outcome") == "blocked":
@@ -644,35 +666,91 @@ def resolve_parked(
         raise GateRefusalError(f"unknown parked kind {kind!r}")
 
     dispatch_id = attempt.get("dispatch_id")
-    context = {
-        "dispatch_id": dispatch_id,
-        "change_id": attempt.get("change_id"),
-        "item_id": attempt.get("item_id"),
-        "verb": "resume",
-        "reason": parked.get("reason"),
-    }
+    if kind == "policy_pause":
+        generation = attempt.get("lease_generation")
+        if isinstance(generation, bool) or not isinstance(generation, int) or generation < 1:
+            raise GateRefusalError("policy_pause attempt requires a positive lease_generation")
+        context = {
+            "dispatch_id": dispatch_id,
+            "change_id": attempt.get("change_id"),
+            "item_id": attempt.get("item_id"),
+            "lease_generation": generation,
+            "verb": "resume",
+            "reason": "retry budget exhausted",
+        }
+    else:
+        context = {
+            "dispatch_id": dispatch_id,
+            "change_id": attempt.get("change_id"),
+            "item_id": attempt.get("item_id"),
+            "verb": "resume",
+            "reason": parked.get("reason"),
+        }
     moment = now or datetime.now(timezone.utc)
     roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
     routed = evaluate(
-        gate_enum, context, workspace=workspace, repo_root=repo_root, evaluator=evaluator, now=moment
+        gate_enum, context, workspace=workspace, repo_root=repo_root, evaluator=evaluator, now=moment,
+        persist=kind != "policy_pause",
     )
 
+    if kind != "policy_pause":
+        if routed.decision.outcome is Outcome.PROCEED:
+            approval_ref = f"gate-decision:{routed.record.get('decision_id')}"
+            resume_result = adapter.resume(
+                workspace, dispatch_id=dispatch_id, approval_ref=approval_ref, kind=kind
+            )
+            return ParkedResolution(outcome="proceed", routed=routed, resume_result=resume_result)
+        entry = _pending_gate_entry(
+            gate_enum, routed.decision, routed.record, roadmap=roadmap, repo_root=repo_root, now=moment
+        )
+        return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
+
+    key = _subject_key(
+        gate_enum, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id, fingerprint=None,
+        lease_generation=generation,
+    )
     if routed.decision.outcome is Outcome.PROCEED:
         approval_ref = f"gate-decision:{routed.record.get('decision_id')}"
-        resume_result = adapter.resume(
-            workspace, dispatch_id=dispatch_id, approval_ref=approval_ref, kind=kind
-        )
+        if routed.reused:
+            resume_result = adapter.resume(
+                workspace, dispatch_id=dispatch_id, approval_ref=approval_ref, kind=kind
+            )
+        else:
+            resume_result = adapter.resume_with_gate_decision(
+                workspace, dispatch_id=dispatch_id, approval_ref=approval_ref, kind=kind, record=routed.record
+            )
+        _project(gate_enum, routed.decision, routed.record, key, roadmap=roadmap, repo_root=repo_root, now=moment)
         return ParkedResolution(outcome="proceed", routed=routed, resume_result=resume_result)
 
-    # Reuse the same deadline computation every other blocked path gets
-    # (`requested_at + timeout_seconds` when an approval was filed, else
-    # `+ DEFAULT_BLOCK_HORIZON`) — gate_enum here is never ROADMAP_APPROVAL
-    # (a parked attempt's gate is one of autopilot's own, or escalate_resume),
-    # so `roadmap` only satisfies the helper's signature and is not consulted
-    # for change_id resolution.
     entry = _pending_gate_entry(
         gate_enum, routed.decision, routed.record, roadmap=roadmap, repo_root=repo_root, now=moment
     )
+    if not routed.reused:
+        manager = CheckpointManager(workspace, repo_root)
+        if not hasattr(adapter, "resume_with_gate_decision"):
+            manager.record_gate_decision(manager.load(), routed.record)
+        else:
+            with manager.transaction() as current:
+                fresh = next(
+                    (candidate for candidate in current.dispatch_attempts if candidate.get("dispatch_id") == dispatch_id),
+                    None,
+                )
+                if (
+                    fresh is None
+                    or fresh.get("status") != "parked"
+                    or fresh.get("parked", {}).get("kind") != "policy_pause"
+                    or fresh.get("lease_generation") != generation
+                ):
+                    raise GateRefusalError("stale policy_pause resolution")
+                winner = _latest_record_for_subject(current, gate_enum, key)
+                if winner is not None:
+                    routed = RoutedDecision(decision=_decision_from_record(winner), record=winner, reused=True)
+                    entry = _pending_gate_entry(
+                        gate_enum, routed.decision, routed.record, roadmap=roadmap, repo_root=repo_root, now=moment
+                    )
+                else:
+                    current.gate_decisions.append(dict(routed.record))
+    _project(gate_enum, routed.decision, routed.record, key, roadmap=roadmap, repo_root=repo_root, now=moment)
     return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
 
 
@@ -689,6 +767,7 @@ def require_approval_ref(
     *,
     gate: Union[Gate, str],
     dispatch_id: Optional[str] = None,
+    lease_generation: Optional[int] = None,
     roadmap_id: Optional[str] = None,
     roadmap: Optional[Roadmap] = None,
 ) -> dict[str, Any]:
@@ -717,6 +796,10 @@ def require_approval_ref(
             raise ApprovalRefError(f"approval_ref {approval_ref!r} did not resolve to a proceed decision")
         if dispatch_id is not None and record.get("dispatch_id") != dispatch_id:
             raise ApprovalRefError(f"approval_ref {approval_ref!r} is for a different dispatch")
+        if gate_enum is Gate.ESCALATE_RESUME and lease_generation is not None:
+            record_generation = record.get("lease_generation")
+            if record_generation is not None and record_generation != lease_generation:
+                raise ApprovalRefError(f"approval_ref {approval_ref!r} is for a different lease generation")
         if roadmap_id is not None and record.get("roadmap_id") != roadmap_id:
             raise ApprovalRefError(f"approval_ref {approval_ref!r} is for a different roadmap")
         if gate_enum is Gate.ROADMAP_APPROVAL:

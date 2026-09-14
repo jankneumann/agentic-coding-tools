@@ -869,25 +869,59 @@ class ExecutionAdapter:
             checkpoint, approval_ref, gate=expected_gate, dispatch_id=dispatch_id,
             lease_generation=attempt["lease_generation"] if kind == "policy_pause" else None,
         )
+        request = self._resume_attempt(checkpoint, attempt, approval_ref=approval_ref, kind=kind)
+        manager.save(checkpoint)
+        return request
+
+    def _resume_attempt(
+        self,
+        checkpoint: Checkpoint,
+        attempt: dict[str, Any],
+        *,
+        approval_ref: str,
+        kind: str,
+    ) -> dict[str, Any]:
+        """Mutate one already-authorized parked attempt without I/O or saving."""
         _remove_owned_marker(attempt)
         attempt["status"] = "prepared"
         attempt["lease_generation"] += 1
         attempt["continuation"] = {"kind": kind, "approval_ref": approval_ref}
         for field in (
-            "lease",
-            "launch_evidence",
-            "launch_gate",
-            "parked",
-            "quarantine",
-            "outcome",
-            "resolved_at",
-            "handoff_id",
-            "application_journal",
+            "lease", "launch_evidence", "launch_gate", "parked", "quarantine",
+            "outcome", "resolved_at", "handoff_id", "application_journal",
         ):
             attempt.pop(field, None)
         validate_delegated_dispatch_attempt(attempt)
-        manager.save(checkpoint)
         return _request(checkpoint, attempt)
+
+    @_serialized_transition
+    def resume_with_gate_decision(
+        self,
+        workspace: Path,
+        *,
+        dispatch_id: str,
+        approval_ref: str,
+        kind: str,
+        record: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Atomically append a fresh escalate decision and resume its parked generation."""
+        manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
+        if (
+            attempt.get("status") != "parked"
+            or attempt.get("parked", {}).get("kind") != kind
+            or record.get("gate") != Gate.ESCALATE_RESUME.value
+            or record.get("outcome") != "proceed"
+            or record.get("dispatch_id") != dispatch_id
+            or record.get("lease_generation") != attempt.get("lease_generation")
+            or approval_ref != f"gate-decision:{record.get('decision_id')}"
+        ):
+            raise ExecutionStateError("stale or mismatched escalation decision")
+        if any(existing.get("decision_id") == record.get("decision_id") for existing in checkpoint.gate_decisions):
+            raise ExecutionStateError("escalation decision was already committed")
+        request = self._resume_attempt(checkpoint, attempt, approval_ref=approval_ref, kind=kind)
+        checkpoint.gate_decisions.append(dict(record))
+        manager.save(checkpoint)
+        return request
 
     @_serialized_transition
     def apply(
