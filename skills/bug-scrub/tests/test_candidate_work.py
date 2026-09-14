@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import ModuleType
 from typing import cast
 
 import pytest
@@ -17,6 +19,16 @@ import bug_candidate_work as projection
 from bug_candidate_work import project_candidate_work, write_projection
 from candidate_work import load_candidate_work, write_candidate_work
 from models import BugScrubReport, Finding, FindingOrigin
+
+
+def _load_bug_main() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "_bug_scrub_candidate_work_main", SCRIPTS / "main.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _report(*findings: Finding) -> BugScrubReport:
@@ -432,7 +444,7 @@ def test_empty_success_replaces_stale_owned_batch(tmp_path: Path) -> None:
 def test_normal_run_writes_adjacent_candidate_sidecar(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import main as bug_main
+    bug_main = _load_bug_main()
     from models import SourceResult
 
     monkeypatch.setitem(
@@ -462,7 +474,7 @@ def test_normal_run_writes_adjacent_candidate_sidecar(
 def test_collision_returns_concise_error_and_preserves_reports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    import main as bug_main
+    bug_main = _load_bug_main()
     from models import SourceResult
 
     monkeypatch.setitem(
@@ -500,7 +512,7 @@ def test_collision_returns_concise_error_and_preserves_reports(
 def test_validation_failure_returns_concise_error_and_preserves_report(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    import main as bug_main
+    bug_main = _load_bug_main()
     from models import SourceResult
 
     monkeypatch.setitem(
@@ -534,7 +546,7 @@ def test_cli_unsupported_category_is_concise_and_preserves_report(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    import main as bug_main
+    bug_main = _load_bug_main()
     from models import SourceResult
 
     monkeypatch.setitem(
@@ -582,7 +594,7 @@ def test_cli_unsupported_severity_is_concise_and_preserves_outputs(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    import main as bug_main
+    bug_main = _load_bug_main()
     from models import SourceResult
 
     monkeypatch.setitem(
