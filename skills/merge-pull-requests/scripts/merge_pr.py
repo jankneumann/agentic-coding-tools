@@ -938,8 +938,14 @@ def refresh_branch(pr_number: int, dry_run: bool = False) -> dict:
 
     if result.returncode != 0:
         error = result.stderr.strip()
-        # Common case: branch is already up to date
-        if "already up-to-date" in error.lower() or "not behind" in error.lower():
+        # Common case: branch is already up to date. The Update Branch API
+        # words this as a 422 "There are no new commits on the base branch."
+        lowered = error.lower()
+        if (
+            "no new commits on the base branch" in lowered
+            or "already up-to-date" in lowered
+            or "not behind" in lowered
+        ):
             return {
                 "action": "refresh-branch",
                 "success": True,
