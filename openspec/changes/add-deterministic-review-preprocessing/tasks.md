@@ -73,42 +73,42 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 4. Packet selection and rule groups
 
-- [ ] 4.1 Write tests for `select_files` gate order, reasons, include override, per-file ceiling, and the no-file-without-reason invariant (size: M)
+- [x] 4.1 Write tests for `select_files` gate order, reasons, include override, per-file ceiling, and the no-file-without-reason invariant (size: M)
   **Spec scenarios**: skill-workflow Deterministic File Selection Before Packet Rendering (all four scenarios)
   **Contracts**: `contracts/review-packet.schema.json`, `contracts/review-rules.schema.json`
   **Design decisions**: D1, D2
   **Dependencies**: 1.2
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_file_selection.py`
 
-- [ ] 4.2 Implement `file_selection.py` (size: M)
+- [x] 4.2 Implement `file_selection.py` (size: M)
   **Dependencies**: 4.1
   **Files**: `skills/parallel-infrastructure/scripts/file_selection.py`
 
-- [ ] 4.3 Write tests for rule resolution order, project-over-default, grouping key, and missing project file (size: S)
+- [x] 4.3 Write tests for rule resolution order, project-over-default, grouping key, and missing project file (size: S)
   **Spec scenarios**: skill-workflow Path-Glob Rule Groups In The Review Packet (all three scenarios)
   **Contracts**: `contracts/review-rules.schema.json`
   **Design decisions**: D4
   **Dependencies**: 1.2
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_review_rules.py`
 
-- [ ] 4.4 Implement `review_rules.py` (size: S)
+- [x] 4.4 Implement `review_rules.py` (size: S)
   **Dependencies**: 4.3
   **Files**: `skills/parallel-infrastructure/scripts/review_rules.py`
 
-- [ ] 4.5 Author the embedded `review-rules.json` for this repository's file classes plus its install_assets mirror (size: S)
+- [x] 4.5 Author the embedded `review-rules.json` for this repository's file classes plus its install_assets mirror (size: S)
   **Dependencies**: 4.4
   **Files**: `skills/parallel-infrastructure/scripts/review-rules.json`, `skills/parallel-infrastructure/install_assets/openspec/schemas/review-rules.json`
 
 - [ ] Checkpoint: run selection and rules tests, review diff, verify scope
 
-- [ ] 4.6 Write tests for packet building with selection meta, rule groups, truncated list, v2 metadata, and preview parity (size: M)
+- [x] 4.6 Write tests for packet building with selection meta, rule groups, truncated list, v2 metadata, and preview parity (size: M)
   **Spec scenarios**: skill-workflow Review Packet As Default Input (all four scenarios), Preview Parity For File Selection
   **Contracts**: `contracts/review-packet.schema.json`
   **Design decisions**: D1, D2, D4
   **Dependencies**: 4.2, 4.4
   **Files**: `skills/tests/parallel-infrastructure/test_review_packet.py`
 
-- [ ] 4.7 Integrate selection and rule groups into `review_packet.py` with a `preview` entry point (size: M)
+- [x] 4.7 Integrate selection and rule groups into `review_packet.py` with a `preview` entry point (size: M)
   **Dependencies**: 4.6
   **Files**: `skills/parallel-infrastructure/scripts/review_packet.py`
 
