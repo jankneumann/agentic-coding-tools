@@ -33,10 +33,12 @@ ON CONFLICT (name) DO UPDATE SET
 
 -- Ownership cannot be inferred safely from mutable payloads or labels. Existing
 -- 038-era rows remain unowned and therefore fail closed until a database
--- administrator verifies provenance out of band and explicitly inserts the row id.
+-- administrator verifies provenance out of band and explicitly registers every complete
+-- keyed row for the change, including cancelled historical generations; adopting
+-- only the current row is insufficient.
 COMMENT ON TABLE work_queue_projection_ownership IS
   'Database-owned Autopilot projection identities. Upgrade from 038: after '
-  'verifying provenance out of band, a database administrator must adopt every verified keyed row for the change '
+  'verifying provenance out of band, a database administrator must adopt every verified keyed row for the change, including cancelled historical generations; adopting only the current row is insufficient; '
   'with INSERT INTO work_queue_projection_ownership(task_id) VALUES (<verified-id>). '
   'Runtime projection functions never infer ownership from work_queue fields.';
 
@@ -464,6 +466,71 @@ BEGIN
   RETURN jsonb_build_object('success',TRUE,'issue',to_jsonb(v_issue));
 END;
 $mutation$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION close_issues_if_unowned(
+  p_request JSONB
+) RETURNS JSONB AS $batch$
+DECLARE
+  p_issue_ids UUID[]:=ARRAY(
+    SELECT value::UUID
+    FROM jsonb_array_elements_text(p_request->'issue_ids') AS item(value)
+  );
+  p_closed_at TIMESTAMPTZ:=(p_request->>'closed_at')::TIMESTAMPTZ;
+  p_reason TEXT:=p_request->>'reason';
+  v_reason TEXT;
+  v_issues JSONB;
+BEGIN
+  IF COALESCE(array_length(p_issue_ids, 1), 0)=0 THEN
+    RETURN jsonb_build_object('success',TRUE,'issues','[]'::JSONB);
+  END IF;
+
+  -- Lock the complete batch in UUID order before checking any ownership
+  -- boundary. Either every ordinary issue closes, or none of them do.
+  PERFORM issue.id FROM work_queue AS issue
+  WHERE issue.id=ANY(p_issue_ids) AND issue.task_type='issue'
+  ORDER BY issue.id
+  FOR UPDATE;
+
+  SELECT CASE
+    WHEN ownership.task_id IS NOT NULL THEN 'projection_issue_immutable'
+    ELSE 'reserved_projection_label'
+  END INTO v_reason
+  FROM unnest(p_issue_ids) WITH ORDINALITY AS requested(id, ordinal)
+  JOIN work_queue AS issue
+    ON issue.id=requested.id AND issue.task_type='issue'
+  LEFT JOIN work_queue_projection_ownership AS ownership
+    ON ownership.task_id=issue.id
+  WHERE ownership.task_id IS NOT NULL
+     OR 'projection:autopilot-phase'=ANY(
+       COALESCE(issue.labels,ARRAY[]::TEXT[])
+     )
+  ORDER BY requested.ordinal
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object('success',FALSE,'reason',v_reason);
+  END IF;
+
+  UPDATE work_queue AS issue SET
+    status='completed',
+    completed_at=p_closed_at,
+    closed_at=p_closed_at,
+    close_reason=CASE
+      WHEN p_reason IS NOT NULL THEN p_reason ELSE issue.close_reason
+    END
+  WHERE issue.id=ANY(p_issue_ids) AND issue.task_type='issue';
+
+  SELECT COALESCE(
+    jsonb_agg(to_jsonb(issue) ORDER BY requested.ordinal),
+    '[]'::JSONB
+  ) INTO v_issues
+  FROM unnest(p_issue_ids) WITH ORDINALITY AS requested(id, ordinal)
+  JOIN work_queue AS issue
+    ON issue.id=requested.id AND issue.task_type='issue';
+
+  RETURN jsonb_build_object('success',TRUE,'issues',v_issues);
+END;
+$batch$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION notify_projection_insert() RETURNS TRIGGER AS $projection$
 DECLARE

@@ -142,6 +142,41 @@ async def test_three_generations_replay_cancel_stale_and_exclude_issues_from_cla
     assert claimed.task_type == "test"
 
 
+async def test_issue_service_batch_close_is_atomic_across_projection_boundary(
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    issues = IssueService(db=postgres_db)
+    first = await issues.create(title="First ordinary issue")
+    second = await issues.create(title="Second ordinary issue")
+    change_id = "live-atomic-issue-close"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    projection = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase INIT",
+        priority=1,
+        projection_key=_key(change_id, "INIT", 0),
+        projection_labels=labels,
+    )
+
+    with pytest.raises(PermissionError, match="projection_issue_immutable"):
+        await issues.close(issue_ids=[first.id, projection.task_id, second.id])
+
+    assert (await issues.show(first.id)).status == "pending"
+    assert (await issues.show(second.id)).status == "pending"
+
+    closed = await issues.close(
+        issue_ids=[first.id, second.id],
+        reason="atomic batch complete",
+    )
+    assert [issue.id for issue in closed] == [first.id, second.id]
+    assert [issue.status for issue in closed] == ["completed", "completed"]
+    assert [issue.close_reason for issue in closed] == [
+        "atomic batch complete",
+        "atomic batch complete",
+    ]
+
+
 async def test_priority_one_projection_survives_exact_label_query_window_over_50(
     pg_work_queue,
     postgres_db,
@@ -357,9 +392,7 @@ async def test_unlabelled_projection_cannot_mutate_owned_labelled_namespace(
         "task_type": "issue",
         "description": "unlabelled projection",
         "priority": 1,
-        "projection_key": (
-            canonical_key if mode == "submit" else _key(change_id, "PLAN", 1)
-        ),
+        "projection_key": (canonical_key if mode == "submit" else _key(change_id, "PLAN", 1)),
     }
 
     if mode == "submit":
@@ -375,12 +408,8 @@ async def test_unlabelled_projection_cannot_mutate_owned_labelled_namespace(
     assert [(str(row["id"]), row["status"], row["labels"]) for row in rows] == [
         (str(canonical.task_id), "pending", labels)
     ]
-    heads = await postgres_db.query(
-        "work_queue_projection_heads", f"change_id=eq.{change_id}"
-    )
-    assert [(row["phase"], row["transition_sequence"]) for row in heads] == [
-        ("INIT", 0)
-    ]
+    heads = await postgres_db.query("work_queue_projection_heads", f"change_id=eq.{change_id}")
+    assert [(row["phase"], row["transition_sequence"]) for row in heads] == [("INIT", 0)]
 
 
 @pytest.mark.parametrize("mode", ["submit", "reconcile"])
@@ -419,12 +448,8 @@ async def test_labelled_projection_cannot_enter_unlabelled_keyed_namespace(
     assert [(str(row["id"]), row["status"], row["labels"]) for row in rows] == [
         (str(canonical.task_id), "pending", [])
     ]
-    heads = await postgres_db.query(
-        "work_queue_projection_heads", f"change_id=eq.{change_id}"
-    )
-    assert [(row["phase"], row["transition_sequence"]) for row in heads] == [
-        ("INIT", 0)
-    ]
+    heads = await postgres_db.query("work_queue_projection_heads", f"change_id=eq.{change_id}")
+    assert [(row["phase"], row["transition_sequence"]) for row in heads] == [("INIT", 0)]
 
 
 async def test_submit_collision_with_nonissue_is_fail_closed(
@@ -559,21 +584,16 @@ async def test_owned_projection_cannot_take_over_unowned_issue_key(
     assert rows[0]["description"] == "ordinary issue owns exact projection tuple"
     assert rows[0]["status"] == "pending"
     assert rows[0]["labels"] == []
-    heads = await postgres_db.query(
-        "work_queue_projection_heads", f"change_id=eq.{change_id}"
-    )
+    heads = await postgres_db.query("work_queue_projection_heads", f"change_id=eq.{change_id}")
     if mode == "submit":
         assert heads == []
     else:
         assert current is not None
-        assert [(row["phase"], row["transition_sequence"]) for row in heads] == [
-            ("PLAN", 1)
-        ]
-        current_rows = await postgres_db.query(
-            "work_queue", f"id=eq.{current.task_id}"
-        )
+        assert [(row["phase"], row["transition_sequence"]) for row in heads] == [("PLAN", 1)]
+        current_rows = await postgres_db.query("work_queue", f"id=eq.{current.task_id}")
         assert current_rows[0]["status"] == "pending"
         assert current_rows[0]["labels"] == labels
+
 
 @pytest.mark.parametrize("mode", ["submit", "reconcile"])
 async def test_owned_same_generation_request_reactivates_terminal_canonical_issue(

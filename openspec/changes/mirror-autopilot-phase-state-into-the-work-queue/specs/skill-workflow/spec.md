@@ -62,6 +62,7 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **AND** a projection RPC SHALL insert without labels, register ownership, and apply the canonical label pair within one transaction
 - **AND** ordinary mutation of an unowned pre-registry reserved-labelled row SHALL return a structured `reserved_projection_label` refusal without reaching the label trigger
 - **AND** no forged board or SSE projection and no future reconciliation wedge SHALL be created
+- **AND** a close request containing multiple issue IDs SHALL lock and validate the complete issue batch before mutation, so any protected projection member leaves every ordinary member unchanged
 
 #### Scenario: Labelled and legacy unlabelled projection modes cannot collide
 

@@ -37,6 +37,9 @@
 | R15-Grok-12 / Claude-2,3,4 | wp-projection-adapter | contract/operability/documentation | low | fixed | Kanban OpenAPI declares projection 403; event attribution, issue-row scope, and every-row administrator adoption guidance match runtime. |
 | R15-Claude-1,5,6 / remainder | both | optional/verification | low-none | accepted | Four-vendor quorum found no blocking implementation defect; atomic batch-close semantics require a separate contract, while all current row-level integrity guarantees hold. |
 
+| R16-Claude-18 / Pi-14 | wp-projection-adapter | correctness/atomicity | medium | fixed | Multi-issue close now locks and validates the complete issue batch in one database transaction; a protected member leaves every ordinary issue unchanged, and the direct service-to-PostgreSQL path is live-tested. |
+| R16 documentation / remainder | both | operability/verification | low-none | fixed/accepted | Migration attribution, board visibility, every-generation adoption, and issue-only mutation scope are explicit; four protocol-valid reviews plus schema-valid out-of-band Pi evidence confirm the projection recovery invariants. Direct-MCP refusal-envelope cleanup and dead legacy helpers remain non-blocking follow-up cleanup. |
+
 ## Coverage Summary
 
 - **Requirements traced**: 1/1

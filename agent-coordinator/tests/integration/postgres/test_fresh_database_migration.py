@@ -65,6 +65,7 @@ REQUIRED_FUNCTIONS = [
     "get_agent_profile",
     "is_domain_allowed",
     "mutate_issue_if_unowned",
+    "close_issues_if_unowned",
 ]
 
 
@@ -269,10 +270,13 @@ async def test_039_upgrade_fails_closed_until_owner_registers_verified_row(
         reconcile = json.loads(reconcile_raw)
         assert reconcile["success"] is False
         assert reconcile["reason"] == "projection_key_collision"
-        assert await conn.fetchval(
-            "SELECT COUNT(*) FROM work_queue WHERE input_data->>'change_id'="
-            "'upgrade-legitimate'"
-        ) == 1
+        assert (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM work_queue WHERE input_data->>'change_id'="
+                "'upgrade-legitimate'"
+            )
+            == 1
+        )
         assert await conn.fetchrow(
             "SELECT phase, transition_sequence FROM work_queue_projection_heads "
             "WHERE change_id='upgrade-legitimate'"
@@ -307,11 +311,13 @@ async def test_039_upgrade_fails_closed_until_owner_registers_verified_row(
             "projection:autopilot-phase",
         ]
         assert spoof["result"] is None
-        assert await conn.fetchval(
-            "SELECT EXISTS (SELECT 1 FROM work_queue_projection_ownership "
-            "WHERE task_id=$1)",
-            spoof_id,
-        ) is False
+        assert (
+            await conn.fetchval(
+                "SELECT EXISTS (SELECT 1 FROM work_queue_projection_ownership WHERE task_id=$1)",
+                spoof_id,
+            )
+            is False
+        )
     finally:
         await conn.close()
 
@@ -336,10 +342,12 @@ async def test_039_unlabelled_reconcile_fails_closed_on_reserved_upgrade_row(
             "pending",
             ["change:upgrade-spoof", "projection:autopilot-phase"],
         )
-        assert await conn.fetchval(
-            "SELECT COUNT(*) FROM work_queue_projection_heads "
-            "WHERE change_id='upgrade-spoof'"
-        ) == 0
+        assert (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM work_queue_projection_heads WHERE change_id='upgrade-spoof'"
+            )
+            == 0
+        )
     finally:
         await conn.close()
 
@@ -427,11 +435,14 @@ async def test_reserved_projection_rows_are_database_owned_and_issue_immutable(
         )
         assert projected["success"] is True
         projection_id = uuid.UUID(projected["task_id"])
-        assert await conn.fetchval(
-            "SELECT labels=$2::text[] FROM work_queue WHERE id=$1",
-            projection_id,
-            labels,
-        ) is True
+        assert (
+            await conn.fetchval(
+                "SELECT labels=$2::text[] FROM work_queue WHERE id=$1",
+                projection_id,
+                labels,
+            )
+            is True
+        )
 
         immutable = json.loads(
             await conn.fetchval(
@@ -449,6 +460,59 @@ async def test_reserved_projection_rows_are_database_owned_and_issue_immutable(
             projection_id,
         ) == ("Autopilot phase INIT", "pending", labels)
 
+        second_ordinary_id = await conn.fetchval(
+            "INSERT INTO work_queue "
+            "(task_type,description,input_data,priority,labels) "
+            "VALUES ('issue','second ordinary','{}'::jsonb,5,ARRAY[]::text[]) "
+            "RETURNING id"
+        )
+        refused_batch = json.loads(
+            await conn.fetchval(
+                "SELECT close_issues_if_unowned($1::jsonb)",
+                json.dumps(
+                    {
+                        "issue_ids": [
+                            str(ordinary_id),
+                            str(projection_id),
+                            str(second_ordinary_id),
+                        ],
+                        "closed_at": "2026-09-14T14:00:00+00:00",
+                        "reason": None,
+                    }
+                ),
+            )
+        )
+        assert refused_batch == {
+            "success": False,
+            "reason": "projection_issue_immutable",
+        }
+        assert (
+            await conn.fetchval("SELECT status FROM work_queue WHERE id=$1", ordinary_id)
+            == "pending"
+        )
+        assert (
+            await conn.fetchval("SELECT status FROM work_queue WHERE id=$1", second_ordinary_id)
+            == "pending"
+        )
+
+        closed_batch = json.loads(
+            await conn.fetchval(
+                "SELECT close_issues_if_unowned($1::jsonb)",
+                json.dumps(
+                    {
+                        "issue_ids": [str(ordinary_id), str(second_ordinary_id)],
+                        "closed_at": "2026-09-14T14:00:00+00:00",
+                        "reason": "batch complete",
+                    }
+                ),
+            )
+        )
+        assert closed_batch["success"] is True
+        assert [uuid.UUID(row["id"]) for row in closed_batch["issues"]] == [
+            ordinary_id,
+            second_ordinary_id,
+        ]
+
         advanced = json.loads(
             await conn.fetchval(
                 "SELECT reconcile_work_projection($1,'PLAN',1,'issue',"
@@ -458,11 +522,14 @@ async def test_reserved_projection_rows_are_database_owned_and_issue_immutable(
             )
         )
         assert advanced["success"] is True
-        assert await conn.fetchval(
-            "SELECT COUNT(*) FROM work_queue WHERE task_type='issue' "
-            "AND status='pending' AND labels @> $1::text[]",
-            labels,
-        ) == 1
+        assert (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM work_queue WHERE task_type='issue' "
+                "AND status='pending' AND labels @> $1::text[]",
+                labels,
+            )
+            == 1
+        )
     finally:
         await conn.close()
 
@@ -479,9 +546,7 @@ async def test_fresh_database_has_the_objects_the_code_calls(migrated_database) 
     try:
         tables = {
             r["tablename"]
-            for r in await conn.fetch(
-                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
-            )
+            for r in await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
         }
         functions = {
             r["proname"]
@@ -560,9 +625,7 @@ async def test_seeded_database_survives_the_first_run_pass(migrated_database) ->
 
     conn = await _connect(dsn)
     try:
-        body = await conn.fetchval(
-            "SELECT pg_get_functiondef('notify_work_queue_change'::regproc)"
-        )
+        body = await conn.fetchval("SELECT pg_get_functiondef('notify_work_queue_change'::regproc)")
         recorded = await conn.fetchval("SELECT count(*) FROM schema_migrations")
     finally:
         await conn.close()

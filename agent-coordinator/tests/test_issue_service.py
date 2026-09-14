@@ -72,8 +72,11 @@ class TestIssueCreate:
         """Create a basic issue with title and type."""
         issue_id = uuid4()
         mock_db.insert.return_value = _make_issue_row(
-            issue_id=issue_id, title="Fix CORS headers", issue_type="bug",
-            priority=3, labels=["api", "followup"],
+            issue_id=issue_id,
+            title="Fix CORS headers",
+            issue_type="bug",
+            priority=3,
+            labels=["api", "followup"],
         )
 
         issue = await service.create(
@@ -99,11 +102,14 @@ class TestIssueCreate:
         parent_id = uuid4()
         child_id = uuid4()
         mock_db.insert.return_value = _make_issue_row(
-            issue_id=child_id, title="Subtask", parent_id=parent_id,
+            issue_id=child_id,
+            title="Subtask",
+            parent_id=parent_id,
         )
 
         issue = await service.create(
-            title="Subtask", parent_id=parent_id,
+            title="Subtask",
+            parent_id=parent_id,
         )
 
         assert issue.parent_id == parent_id
@@ -116,11 +122,13 @@ class TestIssueCreate:
         dep1 = uuid4()
         dep2 = uuid4()
         mock_db.insert.return_value = _make_issue_row(
-            title="Blocked task", depends_on=[dep1, dep2],
+            title="Blocked task",
+            depends_on=[dep1, dep2],
         )
 
         issue = await service.create(
-            title="Blocked task", depends_on=[dep1, dep2],
+            title="Blocked task",
+            depends_on=[dep1, dep2],
         )
 
         assert len(issue.depends_on) == 2
@@ -230,9 +238,7 @@ class TestIssueList:
         assert "status=in.(pending,claimed,running,completed,failed,blocked)" not in query
 
     @pytest.mark.asyncio
-    async def test_list_by_labels_does_not_post_filter_after_limit(
-        self, service, mock_db
-    ):
+    async def test_list_by_labels_does_not_post_filter_after_limit(self, service, mock_db):
         """#429: LIMIT before label filter hid newly inserted rows.
 
         work_queue already has >= MAX_PAGE_SIZE issue rows. New writes persist
@@ -401,9 +407,7 @@ class TestIssueUpdate:
         issue_id = uuid4()
         mock_db.rpc.return_value = {
             "success": True,
-            "issue": _make_issue_row(
-                issue_id=issue_id, labels=["api", "urgent"]
-            ),
+            "issue": _make_issue_row(issue_id=issue_id, labels=["api", "urgent"]),
         }
 
         issue = await service.update(issue_id, labels=["api", "urgent"])
@@ -471,36 +475,35 @@ class TestIssueClose:
         issue_id = uuid4()
         mock_db.rpc.return_value = {
             "success": True,
-            "issue": _make_issue_row(issue_id=issue_id, status="completed"),
+            "issues": [_make_issue_row(issue_id=issue_id, status="completed")],
         }
 
         results = await service.close(issue_id=issue_id, reason="Done in PR #42")
 
         assert len(results) == 1
-        update_data = mock_db.rpc.await_args.args[1]["p_patch"]
-        assert update_data["status"] == "completed"
-        assert update_data["close_reason"] == "Done in PR #42"
-        assert "closed_at" in update_data
-        # DatabaseClient contract is PostgREST JSON: ISO strings, not
-        # datetime objects. DirectPostgresClient coerces them on bind.
-        assert isinstance(update_data["closed_at"], str)
-        assert isinstance(update_data["completed_at"], str)
-        datetime.fromisoformat(update_data["closed_at"])
-        datetime.fromisoformat(update_data["completed_at"])
+        request = mock_db.rpc.await_args.args[1]["p_request"]
+        assert request["reason"] == "Done in PR #42"
+        assert request["issue_ids"] == [str(issue_id)]
+        assert isinstance(request["closed_at"], str)
+        datetime.fromisoformat(request["closed_at"])
 
     @pytest.mark.asyncio
     async def test_batch_close(self, service, mock_db):
         """Batch close multiple issues."""
         ids = [uuid4(), uuid4(), uuid4()]
-        mock_db.rpc.side_effect = [
-            {"success": True, "issue": _make_issue_row(status="completed")}
-            for _ in ids
-        ]
+        mock_db.rpc.return_value = {
+            "success": True,
+            "issues": [_make_issue_row(issue_id=issue_id, status="completed") for issue_id in ids],
+        }
 
         results = await service.close(issue_ids=ids)
 
-        assert len(results) == 3
-        assert mock_db.rpc.await_count == 3
+        assert [issue.id for issue in results] == ids
+        mock_db.rpc.assert_awaited_once()
+        assert mock_db.rpc.await_args.args[0] == "close_issues_if_unowned"
+        assert mock_db.rpc.await_args.args[1]["p_request"]["issue_ids"] == [
+            str(issue_id) for issue_id in ids
+        ]
 
     @pytest.mark.asyncio
     async def test_close_no_ids_raises(self, service):
@@ -665,8 +668,11 @@ class TestIssueModel:
     def test_from_row(self):
         """Issue.from_row correctly maps work_queue columns."""
         row = _make_issue_row(
-            title="Test", issue_type="bug", priority=3,
-            labels=["api"], assignee="agent-1",
+            title="Test",
+            issue_type="bug",
+            priority=3,
+            labels=["api"],
+            assignee="agent-1",
         )
         issue = Issue.from_row(row)
 

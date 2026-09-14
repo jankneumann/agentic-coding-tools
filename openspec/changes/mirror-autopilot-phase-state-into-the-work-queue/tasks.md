@@ -24,6 +24,7 @@
 - [x] 2.11 Prevent labelled submit/reconcile from entering any change namespace that already contains a complete unowned projection tuple, returning `projection_key_collision` before head or row mutation.
 - [x] 2.12 Map projection mutation refusals to HTTP 403 on the Kanban label-PATCH endpoint and return a structured reserved-label refusal before ordinary mutation of any unowned pre-registry reserved row.
 - [x] 2.13 Declare the projection-refusal 403 on the Kanban label-PATCH OpenAPI operation, correct first-generation event attribution, and document that upgrade adoption covers every verified complete keyed row for a change.
+- [x] 2.14 Make multi-issue close atomic across the projection-ownership boundary with one row-locking database RPC, raw PostgreSQL and live IssueService regressions, and aligned operator guidance.
 
 ## Phase 3 — Behavioral and crash recovery proof
 

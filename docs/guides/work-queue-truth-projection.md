@@ -130,7 +130,7 @@ verified false negatives are pinned as mutation cases in the test.
   coordinator-only submit/reconcile helpers. The adapter derives the exact phase
   key, advances through reconciliation only for `reconciliation_required`, and
   passes the exact owned label pair with the priority-1 `task_type=issue` row.
-  Migration 038 applies canonical labels and clears stale owned labels inside the
+  Migration 039 applies canonical labels and clears stale owned labels inside the
   same per-change transaction that advances or repairs the projection head.
 - `runner.py init` and `transition` are the canonical state writers;
   `project-state --mode submit|reconcile` is the explicit coordinated host
@@ -143,13 +143,13 @@ the durable loop-state; resume re-derives the desired generation, atomically
 cancels stale active rows, and ensures the current row exists. An exact replay
 whose canonical row is completed, failed, or cancelled is reactivated to
 `pending` with prior execution metadata cleared, so the current projection is
-visible and executable again. Existing blocked rows remain blocked; resolving
+board-visible again. Existing blocked rows remain blocked; resolving
 that status is an operator/workflow decision rather than projection repair.
 Queue metadata is observability only and is never read back into `LoopState`.
 
 Migration 039 intentionally does not auto-adopt existing labelled rows: pre-registry payload and label fields are client-mutable and cannot prove ownership. Before replaying a migration-038 projection, a database administrator must enumerate every complete keyed row for the change, verify each row provenance out of band, and insert every verified UUID into `work_queue_projection_ownership`. Cancelled historical generations remain part of this fail-closed set; adopting only the current row is insufficient. Until then both same-generation replay and newer-generation repair fail closed with `projection_key_collision` before head or row mutation; projection repair will not insert around, cancel, or relabel the unowned row.
 
-After migration 039, the reserved `projection:autopilot-phase` label is database-owned. Projection RPCs insert an initially unlabelled row, register its UUID, and only then apply the canonical label pair. A database trigger rejects any insert or label update that would place the reserved marker on an unregistered row. Ordinary issue create/update rejects the marker before persistence, and ordinary issue update/close uses a transactional database mutation that refuses registry-owned rows. These checks keep cosmetic labels from creating board/SSE impostors or wedging later reconciliation.
+After migration 039, the reserved `projection:autopilot-phase` label is database-owned. Projection RPCs insert an initially unlabelled row, register its UUID, and only then apply the canonical label pair. A database trigger rejects any insert or label update that would place the reserved marker on an unregistered row. Ordinary issue create/update rejects the marker before persistence, and ordinary issue update/close uses a transactional database mutation that refuses registry-owned rows. The checks keep cosmetic labels from creating board/SSE impostors or wedging later reconciliation. The issue APIs now operate exclusively on `task_type=issue` rows; ordinary work-task UUIDs are not a supported mutation target for issue update or close.
 
 Labelled Autopilot projections and legacy unlabelled keyed projections may not share one change namespace. Once any row for a change is registry-owned, an unlabelled keyed submit or reconcile returns `projection_mode_mismatch` before reading or changing the head or rows. Any associated unowned reserved-labelled upgrade row returns `projection_key_collision` for either mode. Unlabelled reconciliation retains its historical tuple-cancellation behavior only where neither owned nor reserved-labelled projection state exists. Direct MCP and its HTTP proxy accept and forward `projection_labels`, so all supported publication transports can remain on the labelled path.
 
