@@ -74,11 +74,24 @@ The host must use `runner.py init` for initialization and `runner.py
 transition --outcome <outcome>` for every ordinary phase edge; it must not
 hand-edit `current_phase`. After **every successfully persisted** runner
 mutation — `init`, `transition`, `apply-outcome`,
-`record-state-only-archetype`, and `gate-answer` — immediately run
+`escalate`, `record-state-only-archetype`, and `gate-answer` — immediately run
 `project-state --mode submit`. A non-zero mutation exit suppresses projection. Runner mutation exit codes are
 0 for a successful write or a clean gate-pending stop, 1 for operational
 failure, and 2 for invalid caller input. A clean gate-pending transition writes
 nothing and remains parked for `gate-answer`.
+An invalid logical phase edge is different from invalid CLI input: `transition`
+records `transition_failed`, enters ESCALATE with the current phase as
+`previous_phase`, and exits 0 so the required projection publishes the parked
+generation. If host-side phase bookkeeping fails before `transition` can run,
+use the explicit durable writer:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" escalate \
+  --change-id <change-id> \
+  --reason "apply-outcome failed; retained handoff <handoff_id>"
+```
+
+After its exit-0 write, submit projection and stop the run.
 For `gate-check`, exits 0, 3, and 4 all mean a decision or park was durably
 recorded, so submit projection before asking, continuing, or stopping; exits 1
 and 2 suppress projection. Projection failure is reported as degraded but never
@@ -373,13 +386,13 @@ provider adapter. Each block follows the same 3-step protocol:
 
    **On non-zero exit (design D9): do NOT advance to the next phase.** A
    failed `apply-outcome` means the bookkeeping did not land. Retain the
-   un-applied handoff file (do not delete it) and transition to `ESCALATE`
-   with `previous_phase` set to the failing phase. The
-   `apply_outcome_or_escalate()` helper in `autopilot.py` encapsulates this
-   exact sequence (run → on failure append `phase_history`, set
-   `current_phase = ESCALATE`, retain handoff); an in-process orchestrator
-   calls it in place of a bare `apply-outcome`. A silent continue is worse
-   than the bug this protocol prevents.
+   un-applied handoff file (do not delete it), invoke `runner.py escalate`
+   with a reason naming the failed phase and retained handoff, then project the
+   exit-0 ESCALATE write and stop. `apply_outcome_or_escalate()` remains the
+   equivalent in-process API. On apply success, invoke `runner.py transition`
+   with the recorded outcome; an unsupported logical edge is itself converted
+   to a durable, projectable ESCALATE write. A silent continue is worse than
+   the bug this protocol prevents.
 
 **Fallback (D5)**: If `runner.py build-dispatch` returns `archetype: null`
 (coordinator unreachable or fallback), OR if no provider-neutral dispatch

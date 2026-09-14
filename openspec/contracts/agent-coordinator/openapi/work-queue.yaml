@@ -90,6 +90,13 @@ paths:
               type: object
               additionalProperties: false
               required: [task_type, task_description]
+              allOf:
+                - if:
+                    required: [projection_labels]
+                  then:
+                    required: [projection_key, task_type]
+                    properties:
+                      task_type: {const: issue}
               properties:
                 task_type: {type: string, minLength: 1}
                 task_description: {type: string, minLength: 1}
@@ -101,9 +108,15 @@ paths:
                   $ref: "#/components/schemas/ProjectionKey"
                 projection_labels:
                   type: array
+                  description: >-
+                    Ordered canonical pair. The first item MUST equal
+                    change:<projection_key.change_id>; the second item is fixed.
                   minItems: 2
                   maxItems: 2
-                  items: {type: string, maxLength: 160}
+                  prefixItems:
+                    - {type: string, pattern: "^change:[a-z0-9][a-z0-9-]{0,127}$", maxLength: 135}
+                    - {type: string, const: "projection:autopilot-phase"}
+                  items: false
       responses:
         "200":
           description: Task created with its task_id (spec 138-139)
@@ -136,14 +149,27 @@ paths:
               type: object
               additionalProperties: false
               required: [projection_key, task_type, task_description]
+              allOf:
+                - if:
+                    required: [projection_labels]
+                  then:
+                    required: [projection_key, task_type]
+                    properties:
+                      task_type: {const: issue}
               properties:
                 projection_key:
                   $ref: "#/components/schemas/ProjectionKey"
                 projection_labels:
                   type: array
+                  description: >-
+                    Ordered canonical pair. The first item MUST equal
+                    change:<projection_key.change_id>; the second item is fixed.
                   minItems: 2
                   maxItems: 2
-                  items: {type: string, maxLength: 160}
+                  prefixItems:
+                    - {type: string, pattern: "^change:[a-z0-9][a-z0-9-]{0,127}$", maxLength: 135}
+                    - {type: string, const: "projection:autopilot-phase"}
+                  items: false
                 task_type: {type: string, minLength: 1}
                 task_description: {type: string, minLength: 1}
                 input_data: {type: object}

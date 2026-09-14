@@ -667,14 +667,19 @@ def apply_outcome_or_escalate(
         raw.setdefault("pending_gate", None)
         raw.setdefault("goal_gate", None)
         raw["schema_version"] = LOOP_STATE_SCHEMA_VERSION
-        raw["previous_phase"] = phase
-        raw["current_phase"] = "ESCALATE"
-        raw["total_iterations"] = int(raw.get("total_iterations", 0)) + 1
-        raw["escalation_reason"] = (
-            f"apply-outcome failed (exit {rc}) for phase {phase}; handoff "
-            f"{handoff_id} retained un-applied"
-        )
-        raw["phase_started_at"] = _now_iso()
+        # Retry-safe: an apply-outcome retry while already parked must publish
+        # the same generation and retain its original resume target. This
+        # mirrors ``enter_escalate`` rather than inventing a second ESCALATE
+        # writer with different generation semantics.
+        if raw.get("current_phase") != "ESCALATE":
+            raw["previous_phase"] = phase
+            raw["current_phase"] = "ESCALATE"
+            raw["total_iterations"] = int(raw.get("total_iterations", 0)) + 1
+            raw["escalation_reason"] = (
+                f"apply-outcome failed (exit {rc}) for phase {phase}; handoff "
+                f"{handoff_id} retained un-applied"
+            )
+            raw["phase_started_at"] = _now_iso()
         path.write_text(json.dumps(raw, indent=2) + "\n")
         _project_saved_state(
             load_state(path), queue_projection_fn, mode="submit"

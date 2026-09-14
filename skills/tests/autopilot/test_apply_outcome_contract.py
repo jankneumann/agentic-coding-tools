@@ -287,3 +287,36 @@ def test_apply_outcome_failure_advances_generation_and_projects_escalate(
     assert state["total_iterations"] == 5
     assert state["unknown_extension"] == {"preserve": True}
     assert projected == [("ESCALATE", 5, "submit")]
+
+
+def test_apply_outcome_failure_retry_while_escalated_preserves_resume_generation(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="ESCALATE",
+        previous_phase="PLAN_REVIEW",
+        total_iterations=9,
+        escalation_reason="original failure",
+    )
+    projected: list[tuple[str, int, str | None]] = []
+
+    autopilot.apply_outcome_or_escalate(
+        change_id="demo",
+        phase="VALIDATE",
+        outcome="failed",
+        handoff_id="h-retry",
+        state_path=state_path,
+        apply_runner=lambda **_kwargs: 1,
+        queue_projection_fn=lambda state, *, mode: projected.append(
+            (state.current_phase, state.total_iterations, state.previous_phase)
+        )
+        or {"status": "ok"},
+    )
+
+    state = json.loads(state_path.read_text())
+    assert state["current_phase"] == "ESCALATE"
+    assert state["previous_phase"] == "PLAN_REVIEW"
+    assert state["total_iterations"] == 9
+    assert projected == [("ESCALATE", 9, "PLAN_REVIEW")]

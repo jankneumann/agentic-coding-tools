@@ -61,6 +61,59 @@ def installed_target(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return target
 
 
+
+def test_check_detects_stale_installed_skill_payload(tmp_path: Path) -> None:
+    target = tmp_path / "mirror-check"
+    target.mkdir()
+    install_args = [
+        "bash",
+        str(INSTALL_SH),
+        "--target",
+        str(target),
+        "--agents",
+        "agents",
+        "--mode",
+        "copy",
+        "--deps",
+        "none",
+        "--openspec-assets",
+        "none",
+        "--openspec-cli",
+        "none",
+        "--python-tools",
+        "none",
+    ]
+    installed = subprocess.run(
+        install_args,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=_clean_env(),
+    )
+    assert installed.returncode == 0, installed.stderr
+
+    checked = subprocess.run(
+        [*install_args, "--check"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=_clean_env(),
+    )
+    assert checked.returncode == 0, checked.stderr
+
+    mirror = target / ".agents/skills/autopilot/scripts/queue_projection.py"
+    mirror.write_text(mirror.read_text() + "\n# stale mirror\n")
+    stale = subprocess.run(
+        [*install_args, "--check"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=_clean_env(),
+    )
+    assert stale.returncode != 0
+    assert "autopilot" in stale.stderr
+    assert "differ" in stale.stderr
+
 def _import_file(path: Path) -> subprocess.CompletedProcess[str]:
     code = (
         "import importlib.util, pathlib; "

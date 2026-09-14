@@ -167,6 +167,18 @@ def _evaluate_gate(args: argparse.Namespace) -> int:
     record = state.gate_decisions[-1]
 
     if decision.proceed:
+        if gate is Gate.ESCALATE_RESUME:
+            try:
+                autopilot._apply_transition(
+                    state, "resolved", change_dir=_change_dir(args.change_id)
+                )
+                autopilot.save_state(state, state_path)
+            except (OSError, ValueError) as exc:
+                sys.stderr.write(
+                    f"runner: escalate resume was authorized but could not be "
+                    f"persisted: {exc}\n"
+                )
+                return 1
         sys.stdout.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
         return EXIT_NO_PENDING_GATE
 
@@ -394,10 +406,17 @@ def _cmd_transition(args: argparse.Namespace) -> int:
     try:
         phase_agent._validate_change_id(args.change_id)
         state = autopilot.load_state(_state_path(args.change_id))
+    except ValueError as exc:
+        sys.stderr.write(f"runner: transition failed: {exc}\n")
+        return 2
+    except OSError as exc:
+        sys.stderr.write(f"runner: transition failed: {exc}\n")
+        return 1
+
+    try:
         autopilot._apply_transition(
             state, args.outcome, change_dir=_change_dir(args.change_id)
         )
-        autopilot.save_state(state, _state_path(args.change_id))
     except autopilot.GatePending as exc:
         sys.stderr.write(f"runner: transition stopped: {exc}\n")
         return 0
@@ -411,10 +430,66 @@ def _cmd_transition(args: argparse.Namespace) -> int:
         sys.stderr.write(f"runner: transition escalated: {exc}\n")
         return 0
     except ValueError as exc:
-        sys.stderr.write(f"runner: transition failed: {exc}\n")
-        return 2
+        # The host has already recorded the phase handoff through
+        # ``apply-outcome``. An unsupported outcome is therefore a logical
+        # phase failure, not invalid CLI syntax: park it durably so exit zero
+        # permits the mandatory project-state step to publish ESCALATE.
+        state.phase_history.append(
+            {
+                "phase": state.current_phase,
+                "outcome": "transition_failed",
+                "at": autopilot._now_iso(),
+                "note": str(exc),
+            }
+        )
+        autopilot.enter_escalate(state, f"logical transition failure: {exc}")
+        try:
+            autopilot.save_state(state, _state_path(args.change_id))
+        except OSError as save_exc:
+            sys.stderr.write(f"runner: transition failed: {save_exc}\n")
+            return 1
+        sys.stderr.write(
+            f"runner: logical transition failed: {exc}; "
+            "run parked in ESCALATE\n"
+        )
+        return 0
+
+    try:
+        autopilot.save_state(state, _state_path(args.change_id))
     except OSError as exc:
         sys.stderr.write(f"runner: transition failed: {exc}\n")
+        return 1
+    return 0
+
+
+def _cmd_escalate(args: argparse.Namespace) -> int:
+    """Durably park the host-driven run after an external phase failure."""
+    if not isinstance(args.reason, str) or not args.reason.strip():
+        sys.stderr.write("runner: --reason must be a non-empty string\n")
+        return 2
+    try:
+        phase_agent._validate_change_id(args.change_id)
+        state = autopilot.load_state(_state_path(args.change_id))
+    except ValueError as exc:
+        sys.stderr.write(f"runner: escalate failed: {exc}\n")
+        return 2
+    except OSError as exc:
+        sys.stderr.write(f"runner: escalate failed: {exc}\n")
+        return 1
+
+    state.phase_history.append(
+        {
+            "phase": state.current_phase,
+            "outcome": "host_escalate",
+            "at": autopilot._now_iso(),
+            "note": args.reason,
+        }
+    )
+    autopilot.enter_escalate(state, args.reason)
+    try:
+        autopilot.save_state(state, _state_path(args.change_id))
+    except OSError as exc:
+        sys.stderr.write(f"runner: escalate failed: {exc}\n")
         return 1
     return 0
 
@@ -451,7 +526,8 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="runner",
         description=(
             "Autopilot per-phase dispatch and human-gate CLI. Subcommands: "
-            "build-dispatch, apply-outcome, record-state-only-archetype, "
+            "build-dispatch, apply-outcome, transition, escalate, "
+            "record-state-only-archetype, "
             "gate-check, gate-answer. Gate exit codes: 0 ask, 3 continue, "
             "4 parked."
         ),
@@ -466,6 +542,14 @@ def _build_parser() -> argparse.ArgumentParser:
     tr.add_argument("--change-id", required=True)
     tr.add_argument("--outcome", required=True)
     tr.set_defaults(func=_cmd_transition)
+
+    es = sub.add_parser(
+        "escalate",
+        help="Durably park the current phase after a host-side failure.",
+    )
+    es.add_argument("--change-id", required=True)
+    es.add_argument("--reason", required=True)
+    es.set_defaults(func=_cmd_escalate)
 
     ps = sub.add_parser(
         "project-state",

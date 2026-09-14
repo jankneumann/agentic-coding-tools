@@ -215,3 +215,246 @@ async def test_connected_sse_refreshes_after_atomic_projection_reconciliation(
     finally:
         await stream.aclose()
         await bus.stop()
+
+
+async def test_connected_sse_refreshes_for_first_canonical_projection_insert(
+    pg_work_queue,
+) -> None:
+    """The first labelled projection insert refreshes an already-connected client."""
+    change_id = "live-first-insert-sse"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    bus = EventBusService(dsn=POSTGRES_DSN, channels=("coordinator_task",))
+    await bus.start()
+    await _wait_until_listening(bus)
+    stream = sse_event_generator([change_id], bus)
+    try:
+        initial = await asyncio.wait_for(stream.__anext__(), timeout=5)
+        assert json.loads(initial["data"])["work_queue"] == []
+
+        created = await pg_work_queue.submit(
+            task_type="issue",
+            description="Autopilot phase INIT",
+            priority=1,
+            projection_key=_key(change_id, "INIT", 0),
+            projection_labels=labels,
+        )
+        assert created.success is True
+
+        refreshed = await asyncio.wait_for(stream.__anext__(), timeout=1)
+        assert refreshed["event"] == "snapshot"
+        assert [row["id"] for row in json.loads(refreshed["data"])["work_queue"]] == [
+            str(created.task_id)
+        ]
+    finally:
+        await stream.aclose()
+        await bus.stop()
+
+
+async def test_same_generation_submit_replay_clears_noncanonical_owned_labels(
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = "live-submit-replay-repair"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    key = _key(change_id, "INIT", 0)
+    canonical = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase INIT",
+        priority=1,
+        projection_key=key,
+        projection_labels=labels,
+    )
+    stale = await postgres_db.insert(
+        "work_queue",
+        {
+            "task_type": "issue",
+            "description": "stale owned projection",
+            "input_data": _key(change_id, "PLAN", 1),
+            "priority": 1,
+            "status": "cancelled",
+            "labels": labels,
+        },
+    )
+
+    replay = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase INIT",
+        priority=1,
+        projection_key=key,
+        projection_labels=labels,
+    )
+
+    assert replay.success is True
+    assert replay.task_id == canonical.task_id
+    rows = await postgres_db.query(
+        "work_queue", f"input_data->>change_id=eq.{change_id}&order=created_at.asc"
+    )
+    labels_by_id = {str(row["id"]): row["labels"] for row in rows}
+    assert labels_by_id[str(canonical.task_id)] == labels
+    assert labels_by_id[str(stale["id"])] == []
+
+
+async def test_submit_collision_with_nonissue_is_fail_closed(
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = "live-submit-key-collision"
+    key = _key(change_id, "INIT", 0)
+    collision = await postgres_db.insert(
+        "work_queue",
+        {
+            "task_type": "test",
+            "description": "ordinary row owns target key",
+            "input_data": key,
+            "priority": 5,
+            "labels": ["ordinary"],
+        },
+    )
+
+    result = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase INIT",
+        priority=1,
+        projection_key=key,
+        projection_labels=[f"change:{change_id}", _PROJECTION_LABEL],
+    )
+
+    assert result.success is False
+    assert result.reason == "projection_key_collision"
+    rows = await postgres_db.query("work_queue", f"id=eq.{collision['id']}")
+    assert rows[0]["task_type"] == "test"
+    assert rows[0]["status"] == "pending"
+    assert rows[0]["labels"] == ["ordinary"]
+    heads = await postgres_db.query("work_queue_projection_heads", f"change_id=eq.{change_id}")
+    assert heads == []
+
+
+async def test_reconcile_collision_with_nonissue_preserves_head_and_active_row(
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = "live-reconcile-key-collision"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    current = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase PLAN",
+        priority=1,
+        projection_key=_key(change_id, "PLAN", 1),
+        projection_labels=labels,
+    )
+    collision = await postgres_db.insert(
+        "work_queue",
+        {
+            "task_type": "test",
+            "description": "ordinary row owns next key",
+            "input_data": _key(change_id, "IMPLEMENT", 2),
+            "priority": 5,
+            "labels": ["ordinary"],
+        },
+    )
+
+    result = await pg_work_queue.reconcile_projection(
+        task_type="issue",
+        description="Autopilot phase IMPLEMENT",
+        priority=1,
+        projection_key=_key(change_id, "IMPLEMENT", 2),
+        projection_labels=labels,
+    )
+
+    assert result.success is False
+    assert result.reason == "projection_key_collision"
+    rows = await postgres_db.query(
+        "work_queue", f"input_data->>change_id=eq.{change_id}&order=created_at.asc"
+    )
+    rows_by_id = {str(row["id"]): row for row in rows}
+    assert rows_by_id[str(current.task_id)]["status"] == "pending"
+    assert rows_by_id[str(current.task_id)]["labels"] == labels
+    collision_row = rows_by_id[str(collision["id"])]
+    assert collision_row["task_type"] == "test"
+    assert collision_row["status"] == "pending"
+    assert collision_row["labels"] == ["ordinary"]
+    heads = await postgres_db.query("work_queue_projection_heads", f"change_id=eq.{change_id}")
+    assert [(row["phase"], row["transition_sequence"]) for row in heads] == [("PLAN", 1)]
+
+
+@pytest.mark.parametrize("mode", ["submit", "reconcile"])
+async def test_owned_same_generation_request_reactivates_terminal_canonical_issue(
+    mode,
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = f"live-reactivate-{mode}"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    key = _key(change_id, "VALIDATE", 7)
+    canonical = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase VALIDATE",
+        priority=1,
+        projection_key=key,
+        projection_labels=labels,
+    )
+    await postgres_db.update(
+        "work_queue",
+        {"id": str(canonical.task_id)},
+        {
+            "status": "cancelled",
+            "result": {"reason": "prior terminal state"},
+            "error_message": "prior terminal state",
+        },
+    )
+    issues = IssueService(db=postgres_db)
+    assert await issues.list_issues(labels=labels) == []
+
+    request = {
+        "task_type": "issue",
+        "description": "Autopilot phase VALIDATE",
+        "priority": 1,
+        "projection_key": key,
+        "projection_labels": labels,
+    }
+    if mode == "submit":
+        result = await pg_work_queue.submit(**request)
+    else:
+        result = await pg_work_queue.reconcile_projection(**request)
+
+    assert result.success is True
+    visible = await issues.list_issues(labels=labels)
+    assert [(issue.id, issue.status) for issue in visible] == [(canonical.task_id, "pending")]
+    rows = await postgres_db.query("work_queue", f"id=eq.{canonical.task_id}")
+    assert rows[0]["claimed_by"] is None
+    assert rows[0]["claimed_at"] is None
+    assert rows[0]["started_at"] is None
+    assert rows[0]["completed_at"] is None
+    assert rows[0]["result"] is None
+    assert rows[0]["error_message"] is None
+
+
+async def test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics(
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = "live-legacy-unlabelled-collision"
+    key = _key(change_id, "INIT", 0)
+    collision = await postgres_db.insert(
+        "work_queue",
+        {
+            "task_type": "test",
+            "description": "legacy keyed row",
+            "input_data": key,
+            "priority": 5,
+            "labels": ["ordinary"],
+        },
+    )
+
+    result = await pg_work_queue.submit(
+        task_type="issue",
+        description="legacy unlabeled issue request",
+        projection_key=key,
+    )
+
+    assert result.success is True
+    assert result.created is False
+    assert str(result.task_id) == str(collision["id"])
+    rows = await postgres_db.query("work_queue", f"id=eq.{collision['id']}")
+    assert rows[0]["task_type"] == "test"
+    assert rows[0]["labels"] == ["ordinary"]

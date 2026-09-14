@@ -178,6 +178,38 @@ def test_auto_posture_records_a_decision_and_says_continue(
     assert json.loads(capsys.readouterr().out) == record
 
 
+def test_auto_escalate_resume_transitions_and_flushes_before_continue(
+    workspace: Path, evaluator: _EvaluatorSpy, capsys: pytest.CaptureFixture[str]
+) -> None:
+    state_path = seed(
+        workspace,
+        current_phase="ESCALATE",
+        previous_phase="IMPLEMENT",
+        escalation_reason="implementation stalled",
+        total_iterations=4,
+    )
+    write_posture(workspace, {"escalate_resume": {"disposition": "auto"}})
+
+    rc = runner.main(
+        [
+            "gate-check",
+            "demo",
+            "--gate",
+            "escalate_resume",
+            "--context",
+            "previous_phase=IMPLEMENT",
+        ]
+    )
+
+    assert rc == runner.EXIT_NO_PENDING_GATE
+    state = read_state(state_path)
+    assert state["current_phase"] == "IMPLEMENT"
+    assert state["previous_phase"] == "IMPLEMENT"
+    assert state["total_iterations"] == 5
+    assert state["gate_decisions"][-1]["gate"] == "escalate_resume"
+    assert json.loads(capsys.readouterr().out) == state["gate_decisions"][-1]
+
+
 # ---------------------------------------------------------------------------
 # posture_block — exit 0, "ask the operator"
 # ---------------------------------------------------------------------------

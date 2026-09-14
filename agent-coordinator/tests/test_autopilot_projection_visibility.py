@@ -17,10 +17,7 @@ def test_migration_excludes_all_issue_rows_and_uses_old_label_fallback() -> None
     ).read_text()
     assert "task_type <> 'issue'" in sql
     assert "DROP FUNCTION IF EXISTS claim_task(TEXT, TEXT, TEXT[])" in sql
-    assert (
-        "DROP FUNCTION IF EXISTS claim_task(TEXT, TEXT, TEXT[], TEXT[], INTEGER)"
-        in sql
-    )
+    assert "DROP FUNCTION IF EXISTS claim_task(TEXT, TEXT, TEXT[], TEXT[], INTEGER)" in sql
     assert "projection:autopilot-phase" in sql
     assert "NEW.labels" in sql
     assert "OLD.labels" in sql
@@ -28,8 +25,7 @@ def test_migration_excludes_all_issue_rows_and_uses_old_label_fallback() -> None
 
 def test_migration_038_atomically_repairs_owned_projection_labels() -> None:
     sql = (
-        Path(__file__).parents[1]
-        / "database/migrations/038_atomic_projection_labels.sql"
+        Path(__file__).parents[1] / "database/migrations/038_atomic_projection_labels.sql"
     ).read_text()
     compact = "".join(sql.split())
     assert "p_projection_labelsTEXT[]DEFAULTNULL" in compact
@@ -160,8 +156,7 @@ def test_projection_openapi_problem_contract_matches_runtime() -> None:
     import yaml
 
     contract_path = (
-        Path(__file__).parents[2]
-        / "openspec/contracts/agent-coordinator/openapi/work-queue.yaml"
+        Path(__file__).parents[2] / "openspec/contracts/agent-coordinator/openapi/work-queue.yaml"
     )
     document = yaml.safe_load(contract_path.read_text())
     problem = document["components"]["schemas"]["Problem"]
@@ -174,8 +169,9 @@ def test_projection_openapi_problem_contract_matches_runtime() -> None:
 
     submit = document["paths"]["/work/submit"]["post"]
     reconcile = document["paths"]["/work/reconcile"]["post"]
-    assert "agent_requirements" in (
-        submit["requestBody"]["content"]["application/json"]["schema"]["properties"]
+    assert (
+        "agent_requirements"
+        in (submit["requestBody"]["content"]["application/json"]["schema"]["properties"])
     )
     for operation in (submit, reconcile):
         request_schema = operation["requestBody"]["content"]["application/json"]["schema"]
@@ -191,16 +187,55 @@ def test_projection_openapi_problem_contract_matches_runtime() -> None:
         projection_labels = properties["projection_labels"]
         assert projection_labels["minItems"] == 2
         assert projection_labels["maxItems"] == 2
-        assert operation["responses"]["200"]["content"]["application/json"]["schema"][
-            "$ref"
-        ] == "#/components/schemas/ProjectionMutationResult"
-        assert operation["responses"]["401"]["$ref"] == (
-            "#/components/responses/Problem401"
+        assert projection_labels["prefixItems"] == [
+            {
+                "type": "string",
+                "pattern": r"^change:[a-z0-9][a-z0-9-]{0,127}$",
+                "maxLength": 135,
+            },
+            {"type": "string", "const": "projection:autopilot-phase"},
+        ]
+        assert "MUST equal" in projection_labels["description"]
+        assert projection_labels["items"] is False
+        projection_condition = request_schema["allOf"][0]
+        assert projection_condition["if"] == {"required": ["projection_labels"]}
+        assert projection_condition["then"]["required"] == [
+            "projection_key",
+            "task_type",
+        ]
+        assert projection_condition["then"]["properties"]["task_type"] == {"const": "issue"}
+        assert (
+            operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+            == "#/components/schemas/ProjectionMutationResult"
         )
-    assert submit["requestBody"]["content"]["application/json"]["schema"]["properties"][
-        "depends_on"
-    ]["items"]["format"] == "uuid"
+        assert operation["responses"]["401"]["$ref"] == ("#/components/responses/Problem401")
+    assert (
+        submit["requestBody"]["content"]["application/json"]["schema"]["properties"]["depends_on"][
+            "items"
+        ]["format"]
+        == "uuid"
+    )
 
+
+def test_projection_label_runtime_item_length_matches_openapi() -> None:
+    from pydantic import ValidationError
+
+    from src.coordination_api import WorkReconcileRequest, WorkSubmitRequest
+
+    common = {
+        "task_type": "issue",
+        "task_description": "phase projection",
+        "projection_key": {
+            "change_id": "ri-09",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 9,
+        },
+        "projection_labels": ["x" * 161, "projection:autopilot-phase"],
+    }
+    with pytest.raises(ValidationError):
+        WorkSubmitRequest(**common)
+    with pytest.raises(ValidationError):
+        WorkReconcileRequest(**common)
 
 
 def test_projection_payload_rejects_missing_canonical_task_id() -> None:

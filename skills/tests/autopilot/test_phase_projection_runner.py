@@ -146,7 +146,12 @@ def test_runner_transition_validation_and_project_state_io_exit_codes(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     assert runner.main(["init", "--change-id", "demo"]) == 0
-    assert runner.main(["transition", "--change-id", "demo", "--outcome", "unknown"]) == 2
+    assert (
+        runner.main(
+            ["transition", "--change-id", "../invalid", "--outcome", "unknown"]
+        )
+        == 2
+    )
     assert (
         runner.main(
             [

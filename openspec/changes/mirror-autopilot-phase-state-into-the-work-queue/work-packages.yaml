@@ -38,6 +38,7 @@ packages:
         - skills/coordination-bridge/scripts/coordination_bridge.py
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
         - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
+        - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
         - agent-coordinator/src/event_stream.py
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/issue_service.py
@@ -56,6 +57,7 @@ packages:
         - skills/tests/coordination-bridge/**
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
         - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
+        - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
         - agent-coordinator/src/event_stream.py
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/issue_service.py
@@ -129,6 +131,7 @@ packages:
         - skills/coordination-bridge/scripts/coordination_bridge.py
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
         - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
+        - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
         - agent-coordinator/src/event_stream.py
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/issue_service.py
