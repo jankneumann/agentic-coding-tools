@@ -7,10 +7,10 @@ import pytest
 class TestWorkQueueSubmitLive:
     """Work queue submit endpoint against live database."""
 
-    def test_submit_task(self, api_client, auth_headers) -> None:
+    def test_submit_task(self, api_client, work_queue_auth_headers) -> None:
         response = api_client.post(
             "/work/submit",
-            headers=auth_headers,
+            headers=work_queue_auth_headers,
             json={
                 "task_type": "test",
                 "task_description": "Write unit tests for cache module",
@@ -25,7 +25,9 @@ class TestWorkQueueSubmitLive:
 
 @pytest.mark.e2e
 class TestWorkQueueProjectionLive:
-    def test_projection_submit_reconcile_and_board_query(self, api_client, auth_headers) -> None:
+    def test_projection_submit_reconcile_and_board_query(
+        self, api_client, work_queue_auth_headers
+    ) -> None:
         change_id = "e2e-phase-projection"
         labels = [f"change:{change_id}", "projection:autopilot-phase"]
         first = {
@@ -49,16 +51,16 @@ class TestWorkQueueProjectionLive:
             },
         }
 
-        created = api_client.post("/work/submit", headers=auth_headers, json=first)
+        created = api_client.post("/work/submit", headers=work_queue_auth_headers, json=first)
         assert created.status_code == 200
         stale_id = created.json()["task_id"]
 
-        advance = api_client.post("/work/submit", headers=auth_headers, json=second)
+        advance = api_client.post("/work/submit", headers=work_queue_auth_headers, json=second)
         assert advance.status_code == 409
         assert advance.json()["detail"] == "reconciliation_required"
 
         reconciled = api_client.post(
-            "/work/reconcile", headers=auth_headers, json=second
+            "/work/reconcile", headers=work_queue_auth_headers, json=second
         )
         assert reconciled.status_code == 200
         current_id = reconciled.json()["task_id"]
@@ -66,7 +68,7 @@ class TestWorkQueueProjectionLive:
 
         board = api_client.post(
             "/issues/list",
-            headers=auth_headers,
+            headers=work_queue_auth_headers,
             json={"labels": [f"change:{change_id}"]},
         )
         assert board.status_code == 200
@@ -78,11 +80,11 @@ class TestWorkQueueProjectionLive:
 class TestWorkQueueLifecycleLive:
     """Full work queue lifecycle against live database."""
 
-    def test_submit_claim_complete(self, api_client, auth_headers) -> None:
+    def test_submit_claim_complete(self, api_client, work_queue_auth_headers) -> None:
         # Submit
         submit_resp = api_client.post(
             "/work/submit",
-            headers=auth_headers,
+            headers=work_queue_auth_headers,
             json={
                 "task_type": "refactor",
                 "task_description": "Simplify error handling in locks.py",
@@ -95,7 +97,7 @@ class TestWorkQueueLifecycleLive:
         # Claim
         claim_resp = api_client.post(
             "/work/claim",
-            headers=auth_headers,
+            headers=work_queue_auth_headers,
             json={
                 "agent_id": "claude-local",
                 "agent_type": "claude_code",
@@ -110,7 +112,7 @@ class TestWorkQueueLifecycleLive:
         # Complete
         complete_resp = api_client.post(
             "/work/complete",
-            headers=auth_headers,
+            headers=work_queue_auth_headers,
             json={
                 "task_id": task_id,
                 "agent_id": "claude-local",
@@ -121,10 +123,10 @@ class TestWorkQueueLifecycleLive:
         assert complete_resp.status_code == 200
         assert complete_resp.json()["success"] is True
 
-    def test_claim_empty_queue(self, api_client, auth_headers) -> None:
+    def test_claim_empty_queue(self, api_client, work_queue_auth_headers) -> None:
         response = api_client.post(
             "/work/claim",
-            headers=auth_headers,
+            headers=work_queue_auth_headers,
             json={
                 "agent_id": "claude-local",
                 "agent_type": "claude_code",

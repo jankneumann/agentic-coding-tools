@@ -18,6 +18,7 @@ POSTGRES_DSN = os.environ.get(
 )
 
 _API_KEY = "e2e-test-key"
+_WORK_QUEUE_API_KEY = "e2e-work-queue-key"
 
 # Tables to truncate between tests (audit_log is immutable)
 _TABLES = [
@@ -88,9 +89,10 @@ def _make_app():
     """Create a fresh FastAPI app wired to DirectPostgresClient."""
     os.environ["DB_BACKEND"] = "postgres"
     os.environ["POSTGRES_DSN"] = POSTGRES_DSN
-    os.environ["COORDINATION_API_KEYS"] = _API_KEY
+    os.environ["COORDINATION_API_KEYS"] = f"{_API_KEY},{_WORK_QUEUE_API_KEY}"
     os.environ["COORDINATION_API_KEY_IDENTITIES"] = (
-        '{"e2e-test-key":{"agent_id":"claude-local",'
+        '{"e2e-test-key":{"agent_id":"e2e-agent","agent_type":"test_agent"},'
+        '"e2e-work-queue-key":{"agent_id":"claude-local",'
         '"agent_type":"claude_code"}}'
     )
     os.environ["AGENT_ID"] = "claude-local"
@@ -123,6 +125,12 @@ def api_client():
 def auth_headers():
     """Authentication headers for API requests."""
     return {"X-API-Key": _API_KEY}
+
+
+@pytest.fixture
+def work_queue_auth_headers():
+    """Privileged identity used for guarded work-queue lifecycle operations."""
+    return {"X-API-Key": _WORK_QUEUE_API_KEY}
 
 
 @pytest.fixture(autouse=True)

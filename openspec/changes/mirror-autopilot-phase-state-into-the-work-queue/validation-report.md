@@ -24,7 +24,7 @@
 - 445 Autopilot tests passed.
 - 96 coordination-bridge tests passed.
 - 2,514 coordinator CI-selected tests passed with 11 declared skips and 132 live-marker deselections.
-- 52 ri-09-focused live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed. A broader non-gating sweep passed 80 tests with 6 optional code-search skips; 6 unrelated handoff/memory identity-fixture cases returned their known HTTP 403.
+- 52 ri-09-focused live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed. The exact hosted integration selection now passes 86 tests with 6 optional code-search skips; its shared-key identity regression was fixed by separating the ordinary E2E and privileged work-queue principals.
 - 224 Kanban tests passed with 6 declared skips; the production build passed.
 - 4,767 canonical skills tests passed with 13 declared skips.
 - All 90 OpenSpec artifacts passed strict validation.
@@ -57,7 +57,7 @@ Round 16 addressed all five configured harnesses and reached protocol-valid sche
 
 Round 17 dispatched the exact final implementation commit to all five configured harnesses. The canonical dispatcher degraded at one successful vendor because Antigravity returned an empty envelope, Claude failed transport, Codex timed out, and Pi emitted protocol NDJSON. Pi nevertheless wrote a complete schema-valid exact-head artifact; combined with Grok, two-vendor synthesis reached eight confirmed observations, zero disagreements, and zero blockers. Both independently verified the atomic batch-close fix. Grok found one low normative wording mismatch, corrected after review so the pre-registry scenario now requires every complete keyed historical row rather than singular current-row adoption.
 
-The broader combined PostgreSQL/E2E sweep is not an ri-09 gate: its six handoff/memory failures are identity-fixture 403 responses outside the touched surface, while all 80 other cases and every ri-09-focused live case pass. The isolated modules reproduce the same pre-existing authorization-fixture mismatch.
+The combined PostgreSQL/E2E sweep passes all 86 executable cases with 6 optional code-search skips. The hosted failure exposed an ri-09 fixture regression: one key had been rebound to the privileged work-queue principal while handoff and memory cases requested the ordinary E2E identity. Separate identity-bound keys now preserve both strict anti-spoofing and privileged projection coverage.
 
 The explicit monolithic `pytest tests` command was rejected as an invalid gate:
 it bypasses the curated skills `testpaths` ordering and creates known flat-module
