@@ -19,6 +19,7 @@ from review_dispatcher import (
     ModeConfig,
     PollConfig,
     ReviewOrchestrator,
+    _orchestrator_for_dispatch,
     ReviewResult,
     SdkConfig,
     SdkVendorAdapter,
@@ -1777,6 +1778,30 @@ class TestConcurrentGitSnapshotFallback:
         assert cmd[:4] == ["git", "worktree", "add", "--detach"]
         assert str(dest) in cmd
         assert "HEAD" in cmd
+
+
+def test_dispatch_prefers_review_cwd_agents_yaml(
+    tmp_path: Path,
+) -> None:
+    local = tmp_path / "agent-coordinator" / "agents.yaml"
+    local.parent.mkdir()
+    local.write_text("agents: {}\n")
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=local
+        ),
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_local,
+        patch.object(ReviewOrchestrator, "from_coordinator") as from_coordinator,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is expected
+    from_local.assert_called_once_with(local)
+    from_coordinator.assert_not_called()
 
 
 def test_repo_antigravity_schema_review_uses_json_output_mode() -> None:

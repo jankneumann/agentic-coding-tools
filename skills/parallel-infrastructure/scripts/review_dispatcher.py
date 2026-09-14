@@ -2576,6 +2576,25 @@ def _check_vendors(
     return 0
 
 
+def _orchestrator_for_dispatch(
+    agents_yaml: str | None,
+    cwd: Path,
+) -> ReviewOrchestrator:
+    """Resolve dispatch config from the reviewed checkout before global state."""
+    if agents_yaml:
+        return ReviewOrchestrator.from_agents_yaml(Path(agents_yaml))
+
+    local = ReviewOrchestrator._find_local_agents_yaml(cwd)
+    if local is not None:
+        return ReviewOrchestrator.from_agents_yaml(local)
+
+    orchestrator = ReviewOrchestrator.from_coordinator()
+    if not orchestrator.adapters:
+        logger.info("Coordinator unavailable, trying agents.yaml on disk")
+        orchestrator = ReviewOrchestrator.from_agents_yaml()
+    return orchestrator
+
+
 def main() -> int:
     """Dispatch reviews to vendor CLIs and collect results.
 
@@ -2709,14 +2728,8 @@ def main() -> int:
         print("Error: --prompt or --prompt-file required", file=sys.stderr)
         return 1
 
-    # Create orchestrator — try coordinator first, fall back to agents.yaml
-    if args.agents_yaml:
-        orch = ReviewOrchestrator.from_agents_yaml(Path(args.agents_yaml))
-    else:
-        orch = ReviewOrchestrator.from_coordinator()
-        if not orch.adapters:
-            logger.info("Coordinator unavailable, trying agents.yaml on disk")
-            orch = ReviewOrchestrator.from_agents_yaml()
+    # Review the target checkout with the vendor config from that checkout.
+    orch = _orchestrator_for_dispatch(args.agents_yaml, Path(args.cwd))
 
     # Discover (three-tier selection)
     reviewers = orch.discover_reviewers(
