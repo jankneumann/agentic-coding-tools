@@ -203,13 +203,32 @@ def run(source: Path, destination: Path | None = None) -> Path:
         "explore-feature-candidate-work.json"
     )
     repo_root = _find_repo_root(source)
+    candidates = project_candidate_work(
+        document,
+        str(source),
+        known_change_ids=_lifecycle_change_ids(repo_root),
+    )
+    if repo_root is None:
+        projected_ids = {
+            candidate["suggested_change_id"] for candidate in candidates
+        }
+        unresolved = sorted(
+            {
+                blocker
+                for item in _items(document)
+                if not _marked_existing(item)
+                for blocker in _blockers(item)
+                if _CHANGE_ID.fullmatch(blocker) and blocker not in projected_ids
+            }
+        )
+        if unresolved:
+            raise ValueError(
+                "repository root is required to resolve dependency-like blockers: "
+                + ", ".join(unresolved)
+            )
     return write_candidate_work(
         target,
-        project_candidate_work(
-            document,
-            str(source),
-            known_change_ids=_lifecycle_change_ids(repo_root),
-        ),
+        candidates,
         generator="explore-feature",
     )
 

@@ -467,3 +467,58 @@ def test_lifecycle_collection_errors_remain_candidate_intake_errors(
         CandidateIntakeError, match="requires roadmap_id and items"
     ):
         _preview(_candidate(), repo_root, target)
+
+
+def test_out_of_tree_target_resolves_local_dependency_exactly_once(
+    tmp_path: Path,
+) -> None:
+    repo_root = _repo(tmp_path)
+    target = repo_root / "operator-workspaces/target.yaml"
+    save_roadmap(
+        Roadmap(
+            schema_version=1,
+            roadmap_id="target",
+            source_proposal="docs/target.md",
+            status=RoadmapStatus.APPROVED,
+            items=[_item("ri-01", "add-local", 1)],
+        ),
+        target,
+    )
+    candidate = _candidate()
+    candidate["depends_on"] = ["add-local"]
+
+    item = _preview(candidate, repo_root, target).request["operations"][0]["item"]
+
+    assert item["depends_on"] == ["ri-01"]
+    assert item.get("external_depends_on", []) == []
+    assert item["rationale"].count("Resolved dependency: add-local -> ri-01") == 1
+
+
+def test_out_of_tree_target_change_id_collision_fails(tmp_path: Path) -> None:
+    repo_root = _repo(tmp_path)
+    target = repo_root / "operator-workspaces/target.yaml"
+    save_roadmap(
+        Roadmap(
+            schema_version=1,
+            roadmap_id="target",
+            source_proposal="docs/target.md",
+            status=RoadmapStatus.APPROVED,
+            items=[_item("ri-01", "update-context-index", 1)],
+        ),
+        target,
+    )
+
+    with pytest.raises(CandidateIntakeError, match="already exists"):
+        _preview(_candidate(), repo_root, target)
+
+
+def test_malformed_out_of_tree_target_is_candidate_intake_error(
+    tmp_path: Path,
+) -> None:
+    repo_root = _repo(tmp_path)
+    target = repo_root / "operator-workspaces/target.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text("roadmap_id: target\nitems: not-a-list\n", encoding="utf-8")
+
+    with pytest.raises(CandidateIntakeError, match="target roadmap"):
+        _preview(_candidate(), repo_root, target)

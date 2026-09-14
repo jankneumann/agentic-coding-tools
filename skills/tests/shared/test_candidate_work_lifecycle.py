@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -205,3 +206,18 @@ def test_shared_collector_rejects_unknown_roadmap_item_status(
         match=r"unknown roadmap item status 'awaiting_oracle'",
     ):
         runtime.collect_lifecycle_records(tmp_path)
+
+
+def test_portable_item_status_vocabulary_matches_canonical_schema() -> None:
+    import candidate_work as runtime
+
+    schema = json.loads(
+        (REPO_ROOT / "openspec/schemas/roadmap.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    schema_statuses = frozenset(
+        schema["$defs"]["roadmap_item"]["properties"]["status"]["enum"]
+    )
+
+    assert runtime._ROADMAP_ITEM_STATUSES == schema_statuses

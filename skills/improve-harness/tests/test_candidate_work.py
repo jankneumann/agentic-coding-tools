@@ -46,6 +46,15 @@ def test_projects_ranked_gaps_with_priority_effort_and_source_rank() -> None:
     }
 
 
+def test_max_severity_is_normalized_case_insensitively() -> None:
+    candidate = project_candidate_work(
+        [_finding(max_severity=" HIGH ")], "reports/gaps.md"
+    )[0]
+
+    assert candidate["priority"] == 2
+    assert "maximum severity high" in candidate["rationale"]
+
+
 def test_missing_affected_skills_defaults_effort_and_tags_reason() -> None:
     candidate = project_candidate_work(
         [_finding(affected_skills=None)], "reports/gaps.md"
@@ -241,6 +250,28 @@ def test_cli_projection_value_error_is_concise_and_preserves_report(
     captured = capsys.readouterr()
     assert result == 2
     assert captured.err == "error: candidate-work sidecar not written: projection failed\n"
+    assert "Traceback" not in captured.err
+    assert report_path.exists()
+    assert not destination.exists()
+
+
+def test_cli_unknown_max_severity_is_concise_and_preserves_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    result, report_path, destination = _run_file_cli(
+        tmp_path,
+        monkeypatch,
+        [_finding(max_severity="urgent")],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err == (
+        "error: candidate-work sidecar not written: "
+        "unsupported improve-harness max_severity: 'urgent'\n"
+    )
     assert "Traceback" not in captured.err
     assert report_path.exists()
     assert not destination.exists()

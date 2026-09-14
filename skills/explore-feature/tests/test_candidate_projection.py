@@ -178,3 +178,90 @@ def test_main_returns_concise_nonzero_projection_error_without_traceback(
     assert proc.stderr.startswith("error: candidate-work sidecar not written:")
     assert "stable non-empty id" in proc.stderr
     assert "Traceback" not in proc.stderr
+
+
+def test_cli_fails_closed_when_external_dependency_needs_a_repo(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "opportunities.json"
+    destination = tmp_path / "explore-feature-candidate-work.json"
+    source.write_text(
+        json.dumps(
+            {
+                "items": [
+                    _opportunity(blockers=["update-external-contract"]),
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPTS / "candidate_projection.py"), str(source)],
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert proc.stdout == ""
+    assert proc.stderr.startswith("error: candidate-work sidecar not written:")
+    assert "repository root" in proc.stderr
+    assert "update-external-contract" in proc.stderr
+    assert "Traceback" not in proc.stderr
+    assert not destination.exists()
+
+
+def test_run_outside_repo_preserves_projection_with_only_prose_blockers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "opportunities.json"
+    source.write_text(
+        json.dumps({"items": [_opportunity(blockers=["waiting for approval"])]}),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    destination = run(source)
+
+    candidate = load_candidate_work(destination)[0]
+    assert "depends_on" not in candidate
+    assert "blocker:waiting for approval" in candidate["tags"]
+
+
+def test_run_outside_repo_preserves_resolvable_in_batch_dependency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "opportunities.json"
+    source.write_text(
+        json.dumps(
+            {
+                "items": [
+                    _opportunity(
+                        id="base",
+                        suggested_change_id="add-base",
+                        blockers=[],
+                    ),
+                    _opportunity(
+                        id="dependent",
+                        suggested_change_id="add-dependent",
+                        blockers=["add-base"],
+                    ),
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    destination = run(source)
+
+    candidates = load_candidate_work(destination)
+    dependent = next(
+        item for item in candidates if item["suggested_change_id"] == "add-dependent"
+    )
+    assert dependent["depends_on"] == ["add-base"]
+    assert "blocker:add-base" not in dependent["tags"]
