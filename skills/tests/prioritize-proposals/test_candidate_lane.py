@@ -211,7 +211,7 @@ def test_malformed_member_refuses_complete_multi_file_load_with_index(
     with pytest.raises(ValueError) as exc_info:
         load_candidate_inputs([good, bad])
 
-    assert "item #0" in str(exc_info.value)
+    assert "item #1" in str(exc_info.value)
     assert "title" in str(exc_info.value)
 
 
@@ -251,7 +251,7 @@ def test_duplicate_candidates_fail_even_for_programmatic_call() -> None:
 def test_markdown_rendering_keeps_candidate_text_inert() -> None:
     candidate = _candidate(
         "add-inert",
-        title="[click](javascript:alert(1))\x1b[31m \u009b \u202e **owned**",
+        title="[click](javascript:alert(1))\x1b[31m \u009b \u202e \u2028 \u2029 **owned**",
     )
     candidate["rationale"] = "run `touch /tmp/pwned` | <script>alert(1)</script>"
     candidate["provenance"]["source_artifact"] = (
@@ -265,6 +265,10 @@ def test_markdown_rendering_keeps_candidate_text_inert() -> None:
     assert "<script>" not in rendered
     assert "\u009b" not in rendered
     assert "\u202e" not in rendered
+    assert "\u2028" not in rendered
+    assert "\u2029" not in rendered
+    assert "\\u2028" in rendered
+    assert "\\u2029" in rendered
     assert "\x1b" not in rendered
     assert "\\[click\\]\\(javascript:alert\\(1\\)\\)" in rendered
     assert "\\<script\\>" in rendered
