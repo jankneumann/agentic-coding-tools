@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 _SKILLS_ROOT = Path(__file__).resolve().parents[2]
 for _directory in (
     _SKILLS_ROOT / "shared",
@@ -120,13 +122,59 @@ def _active_roadmaps(repo_root: Path) -> dict[str, Roadmap]:
     return roadmaps
 
 
-def _lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
-    """Compatibility seam delegating to the shared lifecycle collector."""
+def _canonical_lifecycle_roadmap_paths(repo_root: Path) -> set[Path]:
+    roadmaps = repo_root / "openspec" / "roadmaps"
+    if not roadmaps.is_dir():
+        return set()
+    paths = list(roadmaps.glob("*/roadmap.yaml"))
+    archive = roadmaps / "archive"
+    if archive.is_dir():
+        paths.extend(archive.glob("*/roadmap.yaml"))
+    return {path.resolve() for path in paths}
+
+
+def _target_lifecycle_records(roadmap: Roadmap) -> list[LifecycleRecord]:
+    return [
+        LifecycleRecord(
+            change_id=item.change_id,
+            source="roadmap",
+            status=item.status.value,
+            roadmap_id=roadmap.roadmap_id,
+            item_id=item.item_id,
+        )
+        for item in roadmap.items
+        if item.change_id
+    ]
+
+
+def _lifecycle_records(
+    repo_root: Path,
+    *,
+    target_path: Path | None = None,
+    target_roadmap: Roadmap | None = None,
+) -> list[LifecycleRecord]:
+    """Collect lifecycle records, including an explicit out-of-tree target once."""
     try:
-        return collect_lifecycle_records(repo_root)
+        records = collect_lifecycle_records(repo_root)
     except LifecycleCollectionError as exc:
         raise CandidateIntakeError(
             "roadmap lifecycle registry could not be loaded: " + str(exc)
+        ) from exc
+    if (
+        target_path is not None
+        and target_roadmap is not None
+        and target_path.resolve() not in _canonical_lifecycle_roadmap_paths(repo_root)
+    ):
+        records.extend(_target_lifecycle_records(target_roadmap))
+    return records
+
+
+def _load_target_roadmap(path: Path, repo_root: Path) -> Roadmap:
+    try:
+        return load_roadmap(path, repo_root)
+    except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
+        raise CandidateIntakeError(
+            f"target roadmap lifecycle could not be loaded: {exc}"
         ) from exc
 
 
@@ -379,10 +427,12 @@ def preview_existing_roadmap(
     target_path = Path(roadmap_path)
     for _attempt in range(_PREVIEW_ATTEMPTS):
         base_bytes = target_path.read_bytes()
-        roadmap = load_roadmap(target_path, root)
+        roadmap = _load_target_roadmap(target_path, root)
         if target_path.read_bytes() != base_bytes:
             continue
-        records = _lifecycle_records(root)
+        records = _lifecycle_records(
+            root, target_path=target_path, target_roadmap=roadmap
+        )
         if target_path.read_bytes() != base_bytes:
             continue
         _assert_available(stub["suggested_change_id"], records)

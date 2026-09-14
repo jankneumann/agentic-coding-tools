@@ -35,6 +35,15 @@ def _effort(finding: dict[str, Any]) -> tuple[str, bool]:
     return "M", True
 
 
+def _severity(value: object) -> str:
+    severity = " ".join(str(value).split()).lower()
+    if severity not in _PRIORITY:
+        raise ValueError(
+            f"unsupported improve-harness max_severity: {severity!r}"
+        )
+    return severity
+
+
 def project_candidate_work(
     ranked: list[dict[str, Any]], source_artifact: str
 ) -> list[dict[str, Any]]:
@@ -43,7 +52,7 @@ def project_candidate_work(
     for rank, finding in enumerate(ranked, 1):
         gap = str(finding["capability_gap"])
         effort, defaulted = _effort(finding)
-        severity = str(finding.get("max_severity", "low"))
+        severity = _severity(finding.get("max_severity", "low"))
         tags = [f"source-rank-{min(rank, 99)}"]
         if defaulted:
             tags.append("effort-estimate-default")

@@ -55,15 +55,26 @@ is formed by lowercasing `source_id`, replacing each maximal run outside ASCII
 `[a-z0-9]` with one hyphen, stripping edge hyphens, and using `item` if empty. The
 final ID is `<normalized-source-id-slug>-<identity-hash>`, where `identity-hash` is the
 first eight lowercase hex characters of SHA-256 over an identity object containing
-exactly `generator` and `source_id`. Bug-scrub uses the exact finding ID,
-improve-harness uses the normalized capability gap (trim surrounding whitespace,
-collapse internal whitespace to one ASCII space, and lowercase), and explore-feature
-requires and uses the exact stable opportunity ID. The identity object is encoded with
-`json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`
-and UTF-8 before hashing. Titles, report paths, source-entry collections, rank, and all
-other volatile provenance are excluded. Later evidence or title edits therefore cannot
-rename an earlier candidate. Duplicate final IDs, including two colliding explicit
-hints, fail the whole batch.
+exactly `generator` and `source_id`. Improve-harness uses the normalized capability
+gap (trim surrounding whitespace, collapse internal whitespace to one ASCII space,
+and lowercase), and explore-feature requires and uses the exact stable opportunity ID.
+Bug-scrub uses `bug-finding-<semantic-hash>`, where `semantic-hash` is the first 16
+lowercase hex characters of SHA-256 over a second canonical JSON object containing
+exactly `source`, `source_key`, `category`, `file_path`, `detail`,
+`origin_change_id`, and `origin_artifact_path`. Source and category are
+whitespace-collapsed and lowercased; paths use forward slashes; detail is
+whitespace-collapsed and removes an exact leading `<file_path>:<line>:` diagnostic
+coordinate. `source_key` preserves the normalized collector finding key, except
+ruff/mypy/markers strip trailing `:<line>`, architecture/deferred strip trailing
+`-<ordinal>`, and OpenSpec uses `openspec` because detail/path carry its semantic key;
+pytest, security, and other stable keys remain intact. Empty origin values are empty
+strings. The unmodified finding ID, line, age, origin line/task/index, severity, title,
+report path, and collector order/rank are excluded from semantic identity, while the
+original finding ID remains in provenance. Both identity objects use
+`json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False)` and
+UTF-8 before hashing. A compact bug-scrub source-ID collision between distinct full
+semantic fingerprints fails the whole batch. Duplicate final IDs, including two
+colliding explicit hints, also fail the whole batch.
 
 All emitted stubs populate `provenance.generator` even though the schema leaves it
 optional.
@@ -79,7 +90,7 @@ shared five-band priority estimate: critical/immediate=1, high=2, medium/normal=
 low=4, and informational/backlog=5. Bug-scrub severity and improve-harness `max_severity` map directly to those bands.
 Explore-feature reuses its documented formula `impact*0.4 + strategic_fit*0.25 +
 (4-effort)*0.2 + (4-risk)*0.15 + focus_match*0.1` with the existing numeric
-mappings, whose closed range is 1.0..3.1. Score >=2.75 maps to 2, >=2.00 to 3,
+mappings, including `focus_match` from 0 through 3, whose closed range is 1.0..3.3. Score >=2.75 maps to 2, >=2.00 to 3,
 >=1.50 to 4, and lower scores to 5. Explore-feature has no critical/immediate source
 field and therefore never emits priority 1. Source-local rank is retained only as provenance and never
 bypasses this common scale. Candidate readiness uses `depends_on`; size uses `effort`;
@@ -122,12 +133,14 @@ approval conversation in supervise and the mapping/mutation policy in plan-roadm
 ### Producer mapping
 
 Bug-scrub emits every finding already selected by its severity filter to the report
-output directory. Severity maps critical through info to priority 1 through 5;
+output directory. Severity is trimmed and lowercased; known critical through info values
+map to priority 1 through 5, and unknown values fail with a concise validation error;
 `lint`/`type-error`/`code-marker` map to XS,
 `test-failure`/`deferred-issue` map to S, and
 `architecture`/`security`/`spec-violation` map to M, with unknown categories
-rejected rather than silently guessed. Improve-harness emits every ranked gap:
-critical/high/medium/low map to priority 1/2/3/4. Effort derives from affected-skill
+rejected rather than silently guessed. Improve-harness emits every ranked gap; its
+`max_severity` is trimmed and lowercased, known critical/high/medium/low values map to
+priority 1/2/3/4, and unknown values fail with a concise validation error. Effort derives from affected-skill
 count rather than severity: one skill maps to S, two or three to M, and four or more
 to L; missing affected-skill evidence maps to M plus an `effort-estimate-default` tag.
 Source rank is retained in a bounded `source-rank-N` tag. A file report gets its

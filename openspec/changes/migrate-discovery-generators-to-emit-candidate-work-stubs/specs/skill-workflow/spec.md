@@ -36,7 +36,7 @@ while preserving their existing rich artifacts.
 - **WHEN** supported generators project entries into a mixed candidate batch
 - **THEN** each adapter SHALL map source evidence onto the shared five-band priority scale
 - **AND** source-local rank SHALL NOT be treated as an unbounded cross-generator priority
-- **AND** explore-feature SHALL apply its documented 1.0..3.3 weighted-score formula and fixed bands rather than mapping shortlist position
+- **AND** explore-feature SHALL apply its documented 1.0..3.3 weighted-score formula (`focus_match` 0 through 3) and fixed bands rather than mapping shortlist position
 - **AND** explore-feature SHALL NOT emit priority 1 because its source contract has no critical or immediate field
 
 #### Scenario: Producer prefixes are normalized
@@ -47,26 +47,33 @@ while preserving their existing rich artifacts.
 
 #### Scenario: Derived candidate identity is stable
 
-- **WHEN** the same producer source is projected after title, report path, rank, or non-identity provenance changes
+- **WHEN** the same producer source is projected after line, title, report path, collector order/rank, or non-identity provenance changes
 - **THEN** its derived suggested ID SHALL remain unchanged
 - **AND** the identity object SHALL contain exactly `generator` and `source_id`
-- **AND** bug-scrub SHALL use the exact finding ID, improve-harness SHALL use the trimmed, whitespace-collapsed, lowercase capability gap, and explore-feature SHALL use the exact stable opportunity ID
+- **AND** bug-scrub SHALL use `bug-finding-<semantic-hash>`, improve-harness SHALL use the trimmed, whitespace-collapsed, lowercase capability gap, and explore-feature SHALL use the exact stable opportunity ID
+- **AND** bug-scrub `semantic-hash` SHALL be the first 16 lowercase SHA-256 hex characters over canonical JSON containing exactly `source`, `source_key`, `category`, `file_path`, `detail`, `origin_change_id`, and `origin_artifact_path`
+- **AND** bug-scrub `source_key` SHALL retain stable pytest/security/other collector keys while stripping known volatile ruff/mypy/marker line suffixes, architecture/deferred ordinals, and OpenSpec ordinals already represented by semantic detail/path
+- **AND** bug-scrub SHALL exclude the unmodified finding ID, line, age, origin line/task/index, severity, title, report path, and collector order/rank from semantic identity while retaining the original finding ID in provenance
+- **AND** semantically distinct bug-scrub fingerprints that collide on the compact source ID MUST fail the complete batch
 - **AND** the readable base SHALL derive only from `source_id` by the documented ASCII slug algorithm and `item` fallback
 - **AND** canonical serialization SHALL use sorted keys, compact comma/colon separators, unescaped Unicode, and UTF-8 before SHA-256
 - **AND** explicit source hints SHALL remain normalized but unsuffixed
 - **AND** duplicate final IDs MUST fail the whole batch before replacement
 
-#### Scenario: Bug-scrub effort rejects unknown categories
+#### Scenario: Bug-scrub mappings reject unknown labels
 
-- **WHEN** bug-scrub projects findings from its supported categories
+- **WHEN** bug-scrub projects findings from its supported categories and severities
 - **THEN** effort SHALL follow the exhaustive category-only mapping
-- **AND** an unknown category MUST fail the complete sidecar before replacement
+- **AND** severity SHALL be trimmed, lowercased, and mapped through the critical/high/medium/low/info priority vocabulary
+- **AND** an unknown category or severity MUST fail the complete sidecar with a concise validation error before replacement
 
 #### Scenario: Improve-harness effort is independent of urgency
 
 - **WHEN** improve-harness projects gaps with equal `max_severity` but different affected-skill counts
 - **THEN** priority SHALL remain equal while effort SHALL follow the documented affected-skill bands
 - **AND** missing affected-skill evidence SHALL map to M with an `effort-estimate-default` tag
+- **AND** `max_severity` SHALL be trimmed, lowercased, and mapped through the critical/high/medium/low vocabulary
+- **AND** an unknown `max_severity` MUST fail with a concise validation error before candidate-sidecar replacement
 
 #### Scenario: Explicit sidecar destination collides
 

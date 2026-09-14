@@ -27,14 +27,27 @@ immutable producer `source_id` for both base and hash. The base lowercases `sour
 replaces maximal runs outside ASCII `[a-z0-9]` with one hyphen, strips edge hyphens,
 and falls back to `item` if empty. Derived IDs append the first eight lowercase hex
 characters of SHA-256 over an identity object with exactly `generator` and `source_id`
-keys. Bug-scrub uses the exact finding ID; improve-harness trims, whitespace-collapses,
-and lowercases `capability_gap`; and explore-feature requires the exact stable
-opportunity ID. The object is serialized with `json.dumps(identity, sort_keys=True,
-separators=(",", ":"), ensure_ascii=False)` and UTF-8 encoded. Titles, report paths,
-source-entry collections, rank, and other volatile provenance are excluded. Duplicate
-final IDs fail the complete write. Explore-feature reuses its documented 1.0..3.1 weighted-score formula and fixed D4
+keys. Improve-harness trims, whitespace-collapses, and lowercases `capability_gap`;
+explore-feature requires the exact stable opportunity ID. Bug-scrub uses
+`bug-finding-<semantic-hash>`, with the first 16 lowercase SHA-256 hex characters over
+a canonical JSON object containing exactly `source`, `source_key`, `category`,
+`file_path`, `detail`, `origin_change_id`, and `origin_artifact_path`. Source/category
+are whitespace-collapsed and lowercased, paths use forward slashes, detail is
+whitespace-collapsed and strips an exact leading `<file_path>:<line>:` coordinate, and
+missing origin values use empty strings. `source_key` preserves stable collector keys:
+ruff/mypy/markers strip `:<line>`, architecture/deferred strip the trailing ordinal,
+OpenSpec uses `openspec` because detail/path identify the issue, and pytest/security
+keys remain intact. The unmodified finding ID, line/index metadata, severity, title,
+report path, and collector order/rank are excluded; the original ID remains provenance. The
+objects are serialized with `json.dumps(identity, sort_keys=True, separators=(",", ":"),
+ensure_ascii=False)` and UTF-8 encoded. Distinct semantic fingerprints that collide on
+the compact bug source ID fail the complete batch, as do duplicate final IDs.
+Explore-feature reuses its documented 1.0..3.3 weighted-score formula, including
+`focus_match` from 0 through 3, and fixed D4
 bands; shortlist rank is provenance only and explore never emits priority 1.
-Improve-harness derives effort from affected-skill count, never severity. Ranking uses
+Bug-scrub severity and improve-harness `max_severity` are trimmed and lowercased;
+unknown values fail with concise validation errors. Improve-harness derives effort from
+affected-skill count, never severity. Ranking uses
 the empty string when the optional provenance generator is absent. The repeatable `--candidate-work PATH` option validates every supplied object or array, concatenates
 them in argument order, and rejects duplicates across the merged union before ranking.
 
