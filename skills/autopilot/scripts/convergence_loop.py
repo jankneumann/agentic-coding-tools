@@ -363,6 +363,7 @@ def _write_review_checkpoint(
                 "name": result.vendor,
                 "findings_path": f"findings-{result.vendor}-{review_type}.json",
                 "finding_count": len(findings_array),
+                "unanchored_findings": result.unanchored_findings,
             })
     cf_write_manifest(
         checkpoint_dir,
@@ -439,6 +440,7 @@ def _augment_manifest_with_fact_check(
                 "name": result.vendor,
                 "findings_path": f"findings-{result.vendor}-{review_type}.json",
                 "finding_count": len(findings_array),
+                "unanchored_findings": result.unanchored_findings,
             }
             entry.update(fact_check_info.get(result.vendor, {}))
             vendors_index.append(entry)
