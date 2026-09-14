@@ -54,6 +54,57 @@ If coordinator is unavailable, emit a warning and fall back to sequential skill 
 
 ## Steps
 
+### Coordinated phase-projection protocol
+
+The queue mirror is enabled **only** after coordinator detection selected the
+coordinated tier. The host must pass the detected coordinator URL explicitly as
+`<coordinator-url>`; local-parallel and sequential hosts do not import,
+construct, register, submit, reconcile, or label through the projection adapter.
+
+For a coordinated resume, load no queue state into the loop. First repair the
+queue solely from the durable file, before pending-gate handling or phase work:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" project-state \
+  --change-id <change-id> --mode reconcile \
+  --coordinator-url "<coordinator-url>"
+```
+
+The host must use `runner.py init` for initialization and `runner.py
+transition --outcome <outcome>` for every ordinary phase edge; it must not
+hand-edit `current_phase`. After **every successfully persisted** runner
+mutation — `init`, `transition`, `apply-outcome`,
+`escalate`, `record-state-only-archetype`, and `gate-answer` — immediately run
+`project-state --mode submit`. A non-zero mutation exit suppresses projection. Runner mutation exit codes are
+0 for a successful write or a clean gate-pending stop, 1 for operational
+failure, and 2 for invalid caller input. A clean gate-pending transition writes
+nothing and remains parked for `gate-answer`.
+An invalid logical phase edge is different from invalid CLI input: `transition`
+records `transition_failed`, enters ESCALATE with the current phase as
+`previous_phase`, and exits 0 so the required projection publishes the parked
+generation. If host-side phase bookkeeping fails before `transition` can run,
+use the explicit durable writer:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" escalate \
+  --change-id <change-id> \
+  --reason "apply-outcome failed; retained handoff <handoff_id>"
+```
+
+After its exit-0 write, submit projection and stop the run.
+For `gate-check`, exits 0, 3, and 4 all mean a decision or park was durably
+recorded, so submit projection before asking, continuing, or stopping; exits 1
+and 2 suppress projection. Projection failure is reported as degraded but never
+reverts or rewrites `loop-state.json`. A `project-state` command that emits a
+structured degraded JSON envelope exits 0 so authoritative phase work continues;
+exit 1 is reserved for failures that prevent producing that envelope.
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" project-state \
+  --change-id <change-id> --mode submit \
+  --coordinator-url "<coordinator-url>"
+```
+
 ### 0. Parse Arguments and Check for Resume
 
 Parse the argument to determine:
@@ -89,12 +140,23 @@ the decision before returning: exit 3 means the posture authorized the resume an
 the run continues from `previous_phase`; exit 0 means a person has to answer first;
 exit 4 means the gate was blocked in a way no console answer resolves (a rejection
 already recorded, a timeout that defaulted to block, or an unreachable coordinator)
-and the run stays parked in ESCALATE. `--decision approved` records the resume
-authorization; `--decision rejected` leaves it parked with the note as the reason.
+and the run stays parked in ESCALATE. `--decision approved` applies the canonical
+`resolved` edge, persists the resumed phase, and records authorization before the
+host submits projection; `--decision rejected` leaves it parked with the note as
+the reason.
 The loop cannot be advanced around this: `apply-outcome` refuses to record anything
 while a gate is pending.
 
 ### 1. INIT Phase
+
+Create state through the canonical writer. In coordinated mode, follow it with
+the submit call from the protocol above; if `init` fails, do not project.
+
+Append only the flags present in the Autopilot invocation; `init` persists them once, and an idempotent resume retains the original options.
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" init --change-id <change-id> [--force] [--val-review] [--no-review]
+```
 
 **Detect CLI mode** — check whether multi-vendor review is available:
 
@@ -279,6 +341,19 @@ disposition `gate-check` records the decision, exits 3, and there is nothing to 
 An exit of 4 is not a "continue": the decision was blocked in a way no console answer
 resolves, the run is in ESCALATE, and this run stops.
 
+### Canonical phase edges
+
+Whenever a phase section below says **transition to** a phase, apply the named
+outcome through the durable writer, then submit the projection in coordinated
+mode:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" transition \
+  --change-id <change-id> --outcome <outcome>
+```
+
+A failed transition is a stop: do not project and do not advance work.
+
 ### Per-Phase Sub-Agent Dispatch Protocol
 
 **Authorization.** Sub-agent dispatch is the defined execution model of this skill,
@@ -315,13 +390,13 @@ provider adapter. Each block follows the same 3-step protocol:
 
    **On non-zero exit (design D9): do NOT advance to the next phase.** A
    failed `apply-outcome` means the bookkeeping did not land. Retain the
-   un-applied handoff file (do not delete it) and transition to `ESCALATE`
-   with `previous_phase` set to the failing phase. The
-   `apply_outcome_or_escalate()` helper in `autopilot.py` encapsulates this
-   exact sequence (run → on failure append `phase_history`, set
-   `current_phase = ESCALATE`, retain handoff); an in-process orchestrator
-   calls it in place of a bare `apply-outcome`. A silent continue is worse
-   than the bug this protocol prevents.
+   un-applied handoff file (do not delete it), invoke `runner.py escalate`
+   with a reason naming the failed phase and retained handoff, then project the
+   exit-0 ESCALATE write and stop. `apply_outcome_or_escalate()` remains the
+   equivalent in-process API. On apply success, invoke `runner.py transition`
+   with the recorded outcome; an unsupported logical edge is itself converted
+   to a durable, projectable ESCALATE write. A silent continue is worse than
+   the bug this protocol prevents.
 
 **Fallback (D5)**: If `runner.py build-dispatch` returns `archetype: null`
 (coordinator unreachable or fallback), OR if no provider-neutral dispatch

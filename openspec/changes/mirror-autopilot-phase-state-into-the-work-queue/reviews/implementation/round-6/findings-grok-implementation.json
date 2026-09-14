@@ -1,0 +1,211 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Optional: Migration 039 introduces reason `projection_key_collision`, but `coordination_api._PROJECTION_CONFLICTS` still lists only stale/mismatch/reconciliation_required. `_projection_mutation_payload` therefore falls through to the catch-all and returns HTTP 422 for a durable key-ownership conflict. Fail-closed DB behavior and adapter degradation remain correct because only `409`+`reconciliation_required` advances to reconcile; operators and typed clients that key on conflict status nevertheless see an invalid-request status for a conflict-class reason.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Add `projection_key_collision` to `_PROJECTION_CONFLICTS` (HTTP 409) and cover the FastAPI problem status with a unit or live HTTP assertion.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 95,
+        "end": 130
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "low",
+      "description": "FYI: Round-5 `dispositions.md` is empty (0 bytes) while `change-context.md` claims R5 findings were dispositioned there. Implementation recovery evidence lives in commit `5693a320`, focused tests, and `validation-report.md`, but the round-5 review audit trail itself is incomplete.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi",
+      "resolution": "Populate round-5 dispositions to match the fixed/accepted summary already asserted in change-context, or correct change-context to cite the fix commit and validation report instead of the empty dispositions file.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/reviews/implementation/round-5/dispositions.md",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Every table ESCALATE edge records resume metadata and advances exactly once. `_apply_transition` routes ESCALATE through `enter_escalate` (`autopilot.py:832-837`); `enter_escalate` sets `previous_phase`, parks, and increments `total_iterations` only when leaving a non-ESCALATE phase (`:520-524`). Goal-gate refusal and unsupported logical transitions on `runner.py transition` persist ESCALATE and exit 0 so projection can publish (`runner.py:423-455`).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 514,
+        "end": 533
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Goal-gate/apply-outcome failure persistence and retry-idempotent ESCALATE recovery hold at HEAD. `apply_outcome_or_escalate` bumps generation and projects only when not already parked, retaining the original resume phase on retry (`autopilot.py:670-686`; `test_apply_outcome_contract.py` covers first failure and already-escalated replay). The prose host\u2019s executable path is `runner.py escalate` after non-zero `apply-outcome` (`SKILL.md:387-395`; `runner.py:465-494`).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 670,
+        "end": 686
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: A structured degraded projection cannot halt authoritative work. `runner.py project-state` always returns 0 after emitting the envelope, including degraded results (`runner.py:519-522`); the adapter\u2019s `_degraded` path never mutates LoopState (`queue_projection.py:28-34`, `:93-94`). Auto `escalate_resume` now applies and flushes the resolved edge before exit 3 (`runner.py:169-183`; `test_gate_evaluate_cli.py:181-209`).",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 169,
+        "end": 183
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Migration 039 closes the Round-5 integrity gaps inside the per-change advisory transaction: same-generation submit clears noncanonical owned labels (`039:100-106`), non-issue key collisions fail closed before head advancement or relabel (`:90-94`, `:179-183`), and owned terminal rows reactivate to pending with lifecycle fields cleared (`:110-116`, `:217-222`). Live coverage includes first-insert SSE, replay cleanup, collision preservation, reactivation, and unlabeled legacy dedupe (`test_autopilot_projection_acceptance_postgres.py:220-460`).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 90,
+        "end": 116
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Migration 038/039 preserve legacy non-projection submit/reconcile and cannot mutate ordinary change-labelled issues. Unkeyed submit rejects projection labels and otherwise inserts without label rewrite (`039:23-32`); NULL `p_projection_labels` skips owned-label branches; stale clear/reactivate predicates require `task_type='issue'`, complete projection identity, and `projection:autopilot-phase` (`:101-106`, `:264-268`). Unlabeled legacy keyed collision keeps pre-039 dedupe semantics without relabel (`test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics`).",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 23,
+        "end": 32
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: First-insert board refresh is wired. `notify_projection_insert` emits `projection.labels_changed` on labelled INSERT (`039:230-260`); `event_stream` coalesces that event into a fresh snapshot (`event_stream.py:276-328`); implicit label-filtered issue reads exclude cancelled rows (`issue_service.py:319-322`). Live test connects before the first submit and observes the current-only snapshot (`test_connected_sse_refreshes_for_first_canonical_projection_insert`).",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 230,
+        "end": 260
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: OpenAPI request constraints now declare ordered conditional projection labels (`prefixItems`, `const` second item, conditional `projection_key`+`task_type=issue`) while Pydantic enforces the item-length bound (`ProjectionLabel` max_length 160; list min/max 2), matching design D9. Service-layer `_projection_labels_are_valid` still fail-closes on exact pair equality (`work_queue.py:255-267`; OpenAPI `work-queue.yaml:93-119`).",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 93,
+        "end": 119
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Installed skill mirrors match the canonical payload at this HEAD. `cmp` is identical for `queue_projection.py`, `runner.py`, `SKILL.md`, and `coordination_bridge.py` across `skills/`, `.agents/skills/`, and `.claude/skills/`; `skills/install.sh --check` reports byte-level parity (`install.sh:254-268`), and `test_check_detects_stale_installed_skill_payload` guards drift. Antigravity review dispatch pairs `--output-format json` with `--json-schema` (`agents.yaml:275`).",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 254,
+        "end": 268
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Queue responses remain non-authoritative and coordinator-free tiers stay isolated. `QueueProjectionAdapter` derives identity only from LoopState and never feeds queue data back (`queue_projection.py:52-100`); `project-state` imports the publisher lazily (`runner.py:502-509`); AST and protocol isolation tests forbid eager `queue_projection` imports and confine projection to the coordinated tier (`test_phase_projection_isolation.py:12-30`).",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 52,
+        "end": 100
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Generated architecture artifacts satisfy the freshness/provenance contract relative to producer input roots. `architecture.provenance.json` records `source_revision=5693a320...`, `worktree_dirty=false`, `validation.status=passed`, and `input_roots` limited to migrations/src/apps (`:135-175`). Diff `5693a320..b796aaed` touches only docs/architecture-analysis and the validation report\u2014no input-root code\u2014so size alone is not treated as a defect.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "No change required.",
+      "package_id": "whole-branch",
+      "file_path": "docs/architecture-analysis/architecture.provenance.json",
+      "line_range": {
+        "start": 135,
+        "end": 175
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

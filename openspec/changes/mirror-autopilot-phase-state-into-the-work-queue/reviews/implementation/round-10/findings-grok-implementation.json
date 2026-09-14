@@ -1,0 +1,262 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Migration 039 keeps `work_queue_projection_ownership` as the sole ownership authority with no mutable-field upgrade seed; labelled submit/reconcile return `projection_key_collision` before head upsert, cancel, or relabel when the exact tuple is unowned or non-issue.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Independent re-test of round-6/8 ownership claims holds at HEAD.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 5,
+        "end": 218
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Labelled cancel, stale-label clear, and terminal reactivation all require registry ownership; same-generation replay reactivates only owned cancelled/completed/failed rows while preserving claimed/running lifecycle state; NULL-label reconcile retains the historical unlabelled change_id cancel contract.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-6/8 labelled-vs-legacy isolation claims hold in the 039 function bodies.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 122,
+        "end": 268
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Migration 038 preserves legacy non-projection submit (plain insert; labels rejected without projection keys) and gates label mutation on `p_projection_labels IS NOT NULL`, so ordinary change-labelled issues are not selected by the projection repair path.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Round-9 migration-038 legacy-behavior claim holds.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/038_atomic_projection_labels.sql",
+      "line_range": {
+        "start": 22,
+        "end": 183
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Automatic and console-approved `escalate_resume` share one persisted `resolved` edge: auto apply persists immediately, console park stores `{outcome:resolved,target:previous_phase}`, and `gate-answer` applies that edge before host projection; `enter_escalate` advances generation once and preserves the original incident on retries.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-5/8 ESCALATE recovery claims are implemented and regression-covered.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 169,
+        "end": 192
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Failed `apply_outcome_or_escalate` sets `previous_phase` from the authoritative durable `current_phase`, advances generation once, and projects ESCALATE; success best-effort submits the unchanged generation; `transition`/`escalate` after DONE are byte-preserving no-ops.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-8 state-recovery claims hold with focused Autopilot regressions.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 639,
+        "end": 700
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "none: Runtime Pydantic `ProjectionLabels` and OpenAPI `projection_labels` both require the heterogeneous ordered pair (change-label pattern with maxLength 135, then const `projection:autopilot-phase`); `projection_key_collision` is classified as HTTP 409 in the API mapper.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Round-6/8 request-contract and conflict-status claims match OpenAPI and runtime.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 95,
+        "end": 227
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Degraded projection prefers explicit envelope `reason`, then RFC 7807 `response.detail`, then generic HTTP error text, and `project-state` exits 0 on structured degradation so authoritative loop-state is never halted or rewritten by queue responses.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Round-4/8 non-authority and canonical-problem-detail claims hold.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 512,
+        "end": 537
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: First-insert and terminal-reactivation paths emit `projection.labels_changed` inside the per-change transaction under `pg_advisory_xact_lock`; concurrent N/N+1 publishers therefore serialize label apply and owned stale-label clear; implicit label-filtered issue reads exclude cancelled rows.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Round-5/7 concurrency and board-visibility claims hold.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 73,
+        "end": 314
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Coordinator-free tiers remain isolated: `queue_projection` is not eagerly imported, `run_loop` defaults to `queue_projection_fn=None`, and isolation spies fail if submit/reconcile/label helpers are called; detection/archetype bridge use stays outside the projection-isolation guarantee.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Spec D10 / isolation scenario holds at HEAD.",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 12,
+        "end": 86
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Projection SSE visibility is current-only: `projection.labels_changed` coalesces into one snapshot rebuild via label-filtered `list_issues`, and cancelled rows are excluded on the implicit label board path.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Round-5/7 SSE current-only claims hold.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 272,
+        "end": 328
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: `install.sh --check` byte-compares skill trees, shared libraries, and install-manifest across both runtime mirrors, and CI materializes mirrors with `--mode copy --force` before `--check`.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Round-7/8 installed-payload claims hold.",
+      "package_id": "whole-branch",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 237,
+        "end": 298
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Antigravity review command construction includes `--output-format json` before `--json-schema`, and `_extract_findings` unwraps `structuredOutput`, `structured_output`, and JSON-text `response` envelopes.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-8/9 Antigravity schema and envelope claims hold.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 869,
+        "end": 893
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Architecture artifacts declare provenance (`source_revision`, input roots limited to coordinator/migrations/src and apps, validation passed); freshness is fingerprint-based, so size alone is not a defect and post-revision skills-only dispatcher work is outside those roots.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Provenance/freshness contract reviewed; no size-based defect.",
+      "package_id": "whole-branch",
+      "file_path": "docs/architecture-analysis/architecture.provenance.json",
+      "line_range": {
+        "start": 1,
+        "end": 80
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Round-9 dispatch precedence regression `test_dispatch_prefers_review_cwd_agents_yaml` mocks `_find_local_agents_yaml` and never asserts it was called with the reviewed `--cwd`; forgetting to pass `cwd` (falling back to process CWD) would still pass while reintroducing the exact wrong-config class that broke Antigravity. Explicit `--agents-yaml` and absent-local fallback branches of `_orchestrator_for_dispatch` also lack targeted regressions.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "Assert `_find_local_agents_yaml` is called with the reviewed cwd (or exercise the real filesystem walk), and add explicit-config-wins plus absent-local-falls-through-to-coordinator cases.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py",
+      "line_range": {
+        "start": 1783,
+        "end": 1804
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 15,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Optional: `--check-vendors` and `--list-agents` still resolve config coordinator/global-first and ignore `--cwd`, so availability probes can inspect a different `agents.yaml` than the fixed review-dispatch path that now prefers the reviewed checkout.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Route both entry points through `_orchestrator_for_dispatch(args.agents_yaml, Path(args.cwd))` (or equivalent) so probe and dispatch share checkout-local precedence.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2535,
+        "end": 2684
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

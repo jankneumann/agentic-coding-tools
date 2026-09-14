@@ -1,0 +1,12 @@
+# Round 15 implementation-review dispositions
+
+- Dispatch: all five configured harnesses received the exact-HEAD read-only prompt from the reviewed worktree. Antigravity, Claude Code, Grok, and Pi returned schema-valid reviews, satisfying four-vendor quorum. Codex exhausted the full 900-second budget; the timeout remains in the manifest.
+- Blocking result: no critical, high, or medium implementation defect remained. All four successful vendors verified the Round 14 HTTP 403 and pre-registry structured-refusal fixes, transaction ordering, authorization, bidirectional mode isolation, durable recovery, and migration-037 first-generation SSE path.
+- Grok 12 (Kanban OpenAPI 403): confirmed low contract omission and fixed test-first. The label-PATCH operation now declares the projection-related 403 response, with a regression reading the authored contract.
+- Claude 2 / Grok 13 (inert insert-notifier attribution): accepted and corrected. The migration header and task ledger now describe ownership integrity and the staged migration-037 label-UPDATE notification rather than crediting the inert insert trigger.
+- Claude 3 (multi-generation administrator adoption): accepted as an operability clarification. The design, table comment, and operator guide now state that every verified complete keyed row for the change, including cancelled historical generations, must be adopted; adopting only the current row remains fail-closed.
+- Claude 4 (PATCH docstring): accepted and corrected from generic work-queue row to issue row.
+- Claude 1 (batch-close partial outcomes): accepted as optional follow-up rather than an ri-09 contract defect. Each row is locked and checked atomically, and the current API has historically returned one aggregate response for sequential per-row closes; changing it requires a separate atomic-batch or per-item outcome contract.
+- Claude 5-6, Grok 1-11, Antigravity 1-10, and Pi 1-12: accepted as positive or informational observations. The default cancelled-row query asymmetry is outside the labelled board path; either 403 detail is valid and row-preserving; local MCP retains its established no-raise envelope.
+- Consensus: 27 synthesized observations, nine independently confirmed, 16 unconfirmed, two wording disagreements, no blocking findings, and four-of-four quorum.
+- Verification: the new Kanban OpenAPI regression failed before the contract correction and passes after it. Full strict OpenSpec/package validation, integrated tests, architecture freshness, and a final exact-head all-harness review follow this save point.

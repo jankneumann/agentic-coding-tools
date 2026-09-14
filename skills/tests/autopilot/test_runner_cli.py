@@ -136,6 +136,156 @@ def test_runner_apply_outcome_updates_state(workspace: Path) -> None:
     assert not cache.exists()
 
 
+def test_runner_apply_then_invalid_transition_escalates_and_can_project(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The executable host path parks malformed phase outcomes durably."""
+    state_path = _seed_state(
+        workspace,
+        "demo",
+        current_phase="PLAN_REVIEW",
+        total_iterations=6,
+    )
+
+    applied = _run_cli(
+        workspace,
+        "apply-outcome",
+        "--change-id",
+        "demo",
+        "--phase",
+        "PLAN_REVIEW",
+        "--outcome",
+        "not-a-review-outcome",
+        "--handoff-id",
+        "h-invalid-edge",
+    )
+    assert applied.returncode == 0, applied.stderr
+
+    transitioned = _run_cli(
+        workspace,
+        "transition",
+        "--change-id",
+        "demo",
+        "--outcome",
+        "not-a-review-outcome",
+    )
+    assert transitioned.returncode == 0, transitioned.stderr
+    assert "run parked in ESCALATE" in transitioned.stderr
+
+    state = json.loads(state_path.read_text())
+    assert state["current_phase"] == "ESCALATE"
+    assert state["previous_phase"] == "PLAN_REVIEW"
+    assert state["total_iterations"] == 7
+    assert "not-a-review-outcome" in state["escalation_reason"]
+    assert state["phase_history"][-1]["outcome"] == "transition_failed"
+
+    # Exit zero makes the ordinary coordinated-host projection step executable;
+    # prove that project-state reads the just-persisted ESCALATE generation.
+    monkeypatch.chdir(workspace)
+    import queue_projection
+    import runner
+
+    projected: list[tuple[str, int, str]] = []
+
+    class _Adapter:
+        def __init__(self, **_kwargs: Any) -> None:
+            pass
+
+        def __call__(self, state: Any, *, mode: str) -> dict[str, str]:
+            projected.append((state.current_phase, state.total_iterations, mode))
+            return {"status": "ok"}
+
+    monkeypatch.setattr(queue_projection, "QueueProjectionAdapter", _Adapter)
+    assert runner.main(
+        [
+            "project-state",
+            "--change-id",
+            "demo",
+            "--mode",
+            "submit",
+            "--coordinator-url",
+            "https://coordinator.test",
+        ]
+    ) == 0
+    assert projected == [("ESCALATE", 7, "submit")]
+
+def test_runner_transition_after_done_is_idempotent(workspace: Path) -> None:
+    state_path = _seed_state(
+        workspace, "demo", current_phase="DONE", total_iterations=12
+    )
+    before = state_path.read_bytes()
+
+    result = _run_cli(
+        workspace, "transition", "--change-id", "demo", "--outcome", "complete"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert state_path.read_bytes() == before
+
+
+def test_runner_escalate_after_done_is_idempotent(workspace: Path) -> None:
+    state_path = _seed_state(
+        workspace, "demo", current_phase="DONE", total_iterations=12
+    )
+    before = state_path.read_bytes()
+
+    result = _run_cli(
+        workspace,
+        "escalate",
+        "--change-id",
+        "demo",
+        "--reason",
+        "late host failure",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert state_path.read_bytes() == before
+
+
+def test_runner_escalate_is_executable_after_apply_outcome_failure(
+    workspace: Path,
+) -> None:
+    state_path = _seed_state(
+        workspace,
+        "demo",
+        current_phase="PLAN_REVIEW",
+        total_iterations=2,
+    )
+    handoff = workspace / "openspec/changes/demo/handoffs/h-mismatch.json"
+    handoff.parent.mkdir(parents=True)
+    handoff.write_text('{"phase": "VALIDATE"}\n')
+
+    failed = _run_cli(
+        workspace,
+        "apply-outcome",
+        "--change-id",
+        "demo",
+        "--phase",
+        "VALIDATE",
+        "--outcome",
+        "failed",
+        "--handoff-id",
+        str(handoff),
+    )
+    assert failed.returncode != 0
+
+    parked = _run_cli(
+        workspace,
+        "escalate",
+        "--change-id",
+        "demo",
+        "--reason",
+        f"apply-outcome failed; retained handoff {handoff}",
+    )
+    assert parked.returncode == 0, parked.stderr
+    state = json.loads(state_path.read_text())
+    assert state["current_phase"] == "ESCALATE"
+    assert state["previous_phase"] == "PLAN_REVIEW"
+    assert state["total_iterations"] == 3
+    assert state["phase_history"][-1]["outcome"] == "host_escalate"
+    assert handoff.exists()
+
+
 def test_runner_rejects_traversal_change_id(workspace: Path) -> None:
     result = _run_cli(
         workspace, "build-dispatch", "--phase", "IMPLEMENT",
@@ -221,3 +371,22 @@ def test_runner_gate_answer_rejects_an_unknown_gate_name(workspace: Path) -> Non
     )
 
     assert result.returncode != 0
+
+
+def test_runner_init_persists_host_options(workspace: Path) -> None:
+    result = _run_cli(
+        workspace,
+        "init",
+        "--change-id",
+        "demo-options",
+        "--force",
+        "--val-review",
+        "--no-review",
+    )
+
+    assert result.returncode == 0, result.stderr
+    state_path = workspace / "openspec/changes/demo-options/loop-state.json"
+    state = json.loads(state_path.read_text())
+    assert state["force"] is True
+    assert state["val_review_enabled"] is True
+    assert state["cli_review_enabled"] is False

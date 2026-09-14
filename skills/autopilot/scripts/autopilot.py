@@ -201,6 +201,16 @@ def persist_and_project(
     the previous queue generation may still be live.
     """
     save_state(state, path)
+    return _project_saved_state(state, queue_projection_fn, mode=mode)
+
+
+def _project_saved_state(
+    state: LoopState,
+    queue_projection_fn: Callable[..., Any] | None,
+    *,
+    mode: str,
+) -> dict[str, Any]:
+    """Best-effort projection for a state that is already durable."""
     if queue_projection_fn is None:
         return {"status": "skipped", "reason": "projection_callback_absent"}
     try:
@@ -428,6 +438,7 @@ class _GateSession:
     state_path: Path | None
     repo_root: Path
     evaluator: GateEvaluator | None = None
+    queue_projection_fn: Callable[..., Any] | None = None
 
     def evaluate(self, gate: Gate, context: dict[str, Any] | None = None) -> ApprovalDecision:
         if self.evaluator is None:
@@ -483,7 +494,9 @@ class _GateSession:
             # one, which is what makes "recorded before the loop acts" true.
             logger.debug("gate session has no state_path; decision not persisted")
             return
-        save_state(state, self.state_path)
+        persist_and_project(
+            state, self.state_path, self.queue_projection_fn, mode="submit"
+        )
 
 
 # Thin delegating alias (ri-04, D2): the record shape now lives in
@@ -503,11 +516,13 @@ def enter_escalate(
     reason: str,
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
 ) -> LoopState:
-    """Transition *state* into ESCALATE, recording the originating phase."""
-    state.previous_phase = state.current_phase
-    state.escalation_reason = reason
-    state.current_phase = "ESCALATE"
-    state.phase_started_at = _now_iso()
+    """Enter ESCALATE once, preserving the original incident on retries."""
+    if state.current_phase != "ESCALATE":
+        state.previous_phase = state.current_phase
+        state.current_phase = "ESCALATE"
+        state.total_iterations += 1
+        state.escalation_reason = reason
+        state.phase_started_at = _now_iso()
     _safe_status_call(
         status_fn,
         state,
@@ -590,18 +605,21 @@ def apply_outcome_or_escalate(
     allow_phase_mismatch: bool = False,
     apply_runner: ApplyOutcomeRunner | None = None,
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
+    queue_projection_fn: Callable[..., Any] | None = None,
 ) -> int:
     """Run apply-outcome and escalate on failure (design D9).
 
     Invokes ``runner.py apply-outcome`` (via *apply_runner*, injectable for
-    tests). On a zero exit, returns 0 and leaves the state as apply-outcome
-    wrote it. On a non-zero exit the orchestrator MUST NOT continue silently;
+    tests). On a zero exit, leaves the state as apply-outcome wrote it and
+    best-effort projects that durable unchanged generation before returning 0.
+    On a non-zero exit the orchestrator MUST NOT continue silently;
     instead it:
 
       1. Retains the un-applied handoff file (this function never deletes it).
       2. Appends a ``phase_history`` entry recording the apply-outcome failure.
       3. Transitions ``current_phase`` to ``ESCALATE`` with ``previous_phase``
-         set to the failing *phase*.
+         set from the authoritative durable phase; the caller phase remains
+         diagnostic history only.
 
     Best-effort (D9.1): if the ESCALATE write ALSO fails (corrupt/read-only
     loop-state), the failure is logged at CRITICAL with the handoff path and
@@ -619,6 +637,15 @@ def apply_outcome_or_escalate(
         allow_phase_mismatch=allow_phase_mismatch,
     )
     if rc == 0:
+        if queue_projection_fn is not None:
+            try:
+                _project_saved_state(
+                    load_state(state_path), queue_projection_fn, mode="submit"
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Could not project successful apply-outcome state: %s", exc
+                )
         return 0
 
     # Non-zero exit — escalate. Operate on the raw JSON dict so unknown keys
@@ -651,14 +678,26 @@ def apply_outcome_or_escalate(
         raw.setdefault("pending_gate", None)
         raw.setdefault("goal_gate", None)
         raw["schema_version"] = LOOP_STATE_SCHEMA_VERSION
-        raw["previous_phase"] = phase
-        raw["current_phase"] = "ESCALATE"
-        raw["escalation_reason"] = (
-            f"apply-outcome failed (exit {rc}) for phase {phase}; handoff "
-            f"{handoff_id} retained un-applied"
-        )
-        raw["phase_started_at"] = _now_iso()
+        # Retry-safe: an apply-outcome retry while already parked must publish
+        # the same generation and retain its original resume target. This
+        # mirrors ``enter_escalate`` rather than inventing a second ESCALATE
+        # writer with different generation semantics.
+        authoritative_phase = raw.get("current_phase")
+        if not isinstance(authoritative_phase, str) or not authoritative_phase:
+            raise ValueError(f"loop state has invalid current_phase in {path}")
+        if authoritative_phase != "ESCALATE":
+            raw["previous_phase"] = authoritative_phase
+            raw["current_phase"] = "ESCALATE"
+            raw["total_iterations"] = int(raw.get("total_iterations", 0)) + 1
+            raw["escalation_reason"] = (
+                f"apply-outcome failed (exit {rc}) for phase {phase}; handoff "
+                f"{handoff_id} retained un-applied"
+            )
+            raw["phase_started_at"] = _now_iso()
         path.write_text(json.dumps(raw, indent=2) + "\n")
+        _project_saved_state(
+            load_state(path), queue_projection_fn, mode="submit"
+        )
 
         if status_fn is not None:
             # Reload a dataclass view for the status callback signature.
@@ -804,6 +843,12 @@ def _apply_transition(
 
     if next_phase == "DONE":
         _check_done_evidence(state, old_phase, outcome, change_dir)
+    if next_phase == "ESCALATE":
+        return enter_escalate(
+            state,
+            f"{old_phase} transitioned to ESCALATE via outcome {outcome!r}",
+            status_fn=status_fn,
+        )
 
     state.current_phase = next_phase
     state.phase_started_at = _now_iso()
@@ -1025,12 +1070,15 @@ def run_loop(
     # re-applied from the caller on every run, mirroring cli_review_enabled so a
     # resume honors the flag the operator passed this time.
     state.force = force
+    if not state_path.exists():
+        persist_and_project(state, state_path, queue_projection_fn, mode="submit")
 
     gates = _GateSession(
         change_id=change_id,
         state_path=state_path,
         repo_root=worktree_path,
         evaluator=gate_evaluator,
+        queue_projection_fn=queue_projection_fn,
     )
 
     # Re-entry with an unanswered gate: report and return rather than run a
@@ -1088,7 +1136,7 @@ def run_loop(
             # A gate raised a question for the host. Park in place — the answer
             # arrives out of band via `runner.py gate-answer`.
             pending = str((state.pending_gate or {}).get("gate", "unknown"))
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             _safe_status_call(
                 status_fn,
                 state,
@@ -1101,7 +1149,7 @@ def run_loop(
         if outcome is None:
             # Phase signalled "stay" (e.g. unresolved escalation, or a gate that
             # blocked after a human was consulted or the coordinator was down)
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             break
 
         # If phase handler already changed the phase (e.g. enter_escalate),
@@ -1129,7 +1177,7 @@ def run_loop(
             persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             break
         except GatePending as exc:
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             _safe_status_call(
                 status_fn,
                 state,
@@ -1165,7 +1213,7 @@ def run_loop(
         mid = memory_fn(state, f"Loop completed for {change_id}")
         if mid:
             state.memory_ids.append(mid)
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
 
     return state
 

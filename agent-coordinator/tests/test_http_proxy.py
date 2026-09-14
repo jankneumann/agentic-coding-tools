@@ -918,18 +918,27 @@ async def test_proxy_submit_and_reconcile_projection_payloads(
     monkeypatch.setattr(http_proxy, "_request", request)
     monkeypatch.setattr(http_proxy, "_agent_identity", lambda: {})
     key = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 6}
+    labels = ["change:projection-change", "projection:autopilot-phase"]
 
     await http_proxy.proxy_submit_work(
-        task_type="implement", description="submit", projection_key=key
+        task_type="issue",
+        description="submit",
+        projection_key=key,
+        projection_labels=labels,
     )
     assert request.await_args_list[0].args[:2] == ("POST", "/work/submit")
     assert request.await_args_list[0].kwargs["json_body"]["projection_key"] == key
+    assert request.await_args_list[0].kwargs["json_body"]["projection_labels"] == labels
 
     await http_proxy.proxy_reconcile_work_projection(
-        projection_key=key, task_type="implement", description="resume"
+        projection_key=key,
+        task_type="issue",
+        description="resume",
+        projection_labels=labels,
     )
     assert request.await_args_list[1].args[:2] == ("POST", "/work/reconcile")
     assert request.await_args_list[1].kwargs["json_body"]["projection_key"] == key
+    assert request.await_args_list[1].kwargs["json_body"]["projection_labels"] == labels
 
 
 @pytest.mark.asyncio
@@ -962,9 +971,13 @@ async def test_projection_proxy_bodies_satisfy_strict_request_models(
     request = AsyncMock(return_value={"success": True})
     monkeypatch.setattr(http_proxy, "_request", request)
     key = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 6}
+    labels = ["change:projection-change", "projection:autopilot-phase"]
 
     await http_proxy.proxy_submit_work(
-        task_type="implement", description="submit", projection_key=key
+        task_type="issue",
+        description="submit",
+        projection_key=key,
+        projection_labels=labels,
     )
     submit_body = request.await_args_list[0].kwargs["json_body"]
     assert "agent_id" not in submit_body
@@ -972,7 +985,10 @@ async def test_projection_proxy_bodies_satisfy_strict_request_models(
     WorkSubmitRequest.model_validate(submit_body)
 
     await http_proxy.proxy_reconcile_work_projection(
-        projection_key=key, task_type="implement", description="resume"
+        projection_key=key,
+        task_type="issue",
+        description="resume",
+        projection_labels=labels,
     )
     reconcile_body = request.await_args_list[1].kwargs["json_body"]
     assert "agent_id" not in reconcile_body

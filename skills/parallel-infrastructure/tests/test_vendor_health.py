@@ -201,3 +201,20 @@ class TestFormatTable:
         parsed = json.loads(json_str)
         assert parsed["healthy_count"] == 1
         assert len(parsed["vendors"]) == 1
+
+
+def test_vendor_health_accepts_explicit_null_sdk_section() -> None:
+    health = check_vendor(
+        "local-only",
+        {
+            "type": "codex",
+            "cli": {
+                "command": "python3",
+                "dispatch_modes": {"review": {"args": []}},
+            },
+            "sdk": None,
+        },
+    )
+
+    assert health.cli_installed is True
+    assert health.healthy is True

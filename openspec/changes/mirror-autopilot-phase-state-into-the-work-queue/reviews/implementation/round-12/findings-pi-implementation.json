@@ -1,0 +1,109 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "low",
+      "description": "HTTP submit carrying projection_key and every reconcile request authorize the distinct publish_work_projection operation against the exact change_id resource before service or SQL mutation. Trust-level-2 principals receive HTTP 403; trust-level-3 coordinator publishers retain the operation in native Cedar policy and synchronized capability profiles. Verified at agent-coordinator/src/coordination_api.py:1203-1248 and tests/test_coordination_api.py::test_standard_trust_cannot_publish_projection.",
+      "resolution": "No change required; authorization boundary is correctly enforced.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1203,
+        "end": 1248
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Both labelled SQL paths (submit_task and reconcile_work_projection in migration 039) hold the per-change advisory lock and preflight every unowned reserved-labelled row associated by payload change_id or exact change label before any head or row mutation. An unowned pre-038 row at sequence N blocks generation N+1 repair with projection_key_collision until explicit administrator registration, without split-brain rows or head advancement. Verified at agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql:186-230 and tests/integration/postgres/test_fresh_database_migration.py::test_039_upgrade_fails_closed_until_owner_registers_verified_row.",
+      "resolution": "No change required; pre-registry upgrade gate is correctly enforced.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 186,
+        "end": 230
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "WorkQueueService.reconcile_projection explicitly re-raises TrustResolutionError before the blanket exception handler, ensuring the mutating RPC is never reached when trust resolution fails. The guardrail scan cannot be bypassed via the reconcile path. Verified at agent-coordinator/src/work_queue.py:933-956 and tests/test_trust_resolution_fail_open.py::TestTrustFailureNeverSkipsGuardrails::test_reconcile_propagates_instead_of_writing_unscanned.",
+      "resolution": "No change required; fail-closed trust resolution is correctly propagated.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 933,
+        "end": 956
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "SDK-only coordinator rosters remain authoritative: explicit --agents-yaml wins, otherwise reviewed-checkout-local config precedes coordinator/global state. The orchestrator falls back to disk only when both CLI and SDK adapter maps are empty. Dispatch, --check-vendors, and --list-agents share the exact resolver and cwd. Verified at skills/parallel-infrastructure/scripts/review_dispatcher.py:2587-2590 and tests/test_review_dispatcher.py::test_dispatch_preserves_sdk_only_coordinator_roster.",
+      "resolution": "No change required; SDK-only roster precedence is correctly implemented.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2587,
+        "end": 2590
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Local MCP projection helpers (try_projection_issue_list, try_projection_issue_update in coordination_bridge.py) are coordinator-only and require trust-level-3 publishers. Ordinary issue APIs may carry the reserved projection:autopilot-phase label cosmetically but cannot obtain registry ownership (work_queue_projection_ownership is database-owned), advance projection heads (head mutation requires ownership), or be mutated by projection repair (labelled cleanup is restricted to registry-owned rows). Verified at skills/coordination-bridge/scripts/coordination_bridge.py:1460-1500 and agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql:231-280.",
+      "resolution": "No change required; projection helper isolation and cosmetic label bounds are correctly enforced.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/coordination-bridge/scripts/coordination_bridge.py",
+      "line_range": {
+        "start": 1460,
+        "end": 1500
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Full integration test suite passes: 2509 coordinator unit/integration tests, 445 autopilot tests, 204 parallel-infrastructure tests, 64 PostgreSQL live tests, and 9 queue_projection tests. All round-11 critical defects (Codex 1-4) are fixed and regression-tested. No remaining defects found in the convergence review scope.",
+      "resolution": "No change required; implementation is verified correct.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Verified against source: D7/D8 close the round-2 ESCALATE collision. Current enter_escalate (autopilot.py:496-513) still mutates phase without total_iterations, while only _apply_transition increments (autopilot.py:805), and submit_task returns projection_generation_mismatch on same-sequence phase changes (035_work_queue_projection.sql:113-115). The plan now requires every direct enter_escalate phase change to increment once, keeps projection_generation_mismatch degraded, and tasks 1.1/2.2 add explicit RED coverage for that path.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No plan change; implement enter_escalate sequence bump and the direct-ESCALATE RED assertion as written.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 56,
+        "end": 64
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Verified against source: submit head-advancement is pinned to the real bridge envelope. _normalize_operation_response puts HTTP 409 problem+json under response with status=error and status_code=409 (coordination_bridge.py:509-517); the coordinator emits detail=reconciliation_required (coordination_api.py:843-849) for the sole advance case (035:116-118). D7/contracts/spec correctly leave stale_projection, projection_generation_mismatch, and all other envelopes degraded, matching task 1.1's nested-409 RED proof.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No plan change; implement the exact status/status_code/response.detail predicate.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 56,
+        "end": 58
+      }
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Verified against source: migration 037 is required and correctly scoped. claim_task still only filters p_task_types (027_claim_task_exclude_submitter.sql:24); WorkQueueService.claim and MCP get_work forward None unchanged. D9/task 2.4 add task_type <> 'issue' enforcement aligned with issue_service intent, and wp-projection-adapter write/lock/deny allowlists now include 037 while denying 030-036. No OpenAPI version fork is introduced.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No plan change; implement the claim predicate and unfiltered-claim RED proof.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 66,
+        "end": 70
+      }
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Verified against source: D5/task 2.4 close the connected-SSE delivery gap without frontend edits. useCoordinator stops polling after the first snapshot and transition handlers only map existing cards (useCoordinator.ts:226-255); notify_work_queue_change still fires only on selected status updates (025:76-77), so INSERT/label/cancel emit nothing today. Planning a projection-label-change event converted by event_stream.py into a fresh change-scoped snapshot, plus task 3.3's connected-client and unchanged label-only polling proofs, matches the real board paths.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "No plan change; implement the label-change NOTIFY and snapshot conversion with the connected-SSE test.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 25,
+        "end": 27
+      }
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Verified against source: host registration and authority seams are implementable as written. runner.py still lacks init/transition/project-state (runner.py:370-482); persist_and_project already saves before projecting and suppresses callbacks when absent (autopilot.py:199-202); run_loop already reconciles before pending-gate handling (autopilot.py:1002-1037). D8's write matrix, D10's project-state-local lazy import (matching the existing goal_gate idiom at autopilot.py:835), proposal acceptance narrowing to projection-module/helpers only, and the one-way 'queue never feeds transitions' rule are coherent with current code.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No plan change; implement canonical writers, lazy import, and import/call-spy regressions.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 72,
+        "end": 94
+      }
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Verified against source: two-label cleanup is correctly bounded and ownership-safe. IssueService.list_issues AND-matches labels and caps at MAX_PAGE_SIZE=100 (issue_service.py:26,329-344); existing try_issue_* helpers GitHub-dispatch first (coordination_bridge.py:1098-1124). D9's coordinator-only helpers, explicit 100-row cleanup ceiling, ordinary-issue exclusion, and failure-matrix degradation/resume retry are sufficient given max_global_iterations=50 (autopilot.py:925).",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No plan change; implement coordinator-only helpers with limit=100 and the interrupted-cleanup proof.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 66,
+        "end": 70
+      }
+    },
+    {
+      "id": 7,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Verified against source: priority-1 projection rows remain inside the default 50-row kanban window. list_issues orders by priority.asc,created_at.asc before limit (issue_service.py:332-333), and both polling and SSE snapshots query labels=[change:<id>] only. Task 3.3's >50 ordinary lower-priority seed therefore exercises the real hot path without frontend or pagination changes.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "none",
+      "resolution": "No plan change.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 66,
+        "end": 70
+      }
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "low",
+      "description": "Verified against source: adapter-owned dual-label replacement cannot select ordinary change-labelled issues, and reserved projection identity fields remain rejected by bridge/service validation. D6's allowlisted payload plus no credential/transcript/queue-echo logging matches the existing bridge redaction posture.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "No plan change.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 29,
+        "end": 31
+      }
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Package DAG/scope is sound for the revised delivery work: wp-projection-adapter -> wp-live-integration, no cycles, non-overlapping locks, migration 037 and event_stream.py writable only in the first package, kanban-viz write scope removed, and integration verification covers coordinator suites plus strict OpenSpec.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No plan change.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/work-packages.yaml",
+      "line_range": {
+        "start": 25,
+        "end": 140
+      }
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "Optional: the skill-workflow requirement still says projected issue rows SHALL be excluded from unfiltered work claims, while task 2.4 / migration 037 wording excludes task_type=issue from every claim. D9's planned SQL predicate is absolute and is the safer reading; the RED proof in task 1.1 only needs the unfiltered path. Not blocking.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "optional",
+      "resolution": "Acceptable as-is because task 2.4 and D9 pin the SQL. Optionally tighten the spec SHALL to 'work claims' for exact alignment during implementation.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 5,
+        "end": 5
+      }
+    }
+  ]
+}

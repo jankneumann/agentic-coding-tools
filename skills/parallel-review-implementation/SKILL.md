@@ -345,7 +345,7 @@ Like `parallel-review-plan`, this skill is self-contained:
 
 When this skill is dispatched *to* another vendor by the orchestrator, only the review steps run (produce findings). Multi-vendor dispatch is handled by the orchestrating agent in Phase C3 of `/parallel-implement-feature`.
 
-**Agent discovery resolution chain**: The dispatcher resolves agents via the coordination MCP server configured in `~/.claude.json` → `mcpServers.coordination`. It extracts the `agent-coordinator/` directory from the MCP server args and runs `get_dispatch_configs.py` to load `agents.yaml`. If the coordinator is not configured, pass `--agents-yaml <path>` explicitly as fallback. Use `--list-agents` to verify available agents.
+**Agent discovery resolution chain**: An explicit `--agents-yaml` wins. Otherwise the dispatcher searches from the reviewed `--cwd` for checkout-local `agent-coordinator/agents.yaml`, then tries the configured coordination MCP/HTTP roster, and finally the process/global disk fallback. SDK-only coordinator rosters count as configured and are not discarded. Dispatch, `--check-vendors`, and `--list-agents` use this same resolver. Use `--list-agents --cwd <reviewed-checkout>` to verify the exact roster.
 
 ## Common Rationalizations
 

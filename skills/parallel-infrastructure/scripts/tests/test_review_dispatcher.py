@@ -19,6 +19,7 @@ from review_dispatcher import (
     ModeConfig,
     PollConfig,
     ReviewOrchestrator,
+    _orchestrator_for_dispatch,
     ReviewResult,
     SdkConfig,
     SdkVendorAdapter,
@@ -425,6 +426,37 @@ class TestDispatch:
         )
         adapter = _adapter()
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_antigravity_response_json_string(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """agy JSON mode nests schema-valid JSON text under response."""
+        envelope = json.dumps({"response": VALID_FINDINGS_JSON, "usage": {}})
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_antigravity_structured_output_dict(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """agy JSON mode may return the schema object under structured_output."""
+        envelope = json.dumps(
+            {"structured_output": json.loads(VALID_FINDINGS_JSON)}
+        )
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is True
         assert result.findings is not None
         assert len(result.findings["findings"]) == 1
@@ -1746,3 +1778,141 @@ class TestConcurrentGitSnapshotFallback:
         assert cmd[:4] == ["git", "worktree", "add", "--detach"]
         assert str(dest) in cmd
         assert "HEAD" in cmd
+
+
+def test_dispatch_prefers_review_cwd_agents_yaml(
+    tmp_path: Path,
+) -> None:
+    local = tmp_path / "agent-coordinator" / "agents.yaml"
+    local.parent.mkdir()
+    local.write_text("agents: {}\n")
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=local
+        ) as find_local,
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_local,
+        patch.object(ReviewOrchestrator, "from_coordinator") as from_coordinator,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is expected
+    find_local.assert_called_once_with(tmp_path)
+    from_local.assert_called_once_with(local)
+    from_coordinator.assert_not_called()
+
+
+def test_dispatch_explicit_agents_yaml_bypasses_local_and_coordinator(
+    tmp_path: Path,
+) -> None:
+    explicit = tmp_path / "explicit-agents.yaml"
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_explicit,
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml"
+        ) as find_local,
+        patch.object(ReviewOrchestrator, "from_coordinator") as from_coordinator,
+    ):
+        actual = _orchestrator_for_dispatch(str(explicit), tmp_path)
+
+    assert actual is expected
+    from_explicit.assert_called_once_with(explicit)
+    find_local.assert_not_called()
+    from_coordinator.assert_not_called()
+
+
+def test_dispatch_without_local_config_falls_back_to_global_disk(
+    tmp_path: Path,
+) -> None:
+    empty = ReviewOrchestrator({})
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=None
+        ),
+        patch.object(
+            ReviewOrchestrator, "from_coordinator", return_value=empty
+        ) as from_coordinator,
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_global,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is expected
+    from_coordinator.assert_called_once_with()
+    from_global.assert_called_once_with()
+
+
+def test_dispatch_preserves_sdk_only_coordinator_roster(
+    tmp_path: Path,
+) -> None:
+    coordinator = ReviewOrchestrator({}, {"sdk-agent": object()})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=None
+        ),
+        patch.object(
+            ReviewOrchestrator, "from_coordinator", return_value=coordinator
+        ),
+        patch.object(ReviewOrchestrator, "from_agents_yaml") as from_disk,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is coordinator
+    from_disk.assert_not_called()
+
+
+def test_repo_antigravity_schema_review_uses_json_output_mode() -> None:
+    repo_root = Path(__file__).resolve().parents[4]
+    orchestrator = ReviewOrchestrator.from_agents_yaml(
+        repo_root / "agent-coordinator" / "agents.yaml"
+    )
+    adapter = orchestrator.adapters["antigravity-local"]
+
+    command = adapter.build_command("review", "review", "gemini-3.8-flash-high")
+
+    schema_index = command.index("--json-schema")
+    output_index = command.index("--output-format")
+    assert command[output_index + 1] == "json"
+    assert output_index < schema_index
+    schema = json.loads(command[schema_index + 1])
+    assert schema["type"] == "object"
+    assert command[command.index("--prompt") + 1] == "review"
+
+
+@patch("review_dispatcher.subprocess.run")
+def test_repo_antigravity_live_dispatch_pairs_json_mode_and_schema(
+    mock_run: MagicMock, tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[4]
+    orchestrator = ReviewOrchestrator.from_agents_yaml(
+        repo_root / "agent-coordinator" / "agents.yaml"
+    )
+    adapter = orchestrator.adapters["antigravity-local"]
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0,
+        stdout=json.dumps({"response": VALID_FINDINGS_JSON}), stderr="",
+    )
+
+    result = adapter.dispatch(
+        "review", "review this", cwd=tmp_path,
+        archetype_model="gemini-3.8-flash-high",
+    )
+
+    assert result.success is True
+    command = mock_run.call_args.args[0]
+    output_index = command.index("--output-format")
+    schema_index = command.index("--json-schema")
+    assert command[output_index + 1] == "json"
+    assert output_index < schema_index
+    assert json.loads(command[schema_index + 1])["type"] == "object"

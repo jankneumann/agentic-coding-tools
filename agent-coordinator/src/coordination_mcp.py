@@ -328,6 +328,7 @@ async def submit_work(
     depends_on: list[str] | None = None,
     agent_requirements: dict[str, Any] | None = None,
     projection_key: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Submit a new task to the work queue.
@@ -363,6 +364,7 @@ async def submit_work(
             depends_on=depends_on,
             agent_requirements=agent_requirements,
             projection_key=projection_key,
+            projection_labels=projection_labels,
         )
     from uuid import UUID
 
@@ -380,6 +382,7 @@ async def submit_work(
         depends_on=depends_on_uuids,
         agent_requirements=agent_requirements,
         projection_key=projection_key,
+        projection_labels=projection_labels,
     )
 
     if not result.success:
@@ -402,6 +405,7 @@ async def reconcile_work_projection(
     input_data: dict[str, Any] | None = None,
     priority: int = 5,
     agent_requirements: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
 ) -> dict[str, Any]:
     """Reconcile derived work rows to an authoritative loop-state generation."""
     if _transport == "http":
@@ -412,6 +416,7 @@ async def reconcile_work_projection(
             input_data=input_data,
             priority=priority,
             agent_requirements=agent_requirements,
+            projection_labels=projection_labels,
         )
     result = await get_work_queue_service().reconcile_projection(
         projection_key=projection_key,
@@ -420,6 +425,7 @@ async def reconcile_work_projection(
         input_data=input_data,
         priority=priority,
         agent_requirements=agent_requirements,
+        projection_labels=projection_labels,
     )
     if not result.success:
         return {"success": False, "reason": result.reason}

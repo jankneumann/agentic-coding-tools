@@ -26,9 +26,9 @@ derived view that can be regenerated at any time and never feeds back into the
 checkboxes. The same asymmetry holds here — loop-state is the checkboxes, the
 queue is the rendered block.
 
-> Autopilot now exposes an optional persist-first projection callback and a
-> resume reconciliation callback. ri-08 does not register them for live phase
-> mirroring; coordinated registration and latency guarantees remain ri-09 scope.
+> Coordinated Autopilot now registers the persist-first phase publisher.
+> Coordinator-free tiers retain the callback-free default and never import the
+> publisher.
 
 ## Direction of truth
 
@@ -115,7 +115,8 @@ verified false negatives are pinned as mutation cases in the test.
 ## Implemented projection interfaces
 
 - HTTP: `POST /work/submit` accepts an optional `projection_key`;
-  `POST /work/reconcile` requires it. Successful responses expose the canonical
+  `POST /work/reconcile` requires it. Projection calls may also provide the
+  exact owned `projection_labels` pair. Successful responses expose the canonical
   task ID, status, `created`, `deduplicated`, and sorted cancellation IDs.
   Authentication, policy, projection conflicts, and validation failures use
   RFC 7807 Problems.
@@ -126,19 +127,48 @@ verified false negatives are pinned as mutation cases in the test.
   `coordination-cli work reconcile --projection-key <json>` map to the same
   service contract.
 - `skills/coordination-bridge/scripts/coordination_bridge.py` provides optional
-  submit/reconcile helpers. `skills/autopilot/scripts/autopilot.py` provides the
-  persist-then-project helper and resume reconciliation injection seam.
+  coordinator-only submit/reconcile helpers. The adapter derives the exact phase
+  key, advances through reconciliation only for `reconciliation_required`, and
+  passes the exact owned label pair with the priority-1 `task_type=issue` row.
+  Migration 039 applies canonical labels and clears stale owned labels inside the
+  same per-change transaction that advances or repairs the projection head.
+- `runner.py init` and `transition` are the canonical state writers;
+  `project-state --mode submit|reconcile` is the explicit coordinated host
+  boundary. Projection responses are never state-machine inputs.
 
 ## Failure recovery
 
 A failed state write stops before projection. A failed projection never rewrites
 the durable loop-state; resume re-derives the desired generation, atomically
-cancels stale active rows, and ensures the current row exists. Completed,
-failed, and cancelled current rows are treated as already satisfied. Queue
-metadata is observability only and is never read back into `LoopState`.
+cancels stale active rows, and ensures the current row exists. An exact replay
+whose canonical row is completed, failed, or cancelled is reactivated to
+`pending` with prior execution metadata cleared, so the current projection is
+board-visible again. Existing blocked rows remain blocked; resolving
+that status is an operator/workflow decision rather than projection repair.
+Queue metadata is observability only and is never read back into `LoopState`.
 
-## ri-09 boundary
+Migration 039 intentionally does not auto-adopt existing labelled rows: pre-registry payload and label fields are client-mutable and cannot prove ownership. Before replaying a migration-038 projection, a database administrator must enumerate every complete keyed row for the change, verify each row provenance out of band, and insert every verified UUID into `work_queue_projection_ownership`. Cancelled historical generations remain part of this fail-closed set; adopting only the current row is insufficient. Until then both same-generation replay and newer-generation repair fail closed with `projection_key_collision` before head or row mutation; projection repair will not insert around, cancel, or relabel the unowned row.
 
-ri-08 supplies atomic storage and optional composition seams. It does not
-register a publisher for every live phase transition, modify kanban-viz, or
-promise mirroring latency. ri-09 owns that coordinated runtime wiring.
+After migration 039, the reserved `projection:autopilot-phase` label is database-owned. Projection RPCs insert an initially unlabelled row, register its UUID, and only then apply the canonical label pair. A database trigger rejects any insert or label update that would place the reserved marker on an unregistered row. Ordinary issue create/update rejects the marker before persistence, and ordinary issue update/close uses a transactional database mutation that refuses registry-owned rows. The checks keep cosmetic labels from creating board/SSE impostors or wedging later reconciliation. The issue APIs now operate exclusively on `task_type=issue` rows; ordinary work-task UUIDs are not a supported mutation target for issue update or close.
+
+Labelled Autopilot projections and legacy unlabelled keyed projections may not share one change namespace. Once any row for a change is registry-owned, an unlabelled keyed submit or reconcile returns `projection_mode_mismatch` before reading or changing the head or rows. Any associated unowned reserved-labelled upgrade row returns `projection_key_collision` for either mode. Unlabelled reconciliation retains its historical tuple-cancellation behavior only where neither owned nor reserved-labelled projection state exists. Direct MCP and its HTTP proxy accept and forward `projection_labels`, so all supported publication transports can remain on the labelled path.
+
+Projection publication has a separate authorization boundary from ordinary work submission. HTTP and local service projection submit plus every reconcile authorize `publish_work_projection` against the exact change ID before mutation. Trust-level-2 remote workers may submit ordinary work but cannot advance or repair projection heads; trust-level-3 coordinator publishers receive the elevated operation. Native and Cedar policy modes both resolve omitted trust through the shared resolver, and trust-resolution failures fail closed before the mutating RPC.
+
+## Visibility, isolation, and recovery
+
+Migration 037 makes every `task_type=issue` row unclaimable, even for an
+unfiltered claim, and emits a change-scoped event whenever the adapter-owned
+projection labels change. Connected SSE clients turn that event into a fresh
+snapshot; the existing label-only issue polling path remains the fallback.
+Canonical rows use priority 1, so the current projection remains inside the
+50-row board window even when ordinary lower-priority issues are present.
+Implicit label-filtered issue reads exclude cancelled rows; callers requesting
+all statuses explicitly retain the complete diagnostic view.
+
+Projection outages are a degradation, not a rollback. The next coordinated
+resume reconciles from `loop-state.json`. The coordinator serializes concurrent
+generations under one advisory transaction, ensures and labels the canonical
+row, cancels stale active rows, and clears owned labels from noncanonical rows.
+Local-parallel and sequential execution retain the callback-free default and do
+not import or call any projection helper.

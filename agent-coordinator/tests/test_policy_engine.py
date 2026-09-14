@@ -218,6 +218,7 @@ class TestActionCategories:
         assert "force_push" in ADMIN_ACTIONS
         assert "delete_branch" in ADMIN_ACTIONS
         assert "cleanup_agents" in ADMIN_ACTIONS
+        assert "publish_work_projection" in ADMIN_ACTIONS
 
     def test_allowed_domains(self):
         """Test allowed domains are defined."""

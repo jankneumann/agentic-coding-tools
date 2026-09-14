@@ -41,6 +41,16 @@ STATUS_WRITE_MAP: dict[str, str] = {
 }
 
 VALID_ISSUE_TYPES = {"task", "epic", "bug", "feature"}
+RESERVED_PROJECTION_LABEL = "projection:autopilot-phase"
+
+
+class ProjectionIssueMutationError(PermissionError):
+    """Ordinary issue CRUD attempted to cross the projection ownership boundary."""
+
+
+def _reject_reserved_projection_label(labels: list[str] | None) -> None:
+    if labels and RESERVED_PROJECTION_LABEL in labels:
+        raise ProjectionIssueMutationError("reserved_projection_label")
 
 
 def _postgrest_array_literal(values: list[str]) -> str:
@@ -72,12 +82,7 @@ def _encode_query_value(literal: str) -> str:
     encoded first, which is what makes ``urllib.parse.unquote`` an exact
     inverse; ``db_postgres._decode_query_value`` is the other half.
     """
-    return (
-        literal.replace("%", "%25")
-        .replace("&", "%26")
-        .replace("#", "%23")
-        .replace("+", "%2B")
-    )
+    return literal.replace("%", "%25").replace("&", "%26").replace("#", "%23").replace("+", "%2B")
 
 
 @dataclass
@@ -261,6 +266,7 @@ class IssueService:
             )
         if not 1 <= priority <= 10:
             raise ValueError(f"Priority must be 1-10, got {priority}")
+        _reject_reserved_projection_label(labels)
 
         metadata: dict[str, Any] = {}
         if description:
@@ -316,6 +322,8 @@ class IssueService:
         if status and status != "all":
             statuses = STATUS_MAP.get(status, [status])
             parts.append(f"status=in.({','.join(statuses)})")
+        elif labels and status is None:
+            parts.append("status=in.(pending,claimed,running,completed,failed,blocked)")
 
         if issue_type:
             parts.append(f"issue_type=eq.{issue_type}")
@@ -338,10 +346,7 @@ class IssueService:
         issues = [Issue.from_row(r) for r in rows]
 
         if labels:
-            issues = [
-                i for i in issues
-                if all(label in i.labels for label in labels)
-            ]
+            issues = [i for i in issues if all(label in i.labels for label in labels)]
 
         return issues
 
@@ -407,6 +412,7 @@ class IssueService:
             issue_type: New type
         """
         data: dict[str, Any] = {}
+        _reject_reserved_projection_label(labels)
 
         if title is not None:
             data["description"] = title
@@ -435,19 +441,18 @@ class IssueService:
             if isinstance(metadata, str):
                 metadata = json.loads(metadata)
             metadata["body"] = description
-            data["metadata"] = json.dumps(metadata)
+            data["metadata"] = metadata
 
         if not data:
             # Nothing to update, just return current state
             rows = await self.db.query("work_queue", f"id=eq.{issue_id}")
             return Issue.from_row(rows[0]) if rows else None
 
-        rows = await self.db.update(
-            "work_queue",
-            match={"id": issue_id},
-            data=data,
+        result = await self.db.rpc(
+            "mutate_issue_if_unowned",
+            {"p_issue_id": str(issue_id), "p_patch": data},
         )
-        return Issue.from_row(rows[0]) if rows else None
+        return self._issue_from_mutation_result(result)
 
     async def close(
         self,
@@ -470,27 +475,47 @@ class IssueService:
         if not ids:
             raise ValueError("Must provide issue_id or issue_ids")
 
-        now = datetime.now(UTC)
-        results: list[Issue] = []
+        now = datetime.now(UTC).isoformat()
+        result = await self.db.rpc(
+            "close_issues_if_unowned",
+            {
+                "p_request": {
+                    "issue_ids": [str(iid) for iid in ids],
+                    "closed_at": now,
+                    "reason": reason,
+                }
+            },
+        )
+        return self._issues_from_close_result(result)
 
-        for iid in ids:
-            data: dict[str, Any] = {
-                "status": "completed",
-                "completed_at": now.isoformat(),
-                "closed_at": now.isoformat(),
-            }
-            if reason:
-                data["close_reason"] = reason
+    @staticmethod
+    def _issue_from_mutation_result(result: Any) -> Issue | None:
+        if not isinstance(result, dict):
+            raise RuntimeError("invalid_issue_mutation_result")
+        if not result.get("success"):
+            reason = str(result.get("reason") or "issue_mutation_failed")
+            if reason in {"projection_issue_immutable", "reserved_projection_label"}:
+                raise ProjectionIssueMutationError(reason)
+            if reason == "issue_not_found":
+                return None
+            raise RuntimeError(reason)
+        row = result.get("issue")
+        if not isinstance(row, dict):
+            raise RuntimeError("invalid_issue_mutation_result")
+        return Issue.from_row(row)
 
-            rows = await self.db.update(
-                "work_queue",
-                match={"id": iid},
-                data=data,
-            )
-            if rows:
-                results.append(Issue.from_row(rows[0]))
-
-        return results
+    def _issues_from_close_result(self, result: Any) -> list[Issue]:
+        if not isinstance(result, dict):
+            raise RuntimeError("invalid_issue_close_result")
+        if not result.get("success"):
+            reason = str(result.get("reason") or "issue_close_failed")
+            if reason in {"projection_issue_immutable", "reserved_projection_label"}:
+                raise ProjectionIssueMutationError(reason)
+            raise RuntimeError(reason)
+        rows = result.get("issues")
+        if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+            raise RuntimeError("invalid_issue_close_result")
+        return [Issue.from_row(row) for row in rows]
 
     async def comment(
         self,
@@ -553,9 +578,7 @@ class IssueService:
                 # Check if all dependencies are completed
                 all_resolved = True
                 for dep_id in issue.depends_on:
-                    dep_rows = await self.db.query(
-                        "work_queue", f"id=eq.{dep_id}"
-                    )
+                    dep_rows = await self.db.query("work_queue", f"id=eq.{dep_id}")
                     if dep_rows and dep_rows[0]["status"] != "completed":
                         all_resolved = False
                         break
@@ -584,9 +607,7 @@ class IssueService:
                 continue
             # Check if any dependency is unresolved
             for dep_id in issue.depends_on:
-                dep_rows = await self.db.query(
-                    "work_queue", f"id=eq.{dep_id}"
-                )
+                dep_rows = await self.db.query("work_queue", f"id=eq.{dep_id}")
                 if dep_rows and dep_rows[0]["status"] != "completed":
                     blocked_issues.append(issue)
                     break

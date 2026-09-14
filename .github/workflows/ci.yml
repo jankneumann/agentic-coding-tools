@@ -102,6 +102,7 @@ jobs:
 
       - name: Validate standalone skill install payload
         run: |
+          bash install.sh --mode copy --force --deps none --openspec-assets none --openspec-cli none --python-tools none
           bash install.sh --check
           uv run python validate-feature/scripts/linters/dependency_direction.py --skills-root .
 

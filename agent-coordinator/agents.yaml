@@ -272,7 +272,7 @@ agents:
           #
           # --json-schema verified 2026-09-12 (agy 1.2.2 --help: schema string
           # or path). Sentinel injected by CliVendorAdapter._resolve_args.
-          args: ["--mode", "plan", "--dangerously-skip-permissions", "--json-schema", "@review-findings-schema"]
+          args: ["--mode", "plan", "--dangerously-skip-permissions", "--output-format", "json", "--json-schema", "@review-findings-schema"]
         alternative:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
         quick:
