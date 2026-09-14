@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -329,7 +330,9 @@ def test_leading_whitespace_before_full_path_coordinate_is_ignored() -> None:
 def test_none_paths_and_origins_are_empty_in_base_identity() -> None:
     finding = _finding(
         file_path=None,
-        origin=FindingOrigin(change_id=None, artifact_path=None),
+        origin=FindingOrigin(
+            change_id=cast(str, None), artifact_path=cast(str, None)
+        ),
     )
 
     identity = projection._base_semantic_identity(finding)
