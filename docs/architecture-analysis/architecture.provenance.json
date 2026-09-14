@@ -4,7 +4,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "df31d5b6bac2e132b8df788a7c715e29590b15f2f2043c0d64a99407bece05c2",
+      "sha256": "866bc17e53b73b05fcb0263b03f88420d8ebc9bfe1467a50fb1ff195cf4629ce",
       "size_bytes": 1052034,
       "tier": "committed"
     },
@@ -12,7 +12,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "01e8f9e309448e75123295482463a150b78e771d5fe637b13c8d5c8164ef207b",
+      "sha256": "d7da8f8714830a52da1b42b9478e7036c3b6340665c7117b5d054a0f24280bf1",
       "size_bytes": 887555,
       "tier": "committed"
     },
@@ -20,7 +20,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "4245f2ef939d6f6e3fd6c69b2965a10d1f2b16db0ddbf73090805ef29b5b875c",
+      "sha256": "7748f8f7db0916b4ea1e051f9a92a1278c2bb227e817f2ff653caf8f2945845c",
       "size_bytes": 55506,
       "tier": "committed"
     },
@@ -28,7 +28,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "f0b6d1fa39a03647bd87791b6ae99265786a775f49d0c622eec87f707ee01a9f",
+      "sha256": "ed1e6117c5274210e52bef4650ca4bbfd8501ab46d3a866d2b6706dca67ef0c9",
       "size_bytes": 23983,
       "tier": "committed"
     },
@@ -36,7 +36,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/comment_insights.json",
       "required": false,
-      "sha256": "93cfc2d7180922c514a38c78e5e3eae9f275820c993a8d1e8e9ac43c596fa7d4",
+      "sha256": "676ff59cad83886bcf5b189cce5028f8d2cbf90e7b7211461cd4afd420a3f4e8",
       "size_bytes": 20830,
       "tier": "committed"
     },
@@ -44,7 +44,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "1d8c1537432dc98f5c7674b5dc3141d81bab0ac89ef3216a82f55379e1f45380",
+      "sha256": "e3dc81bc18cb1ac9bdccb07f462c5a668682601dbc984a121f8f42da754ee642",
       "size_bytes": 510464,
       "tier": "local-cache"
     },
@@ -52,7 +52,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/pattern_insights.json",
       "required": false,
-      "sha256": "9ba3b618c352b3de54258b389435df6a523c60310f7cfb19c2d9d85a4137d151",
+      "sha256": "22cbf090d4239cdb4e165c400764b7b00520e0f5ccaf9c74bdd806685351444d",
       "size_bytes": 4161,
       "tier": "committed"
     },
@@ -60,7 +60,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/postgres_analysis.json",
       "required": false,
-      "sha256": "268f8776a98f696f3b1af837fb98f74926cf22a46a4d6a5b86cd0a403190149f",
+      "sha256": "85cf659c85e160ca3ee545baab67136f1b3af8a0e78c63706e30b0bca4990057",
       "size_bytes": 89142,
       "tier": "committed"
     },
@@ -76,7 +76,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/treesitter_enrichment.json",
       "required": false,
-      "sha256": "a51d0ae02cc3244e68a9b3fb684289e6fdc69198a5fc6908d836f3a212a927ea",
+      "sha256": "ebbb8b0f05202a199dd81210168170e99169e16ffae1bfa1c8462d6b3b7a3ff9",
       "size_bytes": 1295294,
       "tier": "local-cache"
     },
@@ -129,9 +129,9 @@
       "tier": "committed"
     }
   ],
-  "generated_at": "2026-09-14T09:54:26+00:00",
+  "generated_at": "2026-09-14T09:58:33+00:00",
   "input_enumeration": "git",
-  "input_fingerprint": "7e514a82f92588322853f21f6435beb22e8fff6faab55555424cb1377392636b",
+  "input_fingerprint": "403c049e9cef327a81089bd10e5870c7707990395d9faa8f9da7eb40c4c0d720",
   "input_roots": [
     "agent-coordinator/database/migrations",
     "agent-coordinator/src",
@@ -166,7 +166,7 @@
   },
   "repository_id": "recover-ri-09-work-queue-projection",
   "schema_version": 2,
-  "source_revision": "a4562c5ef95d72d8a2af2f862aed9d90b65f8b65",
+  "source_revision": "83b104394341936572b550afe410150cb6b4ec94",
   "validation": {
     "error_count": 0,
     "status": "passed",

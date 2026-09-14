@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-09-14T09:54:26+00:00",
-      "git_sha": "a4562c5ef95d72d8a2af2f862aed9d90b65f8b65",
+      "generated_at": "2026-09-14T09:58:33+00:00",
+      "git_sha": "83b104394341936572b550afe410150cb6b4ec94",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -27262,8 +27262,8 @@
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
       "span": {
-        "start": 280,
-        "end": 280
+        "start": 282,
+        "end": 282
       },
       "tags": [],
       "signatures": {}
