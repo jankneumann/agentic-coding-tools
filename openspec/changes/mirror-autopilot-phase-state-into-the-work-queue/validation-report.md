@@ -1,7 +1,7 @@
 # Validation Report: mirror-autopilot-phase-state-into-the-work-queue
 
-**Date**: 2026-09-14T09:45:00-04:00
-**Validated commit**: `3444157a`
+**Date**: 2026-09-14T10:28:17-04:00
+**Validated commit**: `ad19fda5ff92c0182434684a4833b4e323858e60`
 **Branch**: `openspec/recover-ri-09-work-queue-projection`
 **Surface**: non-deployable change with locally validated API, PostgreSQL, and Kanban paths
 
@@ -23,8 +23,8 @@
 
 - 445 Autopilot tests passed.
 - 96 coordination-bridge tests passed.
-- 2,514 coordinator CI-selected tests passed with 11 declared skips and 131 live-marker deselections.
-- 71 live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed with 6 optional code-search skips.
+- 2,514 coordinator CI-selected tests passed with 11 declared skips and 132 live-marker deselections.
+- 52 ri-09-focused live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed. A broader non-gating sweep passed 80 tests with 6 optional code-search skips; 6 unrelated handoff/memory identity-fixture cases returned their known HTTP 403.
 - 224 Kanban tests passed with 6 declared skips; the production build passed.
 - 4,767 canonical skills tests passed with 13 declared skips.
 - All 90 OpenSpec artifacts passed strict validation.
@@ -51,7 +51,11 @@ Round 13 reached schema-valid quorum from Antigravity, Grok, and Pi after Claude
 
 Round 14 again addressed all five configured harnesses and reached schema-valid quorum from Antigravity, Codex, and Grok; Pi produced a schema-valid out-of-band result after emitting protocol NDJSON, while Claude failed transport. Grok reproduced a critical HTTP contract gap in the Kanban label-PATCH route and a pre-registry reserved-row trigger leak. Both were fixed test-first: every HTTP issue-mutation surface now maps reserved/owned projection refusals to 403, and the row-locking mutation RPC returns structured `reserved_projection_label` before an UPDATE can fire the ownership trigger. Durable design text now correctly attributes first-generation SSE visibility to the migration-037 labelled UPDATE after migration-039 ownership staging.
 
-Round 15 reached schema-valid quorum from Antigravity, Claude Code, Grok, and Pi; Codex exhausted the configured timeout. No reviewer found a blocking implementation defect. The bounded follow-up declares the Kanban label-PATCH projection-refusal 403 in OpenAPI, corrects event and issue-row terminology, and makes the fail-closed upgrade procedure explicit: an administrator must verify and adopt every complete keyed row for the change, including cancelled historical generations. The optional suggestion to make multi-row batch close atomic is a separate contract; current row-level ownership integrity remains correct.
+Round 15 reached schema-valid quorum from Antigravity, Claude Code, Grok, and Pi; Codex exhausted the configured timeout. No reviewer found a blocking implementation defect. The bounded follow-up declares the Kanban label-PATCH projection-refusal 403 in OpenAPI, corrects event and issue-row terminology, and makes the fail-closed upgrade procedure explicit: an administrator must verify and adopt every complete keyed row for the change, including cancelled historical generations. That round treated multi-row batch atomicity as a separate contract; Round 16 superseded the deferral after independent reviewers confirmed a hidden partial-side-effect failure.
+
+Round 16 addressed all five configured harnesses and reached protocol-valid schema quorum from Antigravity, Claude Code, Codex, and Grok; Pi emitted protocol NDJSON, from which its complete schema-valid 23-finding object was recovered as out-of-band evidence. Five-payload consensus confirmed every recovered projection invariant and elevated one medium disagreement: sequential batch close could commit ordinary rows before returning 403 for a protected projection. The defect was reproduced with failing unit and live PostgreSQL tests, then fixed with a single JSONB-envelope database RPC that locks and validates the complete batch before any mutation. Raw SQL and live IssueService regressions prove all-or-none behavior. The same round corrected migration attribution, board-visibility wording, every-generation adoption guidance, and the issue-only mutation boundary.
+
+The broader combined PostgreSQL/E2E sweep is not an ri-09 gate: its six handoff/memory failures are identity-fixture 403 responses outside the touched surface, while all 80 other cases and every ri-09-focused live case pass. The isolated modules reproduce the same pre-existing authorization-fixture mismatch.
 
 The explicit monolithic `pytest tests` command was rejected as an invalid gate:
 it bypasses the curated skills `testpaths` ordering and creates known flat-module
