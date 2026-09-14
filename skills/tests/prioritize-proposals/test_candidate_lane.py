@@ -251,7 +251,7 @@ def test_duplicate_candidates_fail_even_for_programmatic_call() -> None:
 def test_markdown_rendering_keeps_candidate_text_inert() -> None:
     candidate = _candidate(
         "add-inert",
-        title="[click](javascript:alert(1))\x1b[31m **owned**",
+        title="[click](javascript:alert(1))\x1b[31m \u009b \u202e **owned**",
     )
     candidate["rationale"] = "run `touch /tmp/pwned` | <script>alert(1)</script>"
     candidate["provenance"]["source_artifact"] = (
@@ -263,6 +263,8 @@ def test_markdown_rendering_keeps_candidate_text_inert() -> None:
 
     assert "[click](javascript:" not in rendered
     assert "<script>" not in rendered
+    assert "\u009b" not in rendered
+    assert "\u202e" not in rendered
     assert "\x1b" not in rendered
     assert "\\[click\\]\\(javascript:alert\\(1\\)\\)" in rendered
     assert "\\<script\\>" in rendered

@@ -9,6 +9,7 @@ import heapq
 import json
 import re
 import sys
+import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -327,8 +328,10 @@ def escape_inert_text(value: object) -> str:
     escaped: list[str] = []
     for character in str(value):
         codepoint = ord(character)
-        if codepoint < 32 or codepoint == 127:
-            escaped.append(f"\\u{codepoint:04x}")
+        if unicodedata.category(character).startswith("C"):
+            width = 4 if codepoint <= 0xFFFF else 8
+            prefix = "u" if width == 4 else "U"
+            escaped.append(f"\\{prefix}{codepoint:0{width}x}")
         elif character in _MARKDOWN_SPECIAL:
             escaped.append("\\" + character)
         else:
