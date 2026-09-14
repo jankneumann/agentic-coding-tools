@@ -73,7 +73,7 @@ Plan revision 5 passes strict OpenSpec validation, package schema/DAG/scope/over
 
 | # | Type | Criticality | Description | Resolution |
 |---|---|---|---|---|
-| 1 | correctness | high | Whole-provenance hashing includes rank, report path, and growing source-entry sets, so derived IDs can drift. | **Adjudication required:** choose the immutable per-producer identity basis before the final review round. |
+| 1 | correctness | high | Whole-provenance hashing includes rank, report path, and growing source-entry sets, so derived IDs can drift. | **Resolved by operator adjudication:** hash only `generator` plus the producer-specific immutable source ID; explicit hints remain unsuffixed; duplicate final IDs fail. |
 | 2 | correctness | high | Ranking accepted completed external dependencies that intake could not represent, especially for a new roadmap. | Defined explicit local `depends_on`, cross-roadmap `external_depends_on`, and satisfied-archive rationale mappings. |
 | 3 | correctness | medium | Existing-roadmap replay, duplicate item change IDs, and stale next IDs were not tied to refine-roadmap guards. | Required fresh preview, existing duplicate-change guard, omitted-priority max+1 behavior, and stale-base refusal. |
 | 4 | testability | medium | Revision-5 priority, effort, prefix, blocked-propagation, and missing-generator rules lacked normative scenarios. | Added focused scenarios and task ownership for each behavior. |
@@ -82,4 +82,4 @@ Plan revision 5 passes strict OpenSpec validation, package schema/DAG/scope/over
 | 7 | consistency | medium | Priority provenance/rationale and improve severity vocabulary diverged. | Standardized on request rationale and improve `max_severity`; bug effort is category-only. |
 | 8 | infrastructure | high | Antigravity had a flag mismatch, Codex repair remained schema-invalid, and Pi timed out; Claude and Grok supplied substantive 2/5 quorum. | Preserved every terminal result; harness failures did not count as reviews. |
 
-Plan revision 6 resolves every confirmed finding. Final convergence is intentionally paused at `adjudication_required` for the immutable source-identity decision.
+Plan revision 7 resolves every confirmed finding and the operator-approved immutable source-identity decision. It is ready for the final all-harness convergence round.

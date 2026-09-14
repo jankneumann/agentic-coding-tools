@@ -21,12 +21,17 @@ change IDs to add/update/remove/refactor prefixes, and use the shared five-band
 priority scale. Only blockers that resolve to exact change IDs enter `depends_on`;
 free-form blockers remain inert rationale or tags.
 
-Explicit source IDs are normalized as-is. Derived IDs always append the first eight
-lowercase hex characters of SHA-256 over canonical provenance JSON, so membership in a
-later batch cannot rename an earlier candidate. Duplicate final IDs fail the complete
-write. Bug-scrub derives the base from the finding title, improve-harness from the
-capability gap, and explore-feature from its stable ID or title when no explicit hint
-exists. Explore-feature reuses its documented 1.0..3.3 weighted-score formula and fixed D4
+Explicit source IDs are normalized as-is and remain unsuffixed. Derived IDs append the
+first eight lowercase hex characters of SHA-256 over an immutable identity object with
+exactly `generator` and `source_id` keys. Bug-scrub uses the exact finding ID;
+improve-harness trims, whitespace-collapses, and lowercases `capability_gap`; and
+explore-feature uses the exact stable opportunity ID. The object is serialized with
+`json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False)` and
+UTF-8 encoded. Report paths, source-entry collections, rank, and other volatile
+provenance are excluded, so later evidence cannot rename an earlier candidate.
+Duplicate final IDs fail the complete write. Bug-scrub derives the base from the
+finding title, improve-harness from the capability gap, and explore-feature from its
+stable ID or title when no explicit hint exists. Explore-feature reuses its documented 1.0..3.3 weighted-score formula and fixed D4
 bands; shortlist rank is provenance only and explore never emits priority 1.
 Improve-harness derives effort from affected-skill count, never severity. Ranking uses
 the empty string when the optional provenance generator is absent.

@@ -44,6 +44,16 @@ while preserving their existing rich artifacts.
 - **THEN** the adapter SHALL normalize it to the canonical `update-` prefix
 - **AND** an already canonical add/update/remove/refactor prefix SHALL remain unchanged
 
+#### Scenario: Derived candidate identity is stable
+
+- **WHEN** the same producer source is projected after report path, rank, or non-identity provenance changes
+- **THEN** its derived suggested ID SHALL remain unchanged
+- **AND** the identity object SHALL contain exactly `generator` and `source_id`
+- **AND** bug-scrub SHALL use the exact finding ID, improve-harness SHALL use the trimmed, whitespace-collapsed, lowercase capability gap, and explore-feature SHALL use the exact stable opportunity ID
+- **AND** canonical serialization SHALL use sorted keys, compact comma/colon separators, unescaped Unicode, and UTF-8 before SHA-256
+- **AND** explicit source hints SHALL remain normalized but unsuffixed
+- **AND** duplicate final IDs MUST fail the whole batch before replacement
+
 #### Scenario: Improve-harness effort is independent of urgency
 
 - **WHEN** improve-harness projects gaps with equal `max_severity` but different affected-skill counts

@@ -26,7 +26,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 1.1 Test: bug-scrub maps an eligible finding to a schema-valid stub with stable
       provenance/common priority/exhaustive effort/normalized slug, writes byte-stable
       JSON, and leaves no partial file on validation failure — **S**
-      **Spec scenarios**: sw *Bug-scrub promotes a finding*, *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Producer prefixes are normalized*, *Requested candidate discovery returns no eligible entries*
+      **Spec scenarios**: sw *Bug-scrub promotes a finding*, *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Producer prefixes are normalized*, *Derived candidate identity is stable*, *Requested candidate discovery returns no eligible entries*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.2 Implement bug-scrub candidate projection, CLI/output wiring, and canonical skill documentation — **S**
@@ -34,7 +34,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 1.3 Test: improve-harness maps a ranked gap to a schema-valid stub and retains the
       legacy markdown proposal helper/flag, decouples effort from severity, and keeps
       stdout-only mode write-free — **S**
-      **Spec scenarios**: sw *Improve-harness emits a capability-gap candidate*, *Producer prefixes are normalized*, *Improve-harness effort is independent of urgency*, *Requested candidate discovery returns no eligible entries*
+      **Spec scenarios**: sw *Improve-harness emits a capability-gap candidate*, *Producer prefixes are normalized*, *Derived candidate identity is stable*, *Improve-harness effort is independent of urgency*, *Requested candidate discovery returns no eligible entries*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.4 Implement improve-harness candidate projection/output, compatibility wrapper, and canonical skill documentation — **S**
@@ -42,7 +42,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 1.5 Test: explore-feature projects only untracked shortlist items, preserves rich
       opportunities, normalizes change-ID prefixes, separates prose blockers from exact
       dependency IDs, validates the sidecar, and skips existing/scaffolded entries — **S**
-      **Spec scenarios**: sw *Explore-feature emits shortlist candidates*, *Producers assign comparable priority*
+      **Spec scenarios**: sw *Explore-feature emits shortlist candidates*, *Producers assign comparable priority*, *Derived candidate identity is stable*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.6 Implement explore-feature projection helper and canonical skill output contract — **S**
