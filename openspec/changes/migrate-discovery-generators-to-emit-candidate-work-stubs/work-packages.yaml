@@ -199,6 +199,7 @@ packages:
         - ".agents/skills/plan-roadmap/**"
         - ".agents/skills/install-manifest.json"
         - "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/**"
+        - ".github/workflows/ci.yml"
       read_allow: ["**"]
       deny: ["**/.venv/**", "openspec/roadmaps/**"]
     context_impact:
