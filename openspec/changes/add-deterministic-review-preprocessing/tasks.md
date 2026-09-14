@@ -5,14 +5,14 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 1. Contracts
 
-- [ ] 1.1 Write contract validation tests for the five JSON and markdown contracts (size: S)
+- [x] 1.1 Write contract validation tests for the five JSON and markdown contracts (size: S)
   **Spec scenarios**: skill-workflow Review Packet As Default Input (metadata carries selection and rule groups), Per-Vendor Coverage Contract, Diff-Grounded Fact Check Before Synthesis (removal is never silent)
   **Contracts**: `contracts/review-packet.schema.json`, `contracts/review-rules.schema.json`, `contracts/vendor-coverage.schema.json`, `contracts/fact-check-decisions.schema.json`
   **Design decisions**: D1, D5, D6
   **Dependencies**: None
   **Files**: `skills/tests/parallel-infrastructure/test_review_preprocessing_contracts.py`
 
-- [ ] 1.2 Repoint the packet metadata contract test to the v2 contract via `openspec_paths.change_dir` (size: XS)
+- [x] 1.2 Repoint the packet metadata contract test to the v2 contract via `openspec_paths.change_dir` (size: XS)
   **Dependencies**: 1.1
   **Files**: `skills/tests/parallel-infrastructure/test_review_packet_schema.py`
 
