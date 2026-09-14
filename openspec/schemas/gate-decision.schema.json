@@ -137,6 +137,11 @@
         "null"
       ]
     },
+    "lease_generation": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Parked dispatch generation correlated by an escalate_resume decision."
+    },
     "notified": {
       "type": [
         "boolean",

@@ -521,6 +521,7 @@ class TestResolveParked:
             "dispatch_id": "d-1",
             "change_id": "demo-change",
             "item_id": "ri-01",
+            "lease_generation": 1,
             "parked": {"kind": "pending_gate", "gate": "pr_creation", "reason": "awaiting approval"},
         }
         attempt.update(overrides)
@@ -765,3 +766,35 @@ def test_no_supervise_script_imports_autopilot() -> None:
                 assert not any(alias.name == "autopilot" for alias in node.names), path
             if isinstance(node, ast.ImportFrom):
                 assert node.module != "autopilot", path
+
+
+def test_escalate_resume_approval_ref_rejects_a_prior_generation(
+    repo: Path, workspace: Path
+) -> None:
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.create(gate_router.load_roadmap(workspace / "roadmap.yaml", repo))
+    checkpoint.gate_decisions.append(
+        {
+            "decision_id": "11111111-2222-4333-8444-555555555555",
+            "gate": "escalate_resume",
+            "outcome": "proceed",
+            "resolution": "auto",
+            "disposition": "auto",
+            "reason": "approved",
+            "posture_present": True,
+            "recorded_at": "2026-09-01T00:00:00+00:00",
+            "roadmap_id": "alpha",
+            "dispatch_id": "d-1",
+            "lease_generation": 1,
+        }
+    )
+    manager.save(checkpoint)
+
+    with pytest.raises(gate_router.ApprovalRefError, match="generation"):
+        gate_router.require_approval_ref(
+            manager.load(),
+            "gate-decision:11111111-2222-4333-8444-555555555555",
+            gate=Gate.ESCALATE_RESUME,
+            dispatch_id="d-1",
+            lease_generation=2,
+        )
