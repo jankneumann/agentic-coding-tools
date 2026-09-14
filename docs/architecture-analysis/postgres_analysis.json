@@ -3727,7 +3727,7 @@
     {
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 463,
+      "line": 466,
       "language": "plpgsql",
       "parameters": [],
       "return_type": "trigger",

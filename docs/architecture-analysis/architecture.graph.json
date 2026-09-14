@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-09-14T12:46:52+00:00",
-      "git_sha": "2b5e6b72229648d8d92176c217059fc78d6006da",
+      "generated_at": "2026-09-14T13:15:31+00:00",
+      "git_sha": "55f4881ef881e6008f99a1ea44d3da42a456c1ba",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -7471,7 +7471,7 @@
       "file": "coordination_api.py",
       "span": {
         "start": 678,
-        "end": 3705
+        "end": 3708
       },
       "tags": [
         "db_access"
@@ -8777,7 +8777,7 @@
       "file": "coordination_api.py",
       "span": {
         "start": 3240,
-        "end": 3289
+        "end": 3292
       },
       "tags": [
         "async",
@@ -8793,8 +8793,8 @@
       "name": "force_release_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 3292,
-        "end": 3326
+        "start": 3295,
+        "end": 3329
       },
       "tags": [
         "async",
@@ -8810,8 +8810,8 @@
       "name": "kick_agent",
       "file": "coordination_api.py",
       "span": {
-        "start": 3329,
-        "end": 3449
+        "start": 3332,
+        "end": 3452
       },
       "tags": [
         "async",
@@ -8827,8 +8827,8 @@
       "name": "put_saved_view",
       "file": "coordination_api.py",
       "span": {
-        "start": 3452,
-        "end": 3486
+        "start": 3455,
+        "end": 3489
       },
       "tags": [
         "async",
@@ -8844,8 +8844,8 @@
       "name": "post_kanban_audit",
       "file": "coordination_api.py",
       "span": {
-        "start": 3489,
-        "end": 3522
+        "start": 3492,
+        "end": 3525
       },
       "tags": [
         "async",
@@ -8861,8 +8861,8 @@
       "name": "live",
       "file": "coordination_api.py",
       "span": {
-        "start": 3525,
-        "end": 3527
+        "start": 3528,
+        "end": 3530
       },
       "tags": [
         "async",
@@ -8877,8 +8877,8 @@
       "name": "ready",
       "file": "coordination_api.py",
       "span": {
-        "start": 3530,
-        "end": 3539
+        "start": 3533,
+        "end": 3542
       },
       "tags": [
         "async",
@@ -8893,8 +8893,8 @@
       "name": "health",
       "file": "coordination_api.py",
       "span": {
-        "start": 3542,
-        "end": 3546
+        "start": 3545,
+        "end": 3549
       },
       "tags": [
         "async",
@@ -8909,8 +8909,8 @@
       "name": "github_prs",
       "file": "coordination_api.py",
       "span": {
-        "start": 3553,
-        "end": 3590
+        "start": 3556,
+        "end": 3593
       },
       "tags": [
         "async",
@@ -8925,8 +8925,8 @@
       "name": "openspec_proposals",
       "file": "coordination_api.py",
       "span": {
-        "start": 3593,
-        "end": 3634
+        "start": 3596,
+        "end": 3637
       },
       "tags": [
         "async",
@@ -8941,8 +8941,8 @@
       "name": "code_search_status_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3638,
-        "end": 3656
+        "start": 3641,
+        "end": 3659
       },
       "tags": [
         "async",
@@ -8957,8 +8957,8 @@
       "name": "verify_code_search_principal",
       "file": "coordination_api.py",
       "span": {
-        "start": 3658,
-        "end": 3672
+        "start": 3661,
+        "end": 3675
       },
       "tags": [
         "async",
@@ -8973,8 +8973,8 @@
       "name": "search_code_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3675,
-        "end": 3703
+        "start": 3678,
+        "end": 3706
       },
       "tags": [
         "async",
@@ -8989,8 +8989,8 @@
       "name": "main",
       "file": "coordination_api.py",
       "span": {
-        "start": 3713,
-        "end": 3742
+        "start": 3716,
+        "end": 3745
       },
       "tags": [],
       "signatures": {}
@@ -27332,8 +27332,8 @@
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
       "span": {
-        "start": 463,
-        "end": 463
+        "start": 466,
+        "end": 466
       },
       "tags": [],
       "signatures": {}

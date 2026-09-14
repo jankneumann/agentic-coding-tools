@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T12:46:52+00:00",
+  "generated_at": "2026-09-14T13:15:31+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -666,7 +666,7 @@
       "message": "Entrypoint 'force_release_lock' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.force_release_lock",
       "file": "coordination_api.py",
-      "line": 3292,
+      "line": 3295,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -675,7 +675,7 @@
       "message": "Entrypoint 'kick_agent' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.kick_agent",
       "file": "coordination_api.py",
-      "line": 3329,
+      "line": 3332,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -684,7 +684,7 @@
       "message": "Entrypoint 'put_saved_view' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.put_saved_view",
       "file": "coordination_api.py",
-      "line": 3452,
+      "line": 3455,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -693,7 +693,7 @@
       "message": "Entrypoint 'post_kanban_audit' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.post_kanban_audit",
       "file": "coordination_api.py",
-      "line": 3489,
+      "line": 3492,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -702,7 +702,7 @@
       "message": "Entrypoint 'live' has no downstream dependencies",
       "node_id": "py:coordination_api.create_coordination_api.live",
       "file": "coordination_api.py",
-      "line": 3525,
+      "line": 3528,
       "suggestion": "Add downstream calls or tag this entrypoint as 'pure' if it has no side effects"
     },
     {
@@ -711,7 +711,7 @@
       "message": "Entrypoint 'ready' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.ready",
       "file": "coordination_api.py",
-      "line": 3530,
+      "line": 3533,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -720,7 +720,7 @@
       "message": "Entrypoint 'health' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
-      "line": 3542,
+      "line": 3545,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -729,7 +729,7 @@
       "message": "Entrypoint 'github_prs' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.github_prs",
       "file": "coordination_api.py",
-      "line": 3553,
+      "line": 3556,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -738,7 +738,7 @@
       "message": "Entrypoint 'openspec_proposals' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.openspec_proposals",
       "file": "coordination_api.py",
-      "line": 3593,
+      "line": 3596,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -747,7 +747,7 @@
       "message": "Entrypoint 'code_search_status_endpoint' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.code_search_status_endpoint",
       "file": "coordination_api.py",
-      "line": 3638,
+      "line": 3641,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -756,7 +756,7 @@
       "message": "Entrypoint 'search_code_endpoint' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.search_code_endpoint",
       "file": "coordination_api.py",
-      "line": 3675,
+      "line": 3678,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -1539,7 +1539,7 @@
       "message": "Backend route 'force_release_lock' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.force_release_lock",
       "file": "coordination_api.py",
-      "line": 3292,
+      "line": 3295,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1548,7 +1548,7 @@
       "message": "Backend route 'kick_agent' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.kick_agent",
       "file": "coordination_api.py",
-      "line": 3329,
+      "line": 3332,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1557,7 +1557,7 @@
       "message": "Backend route 'put_saved_view' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.put_saved_view",
       "file": "coordination_api.py",
-      "line": 3452,
+      "line": 3455,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1566,7 +1566,7 @@
       "message": "Backend route 'post_kanban_audit' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.post_kanban_audit",
       "file": "coordination_api.py",
-      "line": 3489,
+      "line": 3492,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1575,7 +1575,7 @@
       "message": "Backend route 'live' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.live",
       "file": "coordination_api.py",
-      "line": 3525,
+      "line": 3528,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1584,7 +1584,7 @@
       "message": "Backend route 'ready' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.ready",
       "file": "coordination_api.py",
-      "line": 3530,
+      "line": 3533,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1593,7 +1593,7 @@
       "message": "Backend route 'health' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
-      "line": 3542,
+      "line": 3545,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1602,7 +1602,7 @@
       "message": "Backend route 'github_prs' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.github_prs",
       "file": "coordination_api.py",
-      "line": 3553,
+      "line": 3556,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1611,7 +1611,7 @@
       "message": "Backend route 'openspec_proposals' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.openspec_proposals",
       "file": "coordination_api.py",
-      "line": 3593,
+      "line": 3596,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1620,7 +1620,7 @@
       "message": "Backend route 'code_search_status_endpoint' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.code_search_status_endpoint",
       "file": "coordination_api.py",
-      "line": 3638,
+      "line": 3641,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1629,7 +1629,7 @@
       "message": "Backend route 'search_code_endpoint' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.search_code_endpoint",
       "file": "coordination_api.py",
-      "line": 3675,
+      "line": 3678,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -5544,7 +5544,7 @@
       "message": "Function 'force_release_lock' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.force_release_lock",
       "file": "coordination_api.py",
-      "line": 3292,
+      "line": 3295,
       "suggestion": "Add tests that reference 'force_release_lock' (e.g., test_force_release_lock or import it in a test file)"
     },
     {
@@ -5553,7 +5553,7 @@
       "message": "Function 'kick_agent' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.kick_agent",
       "file": "coordination_api.py",
-      "line": 3329,
+      "line": 3332,
       "suggestion": "Add tests that reference 'kick_agent' (e.g., test_kick_agent or import it in a test file)"
     },
     {
@@ -5562,7 +5562,7 @@
       "message": "Function 'put_saved_view' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.put_saved_view",
       "file": "coordination_api.py",
-      "line": 3452,
+      "line": 3455,
       "suggestion": "Add tests that reference 'put_saved_view' (e.g., test_put_saved_view or import it in a test file)"
     },
     {
@@ -5571,7 +5571,7 @@
       "message": "Function 'post_kanban_audit' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.post_kanban_audit",
       "file": "coordination_api.py",
-      "line": 3489,
+      "line": 3492,
       "suggestion": "Add tests that reference 'post_kanban_audit' (e.g., test_post_kanban_audit or import it in a test file)"
     },
     {
@@ -5580,7 +5580,7 @@
       "message": "Function 'live' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.live",
       "file": "coordination_api.py",
-      "line": 3525,
+      "line": 3528,
       "suggestion": "Add tests that reference 'live' (e.g., test_live or import it in a test file)"
     },
     {
@@ -5589,7 +5589,7 @@
       "message": "Function 'ready' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.ready",
       "file": "coordination_api.py",
-      "line": 3530,
+      "line": 3533,
       "suggestion": "Add tests that reference 'ready' (e.g., test_ready or import it in a test file)"
     },
     {
@@ -5598,7 +5598,7 @@
       "message": "Function 'health' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
-      "line": 3542,
+      "line": 3545,
       "suggestion": "Add tests that reference 'health' (e.g., test_health or import it in a test file)"
     },
     {
@@ -5607,7 +5607,7 @@
       "message": "Function 'github_prs' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.github_prs",
       "file": "coordination_api.py",
-      "line": 3553,
+      "line": 3556,
       "suggestion": "Add tests that reference 'github_prs' (e.g., test_github_prs or import it in a test file)"
     },
     {
@@ -5616,7 +5616,7 @@
       "message": "Function 'openspec_proposals' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.openspec_proposals",
       "file": "coordination_api.py",
-      "line": 3593,
+      "line": 3596,
       "suggestion": "Add tests that reference 'openspec_proposals' (e.g., test_openspec_proposals or import it in a test file)"
     },
     {
@@ -5625,7 +5625,7 @@
       "message": "Function 'code_search_status_endpoint' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.code_search_status_endpoint",
       "file": "coordination_api.py",
-      "line": 3638,
+      "line": 3641,
       "suggestion": "Add tests that reference 'code_search_status_endpoint' (e.g., test_code_search_status_endpoint or import it in a test file)"
     },
     {
@@ -5634,7 +5634,7 @@
       "message": "Function 'verify_code_search_principal' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.verify_code_search_principal",
       "file": "coordination_api.py",
-      "line": 3658,
+      "line": 3661,
       "suggestion": "Add tests that reference 'verify_code_search_principal' (e.g., test_verify_code_search_principal or import it in a test file)"
     },
     {
@@ -5643,7 +5643,7 @@
       "message": "Function 'search_code_endpoint' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.search_code_endpoint",
       "file": "coordination_api.py",
-      "line": 3675,
+      "line": 3678,
       "suggestion": "Add tests that reference 'search_code_endpoint' (e.g., test_search_code_endpoint or import it in a test file)"
     },
     {
@@ -5652,7 +5652,7 @@
       "message": "Function 'main' has no corresponding test references",
       "node_id": "py:coordination_api.main",
       "file": "coordination_api.py",
-      "line": 3713,
+      "line": 3716,
       "suggestion": "Add tests that reference 'main' (e.g., test_main or import it in a test file)"
     },
     {
@@ -17091,7 +17091,7 @@
       "message": "'verify_code_search_principal' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.create_coordination_api.verify_code_search_principal",
       "file": "coordination_api.py",
-      "line": 3658,
+      "line": 3661,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17100,7 +17100,7 @@
       "message": "'main' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.main",
       "file": "coordination_api.py",
-      "line": 3713,
+      "line": 3716,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
