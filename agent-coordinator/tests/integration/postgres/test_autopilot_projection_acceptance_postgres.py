@@ -378,6 +378,71 @@ async def test_reconcile_collision_with_nonissue_preserves_head_and_active_row(
 
 
 @pytest.mark.parametrize("mode", ["submit", "reconcile"])
+async def test_owned_projection_cannot_take_over_unowned_issue_key(
+    mode,
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = f"live-unowned-issue-collision-{mode}"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    target = _key(change_id, "INIT", 0)
+    current = None
+    if mode == "reconcile":
+        current = await pg_work_queue.submit(
+            task_type="issue",
+            description="Autopilot phase PLAN",
+            priority=1,
+            projection_key=_key(change_id, "PLAN", 1),
+            projection_labels=labels,
+        )
+        target = _key(change_id, "IMPLEMENT", 2)
+
+    collision = await postgres_db.insert(
+        "work_queue",
+        {
+            "task_type": "issue",
+            "description": "ordinary issue owns exact projection tuple",
+            "input_data": {**target, "_projection_owner": "autopilot"},
+            "priority": 5,
+            "labels": ["ordinary"],
+        },
+    )
+    request = {
+        "task_type": "issue",
+        "description": "Autopilot phase target",
+        "priority": 1,
+        "projection_key": target,
+        "projection_labels": labels,
+    }
+    if mode == "submit":
+        result = await pg_work_queue.submit(**request)
+    else:
+        result = await pg_work_queue.reconcile_projection(**request)
+
+    assert result.success is False
+    assert result.reason == "projection_key_collision"
+    collision_id = str(collision["id"])
+    rows = await postgres_db.query("work_queue", f"id=eq.{collision_id}")
+    assert rows[0]["description"] == "ordinary issue owns exact projection tuple"
+    assert rows[0]["status"] == "pending"
+    assert rows[0]["labels"] == ["ordinary"]
+    heads = await postgres_db.query(
+        "work_queue_projection_heads", f"change_id=eq.{change_id}"
+    )
+    if mode == "submit":
+        assert heads == []
+    else:
+        assert current is not None
+        assert [(row["phase"], row["transition_sequence"]) for row in heads] == [
+            ("PLAN", 1)
+        ]
+        current_rows = await postgres_db.query(
+            "work_queue", f"id=eq.{current.task_id}"
+        )
+        assert current_rows[0]["status"] == "pending"
+        assert current_rows[0]["labels"] == labels
+
+@pytest.mark.parametrize("mode", ["submit", "reconcile"])
 async def test_owned_same_generation_request_reactivates_terminal_canonical_issue(
     mode,
     pg_work_queue,
@@ -427,6 +492,48 @@ async def test_owned_same_generation_request_reactivates_terminal_canonical_issu
     assert rows[0]["completed_at"] is None
     assert rows[0]["result"] is None
     assert rows[0]["error_message"] is None
+
+
+@pytest.mark.parametrize("mode", ["submit", "reconcile"])
+async def test_owned_same_generation_replay_preserves_nonterminal_status(
+    mode,
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = f"live-preserve-nonterminal-{mode}"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    key = _key(change_id, "IMPLEMENT", 5)
+    canonical = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase IMPLEMENT",
+        priority=1,
+        projection_key=key,
+        projection_labels=labels,
+    )
+    await postgres_db.update(
+        "work_queue",
+        {"id": str(canonical.task_id)},
+        {"status": "claimed", "claimed_by": "reviewer-agent"},
+    )
+
+    request = {
+        "task_type": "issue",
+        "description": "Autopilot phase IMPLEMENT replay",
+        "priority": 1,
+        "projection_key": key,
+        "projection_labels": labels,
+    }
+    if mode == "submit":
+        result = await pg_work_queue.submit(**request)
+    else:
+        result = await pg_work_queue.reconcile_projection(**request)
+
+    assert result.success is True
+    assert result.status == "claimed"
+    rows = await postgres_db.query("work_queue", f"id=eq.{canonical.task_id}")
+    assert rows[0]["status"] == "claimed"
+    assert rows[0]["claimed_by"] == "reviewer-agent"
+    assert rows[0]["labels"] == labels
 
 
 async def test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics(

@@ -1,7 +1,20 @@
 -- 039: close projection collision/replay gaps and notify first labelled inserts.
 
-
 BEGIN;
+
+CREATE TABLE IF NOT EXISTS work_queue_projection_ownership (
+  task_id UUID PRIMARY KEY REFERENCES work_queue(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Seed durable ownership for projection rows produced by migrations 037/038.
+INSERT INTO work_queue_projection_ownership(task_id)
+SELECT id FROM work_queue
+WHERE task_type='issue'
+  AND input_data ? 'change_id' AND input_data ? 'phase'
+  AND input_data ? 'transition_sequence'
+  AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]))
+ON CONFLICT DO NOTHING;
 
 DROP FUNCTION IF EXISTS submit_task(TEXT,TEXT,JSONB,INTEGER,UUID[],TIMESTAMPTZ,JSONB);
 DROP FUNCTION IF EXISTS submit_task(TEXT,TEXT,JSONB,INTEGER,UUID[],TIMESTAMPTZ,JSONB,TEXT[]);
@@ -16,6 +29,7 @@ DECLARE
   v_change TEXT; v_phase TEXT; v_seq INTEGER;
   v_head_phase TEXT; v_head_seq INTEGER; v_any BOOLEAN; v_complete BOOLEAN;
   v_head_missing BOOLEAN:=FALSE; v_existing_task_type TEXT;
+  v_existing_owned BOOLEAN:=FALSE;
 BEGIN
   v_any:=COALESCE(p_input_data ?| ARRAY['change_id','phase','transition_sequence'],FALSE);
   v_complete:=COALESCE(p_input_data ? 'change_id' AND p_input_data ? 'phase'
@@ -82,16 +96,24 @@ BEGIN
   DO NOTHING RETURNING id,status INTO v_id,v_status;
   IF v_id IS NULL THEN
     v_created:=FALSE;
-    SELECT id,status,task_type INTO v_id,v_status,v_existing_task_type FROM work_queue
+    SELECT id,status,task_type,
+      (EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
+               WHERE ownership.task_id=work_queue.id)
+       OR 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[])))
+      INTO v_id,v_status,v_existing_task_type,v_existing_owned FROM work_queue
     WHERE input_data ? 'change_id' AND input_data ? 'phase' AND input_data ? 'transition_sequence'
       AND jsonb_typeof(input_data->'transition_sequence')='number'
       AND input_data->>'change_id'=v_change AND input_data->>'phase'=v_phase
       AND input_data->>'transition_sequence'=v_seq::TEXT;
     IF p_projection_labels IS NOT NULL AND p_task_type='issue'
-       AND v_existing_task_type<>'issue' THEN
+       AND (v_existing_task_type<>'issue' OR NOT v_existing_owned) THEN
       RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
         'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
     END IF;
+  END IF;
+  IF p_projection_labels IS NOT NULL THEN
+    INSERT INTO work_queue_projection_ownership(task_id) VALUES(v_id)
+    ON CONFLICT DO NOTHING;
   END IF;
   IF v_head_missing THEN
     INSERT INTO work_queue_projection_heads(change_id,phase,transition_sequence)
@@ -104,16 +126,13 @@ BEGIN
       AND input_data ? 'transition_sequence'
       AND input_data->>'change_id'=v_change
       AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]));
-    UPDATE work_queue SET labels=ARRAY[]::TEXT[]
-    WHERE id=v_id AND status<>'pending'
-      AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]));
+    UPDATE work_queue SET labels=p_projection_labels WHERE id=v_id;
     UPDATE work_queue SET
       status='pending', claimed_by=NULL, claimed_at=NULL, started_at=NULL,
       completed_at=NULL, result=NULL, error_message=NULL,
-      closed_at=NULL, close_reason=NULL, attempt_count=0,
-      labels=p_projection_labels
-    WHERE id=v_id;
-    v_status:='pending';
+      closed_at=NULL, close_reason=NULL, attempt_count=0
+    WHERE id=v_id AND status IN ('cancelled','completed','failed');
+    SELECT status INTO v_status FROM work_queue WHERE id=v_id;
   END IF;
   RETURN jsonb_build_object('success',TRUE,'task_id',v_id,'status',v_status,
     'created',v_created,'deduplicated',NOT v_created,'cancelled_task_ids','[]'::JSONB);
@@ -131,7 +150,7 @@ CREATE OR REPLACE FUNCTION reconcile_work_projection(
 DECLARE
   v_id UUID; v_status TEXT; v_created BOOLEAN:=TRUE;
   v_head_seq INTEGER; v_cancelled UUID[]:=ARRAY[]::UUID[]; v_payload JSONB;
-  v_existing_task_type TEXT;
+  v_existing_task_type TEXT; v_existing_owned BOOLEAN:=FALSE;
 BEGIN
   IF p_change_id !~ '^[a-z0-9][a-z0-9-]{0,127}$'
     OR p_phase <> ALL (ARRAY[
@@ -171,16 +190,24 @@ BEGIN
   DO NOTHING RETURNING id,status INTO v_id,v_status;
   IF v_id IS NULL THEN
     v_created:=FALSE;
-    SELECT id,status,task_type INTO v_id,v_status,v_existing_task_type FROM work_queue
+    SELECT id,status,task_type,
+      (EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
+               WHERE ownership.task_id=work_queue.id)
+       OR 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[])))
+      INTO v_id,v_status,v_existing_task_type,v_existing_owned FROM work_queue
     WHERE input_data ? 'change_id' AND input_data ? 'phase' AND input_data ? 'transition_sequence'
       AND jsonb_typeof(input_data->'transition_sequence')='number'
       AND input_data->>'change_id'=p_change_id AND input_data->>'phase'=p_phase
       AND input_data->>'transition_sequence'=p_transition_sequence::TEXT;
     IF p_projection_labels IS NOT NULL AND p_task_type='issue'
-       AND v_existing_task_type<>'issue' THEN
+       AND (v_existing_task_type<>'issue' OR NOT v_existing_owned) THEN
       RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
         'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
     END IF;
+  END IF;
+  IF p_projection_labels IS NOT NULL THEN
+    INSERT INTO work_queue_projection_ownership(task_id) VALUES(v_id)
+    ON CONFLICT DO NOTHING;
   END IF;
 
   INSERT INTO work_queue_projection_heads(change_id,phase,transition_sequence)
@@ -211,16 +238,13 @@ BEGIN
       AND input_data ? 'transition_sequence'
       AND input_data->>'change_id'=p_change_id
       AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]));
-    UPDATE work_queue SET labels=ARRAY[]::TEXT[]
-    WHERE id=v_id AND status<>'pending'
-      AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]));
+    UPDATE work_queue SET labels=p_projection_labels WHERE id=v_id;
     UPDATE work_queue SET
       status='pending', claimed_by=NULL, claimed_at=NULL, started_at=NULL,
       completed_at=NULL, result=NULL, error_message=NULL,
-      closed_at=NULL, close_reason=NULL, attempt_count=0,
-      labels=p_projection_labels
-    WHERE id=v_id;
-    v_status:='pending';
+      closed_at=NULL, close_reason=NULL, attempt_count=0
+    WHERE id=v_id AND status IN ('cancelled','completed','failed');
+    SELECT status INTO v_status FROM work_queue WHERE id=v_id;
   END IF;
   RETURN jsonb_build_object('success',TRUE,'task_id',v_id,'status',v_status,
     'created',v_created,'deduplicated',NOT v_created,'cancelled_task_ids',to_jsonb(v_cancelled));

@@ -24,6 +24,8 @@
 | R4-11-20 | both | advisory/positive | low | accepted | Recorded in round-4 dispositions; no blocking behavior remained after fixes. |
 | R5-1-11 | both | correctness/contract/compatibility | high-medium | fixed | First-insert refresh, replay/collision/terminal integrity, executable idempotent ESCALATE recovery, auto-resume persistence, exact API bounds, and real mirror validation. |
 | R5-12-18 | both | advisory/positive | low | accepted | Positive verification and bounded observations are recorded in round-5 dispositions. |
+| R6-Codex-1,2 / Claude-1,2,3 | wp-projection-adapter | correctness/audit/contract | high-low | fixed | Added database-owned projection ownership, active-row preservation, HTTP 409 collision mapping, and restored round-5 dispositions. |
+| R6 remainder | both | advisory/positive | low | accepted | Schema-valid quorum and out-of-band raw evidence are recorded with finding-level dispositions. |
 
 ## Coverage Summary
 

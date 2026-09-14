@@ -96,6 +96,7 @@ _PROJECTION_CONFLICTS = {
     "stale_projection",
     "projection_generation_mismatch",
     "reconciliation_required",
+    "projection_key_collision",
 }
 _PROJECTION_FORBIDDEN = {
     "operation_not_permitted",

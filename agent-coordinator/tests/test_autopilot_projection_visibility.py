@@ -255,3 +255,19 @@ def test_projection_payload_rejects_missing_canonical_task_id() -> None:
         _projection_mutation_payload(result)
     assert exc_info.value.reason == "canonical_task_id_missing"
     assert exc_info.value.status == 422
+
+
+def test_projection_key_collision_maps_to_conflict() -> None:
+    from types import SimpleNamespace
+
+    from src.coordination_api import _projection_mutation_payload, _ProjectionProblemError
+
+    result = SimpleNamespace(
+        success=False,
+        failure_category=None,
+        reason="projection_key_collision",
+    )
+    with pytest.raises(_ProjectionProblemError) as exc_info:
+        _projection_mutation_payload(result)
+    assert exc_info.value.reason == "projection_key_collision"
+    assert exc_info.value.status == 409
