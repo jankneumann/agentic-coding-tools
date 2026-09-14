@@ -40,6 +40,9 @@
     "bao-vault": [
       "langfuse"
     ],
+    "bug-scrub": [
+      "shared"
+    ],
     "changelog-version": [
       "shared",
       "worktree"
@@ -66,6 +69,9 @@
     ],
     "fix-scrub": [
       "worktree"
+    ],
+    "improve-harness": [
+      "shared"
     ],
     "implement-feature": [
       "coordination-bridge",
@@ -109,6 +115,9 @@
       "roadmap-runtime",
       "shared",
       "worktree"
+    ],
+    "prioritize-proposals": [
+      "shared"
     ],
     "project-context-refresh": [
       "validate-packages"

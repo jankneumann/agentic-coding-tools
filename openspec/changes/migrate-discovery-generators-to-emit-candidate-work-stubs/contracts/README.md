@@ -45,7 +45,11 @@ acceptance outcomes. New-roadmap mode also requires an approved roadmap ID and
 capability and returns a complete schema-version-1 envelope using `provenance.source_artifact` as `source_proposal`. Existing-roadmap mode
 returns a refine add request without an explicit execution priority, allowing refine-roadmap to assign max+1 while retaining
 the candidate priority in the request rationale. A shared resolver groups exact matches by change ID,
-collapses duplicate completed/archive lifecycle records, maps one unique live roadmap item locally or externally, and records an
-all-completed group as satisfied rationale. Unknown, active-without-roadmap, retired-only, or multiple-live dependencies fail. Existing refine-roadmap supplies an
+maps one unique live roadmap item locally or externally, and records a group as
+satisfied only when every record is a completed roadmap item or completed archive.
+Failed, skipped, and superseded records remain unresolved. One active-change record
+plus its sole live roadmap item collapses to one lineage; multiple live candidate or
+roadmap owners are ambiguous. Unknown, active-without-roadmap, retired-only, or
+multiple-live dependencies fail. Existing refine-roadmap supplies an
 omitted priority as max+1, rejects duplicate item `change_id` values, and refuses stale
 preview hashes. Intake does not write an existing roadmap itself.
