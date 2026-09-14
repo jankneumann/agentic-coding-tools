@@ -279,7 +279,7 @@ When multiple findings target **different files**, fix them concurrently:
 # Spawn parallel agents for independent fixes
 Task(
   subagent_type="general-purpose",
-  model=impl_model,  # archetype: implementer (sonnet, or opus if escalated)
+  model=impl_model,  # archetype: implementer (standard tier; frontier/premium on escalation)
   description="Fix finding 1: <type> in <file>",
   prompt="Fix this issue in OpenSpec <change-id> implementation:
 
