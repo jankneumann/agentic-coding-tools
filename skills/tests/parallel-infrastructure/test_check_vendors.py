@@ -100,6 +100,22 @@ def test_min_vendors_is_configurable(_patch_orch) -> None:
     assert rd._check_vendors(min_vendors=1) == 0
 
 
+def test_check_vendors_resolves_config_from_review_cwd(
+    monkeypatch, tmp_path: Path,
+) -> None:
+    expected = _Orch(["antigravity", "grok"])
+    seen: list[tuple[str | None, Path]] = []
+
+    def _resolve(agents_yaml: str | None, cwd: Path):
+        seen.append((agents_yaml, cwd))
+        return expected
+
+    monkeypatch.setattr(rd, "_orchestrator_for_dispatch", _resolve)
+
+    assert rd._check_vendors(min_vendors=2, cwd=tmp_path) == 0
+    assert seen == [(None, tmp_path)]
+
+
 def test_flag_is_accepted_by_the_cli() -> None:
     """The documented invocation must parse — the original defect was that
     ``--check-vendors`` did not exist and exited 2 on an argparse error."""

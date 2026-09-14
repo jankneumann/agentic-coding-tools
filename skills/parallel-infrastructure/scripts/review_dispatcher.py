@@ -2520,6 +2520,7 @@ CHECK_VENDORS_BELOW_QUORUM = 2
 def _check_vendors(
     *,
     agents_yaml: str | None = None,
+    cwd: Path | None = None,
     exclude_vendor: str | None = None,
     min_vendors: int = 2,
     dispatch_mode: str = "review",
@@ -2532,12 +2533,7 @@ def _check_vendors(
     resolving the roster reports "below quorum" rather than passing silently.
     """
     try:
-        if agents_yaml:
-            orch = ReviewOrchestrator.from_agents_yaml(Path(agents_yaml))
-        else:
-            orch = ReviewOrchestrator.from_coordinator()
-            if not orch.adapters:
-                orch = ReviewOrchestrator.from_agents_yaml()
+        orch = _orchestrator_for_dispatch(agents_yaml, cwd or Path("."))
         reviewers = orch.discover_reviewers(
             exclude_vendor=exclude_vendor,
             dispatch_mode=dispatch_mode,
@@ -2669,6 +2665,7 @@ def main() -> int:
     if args.check_vendors:
         return _check_vendors(
             agents_yaml=args.agents_yaml,
+            cwd=Path(args.cwd),
             exclude_vendor=args.exclude_vendor,
             min_vendors=args.min_vendors,
             dispatch_mode=args.mode,
@@ -2676,12 +2673,7 @@ def main() -> int:
 
     # --list-agents: show available agents and exit
     if args.list_agents:
-        if args.agents_yaml:
-            orch = ReviewOrchestrator.from_agents_yaml(Path(args.agents_yaml))
-        else:
-            orch = ReviewOrchestrator.from_coordinator()
-            if not orch.adapters:
-                orch = ReviewOrchestrator.from_agents_yaml()
+        orch = _orchestrator_for_dispatch(args.agents_yaml, Path(args.cwd))
         if not orch.adapters and not orch.sdk_adapters:
             print("No agents with dispatch configs found")
             return 1

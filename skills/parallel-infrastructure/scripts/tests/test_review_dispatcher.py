@@ -1791,7 +1791,7 @@ def test_dispatch_prefers_review_cwd_agents_yaml(
     with (
         patch.object(
             ReviewOrchestrator, "_find_local_agents_yaml", return_value=local
-        ),
+        ) as find_local,
         patch.object(
             ReviewOrchestrator, "from_agents_yaml", return_value=expected
         ) as from_local,
@@ -1800,8 +1800,56 @@ def test_dispatch_prefers_review_cwd_agents_yaml(
         actual = _orchestrator_for_dispatch(None, tmp_path)
 
     assert actual is expected
+    find_local.assert_called_once_with(tmp_path)
     from_local.assert_called_once_with(local)
     from_coordinator.assert_not_called()
+
+
+def test_dispatch_explicit_agents_yaml_bypasses_local_and_coordinator(
+    tmp_path: Path,
+) -> None:
+    explicit = tmp_path / "explicit-agents.yaml"
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_explicit,
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml"
+        ) as find_local,
+        patch.object(ReviewOrchestrator, "from_coordinator") as from_coordinator,
+    ):
+        actual = _orchestrator_for_dispatch(str(explicit), tmp_path)
+
+    assert actual is expected
+    from_explicit.assert_called_once_with(explicit)
+    find_local.assert_not_called()
+    from_coordinator.assert_not_called()
+
+
+def test_dispatch_without_local_config_falls_back_to_global_disk(
+    tmp_path: Path,
+) -> None:
+    empty = ReviewOrchestrator({})
+    expected = ReviewOrchestrator({})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=None
+        ),
+        patch.object(
+            ReviewOrchestrator, "from_coordinator", return_value=empty
+        ) as from_coordinator,
+        patch.object(
+            ReviewOrchestrator, "from_agents_yaml", return_value=expected
+        ) as from_global,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is expected
+    from_coordinator.assert_called_once_with()
+    from_global.assert_called_once_with()
 
 
 def test_repo_antigravity_schema_review_uses_json_output_mode() -> None:
