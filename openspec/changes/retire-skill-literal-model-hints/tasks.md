@@ -78,7 +78,7 @@ TDD order within each WP: tests before implementation. Approach A (Gate 1).
   **Files**: `skills/implement-feature/SKILL.md`,
   `skills/iterate-on-implementation/SKILL.md`, `skills/fix-scrub/SKILL.md`
 
-- [ ] 2.6 Label AUTOPILOT model-override examples as explicit escape hatches
+- [x] 2.6 Label AUTOPILOT model-override examples as explicit escape hatches
   that bypass YAML selection (XS)
   **Spec scenarios**: skill-workflow — Dispatch examples do not hardcode
   model versions (escape-hatch exception)
@@ -86,7 +86,7 @@ TDD order within each WP: tests before implementation. Approach A (Gate 1).
   **Dependencies**: 1.4
   **Files**: `skills/autopilot/SKILL.md`
 
-- [ ] Checkpoint: re-run guard tests + spot-check inventory grep for raw
+- [x] Checkpoint: re-run guard tests + spot-check inventory grep for raw
   model-version policy pins in edited skills; review diff; verify scope
 
 ## WP3 — Spec lock-in verify (D5)
