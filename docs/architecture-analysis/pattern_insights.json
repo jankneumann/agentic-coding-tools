@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T03:18:47+00:00",
+  "generated_at": "2026-09-14T07:07:44+00:00",
   "python_patterns": {
     "assertions": {
       "count": 2,
@@ -63,7 +63,7 @@
       }
     },
     "type_hints": {
-      "count": 2075,
+      "count": 2079,
       "files": {
         "coordination_api.py": 194,
         "coordination_mcp.py": 137,
@@ -75,7 +75,7 @@
         "merge_train.py": 67,
         "code_search_authorization.py": 66,
         "code_search.py": 49,
-        "work_queue.py": 40,
+        "work_queue.py": 44,
         "db.py": 39,
         "merge_train_service.py": 39,
         "git_adapter.py": 38,
@@ -92,37 +92,37 @@
     "catch_clauses": {
       "count": 16,
       "files": {
-        "kanban-viz/src/hooks/useCoordinator.ts": 5,
-        "kanban-viz/src/__tests__/e2e.integration.test.tsx": 3,
-        "kanban-viz/src/components/PROriginFilter.tsx": 2,
-        "kanban-viz/src/components/SyncPointBanner.tsx": 2,
-        "kanban-viz/src/__tests__/useCoordinator.test.tsx": 1,
-        "kanban-viz/src/components/Card.tsx": 1,
-        "kanban-viz/src/components/RefreshButton.tsx": 1,
-        "kanban-viz/src/components/SaveViewButton.tsx": 1
+        "hooks/useCoordinator.ts": 5,
+        "__tests__/e2e.integration.test.tsx": 3,
+        "components/PROriginFilter.tsx": 2,
+        "components/SyncPointBanner.tsx": 2,
+        "__tests__/useCoordinator.test.tsx": 1,
+        "components/Card.tsx": 1,
+        "components/RefreshButton.tsx": 1,
+        "components/SaveViewButton.tsx": 1
       }
     },
     "dynamic_imports": {
       "count": 8,
       "files": {
-        "kanban-viz/src/__tests__/e2e.integration.test.tsx": 4,
-        "kanban-viz/src/__tests__/runtime.test.ts": 3,
-        "kanban-viz/src/lib/saveView.ts": 1
+        "__tests__/e2e.integration.test.tsx": 4,
+        "__tests__/runtime.test.ts": 3,
+        "lib/saveView.ts": 1
       }
     },
     "empty_catch": {
       "count": 8,
       "files": {
-        "kanban-viz/src/hooks/useCoordinator.ts": 3,
-        "kanban-viz/src/__tests__/e2e.integration.test.tsx": 2,
-        "kanban-viz/src/components/PROriginFilter.tsx": 2,
-        "kanban-viz/src/__tests__/useCoordinator.test.tsx": 1
+        "hooks/useCoordinator.ts": 3,
+        "__tests__/e2e.integration.test.tsx": 2,
+        "components/PROriginFilter.tsx": 2,
+        "__tests__/useCoordinator.test.tsx": 1
       }
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 1015,
-    "typed_parameters": 983
+    "functions_with_return_type": 1016,
+    "typed_parameters": 986
   },
   "exception_handling": {
     "bare_except": 0,

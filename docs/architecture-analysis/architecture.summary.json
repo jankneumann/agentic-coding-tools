@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-09-14T05:30:41+00:00",
-  "git_sha": "0ca4a72941416d9aeefc2727685c3467b4aa1aeb",
+  "generated_at": "2026-09-14T07:07:44+00:00",
+  "git_sha": "be02cf1f23b287d85048649a5182607e34ea4002",
   "stats": {
-    "total_nodes": 1869,
-    "total_edges": 1223,
+    "total_nodes": 1888,
+    "total_edges": 1225,
     "by_language": {
-      "python": 1443,
-      "sql": 426
+      "python": 1444,
+      "sql": 444
     },
     "by_kind": {
       "module": 77,
       "class": 255,
-      "function": 1111,
+      "function": 1112,
       "table": 28,
-      "column": 282,
+      "column": 300,
       "index": 70,
       "stored_function": 37,
       "trigger": 9
