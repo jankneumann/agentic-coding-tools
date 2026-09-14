@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: mirror-autopilot-phase-state-into-the-work-queue
   title: Mirror Autopilot phase state into the work queue
-  plan_revision: 6
+  plan_revision: 7
   created_by: codex
   deployable: false
 
@@ -26,7 +26,7 @@ packages:
   - package_id: wp-projection-adapter
     title: Coordinated phase projection adapter and host registration
     task_type: integration
-    description: Implement tasks 1.1 through 2.8 with TDD, including canonical host writers, head advancement, elevated change-scoped publication, fail-closed trust resolution, upgrade-safe serialized label repair, and reviewed-checkout vendor discovery while preserving the coordinator-free default and one-way authority contract.
+    description: Implement tasks 1.1 through 2.9 with TDD, including canonical host writers, head advancement, elevated change-scoped publication, fail-closed trust resolution, database-owned reserved labels, immutable projection issues, upgrade-safe serialized repair, and reviewed-checkout vendor discovery while preserving the coordinator-free default and one-way authority contract.
     role: implementer
     priority: 1
     depends_on: []
@@ -37,6 +37,7 @@ packages:
         - agent-coordinator/cedar/default_policies.cedar
         - agent-coordinator/cedar/schema.cedarschema
         - skills/autopilot/scripts/autopilot.py
+        - skills/autopilot/scripts/convergence_loop.py
         - skills/autopilot/scripts/queue_projection.py
         - skills/autopilot/scripts/runner.py
         - skills/autopilot/SKILL.md
@@ -135,7 +136,7 @@ packages:
             result_keys: [coordination_bridge_tests_pass]
         - name: Run coordinator queue and issue tests
           kind: command
-          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_issue_service.py -q
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_issue_service.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_cedar_policy_engine.py -q
           cwd: .
           expect_exit_code: 0
           evidence:
@@ -158,6 +159,7 @@ packages:
       result_keys: [autopilot_projection_tests_pass, coordination_bridge_tests_pass, coordinator_projection_tests_pass, ruff_pass]
       artifacts:
         - skills/autopilot/scripts/queue_projection.py
+        - skills/autopilot/scripts/convergence_loop.py
         - skills/autopilot/scripts/runner.py
         - skills/autopilot/SKILL.md
         - skills/coordination-bridge/scripts/coordination_bridge.py

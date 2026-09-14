@@ -151,6 +151,16 @@ class TestIssueCreate:
         with pytest.raises(ValueError, match="Priority must be 1-10"):
             await service.create(title="Bad", priority=0)
 
+    @pytest.mark.asyncio
+    async def test_create_rejects_reserved_projection_label(self, service, mock_db):
+        with pytest.raises(PermissionError, match="reserved_projection_label"):
+            await service.create(
+                title="spoof",
+                labels=["change:victim", "projection:autopilot-phase"],
+            )
+
+        mock_db.insert.assert_not_awaited()
+
 
 # ===========================================================================
 # Issue Listing
@@ -389,36 +399,64 @@ class TestIssueUpdate:
     async def test_update_labels(self, service, mock_db):
         """Update labels replaces the array."""
         issue_id = uuid4()
-        mock_db.update.return_value = [
-            _make_issue_row(issue_id=issue_id, labels=["api", "urgent"]),
-        ]
+        mock_db.rpc.return_value = {
+            "success": True,
+            "issue": _make_issue_row(
+                issue_id=issue_id, labels=["api", "urgent"]
+            ),
+        }
 
         issue = await service.update(issue_id, labels=["api", "urgent"])
 
         assert issue is not None
-        update_data = mock_db.update.call_args[1]["data"]
+        assert mock_db.rpc.await_args.args[0] == "mutate_issue_if_unowned"
+        update_data = mock_db.rpc.await_args.args[1]["p_patch"]
         assert update_data["labels"] == ["api", "urgent"]
 
     @pytest.mark.asyncio
     async def test_update_status_mapping(self, service, mock_db):
         """Update status maps friendly names to DB values."""
         issue_id = uuid4()
-        mock_db.update.return_value = [
-            _make_issue_row(issue_id=issue_id, status="running"),
-        ]
+        mock_db.rpc.return_value = {
+            "success": True,
+            "issue": _make_issue_row(issue_id=issue_id, status="running"),
+        }
 
         await service.update(issue_id, status="in_progress")
 
-        update_data = mock_db.update.call_args[1]["data"]
+        update_data = mock_db.rpc.await_args.args[1]["p_patch"]
         assert update_data["status"] == "running"
 
     @pytest.mark.asyncio
     async def test_update_not_found(self, service, mock_db):
         """Update returns None when issue doesn't exist."""
-        mock_db.update.return_value = []
+        mock_db.rpc.return_value = {"success": False, "reason": "issue_not_found"}
 
         issue = await service.update(uuid4(), title="New title")
         assert issue is None
+
+    @pytest.mark.asyncio
+    async def test_update_rejects_reserved_projection_label(self, service, mock_db):
+        with pytest.raises(PermissionError, match="reserved_projection_label"):
+            await service.update(
+                uuid4(),
+                labels=["change:victim", "projection:autopilot-phase"],
+            )
+
+        mock_db.update.assert_not_awaited()
+        mock_db.rpc.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_update_rejects_registry_owned_projection(self, service, mock_db):
+        mock_db.rpc.return_value = {
+            "success": False,
+            "reason": "projection_issue_immutable",
+        }
+
+        with pytest.raises(PermissionError, match="projection_issue_immutable"):
+            await service.update(uuid4(), title="tampered")
+
+        mock_db.update.assert_not_awaited()
 
 
 # ===========================================================================
@@ -431,14 +469,15 @@ class TestIssueClose:
     async def test_close_with_reason(self, service, mock_db):
         """Close sets status, timestamps, and reason."""
         issue_id = uuid4()
-        mock_db.update.return_value = [
-            _make_issue_row(issue_id=issue_id, status="completed"),
-        ]
+        mock_db.rpc.return_value = {
+            "success": True,
+            "issue": _make_issue_row(issue_id=issue_id, status="completed"),
+        }
 
         results = await service.close(issue_id=issue_id, reason="Done in PR #42")
 
         assert len(results) == 1
-        update_data = mock_db.update.call_args[1]["data"]
+        update_data = mock_db.rpc.await_args.args[1]["p_patch"]
         assert update_data["status"] == "completed"
         assert update_data["close_reason"] == "Done in PR #42"
         assert "closed_at" in update_data
@@ -453,18 +492,33 @@ class TestIssueClose:
     async def test_batch_close(self, service, mock_db):
         """Batch close multiple issues."""
         ids = [uuid4(), uuid4(), uuid4()]
-        mock_db.update.return_value = [_make_issue_row(status="completed")]
+        mock_db.rpc.side_effect = [
+            {"success": True, "issue": _make_issue_row(status="completed")}
+            for _ in ids
+        ]
 
         results = await service.close(issue_ids=ids)
 
         assert len(results) == 3
-        assert mock_db.update.call_count == 3
+        assert mock_db.rpc.await_count == 3
 
     @pytest.mark.asyncio
     async def test_close_no_ids_raises(self, service):
         """Close with no IDs raises ValueError."""
         with pytest.raises(ValueError, match="Must provide"):
             await service.close()
+
+    @pytest.mark.asyncio
+    async def test_close_rejects_registry_owned_projection(self, service, mock_db):
+        mock_db.rpc.return_value = {
+            "success": False,
+            "reason": "projection_issue_immutable",
+        }
+
+        with pytest.raises(PermissionError, match="projection_issue_immutable"):
+            await service.close(issue_id=uuid4())
+
+        mock_db.update.assert_not_awaited()
 
 
 # ===========================================================================

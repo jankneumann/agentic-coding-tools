@@ -641,7 +641,18 @@ def test_projection_migration_declares_full_head_and_atomic_paths():
 
 
 @pytest.mark.asyncio
-async def test_projection_submit_returns_canonical_deduplicated_result(mock_supabase, db_client):
+async def test_projection_submit_returns_canonical_deduplicated_result(
+    mock_supabase, db_client, monkeypatch
+):
+    class AllowProjectionPolicy:
+        async def check_operation(self, **kwargs):
+            assert kwargs["operation"] == "publish_work_projection"
+            assert kwargs["resource"] == "projection-change"
+            return PolicyDecision.allow()
+
+    monkeypatch.setattr(
+        "src.policy_engine.get_policy_engine", lambda: AllowProjectionPolicy()
+    )
     task_id = UUID(int=7)
     mock_supabase.post("https://test.supabase.co/rest/v1/rpc/submit_task").mock(
         return_value=Response(
@@ -723,7 +734,18 @@ async def test_unkeyed_submit_rejects_reserved_projection_identity(db_client):
 
 
 @pytest.mark.asyncio
-async def test_reconcile_returns_sorted_cancelled_ids(mock_supabase, db_client):
+async def test_reconcile_returns_sorted_cancelled_ids(
+    mock_supabase, db_client, monkeypatch
+):
+    class AllowProjectionPolicy:
+        async def check_operation(self, **kwargs):
+            assert kwargs["operation"] == "publish_work_projection"
+            assert kwargs["resource"] == "projection-change"
+            return PolicyDecision.allow()
+
+    monkeypatch.setattr(
+        "src.policy_engine.get_policy_engine", lambda: AllowProjectionPolicy()
+    )
     current = UUID(int=8)
     cancelled = [UUID(int=3), UUID(int=2)]
     mock_supabase.post("https://test.supabase.co/rest/v1/rpc/reconcile_work_projection").mock(
@@ -761,11 +783,13 @@ async def test_reconcile_returns_sorted_cancelled_ids(mock_supabase, db_client):
 
 
 @pytest.mark.asyncio
-async def test_reconcile_enforces_submit_work_policy_with_mode(monkeypatch):
+async def test_reconcile_enforces_projection_publish_policy_with_change(monkeypatch):
     class DenyPolicyEngine:
         async def check_operation(self, **kwargs):
-            assert kwargs["operation"] == "submit_work"
+            assert kwargs["operation"] == "publish_work_projection"
+            assert kwargs["resource"] == "projection-change"
             assert kwargs["context"]["mode"] == "reconcile"
+            assert kwargs["context"]["change_id"] == "projection-change"
             return PolicyDecision.deny("operation_not_permitted")
 
     class FailDB:

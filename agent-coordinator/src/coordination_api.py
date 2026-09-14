@@ -1333,7 +1333,7 @@ def create_coordination_api() -> FastAPI:
         """Create a new issue."""
         from uuid import UUID
 
-        from .issue_service import get_issue_service
+        from .issue_service import ProjectionIssueMutationError, get_issue_service
 
         service = get_issue_service()
         parent_uuid = UUID(request.parent_id) if request.parent_id else None
@@ -1351,6 +1351,8 @@ def create_coordination_api() -> FastAPI:
                 depends_on=depends_uuids,
             )
             return {"success": True, "issue": issue.to_dict()}
+        except ProjectionIssueMutationError as e:
+            raise HTTPException(status_code=403, detail=str(e)) from e
         except ValueError as e:
             return {"success": False, "reason": str(e)}
         except Exception as e:  # noqa: BLE001
@@ -1426,7 +1428,7 @@ def create_coordination_api() -> FastAPI:
         """Update an issue."""
         from uuid import UUID
 
-        from .issue_service import get_issue_service
+        from .issue_service import ProjectionIssueMutationError, get_issue_service
 
         service = get_issue_service()
         try:
@@ -1440,6 +1442,8 @@ def create_coordination_api() -> FastAPI:
                 assignee=request.assignee,
                 issue_type=request.issue_type,
             )
+        except ProjectionIssueMutationError as e:
+            raise HTTPException(status_code=403, detail=str(e)) from e
         except ValueError as e:
             return {"success": False, "reason": str(e)}
         except Exception as e:  # noqa: BLE001
@@ -1458,7 +1462,7 @@ def create_coordination_api() -> FastAPI:
         """Close one or more issues."""
         from uuid import UUID
 
-        from .issue_service import get_issue_service
+        from .issue_service import ProjectionIssueMutationError, get_issue_service
 
         service = get_issue_service()
         id_uuid = UUID(request.issue_id) if request.issue_id else None
@@ -1470,6 +1474,8 @@ def create_coordination_api() -> FastAPI:
                 issue_ids=ids_uuids,
                 reason=request.reason,
             )
+        except ProjectionIssueMutationError as e:
+            raise HTTPException(status_code=403, detail=str(e)) from e
         except ValueError as e:
             return {"success": False, "reason": str(e)}
         except Exception as e:  # noqa: BLE001

@@ -64,6 +64,7 @@ REQUIRED_FUNCTIONS = [
     "coordinator_notify",
     "get_agent_profile",
     "is_domain_allowed",
+    "mutate_issue_if_unowned",
 ]
 
 
@@ -328,6 +329,89 @@ async def test_every_migration_applies_to_an_empty_database(migrated_database) -
         "Not every migration applied to an empty database. Missing: "
         f"{sorted(set(expected) - set(applied))}"
     )
+
+
+async def test_reserved_projection_rows_are_database_owned_and_issue_immutable(
+    migrated_database,
+) -> None:
+    dsn, _applied = migrated_database
+    change_id = "ordinary-issue-isolation"
+    labels = [f"change:{change_id}", "projection:autopilot-phase"]
+    conn = await _connect(dsn)
+    try:
+        with pytest.raises(asyncpg.InsufficientPrivilegeError, match="reserved_projection_label"):
+            await conn.execute(
+                "INSERT INTO work_queue "
+                "(task_type,description,input_data,priority,labels) "
+                "VALUES ('issue','spoof','{}'::jsonb,5,$1::text[])",
+                labels,
+            )
+
+        ordinary_id = await conn.fetchval(
+            "INSERT INTO work_queue "
+            "(task_type,description,input_data,priority,labels) "
+            "VALUES ('issue','ordinary','{}'::jsonb,5,ARRAY[]::text[]) RETURNING id"
+        )
+        reserved_patch = json.loads(
+            await conn.fetchval(
+                "SELECT mutate_issue_if_unowned($1,$2::jsonb)",
+                ordinary_id,
+                json.dumps({"labels": labels}),
+            )
+        )
+        assert reserved_patch == {
+            "success": False,
+            "reason": "reserved_projection_label",
+        }
+
+        projected = json.loads(
+            await conn.fetchval(
+                "SELECT reconcile_work_projection($1,'INIT',0,'issue',"
+                "'Autopilot phase INIT','{}'::jsonb,1,NULL::jsonb,$2::text[])",
+                change_id,
+                labels,
+            )
+        )
+        assert projected["success"] is True
+        projection_id = uuid.UUID(projected["task_id"])
+        assert await conn.fetchval(
+            "SELECT labels=$2::text[] FROM work_queue WHERE id=$1",
+            projection_id,
+            labels,
+        ) is True
+
+        immutable = json.loads(
+            await conn.fetchval(
+                "SELECT mutate_issue_if_unowned($1,$2::jsonb)",
+                projection_id,
+                json.dumps({"description": "tampered", "status": "completed"}),
+            )
+        )
+        assert immutable == {
+            "success": False,
+            "reason": "projection_issue_immutable",
+        }
+        assert await conn.fetchrow(
+            "SELECT description,status,labels FROM work_queue WHERE id=$1",
+            projection_id,
+        ) == ("Autopilot phase INIT", "pending", labels)
+
+        advanced = json.loads(
+            await conn.fetchval(
+                "SELECT reconcile_work_projection($1,'PLAN',1,'issue',"
+                "'Autopilot phase PLAN','{}'::jsonb,1,NULL::jsonb,$2::text[])",
+                change_id,
+                labels,
+            )
+        )
+        assert advanced["success"] is True
+        assert await conn.fetchval(
+            "SELECT COUNT(*) FROM work_queue WHERE task_type='issue' "
+            "AND status='pending' AND labels @> $1::text[]",
+            labels,
+        ) == 1
+    finally:
+        await conn.close()
 
 
 async def test_fresh_database_has_the_objects_the_code_calls(migrated_database) -> None:

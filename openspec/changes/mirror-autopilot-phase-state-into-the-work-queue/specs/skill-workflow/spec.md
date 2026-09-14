@@ -52,6 +52,16 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **AND** the legacy row, requested row, and projection head SHALL remain unchanged
 - **AND** repair SHALL succeed only after an administrator verifies provenance and explicitly registers the legacy row UUID
 
+#### Scenario: Reserved projection identity and owned rows reject ordinary issue mutation
+
+- **GIVEN** migration 039 is active
+- **WHEN** an ordinary issue create or update supplies `projection:autopilot-phase`
+- **OR** an ordinary issue update or close targets a registry-owned projection row
+- **THEN** the issue API SHALL return HTTP 403 before changing the target row
+- **AND** a database insert or label update SHALL reject the reserved marker unless the row UUID is already registry-owned
+- **AND** a projection RPC SHALL insert without labels, register ownership, and apply the canonical label pair within one transaction
+- **AND** no forged board or SSE projection and no future reconciliation wedge SHALL be created
+
 #### Scenario: Projection outage is degraded, not authoritative
 
 - **GIVEN** loop-state persistence succeeds

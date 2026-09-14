@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
+import asyncpg
 import pytest
 
 from src.event_bus import EventBusService
@@ -272,12 +273,17 @@ async def test_same_generation_submit_replay_clears_noncanonical_owned_labels(
             "input_data": _key(change_id, "PLAN", 1),
             "priority": 1,
             "status": "cancelled",
-            "labels": labels,
+            "labels": [],
         },
     )
     await postgres_db.insert(
         "work_queue_projection_ownership",
         {"task_id": str(stale["id"])},
+    )
+    await postgres_db.update(
+        "work_queue",
+        match={"id": stale["id"]},
+        data={"labels": labels},
     )
 
     replay = await pg_work_queue.submit(
@@ -298,7 +304,7 @@ async def test_same_generation_submit_replay_clears_noncanonical_owned_labels(
     assert labels_by_id[str(stale["id"])] == []
 
 
-async def test_reconcile_fails_closed_on_unowned_spoofed_projection_issue(
+async def test_database_rejects_unowned_spoofed_projection_issue(
     pg_work_queue,
     postgres_db,
 ) -> None:
@@ -311,47 +317,23 @@ async def test_reconcile_fails_closed_on_unowned_spoofed_projection_issue(
         projection_key=_key(change_id, "INIT", 0),
         projection_labels=labels,
     )
-    spoof = await postgres_db.insert(
-        "work_queue",
-        {
-            "task_type": "issue",
-            "description": "ordinary issue spoofing projection metadata",
-            "input_data": _key(change_id, "PLAN", 99),
-            "priority": 5,
-            "labels": labels,
-        },
-    )
+    with pytest.raises(asyncpg.InsufficientPrivilegeError, match="reserved_projection_label"):
+        await postgres_db.insert(
+            "work_queue",
+            {
+                "task_type": "issue",
+                "description": "ordinary issue spoofing projection metadata",
+                "input_data": _key(change_id, "PLAN", 99),
+                "priority": 5,
+                "labels": labels,
+            },
+        )
 
-    reconciled = await pg_work_queue.reconcile_projection(
-        task_type="issue",
-        description="Autopilot phase IMPLEMENT",
-        priority=1,
-        projection_key=_key(change_id, "IMPLEMENT", 1),
-        projection_labels=labels,
-    )
-
-    assert reconciled.success is False
-    assert reconciled.reason == "projection_key_collision"
-    assert reconciled.cancelled_task_ids == []
     rows = await postgres_db.query(
         "work_queue", f"input_data->>change_id=eq.{change_id}&order=created_at.asc"
     )
-    rows_by_id = {str(row["id"]): row for row in rows}
-    spoof_row = rows_by_id[str(spoof["id"])]
-    assert spoof_row["status"] == "pending"
-    assert spoof_row["labels"] == labels
-    assert spoof_row["result"] is None
-    canonical_row = rows_by_id[str(canonical.task_id)]
-    assert canonical_row["status"] == "pending"
-    assert canonical_row["labels"] == labels
-    assert not any(
-        row["input_data"].get("transition_sequence") == 1 for row in rows
-    )
-    heads = await postgres_db.query(
-        "work_queue_projection_heads", f"change_id=eq.{change_id}"
-    )
-    assert [(row["phase"], row["transition_sequence"]) for row in heads] == [
-        ("INIT", 0)
+    assert [(str(row["id"]), row["status"], row["labels"]) for row in rows] == [
+        (str(canonical.task_id), "pending", labels)
     ]
 
 
@@ -465,7 +447,7 @@ async def test_owned_projection_cannot_take_over_unowned_issue_key(
             "description": "ordinary issue owns exact projection tuple",
             "input_data": {**target, "_projection_owner": "autopilot"},
             "priority": 5,
-            "labels": labels,
+            "labels": [],
         },
     )
     request = {
@@ -486,7 +468,7 @@ async def test_owned_projection_cannot_take_over_unowned_issue_key(
     rows = await postgres_db.query("work_queue", f"id=eq.{collision_id}")
     assert rows[0]["description"] == "ordinary issue owns exact projection tuple"
     assert rows[0]["status"] == "pending"
-    assert rows[0]["labels"] == labels
+    assert rows[0]["labels"] == []
     heads = await postgres_db.query(
         "work_queue_projection_heads", f"change_id=eq.{change_id}"
     )

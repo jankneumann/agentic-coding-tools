@@ -115,6 +115,41 @@ def _setup_converge(
     }
 
 
+def test_converge_resolves_vendor_panel_from_reviewed_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import convergence_loop as module
+
+    reviewed = tmp_path / "reviewed"
+    reviewed.mkdir()
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    expected = MagicMock()
+    seen: list[tuple[None, Path]] = []
+
+    def _resolve(path: None, cwd: Path):
+        seen.append((path, cwd))
+        return expected
+
+    monkeypatch.setattr(module, "_orchestrator_for_dispatch", _resolve, raising=False)
+    monkeypatch.setattr(
+        module.ReviewOrchestrator,
+        "from_coordinator",
+        MagicMock(side_effect=AssertionError("stale coordinator-first path")),
+    )
+
+    result = converge(
+        change_id="resolver-probe",
+        review_type="implementation",
+        artifacts_dir=artifacts,
+        worktree_path=reviewed,
+        max_rounds=0,
+    )
+
+    assert result.reason == "max_rounds"
+    assert seen == [(None, reviewed)]
+
+
 def test_round_2_prompt_carries_ledger_and_diff(tmp_path: Path) -> None:
     ledger = {
         "items": [

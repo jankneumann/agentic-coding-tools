@@ -1191,3 +1191,51 @@ def test_projection_authentication_returns_401_problem(client: TestClient) -> No
     assert response.status_code == 401
     assert response.headers["content-type"].startswith("application/problem+json")
     assert response.json()["status"] == 401
+
+
+@pytest.mark.parametrize(
+    ("path", "method", "payload", "reason"),
+    [
+        (
+            "/issues/create",
+            "create",
+            {
+                "title": "spoof",
+                "labels": ["change:victim", "projection:autopilot-phase"],
+            },
+            "reserved_projection_label",
+        ),
+        (
+            "/issues/update",
+            "update",
+            {"issue_id": str(UUID(int=91)), "title": "tampered"},
+            "projection_issue_immutable",
+        ),
+        (
+            "/issues/close",
+            "close",
+            {"issue_id": str(UUID(int=91)), "reason": "tampered"},
+            "projection_issue_immutable",
+        ),
+    ],
+)
+def test_ordinary_issue_api_cannot_cross_projection_boundary(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    path: str,
+    method: str,
+    payload: dict[str, Any],
+    reason: str,
+) -> None:
+    from src.issue_service import ProjectionIssueMutationError
+
+    service = AsyncMock()
+    getattr(service, method).side_effect = ProjectionIssueMutationError(reason)
+    import src.issue_service
+
+    monkeypatch.setattr(src.issue_service, "_issue_service", service)
+
+    response = client.post(path, headers=_auth_headers(), json=payload)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == reason

@@ -41,6 +41,16 @@ STATUS_WRITE_MAP: dict[str, str] = {
 }
 
 VALID_ISSUE_TYPES = {"task", "epic", "bug", "feature"}
+RESERVED_PROJECTION_LABEL = "projection:autopilot-phase"
+
+
+class ProjectionIssueMutationError(PermissionError):
+    """Ordinary issue CRUD attempted to cross the projection ownership boundary."""
+
+
+def _reject_reserved_projection_label(labels: list[str] | None) -> None:
+    if labels and RESERVED_PROJECTION_LABEL in labels:
+        raise ProjectionIssueMutationError("reserved_projection_label")
 
 
 def _postgrest_array_literal(values: list[str]) -> str:
@@ -261,6 +271,7 @@ class IssueService:
             )
         if not 1 <= priority <= 10:
             raise ValueError(f"Priority must be 1-10, got {priority}")
+        _reject_reserved_projection_label(labels)
 
         metadata: dict[str, Any] = {}
         if description:
@@ -411,6 +422,7 @@ class IssueService:
             issue_type: New type
         """
         data: dict[str, Any] = {}
+        _reject_reserved_projection_label(labels)
 
         if title is not None:
             data["description"] = title
@@ -439,19 +451,18 @@ class IssueService:
             if isinstance(metadata, str):
                 metadata = json.loads(metadata)
             metadata["body"] = description
-            data["metadata"] = json.dumps(metadata)
+            data["metadata"] = metadata
 
         if not data:
             # Nothing to update, just return current state
             rows = await self.db.query("work_queue", f"id=eq.{issue_id}")
             return Issue.from_row(rows[0]) if rows else None
 
-        rows = await self.db.update(
-            "work_queue",
-            match={"id": issue_id},
-            data=data,
+        result = await self.db.rpc(
+            "mutate_issue_if_unowned",
+            {"p_issue_id": str(issue_id), "p_patch": data},
         )
-        return Issue.from_row(rows[0]) if rows else None
+        return self._issue_from_mutation_result(result)
 
     async def close(
         self,
@@ -486,15 +497,31 @@ class IssueService:
             if reason:
                 data["close_reason"] = reason
 
-            rows = await self.db.update(
-                "work_queue",
-                match={"id": iid},
-                data=data,
+            result = await self.db.rpc(
+                "mutate_issue_if_unowned",
+                {"p_issue_id": str(iid), "p_patch": data},
             )
-            if rows:
-                results.append(Issue.from_row(rows[0]))
+            issue = self._issue_from_mutation_result(result)
+            if issue is not None:
+                results.append(issue)
 
         return results
+
+    @staticmethod
+    def _issue_from_mutation_result(result: Any) -> Issue | None:
+        if not isinstance(result, dict):
+            raise RuntimeError("invalid_issue_mutation_result")
+        if not result.get("success"):
+            reason = str(result.get("reason") or "issue_mutation_failed")
+            if reason in {"projection_issue_immutable", "reserved_projection_label"}:
+                raise ProjectionIssueMutationError(reason)
+            if reason == "issue_not_found":
+                return None
+            raise RuntimeError(reason)
+        row = result.get("issue")
+        if not isinstance(row, dict):
+            raise RuntimeError("invalid_issue_mutation_result")
+        return Issue.from_row(row)
 
     async def comment(
         self,

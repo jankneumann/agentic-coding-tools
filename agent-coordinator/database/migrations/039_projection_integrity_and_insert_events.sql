@@ -128,7 +128,7 @@ BEGIN
   INSERT INTO work_queue(task_type,description,input_data,priority,depends_on,deadline,
                          agent_requirements,labels)
   VALUES(p_task_type,p_description,p_input_data,p_priority,p_depends_on,p_deadline,
-         p_agent_requirements,COALESCE(p_projection_labels,ARRAY[]::TEXT[]))
+         p_agent_requirements,ARRAY[]::TEXT[])
   ON CONFLICT ((input_data ->> 'change_id'),(input_data ->> 'phase'),
                (input_data ->> 'transition_sequence'))
   WHERE input_data ? 'change_id' AND input_data ? 'phase' AND input_data ? 'transition_sequence'
@@ -250,7 +250,7 @@ BEGIN
                           'transition_sequence',p_transition_sequence);
   INSERT INTO work_queue(task_type,description,input_data,priority,agent_requirements,labels)
   VALUES(p_task_type,p_description,v_payload,p_priority,p_agent_requirements,
-         COALESCE(p_projection_labels,ARRAY[]::TEXT[]))
+         ARRAY[]::TEXT[])
   ON CONFLICT ((input_data ->> 'change_id'),(input_data ->> 'phase'),
                (input_data ->> 'transition_sequence'))
   WHERE input_data ? 'change_id' AND input_data ? 'phase' AND input_data ? 'transition_sequence'
@@ -334,6 +334,73 @@ BEGIN
     'created',v_created,'deduplicated',NOT v_created,'cancelled_task_ids',to_jsonb(v_cancelled));
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION enforce_projection_label_ownership() RETURNS TRIGGER AS $ownership$
+BEGIN
+  IF 'projection:autopilot-phase'=ANY(COALESCE(NEW.labels,ARRAY[]::TEXT[]))
+     AND NOT EXISTS (
+       SELECT 1 FROM work_queue_projection_ownership AS ownership
+       WHERE ownership.task_id=NEW.id
+     )
+  THEN
+    RAISE EXCEPTION 'reserved_projection_label'
+      USING ERRCODE='42501';
+  END IF;
+  RETURN NEW;
+END;
+$ownership$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_work_queue_projection_label_ownership ON work_queue;
+CREATE TRIGGER trg_work_queue_projection_label_ownership
+  BEFORE INSERT OR UPDATE OF labels ON work_queue
+  FOR EACH ROW
+  EXECUTE FUNCTION enforce_projection_label_ownership();
+
+CREATE OR REPLACE FUNCTION mutate_issue_if_unowned(
+  p_issue_id UUID,
+  p_patch JSONB
+) RETURNS JSONB AS $mutation$
+DECLARE
+  v_issue work_queue%ROWTYPE;
+BEGIN
+  SELECT * INTO v_issue FROM work_queue
+  WHERE id=p_issue_id AND task_type='issue'
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','issue_not_found');
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM work_queue_projection_ownership AS ownership
+    WHERE ownership.task_id=p_issue_id
+  ) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','projection_issue_immutable');
+  END IF;
+  IF p_patch ? 'labels' AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements_text(p_patch->'labels') AS label(value)
+    WHERE label.value='projection:autopilot-phase'
+  ) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','reserved_projection_label');
+  END IF;
+
+  UPDATE work_queue SET
+    description=CASE WHEN p_patch ? 'description' THEN p_patch->>'description' ELSE description END,
+    status=CASE WHEN p_patch ? 'status' THEN p_patch->>'status' ELSE status END,
+    priority=CASE WHEN p_patch ? 'priority' THEN (p_patch->>'priority')::INTEGER ELSE priority END,
+    labels=CASE WHEN p_patch ? 'labels' THEN ARRAY(
+      SELECT jsonb_array_elements_text(p_patch->'labels')
+    ) ELSE labels END,
+    assignee=CASE WHEN p_patch ? 'assignee' THEN p_patch->>'assignee' ELSE assignee END,
+    issue_type=CASE WHEN p_patch ? 'issue_type' THEN p_patch->>'issue_type' ELSE issue_type END,
+    metadata=CASE WHEN p_patch ? 'metadata' THEN p_patch->'metadata' ELSE metadata END,
+    completed_at=CASE WHEN p_patch ? 'completed_at' THEN (p_patch->>'completed_at')::TIMESTAMPTZ ELSE completed_at END,
+    closed_at=CASE WHEN p_patch ? 'closed_at' THEN (p_patch->>'closed_at')::TIMESTAMPTZ ELSE closed_at END,
+    close_reason=CASE WHEN p_patch ? 'close_reason' THEN p_patch->>'close_reason' ELSE close_reason END
+  WHERE id=p_issue_id
+  RETURNING * INTO v_issue;
+
+  RETURN jsonb_build_object('success',TRUE,'issue',to_jsonb(v_issue));
+END;
+$mutation$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION notify_projection_insert() RETURNS TRIGGER AS $projection$
 DECLARE

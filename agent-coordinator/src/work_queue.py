@@ -777,11 +777,26 @@ class WorkQueueService:
             decision = await get_policy_engine().check_operation(
                 agent_id=resolved_agent_id,
                 agent_type=resolved_agent_type,
-                operation="submit_work",
+                operation=(
+                    "publish_work_projection"
+                    if parsed_projection is not None
+                    else "submit_work"
+                ),
+                resource=(
+                    parsed_projection.change_id if parsed_projection is not None else ""
+                ),
                 context={
                     "task_type": task_type,
                     "priority": priority,
                     "has_dependencies": bool(depends_on),
+                    **(
+                        {
+                            "mode": "submit",
+                            "change_id": parsed_projection.change_id,
+                        }
+                        if parsed_projection is not None
+                        else {}
+                    ),
                 },
             )
             if not decision.allowed:
@@ -907,9 +922,11 @@ class WorkQueueService:
         decision = await get_policy_engine().check_operation(
             agent_id=config.agent.agent_id,
             agent_type=config.agent.agent_type,
-            operation="submit_work",
+            operation="publish_work_projection",
+            resource=key.change_id,
             context={
                 "mode": "reconcile",
+                "change_id": key.change_id,
                 "task_type": task_type,
                 "priority": priority,
             },
