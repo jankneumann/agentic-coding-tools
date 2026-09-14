@@ -71,9 +71,6 @@ packages:
         apis:
           reason: "No new HTTP/API surface; behavioral contract is YAML + existing provider-model-map schema."
           approved_by: plan
-        architecture:
-          reason: "No architecture-diagram change; consolidation of existing config authorship only."
-          approved_by: plan
     worktree:
       name: consolidate-model-tier-sources-wp-main
       mode: isolated
