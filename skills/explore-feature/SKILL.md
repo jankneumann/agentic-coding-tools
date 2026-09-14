@@ -312,6 +312,8 @@ Write/update machine-readable discovery artifacts:
 - `docs/feature-discovery/opportunities.json` (current ranked opportunities)
 - `docs/feature-discovery/history.json` (recent top recommendations with timestamps/status)
 
+After persisting `opportunities.json`, run `python3 <agent-skills-dir>/explore-feature/scripts/candidate_projection.py docs/feature-discovery/opportunities.json`. This writes the adjacent `explore-feature-candidate-work.json` sidecar; pass `--output <path>` to override it. Existing or scaffolded opportunities are skipped, and a successful empty shortlist replaces stale owned output with `[]`.
+
 Rules:
 - If an opportunity from recent history is still deferred and unchanged, lower its default priority unless new evidence justifies reranking
 - Include stable IDs so `/prioritize-proposals` can reference opportunities without text matching

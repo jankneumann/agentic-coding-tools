@@ -1,4 +1,5 @@
-"""Content invariants for the bug-scrub skill."""
+"""Content invariants for the improve-harness skill."""
+
 from pathlib import Path
 
 from skill_invariants import (
@@ -6,10 +7,9 @@ from skill_invariants import (
     assert_references_resolve,
     assert_related_resolve,
     assert_required_keys_present,
-    assert_tail_block_present,
 )
 
-SKILL_DIR = Path(__file__).resolve().parents[2] / "bug-scrub"
+SKILL_DIR = Path(__file__).resolve().parents[2] / "improve-harness"
 
 
 def test_frontmatter_parses():
@@ -28,11 +28,7 @@ def test_related_resolve():
     assert_related_resolve(SKILL_DIR)
 
 
-def test_tail_block_present():
-    assert_tail_block_present(SKILL_DIR)
-
-
 def test_candidate_work_sidecar_is_documented():
     text = (SKILL_DIR / "SKILL.md").read_text()
     assert "--candidate-work-output" in text
-    assert "bug-scrub-candidate-work.json" in text
+    assert "improve-harness-candidate-work.json" in text
