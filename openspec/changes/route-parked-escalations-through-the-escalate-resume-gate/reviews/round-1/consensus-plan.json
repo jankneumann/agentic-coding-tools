@@ -1,0 +1,395 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 13,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 5
+        },
+        {
+          "vendor": "codex",
+          "finding_id": 2
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "escalate",
+      "description": "Post-persist routing boundary guarantees that routing failures cannot cause dispatch_fn side-effect replay.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix",
+        "codex": "fix",
+        "grok": "fix"
+      }
+    },
+    {
+      "id": 2,
+      "status": "disagreement",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 7
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "escalate",
+      "description": "Critical: D1 specifies `ExecutionAdapter.route_parked_escalations(workspace, batch_id, repo_root, evaluator=None)` as a new adapter method that reloads the checkpoint, but never states its locking discipline \u2014 and the sibling pattern it will be written to match self-deadlocks. Every other durable adapter method (`prepare`, `child_start`, `acknowledge`, `reconcile`, `resume`, `apply`) carries `@_serialized_transition` (skills/supervise/scripts/execution.py:133-141), which calls `_state_lock` (execution.py:116-131). `_state_lock` does a fresh `os.open` and `fcntl.flock(fd, LOCK_EX)` on every entry; flock locks are held by the open file description, not the process, so a second acquisition from the same process on a new descriptor blocks on the first rather than being granted. Routing calls `gate_router.resolve_parked` (gate_router.py:654-659), which on PROCEED calls `adapter.resume` \u2014 itself `@_serialized_transition` (execution.py:856). A decorated `route_parked_escalations` therefore hangs the supervise session forever on the very first auto-posture escalation, with the attempt durably parked and the host blocked mid-cycle (no timeout, no error, nothing to retry). This is a code-level trace of the existing lock helper, not an executed run \u2014 the sandbox declined to run Python here.",
+      "vendor_dispositions": {
+        "claude_code": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: making routing automatic converts the router's dispatch-scoped prior-record rule into an unbounded auto-resume loop with no human in it. The escalate_resume subject key is `(gate, roadmap_id, dispatch_id)` (gate_router.py:152-157), and `resume` preserves `dispatch_id`, `attempt`, and `launch_token`, incrementing only `lease_generation` (execution.py:889-906). `_apply_prior_record` returns a reused decision immediately for any prior `outcome == \"proceed\"` without consulting the posture (gate_router.py:462-463), and `resolve_parked` then calls `adapter.resume` on every reuse \u2014 the existing test asserts exactly this and comments it: \"resume() is still called each time; only evaluation is deduped\" (skills/tests/supervise/test_gate_router.py:592). `require_approval_ref` accepts the same stale `gate-decision:<id>` because gate, outcome, and dispatch_id all still match (gate_router.py:705-723). So once escalate_resume proceeds once for a dispatch, every subsequent ESCALATE of that same dispatch auto-resumes off the original record: escalate \u2192 auto-resume \u2192 child re-runs and exhausts its budget \u2192 escalate \u2192 auto-resume, forever, never re-reading TRUST_POSTURE.md and never reaching a coordinator, each cycle costing a full child dispatch. Under today's manual reconciliation this needed a human to re-trigger each pass; the change removes that damper and the plan adds no bound. The spec's 'Repeated reconciliation' scenario only covers re-routing the *same* park, not a second park of the same dispatch."
+    },
+    {
+      "id": 4,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 1
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Nit: the artifacts disagree on where the resolution list surfaces, which is precisely the boundary this change's retry-safety argument rests on. The spec scenario says 'the bounded **apply result** reports the correlated escalation resolution', and contracts/README.md:3 says 'The observable Python return value adds a bounded `escalation_resolutions` list while preserving existing keys' \u2014 both read as an addition to `ExecutionAdapter.apply`'s return. Design D4 (design.md:23) and task 2.3 (tasks.md:14) say the opposite: apply and all its existing return keys are unchanged, and resolutions come from `route_parked_escalations`. A conformant implementation would fail the spec as written; an implementation satisfying the spec would break the stated compatibility guarantee."
+    },
+    {
+      "id": 5,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 5
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Optional: Clarify advisory lock scoping for ExecutionAdapter.route_parked_escalations to prevent flock non-reentrancy.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "codex": "accept",
+        "grok": "fix"
+      }
+    },
+    {
+      "id": 6,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "behavioral_failure",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: the plan verifies resume up to the generation increment and stops, but the resumed generation appears unable to ever have its next result applied \u2014 so the acceptance outcome 'the exhausted dispatch resumed' can pass while the item can never complete. `ExecutionAdapter.resume` pops `lease`, `launch_evidence`, `launch_gate`, `parked`, `quarantine`, `outcome`, `resolved_at`, `handoff_id` but leaves `application_journal` in place (execution.py:893-903), still at `effects_applied` and bound to the previous result. The resumed attempt keeps its original `dispatch_id`, hence its original `batch_id` prefix, and `prepare_delegated_batch` excludes items with an unresolved attempt status \u2014 `prepared` is one (orchestrator.py:162-165) \u2014 so no new batch can ever carry it. Re-applying the original batch reaches `_bound_application_journal(attempt, result)` in the pre-pass (orchestrator.py:643, helper at 522-535), which compares the stored journal result against the new one; they always differ (at minimum `lease_generation`), so it raises 'bound dispatch result mismatch'. No existing test applies a batch after a resume \u2014 test_execution.py:942 stops at `enter` \u2014 so this dead end is currently unobserved. ri-06 puts it on the critical path by making proceed-resume the automatic outcome of every auto-posture escalation."
+    },
+    {
+      "id": 7,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "observability",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: The blocked `escalate_resume` handoff guarantee is not executable as written. The requirement says the supervisor mirror and rehydrated handoff contain the pending gate and deadline, but the tasks only require generic pending-gate coverage and documentation; the existing supervise flow writes supervisor handoffs for intake/cycle, while this routing occurs during execute/apply, so the coordinator handoff can remain stale unless the plan defines an execute-time handoff write or explicitly relies on newer-mirror rehydration."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: the notify-with-timeout scenario specifies the notification window but no bound on the routing call itself. `ApprovalGate.evaluate` under notify_with_timeout files, notifies, then blocks in `while self.clock() < deadline` polling `check_approval` until the human answers or `timeout_seconds` elapses (skills/shared/approval_gate.py:459-483). Routing runs synchronously in the supervise host immediately after apply, one attempt at a time, so a batch with N parked escalations blocks the session for up to N \u00d7 timeout_seconds with no stated ceiling. Under the current manual path a human chose when to pay that cost; the change makes it mandatory at every failure boundary."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: task 2.1 says the method 'reloads the checkpoint' and scans it, but does not constrain what it may do with that in-memory copy \u2014 and the natural read-modify-write shape corrupts the audit trail. `gate_router.evaluate` builds its own `CheckpointManager`, appends via `record_gate_decision`, and rewrites the whole document (checkpoint.py:98-114, 55-62); `resume` does the same through `_load_attempt`. A routing method that keeps its scan-time `Checkpoint` object across those calls and later saves it would silently clobber the gate-decision records the router just wrote, and a scan-time status snapshot would let an attempt already resumed by an interleaved path be routed a second time."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: task 3.1 will edit SKILL.md into a structural guard the plan never mentions. `test_prose_free_gates.py::test_every_gate_name_sits_in_a_protocol_block` fails if `escalate_resume` appears anywhere in skills/supervise/SKILL.md outside a fenced block containing `gate-check`, `gate-answer`, or `resolve_parked` (marker list at test_prose_free_gates.py:93), and the module docstring records the deliberate invariant that supervise documents this gate generically \u2014 today's prose says 'the ESCALATE-resume gate' for exactly that reason (SKILL.md:396). A new fenced block showing only `adapter.route_parked_escalations(...)` is not recognised as a protocol block, so naming the gate near it fails the suite. Test Strategy item 4 lists only the pending_gate/failed/quarantine guards."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: the requirement's load-bearing clause \u2014 'the host SHALL immediately invoke its retryable parked-escalation operation' \u2014 has no executable verification anywhere in the plan. The new tests exercise the method in isolation; nothing asserts the host actually calls it after apply, so the whole change can regress to the status quo (routing only when a later session notices) with a green suite. The repo has direct precedent for pinning host sequencing in the document: `test_workflow_contract.py` already asserts the collect/apply and ack/go orderings from SKILL.md prose."
+    },
+    {
+      "id": 12,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Optional: D4 bounds what routing returns but says nothing about what it sends. `resolve_parked` puts the child's `parked.reason` into the evaluation context (gate_router.py:641-647), and `ApprovalGate._notify` forwards that whole context to the coordinator via `request_approval(context=ctx)` and interpolates it into the notification body (`parts.append(f\"Context: {ctx}\")`, approval_gate.py:435-451, 676-686). The reason is bounded and schema-validated (\u22641024 chars, execution.py:420-433) but not scrubbed \u2014 `_SECRET_KEY` filtering applies to dispatch-context *keys*, never to this value. This change makes that the first automatic outbound path at a phase-failure boundary, which is where a reason is most likely to carry error or log text."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Idempotent handling of an already-proceeded decision is incomplete for the new method. Existing gate_router tests show a reused proceed still calls adapter.resume while the attempt remains parked; after a successful resume the attempt is prepared, so a retried route_parked_escalations scan omits it and returns no resolution for that dispatch_id. The ADDED \u201cRepeated reconciliation\u201d scenario only covers blocked prior-record reuse, not the already-resumed case the host must observe after a crash between resume and returning the bounded list."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: Clarify in contracts/README.md that the escalation resolutions list is returned by ExecutionAdapter.route_parked_escalations rather than modifying ExecutionAdapter.apply."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Bounded escalation resolution summaries provide clean, transcript-free progress reporting for host execution loops."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Exclusion rules correctly restrict automated escalation routing exclusively to policy_pause parked attempts."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: task 3.2 tells the implementer to run `skills/install.sh`, but the package's `write_allow` only permits `.claude/skills/supervise/**` and `.agents/skills/supervise/**`. install.sh has no per-skill mode \u2014 `--agents` selects harness roots, not skills \u2014 so it rsyncs every portable skill's runtime mirror. If any other mirror is already stale, the run writes outside the declared scope and trips the write audit for a reason unrelated to this change."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: the Why frames the defect as routing happening 'only when a later session happens to discover the parked attempt', but the fix is scoped to the named batch (D1), so any attempt parked in an earlier batch \u2014 or parked in this one when the session dies before routing completes \u2014 still falls back to exactly that discovery path via SKILL.md's existing 'Reconcile and resume' section. That is a defensible boundary given the retry-safety argument, but it is currently unstated, so a reader could conclude the discovery gap is closed in general."
+    },
+    {
+      "id": 19,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 13,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 9
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Three of the review's target guarantees hold as specified and are worth recording as verified. (a) Exclusions are structural, not conventional: filtering on durable `status == \"parked\"` plus `parked.kind == \"policy_pause\"` cannot reach a `pending_gate` (different kind), a failure (status `failed`), or a quarantine (status `quarantined`, which `resume` refuses outright at execution.py:871-872). (b) Post-parking ordering is real: `_terminal_attempt` sets `status=\"parked\"`, `lease.state=\"released\"`, and advances the journal to `terminal_persisted` with a save before effects (orchestrator.py:588-610, 716-720), so routing after apply always sees a durably parked, lease-released attempt. (c) The mirror/handoff guarantee needs no schema work: `escalate_resume` is already in the `gate` enum of both supervisor-record.schema.json and supervisor-record-mirror.schema.json, `approval_id` is nullable, `_clean_pending_gate` preserves `deadline`, `disposition`, and `decision_id` (cycle_state.py:236-273), and `_durable_sections` expires standing decisions but never pending gates (cycle_state.py:390-404), so a blocked escalate_resume entry survives rehydration with its computed deadline. Separately, the D5 apply/route split is belt-and-braces rather than the sole protection: the application journal already makes `dispatch_fn` at-most-once per generation (orchestrator.py:682-695, 722-723), so even a mistaken `apply` retry could not replay the callback."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Because route_parked_escalations delegates to gate_router.resolve_parked \u2192 ApprovalGate.evaluate, a notify_with_timeout posture synchronously files, notifies, and polls until timeout T inside the execute host\u2014potentially once per exhausted dispatch in the batch. This matches existing gate-check/resolve_parked behavior and is acceptable if intentional, but the plan never calls out the blocking cost on the supervise execute path."
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Feasibility checks against the current code hold: apply_delegated_batch\u2019s _terminal_attempt sets lease.state=released before apply returns; resolve_parked already maps policy_pause\u2192escalate_resume, projects blocked pending_gates with requested_at+T deadlines, and reuses proceed/blocked subject keys; ExecutionAdapter.resume already enforces gate-decision approval_ref for policy_pause. The plan composes these seams rather than inventing a second gate path."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 21,
+    "confirmed_count": 5,
+    "unconfirmed_count": 13,
+    "disagreement_count": 3,
+    "blocking_count": 7
+  }
+}

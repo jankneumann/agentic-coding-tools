@@ -1,0 +1,128 @@
+schema_version: 1
+
+feature:
+  id: route-parked-escalations-through-the-escalate-resume-gate
+  title: "Route parked escalations through the escalate-resume gate"
+  plan_revision: 4
+  created_by: autopilot-roadmap
+  deployable: false
+
+contracts:
+  revision: 3
+  openapi:
+    primary: "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md"
+    files:
+      - "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md"
+      - "openspec/schemas/gate-decision.schema.json"
+
+defaults:
+  priority: 2
+  lock_ttl_minutes: 180
+  timeout_minutes: 240
+  retry_budget: 2
+  verification_tier_required: A
+  min_trust_level: 3
+
+packages:
+  - package_id: wp-authority-recovery
+    title: "Checkpoint authority and resumed-batch recovery"
+    task_type: implementation
+    description: |
+      Implement the coupled checkpoint transaction, generation-safe gate routing,
+      and current-journal delegated result cohort as one serial package. These
+      surfaces share the same durable checkpoint authority and must not be split
+      across concurrent writers.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/roadmap-runtime/scripts/checkpoint.py"
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "skills/supervise/scripts/gate_router.py"
+        - "skills/supervise/scripts/execution.py"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+      keys:
+        - "feature:route-parked-escalations-through-the-escalate-resume-gate:authority"
+        - "contract:supervise.escalation-routing"
+        - "contract:roadmap.delegated-current-cohort"
+      ttl_minutes: 240
+      reason: "One shared checkpoint authority spans routing, resume, and delegated apply."
+    scope:
+      write_allow:
+        - "skills/roadmap-runtime/scripts/checkpoint.py"
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "skills/supervise/scripts/gate_router.py"
+        - "skills/supervise/scripts/execution.py"
+        - "skills/supervise/scripts/cycle_state.py"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/supervise/SKILL.md"
+        - "openspec/schemas/gate-decision.schema.json"
+        - "skills/tests/roadmap-runtime/**"
+        - "skills/tests/supervise/**"
+        - "skills/tests/autopilot-roadmap/**"
+        - "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/**"
+        - ".claude/skills/supervise/**"
+        - ".agents/skills/supervise/**"
+        - "docs/decisions/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - semantic_code
+        - documentation
+        - capabilities
+        - decisions
+    worktree:
+      name: authority-recovery
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Recovery regression suites"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime skills/tests/supervise skills/tests/autopilot-roadmap -q"
+          evidence:
+            artifacts: []
+            result_keys: ["recovery_suites"]
+        - name: "Ruff changed surfaces"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/roadmap-runtime/scripts skills/supervise/scripts skills/autopilot-roadmap/scripts skills/tests/roadmap-runtime skills/tests/supervise skills/tests/autopilot-roadmap"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff"]
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate route-parked-escalations-through-the-escalate-resume-gate --strict && openspec validate --strict --all"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict", "openspec_all"]
+        - name: "Work-package validation"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml"
+          evidence:
+            artifacts: []
+            result_keys: ["package_validation"]
+        - name: "Context drift gate"
+          kind: command
+          command: "make context-drift-gate"
+          evidence:
+            artifacts: []
+            result_keys: ["context_drift"]
+        - name: "Post-sync package scope"
+          kind: manual
+          manual_instructions: "Run the implementation orchestrator's canonical scope checker and record any inherited-only drift separately."
+          evidence:
+            artifacts: []
+            result_keys: ["scope_compliance"]
+    metadata:
+      loc_estimate: 700
+      complexity: high
+      package_kind: integration
+    outputs:
+      result_keys: ["recovery_suites", "ruff", "openspec_strict", "openspec_all", "package_validation", "context_drift", "scope_compliance"]
