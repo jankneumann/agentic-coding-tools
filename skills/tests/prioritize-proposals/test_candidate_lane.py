@@ -317,3 +317,17 @@ def test_cli_accepts_repeatable_candidate_work_and_keeps_lane_distinct(
         "add-a",
         "add-z",
     ]
+
+
+def test_lifecycle_collection_errors_remain_candidate_lane_errors(
+    tmp_path: Path,
+) -> None:
+    roadmap = tmp_path / "openspec/roadmaps/broken/roadmap.yaml"
+    roadmap.parent.mkdir(parents=True)
+    roadmap.write_text("roadmap_id: broken\n", encoding="utf-8")
+    candidates = _write(
+        tmp_path / "candidates.json", [_candidate("add-candidate")]
+    )
+
+    with pytest.raises(CandidateLaneError, match="requires roadmap_id and items"):
+        load_and_rank_candidate_work([candidates], repo_root=tmp_path)

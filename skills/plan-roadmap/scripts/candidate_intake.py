@@ -26,6 +26,8 @@ for _directory in (
 
 from candidate_work import (  # type: ignore[import-untyped]
     CandidateWorkValidationError,
+    collect_lifecycle_records,
+    LifecycleCollectionError,
     LifecycleRecord,
     load_candidate_work,
     resolve_dependency,
@@ -47,7 +49,6 @@ from scaffolder import scaffold_change
 
 _KEBAB_CASE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _ITEM_ID = re.compile(r"^ri-(\d+)$")
-_ARCHIVE_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}-(.+)$")
 _PREVIEW_ATTEMPTS = 3
 
 
@@ -110,25 +111,6 @@ def _kebab_case(value: str, field: str) -> str:
     return value
 
 
-def _archive_change_id(directory_name: str) -> str:
-    match = _ARCHIVE_PREFIX.fullmatch(directory_name)
-    return match.group(1) if match else directory_name
-
-
-def _roadmap_records(roadmap: Roadmap) -> list[LifecycleRecord]:
-    return [
-        LifecycleRecord(
-            change_id=item.change_id,
-            source="roadmap",
-            status=item.status.value,
-            roadmap_id=roadmap.roadmap_id,
-            item_id=item.item_id,
-        )
-        for item in roadmap.items
-        if item.change_id
-    ]
-
-
 def _active_roadmaps(repo_root: Path) -> dict[str, Roadmap]:
     roadmaps, errors = load_all_roadmaps_strict(repo_root)
     if errors:
@@ -139,46 +121,13 @@ def _active_roadmaps(repo_root: Path) -> dict[str, Roadmap]:
 
 
 def _lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
-    roadmaps = _active_roadmaps(repo_root)
-    records = [
-        record
-        for roadmap in roadmaps.values()
-        for record in _roadmap_records(roadmap)
-    ]
-
-    roadmap_archive = repo_root / "openspec" / "roadmaps" / "archive"
-    if roadmap_archive.is_dir():
-        for path in sorted(roadmap_archive.glob("*/roadmap.yaml")):
-            try:
-                records.extend(_roadmap_records(load_roadmap(path, repo_root)))
-            except (OSError, TypeError, KeyError, ValueError) as exc:
-                raise CandidateIntakeError(
-                    f"archived roadmap {path.relative_to(repo_root)} could not be loaded: {exc}"
-                ) from exc
-
-    changes = repo_root / "openspec" / "changes"
-    if changes.is_dir():
-        for path in sorted(changes.iterdir()):
-            if path.is_dir() and path.name != "archive":
-                records.append(
-                    LifecycleRecord(
-                        change_id=path.name,
-                        source="active_change",
-                        status="active",
-                    )
-                )
-        archive = changes / "archive"
-        if archive.is_dir():
-            for path in sorted(archive.iterdir()):
-                if path.is_dir():
-                    records.append(
-                        LifecycleRecord(
-                            change_id=_archive_change_id(path.name),
-                            source="archive",
-                            status="completed",
-                        )
-                    )
-    return records
+    """Compatibility seam delegating to the shared lifecycle collector."""
+    try:
+        return collect_lifecycle_records(repo_root)
+    except LifecycleCollectionError as exc:
+        raise CandidateIntakeError(
+            "roadmap lifecycle registry could not be loaded: " + str(exc)
+        ) from exc
 
 
 def _assert_roadmap_id_available(roadmap_id: str, repo_root: Path) -> None:

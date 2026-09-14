@@ -40,6 +40,8 @@ them in argument order, and rejects duplicates across the merged union before ra
 
 ## Approved intake contract
 
+The shared lifecycle collector reads roadmap identity, item identity, change ID, and status without requiring archived roadmaps to satisfy the current full roadmap schema. Ranking, intake, and explore-feature known-change filtering consume that same exact model; malformed lifecycle fields fail consistently, while lifecycle-readable legacy archives remain usable.
+
 The plan-roadmap intake accepts one schema-valid stub plus non-empty measurable
 acceptance outcomes. New-roadmap mode also requires an approved roadmap ID and
 capability and returns a complete schema-version-1 envelope using `provenance.source_artifact` as `source_proposal`. Existing-roadmap mode
