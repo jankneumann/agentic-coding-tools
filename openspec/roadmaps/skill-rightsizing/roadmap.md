@@ -2,7 +2,6 @@
 
 > Source: `docs/proposals/skill-rightsizing-roadmap.md` | Status: **planning** | Items: 20
 
-
 <!-- GENERATED: begin phase-table -->
 ## Phase Table
 
@@ -25,7 +24,7 @@
 | 2 | Delete the Common Rationalizations block and relax the tail-block invariants | M | candidate | ri-09 |
 | 2 | Cut competence-restating rules and relocate genuine project policy | M | candidate | ri-09 |
 | 2 | Apply progressive disclosure to the eleven oversized skills | L | candidate | ri-12, ri-13, ri-14 |
-| 2 | Rescope review convergence from consensus to disagreement routing | M | candidate | ri-06 |
+| 2 | Rescope review convergence to disagreement routing and orchestrator adjudication | L | candidate | ri-06 |
 | 2 | Invert the skill test suite from shape assertions to behavioural scenarios | M | candidate | ri-17 |
 | 3 | Calibrate the LLM judge against human labels | M | candidate | ri-05 |
 <!-- GENERATED: end phase-table -->
@@ -51,7 +50,7 @@ graph TD
     ri-13["Delete the Common Rationalizations block"]
     ri-14["Cut competence-restating rules and reloc"]
     ri-15["Apply progressive disclosure to the elev"]
-    ri-16["Rescope review convergence from consensu"]
+    ri-16["Rescope review convergence to disagreeme"]
     ri-17["Run the sealed holdout and apply the pre"]
     ri-18["Invert the skill test suite from shape a"]
     ri-19["Assert in CI that skill-generated artifa"]
@@ -347,20 +346,24 @@ Restructure each SKILL.md over 500 lines into an index plus reference files one 
 - [ ] Reference files over 100 lines carry a table of contents.
 - [ ] Measured per-run context consumption falls for at least one skill where a phase is skipped.
 
-### ri-16: Rescope review convergence from consensus to disagreement routing
+### ri-16: Rescope review convergence to disagreement routing and orchestrator adjudication
 
 - **Status**: candidate
 - **Priority**: 2
-- **Effort**: M
+- **Effort**: L
 - **Change ID**: rescope-review-convergence-disagreement-routing
 - **Depends on**: `ri-06`
 
-Stop treating multi-vendor agreement as a proxy for correctness in the review convergence loop, and repurpose disagreement as a triage signal that routes contested findings into human review.
+Stop treating multi-vendor agreement as a proxy for correctness in every review gate: the autopilot convergence loop and the merge-pull-requests execute_plan vendor gate. Disagreement becomes a triage signal. A high/critical judgment finding that no other vendor confirmed is neither advisory nor sent straight to a human: the orchestrator verifies it against the code under a schema-constrained rubric, code computes block, pass or human-gate from the verdicts, and only claims that cannot be verified or refuted reach the human queue.
 
 **Acceptance outcomes**:
-- [ ] Convergence output distinguishes contested findings from agreed findings and routes contested ones to a human queue.
+- [ ] Convergence output distinguishes contested findings from agreed findings.
 - [ ] No gate treats unanimous vendor agreement as sufficient evidence of correctness on its own.
-- [ ] Routing precision is reported against the seeded-defect set from ri-06.
+- [ ] Both the autopilot convergence loop and the merge-pull-requests execute_plan gate use one shared predicate for unconfirmed high/critical judgment findings, and neither passes such a finding as advisory; each returns adjudication_required instead.
+- [ ] The orchestrator records a schema-validated verdict per finding (claim verified, refuted or unverifiable; required file:line evidence for verified and refuted; impact_if_true blocking or non_blocking; calibrated criticality; justification), stamped with adjudicator identity and the reviewed head SHA. A verdict is stale once the head moves.
+- [ ] Gate outcomes are computed in code from verdicts: verified plus blocking blocks with a fix hand-off, unverifiable plus blocking routes to the human queue, and refuted or non_blocking passes. Only unverifiable blocking claims reach a human.
+- [ ] Adjudication performed by the same vendor family that authored the change is recorded and flagged in the gate result.
+- [ ] Routing and adjudication precision are reported against the ri-06 seeded-defect set, and a PR #484 replay fixture (7 single-vendor criticals) yields exactly the two verified blocking verdicts.
 
 ### ri-18: Invert the skill test suite from shape assertions to behavioural scenarios
 
