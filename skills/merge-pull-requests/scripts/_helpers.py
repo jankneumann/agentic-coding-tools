@@ -194,6 +194,7 @@ def quarantine_new_untracked(before: set[str], dest: Path) -> dict:
     """
     result: dict = {
         "new_untracked": [],
+        "moved": [],
         "quarantined_to": None,
         "errors": [],
     }
@@ -204,14 +205,27 @@ def quarantine_new_untracked(before: set[str], dest: Path) -> dict:
     result["new_untracked"] = new
     if not new:
         return result
+    # A destination inside the checkout (relative, or an in-repo override)
+    # would only relocate each file to another untracked path that the next
+    # `git add -A` still publishes. Refuse and leave the files for the caller
+    # to report as a failure.
+    resolved = dest.resolve()
+    if resolved.is_relative_to(top.resolve()):
+        result["errors"].append(
+            f"quarantine destination {resolved} is inside the checkout {top}; "
+            "nothing was moved"
+        )
+        return result
     for rel in new:
-        target = dest / rel
+        target = resolved / rel
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(top / rel), str(target))
+            result["moved"].append(rel)
         except OSError as exc:
             result["errors"].append(f"{rel}: {exc}")
-    result["quarantined_to"] = str(dest)
+    if result["moved"]:
+        result["quarantined_to"] = str(resolved)
     return result
 
 

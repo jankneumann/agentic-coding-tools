@@ -141,3 +141,92 @@ def test_dispatch_quarantines_files_a_vendor_writes(
     assert guard["new_untracked"] == ["pr99_review.json"]
     assert not (repo / "pr99_review.json").exists()
     assert list((tmp_path / "artifacts").rglob("pr99_review.json"))
+
+
+def test_destination_inside_checkout_is_refused(repo: Path) -> None:
+    """Codex review on #549: moving into the checkout only relocates the file."""
+    before = capture_untracked()
+    (repo / "pr1_review.json").write_text("{}\n")
+
+    guard = quarantine_new_untracked(before, repo / ".vendor-artifacts")
+
+    assert guard["new_untracked"] == ["pr1_review.json"]
+    assert guard["quarantined_to"] is None
+    assert guard["errors"] and "inside the checkout" in guard["errors"][0]
+    assert (repo / "pr1_review.json").exists()
+    assert not (repo / ".vendor-artifacts").exists()
+
+
+def test_failed_move_is_reported_per_file(repo: Path, tmp_path: Path) -> None:
+    before = capture_untracked()
+    (repo / "pr1_review.json").write_text("{}\n")
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("a file where the quarantine directory should be\n")
+
+    guard = quarantine_new_untracked(before, blocker)
+
+    assert guard["errors"] and guard["errors"][0].startswith("pr1_review.json:")
+    assert guard["moved"] == []
+    assert (repo / "pr1_review.json").exists()
+
+
+def _fake_dispatcher(monkeypatch: pytest.MonkeyPatch, dispatch) -> None:
+    import vendor_review
+
+    class FakeOrchestrator:
+        adapters = {"fake": object()}
+
+        @classmethod
+        def from_coordinator(cls) -> "FakeOrchestrator":
+            return cls()
+
+        def discover_reviewers(self, exclude_vendor: str):
+            return [SimpleNamespace(available=True)]
+
+        def dispatch_and_wait(self, *, cwd: Path, **_kwargs):
+            return dispatch(Path(cwd))
+
+    fake = ModuleType("review_dispatcher")
+    fake.ReviewOrchestrator = FakeOrchestrator
+    fake.ReviewResult = object
+    monkeypatch.setitem(sys.modules, "review_dispatcher", fake)
+    monkeypatch.setattr(vendor_review, "build_review_prompt", lambda *_a: "prompt")
+
+
+def test_guard_runs_when_dispatch_raises(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Codex review on #549: an interrupted review must still clean up."""
+    import vendor_review
+
+    def dispatch(cwd: Path):
+        (cwd / "partial_review.json").write_text("{}\n")
+        raise KeyboardInterrupt
+
+    _fake_dispatcher(monkeypatch, dispatch)
+    monkeypatch.setenv("MERGE_VENDOR_ARTIFACT_DIR", str(tmp_path / "artifacts"))
+
+    with pytest.raises(KeyboardInterrupt):
+        vendor_review.dispatch_vendor_reviews(7, {"changed_lines": 100})
+
+    assert not (repo / "partial_review.json").exists()
+    assert list((tmp_path / "artifacts").rglob("partial_review.json"))
+
+
+def test_unquarantined_vendor_file_fails_the_review(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A relative override resolves inside the checkout; the review must not pass."""
+    import vendor_review
+
+    def dispatch(cwd: Path):
+        (cwd / "pr8_review.json").write_text("{}\n")
+        return []
+
+    _fake_dispatcher(monkeypatch, dispatch)
+    monkeypatch.setenv("MERGE_VENDOR_ARTIFACT_DIR", ".vendor-artifacts")
+
+    result = vendor_review.dispatch_vendor_reviews(8, {"changed_lines": 100})
+
+    assert result["error"] and "pr8_review.json" in result["error"]
+    assert (repo / "pr8_review.json").exists()
