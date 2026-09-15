@@ -28,6 +28,7 @@ import tempfile
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 from pathlib import Path
 from collections.abc import Iterator
 from typing import Any, Callable, Optional, Union
@@ -139,6 +140,40 @@ class ParkedResolution:
     pending_gate_entry: Optional[dict[str, Any]] = None
 
 
+def _serialize_escalate_answer(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Serialize manual answers with routing for the current parked generation."""
+    @wraps(method)
+    def wrapped(gate: Union[Gate, str], *args: Any, **kwargs: Any) -> Any:
+        gate_enum = gate if isinstance(gate, Gate) else Gate(gate)
+        if gate_enum is not Gate.ESCALATE_RESUME:
+            return method(gate, *args, **kwargs)
+
+        workspace = Path(kwargs["workspace"])
+        repo_root = Path(kwargs["repo_root"])
+        context = dict(kwargs.get("context") or {})
+        dispatch_id = context.get("dispatch_id")
+        if not isinstance(dispatch_id, str):
+            raise GateRefusalError("escalate_resume requires a dispatch_id")
+
+        manager = CheckpointManager(workspace, repo_root)
+        if not manager.exists():
+            raise GateRefusalError("escalate_resume requires a current parked policy_pause attempt")
+        attempt = _current_parked_policy_pause_attempt(manager.load(), dispatch_id=dispatch_id)
+        if attempt is None:
+            raise GateRefusalError("escalate_resume requires a current parked policy_pause attempt")
+        generation = attempt.get("lease_generation")
+        requested_generation = context.get("lease_generation")
+        if requested_generation is not None and requested_generation != generation:
+            raise GateRefusalError("escalate_resume answer does not match the current parked generation")
+
+        context["lease_generation"] = generation
+        kwargs["context"] = context
+        with _escalate_subject_lock(workspace, dispatch_id, generation):
+            return method(gate_enum, *args, **kwargs)
+
+    return wrapped
+
+
 # --------------------------------------------------------------------------- #
 # D5: roadmap fingerprint — the shape an approval authorizes, not its progress
 # --------------------------------------------------------------------------- #
@@ -225,6 +260,20 @@ def _latest_record_for_subject(
     return max(candidates, key=lambda r: str(r.get("recorded_at") or ""))
 
 
+def _current_parked_policy_pause_attempt(
+    checkpoint: Any, *, dispatch_id: str, lease_generation: Optional[int] = None
+) -> Optional[dict[str, Any]]:
+    for attempt in getattr(checkpoint, "dispatch_attempts", None) or []:
+        if (
+            attempt.get("dispatch_id") == dispatch_id
+            and attempt.get("status") == "parked"
+            and (attempt.get("parked") or {}).get("kind") == "policy_pause"
+            and (lease_generation is None or attempt.get("lease_generation") == lease_generation)
+        ):
+            return attempt
+    return None
+
+
 def _newest_blocked_escalate_record(
     checkpoint: Any, *, roadmap_id: str, dispatch_id: str, lease_generation: Optional[int]
 ) -> Optional[dict[str, Any]]:
@@ -235,7 +284,11 @@ def _newest_blocked_escalate_record(
         and record.get("roadmap_id") == roadmap_id
         and record.get("dispatch_id") == dispatch_id
         and record.get("outcome") == "blocked"
-        and (lease_generation is None or record.get("lease_generation") == lease_generation)
+        and (
+            lease_generation is None
+            or record.get("lease_generation") is None
+            or record.get("lease_generation") == lease_generation
+        )
     ]
     if not candidates:
         return None
@@ -587,7 +640,16 @@ def _apply_prior_record(
         # the caller records it only after `_project` succeeds.
         extra = {
             k: prior[k]
-            for k in ("source", "verb", "roadmap_id", "change_id", "dispatch_id", "item_id", "roadmap_fingerprint")
+            for k in (
+                "source",
+                "verb",
+                "roadmap_id",
+                "change_id",
+                "dispatch_id",
+                "item_id",
+                "roadmap_fingerprint",
+                "lease_generation",
+            )
             if k in prior
         }
         extra["decision_id"] = str(uuid.uuid4())
@@ -623,6 +685,7 @@ def _decision_from_record(record: dict[str, Any]) -> ApprovalDecision:
 # --------------------------------------------------------------------------- #
 
 
+@_serialize_escalate_answer
 def answer(
     gate: Union[Gate, str],
     *,
@@ -650,15 +713,27 @@ def answer(
     fingerprint = roadmap_fingerprint(roadmap) if gate_enum is Gate.ROADMAP_APPROVAL else None
     dispatch_id = ctx.get("dispatch_id")
     if gate_enum is Gate.ESCALATE_RESUME:
-        if not isinstance(dispatch_id, str):
-            raise GateRefusalError("escalate_resume requires a dispatch_id")
+        current_attempt = _current_parked_policy_pause_attempt(
+            checkpoint,
+            dispatch_id=dispatch_id,
+            lease_generation=ctx.get("lease_generation"),
+        )
+        if current_attempt is None:
+            raise GateRefusalError("escalate_resume requires a current parked policy_pause attempt")
+        generation = current_attempt["lease_generation"]
         selected = _newest_blocked_escalate_record(
             checkpoint, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id,
-            lease_generation=ctx.get("lease_generation"),
+            lease_generation=generation,
         )
         if selected is None:
             raise GateRefusalError("escalate_resume has no blocked record to answer for this dispatch/generation")
-        ctx["lease_generation"] = selected.get("lease_generation")
+        ctx = {
+            "dispatch_id": dispatch_id,
+            "change_id": current_attempt["change_id"],
+            "item_id": current_attempt["item_id"],
+            "lease_generation": generation,
+            "verb": "resume",
+        }
     key = _subject_key(
         gate_enum, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id, fingerprint=fingerprint,
         lease_generation=ctx.get("lease_generation"),

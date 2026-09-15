@@ -787,7 +787,7 @@ class TestGateAnswerCli:
 
         assert rc == 2
 
-    def test_escalate_resume_dispatch_only_answer_selects_the_newest_blocked_generation(
+    def test_escalate_resume_answer_rejects_a_ledger_without_a_current_attempt(
         self, repo: Path, capsys
     ) -> None:
         repo = _gated_repo(repo)
@@ -822,8 +822,8 @@ class TestGateAnswerCli:
              "--gate", "escalate_resume", "--decision", "approved", "--dispatch-id", "d-1"]
         )
 
-        assert rc == 0
-        assert json.loads(capsys.readouterr().out)["lease_generation"] == 2
+        assert rc == 2
+        assert "current parked policy_pause" in capsys.readouterr().err
 
 
 class TestGateLogCli:
