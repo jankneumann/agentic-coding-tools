@@ -309,32 +309,50 @@ items:
   - Measured per-run context consumption falls for at least one skill where a phase
     is skipped.
 - item_id: ri-16
-  title: Rescope review convergence to disagreement routing and orchestrator adjudication
+  title: Rescope review convergence to disagreement routing and measure adjudication
+    precision
   status: candidate
   priority: 2
-  effort: L
+  effort: M
   depends_on:
   - ri-06
-  description: 'Stop treating multi-vendor agreement as a proxy for correctness in
-    every review gate: the autopilot convergence loop and the merge-pull-requests
-    execute_plan vendor gate. Disagreement becomes a triage signal. A high/critical
-    judgment finding that no other vendor confirmed is neither advisory nor sent straight
-    to a human: the orchestrator verifies it against the code under a schema-constrained
-    rubric, code computes block, pass or human-gate from the verdicts, and only claims
-    that cannot be verified or refuted reach the human queue.'
-  rationale: 'Shared training distributions produce shared blind spots, so a five-vendor
+  - ri-21
+  description: Stop treating multi-vendor agreement as a proxy for correctness in
+    the review gates, and repurpose disagreement as a triage signal for contested
+    findings. Once ri-21's adjudication gate exists, measure routing and adjudication
+    precision against the ri-06 seeded-defect set.
+  rationale: Shared training distributions produce shared blind spots, so a five-vendor
     consensus can be five-way wrong identically. Disagreement genuinely localizes
-    hard cases; agreement is not a verdict. The converse also holds: a lone reviewer
-    is often right. On PR #484, two vendors succeeded with zero agreement, all 23
-    findings were unconfirmed, and the merge gate passed; two of the single-vendor
-    criticals were real spec defects. Wording-level matching misses real agreement
-    (#478) and vendors fail (2 of 4 on #484), so confirmation cannot be the only route
-    to a block. The ri-06 recall figures establish what each vendor actually detects.'
+    hard cases; agreement is not a verdict. The ri-06 recall figures establish what
+    each vendor actually detects, which is what makes the precision of ri-21's verdicts
+    and of disagreement routing measurable. The gate itself was moved to ri-21 so
+    it does not wait on ri-06.
   change_id: rescope-review-convergence-disagreement-routing
   acceptance_outcomes:
   - Convergence output distinguishes contested findings from agreed findings.
   - No gate treats unanimous vendor agreement as sufficient evidence of correctness
     on its own.
+  - Routing precision and ri-21 adjudication precision are reported against the ri-06
+    seeded-defect set.
+- item_id: ri-21
+  title: Adjudicate single-vendor critical findings in both review gates
+  change_id: add-orchestrator-adjudication-review-gate
+  priority: 2
+  effort: L
+  depends_on: []
+  description: A high/critical judgment finding that no other vendor confirmed is
+    neither advisory nor sent straight to a human. The autopilot convergence loop
+    and the merge-pull-requests execute_plan gate share one predicate for such findings
+    and return adjudication_required. The orchestrator verifies each against the code
+    under a schema-constrained rubric, and code computes block, pass or human-gate
+    from the verdicts.
+  rationale: 'PR #484 merged through an eligible vendor review with 23 unconfirmed
+    findings (7 critical) and blocking_count 0; two single-vendor criticals were real
+    spec defects. Wording-level matching misses real agreement (#478) and vendors
+    fail (2 of 4 on #484), so confirmation cannot be the only route to a block. Operator
+    direction recorded on #550. No dependency: the gate protects merges now and is
+    measured later by ri-16.'
+  acceptance_outcomes:
   - Both the autopilot convergence loop and the merge-pull-requests execute_plan gate
     use one shared predicate for unconfirmed high/critical judgment findings, and
     neither passes such a finding as advisory; each returns adjudication_required
@@ -349,9 +367,9 @@ items:
     refuted or non_blocking passes. Only unverifiable blocking claims reach a human.'
   - Adjudication performed by the same vendor family that authored the change is recorded
     and flagged in the gate result.
-  - 'Routing and adjudication precision are reported against the ri-06 seeded-defect
-    set, and a PR #484 replay fixture (7 single-vendor criticals) yields exactly the
-    two verified blocking verdicts.'
+  - 'A PR #484 replay fixture (7 single-vendor criticals) yields exactly the two verified
+    blocking verdicts.'
+  status: candidate
 - item_id: ri-17
   title: Run the sealed holdout and apply the pre-registered decision rule
   status: candidate
@@ -455,4 +473,21 @@ refinements:
   base_sha256: fc2ef2b6d4e2f687d769b264ffd56f908030f9b226a427c9205f78f1b750beed
   operations:
   - edit:ri-16
-updated_at: '2026-09-15T11:36:02.128086+00:00'
+- timestamp: '2026-09-15T14:42:02.491978+00:00'
+  actor: jankneumann (operator decision), authored by claude_code
+  source: 'PR #551 Codex review thread on roadmap.yaml ri-16; operator choice "Split,
+    then merge" (2026-09-15); issue #550'
+  rationale: 'Codex review on #551 and the operator: ri-16 as folded put the production
+    merge-gate adjudication behind ri-01 -> ri-06 (both effort L), although only the
+    precision measurement needs the ri-06 seeded-defect set. That left the #484 merge
+    path unprotected for the whole regression-corpus and recall-harness sequence.
+    The gate moves into a new dependency-free item (ri-21); ri-16 keeps disagreement
+    routing and the precision measurement, now after both ri-06 and ri-21. Expressed
+    as add + edit rather than the split operation, because split renumbers every item''s
+    priority to its list position and would erase this roadmap''s 1/2/3 priority tiers
+    across all twenty items.'
+  base_sha256: a35c57528971c21df9cb39d11a307ca132e75869cca3730228ce472f329160f5
+  operations:
+  - add:ri-21
+  - edit:ri-16
+updated_at: '2026-09-15T14:42:02.491978+00:00'
