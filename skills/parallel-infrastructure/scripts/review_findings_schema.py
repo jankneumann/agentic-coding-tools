@@ -340,6 +340,20 @@ def coerce_findings_payload(
             old = finding["axis"]
             finding["axis"] = axis_aliases[old]
             notes.append(f"axis:{old}->{finding['axis']}")
+        # A criticality word in the severity field ("high", "medium", "low") is
+        # a known alias, not an unknown enum: the contracted table already maps
+        # it. Without this, one such finding fails the whole payload and every
+        # finding from that vendor is dropped before consensus (PR #484). The
+        # keys of criticality_from_severity are the legal severities, so a
+        # legal value is never rewritten and a truly unknown one still fails.
+        raw_severity = finding.get("severity")
+        if (
+            isinstance(raw_severity, str)
+            and raw_severity not in crit_from_sev
+            and raw_severity in sev_from_crit
+        ):
+            finding["severity"] = sev_from_crit[raw_severity]
+            notes.append(f"severity:{raw_severity}->{finding['severity']}")
         if not finding.get("severity") and isinstance(finding.get("criticality"), str):
             mapped = sev_from_crit.get(finding["criticality"])
             if mapped:
