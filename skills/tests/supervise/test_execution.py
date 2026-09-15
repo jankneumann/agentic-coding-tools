@@ -1455,3 +1455,114 @@ def test_route_parked_escalations_rejects_partial_batch_before_gate_evaluation(
         )
 
     assert calls == []
+
+
+def test_atomic_escalation_resume_publishes_decision_and_generation_together(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[_result("parked-result.json", request)],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    manager = execution.CheckpointManager(workspace)
+    checkpoint = manager.load()
+    attempt = checkpoint.dispatch_attempts[0]
+    attempt["parked"]["kind"] = "policy_pause"
+    manager.save(checkpoint)
+    record = {
+        "decision_id": "11111111-2222-4333-8444-555555555555",
+        "gate": "escalate_resume",
+        "outcome": "proceed",
+        "resolution": "auto",
+        "disposition": "auto",
+        "reason": "approved",
+        "posture_present": True,
+        "recorded_at": "2026-09-01T00:00:00+00:00",
+        "roadmap_id": "roadmap-host-adapter",
+        "dispatch_id": request["dispatch_id"],
+        "lease_generation": 1,
+    }
+    saved: list[dict[str, Any]] = []
+    original_save = execution.CheckpointManager.save
+
+    def capture_save(self: Any, value: Any) -> None:
+        original_save(self, value)
+        saved.append(json.loads(self.checkpoint_path.read_text()))
+
+    monkeypatch.setattr(execution.CheckpointManager, "save", capture_save)
+    adapter.resume_with_gate_decision(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        approval_ref="gate-decision:11111111-2222-4333-8444-555555555555",
+        kind="policy_pause",
+        record=record,
+    )
+
+    assert len(saved) == 1
+    persisted = saved[0]
+    assert persisted["gate_decisions"][-1] == record
+    resumed = persisted["dispatch_attempts"][0]
+    assert resumed["status"] == "prepared"
+    assert resumed["lease_generation"] == 2
+    assert "application_journal" not in resumed
+
+
+def test_stale_atomic_escalation_candidate_does_not_append_a_decision(
+    tmp_path: Path
+) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[_result("parked-result.json", request)],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    manager = execution.CheckpointManager(workspace)
+    checkpoint = manager.load()
+    attempt = checkpoint.dispatch_attempts[0]
+    attempt.update(
+        status="prepared",
+        lease_generation=2,
+        continuation={"kind": "policy_pause", "approval_ref": "gate-decision:old"},
+    )
+    for field in (
+        "lease", "launch_evidence", "launch_gate", "parked", "outcome",
+        "resolved_at", "handoff_id", "application_journal",
+    ):
+        attempt.pop(field, None)
+    manager.save(checkpoint)
+    record = {
+        "decision_id": "11111111-2222-4333-8444-555555555555",
+        "gate": "escalate_resume",
+        "outcome": "proceed",
+        "resolution": "auto",
+        "disposition": "auto",
+        "reason": "approved",
+        "posture_present": True,
+        "recorded_at": "2026-09-01T00:00:00+00:00",
+        "roadmap_id": "roadmap-host-adapter",
+        "dispatch_id": request["dispatch_id"],
+        "lease_generation": 1,
+    }
+
+    with pytest.raises(ExecutionStateError, match="stale or mismatched"):
+        adapter.resume_with_gate_decision(
+            workspace,
+            dispatch_id=request["dispatch_id"],
+            approval_ref="gate-decision:11111111-2222-4333-8444-555555555555",
+            kind="policy_pause",
+            record=record,
+        )
+
+    assert all(record.get("decision_id") != "11111111-2222-4333-8444-555555555555" for record in manager.load().gate_decisions)
