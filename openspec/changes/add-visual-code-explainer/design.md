@@ -45,15 +45,18 @@ build_atlas.py --tree <target> [--hops N] [--direction out|in|both] [--graph PAT
 
 - Root line: `<name>  (<file>:<line>)  [<kind>]`.
 - Children indented two spaces per hop, sorted by `name` then `id`; direction
-  `out` lists callees (edges where the node is `s`), `in` lists callers, `both`
+  `out` lists callees (`call` edges where the node is `s`), `in` lists callers, `both`
   prints two labelled sections `callees:` / `callers:`.
 - A node already printed on the current path is emitted once with the suffix
   `(cycle)` and not expanded. A node beyond `--hops` is not printed; the parent
   line gets the suffix `(+<n> more)` so truncation is visible.
 - `--hops` default `2`, maximum `4` (matches the page's hop slider,
   `atlas_render.py`). Values above 4 are clamped with a stderr note.
-- Edge type is appended only when it is not `calls` (e.g. `[imports]`), so the
-  common case stays quiet.
+- Only edges with `ty == "call"` are walked (singular, the spelling the graph
+  uses). `symbolEdges` carries every edge type — the committed graph holds both
+  `call` and `import` edges — and an import is a dependency, not a call: walking
+  it would report importers as callers and corrupt the grounded output. A
+  dependency-tree mode over `import` edges is out of scope for this change.
 - Trailing footer: `graph @ <sha7> · <language> <percent>% covered` per language
   present, taken from `build_view_model(measure=True)` — the same `Coverage`
   values the page banner uses. `--no-coverage` suppresses it.
@@ -170,7 +173,7 @@ branches *and* regenerated the mirrors — was split into 3.1 and 3.2.
 ## Verification
 
 - Static: `openspec validate add-visual-code-explainer --strict`;
-  `skills/install.sh --check-only` (manifest and portability rules).
+  `skills/install.sh --check` (manifest and portability rules).
 - Unit: `skills/.venv/bin/python -m pytest skills/tests/codebase-atlas
   skills/tests/explain-code`.
 - Determinism: run `--tree` twice on the committed graph and `cmp` the outputs.
