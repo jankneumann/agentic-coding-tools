@@ -85,7 +85,7 @@ Edits may change planning fields such as title, description, rationale, effort, 
       acceptance_outcomes: [Unsafe state is blocked.]
 ```
 
-The original item remains as `superseded` provenance. Replacement items inherit its upstream dependencies and learning references; downstream dependencies are rewired to the final chain item or every parallel item. Completed, in-progress, failed, skipped, or already superseded items cannot be split. An item named by `checkpoint.json` also cannot be split.
+The original item remains as `superseded` provenance. Replacement items inherit its upstream dependencies and learning references; downstream dependencies are rewired to the final chain item or every parallel item. Replacements take the original's priority unless they set one explicitly. Completed, in-progress, failed, skipped, or already superseded items cannot be split. An item named by `checkpoint.json` also cannot be split.
 
 ### Reorder
 
@@ -95,7 +95,7 @@ The original item remains as `superseded` provenance. Replacement items inherit 
   before: ri-06              # use before OR after
 ```
 
-Reordering moves one item, then renumbers item priorities to match the resulting order. The preview shows the resulting execution waves before any write.
+Reordering moves one item. When priorities are a strict `1..N` sequence in list order, they are renumbered to match the new order. Otherwise priority is a tier shared by several items, and only the moved item changes: it takes its anchor's (`before`/`after` target's) priority, and list order breaks the tie within that tier. The same rule governs split, so a structural edit never rewrites the priority tiers of unrelated items. The preview shows the resulting execution waves and every priority change before any write. Ties inside a tier are broken by list order in sequential dispatch but by `item_id` in coordinated batches (roadmap-orchestration "Scope-Safe Ready Batches"), so a reorder that contradicts item-id order within its tier carries a preview warning: it changes sequential order only.
 
 ### Supersede
 
@@ -147,10 +147,12 @@ The preview is read-only. It reports:
 - newly introduced item and change IDs;
 - before/after execution waves;
 - dependency edges added and removed;
+- `priority_changes`: `[item_id, before, after]` for every pre-existing item whose priority moved;
+- `warnings`, such as a tiered reorder that coordinated dispatch will not honor;
 - schema, item-id, change-id, dependency, DAG, and cross-roadmap errors;
 - collisions with active or archived OpenSpec change IDs.
 
-Stop on any error. Show the scheduling, DAG, ownership, and scaffold effects to the operator before apply. A request that already specifies the exact operations counts as approval when the preview introduces no additional effects or warnings; otherwise obtain explicit approval for the revised effects. Honor `--preview-only` by stopping here.
+Stop on any error. Show the scheduling, priority, DAG, ownership, and scaffold effects to the operator before apply. A request that already specifies the exact operations counts as approval when the preview introduces no additional effects or warnings; otherwise obtain explicit approval for the revised effects. Honor `--preview-only` by stopping here.
 
 ### 4. Apply the Previewed Bytes
 

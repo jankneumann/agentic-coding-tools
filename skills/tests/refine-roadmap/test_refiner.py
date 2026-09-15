@@ -407,3 +407,168 @@ def test_refinement_provenance_survives_runtime_round_trip_and_schema_validation
 
     assert validate_against_schema(data, "openspec/schemas/roadmap.schema.json", repo_root) == []
     assert Roadmap.from_dict(data).to_dict()["refinements"] == data["refinements"]
+
+
+# ---------------------------------------------------------------------------
+# Priority tiers (#553)
+#
+# Many roadmaps use `priority` as a tier (several items share 1, 2, 3), with
+# list order only breaking ties inside a tier (readiness sorts stably by
+# priority). Renumbering every item to its list position on split or reorder
+# erased those tiers across the whole roadmap: splitting one item of
+# skill-rightsizing would have rewritten all twenty priorities. Strict 1..N
+# roadmaps keep the renumbering, which is what their priorities mean.
+# ---------------------------------------------------------------------------
+
+
+def _tiered_roadmap(repo_root: Path) -> Path:
+    return _write_roadmap(repo_root, [
+        _item("ri-01", priority=1),
+        _item("ri-02", priority=2),
+        _item("ri-03", priority=1),
+        _item("ri-04", priority=3),
+        _item("ri-05", priority=2),
+    ])
+
+
+def _priorities(preview) -> dict[str, int]:
+    return {item["item_id"]: item["priority"] for item in preview.candidate["items"]}
+
+
+def test_split_on_tiered_roadmap_keeps_every_existing_priority(repo_root: Path):
+    preview = preview_refinement(
+        _tiered_roadmap(repo_root),
+        _request({
+            "op": "split",
+            "item_id": "ri-02",
+            "strategy": "chain",
+            "items": [_new_item("ri-06", "First half"), _new_item("ri-07", "Second half")],
+        }),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    priorities = _priorities(preview)
+    assert priorities == {
+        "ri-01": 1, "ri-02": 2, "ri-06": 2, "ri-07": 2,
+        "ri-03": 1, "ri-04": 3, "ri-05": 2,
+    }
+    assert preview.priority_changes == []
+    assert preview.to_dict()["priority_changes"] == []
+
+
+def test_split_on_tiered_roadmap_respects_explicit_part_priority(repo_root: Path):
+    preview = preview_refinement(
+        _tiered_roadmap(repo_root),
+        _request({
+            "op": "split",
+            "item_id": "ri-04",
+            "items": [
+                _new_item("ri-06", "Urgent half", priority=1),
+                _new_item("ri-07", "Later half"),
+            ],
+        }),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert _priorities(preview)["ri-06"] == 1
+    assert _priorities(preview)["ri-07"] == 3
+    assert preview.priority_changes == []
+
+
+def test_reorder_on_tiered_roadmap_moves_item_into_anchor_tier_only(repo_root: Path):
+    preview = preview_refinement(
+        _tiered_roadmap(repo_root),
+        _request({"op": "reorder", "item_id": "ri-04", "before": "ri-02"}),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert [item["item_id"] for item in preview.candidate["items"]] == [
+        "ri-01", "ri-04", "ri-02", "ri-03", "ri-05",
+    ]
+    assert _priorities(preview) == {"ri-01": 1, "ri-04": 2, "ri-02": 2, "ri-03": 1, "ri-05": 2}
+    assert preview.priority_changes == [["ri-04", 3, 2]]
+
+
+def test_reorder_after_anchor_takes_anchor_tier(repo_root: Path):
+    preview = preview_refinement(
+        _tiered_roadmap(repo_root),
+        _request({"op": "reorder", "item_id": "ri-01", "after": "ri-04"}),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert _priorities(preview)["ri-01"] == 3
+    assert preview.priority_changes == [["ri-01", 1, 3]]
+
+
+def test_strict_sequence_split_still_renumbers_and_reports_every_shift(repo_root: Path):
+    roadmap_path = _write_roadmap(repo_root, [
+        _item("ri-01", priority=1),
+        _item("ri-02", priority=2),
+        _item("ri-03", priority=3),
+    ])
+    preview = preview_refinement(
+        roadmap_path,
+        _request({
+            "op": "split",
+            "item_id": "ri-01",
+            "items": [_new_item("ri-04", "A"), _new_item("ri-05", "B")],
+        }),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert [item["priority"] for item in preview.candidate["items"]] == [1, 2, 3, 4, 5]
+    assert preview.priority_changes == [["ri-02", 2, 4], ["ri-03", 3, 5]]
+
+
+def test_tiered_reorder_warns_when_coordinated_dispatch_ignores_list_order(repo_root: Path):
+    """Codex review on #554: ties inside a tier are broken two ways.
+
+    Sequential readiness (readiness.py) sorts stably, so list order wins;
+    coordinated batches (dispatch_scheduler.select_safe_ready_batch) sort by
+    (priority, item_id), as roadmap-orchestration "Scope-Safe Ready Batches"
+    specifies. Moving ri-04 before same-tier ri-02 changes sequential order only,
+    so the preview must say so instead of implying the move took effect.
+    """
+    preview = preview_refinement(
+        _tiered_roadmap(repo_root),
+        _request({"op": "reorder", "item_id": "ri-04", "before": "ri-02"}),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert len(preview.warnings) == 1
+    warning = preview.warnings[0]
+    assert "ri-04" in warning and "ri-02" in warning and "coordinated" in warning
+    assert "ri-05" not in warning
+    assert preview.to_dict()["warnings"] == preview.warnings
+
+
+def test_tiered_reorder_consistent_with_item_id_order_has_no_warning(repo_root: Path):
+    preview = preview_refinement(
+        _tiered_roadmap(repo_root),
+        _request({"op": "reorder", "item_id": "ri-05", "after": "ri-02"}),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert preview.warnings == []
+
+
+def test_strict_sequence_reorder_has_no_tie_warning(repo_root: Path):
+    roadmap_path = _write_roadmap(repo_root, [
+        _item("ri-01", priority=1),
+        _item("ri-02", priority=2),
+        _item("ri-03", priority=3),
+    ])
+    preview = preview_refinement(
+        roadmap_path,
+        _request({"op": "reorder", "item_id": "ri-03", "before": "ri-01"}),
+        repo_root,
+    )
+
+    assert preview.warnings == []
