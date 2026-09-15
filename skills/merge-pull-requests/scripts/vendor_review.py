@@ -16,10 +16,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
-from _helpers import capture_head, check_gh, run_gh, verify_and_restore_head
+from _helpers import (
+    capture_head,
+    capture_untracked,
+    check_gh,
+    quarantine_new_untracked,
+    run_gh,
+    verify_and_restore_head,
+)
 
 # ---------------------------------------------------------------------------
 # Thresholds — PRs below these are "small" and skip vendor review
@@ -331,6 +341,19 @@ Use `gh pr diff {pr_number}` to read the actual diff before reviewing.
 # Dispatch reviews
 # ---------------------------------------------------------------------------
 
+def vendor_artifact_dir(pr_number: int) -> Path:
+    """Where files a vendor wrote into the checkout are quarantined.
+
+    ``MERGE_VENDOR_ARTIFACT_DIR`` overrides the system temp directory. A fresh
+    timestamped subdirectory per dispatch keeps repeated reviews apart.
+    """
+    base = os.environ.get("MERGE_VENDOR_ARTIFACT_DIR") or (
+        Path(tempfile.gettempdir()) / "vendor-review-artifacts"
+    )
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return Path(base) / f"pr{pr_number}-{stamp}"
+
+
 def dispatch_vendor_reviews(
     pr_number: int,
     pr_size: dict,
@@ -416,6 +439,7 @@ def dispatch_vendor_reviews(
     # detaching the operator's HEAD (issue #349). Snapshot HEAD before
     # dispatch and verify/restore after.
     head_before = capture_head()
+    untracked_before = capture_untracked()
 
     results: list[ReviewResult] = orch.dispatch_and_wait(
         review_type="pr",
@@ -433,6 +457,19 @@ def dispatch_vendor_reviews(
             f"({head_before['branch'] or 'detached'}@{head_before['sha'][:8]} -> "
             f"{head_guard['after']['branch'] or 'detached'}@{head_guard['after']['sha'][:8]}); "
             f"restore {'succeeded' if head_guard['restored'] else 'FAILED: ' + str(head_guard['error'])}",
+            file=sys.stderr,
+        )
+
+    # The same authority lets a vendor write files into the checkout, where a
+    # later `git add -A` sync-point commit would publish them. Move them out.
+    workspace_guard = quarantine_new_untracked(
+        untracked_before, vendor_artifact_dir(pr_number),
+    )
+    if workspace_guard["new_untracked"]:
+        print(
+            f"WARNING: vendor review dispatch wrote {len(workspace_guard['new_untracked'])} "
+            f"untracked file(s) into the checkout; moved to {workspace_guard['quarantined_to']}: "
+            + ", ".join(workspace_guard["new_untracked"]),
             file=sys.stderr,
         )
 
@@ -477,6 +514,7 @@ def dispatch_vendor_reviews(
         "vendors": vendor_summaries,
         "consensus": consensus_dict,
         "head_guard": head_guard,
+        "workspace_guard": workspace_guard,
         "error": None,
     }
 

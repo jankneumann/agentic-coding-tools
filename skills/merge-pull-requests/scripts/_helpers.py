@@ -4,8 +4,10 @@ Provides common functions for gh CLI interaction, argument parsing,
 and author extraction used across discover, staleness, comment, and merge scripts.
 """
 
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 GH_TIMEOUT = 30
 GIT_TIMEOUT = 60
@@ -154,6 +156,62 @@ def verify_and_restore_head(before: dict) -> dict:
         result["error"] = (
             "HEAD was already detached before dispatch; no branch to restore"
         )
+    return result
+
+
+def _repo_toplevel() -> Path | None:
+    top = run_cmd(["git", "rev-parse", "--show-toplevel"], check=False)
+    return Path(top) if top else None
+
+
+def capture_untracked() -> set[str]:
+    """Snapshot untracked, non-ignored files as repository-relative paths.
+
+    Pairs with ``quarantine_new_untracked()`` around vendor review dispatch.
+    Ignored files (caches, venvs) are excluded: vendors running Python create
+    them legitimately, and they can never be swept into a commit.
+    """
+    top = _repo_toplevel()
+    if top is None:
+        return set()
+    out = run_cmd(
+        ["git", "-C", str(top), "ls-files", "--others", "--exclude-standard", "-z"],
+        check=False,
+    )
+    return {path for path in out.split("\0") if path}
+
+
+def quarantine_new_untracked(before: set[str], dest: Path) -> dict:
+    """Move files that appeared since ``before`` out of the working tree.
+
+    Vendor CLIs run against the shared checkout and have left review output at
+    the repository root (``pr484_review.json``, 2026-09-14), where the next
+    ``git add -A`` sync-point commit would publish it. Files are moved under
+    ``dest`` with their relative path kept, never deleted, because such a file
+    can be the only readable copy of a vendor's findings. Pre-existing untracked
+    files are left alone. Callers hold the sync point, so nothing else should be
+    creating files in the checkout during dispatch.
+    """
+    result: dict = {
+        "new_untracked": [],
+        "quarantined_to": None,
+        "errors": [],
+    }
+    top = _repo_toplevel()
+    if top is None:
+        return result
+    new = sorted(capture_untracked() - before)
+    result["new_untracked"] = new
+    if not new:
+        return result
+    for rel in new:
+        target = dest / rel
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(top / rel), str(target))
+        except OSError as exc:
+            result["errors"].append(f"{rel}: {exc}")
+    result["quarantined_to"] = str(dest)
     return result
 
 
