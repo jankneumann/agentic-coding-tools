@@ -75,6 +75,8 @@ _PHASE = "SUPERVISE"
 
 _TERMINAL_BLOCK_RESOLUTIONS = frozenset({"rejected", "console_rejected"})
 
+_POLICY_PAUSE_REASON = "supervised phase retry budget exhausted"
+
 
 @contextlib.contextmanager
 def _escalate_subject_lock(workspace: Path, dispatch_id: str, generation: int) -> Iterator[None]:
@@ -158,7 +160,9 @@ def _serialize_escalate_answer(method: Callable[..., Any]) -> Callable[..., Any]
         manager = CheckpointManager(workspace, repo_root)
         if not manager.exists():
             raise GateRefusalError("escalate_resume requires a current parked policy_pause attempt")
-        attempt = _current_parked_policy_pause_attempt(manager.load(), dispatch_id=dispatch_id)
+        attempt = _current_parked_policy_pause_attempt(
+            manager.load(), dispatch_id=dispatch_id
+        )
         if attempt is None:
             raise GateRefusalError("escalate_resume requires a current parked policy_pause attempt")
         generation = attempt.get("lease_generation")
@@ -166,8 +170,6 @@ def _serialize_escalate_answer(method: Callable[..., Any]) -> Callable[..., Any]
         if requested_generation is not None and requested_generation != generation:
             raise GateRefusalError("escalate_resume answer does not match the current parked generation")
 
-        context["lease_generation"] = generation
-        kwargs["context"] = context
         with _escalate_subject_lock(workspace, dispatch_id, generation):
             return method(gate_enum, *args, **kwargs)
 
@@ -255,6 +257,20 @@ def _latest_record_for_subject(
         for record in (getattr(checkpoint, "gate_decisions", None) or [])
         if _matches_subject(record, gate, key)
     ]
+    if gate is Gate.ESCALATE_RESUME:
+        attempt = _current_parked_policy_pause_attempt(
+            checkpoint, dispatch_id=key[2]
+        )
+        candidates = [
+            record
+            for record in candidates
+            if record.get("lease_generation") is not None
+            or (
+                attempt is not None
+                and attempt.get("lease_generation") == key[3]
+                and _legacy_record_matches_attempt(record, attempt)
+            )
+        ]
     if not candidates:
         return None
     return max(candidates, key=lambda r: str(r.get("recorded_at") or ""))
@@ -263,21 +279,47 @@ def _latest_record_for_subject(
 def _current_parked_policy_pause_attempt(
     checkpoint: Any, *, dispatch_id: str, lease_generation: Optional[int] = None
 ) -> Optional[dict[str, Any]]:
-    for attempt in getattr(checkpoint, "dispatch_attempts", None) or []:
+    candidates = [
+        attempt
+        for attempt in (getattr(checkpoint, "dispatch_attempts", None) or [])
         if (
             attempt.get("dispatch_id") == dispatch_id
             and attempt.get("status") == "parked"
             and (attempt.get("parked") or {}).get("kind") == "policy_pause"
             and (lease_generation is None or attempt.get("lease_generation") == lease_generation)
-        ):
-            return attempt
-    return None
+        )
+    ]
+    if not candidates:
+        return None
+    return max(
+        candidates,
+        key=lambda attempt: (
+            attempt.get("lease_generation")
+            if isinstance(attempt.get("lease_generation"), int)
+            else 0,
+            str(attempt.get("resolved_at") or attempt.get("prepared_at") or ""),
+        ),
+    )
+
+
+def _legacy_record_matches_attempt(record: dict[str, Any], attempt: dict[str, Any]) -> bool:
+    recorded_at = _parse_iso(record.get("recorded_at"))
+    parked_at = _parse_iso(attempt.get("resolved_at"))
+    return recorded_at is not None and parked_at is not None and recorded_at >= parked_at
 
 
 def _newest_blocked_escalate_record(
-    checkpoint: Any, *, roadmap_id: str, dispatch_id: str, lease_generation: Optional[int]
+    checkpoint: Any,
+    *,
+    roadmap_id: str,
+    dispatch_id: str,
+    lease_generation: int,
+    allow_legacy: bool,
 ) -> Optional[dict[str, Any]]:
     """Select an answerable escalation generation without generation-blind reuse."""
+    attempt = _current_parked_policy_pause_attempt(
+        checkpoint, dispatch_id=dispatch_id, lease_generation=lease_generation
+    )
     candidates = [
         record for record in (getattr(checkpoint, "gate_decisions", None) or [])
         if record.get("gate") == Gate.ESCALATE_RESUME.value
@@ -285,9 +327,13 @@ def _newest_blocked_escalate_record(
         and record.get("dispatch_id") == dispatch_id
         and record.get("outcome") == "blocked"
         and (
-            lease_generation is None
-            or record.get("lease_generation") is None
-            or record.get("lease_generation") == lease_generation
+            record.get("lease_generation") == lease_generation
+            or (
+                allow_legacy
+                and record.get("lease_generation") is None
+                and attempt is not None
+                and _legacy_record_matches_attempt(record, attempt)
+            )
         )
     ]
     if not candidates:
@@ -712,18 +758,22 @@ def answer(
 
     fingerprint = roadmap_fingerprint(roadmap) if gate_enum is Gate.ROADMAP_APPROVAL else None
     dispatch_id = ctx.get("dispatch_id")
+    selected: Optional[dict[str, Any]] = None
     if gate_enum is Gate.ESCALATE_RESUME:
+        requested_generation = ctx.get("lease_generation")
         current_attempt = _current_parked_policy_pause_attempt(
             checkpoint,
             dispatch_id=dispatch_id,
-            lease_generation=ctx.get("lease_generation"),
         )
         if current_attempt is None:
             raise GateRefusalError("escalate_resume requires a current parked policy_pause attempt")
         generation = current_attempt["lease_generation"]
+        if requested_generation is not None and requested_generation != generation:
+            raise GateRefusalError("escalate_resume answer does not match the current parked generation")
         selected = _newest_blocked_escalate_record(
             checkpoint, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id,
             lease_generation=generation,
+            allow_legacy=requested_generation is None,
         )
         if selected is None:
             raise GateRefusalError("escalate_resume has no blocked record to answer for this dispatch/generation")
@@ -733,13 +783,14 @@ def answer(
             "item_id": current_attempt["item_id"],
             "lease_generation": generation,
             "verb": "resume",
+            "reason": _POLICY_PAUSE_REASON,
         }
     key = _subject_key(
         gate_enum, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id, fingerprint=fingerprint,
         lease_generation=ctx.get("lease_generation"),
     )
 
-    prior = _latest_record_for_subject(checkpoint, gate_enum, key)
+    prior = selected if gate_enum is Gate.ESCALATE_RESUME else _latest_record_for_subject(checkpoint, gate_enum, key)
     if prior is not None and prior.get("outcome") == "blocked":
         posture = {"disposition": prior.get("disposition"), "posture_present": prior.get("posture_present", False)}
     elif gate_enum is Gate.ROADMAP_APPROVAL:
@@ -816,7 +867,7 @@ def resolve_parked(
             "item_id": attempt.get("item_id"),
             "lease_generation": generation,
             "verb": "resume",
-            "reason": "supervised phase retry budget exhausted",
+            "reason": _POLICY_PAUSE_REASON,
         }
     else:
         context = {
