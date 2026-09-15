@@ -57,8 +57,10 @@ build_atlas.py --tree <target> [--hops N] [--direction out|in|both] [--graph PAT
   `call` and `import` edges — and an import is a dependency, not a call: walking
   it would report importers as callers and corrupt the grounded output. A
   dependency-tree mode over `import` edges is out of scope for this change.
-- Trailing footer: `graph @ <sha7> · <language> <percent>% covered` per language
-  present, taken from `build_view_model(measure=True)` — the same `Coverage`
+- Trailing footer, one line: `graph @ <sha7> · python 14% / sql 37% covered`:
+  one `<language> <percent>%` entry per language, sorted by language name, joined
+  with ` / `, integer percent, a single trailing `covered`. Percentages are
+  taken from `build_view_model(measure=True)` — the same `Coverage`
   values the page banner uses. `--no-coverage` suppresses it.
 
 Determinism: children sorted, no timestamps, no random ids. Byte-identical for a
@@ -70,9 +72,13 @@ fixed graph and arguments (NFR "Determinism").
 unique symbol `name`; a file path or basename matching a module, in which case
 the root is the module and hop 1 is the module's own symbols (aggregated view,
 mirroring the page's "selecting a file gives the aggregated module view").
-Ambiguous names print the candidate ids to stderr and exit `2`; no match exits
-`2` with `not found`. Exit `1` remains input/IO errors, `0` success — consistent
-with the existing `build_atlas.py` codes.
+No match exits `2` with `not found`. Ambiguous names print the candidate ids to
+stderr (one per line, sorted) and exit `3`. The two stay distinct because the
+skill must react differently: a missing symbol falls back to source reading, but
+an ambiguous one exists in the graph, so a source fallback would silently answer
+about a guessed symbol; the skill asks which candidate was meant instead. Exit
+`1` remains input/IO errors, `0` success. `3` is unused by `build_atlas.py`, whose
+`--check` already owns `2` for drift; `--check` and `--tree` never combine.
 
 ### D5 — Disclosure line
 

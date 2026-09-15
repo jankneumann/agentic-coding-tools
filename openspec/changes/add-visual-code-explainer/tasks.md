@@ -5,8 +5,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED â†
 
 ## Phase 1 â€” `codebase-atlas --tree` export (package `wp-atlas-tree`)
 
-- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `2` with candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, output contains only fixture node ids, a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, and a `â‰¤ 2 s` timing test on the committed graph (skipped when absent)
-  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown or ambiguous target exits 2", "Deterministic output", "Coverage footer matches the page banner"
+- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `3` with sorted candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, output contains only fixture node ids, a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, and a `â‰¤ 2 s` timing test on the committed graph (skipped when absent)
+  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown target exits 2", "Ambiguous target exits 3", "Deterministic output", "Coverage footer matches the page banner"
   **Design decisions**: D3 (format), D4 (resolution), D7 (fixture-only nodes), D8 (module name)
   **Dependencies**: None
   **Size**: M
@@ -17,8 +17,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED â†
   **Dependencies**: 1.1
   **Size**: M
 
-- [ ] 1.3 Wire `--tree`, `--hops`, `--direction` into `build_atlas.py` `parse_args()` and dispatch in `main()` after `build_view_model()` and before the render path, honouring `--no-coverage` and returning `0/1/2`
-  **Spec scenarios**: codebase-analysis "Unknown or ambiguous target exits 2", "Coverage footer matches the page banner"
+- [ ] 1.3 Wire `--tree`, `--hops`, `--direction` into `build_atlas.py` `parse_args()` and dispatch in `main()` after `build_view_model()` and before the render path, honouring `--no-coverage` and returning `0/1/2/3`
+  **Spec scenarios**: codebase-analysis "Unknown target exits 2", "Ambiguous target exits 3", "Coverage footer matches the page banner"
   **Design decisions**: D3, D8
   **Dependencies**: 1.2
   **Size**: S
@@ -67,8 +67,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED â†
   **Dependencies**: 2.3
   **Size**: M
 
-- [ ] 2.5 Write `references/grounding.md` â€” the `--check` freshness command (D2), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to copy the footer into the disclosure line (D5), the symbol-not-in-graph fallback, the whole-repository redirect, and the refusal list (D9)
-  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Disclosure line present on every answer"
+- [ ] 2.5 Write `references/grounding.md` â€” the `--check` freshness command (D2), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to copy the footer into the disclosure line (D5), the symbol-not-in-graph fallback (exit `2`), the ask-don't-guess rule for an ambiguous name (exit `3`), the whole-repository redirect, and the refusal list (D9)
+  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Ambiguous symbol asks instead of guessing", "Disclosure line present on every answer"
   **Design decisions**: D2, D5, D9
   **Dependencies**: 2.3
   **Size**: S
