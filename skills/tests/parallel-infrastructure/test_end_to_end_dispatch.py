@@ -7,31 +7,34 @@ unclassified UNKNOWN).
 
 This closes the gap left by static health checks: it tests the full
 dispatch→subprocess/HTTP→parse→validate pipeline, not just config readability.
+
+Live and opt-in: the tests call real vendors, which costs money and needs
+credentials, so they skip unless ``RUN_LIVE_DISPATCH_E2E=1``. The module still
+lives in a collected suite, so CI imports it on every run and an import or API
+break fails there even though nothing is dispatched.
+
+Run it::
+
+    RUN_LIVE_DISPATCH_E2E=1 skills/.venv/bin/python -m pytest \
+        skills/tests/parallel-infrastructure/test_end_to_end_dispatch.py -v -s
 """
 from __future__ import annotations
 
 import json
 import os
-import sys
-import time
 from pathlib import Path
-
-# Allow imports from the parallel-infrastructure scripts directory
-sys.path.insert(
-    0,
-    str(
-        Path(__file__).resolve().parents[2]
-        / ".agents"
-        / "skills"
-        / "parallel-infrastructure"
-        / "scripts"
-    ),
-)
 
 import pytest
 
-from review_dispatcher import ReviewOrchestrator
-from review_dispatcher import ErrorClass  # noqa: E402
+# Imported from the committed canonical scripts directory (put on sys.path by
+# this directory's conftest.py), never from a generated runtime copy such as
+# .agents/skills/, which does not exist in a clean checkout.
+from review_dispatcher import ErrorClass, ReviewOrchestrator
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_LIVE_DISPATCH_E2E") != "1",
+    reason="live vendor dispatch; set RUN_LIVE_DISPATCH_E2E=1 to run",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -110,8 +113,7 @@ def test_end_to_end_dispatch_round_trip() -> None:
         cwd=Path.cwd(),
     )
 
-    unclassified: list[str] = []
-    crashed: list[str] = []
+    violations: list[str] = []
     aggregate: list[dict] = []
 
     for r in results:
@@ -144,26 +146,27 @@ def test_end_to_end_dispatch_round_trip() -> None:
                     )
             continue
 
-        # Failure must be classified; UNKNOWN means we failed to surface it.
-        if r.error_class == ErrorClass.UNKNOWN:
-            unclassified.append(r.vendor)
+        # Every failure must be classified. None and UNKNOWN both mean the
+        # pipeline failed to surface the cause, so each is a violation on its
+        # own, regardless of how the other vendors fared.
+        if not _is_classified(r.error_class):
+            violations.append(
+                f"{r.vendor}: unclassified failure "
+                f"(error_class={info['error_class']}, error={r.error!r})"
+            )
 
         # A missing error string on failure usually means an exception path
         # swallowed the real cause.
         if not r.error:
-            crashed.append(r.vendor)
+            violations.append(f"{r.vendor}: failure with no error message")
 
     # Print a human-readable summary even when the test passes
     print("\n=== E2E Dispatch Results ===")
     print(json.dumps(aggregate, indent=2))
     print("============================\n")
 
-    assert len(unclassified) < len(results), (
-        f"All vendors returned unclassified errors: {unclassified}. "
-        "This usually means the dispatcher exited via an unexpected exception path."
-    )
-
-    assert (len(results) - len(unclassified) - len(crashed)) > 0, (
-        f"Zero vendors produced a classified result. Crashed: {crashed}; "
-        f"Unclassified: {unclassified}"
+    assert results, "dispatch returned no results for available vendors"
+    assert not violations, (
+        "Vendor failures not surfaced as classified errors:\n  "
+        + "\n  ".join(violations)
     )
