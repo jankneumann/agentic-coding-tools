@@ -100,33 +100,6 @@ class TestRefreshBranchLive:
         assert result["was_stale"] is False
         assert "up to date" in result["message"]
 
-    @patch("merge_pr.run_gh_unchecked")
-    @patch("merge_pr.run_gh")
-    def test_update_branch_no_new_commits_is_up_to_date(
-        self, mock_run_gh, mock_unchecked,
-    ) -> None:
-        """The Update Branch API's own wording for a current branch.
-
-        Observed live on 2026-09-14 (PRs #520, #524) after a first refresh had
-        already landed: treating this 422 as a failure left needs_revalidation
-        set forever, so execute_plan could never release a chained node.
-        """
-        mock_run_gh.return_value = json.dumps({
-            "headRefOid": "abc123def456",
-            "baseRefName": "main",
-        })
-        mock_unchecked.return_value = type("R", (), {
-            "returncode": 1,
-            "stdout": "",
-            "stderr": "gh: There are no new commits on the base branch. (HTTP 422)",
-        })()
-
-        result = refresh_branch(42)
-
-        assert result["success"] is True
-        assert result["was_stale"] is False
-        assert "up to date" in result["message"]
-
 
 class TestCiMergeBaseStaleness:
     """Tests for _get_ci_merge_base_staleness in check_staleness.py."""

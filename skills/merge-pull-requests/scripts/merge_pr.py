@@ -39,6 +39,7 @@ from _helpers import (
     parse_pr_numbers,
     run_gh,
     run_gh_unchecked,
+    update_branch_already_current,
 )
 
 # Use a longer timeout for merge operations which can be slow
@@ -938,14 +939,8 @@ def refresh_branch(pr_number: int, dry_run: bool = False) -> dict:
 
     if result.returncode != 0:
         error = result.stderr.strip()
-        # Common case: branch is already up to date. The Update Branch API
-        # words this as a 422 "There are no new commits on the base branch."
-        lowered = error.lower()
-        if (
-            "no new commits on the base branch" in lowered
-            or "already up-to-date" in lowered
-            or "not behind" in lowered
-        ):
+        # Common case: branch is already up to date
+        if update_branch_already_current(error):
             return {
                 "action": "refresh-branch",
                 "success": True,

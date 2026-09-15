@@ -69,6 +69,23 @@ def run_gh_unchecked(
     )
 
 
+# Stderr fragments meaning "the PR branch already contains its base". The first
+# is the Update Branch API's own 422 wording; the other two predate it and are
+# kept for compatibility. Every update-branch caller shares this list: two
+# private copies of the check are how the real wording went missing.
+_UPDATE_BRANCH_CURRENT_MARKERS = (
+    "no new commits on the base branch",
+    "already up-to-date",
+    "not behind",
+)
+
+
+def update_branch_already_current(stderr: str) -> bool:
+    """True when a failed update-branch call only means nothing was behind."""
+    lowered = stderr.lower()
+    return any(marker in lowered for marker in _UPDATE_BRANCH_CURRENT_MARKERS)
+
+
 def run_cmd(
     cmd: list[str], check: bool = True, timeout: int = GIT_TIMEOUT,
 ) -> str:
