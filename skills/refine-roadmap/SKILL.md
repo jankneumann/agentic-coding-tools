@@ -95,7 +95,7 @@ The original item remains as `superseded` provenance. Replacement items inherit 
   before: ri-06              # use before OR after
 ```
 
-Reordering moves one item. When priorities are a strict `1..N` sequence in list order, they are renumbered to match the new order. Otherwise priority is a tier shared by several items, and only the moved item changes: it takes its anchor's (`before`/`after` target's) priority, and list order breaks the tie within that tier. The same rule governs split, so a structural edit never rewrites the priority tiers of unrelated items. The preview shows the resulting execution waves and every priority change before any write.
+Reordering moves one item. When priorities are a strict `1..N` sequence in list order, they are renumbered to match the new order. Otherwise priority is a tier shared by several items, and only the moved item changes: it takes its anchor's (`before`/`after` target's) priority, and list order breaks the tie within that tier. The same rule governs split, so a structural edit never rewrites the priority tiers of unrelated items. The preview shows the resulting execution waves and every priority change before any write. Ties inside a tier are broken by list order in sequential dispatch but by `item_id` in coordinated batches (roadmap-orchestration "Scope-Safe Ready Batches"), so a reorder that contradicts item-id order within its tier carries a preview warning: it changes sequential order only.
 
 ### Supersede
 
@@ -148,6 +148,7 @@ The preview is read-only. It reports:
 - before/after execution waves;
 - dependency edges added and removed;
 - `priority_changes`: `[item_id, before, after]` for every pre-existing item whose priority moved;
+- `warnings`, such as a tiered reorder that coordinated dispatch will not honor;
 - schema, item-id, change-id, dependency, DAG, and cross-roadmap errors;
 - collisions with active or archived OpenSpec change IDs.
 

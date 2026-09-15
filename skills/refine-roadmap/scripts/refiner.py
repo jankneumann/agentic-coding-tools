@@ -71,6 +71,7 @@ class RefinementPreview:
     dependency_edges_added: list[tuple[str, str]]
     dependency_edges_removed: list[tuple[str, str]]
     priority_changes: list[list[Any]] = dataclass_field(default_factory=list)
+    warnings: list[str] = dataclass_field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -85,6 +86,7 @@ class RefinementPreview:
             "dependency_edges_added": [list(edge) for edge in self.dependency_edges_added],
             "dependency_edges_removed": [list(edge) for edge in self.dependency_edges_removed],
             "priority_changes": self.priority_changes,
+            "warnings": self.warnings,
             "candidate": self.candidate,
         }
 
@@ -599,7 +601,58 @@ def preview_refinement(
         dependency_edges_added=sorted(after_edges - before_edges),
         dependency_edges_removed=sorted(before_edges - after_edges),
         priority_changes=_priority_changes(original, candidate),
+        warnings=[] if errors else _tie_order_warnings(original, candidate, request),
     )
+
+
+_UNDISPATCHABLE_STATUSES = {"completed", "superseded", "failed", "skipped"}
+
+
+def _tie_order_warnings(
+    original: dict[str, Any], candidate: dict[str, Any], request: dict[str, Any]
+) -> list[str]:
+    """Warn when a tiered reorder cannot change coordinated dispatch order.
+
+    Ties inside a priority tier are broken two ways: sequential readiness
+    (``readiness._get_ready_items``) sorts stably, so list order wins, while
+    coordinated batches (``dispatch_scheduler.select_safe_ready_batch``) sort by
+    ``(priority, item_id)`` as roadmap-orchestration "Scope-Safe Ready Batches"
+    specifies. A reorder that puts an item on the other side of a same-tier item
+    than item-id order does therefore only affects sequential dispatch. A strict
+    1..N roadmap has no ties and never warns.
+    """
+    if _is_priority_sequence(original.get("items") or []):
+        return []
+    items = [
+        item for item in candidate.get("items") or []
+        if item.get("status") not in _UNDISPATCHABLE_STATUSES
+    ]
+    position = {item["item_id"]: index for index, item in enumerate(items)}
+    warnings: list[str] = []
+    for operation in request.get("operations") or []:
+        if not isinstance(operation, dict) or operation.get("op") != "reorder":
+            continue
+        moved_id = operation.get("item_id")
+        if moved_id not in position:
+            continue
+        moved_priority = items[position[moved_id]].get("priority")
+        conflicts = sorted(
+            other["item_id"]
+            for other in items
+            if other["item_id"] != moved_id
+            and other.get("priority") == moved_priority
+            and (position[moved_id] < position[other["item_id"]])
+            != (moved_id < other["item_id"])
+        )
+        if conflicts:
+            warnings.append(
+                f"reorder:{moved_id} changes only sequential dispatch order within "
+                f"priority {moved_priority}. Coordinated dispatch breaks ties by "
+                "item_id (roadmap-orchestration \"Scope-Safe Ready Batches\"), so "
+                f"{moved_id}'s order relative to {', '.join(conflicts)} is unchanged "
+                "in coordinated mode."
+            )
+    return warnings
 
 
 def _priority_changes(
