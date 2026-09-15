@@ -198,6 +198,27 @@ def build_review_prompt(
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _reviewed_files_for_vendor(r: ReviewResult) -> frozenset[str] | None:
+    """Derive ``VendorResult.reviewed_files`` from a scored ``ReviewResult``.
+
+    Only set when the dispatcher already marked this vendor's coverage
+    ``"partial"`` (below the contracted threshold — see
+    ``review_dispatcher._score_coverage``); ``None`` otherwise, so a vendor
+    that never reported coverage, or reported it at/above threshold, keeps
+    counting toward every file's quorum exactly as before this field
+    existed (add-deterministic-review-preprocessing, D5).
+    """
+    if r.coverage_eligibility != "partial" or not r.findings:
+        return None
+    coverage = r.findings.get("coverage")
+    if not isinstance(coverage, dict):
+        return None
+    reviewed = coverage.get("reviewed")
+    if not isinstance(reviewed, list):
+        return None
+    return frozenset(str(p) for p in reviewed if isinstance(p, str))
+
+
 def _review_results_to_vendor_results(
     results: list[ReviewResult],
 ) -> list[VendorResult]:
@@ -220,6 +241,7 @@ def _review_results_to_vendor_results(
             success=r.success,
             elapsed_seconds=r.elapsed_seconds,
             error=r.error,
+            reviewed_files=_reviewed_files_for_vendor(r),
         ))
     return vendor_results
 

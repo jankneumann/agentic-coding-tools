@@ -165,6 +165,25 @@ def _schema_mod() -> Any:
         return None
 
 
+def _ocr_adapter_can_dispatch() -> bool:
+    """Delegate the ocr vendor's real availability check to its own module.
+
+    ocr-local's configured ``command`` is ``python3`` — always present —
+    so the generic PATH check in ``can_dispatch`` cannot tell whether the
+    `ocr` binary and its LLM endpoint are actually available
+    (add-deterministic-review-preprocessing). Returns ``False`` (never
+    available) when ``ocr_adapter`` itself cannot be imported: failing
+    closed here means a broken install shows as Tier 3 (skip), not a
+    Tier 1 vendor that only fails once dispatch is actually attempted.
+    """
+    try:
+        import ocr_adapter
+
+        return ocr_adapter.can_dispatch()
+    except Exception:  # noqa: BLE001 — see docstring
+        return False
+
+
 _DIFF_FENCE_RE = re.compile(r"### Diff\n```diff\n(.*?)\n```", re.DOTALL)
 
 
@@ -631,12 +650,20 @@ class CliVendorAdapter:
         A binary on PATH is not enough when the config declares a required
         credential env var: pi with OPENROUTER_API_KEY unset cannot serve a
         single request, so it must not count as available (issue #383).
+
+        The ocr vendor is a further special case: its configured
+        ``command`` is ``python3`` (the wrapper script's interpreter,
+        always present), which cannot itself indicate whether the `ocr`
+        binary and its LLM endpoint are actually available — see
+        ``_ocr_adapter_can_dispatch``.
         """
         if mode not in self.cli_config.dispatch_modes:
             return False
         if shutil.which(self.cli_config.command) is None:
             return False
         if self.cli_config.api_key_env and not os.environ.get(self.cli_config.api_key_env):
+            return False
+        if self.vendor == "ocr" and not _ocr_adapter_can_dispatch():
             return False
         return True
 

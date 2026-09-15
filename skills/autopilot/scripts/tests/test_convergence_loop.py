@@ -23,6 +23,7 @@ from consensus_synthesizer import (
 )
 from convergence_loop import (
     _is_blocking,
+    _review_results_to_vendor_results,
     build_review_prompt,
     converge,
 )
@@ -132,6 +133,50 @@ def _setup_converge(
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
+class TestReviewResultsToVendorResultsCoverage:
+    """Partial coverage on a ReviewResult must reach the synthesizer as
+    VendorResult.reviewed_files — a full round-trip check for the gap where
+    _review_results_to_vendor_results built every VendorResult with
+    reviewed_files=None regardless of what the dispatcher scored, silently
+    treating every vendor as fully eligible even when it reported skipping
+    files below the coverage quorum threshold."""
+
+    def _partial_result(self, vendor: str, reviewed: list[str]) -> ReviewResult:
+        return ReviewResult(
+            vendor=vendor,
+            success=True,
+            findings={
+                "findings": [],
+                "coverage": {"reviewed": reviewed, "skipped": [], "rate": 0.4},
+            },
+            model_used="test-model",
+            models_attempted=["test-model"],
+            elapsed_seconds=1.0,
+            coverage_rate=0.4,
+            coverage_eligibility="partial",
+            coverage_status="reported",
+        )
+
+    def test_partial_coverage_populates_reviewed_files(self) -> None:
+        results = [self._partial_result("codex", ["src/a.py", "src/b.py"])]
+        vendor_results = _review_results_to_vendor_results(results)
+        assert vendor_results[0].reviewed_files == frozenset({"src/a.py", "src/b.py"})
+
+    def test_full_coverage_leaves_reviewed_files_none(self) -> None:
+        results = [_make_review_result("codex", findings=[])]
+        vendor_results = _review_results_to_vendor_results(results)
+        assert vendor_results[0].reviewed_files is None
+
+    def test_unreported_coverage_leaves_reviewed_files_none(self) -> None:
+        result = ReviewResult(
+            vendor="codex", success=True, findings={"findings": []},
+            model_used="test-model", models_attempted=["test-model"],
+            elapsed_seconds=1.0,
+        )
+        vendor_results = _review_results_to_vendor_results([result])
+        assert vendor_results[0].reviewed_files is None
+
 
 class TestConvergenceZeroFindings:
     """2 vendors return empty findings → converged in 1 round."""

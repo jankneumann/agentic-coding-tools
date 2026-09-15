@@ -264,6 +264,115 @@ class TestRun:
         assert doc["decisions"][0]["verdict"] == "removed"
         assert doc["decisions"][0]["evidence_line"] == "+used_variable = compute()"
 
+    def test_ground_b_removal_requires_evidence_line(self) -> None:
+        """A Ground B item with no evidence_line at all must not remove
+        anything — the contracted evidence field is what makes the verdict
+        falsifiable in the first place."""
+        findings = [_finding(id="f-1")]
+
+        def caller(_system: str, _user: str) -> str:
+            return json.dumps(
+                {
+                    "tool": "report_incorrect_comments",
+                    "items": [
+                        {"finding_id": "f-1", "ground": "B_contradicted_by_diff_line"}
+                    ],
+                }
+            )
+
+        outcome = fact_check.run(
+            vendor="codex", round_num=1, findings=findings,
+            packet_diff="+used_variable = compute()", caller=caller,
+        )
+        assert outcome.removed_count == 0
+        assert outcome.kept_findings == findings
+        assert outcome.decisions[0].verdict == "kept"
+
+    def test_ground_b_removal_rejects_fabricated_evidence_line(self) -> None:
+        """A Ground B item whose evidence_line does not actually appear in
+        the diff must not remove the finding — a hallucinated citation
+        cannot be allowed to discard a valid finding."""
+        findings = [_finding(id="f-1")]
+
+        def caller(_system: str, _user: str) -> str:
+            return json.dumps(
+                {
+                    "tool": "report_incorrect_comments",
+                    "items": [
+                        {
+                            "finding_id": "f-1",
+                            "ground": "B_contradicted_by_diff_line",
+                            "evidence_line": "this line does not exist anywhere",
+                        }
+                    ],
+                }
+            )
+
+        outcome = fact_check.run(
+            vendor="codex", round_num=1, findings=findings,
+            packet_diff="+used_variable = compute()", caller=caller,
+        )
+        assert outcome.removed_count == 0
+        assert outcome.kept_findings == findings
+        assert outcome.decisions[0].verdict == "kept"
+
+    def test_ground_b_removal_verifies_evidence_scoped_to_subject_file(self) -> None:
+        """The cited line must appear in the finding's own subject file's
+        diff hunk, not merely somewhere in the whole multi-file packet —
+        citing a line from an unrelated file must not remove a finding."""
+        findings = [_finding(id="f-1", file_path="src/foo.py")]
+        packet_diff = (
+            "diff --git a/src/foo.py b/src/foo.py\n"
+            "--- a/src/foo.py\n+++ b/src/foo.py\n"
+            "@@ -1,1 +1,1 @@\n-old_line()\n+new_line()\n"
+            "diff --git a/src/other.py b/src/other.py\n"
+            "--- a/src/other.py\n+++ b/src/other.py\n"
+            "@@ -1,1 +1,1 @@\n-used_variable = compute()\n+used_variable = compute(2)\n"
+        )
+
+        def caller(_system: str, _user: str) -> str:
+            return json.dumps(
+                {
+                    "tool": "report_incorrect_comments",
+                    "items": [
+                        {
+                            "finding_id": "f-1",
+                            "ground": "B_contradicted_by_diff_line",
+                            "evidence_line": "-used_variable = compute()",
+                        }
+                    ],
+                }
+            )
+
+        outcome = fact_check.run(
+            vendor="codex", round_num=1, findings=findings,
+            packet_diff=packet_diff, caller=caller,
+        )
+        assert outcome.removed_count == 0
+        assert outcome.kept_findings == findings
+
+    def test_ground_a_removal_does_not_require_evidence_line(self) -> None:
+        """Ground A (code absent from the diff) has no line to cite by
+        nature — it must not be held to Ground B's evidence requirement."""
+        findings = [_finding(id="f-1")]
+
+        def caller(_system: str, _user: str) -> str:
+            return json.dumps(
+                {
+                    "tool": "report_incorrect_comments",
+                    "items": [
+                        {"finding_id": "f-1", "ground": "A_absent_from_subject_diff"}
+                    ],
+                }
+            )
+
+        outcome = fact_check.run(
+            vendor="codex", round_num=1, findings=findings,
+            packet_diff="totally unrelated diff content", caller=caller,
+        )
+        assert outcome.removed_count == 1
+        assert outcome.decisions[0].verdict == "removed"
+
     def test_unknown_finding_id_in_verdict_is_ignored(self) -> None:
         findings = [_finding(id="f-1")]
 
@@ -300,3 +409,89 @@ class TestBuildDefaultCaller:
             FakeCliConfig(), "nowhere-vendor", cwd=tmp_path,
         )
         assert caller is None
+
+
+class _ModeConfig:
+    def __init__(self, args, async_dispatch=False) -> None:
+        self.args = args
+        self.async_dispatch = async_dispatch
+
+
+class _FakeCliConfig:
+    def __init__(
+        self, command, dispatch_modes, model_flag="--model", prompt_via_stdin=True,
+    ) -> None:
+        self.command = command
+        self.dispatch_modes = dispatch_modes
+        self.model_flag = model_flag
+        self.prompt_via_stdin = prompt_via_stdin
+
+
+class TestBuildDefaultCallerVendorFlags:
+    """Each vendor's own alternative/quick mode drives the caller's flags —
+    not a single Claude-shaped hard-coded command (regression coverage for
+    the fact-check pass silently no-opping on every non-Claude vendor)."""
+
+    def test_uses_alternative_mode_args_not_claude_flags(
+        self, tmp_path, monkeypatch,
+    ) -> None:
+        import subprocess
+
+        captured: dict = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        cli_config = _FakeCliConfig(
+            command=sys.executable,
+            dispatch_modes={
+                "review": _ModeConfig(["--schema-mode", "@review-findings-schema"]),
+                "alternative": _ModeConfig(["--plain", "--flag"]),
+            },
+        )
+        caller = fact_check.build_default_caller(cli_config, "some-vendor", cwd=tmp_path)
+        assert caller is not None
+        caller("system", "user")
+        cmd = captured["cmd"]
+        assert cmd[0] == sys.executable
+        assert "--plain" in cmd and "--flag" in cmd
+        assert "--schema-mode" not in cmd
+        assert "--print" not in cmd
+        assert "--allowedTools" not in cmd
+
+    def test_falls_back_to_quick_mode_when_no_alternative(
+        self, tmp_path, monkeypatch,
+    ) -> None:
+        import subprocess
+
+        captured: dict = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        cli_config = _FakeCliConfig(
+            command=sys.executable,
+            dispatch_modes={"quick": _ModeConfig(["--quick-only"])},
+        )
+        caller = fact_check.build_default_caller(cli_config, "some-vendor", cwd=tmp_path)
+        assert caller is not None
+        caller("system", "user")
+        assert "--quick-only" in captured["cmd"]
+
+    def test_returns_none_without_alternative_or_quick_mode(self, tmp_path) -> None:
+        cli_config = _FakeCliConfig(
+            command=sys.executable,
+            dispatch_modes={"review": _ModeConfig(["--schema-mode"])},
+        )
+        assert fact_check.build_default_caller(cli_config, "v", cwd=tmp_path) is None
+
+    def test_returns_none_when_alternative_mode_is_async(self, tmp_path) -> None:
+        cli_config = _FakeCliConfig(
+            command=sys.executable,
+            dispatch_modes={"alternative": _ModeConfig(["--x"], async_dispatch=True)},
+        )
+        assert fact_check.build_default_caller(cli_config, "v", cwd=tmp_path) is None
