@@ -225,6 +225,29 @@ def _latest_record_for_subject(
     return max(candidates, key=lambda r: str(r.get("recorded_at") or ""))
 
 
+def _newest_blocked_escalate_record(
+    checkpoint: Any, *, roadmap_id: str, dispatch_id: str, lease_generation: Optional[int]
+) -> Optional[dict[str, Any]]:
+    """Select an answerable escalation generation without generation-blind reuse."""
+    candidates = [
+        record for record in (getattr(checkpoint, "gate_decisions", None) or [])
+        if record.get("gate") == Gate.ESCALATE_RESUME.value
+        and record.get("roadmap_id") == roadmap_id
+        and record.get("dispatch_id") == dispatch_id
+        and record.get("outcome") == "blocked"
+        and (lease_generation is None or record.get("lease_generation") == lease_generation)
+    ]
+    if not candidates:
+        return None
+    return max(
+        candidates,
+        key=lambda record: (
+            record.get("lease_generation") if isinstance(record.get("lease_generation"), int) else 0,
+            str(record.get("recorded_at") or ""),
+        ),
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Mirror projection (D7)
 # --------------------------------------------------------------------------- #
@@ -632,6 +655,16 @@ def answer(
 
     fingerprint = roadmap_fingerprint(roadmap) if gate_enum is Gate.ROADMAP_APPROVAL else None
     dispatch_id = ctx.get("dispatch_id")
+    if gate_enum is Gate.ESCALATE_RESUME:
+        if not isinstance(dispatch_id, str):
+            raise GateRefusalError("escalate_resume requires a dispatch_id")
+        selected = _newest_blocked_escalate_record(
+            checkpoint, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id,
+            lease_generation=ctx.get("lease_generation"),
+        )
+        if selected is None:
+            raise GateRefusalError("escalate_resume has no blocked record to answer for this dispatch/generation")
+        ctx["lease_generation"] = selected.get("lease_generation")
     key = _subject_key(
         gate_enum, roadmap_id=roadmap.roadmap_id, dispatch_id=dispatch_id, fingerprint=fingerprint,
         lease_generation=ctx.get("lease_generation"),
@@ -714,7 +747,7 @@ def resolve_parked(
             "item_id": attempt.get("item_id"),
             "lease_generation": generation,
             "verb": "resume",
-            "reason": "retry budget exhausted",
+            "reason": "supervised phase retry budget exhausted",
         }
     else:
         context = {

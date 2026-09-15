@@ -111,10 +111,12 @@ class FakeCoordinator:
         self.notify_return = notify_return
         self.request_id = request_id
         self.calls: list[str] = []
+        self.contexts: list[dict] = []
         self._poll_index = 0
 
     def request_approval(self, *, operation, resource, context, timeout_seconds) -> str:
         self.calls.append("request_approval")
+        self.contexts.append(dict(context))
         if self.raise_on == "request":
             raise CoordinatorUnavailable("filing failed")
         return self.request_id
@@ -663,6 +665,25 @@ class TestResolveParked:
         assert resolution.routed.record["gate"] == "escalate_resume"
         assert resolution.pending_gate_entry["gate"] == "escalate_resume"
         assert adapter.resumed == []
+
+    def test_policy_pause_uses_the_fixed_sanitized_retry_reason(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        adapter = self.FakeAdapter()
+        coordinator = FakeCoordinator(statuses=["pending"])
+        service = make_service(posture_with(Gate.ESCALATE_RESUME, NOTIFY_BLOCK), coordinator=coordinator)
+
+        gate_router.resolve_parked(
+            self._attempt(parked={"kind": "policy_pause", "reason": "child supplied secret"}),
+            workspace=workspace, repo_root=repo, adapter=adapter, evaluator=service,
+        )
+
+        assert coordinator.contexts == [{
+            "dispatch_id": "d-1", "change_id": "demo-change", "item_id": "ri-01",
+            "lease_generation": 1, "verb": "resume",
+            "reason": "supervised phase retry budget exhausted",
+        }]
+
 
     def test_unknown_parked_gate_raises_without_recording(self, repo: Path, workspace: Path) -> None:
         adapter = self.FakeAdapter()

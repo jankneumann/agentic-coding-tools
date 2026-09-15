@@ -21,7 +21,7 @@
 
 ## 2. Implement the shared authority path
 
-- [ ] 2.1 (M) Add the shared per-workspace checkpoint transaction and fold gate-decision serialization into its single atomic payload.
+- [x] 2.1 (M) Add the shared per-workspace checkpoint transaction and fold gate-decision serialization into its single atomic payload.
   **Dependencies**: 1.1, 1.2
 
 - [ ] 2.2 (M) Migrate execution and delegated-orchestrator checkpoint mutations to the shared transaction seam without holding it across callbacks or network I/O.
@@ -34,7 +34,7 @@
 
 ## 3. Implement recovered lifecycle semantics
 
-- [ ] 3.1 (M) Derive delegated apply's exact required result set from current journal state and reject missing or historical results before callbacks.
+- [x] 3.1 (M) Derive delegated apply's exact required result set from current journal state and reject missing or historical results before callbacks.
   **Dependencies**: 1.3, 2.2
 
 - [ ] 3.2 (M) Integrate post-complete-batch policy-pause routing, exact allowlisted policy-pause context, legacy generation selection, approval-ref matching, and bounded route results.
