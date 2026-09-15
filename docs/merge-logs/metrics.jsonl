@@ -41,3 +41,11 @@
 {"event_type": "merge", "pr_number": 533, "backend": "direct", "success": true, "timestamp": "2026-09-13T03:17:37.279432+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 5.145}
 {"event_type": "merge", "pr_number": 538, "backend": "direct", "success": true, "timestamp": "2026-09-14T00:21:12.866161+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 4.427}
 {"event_type": "merge", "pr_number": 539, "backend": "direct", "success": true, "timestamp": "2026-09-14T03:18:49.451786+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 4.712}
+{"event_type": "merge", "pr_number": 521, "backend": "direct", "success": true, "timestamp": "2026-09-14T23:41:17.171860+00:00", "strategy": "squash", "duration_seconds": 3.535}
+{"event_type": "merge", "pr_number": 525, "backend": "direct", "success": true, "timestamp": "2026-09-14T23:42:14.074883+00:00", "strategy": "squash", "duration_seconds": 3.9}
+{"event_type": "merge", "pr_number": 520, "backend": "direct", "success": true, "timestamp": "2026-09-14T23:51:42.366312+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 4.332}
+{"event_type": "merge", "pr_number": 524, "backend": "direct", "success": true, "timestamp": "2026-09-14T23:52:05.372643+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 4.546}
+{"event_type": "merge", "pr_number": 523, "backend": "direct", "success": true, "timestamp": "2026-09-15T00:00:34.797366+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 3.828}
+{"event_type": "merge", "pr_number": 517, "backend": "direct", "success": true, "timestamp": "2026-09-15T00:00:52.220627+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 4.079}
+{"event_type": "merge", "pr_number": 522, "backend": "direct", "success": true, "timestamp": "2026-09-15T00:09:09.159260+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 4.074}
+{"event_type": "merge", "pr_number": 516, "backend": "direct", "success": true, "timestamp": "2026-09-15T00:15:52.571780+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 6.125}
