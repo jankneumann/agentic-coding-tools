@@ -256,14 +256,18 @@ def prompt_contract() -> tuple[tuple[str, ...], dict[str, tuple[str, ...]]]:
     """Return ``(required_fields, enums)`` for one finding, from the schema.
 
     This is the only field list review prompts may use. Hand-copied lists
-    drift from the canonical file (2026-08-24 defect).
+    drift from the canonical file (2026-08-24 defect). Properties marked
+    ``readOnly: true`` (e.g. ``line_resolution``, stamped by the ingest-time
+    resolver after the vendor responds) are excluded: they are never a
+    value a vendor is asked to supply, so a prompt built from this contract
+    must not promise one.
     """
     item = finding_item_schema()
     required = tuple(item.get("required") or ())
     enums = {
         name: tuple(spec["enum"])
         for name, spec in (item.get("properties") or {}).items()
-        if isinstance(spec, dict) and spec.get("enum")
+        if isinstance(spec, dict) and spec.get("enum") and not spec.get("readOnly")
     }
     return required, enums
 
