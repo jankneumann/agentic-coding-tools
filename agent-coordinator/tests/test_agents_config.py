@@ -674,9 +674,16 @@ class TestCliConfig:
         Roster per ``contracts/roster.md`` (add-agy-grok-pi-harnesses): the five
         first-class local CLI vendors are claude_code, codex, antigravity, grok,
         and pi. ``gemini`` is retired and MUST NOT appear.
+
+        ``ocr`` (add-deterministic-review-preprocessing) is excluded from this
+        set on purpose: it is a single-purpose, optional reviewer adapter
+        around the ``ocr`` binary, not a general-purpose coding-agent CLI, so
+        it is not part of the roster this test guards. It still has its own
+        ``cli`` section (dispatched the same way as the roster vendors), just
+        outside the five-vendor equality check below.
         """
         entries = load_agents_config()
-        local_with_cli = [e for e in entries if e.cli is not None]
+        local_with_cli = [e for e in entries if e.cli is not None and e.type != "ocr"]
         assert len(local_with_cli) >= 3, "Expected at least 3 agents with CLI config"
         vendors = {e.type for e in local_with_cli}
         assert vendors == {"claude_code", "codex", "antigravity", "grok", "pi"}

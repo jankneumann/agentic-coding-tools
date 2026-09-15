@@ -421,7 +421,14 @@ agents:
     trust_level: 1
     transport: mcp
     isolation: none
-    capabilities: []
+    # A bare subprocess wrapper around the `ocr` CLI (review mode only), not
+    # a coordinator-aware coding agent — it locks nothing, queues nothing,
+    # and writes no memory. `discover` is the one capability it genuinely
+    # has: being found as an available reviewer at dispatch time. The
+    # registry schema requires a non-empty list (minItems: 1), so this is
+    # the narrowest accurate declaration rather than copying the full
+    # coding-agent capability set used by the trust_level 2/3 vendors above.
+    capabilities: [discover]
     archetypes: [reviewer]
     description: >-
       Optional Open Code Review (alibaba/open-code-review) reviewer. A
