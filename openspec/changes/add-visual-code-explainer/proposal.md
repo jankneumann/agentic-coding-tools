@@ -53,8 +53,8 @@ that gates them, and the analysis that motivated this change is fresh.
   grounded sketches, the per-language coverage percentage the atlas already
   computes. The line is not optional and not collapsible.
 - **`codebase-atlas` gains `--tree <symbol-or-file> [--hops N] [--direction in|out|both]`.**
-  A stdlib-only text export in `build_atlas.py` that BFS-walks the existing
-  `symbolEdges` adjacency from `build_view_model()` and prints an indented tree
+  A stdlib-only text export in `build_atlas.py` that BFS-walks the `call` edges of
+  the existing `symbolEdges` adjacency from `build_view_model()` and prints an indented tree
   with file path and line per node, hop-capped at 4 to match the page's slider.
   Output is byte-stable for a fixed graph. Exit codes follow the existing
   contract (`0` ok, `1` input error, `2` symbol not found).
@@ -105,7 +105,7 @@ Chosen at discovery to keep this change to one capability:
 | Operability | `--tree` wall time on the committed graph (1,903 nodes / 1,199 edges) | ≤ 2 s, stdlib only, zero network | `test_atlas_tree.py` timing assertion on the committed graph |
 | Context cost | `SKILL.md` line count; reference depth | `SKILL.md` ≤ 150 lines (hard cap 500 per `apply-progressive-disclosure-oversized-skills`); references one level deep; TOC if > 100 lines | `test_skill_md.py` |
 | Compatibility | Skill test result with and without a `triggers:` key | Passes in both states | `test_skill_md.py` (explicit key assertions) |
-| Portability | `validate_install_manifest.py --check-only` | 0 errors with the new manifest entries | `install.sh --check-only` in CI |
+| Portability | `skills/install.sh --check` (runs `shared/validate_install_manifest.py`) | 0 errors with the new manifest entries | `install.sh --check` in CI |
 
 ## Approaches Considered
 

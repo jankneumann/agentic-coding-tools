@@ -80,7 +80,7 @@ The `explain-code` `SKILL.md` frontmatter SHALL declare `name`, `description`, `
 
 #### Scenario: Manifest validation passes
 
-- **WHEN** `skills/install.sh --check-only` runs after the skill is added
+- **WHEN** `skills/install.sh --check` runs after the skill is added
 - **THEN** the manifest validator SHALL report zero errors
 - **AND** every sibling reference in `skills/explain-code/**` SHALL be covered by the declared cross-skill dependencies
 

@@ -5,13 +5,13 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
 
 ## Phase 1 — `codebase-atlas --tree` export (package `wp-atlas-tree`)
 
-- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `2` with candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, output contains only fixture node ids, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
-  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Cycle is printed once", "File target gives the aggregated module view", "Unknown or ambiguous target exits 2", "Deterministic output", "Coverage footer matches the page banner"
+- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `2` with candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, output contains only fixture node ids, a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
+  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown or ambiguous target exits 2", "Deterministic output", "Coverage footer matches the page banner"
   **Design decisions**: D3 (format), D4 (resolution), D7 (fixture-only nodes), D8 (module name)
   **Dependencies**: None
   **Size**: M
 
-- [ ] 1.2 Implement `skills/codebase-atlas/scripts/atlas_tree.py` — `resolve_target()`, `walk()` over `symbolEdges`, `format_tree()`, `footer()` — stdlib only, children sorted by name then id, hop clamp at 4 with stderr note
+- [ ] 1.2 Implement `skills/codebase-atlas/scripts/atlas_tree.py` — `resolve_target()`, `walk()` over `call`-typed `symbolEdges`, `format_tree()`, `footer()` — stdlib only, children sorted by name then id, hop clamp at 4 with stderr note
   **Spec scenarios**: as 1.1
   **Design decisions**: D3, D4, D8
   **Dependencies**: 1.1
@@ -93,7 +93,7 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: 2.5
   **Size**: S
 
-- [ ] Checkpoint: run `bash skills/install.sh --check-only` and `skills/.venv/bin/python -m pytest skills/tests/explain-code`, verify scope stayed inside the package's write_allow
+- [ ] Checkpoint: run `bash skills/install.sh --check` and `skills/.venv/bin/python -m pytest skills/tests/explain-code`, verify scope stayed inside the package's write_allow
 
 ## Phase 3 — Integration (package `wp-integration`)
 
@@ -115,7 +115,7 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: 3.2
   **Size**: XS
 
-- [ ] 3.4 Run the full verification block from `design.md`: `pytest skills/tests/codebase-atlas skills/tests/explain-code skills/tests/install_sh`, `openspec validate add-visual-code-explainer --strict`, `bash skills/install.sh --check-only`, and the two-run `cmp` determinism check
+- [ ] 3.4 Run the full verification block from `design.md`: `pytest skills/tests/codebase-atlas skills/tests/explain-code skills/tests/install_sh`, `openspec validate add-visual-code-explainer --strict`, `bash skills/install.sh --check`, and the two-run `cmp` determinism check
   **Spec scenarios**: all
   **Design decisions**: all
   **Dependencies**: 3.3
