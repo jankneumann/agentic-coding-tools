@@ -95,12 +95,17 @@ def test_checkpoint_precedes_fact_check_removal(tmp_path: Path) -> None:
     ctx = _setup(tmp_path, results)
 
     def fake_caller(_system: str, _user: str) -> str:
+        # Ground A (code absent from the diff), not B: this test's
+        # worktree_path is not a git repo, so the packet's real diff is
+        # empty — Ground B's evidence_line would correctly fail the
+        # line-in-diff verification (add-deterministic-review-
+        # preprocessing) and this test is about the checkpoint-then-removal
+        # flow, not about ground-specific evidence checking.
         return json.dumps({
             "tool": "report_incorrect_comments",
             "items": [{
                 "finding_id": "f-1",
-                "ground": "B_contradicted_by_diff_line",
-                "evidence_line": "+used_variable = compute()",
+                "ground": "A_absent_from_subject_diff",
             }],
         })
 

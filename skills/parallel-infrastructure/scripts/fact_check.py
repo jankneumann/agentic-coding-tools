@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+import file_selection
+
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 SYSTEM_PROMPT = (PROMPTS_DIR / "fact_check_system.md").read_text(encoding="utf-8")
 USER_PROMPT_TEMPLATE = (PROMPTS_DIR / "fact_check_user.md").read_text(encoding="utf-8")
@@ -188,6 +190,28 @@ def parse_verdict(raw_text: str) -> tuple[str, list[dict[str, Any]]]:
     raise ValueError(f"unrecognized fact-check tool {tool!r}")
 
 
+def _evidence_line_in_subject_diff(
+    evidence_line: str, file_path: str | None, packet_diff: str,
+) -> bool:
+    """Whether *evidence_line* literally appears in *file_path*'s diff hunk.
+
+    Ground B's whole premise is a diff line that contradicts the finding —
+    a fabricated or misquoted line proves nothing, so the line is checked
+    against the actual diff before it can justify a removal. Scoped to the
+    finding's own subject file when that file's diff can be located; falls
+    back to the full packet diff when it cannot (a missing/renamed
+    file_path should not make an otherwise-real citation unverifiable).
+    """
+    line = evidence_line.strip()
+    if not line:
+        return False
+    if file_path:
+        for file_diff in file_selection.parse_diff_files(packet_diff):
+            if file_diff.path == file_path or file_diff.old_path == file_path:
+                return line in file_diff.body
+    return line in packet_diff
+
+
 def run(
     *,
     vendor: str,
@@ -246,8 +270,22 @@ def run(
         for item in items:
             fid = str(item.get("finding_id", ""))
             ground = item.get("ground")
-            if fid in by_id and ground in _GROUNDS:
-                to_remove[fid] = item
+            if fid not in by_id or ground not in _GROUNDS:
+                continue
+            evidence_line = item.get("evidence_line")
+            if ground == GROUND_B:
+                # The contracted evidence field is what makes a Ground B
+                # verdict falsifiable at all — a missing or fabricated line
+                # would let a malformed or hallucinated response silently
+                # discard a valid finding, so it is required and checked
+                # against the subject file's actual diff before removal.
+                if not isinstance(evidence_line, str):
+                    continue
+                if not _evidence_line_in_subject_diff(
+                    evidence_line, by_id[fid].get("file_path"), packet_diff,
+                ):
+                    continue
+            to_remove[fid] = item
 
     decisions: list[Decision] = []
     kept: list[dict[str, Any]] = []
@@ -325,11 +363,23 @@ def build_default_caller(
 
     Deliberately does not reuse ``CliVendorAdapter.dispatch``/``review``
     mode: that mode hard-codes findings-schema output (e.g. grok's
-    ``--json-schema``), the wrong shape for a fact-check verdict. This issues
-    a minimal, read-only, non-schema-constrained call at the resolved
-    economy tier instead. Returns ``None`` (never raises) when the binary is
-    not on PATH — callers pass that straight to :func:`run` as
-    ``caller=None``, which skips gracefully.
+    ``--json-schema``), the wrong shape for a fact-check verdict. Every
+    vendor in agents.yaml already declares an ``alternative`` dispatch mode
+    with the flags its own CLI needs for a plain, non-schema-constrained
+    prompt (``--print`` for claude, ``exec -s workspace-write`` for codex,
+    ``--prompt-file /dev/stdin`` for grok, and so on) — using a single
+    hard-coded Claude flag set (``--print --allowedTools``) here made the
+    pass silently no-op for every other vendor, since those flags mean
+    nothing to their CLIs. This reads that per-vendor mode instead. Returns
+    ``None`` (never raises) when the binary is not on PATH, or when the
+    vendor declares no synchronous ``alternative``/``quick`` mode to build
+    the command from — callers pass that straight to :func:`run` as
+    ``caller=None``, which skips gracefully rather than guessing flags.
+
+    Read-only-ness is a property of the fact-check prompt (it only ever
+    asks for a verdict, never invites an edit), not of the CLI's own
+    tool-permission flags — the same design already used for grok/agy/pi's
+    review-mode dispatch (see agents.yaml's comments on those vendors).
     """
     import shutil
     import subprocess
@@ -337,13 +387,18 @@ def build_default_caller(
     command = getattr(cli_config, "command", None)
     if not command or shutil.which(command) is None:
         return None
+    dispatch_modes = getattr(cli_config, "dispatch_modes", None) or {}
+    mode_config = dispatch_modes.get("alternative") or dispatch_modes.get("quick")
+    if mode_config is None or getattr(mode_config, "async_dispatch", False):
+        return None
+    mode_args = list(getattr(mode_config, "args", None) or [])
     model = resolve_economy_model(vendor)
     model_flag = getattr(cli_config, "model_flag", None)
     prompt_via_stdin = getattr(cli_config, "prompt_via_stdin", True)
 
     def _caller(system_prompt: str, user_prompt: str) -> str:
         full_prompt = system_prompt + "\n\n" + user_prompt
-        cmd = [command, "--print", "--allowedTools", "Read,Grep,Glob"]
+        cmd = [command, *mode_args]
         if model and model_flag:
             cmd.extend([model_flag, model])
         stdin_text = full_prompt if prompt_via_stdin else None
