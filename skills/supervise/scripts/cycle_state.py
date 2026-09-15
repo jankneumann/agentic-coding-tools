@@ -1265,6 +1265,8 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
     context: dict[str, Any] = {"verb": "cycle"}
     if args.dispatch_id:
         context["dispatch_id"] = args.dispatch_id
+    if args.lease_generation is not None:
+        context["lease_generation"] = args.lease_generation
 
     try:
         routed = gate_router.answer(
@@ -1341,6 +1343,7 @@ def main(argv: list[str] | None = None) -> int:
     p_gate_answer.add_argument("--decision", required=True, choices=["approved", "rejected"])
     p_gate_answer.add_argument("--note")
     p_gate_answer.add_argument("--dispatch-id", dest="dispatch_id")
+    p_gate_answer.add_argument("--lease-generation", dest="lease_generation", type=int)
 
     p_gate_log = sub.add_parser("gate-log", help="Print the sidecar + child gate_decisions for a roadmap (D6).")
     p_gate_log.add_argument("--roadmap", required=True)
