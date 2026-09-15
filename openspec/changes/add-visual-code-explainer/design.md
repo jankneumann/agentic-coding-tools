@@ -57,9 +57,11 @@ build_atlas.py --tree <target> [--hops N] [--direction out|in|both] [--graph PAT
   `call` and `import` edges — and an import is a dependency, not a call: walking
   it would report importers as callers and corrupt the grounded output. A
   dependency-tree mode over `import` edges is out of scope for this change.
-- Trailing footer, one line: `graph @ <sha7> · python 14% / sql 37% covered`:
+- Trailing footer, one line: `graph @ <sha7> · python 14.4% / sql 37.0% covered`:
   one `<language> <percent>%` entry per language, sorted by language name, joined
-  with ` / `, integer percent, a single trailing `covered`. Percentages are
+  with ` / `, percent to one decimal place (the `Coverage.percent` value
+  itself, never re-rounded, so it stays equal to the page banner), a single
+  trailing `covered`. Percentages are
   taken from `build_view_model(measure=True)` — the same `Coverage`
   values the page banner uses. `--no-coverage` suppresses it.
 
@@ -84,7 +86,7 @@ about a guessed symbol; the skill asks which candidate was meant instead. Exit
 
 Every reply ends with exactly one line, never omitted, never collapsed:
 
-- grounded: `Grounding: graph @ <sha7>; python 14% / sql 37% covered`
+- grounded: `Grounding: graph @ <sha7>; python 14.4% / sql 37.0% covered`
 - ungrounded: `Grounding: source read, unverified (graph <stale|absent|check failed>)`
 
 The grounded form copies the footer `--tree` prints (D3) so the two cannot
