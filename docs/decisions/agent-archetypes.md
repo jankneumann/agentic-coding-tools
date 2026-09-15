@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-15 — add-skill-audit
+
+### Phase: Plan
+
+**procedure_mode is an optional field on the archetype, injected only in resolve_archetype_for_phase** — The tier is known there and nowhere else; the autopilot fold forwards system_prompt verbatim; the review dispatcher never composes an archetype prompt; guided default keeps output byte-identical.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D3)
+
+---
+
 ## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Plan
