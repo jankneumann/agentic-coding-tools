@@ -56,7 +56,24 @@ def prompt() -> str:
 
 @pytest.fixture(scope="module")
 def schema_item() -> dict:
-    return finding_item_schema()
+    """The finding item schema, with readOnly properties stripped.
+
+    A readOnly property (e.g. line_resolution, stamped by the ingest-time
+    resolver after the vendor responds — add-deterministic-review-
+    preprocessing) is never a value a vendor is asked to supply, so every
+    test below that checks "the prompt must mention every enum value the
+    schema allows" must not hold the prompt to fields the vendor was never
+    meant to fill in. review_findings_schema.prompt_contract() excludes
+    these the same way; this fixture mirrors that so the tests below stay
+    checking the same contract the prompt is actually built from.
+    """
+    item = finding_item_schema()
+    properties = {
+        name: spec
+        for name, spec in (item.get("properties") or {}).items()
+        if not (isinstance(spec, dict) and spec.get("readOnly"))
+    }
+    return {**item, "properties": properties}
 
 
 def test_every_required_field_appears_in_the_prompt(prompt, schema_item):

@@ -176,6 +176,7 @@
           },
           "line_resolution": {
             "type": "string",
+            "readOnly": true,
             "enum": [
               "vendor",
               "hunk_new",
@@ -183,7 +184,7 @@
               "file",
               "unresolved"
             ],
-            "description": "How line_range was determined, added by add-deterministic-review-preprocessing. 'vendor' means the vendor supplied a usable line_range directly; 'hunk_new'/'hunk_old'/'file' mean the ingest-time resolver matched existing_code on that side of the diff or in the full file; 'unresolved' means matching failed and line_range is absent (the finding is kept regardless)."
+            "description": "How line_range was determined, added by add-deterministic-review-preprocessing. 'vendor' means the vendor supplied a usable line_range directly; 'hunk_new'/'hunk_old'/'file' mean the ingest-time resolver matched existing_code on that side of the diff or in the full file; 'unresolved' means matching failed and line_range is absent (the finding is kept regardless). readOnly: this is stamped by the ingest-time resolver after the vendor responds, never a value the vendor is asked to supply — review prompt contracts derived from this schema (see review_findings_schema.prompt_contract) exclude it."
           }
         }
       }
