@@ -135,9 +135,12 @@ class CheckpointManager:
         record instead was the alternative, and it would leave a blocked gate with
         no evidence that a human decision ever happened.
         """
-        current = self.load() if self.exists() else checkpoint
-        current.gate_decisions.append(dict(record))
-        self.save(current)
+        if not self.exists():
+            checkpoint.gate_decisions.append(dict(record))
+            self.save(checkpoint)
+            return
+        with self.transaction() as current:
+            current.gate_decisions.append(dict(record))
         checkpoint.gate_decisions = list(current.gate_decisions)
 
     def fail_item(
