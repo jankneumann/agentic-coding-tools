@@ -787,6 +787,44 @@ class TestGateAnswerCli:
 
         assert rc == 2
 
+    def test_escalate_resume_dispatch_only_answer_selects_the_newest_blocked_generation(
+        self, repo: Path, capsys
+    ) -> None:
+        repo = _gated_repo(repo)
+        _write_posture(repo, "roadmap_approval", "block")
+        cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+        capsys.readouterr()
+        workspace = repo / "openspec" / "roadmaps" / "alpha"
+        checkpoint_path = workspace / "checkpoint.json"
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        checkpoint["gate_decisions"] = [
+            {
+                "decision_id": "11111111-2222-4333-8444-555555555555",
+                "gate": "escalate_resume", "outcome": "blocked",
+                "resolution": "posture_block", "disposition": "block",
+                "reason": "blocked", "posture_present": True,
+                "recorded_at": "2026-09-01T00:00:00+00:00",
+                "roadmap_id": "alpha", "dispatch_id": "d-1", "lease_generation": 1,
+            },
+            {
+                "decision_id": "66666666-7777-4888-8999-aaaaaaaaaaaa",
+                "gate": "escalate_resume", "outcome": "blocked",
+                "resolution": "posture_block", "disposition": "block",
+                "reason": "blocked", "posture_present": True,
+                "recorded_at": "2026-09-02T00:00:00+00:00",
+                "roadmap_id": "alpha", "dispatch_id": "d-1", "lease_generation": 2,
+            },
+        ]
+        checkpoint_path.write_text(json.dumps(checkpoint), encoding="utf-8")
+
+        rc = cycle_state.main(
+            ["--repo-root", str(repo), "gate-answer", "--roadmap", "alpha",
+             "--gate", "escalate_resume", "--decision", "approved", "--dispatch-id", "d-1"]
+        )
+
+        assert rc == 0
+        assert json.loads(capsys.readouterr().out)["lease_generation"] == 2
+
 
 class TestGateLogCli:
     def test_empty_workspace_prints_empty_array(self, repo: Path, capsys) -> None:
