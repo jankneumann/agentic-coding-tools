@@ -57,7 +57,8 @@ that gates them, and the analysis that motivated this change is fresh.
   the existing `symbolEdges` adjacency from `build_view_model()` and prints an indented tree
   with file path and line per node, hop-capped at 4 to match the page's slider.
   Output is byte-stable for a fixed graph. Exit codes follow the existing
-  contract (`0` ok, `1` input error, `2` symbol not found).
+  contract (`0` ok, `1` input error, `2` symbol not found) plus `3` for an
+  ambiguous name, which the skill resolves by asking rather than guessing.
 - **Frontmatter written for the post-`rewrite-skill-frontmatter` world.** The new
   `SKILL.md` carries `name, description, category, tags, user_invocable, related`
   with a description that states capability and trigger condition in third
@@ -198,7 +199,7 @@ affected.
 - New: `skills/explain-code/SKILL.md`, `skills/explain-code/references/*.md`,
   `skills/tests/explain-code/`.
 - Modified: `skills/codebase-atlas/scripts/build_atlas.py` (new flag and a
-  `tree.py` helper module — no bare-named `models`/`utils` modules, per
+  `atlas_tree.py` helper module — no bare-named `models`/`utils` modules, per
   `collect-uncollected-skill-tests`), `skills/codebase-atlas/SKILL.md` (flag
   table row only), `skills/tests/codebase-atlas/test_skill_md.py`,
   `skills/install-manifest.json`, `skills/pyproject.toml`,
