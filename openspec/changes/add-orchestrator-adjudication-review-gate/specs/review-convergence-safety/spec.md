@@ -36,6 +36,12 @@ A serialized consensus report SHALL record each finding's `evidence_class`, and 
 
 Each finding selected by the adjudication predicate SHALL receive exactly one schema-validated verdict. A verdict SHALL record whether the claim is `verified`, `refuted`, or `unverifiable`; `file:line` evidence, required when the claim is `verified` or `refuted`; `impact_if_true` as `blocking` or `non_blocking`; a recalibrated criticality; a justification; the adjudicator's identity; and the head SHA that was reviewed.
 
+#### Scenario: Verdicts correspond one-to-one with the candidates
+
+- **WHEN** a returned verdict set does not name every dispatched candidate exactly once, whether by duplicating a `finding_id`, naming a finding that was not dispatched, or omitting one that was
+- **THEN** the verdict set SHALL be rejected as a whole
+- **AND** the gate SHALL fail closed rather than acting on the verdicts that are well-formed.
+
 #### Scenario: A verified or refuted claim carries evidence
 
 - **WHEN** an adjudicator returns a verdict whose claim is `verified` or `refuted` without `file:line` evidence
@@ -72,14 +78,14 @@ A gate outcome SHALL be computed in code from the verdicts, and SHALL NOT be tak
 
 ### Requirement: High-impact judgment requires adjudication
 
-The convergence loop MUST stop without convergence when an open judgment-class finding is unconfirmed and has high or critical impact, and MUST route that finding to orchestrator adjudication instead of automated fixing. Escalation is the residual path for a claim the orchestrator can neither verify nor refute, not the first response.
+The convergence loop MUST stop without convergence when an open judgment-class finding is unconfirmed and has high or critical impact, and MUST adjudicate that finding before any automated fix or escalation. An unadjudicated finding SHALL NOT reach the automated fix callback; a finding whose verdict is `verified` with `blocking` impact SHALL. Escalation is the residual path for a claim the orchestrator can neither verify nor refute, not the first response.
 
 #### Scenario: Unconfirmed high judgment
 
 - **WHEN** consensus yields an unconfirmed high-impact judgment finding
 - **THEN** convergence returns `adjudication_required`
 - **AND** the finding is adjudicated before any escalation
-- **AND** the automated fix callback is not invoked for it
+- **AND** the automated fix callback is not invoked for it while it has no verdict
 
 #### Scenario: Escalation carries only unverifiable blocking claims
 

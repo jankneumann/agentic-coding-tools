@@ -377,3 +377,82 @@ packages:
     metadata:
       loc_estimate: 40
       package_kind: config
+
+  - package_id: wp-integration
+    title: "Merge worktrees and validate the combined change"
+    task_type: integrate
+    role: integrator
+    description: >-
+      Terminal package. Merges every implementation worktree back into the
+      feature branch and validates the combination the per-package suites
+      cannot: the serialized evidence_class reaching the shared predicate,
+      the predicate feeding adjudication, and both gates computing outcomes
+      from the same verdicts. Runs the full suite plus strict OpenSpec
+      validation and the skills installer check.
+    priority: 5
+    depends_on:
+      - "wp-evidence-class"
+      - "wp-predicate"
+      - "wp-adjudication"
+      - "wp-merge-gate"
+      - "wp-convergence"
+      - "wp-replay"
+      - "wp-roadmap"
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/work-packages.yaml"
+      keys:
+        - "feature:orchestrator-adjudication-integration"
+      ttl_minutes: 120
+      reason: "Serializes the integration merge of every package worktree"
+    scope:
+      write_allow:
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/session-log.md"
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/validation-report.md"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "docs/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: wp-integration
+      mode: shared
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full skills suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suite"]
+        - name: "Isolated per-skill suites CI runs separately"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure skills/tests/merge-pull-requests skills/autopilot/scripts/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["isolated_suites"]
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate --strict --all"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict"]
+        - name: "Skill mirrors match canonical payload"
+          kind: command
+          command: "bash skills/install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["install_check"]
+    outputs:
+      result_keys: ["full_suite", "isolated_suites", "openspec_strict", "install_check"]
+    metadata:
+      loc_estimate: 60
+      package_kind: integration
