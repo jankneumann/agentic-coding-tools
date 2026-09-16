@@ -1,0 +1,67 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "axis": "correctness",
+      "severity": "critical",
+      "criticality": "critical",
+      "disposition": "fix",
+      "description": "The critical task-drift gate found 13 unchecked tasks while the branch contains 15 implementation commits; requirement verification must halt.",
+      "resolution": "Reconcile tasks.md with commit reality in a new commit, completing remaining work or moving genuinely deferred tasks to deferred-tasks.md.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md",
+      "line_range": {"start": 5, "end": 56}
+    },
+    {
+      "id": 2,
+      "type": "behavioral_failure",
+      "axis": "correctness",
+      "severity": "critical",
+      "criticality": "high",
+      "disposition": "fix",
+      "description": "The focused recovery suite reported 608 passed and 1 failed: TestImportIsolation.test_cycle_state_survives_a_foreign_models_module cannot reload cycle_state in suite order, although it passes alone.",
+      "resolution": "Repair flat-module lifecycle isolation so cycle_state remains the registered module across the documented combined suites, then rerun focused and full skills tests.",
+      "file_path": "skills/tests/supervise/test_cycle_state.py",
+      "line_range": {"start": 446, "end": 469}
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "axis": "compatibility",
+      "severity": "critical",
+      "criticality": "high",
+      "disposition": "fix",
+      "description": "The deterministic context-drift gate reports that wp-authority-recovery omits the inferred apis surface from context_impact.",
+      "resolution": "Declare the apis impact or record an approved rationale, then rerun make context-drift-gate.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "line_range": {"start": 72, "end": 77}
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "axis": "observability",
+      "severity": "critical",
+      "criticality": "high",
+      "disposition": "fix",
+      "description": "No result.json or work-queue-result.json exists for the sole work package, so its plan/contracts revisions, scope check, verification result, and escalation disposition cannot be audited.",
+      "resolution": "Produce and validate the canonical wp-authority-recovery work result with every required result key before revalidation.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "line_range": {"start": 84, "end": 122}
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "axis": "architecture",
+      "severity": "nit",
+      "criticality": "medium",
+      "disposition": "accept",
+      "description": "Structural architecture lint reported 13 file-size findings; scoped flow validation and dependency-cycle checks were otherwise clean.",
+      "resolution": "Treat as advisory technical debt under the current architecture mode; split oversized runtime/test files in a separately scoped refactor where practical."
+    }
+  ],
+  "review_type": "implementation",
+  "reviewer_vendor": "validate-feature",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "validated_commit": "3848e95d7311a35a62a9ff607ab49b5ecec72639",
+  "validated_tree": "3ee81ea9385536179cc428472b26705ff2194858"
+}
