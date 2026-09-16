@@ -9,8 +9,8 @@
 
 ### Decisions
 1. **Adopt show-me's catalogue as prose; ground only the call tree in code** `architectural: code-visualization` — The catalogue works because it is a prompt, so it stays a prompt. Determinism is bought only where it pays: the call tree, via a new codebase-atlas --tree flag over the existing symbolEdges adjacency. A scripted explainer for every form would duplicate the atlas view-model and generate_views Mermaid emitters in a third skill, and sequence diagrams need runtime ordering the static graph lacks.
-2. **Freshness is decided by the existing run_architecture.py --check contract** `architectural: code-visualization` — Exit 0 alone means fresh; exit 1, exit 2, a missing script, or a missing graph all mean ungrounded. Re-deriving freshness from git_sha in prose would create a second, weaker definition alongside the architecture-refresh contract the atlas already mirrors. The skill never runs --ensure or the pipeline.
-3. **Mandatory one-line coverage disclosure on every answer** `architectural: code-visualization` — The codeviz proposal's standing principle is that a visualisation must disclose its own coverage. The grounded form copies the --tree footer verbatim so the two cannot drift; the ungrounded form names the reason (stale, absent, check failed, symbol not in graph). This is the improvement on show-me, which trusts model memory silently.
+2. **Freshness is decided by the existing run_architecture.py --check contract** `architectural: code-visualization` — Exit 0 alone means fresh; any non-zero exit (the script returns 1 when provenance is not fresh), a missing script, or a missing graph all mean ungrounded. Do not confuse with build_atlas.py --check (exit 2 = stale HTML page). Re-deriving freshness from git_sha in prose would create a second, weaker definition alongside the architecture-refresh contract. The skill never runs --ensure or the pipeline.
+3. **Mandatory one-line coverage disclosure on every answer** `architectural: code-visualization` — The codeviz proposal's standing principle is that a visualisation must disclose its own coverage. The grounded form copies the --tree footer coverage list (after `· `) so percents cannot drift; the ungrounded form names an exact reason (`graph stale|absent|check failed`, `symbol not in graph`, or `form not graph-backed`). This is the improvement on show-me, which trusts model memory silently.
 4. **Frontmatter omits triggers; the skill test asserts keys explicitly** `architectural: skill-authoring` — rewrite-skill-frontmatter deletes triggers from all 52 skills, but the canonical spec and REQUIRED_FRONTMATTER_KEYS still require it. Asserting the six surviving keys directly instead of calling assert_required_keys_present makes the skill valid in both merge orderings, so this change does not block on that one.
 5. **Behavioural scenarios are CI-wired deterministically, harness-optional** `architectural: skill-authoring` — invert-skill-test-suite-to-behavioural wants three behavioural scenarios per user-invocable skill but is 0/10 tasks. Three deterministic prompt-content tests plus the fixture-node assertion in test_atlas_tree.py encode the same behaviours today; harness fixtures are a conditional task.
 
@@ -25,7 +25,7 @@
 - Accepted Coverage percentages are an optimistic upper bound over Exact path-based coverage because The analyzer records bare basenames, so one graph name can match several on-disk files. Fixing node identity is a separate prerequisite change (issue #275); the reference file states the number is a ceiling.
 
 ### Open Questions
-- [ ] Skill directory name is show-me, crediting humanlayer's MIT source. Confirm at Gate 2 if explain-code or sketch-code is preferred.
+- [x] Skill directory name — resolved at Gate 2: `explain-code` (not `show-me` / `sketch-code`). `show-me` stays the upstream humanlayer credit only.
 - [ ] The trajectory-scenario harness format for task 2.8 was not verified present in this checkout; the task is conditional and records 'harness absent' if it is not.
 - [ ] Whether the follow-up change should widen add-visual-plan-review's 'OpenSpec proposals only' boundary or create a separate general-artifact capability for HTML output.
 
@@ -41,5 +41,21 @@
 - `openspec/changes/add-visual-code-explainer/work-packages.yaml` — wp-atlas-tree and wp-skill in parallel, wp-integration last
 
 ### Context
-Planned a question-driven visual code explainer skill adopting humanlayer's MIT show-me format catalogue and brevity rules, grounded in this repo's architecture graph. Selected the prompt-only approach: skills/show-me/ ships no scripts, and the single piece of new code is a --tree symbol export in codebase-atlas that walks the existing symbolEdges adjacency. Scope was cut at discovery from six items to two (skill + --tree); HTML output, the feature-slice call tree, diff rendering, the plan-review playbook, and the atlas description rewrite were deferred to a follow-up.
+Planned a question-driven visual code explainer skill adopting humanlayer's MIT show-me format catalogue and brevity rules, grounded in this repo's architecture graph. Selected the prompt-only approach: skills/explain-code/ ships no scripts, and the single piece of new code is a --tree symbol export in codebase-atlas that walks the existing symbolEdges adjacency. Scope was cut at discovery from six items to two (skill + --tree); HTML output, the feature-slice call tree, diff rendering, the plan-review playbook, and the atlas description rewrite were deferred to a follow-up.
+
+## Phase: Plan Iterate (2026-09-16)
+
+**Agent**: autopilot-plan-iterate | **Session**: N/A
+
+### Decisions
+1. **Correct freshness exit-code docs to the live `run_architecture.py --check` contract** `architectural: code-visualization` — Exit 0 only is fresh; non-zero (typically 1 for stale provenance) is ungrounded. Atlas `--check` exit 2 is a different CLI and must not be mixed into D2.
+2. **Pin exact ungrounded disclosure reasons including non-call-tree forms** `architectural: code-visualization` — Reasons are `graph stale|absent|check failed`, `symbol not in graph`, and `form not graph-backed`. Only `--tree`-backed call trees may use the grounded form.
+
+### Next Steps
+- Proceed to PLAN_REVIEW.
+
+### Relevant Files
+- `openspec/changes/add-visual-code-explainer/plan-findings.md` — iteration 1 findings table
+- `openspec/changes/add-visual-code-explainer/design.md` — D2/D4/D5 corrections
+- `openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md` — disclosure reason alignment
 

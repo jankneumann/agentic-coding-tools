@@ -31,7 +31,7 @@ The repository SHALL provide a user-invocable, prompt-only skill `explain-code` 
 
 ### Requirement: Explainer Grounding and Coverage Disclosure
 
-Before sketching a call tree, the skill SHALL determine graph freshness by running the read-only `run_architecture.py --check` from the co-installed `refresh-architecture` skill via `<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py`, treating exit code `0` alone as fresh. When fresh, the skill SHALL obtain callers and callees from `build_atlas.py --tree` (co-installed `codebase-atlas`) and SHALL build the call tree only from nodes that `build_atlas.py --tree` returns. When stale, absent, or failing, the skill SHALL read source directly and label the sketch unverified. Every reply SHALL end with exactly one disclosure line: `Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered` (the coverage list copied verbatim from the `--tree` footer, including its order and ` / ` separators) when grounded, or `Grounding: source read, unverified (graph <stale|absent|check failed>)` when not. The skill SHALL NOT run a refresh, `--ensure`, or the analysis pipeline itself.
+Before sketching a call tree, the skill SHALL determine graph freshness by running the read-only `run_architecture.py --check` from the co-installed `refresh-architecture` skill via `<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py`, treating exit code `0` alone as fresh (any non-zero exit means ungrounded; the script returns `1` when provenance is not fresh). When fresh, the skill SHALL obtain callers and callees from `build_atlas.py --tree` (co-installed `codebase-atlas`) and SHALL build the call tree only from nodes that `build_atlas.py --tree` returns. When stale, absent, or failing, the skill SHALL read source directly and label the sketch unverified. Every reply SHALL end with exactly one disclosure line: `Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered` when grounded (coverage list copied verbatim from the `--tree` footer after its `· ` separator, including order and ` / ` separators), or `Grounding: source read, unverified (<reason>)` when not, where `<reason>` is one of `graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, or `form not graph-backed`. Only a call tree built from `--tree` after a fresh `--check` MAY use the grounded form; other catalogue forms SHALL use `form not graph-backed`. The skill SHALL NOT run a refresh, `--ensure`, or the analysis pipeline itself.
 
 #### Scenario: Fresh graph grounds the call tree
 
@@ -43,14 +43,20 @@ Before sketching a call tree, the skill SHALL determine graph freshness by runni
 
 - **WHEN** `run_architecture.py --check` exits non-zero, or the script or graph file is missing
 - **THEN** the skill SHALL still answer, drawing the sketch from the source files it reads
-- **AND** the disclosure line SHALL read `Grounding: source read, unverified (graph <reason>)`
+- **AND** the disclosure line SHALL read `Grounding: source read, unverified (<reason>)` with reason `graph stale`, `graph absent`, or `graph check failed` as appropriate
 - **AND** the skill SHALL NOT invoke `--ensure` or the analysis pipeline
 
 #### Scenario: Symbol outside graph coverage
 
 - **WHEN** the graph is fresh but `build_atlas.py --tree` exits `2` (target not found) for the requested symbol
 - **THEN** the skill SHALL fall back to source reading for that symbol
-- **AND** the disclosure line SHALL use the unverified form with reason `symbol not in graph`
+- **AND** the disclosure line SHALL read `Grounding: source read, unverified (symbol not in graph)`
+
+#### Scenario: Non-call-tree form is not graph-backed
+
+- **WHEN** the skill answers with a catalogue form other than a call tree
+- **THEN** the disclosure line SHALL read `Grounding: source read, unverified (form not graph-backed)`
+- **AND** the skill SHALL NOT claim the grounded `graph @` form for that reply
 
 #### Scenario: Ambiguous symbol asks instead of guessing
 
