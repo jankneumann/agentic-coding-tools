@@ -975,6 +975,7 @@ def build_phase_dispatch_kwargs(
     phase: str,
     change_id: str,
     provider: str | None = None,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """Return the dispatch payload for a phase sub-agent (D3).
 
@@ -1040,6 +1041,7 @@ def build_phase_dispatch_kwargs(
         "change_id": change_id,
         "phase": phase,
         "provider": dispatch_provider,
+        "agent_id": agent_id,
         "prompt": folded_prompt,
         "model": model,
         "system_prompt": system_prompt,
@@ -1068,15 +1070,18 @@ def build_phase_dispatch_payload(
     phase: str,
     change_id: str,
     provider: str | None = None,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """Return a provider-neutral phase dispatch payload."""
     payload = build_phase_dispatch_kwargs(
         phase=phase,
         change_id=change_id,
         provider=provider,
+        agent_id=agent_id,
     )
     if payload.get("provider") is None:
         payload["provider"] = "claude_code"
+    payload["agent_id"] = agent_id
     return payload
 
 

@@ -1988,3 +1988,107 @@ def test_repo_antigravity_live_dispatch_pairs_json_mode_and_schema(
     assert command[output_index + 1] == "json"
     assert output_index < schema_index
     assert json.loads(command[schema_index + 1])["type"] == "object"
+
+
+def test_review_result_preserves_exact_lane_and_capacity_metadata() -> None:
+    result = ReviewResult(
+        vendor="codex",
+        success=False,
+        agent_id="codex-local",
+        error_class=ErrorClass.CAPACITY,
+        capacity_scope="model",
+        capacity_model="gpt-5.6",
+        capacity_reset_at="2026-09-16T12:30:00Z",
+        capacity_retry_after_seconds=120,
+    )
+
+    assert result.agent_id == "codex-local"
+    assert result.capacity_scope == "model"
+    assert result.capacity_model == "gpt-5.6"
+    assert result.capacity_reset_at == "2026-09-16T12:30:00Z"
+    assert result.capacity_retry_after_seconds == 120
+
+
+def test_collect_reports_terminal_capacity_once_with_exact_lane(tmp_path: Path) -> None:
+    adapter = _adapter("codex-local", "codex")
+    terminal = ReviewResult(
+        vendor="codex",
+        success=False,
+        error="429 capacity",
+        error_class=ErrorClass.CAPACITY,
+    )
+    orchestrator = ReviewOrchestrator({"codex-local": adapter})
+
+    with (
+        patch("shutil.which", return_value="/usr/bin/codex"),
+        patch.object(adapter, "dispatch", return_value=terminal),
+        patch("review_dispatcher.report_vendor_limit_result", create=True) as report,
+    ):
+        results = orchestrator.dispatch_and_wait(
+            review_type="plan",
+            dispatch_mode="review",
+            prompt="Review this packet",
+            cwd=tmp_path,
+        )
+
+    assert results[0].agent_id == "codex-local"
+    report.assert_called_once_with(results[0])
+
+
+def test_model_capacity_callback_fires_before_successful_fallback(
+    tmp_path: Path,
+) -> None:
+    adapter = _adapter(
+        "codex-local",
+        "codex",
+        model="gpt-primary",
+        model_fallbacks=["gpt-fallback"],
+    )
+    attempts = [
+        MagicMock(returncode=1, stdout="", stderr="429 capacity"),
+        MagicMock(returncode=0, stdout=VALID_FINDINGS_JSON, stderr=""),
+    ]
+    observations: list[ReviewResult] = []
+
+    with patch("subprocess.run", side_effect=attempts):
+        result = adapter.dispatch(
+            "review",
+            "Review this packet",
+            tmp_path,
+            capacity_callback=observations.append,
+        )
+
+    assert result.success is True
+    assert len(observations) == 1
+    assert observations[0].agent_id == "codex-local"
+    assert observations[0].capacity_scope == "model"
+    assert observations[0].capacity_model == "gpt-primary"
+
+
+def test_capacity_reporting_failure_does_not_mask_successful_fallback(
+    tmp_path: Path,
+) -> None:
+    adapter = _adapter(
+        "codex-local",
+        "codex",
+        model="gpt-primary",
+        model_fallbacks=["gpt-fallback"],
+    )
+    attempts = [
+        MagicMock(returncode=1, stdout="", stderr="429 capacity"),
+        MagicMock(returncode=0, stdout=VALID_FINDINGS_JSON, stderr=""),
+    ]
+
+    def broken_reporter(_result: ReviewResult) -> None:
+        raise RuntimeError("coordinator unavailable")
+
+    with patch("subprocess.run", side_effect=attempts):
+        result = adapter.dispatch(
+            "review",
+            "Review this packet",
+            tmp_path,
+            capacity_callback=broken_reporter,
+        )
+
+    assert result.success is True
+    assert result.model_used == "gpt-fallback"
