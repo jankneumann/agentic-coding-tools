@@ -483,4 +483,81 @@ def test_structured_limit_excludes_only_exact_lane(tmp_path) -> None:
     decision = result["policy_decisions"][0]["decision"]
     assert decision["to_agent_id"] == "claude-remote"
     assert decision["legacy_provider_scope"] is False
-    assert decision["durable_persistence"] == "reported_by_dispatcher"
+    assert decision["durable_persistence"] == "delegated_unconfirmed"
+
+
+def test_structured_limit_retries_same_phase_on_selected_lane(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(
+            default_action=PolicyAction.SWITCH, preferred_vendor="claude"
+        ),
+    )
+    calls: list[tuple[str, dict]] = []
+
+    def dispatch(_item_id, phase, context):
+        calls.append((phase, dict(context)))
+        implementing_calls = [call for call in calls if call[0] == "implementing"]
+        if phase == "implementing" and len(implementing_calls) == 1:
+            return {
+                "outcome": "vendor_limit:claude:capacity",
+                # Provider/phase carriers use the additive agent_id field.
+                "agent_id": "claude-local",
+                "capacity_report_status": "persisted",
+            }
+        return "success"
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        registry_provider=lambda **_: {
+            "status": "ok",
+            "response": {"vendors": [
+                _registry_lane("claude-local", "claude"),
+                _registry_lane("claude-remote", "claude"),
+            ]},
+        },
+    )
+
+    implementing = [context for phase, context in calls if phase == "implementing"]
+    assert len(implementing) == 2
+    assert implementing[1]["dispatch_agent_id"] == "claude-remote"
+    assert implementing[1]["agent_id"] == "claude-remote"
+    assert result["completed_count"] == 1
+    decision = result["policy_decisions"][0]["decision"]
+    assert decision["legacy_provider_scope"] is False
+    assert decision["durable_persistence"] == "persisted"
+
+
+def test_unconfirmed_dispatch_reporting_is_not_claimed_as_persisted(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.SWITCH),
+    )
+    calls = {"implementing": 0}
+
+    def dispatch(_item_id, phase, _context):
+        if phase == "implementing":
+            calls["implementing"] += 1
+            if calls["implementing"] == 1:
+                return {
+                    "outcome": "vendor_limit:claude:capacity",
+                    "agent_id": "claude-local",
+                }
+        return "success"
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        registry_provider=lambda **_: {
+            "status": "ok",
+            "response": {"vendors": [_registry_lane("codex-cloud", "codex")]},
+        },
+    )
+
+    decision = result["policy_decisions"][0]["decision"]
+    assert decision["durable_persistence"] == "delegated_unconfirmed"

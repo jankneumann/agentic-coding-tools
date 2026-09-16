@@ -446,6 +446,12 @@ def select_registry_lane(
         else None
     )
     cost_guard = "available" if cost_delta is not None else "unavailable"
+    if policy.cost_ceiling_usd is not None and cost_delta is None:
+        logger.warning(
+            "policy.cost_guard unavailable for %s -> %s; continuing by availability",
+            vendor_limit.vendor,
+            target_vendor,
+        )
     if (
         policy.cost_ceiling_usd is not None
         and cost_delta is not None
