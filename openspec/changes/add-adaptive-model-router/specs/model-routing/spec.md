@@ -21,6 +21,12 @@ rows older than the configured threshold SHALL be reported as stale.
 - **THEN** candidate rows SHALL be returned from coordinator storage
 - **AND** no OpenRouter or vendor API call SHALL occur on the read path
 
+#### Scenario: Catalog row is stale by age
+
+- **WHEN** a stored row's refresh timestamp is older than the configured stale threshold
+- **THEN** the read SHALL return that stored row with `stale: true`
+- **AND** the read SHALL NOT trigger an external refresh
+
 ### Requirement: OpenRouter Catalog Refresher
 
 The system SHALL refresh OpenRouter model pricing and availability on a schedule using a
@@ -69,6 +75,12 @@ jobs.
 - **WHEN** usage is recorded from estimated token counts
 - **THEN** the ledger row SHALL retain `tokens_estimated: true`
 
+#### Scenario: Ledger records actual and counterfactual spend
+
+- **WHEN** a completed routing decision reports usage and baseline pricing
+- **THEN** one ledger row SHALL record both `actual_usd` and `counterfactual_usd`
+- **AND** usage summaries SHALL compute savings from those recorded values
+
 ### Requirement: Static-Tier Fallback and Kill Switch
 
 Adaptive resolution SHALL be default-off. When `ROUTING_ADAPTIVE` is off, the exact static
@@ -84,3 +96,8 @@ same static object within the configured bound.
 
 - **WHEN** the adaptive resolver does not respond within its configured timeout
 - **THEN** the caller SHALL receive the exact static result within the bounded fallback window
+
+#### Scenario: Resolver unavailability or error is bounded
+
+- **WHEN** adaptive routing is enabled and the resolver is unavailable or raises an error
+- **THEN** the caller SHALL receive the exact static result within the configured fallback bound

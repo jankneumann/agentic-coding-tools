@@ -10,10 +10,30 @@ The coordinator SHALL serve all five operations from the merged routing OpenAPI 
 selection operation as the `select_model_for_task` MCP tool, and both transports SHALL use the
 same routing service.
 
-#### Scenario: Cloud agent selects a model over HTTP
+#### Scenario: POST selection operation is served
 
 - **WHEN** a cloud agent POSTs task signals to `/routing/select_model` with valid authentication
 - **THEN** the response SHALL contain the selected candidate, ranked alternatives, and a decision ID
+
+#### Scenario: GET catalog operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/catalog`
+- **THEN** the response SHALL contain stored catalog entries without an external refresh
+
+#### Scenario: GET decision operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/decisions/{id}` for a persisted decision ID
+- **THEN** the response SHALL contain that persisted selection record
+
+#### Scenario: GET usage operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/usage` with a valid usage window
+- **THEN** the response SHALL contain the ledger aggregate for that requested window
+
+#### Scenario: POST feedback operation is served
+
+- **WHEN** an authenticated caller POSTs a valid event to `/routing/feedback`
+- **THEN** the coordinator SHALL accept the event through the shared routing service
 
 #### Scenario: Local agent uses the MCP tool
 
@@ -43,3 +63,8 @@ without preventing the other jobs or the watchdog loop from continuing.
 - **WHEN** the catalog refresher raises an exception
 - **THEN** the watchdog SHALL record a routing-job failure signal
 - **AND** the local probe and ledger rollup SHALL remain independently schedulable
+
+#### Scenario: Ledger rollup uses an independent schedule
+
+- **WHEN** the ledger-rollup interval is due while the refresher or local probe is not due or fails
+- **THEN** the watchdog SHALL still run the ledger rollup on its own schedule

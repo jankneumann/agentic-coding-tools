@@ -60,15 +60,15 @@ packages:
     verification:
       tier_required: C
       steps:
-        - name: "Event schema validates as JSON Schema; OpenAPI parses"
+        - name: "OpenAPI, SQL, event schema, and generated models are semantically consistent"
           kind: command
-          command: "skills/.venv/bin/python -c 'import json, yaml, jsonschema; jsonschema.Draft202012Validator.check_schema(json.load(open(\"openspec/changes/add-adaptive-model-router/contracts/events/routing-signal.schema.json\"))); yaml.safe_load(open(\"openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml\"))'"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing/test_contracts_generated.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
             artifacts: []
             result_keys:
-              - "contracts_valid"
+              - "contract_parity_passed"
     metadata:
       loc_estimate: 300
       complexity: low
@@ -76,7 +76,7 @@ packages:
     inputs: {}
     outputs:
       result_keys:
-        - "contracts_valid"
+        - "contract_parity_passed"
 
   # ── wp-db-catalog — migrations, catalog service, refresher, local probes, ledger (tasks 2.1–2.11)
   - package_id: wp-db-catalog
@@ -134,6 +134,24 @@ packages:
             artifacts: []
             result_keys:
               - "catalog_tests_passed"
+        - name: "Catalog and watchdog scope passes Ruff"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/model_routing/catalog.py agent-coordinator/src/model_routing/refresher.py agent-coordinator/src/model_routing/local_endpoints.py agent-coordinator/src/model_routing/ledger.py agent-coordinator/src/watchdog.py agent-coordinator/tests/model_routing/test_catalog.py agent-coordinator/tests/model_routing/test_catalog_watchdog.py agent-coordinator/tests/model_routing/test_refresher.py agent-coordinator/tests/model_routing/test_local_endpoints.py agent-coordinator/tests/model_routing/test_ledger.py agent-coordinator/tests/model_routing/test_migrations_catalog.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "catalog_ruff_passed"
+        - name: "Catalog and watchdog scope passes mypy"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy agent-coordinator/src/model_routing/catalog.py agent-coordinator/src/model_routing/refresher.py agent-coordinator/src/model_routing/local_endpoints.py agent-coordinator/src/model_routing/ledger.py agent-coordinator/src/watchdog.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "catalog_mypy_passed"
     metadata:
       loc_estimate: 1500
       complexity: high
@@ -142,6 +160,8 @@ packages:
     outputs:
       result_keys:
         - "catalog_tests_passed"
+        - "catalog_ruff_passed"
+        - "catalog_mypy_passed"
 
   # ── wp-resolver — merged core plus dg-00 API/MCP and delegation
   - package_id: wp-resolver
@@ -209,6 +229,24 @@ packages:
             artifacts: []
             result_keys:
               - "resolver_tests_passed"
+        - name: "Resolver, API, MCP, and config scope passes Ruff"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/model_routing/resolver.py agent-coordinator/src/model_routing/exploration.py agent-coordinator/src/model_routing/api.py agent-coordinator/src/agents_config.py agent-coordinator/src/coordination_api.py agent-coordinator/src/coordination_mcp.py agent-coordinator/tests/model_routing/test_resolver.py agent-coordinator/tests/model_routing/test_api.py agent-coordinator/tests/model_routing/test_delegation.py agent-coordinator/tests/model_routing/test_agent_endpoints.py agent-coordinator/tests/model_routing/test_service.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "resolver_ruff_passed"
+        - name: "Resolver, API, MCP, and config scope passes mypy"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy agent-coordinator/src/model_routing/resolver.py agent-coordinator/src/model_routing/exploration.py agent-coordinator/src/model_routing/api.py agent-coordinator/src/agents_config.py agent-coordinator/src/coordination_api.py agent-coordinator/src/coordination_mcp.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "resolver_mypy_passed"
     metadata:
       loc_estimate: 1200
       complexity: high
@@ -217,6 +255,8 @@ packages:
     outputs:
       result_keys:
         - "resolver_tests_passed"
+        - "resolver_ruff_passed"
+        - "resolver_mypy_passed"
 
   # ── wp-dispatch — OpenAI-compatible adapter discovery
   - package_id: wp-dispatch
@@ -261,6 +301,15 @@ packages:
             artifacts: []
             result_keys:
               - "dispatch_tests_passed"
+        - name: "Adapter and policy scope passes Ruff"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/parallel-infrastructure/scripts/review_dispatcher.py skills/autopilot-roadmap/scripts/policy.py skills/tests/parallel-infrastructure skills/tests/autopilot-roadmap"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dispatch_ruff_passed"
     metadata:
       loc_estimate: 700
       complexity: medium
@@ -269,6 +318,7 @@ packages:
     outputs:
       result_keys:
         - "dispatch_tests_passed"
+        - "dispatch_ruff_passed"
 
   # ── wp-integration — combined tests, reviews, and validation (tasks 8.1–8.2)
   - package_id: wp-integration
@@ -320,6 +370,56 @@ packages:
             artifacts: []
             result_keys:
               - "skills_suite_passed"
+        - name: "Work-package DAG and parallel scopes validate"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-adaptive-model-router/work-packages.yaml --check-overlap"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "package_dag_valid"
+        - name: "Canonical dg-00 OpenSpec validates strictly"
+          kind: command
+          command: "openspec validate add-adaptive-model-router --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_strict_passed"
+        - name: "Architecture graph is current"
+          kind: command
+          command: "make architecture-check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "docs/architecture-analysis/architecture.graph.json"
+            result_keys:
+              - "architecture_check_passed"
+        - name: "Changed dg-00 runtime flows validate against the architecture graph"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-flows/scripts/validate_flows.py --graph docs/architecture-analysis/architecture.graph.json --files agent-coordinator/src/model_routing/api.py,agent-coordinator/src/model_routing/catalog.py,agent-coordinator/src/model_routing/ledger.py,agent-coordinator/src/model_routing/local_endpoints.py,agent-coordinator/src/model_routing/refresher.py,agent-coordinator/src/agents_config.py,agent-coordinator/src/coordination_api.py,agent-coordinator/src/coordination_mcp.py,agent-coordinator/src/watchdog.py,skills/parallel-infrastructure/scripts/review_dispatcher.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "docs/architecture-analysis/architecture.diagnostics.scoped.json"
+            result_keys:
+              - "architecture_flows_passed"
+        - name: "Plan and implementation reviews reach schema-valid multi-vendor convergence"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_schema.py openspec/schemas/consensus-report.schema.json openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json && skills/.venv/bin/python skills/validate-packages/scripts/validate_schema.py openspec/schemas/consensus-report.schema.json openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json && skills/.venv/bin/python -c 'import json; paths=[\"openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json\",\"openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json\"]; docs=[json.load(open(path)) for path in paths]; assert all(doc[\"quorum_met\"] and len({row[\"vendor\"] for row in doc[\"reviewers\"] if row[\"success\"]}) >= 2 and doc[\"summary\"][\"blocking_count\"] == 0 for doc in docs)'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json"
+              - "openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json"
+            result_keys:
+              - "plan_review_converged"
+              - "implementation_review_converged"
     metadata:
       loc_estimate: 300
       complexity: medium
@@ -329,3 +429,9 @@ packages:
       result_keys:
         - "coordinator_suite_passed"
         - "skills_suite_passed"
+        - "package_dag_valid"
+        - "openspec_strict_passed"
+        - "architecture_check_passed"
+        - "architecture_flows_passed"
+        - "plan_review_converged"
+        - "implementation_review_converged"

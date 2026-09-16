@@ -29,3 +29,8 @@ config validation rejecting unknown kinds.
 
 - **WHEN** an agent entry declares `endpoint_kind: local` with a `base_url`
 - **THEN** config loading SHALL accept it and register the endpoint for catalog health probing
+
+#### Scenario: Unknown endpoint kind is rejected
+
+- **WHEN** an agent entry declares an `endpoint_kind` outside `vendor-cli`, `vendor-sdk`, `openrouter`, and `local`
+- **THEN** config loading SHALL reject the entry with a validation error
