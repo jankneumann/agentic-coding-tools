@@ -184,3 +184,31 @@ Recovered ri-06 planning closes the historical stale checkpoint and multi-member
 ### Context
 Validation failed at commit 3848e95d. Deploy, smoke, security, and E2E were not applicable to the declared non-deployable surface; spec/task drift, missing package evidence, an order-dependent focused regression, and blocking context drift prevent advancement.
 
+---
+
+## Phase: Validation Fix 1 (2026-09-16)
+
+**Agent**: autopilot-phase-validation-fixer | **Session**: ri06-validation-fix-20260916
+
+### Decisions
+1. **Restore a coherent flat-module graph at test setup** — Collection imports several skills that intentionally use flat module names. Caching and restoring each suite graph prevents later collection from unregistering `cycle_state` or pairing lazy imports with another skill’s `models` module while preserving the existing isolation guard.
+2. **Bind canonical package evidence to the proven implementation head** — The result artifact records `ec01ebc6`, the exact 81-file implementation diff whose scope and Tier A verification were checked; the later evidence-only commit cannot self-reference its own hash.
+
+### Completed Work
+- Reproduced, localized, reduced, fixed, and guarded the order-dependent flat-module import-isolation regression.
+- Reconciled all 13 unchecked tasks only after implementation, documentation, review, and verification were proven.
+- Declared the inferred `apis` and `architecture` context impacts and refreshed the architecture projection.
+- Added the canonical `wp-authority-recovery` result artifact with schema-valid scope, revision, and output-key evidence.
+- Verified 611 focused recovery tests; 6,310 full-suite tests passed with 6 skipped and 2 warnings; Ruff passed; 90 OpenSpec artifacts passed strict validation; work-package, context-drift, and 81-file scope gates passed.
+
+### Next Steps
+- Re-run canonical validation against this validation-fix head.
+
+### Relevant Files
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/artifacts/wp-authority-recovery/result.json` — canonical package result
+- `skills/tests/conftest.py` — coherent module-graph restoration
+- `skills/tests/_shared/test_flat_module_isolation.py` — order-dependent regression guard
+
+### Context
+All four blocking Validation 1 findings are closed. The runner-owned `loop-state.json` was not edited, and no runner state mutation was executed.
+
