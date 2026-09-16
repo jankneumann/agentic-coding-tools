@@ -132,7 +132,11 @@ delta. `--propose` SHALL write one candidate-work stub per finding whose
 `remediation` is not `keep`, valid against
 `openspec/schemas/candidate-work.schema.json`, with `provenance` naming the
 report path and the finding id, and `suggested_change_id` of the form
-`rightsize-<skill>-<kind>`. Stubs SHALL be written through the same projection
+`update-rightsize-<skill>-<kind>-<section-slug>`. The `update-` prefix is
+required by that schema's `suggested_change_id` pattern, which admits only
+`add|update|remove|refactor`; the trailing section slug keeps two findings of
+one kind in different sections from colliding on a duplicate id. Stubs SHALL
+be written through the same projection
 helper `/improve-harness` uses so both skills emit one shape.
 
 #### Scenario: Roster rotation makes the audit stale

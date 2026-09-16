@@ -84,7 +84,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/skill-audit/scripts/classifier.py`, `skills/skill-audit/references/layers.md`
   **Size**: M
 
-- [ ] Checkpoint: run `skills/tests/skill-audit`, review diff, verify scope stays inside `skills/skill-audit/**` + `skills/tests/skill-audit/**`
+- [x] Checkpoint: run `skills/tests/skill-audit`, review diff, verify scope stays inside `skills/skill-audit/**` + `skills/tests/skill-audit/**`
 
 - [x] 2.5 Write `skills/tests/skill-audit/test_dispatch_profile.py` with a fixture `archetypes.yaml` (bare ids, `{model, thinking}`, one provider missing `frontier`, one archetype with `procedure_mode`): every provider in the file appears; tuples equal `archetype_roster.resolve_tier_for_provider`; the missing-frontier provider shows `degraded_from: frontier`; `procedure_mode` is reported when present and `null` otherwise
   **Spec scenarios**: skill-workflow "Dispatch profile follows the roster"
@@ -114,7 +114,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/skill-audit/scripts/evidence_join.py`
   **Size**: M
 
-- [ ] Checkpoint: run `skills/tests/skill-audit`, review diff, verify no import of `agents_config` (consumer-portability rule) and no write outside the output dir
+- [x] Checkpoint: run `skills/tests/skill-audit`, review diff, verify no import of `agents_config` (consumer-portability rule) and no write outside the output dir
 
 - [x] 2.9 Write `skills/tests/skill-audit/test_report.py`, `test_freshness.py`, `test_propose.py`, `test_cli.py`: report contains histogram, dispatch profile, tier table, ranked findings, both outlines, and the four stamp fields; `--check-freshness` exits `1` on hash mismatch printing both hashes and changed `reviewed` dates, `0` on match, `1` with no report; `--propose` writes two stubs for three findings sharing `(kind, section)`, each valid against `candidate-work.schema.json` with `provenance` naming report and finding id and `suggested_change_id` `rightsize-<skill>-<kind>`; `--convention` default header line; `--convention current` on a tail-less `user_invocable: true` fixture yields `convention_drift` naming `assert_tail_block_present`; rightsizing on a 520-line fixture and a nested-reference fixture yields `convention_drift`; `--all` wall time ≤ 60 s with the stub (skips without corpus)
   **Spec scenarios**: skill-workflow "Roster rotation makes the audit stale", "Fresh audit passes the check", "Candidate-work stubs are schema-valid and deduplicated", "Default convention is rightsizing", "Current convention flags a missing tail block"
@@ -131,7 +131,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/skill-audit/scripts/report.py`, `skills/skill-audit/scripts/conventions.py`, `skills/skill-audit/scripts/skill_audit.py`
   **Size**: M
 
-- [ ] Checkpoint: run `skills/tests/skill-audit`, run `skill_audit.py quick-task --output-dir /tmp/sa` end to end with the stub backend, review the generated report by eye, verify scope
+- [x] Checkpoint: run `skills/tests/skill-audit`, run `skill_audit.py quick-task --output-dir /tmp/sa` end to end with the stub backend, review the generated report by eye, verify scope
 
 - [x] 2.11 Write `skills/tests/skill-audit/test_skill_md.py`: frontmatter parses; explicit keys `name`, `description`, `category`, `tags`, `user_invocable: true`, `related` (do not call `assert_required_keys_present`); passes with `triggers:` present and with it stripped in a temp copy; references resolve and are one level deep; tail block present; line count ≤ 150; `related` does not include `audit-choices`
   **Spec scenarios**: skill-workflow "Skill test passes in both frontmatter states"
@@ -147,7 +147,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/skill-audit/SKILL.md`, `skills/skill-audit/references/usage.md`
   **Size**: S
 
-- [ ] Checkpoint: run `skills/tests/skill-audit`, `python3 skills/shared/validate_install_manifest.py` dry-run on the new directory, review the cumulative package diff
+- [x] Checkpoint: run `skills/tests/skill-audit`, `python3 skills/shared/validate_install_manifest.py` dry-run on the new directory, review the cumulative package diff
 
 ## Phase 3 — Integration (package `wp-integration`)
 

@@ -141,7 +141,14 @@ is present because `assert_tail_block_present` still runs on
 adapted to that helper's input shape, so both skills emit one
 `candidate-work.schema.json` shape and `/prioritize-proposals` needs no new
 reader. Dedup key is `(kind, section)`; `suggested_change_id` is
-`rightsize-<skill>-<kind>`.
+`update-rightsize-<skill>-<kind>-<section-slug>`.
+
+Plan-time correction: this design first specified `rightsize-<skill>-<kind>`.
+That shape is rejected by `candidate-work.schema.json`, whose
+`suggested_change_id` pattern admits only an `add|update|remove|refactor`
+prefix, and it collides whenever one kind fires in two sections of the same
+skill. The `update-` prefix and the section slug fix both. Verified: the four
+stubs from a live `quick-task --propose` run validate against the schema.
 
 ### D9 — Read-only over the audited skill; output location; name collision
 
