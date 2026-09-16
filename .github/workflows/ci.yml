@@ -205,6 +205,39 @@ jobs:
       - name: Run skills tests
         run: agent-coordinator/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/ -v
 
+  # Non-blocking by design (design D6): a stale skill audit is a prompt to
+  # re-run /skill-audit, not a defect in the change under review. Fails soft so
+  # an unrelated archetypes.yaml edit never blocks a merge.
+  skill-audit-freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+        working-directory: agent-coordinator
+
+      - name: Check skill-audit report freshness
+        run: |
+          set +e
+          out="$(agent-coordinator/.venv/bin/python skills/skill-audit/scripts/skill_audit.py --all --check-freshness 2>&1)"
+          status=$?
+          printf '%s\n' "$out"
+          if [ "$status" -ne 0 ]; then
+            printf '::warning title=skill-audit freshness::%s\n' \
+              "One or more skill audits are stale against the current archetypes.yaml. Re-run /skill-audit <skill> to refresh."
+          fi
+          exit "$status"
+
   validate-specs:
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -158,7 +158,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/install-manifest.json`, `skills/pyproject.toml`
   **Size**: XS
 
-- [ ] 3.2 Add CI job `skill-audit-freshness` to `.github/workflows/ci.yml` with `continue-on-error: true` running `skill_audit.py --all --check-freshness` from the installed skills venv and emitting a workflow annotation on exit `1`
+- [x] 3.2 Add CI job `skill-audit-freshness` to `.github/workflows/ci.yml` with `continue-on-error: true` running `skill_audit.py --all --check-freshness` from the installed skills venv and emitting a workflow annotation on exit `1`
   **Spec scenarios**: skill-workflow "Roster rotation makes the audit stale"
   **Design decisions**: D6
   **Dependencies**: 3.1
