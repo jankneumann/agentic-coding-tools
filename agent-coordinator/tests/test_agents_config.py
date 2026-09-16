@@ -1584,3 +1584,110 @@ class TestLocalProviderTrustBoundary:
             refused.add(entry.archetype)
 
         assert {"architect", "reviewer", "gatekeeper"} <= refused
+
+
+# ---------------------------------------------------------------------------
+# `procedure_mode` on archetypes (OpenSpec change add-skill-audit, D3)
+#
+# Spec: openspec/changes/add-skill-audit/specs/agent-archetypes/spec.md —
+#       MODIFIED "Archetype Definition Schema" scenarios "procedure_mode absent
+#       loads as guided", "Unknown procedure_mode is rejected", "Unknown
+#       archetype keys are still rejected".
+# Contract: skills/autopilot/install_assets/openspec/schemas/archetypes.schema.json
+# ---------------------------------------------------------------------------
+
+
+class TestProcedureModeLoading:
+    """Loader behaviour for the optional ``procedure_mode`` field."""
+
+    def test_v3_file_without_procedure_mode_loads_every_archetype_guided(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """A schema_version 3 roster with no ``procedure_mode`` keys still loads,
+        and every archetype reports the default mode."""
+        import yaml as _yaml
+
+        from src.agents_config import DEFAULT_PROCEDURE_MODE, load_archetypes_config
+
+        path = _write_local_yaml(tmp_path)
+        raw = _yaml.safe_load(path.read_text())
+        assert raw["schema_version"] == 3
+        assert not any("procedure_mode" in a for a in raw["archetypes"].values())
+
+        archetypes = load_archetypes_config(path)
+
+        assert archetypes, "guard: fixture must define archetypes"
+        assert {name: a.procedure_mode for name, a in archetypes.items()} == {
+            name: DEFAULT_PROCEDURE_MODE for name in archetypes
+        }
+
+    def test_default_mode_is_guided(self) -> None:
+        """The spec names the default: omitted means ``guided``."""
+        from src.agents_config import DEFAULT_PROCEDURE_MODE, PROCEDURE_MODES
+
+        assert DEFAULT_PROCEDURE_MODE == "guided"
+        assert DEFAULT_PROCEDURE_MODE in PROCEDURE_MODES
+
+    def test_each_declared_mode_round_trips(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """Every enumerated mode is accepted and exposed verbatim on the config."""
+        from src.agents_config import PROCEDURE_MODES, load_archetypes_config
+
+        names = ["runner", "architect", "implementer"]
+        assert len(PROCEDURE_MODES) == len(names), "fixture covers one archetype per mode"
+        expected = dict(zip(names, PROCEDURE_MODES, strict=True))
+
+        def mutate(raw: dict[str, Any]) -> None:
+            raw["schema_version"] = 4
+            for name, mode in expected.items():
+                raw["archetypes"][name]["procedure_mode"] = mode
+
+        archetypes = load_archetypes_config(_write_local_yaml(tmp_path, mutate))
+
+        assert {name: archetypes[name].procedure_mode for name in names} == expected
+
+    def test_unknown_procedure_mode_rejected_naming_archetype_and_value(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """``procedure_mode: strict`` fails validation; the error names both the
+        archetype and the offending value so the operator can find it."""
+        from jsonschema import ValidationError
+
+        from src.agents_config import load_archetypes_config
+
+        def mutate(raw: dict[str, Any]) -> None:
+            raw["archetypes"]["runner"]["procedure_mode"] = "strict"
+
+        with pytest.raises(ValidationError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, mutate))
+
+        message = str(exc_info.value)
+        assert "runner" in message
+        assert "strict" in message
+
+    def test_unknown_archetype_key_still_rejected(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """Adding ``procedure_mode`` must not loosen ``additionalProperties``."""
+        from jsonschema import ValidationError
+
+        from src.agents_config import load_archetypes_config
+
+        def mutate(raw: dict[str, Any]) -> None:
+            raw["archetypes"]["runner"]["procedure_density"] = "verbatim"
+
+        with pytest.raises(ValidationError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, mutate))
+
+        assert "procedure_density" in str(exc_info.value)
+
+    def test_schema_version_4_is_accepted(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        from src.agents_config import load_archetypes_config
+
+        def mutate(raw: dict[str, Any]) -> None:
+            raw["schema_version"] = 4
+
+        assert load_archetypes_config(_write_local_yaml(tmp_path, mutate))

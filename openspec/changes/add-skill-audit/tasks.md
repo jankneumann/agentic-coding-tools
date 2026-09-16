@@ -6,7 +6,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
 
 ## Phase 1 — `procedure_mode` on archetypes (package `wp-procedure-mode`)
 
-- [ ] 1.1 Extend `agent-coordinator/tests/test_archetypes_yaml.py` and `test_agents_config.py`: v3 file with no `procedure_mode` loads with every archetype `guided`; `procedure_mode: strict` fails schema validation naming the archetype and value; an unknown archetype key still fails; the authored roster's `runner` and `architect` modes are read from the YAML and asserted equal to what `load_archetypes_config` exposes (no literals)
+- [x] 1.1 Extend `agent-coordinator/tests/test_archetypes_yaml.py` and `test_agents_config.py`: v3 file with no `procedure_mode` loads with every archetype `guided`; `procedure_mode: strict` fails schema validation naming the archetype and value; an unknown archetype key still fails; the authored roster's `runner` and `architect` modes are read from the YAML and asserted equal to what `load_archetypes_config` exposes (no literals)
   **Spec scenarios**: agent-archetypes "procedure_mode absent loads as guided", "Unknown procedure_mode is rejected", "Unknown archetype keys are still rejected"
   **Contracts**: `skills/autopilot/install_assets/openspec/schemas/archetypes.schema.json`
   **Design decisions**: D3
