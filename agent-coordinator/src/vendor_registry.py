@@ -9,7 +9,7 @@ import logging
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
-from typing import Any
+from typing import Any, cast
 
 from .agents_config import AgentEntry, get_agents_config, get_provider_model_map
 from .db import DatabaseClient, get_db
@@ -131,7 +131,7 @@ class VendorRegistryService:
         )
 
     async def get_availability(self, agent_id: str) -> dict[str, Any]:
-        return (await self.get_vendor(agent_id))["availability"]
+        return cast(dict[str, Any], (await self.get_vendor(agent_id))["availability"])
 
     async def _snapshots(self, agents: Sequence[AgentEntry]) -> dict[str, Any]:
         if not agents:
@@ -594,13 +594,17 @@ class VendorRegistryService:
             deleted = result
         elif isinstance(result, list) and result:
             value = result[0]
-            deleted = int(
+            raw_deleted = (
                 value.get("compact_vendor_rate_limits", value.get("deleted_count", 0))
                 if isinstance(value, dict)
                 else value
             )
+            deleted = int(cast(int | float | str, raw_deleted or 0))
         elif isinstance(result, dict):
-            deleted = int(result.get("compact_vendor_rate_limits", result.get("deleted_count", 0)))
+            raw_deleted = result.get(
+                "compact_vendor_rate_limits", result.get("deleted_count", 0)
+            )
+            deleted = int(cast(int | float | str, raw_deleted or 0))
         else:
             deleted = 0
         await self._audit_event(
