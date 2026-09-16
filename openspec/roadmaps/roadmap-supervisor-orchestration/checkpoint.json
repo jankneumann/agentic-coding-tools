@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "roadmap_id": "roadmap-supervisor-orchestration",
-  "current_item_id": "ri-10",
+  "current_item_id": "ri-06",
   "phase": "completed",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-14T15:37:06.791251+00:00",
+  "updated_at": "2026-09-16T14:40:12.185267+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -21,15 +21,8 @@
     "ri-16",
     "ri-13",
     "ri-12",
-    "ri-09"
-  ],
-  "failed_items": [
-    {
-      "item_id": "ri-06",
-      "reason": "Plan review exhausted three vendor-diverse rounds without substantive convergence: approval-service waits can persist stale whole-checkpoint snapshots over concurrent transitions, and resumed members of multi-member batches have no safe fresh-result application path.",
-      "failed_at": "2026-09-08T05:15:04.473559+00:00",
-      "retry_count": 0
-    }
+    "ri-09",
+    "ri-06"
   ],
   "dispatch_attempts": [
     {
@@ -608,6 +601,27 @@
       "dispatch_id": "batch-d04b4c6458221e0731470363:ri-13:attempt-1",
       "item_id": "ri-13",
       "note": "direct roadmap approval inherited by dependency-ready ri-13"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 direct autopilot-roadmap invocation",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-09-16T11:23:54.875365+00:00",
+      "decision_id": "3e673b3a-4f4b-487a-85fc-2f4b4cd3a944",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "roadmap-supervisor-orchestration",
+      "roadmap_fingerprint": "8e3c6c0baa7672cfca01fcd78feb93c047948bd7d93de62063d49e8e9ca51d74",
+      "note": "direct autopilot-roadmap invocation"
     }
   ]
 }
