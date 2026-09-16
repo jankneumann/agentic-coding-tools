@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "vendor": "grok",
+  "round": 1,
+  "status": "ran",
+  "skip_reason": null,
+  "model": null,
+  "tokens": 0,
+  "decisions": [
+    {
+      "finding_id": "1",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "2",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "3",
+      "verdict": "removed",
+      "ground": "B_contradicted_by_diff_line",
+      "evidence_line": "2. **Freshness is decided by the existing run_architecture.py --check contract** `architectural: code-visualization` \u2014 Exit 0 alone means fresh; any non-zero exit (the script returns 1 when provenance is not fresh), a missing script, or a missing graph all mean ungrounded. Do not confuse with build_atlas.py --check (exit 2 = stale HTML page)."
+    },
+    {
+      "finding_id": "4",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "5",
+      "verdict": "kept"
+    }
+  ]
+}

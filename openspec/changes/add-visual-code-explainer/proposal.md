@@ -77,13 +77,16 @@ that gates them, and the analysis that motivated this change is fresh.
   `test_behaviour.py` that encode the behaviours
   `invert-skill-test-suite-to-behavioural` wants without blocking on that
   change (0/10 tasks today): (1) grounding reference contains both D5
-  disclosure forms; (2) `SKILL.md` redirects whole-repo questions to
+  disclosure forms, the closed ungrounded reason tokens, the
+  footer→disclosure mapping, and the clarification/redirect disclosure
+  exemptions; (2) `SKILL.md` redirects whole-repo questions to
   `/codebase-atlas`; (3) `SKILL.md` forbids `--ensure` / the analysis
   pipeline. The "grounded call tree invents no symbols" assertion lives in
-  `tests/codebase-atlas/test_atlas_tree.py` (fixture node ids only). Optional
-  trajectory-harness fixtures are task 2.8 when the harness is present.
-  `skills/tests/codebase-atlas/` gains `test_atlas_tree.py` and the flag tuple
-  in `test_skill_md.py` gains `--tree`.
+  `tests/codebase-atlas/test_atlas_tree.py` (every printed node matches a
+  fixture node by `(name, file)`). Optional trajectory-harness fixtures are
+  task 2.8 when the harness is present. `skills/tests/codebase-atlas/` gains
+  `test_atlas_tree.py` and the flag tuple in `test_skill_md.py` gains
+  `--tree`.
 
 ### Explicitly deferred to a follow-up change
 

@@ -10,7 +10,7 @@
 ### Decisions
 1. **Adopt show-me's catalogue as prose; ground only the call tree in code** `architectural: code-visualization` — The catalogue works because it is a prompt, so it stays a prompt. Determinism is bought only where it pays: the call tree, via a new codebase-atlas --tree flag over the existing symbolEdges adjacency. A scripted explainer for every form would duplicate the atlas view-model and generate_views Mermaid emitters in a third skill, and sequence diagrams need runtime ordering the static graph lacks.
 2. **Freshness is decided by the existing run_architecture.py --check contract** `architectural: code-visualization` — Exit 0 alone means fresh; any non-zero exit (the script returns 1 when provenance is not fresh), a missing script, or a missing graph all mean ungrounded. Do not confuse with build_atlas.py --check (exit 2 = stale HTML page). Re-deriving freshness from git_sha in prose would create a second, weaker definition alongside the architecture-refresh contract. The skill never runs --ensure or the pipeline.
-3. **Mandatory one-line coverage disclosure on every answer** `architectural: code-visualization` — The codeviz proposal's standing principle is that a visualisation must disclose its own coverage. The grounded form copies the --tree footer coverage list (after `· `) so percents cannot drift; the ungrounded form names an exact reason (`graph stale|absent|check failed`, `symbol not in graph`, or `form not graph-backed`). This is the improvement on show-me, which trusts model memory silently.
+3. **Mandatory one-line coverage disclosure on every sketching answer** `architectural: code-visualization` — The codeviz proposal's standing principle is that a visualisation must disclose its own coverage. The grounded form copies the --tree footer coverage list (after `· `, before trailing ` covered`) so percents cannot drift; the ungrounded form names an exact reason (`graph stale|absent|check failed`, `symbol not in graph`, or `form not graph-backed`). Ambiguous-symbol clarifications and whole-repository redirects are explicit exceptions (no visual → no `Grounding:` line). This is the improvement on show-me, which trusts model memory silently.
 4. **Frontmatter omits triggers; the skill test asserts keys explicitly** `architectural: skill-authoring` — rewrite-skill-frontmatter deletes triggers from all 52 skills, but the canonical spec and REQUIRED_FRONTMATTER_KEYS still require it. Asserting the six surviving keys directly instead of calling assert_required_keys_present makes the skill valid in both merge orderings, so this change does not block on that one.
 5. **Behavioural scenarios are CI-wired deterministically, harness-optional** `architectural: skill-authoring` — invert-skill-test-suite-to-behavioural wants three behavioural scenarios per user-invocable skill but is 0/10 tasks. Three deterministic prompt-content tests plus the fixture-node assertion in test_atlas_tree.py encode the same behaviours today; harness fixtures are a conditional task.
 
@@ -58,4 +58,17 @@ Planned a question-driven visual code explainer skill adopting humanlayer's MIT 
 - `openspec/changes/add-visual-code-explainer/plan-findings.md` — iteration 1 findings table
 - `openspec/changes/add-visual-code-explainer/design.md` — D2/D4/D5 corrections
 - `openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md` — disclosure reason alignment
+
+## Phase: Plan Review (2026-09-16)
+
+**Agent**: autopilot-plan-review | **Session**: N/A
+
+### Decisions
+1. **Exempt clarification and redirect replies from disclosure** `architectural: code-visualization` — Ambiguous-symbol ask (`--tree` exit 3) and whole-repository redirect produce no catalogue visual; requiring a `Grounding:` line forced fake reasons. D5 and the skill-workflow spec now require disclosure only on sketching replies.
+2. **Pin first-match ungrounded reason order** `architectural: code-visualization` — `graph absent` (preflight missing script/graph) → `graph check failed` (spawn failure or `--tree` exit 1) → `graph stale` (any non-zero `--check` exit) → `symbol not in graph` → `form not graph-backed`. Distinguishes stale from check-failed without inventing exit-code heuristics.
+3. **Fixture assertion is `(name, file)` match, not printed ids** `architectural: code-visualization` — Tree format emits name/file/kind; invent-no-symbols is proven by matching printed nodes to fixture nodes, not by requiring ids in stdout.
+4. **Add missing atlas scenarios for hop defaults/clamp, `--no-coverage`, exit 1** `architectural: code-visualization` — Confirmed medium gap: normative SHALLs without WHEN/THEN. Scenarios added under codebase-analysis; task 1.1 covers them.
+
+### Next Steps
+- Re-run converge after adjudication fixes; then IMPLEMENT if converged.
 

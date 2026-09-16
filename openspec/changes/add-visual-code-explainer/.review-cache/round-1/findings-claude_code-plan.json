@@ -1,0 +1,117 @@
+{
+  "review_type": "plan",
+  "target": "add-visual-code-explainer",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "existing_code": "- **WHEN** the graph is fresh and `build_atlas.py --tree` exits `3` (ambiguous name) for the requested symbol\n- **THEN** the skill SHALL list the candidate ids from stderr and ask which one was meant\n- **AND** the skill SHALL NOT fall back to source reading or sketch a tree for any candidate",
+      "description": "The diff closes the ungrounded reason set to exactly five values (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) and simultaneously adds the 'Ambiguous symbol asks instead of guessing' scenario. That reply contains no call tree and no catalogue form, yet 'Disclosure line present on every answer' still requires every reply to end with exactly one `Grounding:` line. None of the five reasons is valid for the ask reply: `symbol not in graph` is false (the symbol exists, that is the whole point of exit 3), `form not graph-backed` is false (no form was used), and the grounded form is forbidden. The same hole applies to the whole-repository redirect reply ('name /codebase-atlas and stop'). D5 in design.md has the identical closed list ('exactly one of'), and task 2.2 tests that the reference contains only this set, so an implementer cannot add a sixth reason without failing the deterministic test. Either add explicit reasons (e.g. `ambiguous symbol, awaiting choice` and `redirected to /codebase-atlas`) to D5, the spec requirement, task 2.2 and the grounding reference, or amend 'Disclosure line present on every answer' to exempt clarification and redirect replies.",
+      "resolution": "Add two reasons to the D5 list and the skill-workflow requirement (or exempt clarification/redirect replies from the every-reply rule), and update task 2.2 / D7 item 1 so the deterministic test checks the full set.",
+      "line_range": {
+        "start": 63,
+        "end": 65
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "existing_code": "  - `graph stale` \u2014 `run_architecture.py --check` exited non-zero\n  - `graph absent` \u2014 graph file or `--check` script missing\n  - `graph check failed` \u2014 `--check` could not run (error/exception)",
+      "description": "D2 now states that `run_architecture.py --check` returns `1` when provenance is not fresh and that 'other failures are also non-zero'. D5 then asks the skill to emit `graph stale` for 'exited non-zero' and `graph check failed` for 'could not run (error/exception)', and the spec scenario says 'as appropriate'. With the contract as documented, an exit `1` from a traceback and an exit `1` from stale provenance are indistinguishable to the skill, so the two reasons cannot be told apart deterministically; `graph stale` as written ('exited non-zero') also subsumes `graph check failed`. Two further cases have no mapping at all: `--check` exits `0` but `build_atlas.py --tree` itself exits `1` (input/IO error on the graph), and the graph file is missing but `--check` still runs (does the skill stat the file before calling `--check`, or rely on the exit code?). Pin a decision rule in D5/grounding.md (e.g. `graph absent` when the skill's own existence check on the script or graph fails, run before `--check`; `graph check failed` when the subprocess cannot be spawned or `--tree` exits `1`; `graph stale` for every other non-zero `--check` exit) or collapse `stale` and `check failed` into one reason so the disclosure is decidable.",
+      "resolution": "Define an ordered decision procedure for the three graph reasons and map `--tree` exit `1` explicitly; mirror it in the skill-workflow scenario instead of 'as appropriate'.",
+      "line_range": {
+        "start": 103,
+        "end": 105
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "existing_code": "`build_atlas.py --check` already uses exit `2` for a stale HTML page;\n`--check` and `--tree` never combine on one invocation.",
+      "description": "D4 relies on `--check` and `--tree` never combining to keep the exit-2 meanings from colliding, but neither the codebase-analysis requirement nor task 1.3 requires `build_atlas.py` to reject the combination (argparse mutually exclusive group, or a spec sentence plus a scenario). As written, `--check --tree X` is undefined: it could render exit `2` meaning either 'stale page' or 'not found' depending on dispatch order in `main()`.",
+      "resolution": "Add to the requirement: '`--tree` and `--check` SHALL be mutually exclusive; giving both SHALL exit `1`', with a scenario, and mention the argparse group in task 1.3.",
+      "line_range": {
+        "start": 86,
+        "end": 87
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "existing_code": "with optional `--hops N` (default `2`, maximum `4`, larger values clamped with a stderr note)",
+      "description": "Group-2 check: several SHALL clauses in the Atlas Symbol Tree Export requirement still have no WHEN/THEN scenario after this revision: `--hops` values above 4 clamped with a stderr note, `--no-coverage` suppressing the footer, and exit `1` for input/IO errors. Task 1.1 does not list clamp or `--no-coverage` cases either, so nothing in the plan forces a test for them.",
+      "resolution": "Add scenarios 'Hops above maximum are clamped' and 'Footer suppressed by --no-coverage' (and optionally 'Unreadable graph exits 1'), and reference them from task 1.1.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "existing_code": "(coverage list copied verbatim from the `--tree` footer after its `\u00b7 ` separator, including order and ` / ` separators)",
+      "description": "The spec says the copied span is everything 'after its `\u00b7 ` separator' (which includes the trailing word `covered`), while design D5 says the span is 'after `\u00b7 ` and before the trailing ` covered`' with `covered` then re-appended. The resulting strings are identical, but the two documents describe different substrings, and task 2.2's deterministic test will be written against one of them. Pick one phrasing and use it in both D5 and the spec.",
+      "resolution": "Align the spec sentence to D5's wording (or vice versa).",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "correctness",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "existing_code": "with `<percent>` printed to exactly one decimal place as `Coverage.percent` returns it (for example `14.4%`, `37.0%`)",
+      "description": "The spec now mandates 'exactly one decimal place' and design D3 mandates 'the `Coverage.percent` value itself, never re-rounded'. These are compatible only if `Coverage.percent` already yields a one-decimal float; if it returns an unrounded float (14.37) or an int (37) the two constraints conflict (a naive `str()` prints `14.37` / `37`). The packet does not include the `Coverage` definition, so this cannot be confirmed here. Stating the exact format expression (e.g. `f\"{coverage.percent:.1f}%\"`) in D3 removes the ambiguity without changing intent.",
+      "resolution": "State the format expression in D3 and the 'Coverage footer matches the page banner' scenario, so 'equal to the banner' and 'one decimal' are provably the same thing.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
+      "existing_code": "(1) grounding reference contains both D5\n  disclosure forms;",
+      "description": "Proposal Tests bullet (1) still says the deterministic check verifies 'both D5 disclosure forms', while task 2.2 and D7 item 1 were widened in this same revision to require the full ungrounded reason set. Minor drift introduced by this iteration; the proposal is the document Gate reviewers read first.",
+      "resolution": "Append 'and the full ungrounded reason set' to bullet (1).",
+      "line_resolution": "unresolved"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schema_version": 2,
+  "change_id": "add-visual-code-explainer",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "ae7d75724953ed30be52468edbab9782cabc8221ede04b3e4d946572eed63e4c",
+  "char_length": 52972,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/add-visual-code-explainer/design.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1581
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/plan-findings.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 615
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/proposal.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 979
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/session-log.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1718
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1106
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1155
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/tasks.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1532
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/work-packages.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 961
+      }
+    ],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/add-visual-code-explainer/design.md",
+        "openspec/changes/add-visual-code-explainer/plan-findings.md",
+        "openspec/changes/add-visual-code-explainer/proposal.md",
+        "openspec/changes/add-visual-code-explainer/session-log.md",
+        "openspec/changes/add-visual-code-explainer/tasks.md",
+        "openspec/changes/add-visual-code-explainer/work-packages.yaml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+        "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
+      ]
+    }
+  ]
+}

@@ -22,3 +22,20 @@
 ### Outcome
 
 Medium+ findings fixed in plan artifacts only. Ready for PLAN_REVIEW.
+
+## PLAN_REVIEW round 1 (2026-09-16) — adjudication
+
+Multi-vendor converge (antigravity, claude_code, codex, grok; pi failed JSON)
+returned `adjudication_required` for 6 high unconfirmed judgment findings
+(blocking_count 0; 1 confirmed medium). Conductor adjudication applied:
+
+| Cluster | Finding ids | Resolution |
+|---|---|---|
+| Disclosure vs ask/redirect | 1, 6, 12 | Exempt clarification + whole-repo redirect from `Grounding:`; disclosure applies to sketching replies only |
+| Fixture "node ids" wording | 13 | Assert printed nodes match fixture `(name, file)`; format does not emit ids |
+| Missing atlas WHEN/THEN | 3 (confirmed), 14 | Added scenarios: default hops/direction, hops clamp, `--no-coverage`, exit 1; task 1.1 covers them |
+| D7 enum / footer mapping | 17 | Strengthened D7/task 2.2/proposal Tests for closed reason tokens + footer→disclosure mapping |
+| stale vs check-failed | 5, 7, 20 | First-match reason order in D5/spec (`absent` → `check failed` → `stale` → …) |
+| Coverage substring phrasing | 9, 16 | Spec aligned with D5: copy after `· ` / before trailing ` covered`, re-append |
+
+Artifacts updated; `plan_revision` → 3. Re-run converge.

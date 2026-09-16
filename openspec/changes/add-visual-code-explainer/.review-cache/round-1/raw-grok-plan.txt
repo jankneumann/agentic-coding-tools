@@ -1,0 +1,87 @@
+{
+  "text": "{\"findings\": [{\"id\": 1, \"type\": \"contract_mismatch\", \"criticality\": \"high\", \"description\": \"D5 / proposal / tasks still leave a disclosure-format gap for grounded call trees: design says the disclosure copies the --tree footer coverage list verbatim (language order, ` / ` separators, one-decimal percents) but uses `; ` after the sha and `Grounding:` prefix, while the grounded example and older proposal language still risk drift if implementers treat the whole footer as copy-paste. More importantly, D7 deterministic check #1 and proposal Tests bullet only require that D5 strings / both disclosure forms appear in the grounding reference — they do not require asserting the closed ungrounded reason enum (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) nor the footer→disclosure mapping (`;` vs `·`). Task 2.5 was supposedly updated per plan-findings #2, but the contracted CI checks remain string-presence only, so a wrong reason token or footer/disclosure drift can still pass.\", \"disposition\": \"fix\", \"axis\": \"correctness\", \"severity\": \"critical\", \"file_path\": \"openspec/changes/add-visual-code-explainer/design.md\", \"evidence_class\": \"judgment\"}, {\"id\": 2, \"type\": \"spec_gap\", \"criticality\": \"medium\", \"description\": \"Ambiguous-symbol path (exit 3) is specified in design D4 and a skill-workflow scenario, but the proposal 'What Changes' / Tests section and D7's three deterministic CI checks do not encode any assertion that SKILL.md/workflow instructs ask-don't-guess on exit 3 (list stderr candidates, no source fallback). Without a prompt-level check, implementers can ship the atlas exit code and still omit the skill branch, and plan-findings iteration 1 did not call this out.\", \"disposition\": \"fix\", \"axis\": \"correctness\", \"severity\": \"optional\", \"file_path\": \"openspec/changes/add-visual-code-explainer/proposal.md\", \"evidence_class\": \"judgment\"}, {\"id\": 3, \"type\": \"contract_mismatch\", \"criticality\": \"medium\", \"description\": \"Session-log decision 2 in the attached diff still describes freshness as 'exit 1, exit 2, a missing script, or a missing graph all mean ungrounded' while plan-findings #1 and the corrected D2/proposal Selected Approach state that `run_architecture.py --check` returns exit 1 (not 2) when provenance is not fresh, and exit 2 belongs to `build_atlas.py --check`. If the truncated session-log body was not fully rewritten to match decision 2's correction claim in plan-findings, the decision record remains inconsistent with D2.\", \"disposition\": \"fix\", \"axis\": \"correctness\", \"severity\": \"optional\", \"file_path\": \"openspec/changes/add-visual-code-explainer/session-log.md\", \"evidence_class\": \"judgment\"}, {\"id\": 4, \"type\": \"spec_gap\", \"criticality\": \"low\", \"description\": \"D3 footer format is now precise (`graph @ <sha7> · python 14.4% / sql 37.0% covered`, sorted languages, one decimal, never re-rounded), and D5 says disclosure copies that coverage list verbatim after `; `. The grounded disclosure example correctly shows one-decimal percents, but D7 check #1 still phrases success as 'D5 strings present' without requiring the one-decimal / sorted-language / no-re-round rules to appear in the grounding reference or atlas tree tests. Acceptable residual risk if task 1.x atlas tests pin format; still a mild plan completeness gap between D3 precision and D7 check surface.\", \"disposition\": \"accept\", \"axis\": \"compatibility\", \"severity\": \"fyi\", \"file_path\": \"openspec/changes/add-visual-code-explainer/design.md\", \"evidence_class\": \"judgment\"}, {\"id\": 5, \"type\": \"correctness\", \"criticality\": \"medium\", \"description\": \"D5 reason `graph check failed` is defined as '`--check` could not run (error/exception)' while `graph stale` is 'run_architecture.py --check exited non-zero'. Live contract clarification says the script returns 1 when provenance is not fresh and other failures are also non-zero — so a non-zero exit alone cannot distinguish stale vs check-failed. Design does not say how the skill classifies stderr/exception vs exit code for those two reasons, yet both appear in the closed reason set the skill must emit exactly. Implementers may invent heuristics or collapse them, breaking the 'exactly one of' contract.\", \"disposition\": \"fix\", \"axis\": \"correctness\", \"severity\": \"optional\", \"file_path\": \"openspec/changes/add-visual-code-explainer/design.md\", \"evidence_class\": \"judgment\"}]}",
+  "stopReason": "end_turn",
+  "sessionId": "01a0aa6d-30b9-7503-a375-255b6a18a832",
+  "requestId": "f1cebd9f-0dd8-40c3-b373-228763e2f6c0",
+  "thought": "The user wants me to review attached artifacts for a plan review round 1. The full prompt is in an offloaded file. Let me read that file and also the parallel-review-plan skill since this seems to be ...",
+  "usage": {
+    "input_tokens": 30791,
+    "cache_read_input_tokens": 256,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 1146,
+    "reasoning_tokens": 53,
+    "total_tokens": 32193
+  },
+  "num_turns": 1,
+  "total_cost_usd": 0.023301832,
+  "total_cost_usd_ticks": 233018320,
+  "modelUsage": {
+    "grok-4.5-build": {
+      "inputTokens": 30791,
+      "outputTokens": 1146,
+      "cacheReadInputTokens": 256,
+      "cacheCreationInputTokens": 0,
+      "modelCalls": 1,
+      "costUSD": 0.023301832
+    }
+  },
+  "structuredOutput": {
+    "findings": [
+      {
+        "id": 1,
+        "type": "contract_mismatch",
+        "criticality": "high",
+        "description": "D5 / proposal / tasks still leave a disclosure-format gap for grounded call trees: design says the disclosure copies the --tree footer coverage list verbatim (language order, ` / ` separators, one-decimal percents) but uses `; ` after the sha and `Grounding:` prefix, while the grounded example and older proposal language still risk drift if implementers treat the whole footer as copy-paste. More importantly, D7 deterministic check #1 and proposal Tests bullet only require that D5 strings / both disclosure forms appear in the grounding reference — they do not require asserting the closed ungrounded reason enum (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) nor the footer→disclosure mapping (`;` vs `·`). Task 2.5 was supposedly updated per plan-findings #2, but the contracted CI checks remain string-presence only, so a wrong reason token or footer/disclosure drift can still pass.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
+        "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 2,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Ambiguous-symbol path (exit 3) is specified in design D4 and a skill-workflow scenario, but the proposal 'What Changes' / Tests section and D7's three deterministic CI checks do not encode any assertion that SKILL.md/workflow instructs ask-don't-guess on exit 3 (list stderr candidates, no source fallback). Without a prompt-level check, implementers can ship the atlas exit code and still omit the skill branch, and plan-findings iteration 1 did not call this out.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "optional",
+        "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 3,
+        "type": "contract_mismatch",
+        "criticality": "medium",
+        "description": "Session-log decision 2 in the attached diff still describes freshness as 'exit 1, exit 2, a missing script, or a missing graph all mean ungrounded' while plan-findings #1 and the corrected D2/proposal Selected Approach state that `run_architecture.py --check` returns exit 1 (not 2) when provenance is not fresh, and exit 2 belongs to `build_atlas.py --check`. If the truncated session-log body was not fully rewritten to match decision 2's correction claim in plan-findings, the decision record remains inconsistent with D2.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "optional",
+        "file_path": "openspec/changes/add-visual-code-explainer/session-log.md",
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 4,
+        "type": "spec_gap",
+        "criticality": "low",
+        "description": "D3 footer format is now precise (`graph @ <sha7> · python 14.4% / sql 37.0% covered`, sorted languages, one decimal, never re-rounded), and D5 says disclosure copies that coverage list verbatim after `; `. The grounded disclosure example correctly shows one-decimal percents, but D7 check #1 still phrases success as 'D5 strings present' without requiring the one-decimal / sorted-language / no-re-round rules to appear in the grounding reference or atlas tree tests. Acceptable residual risk if task 1.x atlas tests pin format; still a mild plan completeness gap between D3 precision and D7 check surface.",
+        "disposition": "accept",
+        "axis": "compatibility",
+        "severity": "fyi",
+        "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 5,
+        "type": "correctness",
+        "criticality": "medium",
+        "description": "D5 reason `graph check failed` is defined as '`--check` could not run (error/exception)' while `graph stale` is 'run_architecture.py --check exited non-zero'. Live contract clarification says the script returns 1 when provenance is not fresh and other failures are also non-zero — so a non-zero exit alone cannot distinguish stale vs check-failed. Design does not say how the skill classifies stderr/exception vs exit code for those two reasons, yet both appear in the closed reason set the skill must emit exactly. Implementers may invent heuristics or collapse them, breaking the 'exactly one of' contract.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "optional",
+        "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+        "evidence_class": "judgment"
+      }
+    ]
+  }
+}

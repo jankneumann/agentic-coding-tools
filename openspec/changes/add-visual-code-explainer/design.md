@@ -88,21 +88,34 @@ about a guessed symbol; the skill asks which candidate was meant instead. Exit
 
 ### D5 — Disclosure line
 
-Every reply ends with exactly one line, never omitted, never collapsed:
+Every **sketching** reply (a catalogue visual was emitted, grounded or not)
+ends with exactly one line, never omitted, never collapsed. Two reply shapes
+are explicit exceptions and MUST NOT carry a `Grounding:` line:
+
+- **Ambiguous-symbol clarification** — `--tree` exited `3`; the skill lists
+  candidate ids and asks which was meant (no visual, no source fallback).
+- **Whole-repository redirect** — the skill names `/codebase-atlas` and stops
+  (no visual).
+
+Sketching replies use one of:
 
 - grounded call tree:
   `Grounding: graph @ <sha7>; python 14.4% / sql 37.0% covered`
-  The coverage list (everything after `· ` and before the trailing
-  ` covered` in the `--tree` footer from D3) is copied verbatim — same
-  language order, ` / ` separators, and one-decimal percents — so the
-  disclosure and footer cannot drift. The line uses `; ` after the sha
-  (not the footer's `·`) and always starts with `Grounding:`.
+  Take the `--tree` footer from D3, copy the substring after `· ` and before
+  the trailing ` covered`, then re-append ` covered`. That substring is the
+  coverage list — same language order, ` / ` separators, and one-decimal
+  percents — so the disclosure and footer cannot drift. The line uses `; `
+  after the sha (not the footer's `·`) and always starts with `Grounding:`.
 - ungrounded / non-graph-backed:
   `Grounding: source read, unverified (<reason>)`
-  where `<reason>` is exactly one of:
-  - `graph stale` — `run_architecture.py --check` exited non-zero
-  - `graph absent` — graph file or `--check` script missing
-  - `graph check failed` — `--check` could not run (error/exception)
+  where `<reason>` is exactly one of (decision order; first match wins):
+  - `graph absent` — before invoking `--check`, the skill finds the
+    `--check` script or the graph file missing
+  - `graph check failed` — the skill could not spawn/run `--check`
+    (OSError / exception before an exit code), or a subsequent `--tree`
+    exits `1` (input/IO) after a fresh `--check`
+  - `graph stale` — `--check` ran and exited non-zero (including exit `1`
+    for stale provenance and any other non-zero the script returns)
   - `symbol not in graph` — `--tree` exited `2`
   - `form not graph-backed` — reply used a catalogue form other than a
     call tree (component/file/sequence/structural-diff are model-authored)
@@ -133,8 +146,12 @@ harness, three **deterministic** tests always run in CI and encode the same
 three behaviours at the level the prompt can be checked without an LLM:
 
 1. `SKILL.md` / grounding reference instruct the disclosure line for grounded
-   and ungrounded paths (D5 strings and the full ungrounded reason set present
-   in the grounding reference).
+   and ungrounded sketching paths (both D5 templates present; the closed
+   ungrounded reason set `graph stale|absent|check failed`, `symbol not in
+   graph`, `form not graph-backed` present as exact tokens; the
+   footer→disclosure mapping documented — copy after `· ` / before trailing
+   ` covered`, re-append ` covered`, use `; ` after the sha; clarification
+   and redirect replies exempt from `Grounding:`).
 2. `SKILL.md` instructs redirecting whole-repository questions to
    `/codebase-atlas` (string present, and the atlas is in `related:`).
 3. `SKILL.md` instructs never running `--ensure` or the analysis pipeline
@@ -142,9 +159,10 @@ three behaviours at the level the prompt can be checked without an LLM:
 
 The fourth behaviour — "a grounded call tree cannot invent symbols" — is
 asserted where the code lives: `tests/codebase-atlas/test_atlas_tree.py`
-checks that `--tree` on the `tiny_graph` fixture prints only fixture node ids.
-Keeping it there lets `wp-skill` and `wp-atlas-tree` run in parallel without
-`wp-skill` importing code it does not own.
+checks that every node printed for the `tiny_graph` fixture matches a
+fixture node by `(name, file)` (the tree format emits name/file/kind, not
+node ids). Keeping it there lets `wp-skill` and `wp-atlas-tree` run in
+parallel without `wp-skill` importing code it does not own.
 
 Rationale: the inversion change is 0/10 tasks; this change must be green on
 today's CI and must not block on it.

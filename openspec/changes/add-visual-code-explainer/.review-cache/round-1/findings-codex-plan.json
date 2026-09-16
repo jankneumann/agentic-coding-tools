@@ -1,0 +1,57 @@
+{
+  "review_type": "plan",
+  "target": "add-visual-code-explainer",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The whole-repository scenario requires the skill to name `/codebase-atlas` \u201cand stop,\u201d while the grounding requirement and D5 require every reply, without exception, to end with exactly one `Grounding:` line. The redirect response therefore has two incompatible required endings. Specify whether redirects append the disclosure or are an explicit exception.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Proposal.md and task 1.1 say the atlas test proves output contains only fixture node ids, but the specified tree format prints node names, file locations, and kinds\u2014not node ids. That assertion is not implementable as written and cannot establish the claimed no-invented-symbol guarantee. Define a validation based on emitted node tuples or include stable ids in the output contract.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The Atlas Symbol Tree Export requirement contains SHALL clauses with no corresponding WHEN/THEN coverage: default hop/direction behavior; clamping hops above 4 with a stderr note; exact `<name> (<file>:<line>) [<kind>]` formatting; secondary sorting by id; `--no-coverage` suppression; unique-name and full-path resolution plus resolution precedence; exit 1 for input/IO errors; and the standard-library/no-network constraint. Add scenarios covering these obligations or move non-behavioral implementation guidance out of normative SHALL language.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The skill-workflow specs also leave normative clauses without explicit scenario coverage. In particular, no scenario asserts that the skill does not open a browser, that `triggers:` is absent, that `SKILL.md` ends with all three required tail sections, or that the manifest contains the exact `portable` distribution and exact dependency list. Existing scenarios cover adjacent behavior but not these stated SHALL/SHALL NOT contracts.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The grounding spec says the coverage list is copied verbatim from the tree footer \u201cafter its `\u00b7` separator,\u201d which includes the footer\u2019s trailing `covered`, while the grounded disclosure template itself also ends in `covered`. D5 instead defines the copied span as after `\u00b7 ` and before the trailing ` covered`. Align the normative spec with D5 to prevent implementations from producing `covered covered` or interpreting \u201cverbatim\u201d inconsistently.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    }
+  ]
+}

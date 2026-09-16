@@ -5,8 +5,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
 
 ## Phase 1 — `codebase-atlas --tree` export (package `wp-atlas-tree`)
 
-- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `3` with sorted candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, output contains only fixture node ids, a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
-  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown target exits 2", "Ambiguous target exits 3", "Deterministic output", "Coverage footer matches the page banner"
+- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `3` with sorted candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, every printed node matches a fixture node by `(name, file)` (tree format emits name/file/kind, not ids), a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, default hops/direction, hops>4 clamp with stderr note, `--no-coverage` omits footer, unreadable `--graph` exits `1`, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
+  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown target exits 2", "Ambiguous target exits 3", "Deterministic output", "Coverage footer matches the page banner", "Default hops and direction", "Hops above four are clamped", "No-coverage suppresses the footer", "Input or IO error exits 1"
   **Design decisions**: D3 (format), D4 (resolution), D7 (fixture-only nodes), D8 (module name)
   **Dependencies**: None
   **Size**: M
@@ -47,8 +47,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: None
   **Size**: S
 
-- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms and the full ungrounded reason set (`graph stale|absent|check failed`, `symbol not in graph`, `form not graph-backed`); `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
-  **Spec scenarios**: skill-workflow "Disclosure line present on every answer", "Whole-repository question redirected", "Stale or absent graph falls back to source", "Non-call-tree form is not graph-backed"
+- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms, the closed ungrounded reason tokens (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`), the footer→disclosure mapping (`;` after sha, copy after `· ` / before trailing ` covered`), and the clarification/redirect disclosure exemptions; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
+  **Spec scenarios**: skill-workflow "Disclosure line present on every sketching answer", "Whole-repository question redirected", "Whole-repository redirect has no disclosure line", "Stale or absent graph falls back to source", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing"
   **Design decisions**: D2, D5, D7, D9
   **Dependencies**: None
   **Size**: S
@@ -67,8 +67,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: 2.3
   **Size**: M
 
-- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5), the ungrounded reason set including `symbol not in graph` (exit `2`) and `form not graph-backed`, the ask-don't-guess rule for an ambiguous name (exit `3`), the whole-repository redirect, and the refusal list (D9)
-  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing", "Disclosure line present on every answer"
+- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5 substring rule), the closed ungrounded reason set with first-match order (`graph absent` → `graph check failed` → `graph stale` → `symbol not in graph` → `form not graph-backed`), the ask-don't-guess rule for an ambiguous name (exit `3`, no `Grounding:` line), the whole-repository redirect (no `Grounding:` line), and the refusal list (D9)
+  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing", "Whole-repository redirect has no disclosure line", "Disclosure line present on every sketching answer"
   **Design decisions**: D2, D5, D9
   **Dependencies**: 2.3
   **Size**: S

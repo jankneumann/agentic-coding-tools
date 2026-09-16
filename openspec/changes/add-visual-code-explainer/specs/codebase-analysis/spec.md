@@ -55,3 +55,25 @@
 
 - **WHEN** `--tree` runs without `--no-coverage`
 - **THEN** the footer percentages SHALL equal the `Coverage.percent` values `build_view_model()` computes for the same repository root
+
+#### Scenario: Default hops and direction
+
+- **WHEN** `--tree <target>` is invoked with neither `--hops` nor `--direction`
+- **THEN** the traversal SHALL use `--hops 2` and `--direction out`
+- **AND** the exit code SHALL be `0` for a resolvable target
+
+#### Scenario: Hops above four are clamped
+
+- **WHEN** `--tree <target> --hops 9` is given
+- **THEN** the effective hop cap SHALL be `4`
+- **AND** stderr SHALL contain a note that the value was clamped
+
+#### Scenario: No-coverage suppresses the footer
+
+- **WHEN** `--tree <target> --no-coverage` runs
+- **THEN** stdout SHALL omit the `graph @` coverage footer line
+
+#### Scenario: Input or IO error exits 1
+
+- **WHEN** `--tree` cannot read the graph file (missing path via `--graph`, or unreadable IO)
+- **THEN** the exit code SHALL be `1`

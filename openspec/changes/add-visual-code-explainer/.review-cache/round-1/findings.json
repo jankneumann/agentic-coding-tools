@@ -1,0 +1,72 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "specs/skill-workflow/spec.md requirement 'Explainer Frontmatter Without Triggers' mandates that SKILL.md SHALL end with '## Common Rationalizations', '## Red Flags', and '## Verification' sections, but no scenario covers this SHALL. Task 2.1 tests for assert_tail_block_present but the spec lacks a corresponding WHEN/THEN scenario.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": "F2",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "specs/skill-workflow/spec.md requirement 'Explainer Distribution Wiring' mandates 'All runtime references from explain-code to sibling skills SHALL use the <skill-base-dir>/../<skill>/ form' but no scenario covers this SHALL. The two scenarios (Manifest validation passes, Tests collected by the default sweep) do not verify the runtime reference form.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": "F3",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "design.md D7 states 'three deterministic tests always run in CI and encode the same three behaviours' listing 3 items, but specs/skill-workflow/spec.md has 6 scenarios for the grounding requirement alone (Fresh graph grounds, Stale/absent falls back, Symbol outside coverage, Non-call-tree form, Ambiguous symbol asks, Disclosure line present). The design should clarify which scenarios are covered by the three deterministic tests vs. which require the conditional trajectory harness (task 2.8).",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "fyi"
+    },
+    {
+      "id": "F4",
+      "type": "style",
+      "criticality": "low",
+      "description": "tasks.md task 2.2 declares 'Dependencies: None' but tests the grounding reference written in task 2.5. While this is correct TDD RED→GREEN order (test written before implementation), the logical dependency on the reference file's existence for the test to pass should be noted for implementer clarity.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi"
+    },
+    {
+      "id": "F5",
+      "type": "resilience",
+      "criticality": "low",
+      "description": "work-packages.yaml wp-atlas-tree verification step 'tree_deterministic' uses hardcoded target 'coordination_api.py' for the two-run cmp check. If this symbol is renamed or removed from the committed graph, the verification will fail spuriously. Should use a stable fixture symbol or document the assumption.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit"
+    },
+    {
+      "id": "F6",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "proposal.md NFR table lists node/edge counts (1,903 / 1,199) that plan-findings.md acknowledges are 'slightly behind current committed graph (~1,953 / 1,228)'. This is documented as 'Left as low (no churn)' but the proposal still carries the stale numbers.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi"
+    }
+  ],
+  "coverage": {
+    "reviewed": [
+      "openspec/changes/add-visual-code-explainer/design.md",
+      "openspec/changes/add-visual-code-explainer/plan-findings.md",
+      "openspec/changes/add-visual-code-explainer/proposal.md",
+      "openspec/changes/add-visual-code-explainer/session-log.md",
+      "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "openspec/changes/add-visual-code-explainer/tasks.md",
+      "openspec/changes/add-visual-code-explainer/work-packages.yaml",
+      "openspec/changes/add-visual-code-explainer/contracts/README.md"
+    ],
+    "skipped": []
+  }
+}
