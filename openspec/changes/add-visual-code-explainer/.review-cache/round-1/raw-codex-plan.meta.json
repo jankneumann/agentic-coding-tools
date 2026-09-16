@@ -3,9 +3,9 @@
   "vendor": "codex",
   "review_type": "plan",
   "stdout_path": "raw-codex-plan.txt",
-  "byte_length": 2872,
+  "byte_length": 5105,
   "truncated": false,
-  "sha256": "14f459cbe9d5a8c496bac161f0d1e3881429884745888be786018215cf579bd7",
+  "sha256": "8940f29b09c265840eb32ad9ffe9757d84f3c95685159590ef7d5d464e748696",
   "repair_attempted": false,
   "coercions": [],
   "stderr_path": "raw-codex-plan.stderr.txt"

@@ -6,57 +6,98 @@
     {
       "id": 1,
       "type": "contract_mismatch",
-      "criticality": "high",
-      "description": "D5 / proposal / tasks still leave a disclosure-format gap for grounded call trees: design says the disclosure copies the --tree footer coverage list verbatim (language order, ` / ` separators, one-decimal percents) but uses `; ` after the sha and `Grounding:` prefix, while the grounded example and older proposal language still risk drift if implementers treat the whole footer as copy-paste. More importantly, D7 deterministic check #1 and proposal Tests bullet only require that D5 strings / both disclosure forms appear in the grounding reference \u2014 they do not require asserting the closed ungrounded reason enum (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) nor the footer\u2192disclosure mapping (`;` vs `\u00b7`). Task 2.5 was supposedly updated per plan-findings #2, but the contracted CI checks remain string-presence only, so a wrong reason token or footer/disclosure drift can still pass.",
+      "criticality": "medium",
+      "description": "Nit: D7 deterministic check #1 says the closed ungrounded reason set must be present as exact tokens, but writes it as the abbreviated form `graph stale|absent|check failed` (plus the other two reasons). That pipe string is not one of the five exact tokens D5/spec/task 2.2 require (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`). An implementer following D7 literally can assert the wrong substring and still miss a missing `graph check failed` token. Spell all five tokens the same way in D7, task 2.2, and the proposal Tests bullet.",
       "disposition": "fix",
       "axis": "correctness",
-      "severity": "critical",
-      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
-      "evidence_class": "judgment"
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "existing_code": "+1. `SKILL.md` / grounding reference instruct the disclosure line for grounded\n+   and ungrounded sketching paths (both D5 templates present; the closed\n+   ungrounded reason set `graph stale|absent|check failed`, `symbol not in\n+   graph`, `form not graph-backed` present as exact tokens;",
+      "line_resolution": "unresolved"
     },
     {
       "id": 2,
       "type": "spec_gap",
       "criticality": "medium",
-      "description": "Ambiguous-symbol path (exit 3) is specified in design D4 and a skill-workflow scenario, but the proposal 'What Changes' / Tests section and D7's three deterministic CI checks do not encode any assertion that SKILL.md/workflow instructs ask-don't-guess on exit 3 (list stderr candidates, no source fallback). Without a prompt-level check, implementers can ship the atlas exit code and still omit the skill branch, and plan-findings iteration 1 did not call this out.",
+      "description": "Nit: After adjudication, Atlas Symbol Tree Export still has normative SHALLs without dedicated WHEN/THEN coverage (Rule Group 2). Still uncovered: exact `<name>  (<file>:<line>)  [<kind>]` line shape; secondary sort by id (Callees scenario only says sorted by name); target-resolution precedence (exact id \u2192 unique name \u2192 file path/basename) beyond basename; stdlib-only / no-network; and\u2014in design D3 but missing from the requirement body\u2014`--direction both` emitting labelled `callees:` / `callers:` sections (the Non-call edges scenario already depends on `callees:`). Either add scenarios (and put the `both` section headers into the SHALL body) or demote non-behavioral constraints out of SHALL language.",
       "disposition": "fix",
       "axis": "correctness",
-      "severity": "optional",
-      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
-      "evidence_class": "judgment"
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "existing_code": "+#### Scenario: Default hops and direction\n+\n+- **WHEN** `--tree <target>` is invoked with neither `--hops` nor `--direction`\n+- **THEN** the traversal SHALL use `--hops 2` and `--direction out`",
+      "line_resolution": "unresolved"
     },
     {
       "id": 3,
       "type": "contract_mismatch",
       "criticality": "medium",
-      "description": "Session-log decision 2 in the attached diff still describes freshness as 'exit 1, exit 2, a missing script, or a missing graph all mean ungrounded' while plan-findings #1 and the corrected D2/proposal Selected Approach state that `run_architecture.py --check` returns exit 1 (not 2) when provenance is not fresh, and exit 2 belongs to `build_atlas.py --check`. If the truncated session-log body was not fully rewritten to match decision 2's correction claim in plan-findings, the decision record remains inconsistent with D2.",
+      "description": "Nit: Design D3 states that `--direction both` prints labelled sections `callees:` / `callers:`, and scenario Non-call edges asserts `B` is listed under `callees:`, but the normative Atlas Symbol Tree Export requirement body never mentions those section headers\u2014only an indented tree of `<name>  (<file>:<line>)  [<kind>]` lines. Implementers reading only the spec can omit the labels and fail the scenario; implementers reading only D3 will add labels the SHALL text does not require. Add the `both` section-header contract to the requirement body (and a focused scenario).",
       "disposition": "fix",
       "axis": "correctness",
-      "severity": "optional",
-      "file_path": "openspec/changes/add-visual-code-explainer/session-log.md",
-      "evidence_class": "judgment"
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "existing_code": "- Children indented two spaces per hop, sorted by `name` then `id`; direction\n  `out` lists callees (`call` edges where the node is `s`), `in` lists callers, `both`\n  prints two labelled sections `callees:` / `callers:`.",
+      "line_resolution": "unresolved"
     },
     {
       "id": 4,
       "type": "spec_gap",
-      "criticality": "low",
-      "description": "D3 footer format is now precise (`graph @ <sha7> \u00b7 python 14.4% / sql 37.0% covered`, sorted languages, one decimal, never re-rounded), and D5 says disclosure copies that coverage list verbatim after `; `. The grounded disclosure example correctly shows one-decimal percents, but D7 check #1 still phrases success as 'D5 strings present' without requiring the one-decimal / sorted-language / no-re-round rules to appear in the grounding reference or atlas tree tests. Acceptable residual risk if task 1.x atlas tests pin format; still a mild plan completeness gap between D3 precision and D7 check surface.",
-      "disposition": "accept",
-      "axis": "compatibility",
-      "severity": "fyi",
-      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
-      "evidence_class": "judgment"
+      "criticality": "medium",
+      "description": "Nit: Ambiguous-symbol ask-don't-guess is specified in D4/D5, the skill-workflow requirement, scenario Ambiguous symbol asks instead of guessing, and task 2.5, but D7's three deterministic CI checks still do not require asserting that SKILL.md/grounding.md instruct listing stderr candidates and refusing source fallback on `--tree` exit 3. Task 2.2 only tightens check #1 around clarification/redirect disclosure exemptions (no `Grounding:` line), so a grounding reference that omits ask-don't-guess can still pass the contracted prompt-level tests. Extend D7 check #1 (and task 2.2) to require the exit-3 ask / no-source-fallback strings.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "existing_code": "+1. `SKILL.md` / grounding reference instruct the disclosure line for grounded\n+   and ungrounded sketching paths (both D5 templates present; the closed\n+   ungrounded reason set `graph stale|absent|check failed`, `symbol not in\n+   graph`, `form not graph-backed` present as exact tokens; the\n+   footer\u2192disclosure mapping documented \u2014 copy after `\u00b7 ` / before trailing\n+   ` covered`, re-append ` covered`, use `; ` after the sha; clarification\n+   and redirect replies exempt from `Grounding:`).",
+      "line_resolution": "unresolved"
     },
     {
       "id": 5,
-      "type": "correctness",
+      "type": "spec_gap",
       "criticality": "medium",
-      "description": "D5 reason `graph check failed` is defined as '`--check` could not run (error/exception)' while `graph stale` is 'run_architecture.py --check exited non-zero'. Live contract clarification says the script returns 1 when provenance is not fresh and other failures are also non-zero \u2014 so a non-zero exit alone cannot distinguish stale vs check-failed. Design does not say how the skill classifies stderr/exception vs exit code for those two reasons, yet both appear in the closed reason set the skill must emit exactly. Implementers may invent heuristics or collapse them, breaking the 'exactly one of' contract.",
+      "description": "Nit: Skill-workflow still leaves several SHALL/SHALL NOT clauses without matching scenarios (Rule Group 2 residual from prior finding 15). No scenario asserts: `triggers:` is absent; `SKILL.md` ends with `## Common Rationalizations`, `## Red Flags`, and `## Verification`; the skill SHALL NOT open a browser (No file or browser side effects only forbids creating/modifying/opening files); or that the manifest entry is exactly `distribution: portable` with dependency list `[codebase-atlas, refresh-architecture]` (Manifest validation passes only requires zero validator errors and dependency coverage). Add WHEN/THEN rows or narrow the normative text.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "existing_code": "The `explain-code` `SKILL.md` frontmatter SHALL declare `name`, `description`, `category: Architecture`, `tags`, `user_invocable: true`, and `related: [codebase-atlas, refresh-architecture]`, and SHALL NOT declare a `triggers:` key.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Optional: D4 still relies on `build_atlas.py --check` and `--tree` never combining so exit `2` stays unambiguous, but neither the codebase-analysis requirement, a scenario, nor task 1.3 requires rejecting the combination (e.g. argparse mutually exclusive group). `--check --tree X` remains undefined and can still collide exit-2 meanings depending on `main()` dispatch order. Add a SHALL + scenario + task 1.3 bullet, or drop the D4 claim.",
       "disposition": "fix",
       "axis": "correctness",
       "severity": "optional",
-      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
-      "evidence_class": "judgment"
+      "evidence_class": "judgment",
+      "existing_code": "+`build_atlas.py --check` already uses exit `2` for a stale HTML page;\n+`--check` and `--tree` never combine on one invocation.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Optional: D3 and the Atlas spec still jointly require percent printed to exactly one decimal place and that the value is `Coverage.percent` itself, never re-rounded. Those agree only if `Coverage.percent` is already a one-decimal quantity; an unrounded float (14.37) or int (37) makes naive formatting violate one of the two rules. Pin a single format expression in D3 (e.g. `f\"{coverage.percent:.1f}%\"`) and mirror it in the spec so footer and disclosure stay deterministic.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "existing_code": "+  with ` / `, percent to one decimal place (the `Coverage.percent` value\n+  itself, never re-rounded, so it stays equal to the page banner), a single\n+  trailing `covered`. Percentages are",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Adjudication coherently closed the round-1 blocking cluster: sketching-only disclosure with explicit ask/redirect exemptions, first-match ungrounded reason order, `(name, file)` fixture assertion, footer substring mapping aligned across D5/spec, and the added atlas scenarios for defaults/clamp/`--no-coverage`/exit 1. Remaining items above are residual gaps, not reopenings of those fixes.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment",
+      "existing_code": "+| Disclosure vs ask/redirect | 1, 6, 12 | Exempt clarification + whole-repo redirect from `Grounding:`; disclosure applies to sketching replies only |",
+      "line_resolution": "unresolved"
     }
   ]
 }

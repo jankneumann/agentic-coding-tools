@@ -3,9 +3,9 @@
   "vendor": "claude_code",
   "review_type": "plan",
   "stdout_path": "raw-claude_code-plan.txt",
-  "byte_length": 8489,
+  "byte_length": 9796,
   "truncated": false,
-  "sha256": "3c47ee904823a42964adf3d0a513e21ee6c8c8c13af1d52b2dd06789771c3bee",
+  "sha256": "940605dd6136b870abfa89acec7d1d67a0c54d2647d66739b25031229757a5d9",
   "repair_attempted": false,
   "coercions": []
 }

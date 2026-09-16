@@ -1,0 +1,107 @@
+{
+  "review_type": "plan",
+  "target": "add-visual-code-explainer",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The codebase-analysis spec and task 1.3 do not require `build_atlas.py` to reject the combination of `--check` and `--tree` flags. Design D4 states '`--check` and `--tree` never combine on one invocation' but the CLI lacks a mutually exclusive argparse group or a spec scenario defining the behavior when both are given. As written, `--check --tree X` has undefined exit code semantics (exit 2 could mean 'stale page' or 'not found' depending on dispatch order).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The spec mandates 'exactly one decimal place as `Coverage.percent` returns it' while design D3 mandates 'the `Coverage.percent` value itself, never re-rounded'. These are compatible only if `Coverage.percent` already yields a one-decimal float. If it returns an unrounded float (14.37) or an int (37), the two constraints conflict. The packet does not include the `Coverage` definition to confirm. The spec should state the exact format expression (e.g., `f\"{coverage.percent:.1f}%\"`) to remove ambiguity.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The skill-workflow spec requirement 'Explainer Frontmatter Without Triggers' states 'The `SKILL.md` SHALL end with the `## Common Rationalizations`, `## Red Flags`, and `## Verification` sections required of user-invocable skills' but there is no corresponding WHEN/THEN scenario verifying this. Task 2.1's `assert_tail_block_present` checks for it, but the spec lacks a scenario per Rule Group 2.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The skill-workflow spec requirement 'Explainer Distribution Wiring' states 'All runtime references from `explain-code` to sibling skills SHALL use the `<skill-base-dir>/../<skill>/` form' but there is no corresponding WHEN/THEN scenario verifying this relative-path convention.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The skill-workflow spec requirement 'Explainer Distribution Wiring' states the manifest SHALL declare the exact `portable` distribution and exact dependency list (`cross_skill_dependencies`), but the 'Manifest validation passes' scenario only checks for zero validator errors, not the specific values.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Design D7 deterministic check #1 and task 2.2 require the grounding reference to contain 'clarification/redirect disclosure exemptions' but do not explicitly assert that the ask-don't-guess behavior for ambiguous symbols (exit 3: list stderr candidates, no source fallback) is documented in the grounding reference or SKILL.md. An implementer could ship the atlas exit-3 code and omit the skill's ask-don't-guess branch while passing deterministic checks.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Design D7 check #1 requires 'footer\u2192disclosure mapping documented' but does not explicitly require the one-decimal / sorted-language / no-re-round formatting rules from D3 to appear in the grounding reference or atlas tree tests. Task 1.1 covers footer format, but the deterministic check surface has a mild completeness gap relative to D3's precision.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "The 'Explainer Grounding and Coverage Disclosure' requirement states 'When stale, absent, or failing (including `--tree` exit `2`), the skill SHALL read source directly' but exit 2 ('target not found') is handled by the separate 'Symbol outside graph coverage' scenario with reason `symbol not in graph` and a 'graph is fresh' precondition. The phrase 'including `--tree` exit `2`' in the main requirement conflates two distinct failure modes and could mislead implementers.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The 'Stale or absent graph falls back to source' scenario covers '`run_architecture.py --check` exits non-zero, or the script or graph file is missing' but does not explicitly cover the `--check` subprocess spawn failure (OSError) case, which maps to `graph check failed` in the first-match order (before `graph stale`). The scenario should include spawn failure for complete coverage of the ungrounded reason enum.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Task 2.5 requires `references/grounding.md` to document 'the ask-don't-guess rule for an ambiguous name (exit `3`, no `Grounding:` line)' but the deterministic checks in task 2.2 and D7 item 1 only verify 'clarification/redirect disclosure exemptions' \u2014 they do not assert the ask-don't-guess instruction is present in the grounding reference. This creates a gap between what the reference must contain and what CI verifies.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    }
+  ]
+}

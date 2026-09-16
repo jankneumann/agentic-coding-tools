@@ -3,8 +3,8 @@
   "change_id": "add-visual-code-explainer",
   "round": 1,
   "body_path": "review-packet.md",
-  "sha256": "ae7d75724953ed30be52468edbab9782cabc8221ede04b3e4d946572eed63e4c",
-  "char_length": 52972,
+  "sha256": "b9a8764017633371cd590b0d6c6ed639284fdbb300a20a16a68b0b99d54358dd",
+  "char_length": 121661,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -13,53 +13,67 @@
     "per_file_token_ceiling": 64000,
     "selected": [
       {
+        "path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5824
+      },
+      {
         "path": "openspec/changes/add-visual-code-explainer/design.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1581
+        "est_tokens": 2075
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/plan-findings.md",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 615
+        "est_tokens": 911
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/proposal.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 979
+        "est_tokens": 1064
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/reviews/converge-result.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 8654
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/session-log.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1718
+        "est_tokens": 2105
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1106
+        "est_tokens": 1361
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1155
+        "est_tokens": 1623
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/tasks.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1532
+        "est_tokens": 1725
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/work-packages.yaml",
@@ -69,7 +83,169 @@
         "est_tokens": 961
       }
     ],
-    "excluded": [],
+    "excluded": [
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-antigravity.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 225
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 253
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 214
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-grok.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 320
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-antigravity-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1273
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2577
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 993
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-grok-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1326
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1090
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-antigravity-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 181
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-antigravity-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3175
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 180
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2212
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 185
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-codex-plan.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 14438
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 801
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-grok-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 172
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-grok-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2693
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 170
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 169676
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 892
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 13498
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 852
+      }
+    ],
     "truncated": []
   },
   "rule_groups": [
@@ -78,9 +254,11 @@
       "source": "default",
       "pattern": "(default)",
       "files": [
+        "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
         "openspec/changes/add-visual-code-explainer/design.md",
         "openspec/changes/add-visual-code-explainer/plan-findings.md",
         "openspec/changes/add-visual-code-explainer/proposal.md",
+        "openspec/changes/add-visual-code-explainer/reviews/converge-result.json",
         "openspec/changes/add-visual-code-explainer/session-log.md",
         "openspec/changes/add-visual-code-explainer/tasks.md",
         "openspec/changes/add-visual-code-explainer/work-packages.yaml"

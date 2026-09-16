@@ -39,3 +39,18 @@ returned `adjudication_required` for 6 high unconfirmed judgment findings
 | Coverage substring phrasing | 9, 16 | Spec aligned with D5: copy after `· ` / before trailing ` covered`, re-append |
 
 Artifacts updated; `plan_revision` → 3. Re-run converge.
+
+## PLAN_REVIEW round 2 (2026-09-16) — adjudication
+
+Second converge (5/5 vendors) again returned `adjudication_required` for 3
+single-vendor high judgment findings (0 confirmed, 0 blocking):
+
+| Finding | Resolution |
+|---|---|
+| Narrow-question vs ambiguous WHEN overlap | Qualify narrow-question scenario to resolvable targets only |
+| "SHALL NOT open any file" vs read-only grounding | Permit read-only graph/source access; forbid create/modify/browser side effects |
+| Residual atlas SHALL without WHEN/THEN | Added footer shape, resolution precedence, unique-name, direction-both scenarios; fixed `(+n more)` hop-depth wording |
+| Frontmatter/distribution SHALL gaps (medium) | Added triggers/category/tail and portable/deps/`skill-base-dir` scenarios |
+
+Ledger items from rounds 1–2 retired after adjudication (`retired` is not
+reopened on merge). `plan_revision` → 4. Re-run converge.

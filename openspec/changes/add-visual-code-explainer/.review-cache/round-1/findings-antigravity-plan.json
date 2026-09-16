@@ -5,57 +5,68 @@
   "findings": [
     {
       "axis": "correctness",
-      "criticality": "high",
-      "description": "The requirement 'Explainer Grounding and Coverage Disclosure' mandates that 'Every reply SHALL end with exactly one disclosure line: Grounding: graph @ <sha7>; ... when grounded ..., or Grounding: source read, unverified (<reason>) when not, where <reason> is one of graph stale, graph absent, graph check failed, symbol not in graph, or form not graph-backed', and scenario 'Disclosure line present on every answer' requires that every reply end with a Grounding: line. However, scenario 'Ambiguous symbol asks instead of guessing' requires the skill to list candidate IDs and ask which symbol was meant without reading source or sketching a tree, and scenario 'Whole-repository question redirected' redirects to /codebase-atlas and stops. For these replies, source was not read, and none of the five allowed <reason> tokens represents an ambiguous symbol clarification prompt or a tool redirect. The disclosure requirement and scenario set contradict the clarification and redirection flows.",
+      "criticality": "medium",
+      "description": "Requirement 'Explainer Frontmatter Without Triggers' contains normative obligations that lack Scenario coverage: 'The SKILL.md SHALL end with the ## Common Rationalizations, ## Red Flags, and ## Verification sections required of user-invocable skills' and 'SHALL NOT declare a triggers: key'. Neither of the requirement's two scenarios ('Frontmatter valid in both orderings' and 'Description carries the trigger condition') asserts the presence of the three required tail sections or verifies the absence of triggers:, violating Rule Group 2's requirement that every SHALL/MUST have at least one scenario.",
       "disposition": "fix",
       "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
       "id": 1,
-      "severity": "critical",
-      "type": "contract_mismatch",
-      "evidence_class": "judgment"
-    },
-    {
-      "axis": "correctness",
-      "criticality": "medium",
-      "description": "Requirement 'Explainer Grounding and Coverage Disclosure' lacks a normative SHALL/MUST statement specifying how the skill handles exit code 3 (ambiguous target) from build_atlas.py --tree, even though scenario 'Ambiguous symbol asks instead of guessing' specifies that the skill SHALL list candidate ids from stderr and ask which one was meant instead of falling back to source reading. The requirement body should explicitly specify the ambiguous symbol handling contract.",
-      "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
-      "id": 2,
-      "severity": "optional",
+      "severity": "nit",
       "type": "spec_gap",
       "evidence_class": "judgment"
     },
     {
       "axis": "correctness",
       "criticality": "medium",
-      "description": "Requirement 'Atlas Symbol Tree Export' specifies that --hops N has a maximum of 4 and that 'larger values clamped with a stderr note', that --no-coverage suppresses the coverage footer, and that exit code 1 is used for input or IO errors. None of these behaviors has a corresponding scenario with WHEN/THEN in the specification, violating Rule Group 2's requirement that every SHALL/MUST requirement has at least one scenario.",
+      "description": "Requirement 'Atlas Symbol Tree Export' contains normative SHALL obligations that lack Scenario coverage under Rule Group 2: (1) 'Each line SHALL show <name>  (<file>:<line>)  [<kind>]', (2) 'children SHALL be sorted by name then id' (secondary sort by id is omitted from scenarios), and (3) '<target> SHALL resolve as exact node id, then unique symbol name...' (existing scenarios cover node id and module basename, but no scenario verifies resolving a unique bare symbol name).",
       "disposition": "fix",
       "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
-      "id": 3,
-      "severity": "optional",
+      "id": 2,
+      "severity": "nit",
       "type": "spec_gap",
       "evidence_class": "judgment"
     },
     {
       "axis": "correctness",
       "criticality": "medium",
-      "description": "In requirement 'Explainer Grounding and Coverage Disclosure', the grounded disclosure template Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered states in parentheses '(coverage list copied verbatim from the --tree footer after its \u00b7 separator, including order and / separators)'. Because the footer from specs/codebase-analysis/spec.md already ends with ' covered', verbatim copying after '\u00b7 ' would duplicate the trailing ' covered'. As properly specified in design D5, the specification should state that the coverage list is copied after '\u00b7 ' and before the trailing ' covered'.",
+      "description": "Design D7 and task 2.2 define three deterministic behavioural checks in test_behaviour.py, and task 2.2 lists scenario 'Ambiguous symbol asks instead of guessing' as covered. However, none of the three checks asserts that SKILL.md or references/grounding.md instructs the skill to ask rather than guess when --tree exits 3 (listing stderr candidate ids without source fallback). Check 1 only verifies that clarification and redirect replies are exempt from Grounding:. An implementation that omits the exit 3 prompt instructions would pass all three deterministic checks.",
       "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
-      "id": 4,
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "id": 3,
       "severity": "nit",
-      "type": "contract_mismatch",
+      "type": "spec_gap",
       "evidence_class": "judgment"
     },
     {
       "axis": "correctness",
       "criticality": "low",
-      "description": "In design D5, 'graph stale' is defined as 'run_architecture.py --check exited non-zero'. However, D2 and the live contract define exit 1 specifically as stale provenance while other non-zero exits are execution or script failures ('graph check failed'). Defining 'graph stale' as any non-zero exit in D5 creates an internal inconsistency with D2.",
+      "description": "Requirement 'Explainer Grounding and Coverage Disclosure' specifies that if build_atlas.py --tree exits 1 after a fresh --check, the skill SHALL fall back to source reading and emit disclosure reason 'graph check failed'. However, scenario 'Stale or absent graph falls back to source' only triggers WHEN run_architecture.py --check exits non-zero or the script/graph file is missing, leaving the post-fresh --tree exit 1 failure branch without scenario coverage.",
       "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "id": 4,
+      "severity": "nit",
+      "type": "spec_gap",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "In .review-ledger/ledger.json, item 15 (uncovered normative clauses in skill-workflow/spec.md including triggers absence and required tail sections) is recorded as status 'addressed' by 'plan-review-adjudication'. However, plan-findings.md's adjudication table omitted item 15 and no corresponding scenarios were added to skill-workflow/spec.md, resulting in an unaddressed finding prematurely marked addressed in the ledger.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
       "id": 5,
       "severity": "nit",
       "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "architecture",
+      "criticality": "low",
+      "description": "Design D4 notes that build_atlas.py --check uses exit 2 for a stale HTML page and states that '--check and --tree never combine on one invocation.' However, neither codebase-analysis/spec.md nor task 1.3 requires parse_args() in build_atlas.py to enforce mutual exclusivity (e.g. via an argparse mutually exclusive group). If both flags are passed, the meaning of exit code 2 is ambiguous.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "id": 6,
+      "severity": "nit",
+      "type": "spec_gap",
       "evidence_class": "judgment"
     }
   ]

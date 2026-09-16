@@ -72,3 +72,8 @@ Planned a question-driven visual code explainer skill adopting humanlayer's MIT 
 ### Next Steps
 - Re-run converge after adjudication fixes; then IMPLEMENT if converged.
 
+### Decisions (round 2)
+5. **Narrow-question scenario excludes ambiguous targets** `architectural: code-visualization` — Clarification replies are not sketching replies; the WHEN clause now requires a resolvable target.
+6. **Read-only graph/source access is not a side effect** `architectural: code-visualization` — "No file or browser side effects" forbids create/modify/browser; grounding MAY read files.
+7. **`(+\u003cn\u003e more)` counts omitted neighbours beyond hop depth** `architectural: code-visualization` — Not child-count vs hops; wording aligned in D3 and the atlas requirement.
+

@@ -51,8 +51,9 @@ build_atlas.py --tree <target> [--hops N] [--direction out|in|both] [--graph PAT
   `out` lists callees (`call` edges where the node is `s`), `in` lists callers, `both`
   prints two labelled sections `callees:` / `callers:`.
 - A node already printed on the current path is emitted once with the suffix
-  `(cycle)` and not expanded. A node beyond `--hops` is not printed; the parent
-  line gets the suffix `(+<n> more)` so truncation is visible.
+  `(cycle)` and not expanded. Neighbours beyond the hop depth are not printed;
+  the parent line gets the suffix `(+<n> more)` where `<n>` counts those
+  omitted further neighbours, so truncation is visible.
 - `--hops` default `2`, maximum `4` (matches the page's hop slider,
   `atlas_render.py`). Values above 4 are clamped with a stderr note.
 - Only edges with `ty == "call"` are walked (singular, the spelling the graph

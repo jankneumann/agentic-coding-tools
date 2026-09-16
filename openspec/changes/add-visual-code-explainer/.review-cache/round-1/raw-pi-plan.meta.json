@@ -3,9 +3,9 @@
   "vendor": "pi",
   "review_type": "plan",
   "stdout_path": "raw-pi-plan.txt",
-  "byte_length": 677959,
+  "byte_length": 2798585,
   "truncated": false,
-  "sha256": "25fa56aafd5e07ee3d7a90705fc2f5286bc5ce0cc48b30b66a6ed462bc07b40d",
+  "sha256": "a6a2955aea49cd7e7662a81fda507c4322c11d4f06a94b5fd66f71355fdaefe2",
   "repair_attempted": false,
   "coercions": []
 }

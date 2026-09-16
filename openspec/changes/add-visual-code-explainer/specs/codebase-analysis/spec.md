@@ -2,12 +2,12 @@
 
 ### Requirement: Atlas Symbol Tree Export
 
-`skills/codebase-atlas/scripts/build_atlas.py` SHALL accept `--tree <target>` with optional `--hops N` (default `2`, maximum `4`, larger values clamped with a stderr note) and `--direction out|in|both` (default `out`), and SHALL print an indented text tree to stdout instead of rendering the page. The traversal SHALL walk the symbol-level adjacency produced by `build_view_model()` (`symbolEdges`) restricted to edges whose `ty` is `call` — `import` and every other edge type are dependencies, not calls, and SHALL NOT appear as callers or callees — using only the Python standard library and making no network requests. Each line SHALL show `<name>  (<file>:<line>)  [<kind>]`, children SHALL be sorted by name then id, a node already on the current path SHALL be printed once with the suffix `(cycle)` and not expanded, and a parent whose children exceed `--hops` SHALL carry the suffix `(+<n> more)`. The output SHALL end with a single footer line `graph @ <sha7> · <language> <percent>% / <language> <percent>% covered`, one `<language> <percent>%` entry per language present, sorted by language name and joined with ` / `, with `<percent>` printed to exactly one decimal place as `Coverage.percent` returns it (for example `14.4%`, `37.0%`), unless `--no-coverage` is given. `<target>` SHALL resolve as exact node id, then unique symbol name, then module file path or basename (rooting the tree at the module with its own symbols as hop 1). Exit codes SHALL be `0` success, `1` input or IO error, `2` target not found, `3` target ambiguous (candidate ids listed on stderr, one per line, sorted). Output SHALL be byte-identical across runs for a fixed graph and arguments.
+`skills/codebase-atlas/scripts/build_atlas.py` SHALL accept `--tree <target>` with optional `--hops N` (default `2`, maximum `4`, larger values clamped with a stderr note) and `--direction out|in|both` (default `out`), and SHALL print an indented text tree to stdout instead of rendering the page. The traversal SHALL walk the symbol-level adjacency produced by `build_view_model()` (`symbolEdges`) restricted to edges whose `ty` is `call` — `import` and every other edge type are dependencies, not calls, and SHALL NOT appear as callers or callees — using only the Python standard library and making no network requests. Each line SHALL show `<name>  (<file>:<line>)  [<kind>]`, children SHALL be sorted by name then id, a node already on the current path SHALL be printed once with the suffix `(cycle)` and not expanded, and a parent with further neighbours beyond the hop depth SHALL carry the suffix `(+<n> more)` where `<n>` is the count of those omitted further neighbours. The output SHALL end with a single footer line `graph @ <sha7> · <language> <percent>% / <language> <percent>% covered`, one `<language> <percent>%` entry per language present, sorted by language name and joined with ` / `, with `<percent>` printed to exactly one decimal place as `Coverage.percent` returns it (for example `14.4%`, `37.0%`), unless `--no-coverage` is given. `<target>` SHALL resolve as exact node id, then unique symbol name, then module file path or basename (rooting the tree at the module with its own symbols as hop 1). Exit codes SHALL be `0` success, `1` input or IO error, `2` target not found, `3` target ambiguous (candidate ids listed on stderr, one per line, sorted). Output SHALL be byte-identical across runs for a fixed graph and arguments.
 
 #### Scenario: Callees tree for a symbol
 
 - **WHEN** `build_atlas.py --tree <symbol-id>` runs against a graph containing that symbol
-- **THEN** stdout SHALL start with the symbol's line and list its callees indented two spaces per hop, sorted by name
+- **THEN** stdout SHALL start with a root line matching `<name>  (<file>:<line>)  [<kind>]` and list its callees indented two spaces per hop, sorted by name then id
 - **AND** the exit code SHALL be `0`
 
 #### Scenario: Callers tree with hop cap
@@ -77,3 +77,25 @@
 
 - **WHEN** `--tree` cannot read the graph file (missing path via `--graph`, or unreadable IO)
 - **THEN** the exit code SHALL be `1`
+
+#### Scenario: Coverage footer shape
+
+- **WHEN** `--tree` runs without `--no-coverage` on a graph with multiple languages
+- **THEN** stdout SHALL end with one line matching `graph @ <sha7> · <language> <percent>% / <language> <percent>% covered`
+- **AND** language entries SHALL be sorted by language name and joined with ` / `
+- **AND** each `<percent>` SHALL use exactly one decimal place as returned by `Coverage.percent`
+
+#### Scenario: Target resolution precedence
+
+- **WHEN** the same string could match an exact node id and also appear as a symbol name
+- **THEN** `--tree` SHALL resolve the exact node id and SHALL NOT treat the name match as ambiguous
+
+#### Scenario: Unique name resolves
+
+- **WHEN** `--tree` is given a bare symbol name that matches exactly one node
+- **THEN** that node SHALL be the root and the exit code SHALL be `0`
+
+#### Scenario: Direction both labels sections
+
+- **WHEN** `--tree <target> --direction both` runs
+- **THEN** stdout SHALL include labelled `callees:` and `callers:` sections

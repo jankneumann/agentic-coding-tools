@@ -6,7 +6,7 @@ The repository SHALL provide a user-invocable, prompt-only skill `explain-code` 
 
 #### Scenario: Narrow question answered with the smallest visual
 
-- **WHEN** a user asks how a specific function, module, or message path works or connects
+- **WHEN** a user asks how a specific function, module, or message path works or connects, and the named target is resolvable without an ambiguous-symbol clarification
 - **THEN** the skill SHALL reply with exactly one visual form from the catalogue and at most three sentences of prose
 - **AND** every node in the visual SHALL carry its file location
 
@@ -27,7 +27,8 @@ The repository SHALL provide a user-invocable, prompt-only skill `explain-code` 
 
 - **WHEN** the skill answers any question
 - **THEN** it SHALL emit text and Mermaid inline in the reply only
-- **AND** it SHALL NOT create, modify, or open any file
+- **AND** it SHALL NOT create or modify any file, and SHALL NOT open a browser or otherwise present a user-facing file side effect
+- **AND** it MAY read the architecture graph and source files read-only as part of grounding
 
 ### Requirement: Explainer Grounding and Coverage Disclosure
 
@@ -87,6 +88,19 @@ The `explain-code` `SKILL.md` frontmatter SHALL declare `name`, `description`, `
 - **THEN** it SHALL pass in both states
 - **AND** it SHALL fail if any of `name`, `description`, `category`, `tags`, `user_invocable`, or `related` is missing or empty
 
+#### Scenario: Frontmatter omits triggers and sets Architecture category
+
+- **WHEN** the `explain-code` `SKILL.md` frontmatter is read
+- **THEN** it SHALL NOT declare a `triggers:` key
+- **AND** `category` SHALL be `Architecture`
+- **AND** `user_invocable` SHALL be `true`
+- **AND** `related` SHALL include `codebase-atlas` and `refresh-architecture`
+
+#### Scenario: Skill markdown ends with required tail sections
+
+- **WHEN** the `explain-code` `SKILL.md` body is read
+- **THEN** it SHALL end with the `## Common Rationalizations`, `## Red Flags`, and `## Verification` sections
+
 #### Scenario: Description carries the trigger condition
 
 - **WHEN** the frontmatter `description` is read
@@ -102,6 +116,17 @@ The `explain-code` `SKILL.md` frontmatter SHALL declare `name`, `description`, `
 - **WHEN** `skills/install.sh --check` runs after the skill is added
 - **THEN** the manifest validator SHALL report zero errors
 - **AND** every sibling reference in `skills/explain-code/**` SHALL be covered by the declared cross-skill dependencies
+
+#### Scenario: Manifest declares portable distribution and atlas dependencies
+
+- **WHEN** `skills/install-manifest.json` is read after the skill is added
+- **THEN** `explain-code` SHALL declare `"distribution": "portable"`
+- **AND** `cross_skill_dependencies` SHALL list `codebase-atlas` and `refresh-architecture` for `explain-code`
+
+#### Scenario: Sibling skill paths use skill-base-dir form
+
+- **WHEN** `skills/explain-code/**` references a co-installed sibling skill
+- **THEN** the reference SHALL use the `<skill-base-dir>/../<skill>/` form
 
 #### Scenario: Tests collected by the default sweep
 

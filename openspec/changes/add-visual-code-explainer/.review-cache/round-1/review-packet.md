@@ -18,8 +18,380 @@ Output ONLY a JSON object with a top-level `findings` array.
 
 ### Diff
 ```diff
+diff --git a/openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json b/openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json
+new file mode 100644
+index 00000000..94c01355
+--- /dev/null
++++ b/openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json
+@@ -0,0 +1,366 @@
++{
++  "schema_version": 1,
++  "change_id": "add-visual-code-explainer",
++  "items": [
++    {
++      "id": 1,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
++      "fingerprint": "97799ddea9ac3d81",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "antigravity"
++      ],
++      "description": "The requirement 'Explainer Grounding and Coverage Disclosure' mandates that 'Every reply SHALL end with exactly one disclosure line: Grounding: graph @ <sha7>; ... when grounded ..., or Grounding: source read, unverified (<reason>) when not, where <reason> is one of graph stale, graph absent, graph check failed, symbol not in graph, or form not graph-backed', and scenario 'Disclosure line present on every answer' requires that every reply end with a Grounding: line. However, scenario 'Ambiguous symbol asks instead of guessing' requires the skill to list candidate IDs and ask which symbol was meant without reading source or sketching a tree, and scenario 'Whole-repository question redirected' redirects to /codebase-atlas and stops. For these replies, source was not read, and none of the five allowed <reason> tokens represents an ambiguous symbol clarification prompt or a tool redirect. The disclosure requirement and scenario set contradict the clarification and redirection flows.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 2,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
++      "spec_file": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
++      "fingerprint": "b000200c5e588b1f",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "antigravity"
++      ],
++      "description": "Requirement 'Explainer Grounding and Coverage Disclosure' lacks a normative SHALL/MUST statement specifying how the skill handles exit code 3 (ambiguous target) from build_atlas.py --tree, even though scenario 'Ambiguous symbol asks instead of guessing' specifies that the skill SHALL list candidate ids from stderr and ask which one was meant instead of falling back to source reading. The requirement body should explicitly specify the ambiguous symbol handling contract.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 3,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
++      "spec_file": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
++      "fingerprint": "982613c5004a0641",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "antigravity",
++        "claude_code"
++      ],
++      "description": "Requirement 'Atlas Symbol Tree Export' specifies that --hops N has a maximum of 4 and that 'larger values clamped with a stderr note', that --no-coverage suppresses the coverage footer, and that exit code 1 is used for input or IO errors. None of these behaviors has a corresponding scenario with WHEN/THEN in the specification, violating Rule Group 2's requirement that every SHALL/MUST requirement has at least one scenario.",
++      "consensus_status": "confirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 4,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
++      "fingerprint": "42e0f0cb10074bf0",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "antigravity"
++      ],
++      "description": "In requirement 'Explainer Grounding and Coverage Disclosure', the grounded disclosure template Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered states in parentheses '(coverage list copied verbatim from the --tree footer after its \u00b7 separator, including order and / separators)'. Because the footer from specs/codebase-analysis/spec.md already ends with ' covered', verbatim copying after '\u00b7 ' would duplicate the trailing ' covered'. As properly specified in design D5, the specification should state that the coverage list is copied after '\u00b7 ' and before the trailing ' covered'.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 5,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
++      "fingerprint": "767805cf5dbd4207",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "antigravity"
++      ],
++      "description": "In design D5, 'graph stale' is defined as 'run_architecture.py --check exited non-zero'. However, D2 and the live contract define exit 1 specifically as stale provenance while other non-zero exits are execution or script failures ('graph check failed'). Defining 'graph stale' as any non-zero exit in D5 creates an internal inconsistency with D2.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 6,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
++      "spec_file": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
++      "fingerprint": "851f5d42b24b9857",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The diff closes the ungrounded reason set to exactly five values (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) and simultaneously adds the 'Ambiguous symbol asks instead of guessing' scenario. That reply contains no call tree and no catalogue form, yet 'Disclosure line present on every answer' still requires every reply to end with exactly one `Grounding:` line. None of the five reasons is valid for the ask reply: `symbol not in graph` is false (the symbol exists, that is the whole point of exit 3), `form not graph-backed` is false (no form was used), and the grounded form is forbidden. The same hole applies to the whole-repository redirect reply ('name /codebase-atlas and stop'). D5 in design.md has the identical closed list ('exactly one of'), and task 2.2 tests that the reference contains only this set, so an implementer cannot add a sixth reason without failing the deterministic test. Either add explicit reasons (e.g. `ambiguous symbol, awaiting choice` and `redirected to /codebase-atlas`) to D5, the spec requirement, task 2.2 and the grounding reference, or amend 'Disclosure line present on every answer' to exempt clarification and redirect replies.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 7,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
++      "fingerprint": "ae1062a8d3302f71",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D2 now states that `run_architecture.py --check` returns `1` when provenance is not fresh and that 'other failures are also non-zero'. D5 then asks the skill to emit `graph stale` for 'exited non-zero' and `graph check failed` for 'could not run (error/exception)', and the spec scenario says 'as appropriate'. With the contract as documented, an exit `1` from a traceback and an exit `1` from stale provenance are indistinguishable to the skill, so the two reasons cannot be told apart deterministically; `graph stale` as written ('exited non-zero') also subsumes `graph check failed`. Two further cases have no mapping at all: `--check` exits `0` but `build_atlas.py --tree` itself exits `1` (input/IO error on the graph), and the graph file is missing but `--check` still runs (does the skill stat the file before calling `--check`, or rely on the exit code?). Pin a decision rule in D5/grounding.md (e.g. `graph absent` when the skill's own existence check on the script or graph fails, run before `--check`; `graph check failed` when the subprocess cannot be spawned or `--tree` exits `1`; `graph stale` for every other non-zero `--check` exit) or collapse `stale` and `check failed` into one reason so the disclosure is decidable.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 8,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
++      "fingerprint": "9560db0dea559689",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D4 relies on `--check` and `--tree` never combining to keep the exit-2 meanings from colliding, but neither the codebase-analysis requirement nor task 1.3 requires `build_atlas.py` to reject the combination (argparse mutually exclusive group, or a spec sentence plus a scenario). As written, `--check --tree X` is undefined: it could render exit `2` meaning either 'stale page' or 'not found' depending on dispatch order in `main()`.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 9,
++      "status": "addressed",
++      "axis": "readability",
++      "type": "contract_mismatch",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
++      "fingerprint": "d099441589acf92b",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The spec says the copied span is everything 'after its `\u00b7 ` separator' (which includes the trailing word `covered`), while design D5 says the span is 'after `\u00b7 ` and before the trailing ` covered`' with `covered` then re-appended. The resulting strings are identical, but the two documents describe different substrings, and task 2.2's deterministic test will be written against one of them. Pick one phrasing and use it in both D5 and the spec.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 10,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
++      "spec_file": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
++      "fingerprint": "b3616be56929a554",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The spec now mandates 'exactly one decimal place' and design D3 mandates 'the `Coverage.percent` value itself, never re-rounded'. These are compatible only if `Coverage.percent` already yields a one-decimal float; if it returns an unrounded float (14.37) or an int (37) the two constraints conflict (a naive `str()` prints `14.37` / `37`). The packet does not include the `Coverage` definition, so this cannot be confirmed here. Stating the exact format expression (e.g. `f\"{coverage.percent:.1f}%\"`) in D3 removes the ambiguity without changing intent.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 11,
++      "status": "addressed",
++      "axis": "readability",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
++      "fingerprint": "537c347c1e9fb2b9",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Proposal Tests bullet (1) still says the deterministic check verifies 'both D5 disclosure forms', while task 2.2 and D7 item 1 were widened in this same revision to require the full ungrounded reason set. Minor drift introduced by this iteration; the proposal is the document Gate reviewers read first.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 12,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "82adfe62bbe6fd1b",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "codex"
++      ],
++      "description": "The whole-repository scenario requires the skill to name `/codebase-atlas` \u201cand stop,\u201d while the grounding requirement and D5 require every reply, without exception, to end with exactly one `Grounding:` line. The redirect response therefore has two incompatible required endings. Specify whether redirects append the disclosure or are an explicit exception.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 13,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "647e698f37c00ad4",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "codex"
++      ],
++      "description": "Proposal.md and task 1.1 say the atlas test proves output contains only fixture node ids, but the specified tree format prints node names, file locations, and kinds\u2014not node ids. That assertion is not implementable as written and cannot establish the claimed no-invented-symbol guarantee. Define a validation based on emitted node tuples or include stable ids in the output contract.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 14,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "16dee50575e0a0b3",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "codex"
++      ],
++      "description": "The Atlas Symbol Tree Export requirement contains SHALL clauses with no corresponding WHEN/THEN coverage: default hop/direction behavior; clamping hops above 4 with a stderr note; exact `<name> (<file>:<line>) [<kind>]` formatting; secondary sorting by id; `--no-coverage` suppression; unique-name and full-path resolution plus resolution precedence; exit 1 for input/IO errors; and the standard-library/no-network constraint. Add scenarios covering these obligations or move non-behavioral implementation guidance out of normative SHALL language.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 15,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "fingerprint": "865d465f04c804ce",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "codex"
++      ],
++      "description": "The skill-workflow specs also leave normative clauses without explicit scenario coverage. In particular, no scenario asserts that the skill does not open a browser, that `triggers:` is absent, that `SKILL.md` ends with all three required tail sections, or that the manifest contains the exact `portable` distribution and exact dependency list. Existing scenarios cover adjacent behavior but not these stated SHALL/SHALL NOT contracts.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 16,
++      "status": "addressed",
++      "axis": "readability",
++      "type": "contract_mismatch",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "fingerprint": "6c27fff5a334c85b",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "codex"
++      ],
++      "description": "The grounding spec says the coverage list is copied verbatim from the tree footer \u201cafter its `\u00b7` separator,\u201d which includes the footer\u2019s trailing `covered`, while the grounded disclosure template itself also ends in `covered`. D5 instead defines the copied span as after `\u00b7 ` and before the trailing ` covered`. Align the normative spec with D5 to prevent implementations from producing `covered covered` or interpreting \u201cverbatim\u201d inconsistently.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 17,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
++      "fingerprint": "7f6f19cbc301d122",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "grok"
++      ],
++      "description": "D5 / proposal / tasks still leave a disclosure-format gap for grounded call trees: design says the disclosure copies the --tree footer coverage list verbatim (language order, ` / ` separators, one-decimal percents) but uses `; ` after the sha and `Grounding:` prefix, while the grounded example and older proposal language still risk drift if implementers treat the whole footer as copy-paste. More importantly, D7 deterministic check #1 and proposal Tests bullet only require that D5 strings / both disclosure forms appear in the grounding reference \u2014 they do not require asserting the closed ungrounded reason enum (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) nor the footer\u2192disclosure mapping (`;` vs `\u00b7`). Task 2.5 was supposedly updated per plan-findings #2, but the contracted CI checks remain string-presence only, so a wrong reason token or footer/disclosure drift can still pass.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 18,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
++      "fingerprint": "a9e65d9f225799fb",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "grok"
++      ],
++      "description": "Ambiguous-symbol path (exit 3) is specified in design D4 and a skill-workflow scenario, but the proposal 'What Changes' / Tests section and D7's three deterministic CI checks do not encode any assertion that SKILL.md/workflow instructs ask-don't-guess on exit 3 (list stderr candidates, no source fallback). Without a prompt-level check, implementers can ship the atlas exit code and still omit the skill branch, and plan-findings iteration 1 did not call this out.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 19,
++      "status": "addressed",
++      "axis": "compatibility",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
++      "fingerprint": "0ecb7b1365a577af",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "grok"
++      ],
++      "description": "D3 footer format is now precise (`graph @ <sha7> \u00b7 python 14.4% / sql 37.0% covered`, sorted languages, one decimal, never re-rounded), and D5 says disclosure copies that coverage list verbatim after `; `. The grounded disclosure example correctly shows one-decimal percents, but D7 check #1 still phrases success as 'D5 strings present' without requiring the one-decimal / sorted-language / no-re-round rules to appear in the grounding reference or atlas tree tests. Acceptable residual risk if task 1.x atlas tests pin format; still a mild plan completeness gap between D3 precision and D7 check surface.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    },
++    {
++      "id": 20,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
++      "fingerprint": "28d996b96fef586e",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "grok"
++      ],
++      "description": "D5 reason `graph check failed` is defined as '`--check` could not run (error/exception)' while `graph stale` is 'run_architecture.py --check exited non-zero'. Live contract clarification says the script returns 1 when provenance is not fresh and other failures are also non-zero \u2014 so a non-zero exit alone cannot distinguish stale vs check-failed. Design does not say how the skill classifies stderr/exception vs exit code for those two reasons, yet both appear in the closed reason set the skill must emit exactly. Implementers may invent heuristics or collapse them, breaking the 'exactly one of' contract.",
++      "consensus_status": "unconfirmed",
++      "addressed_by": "plan-review-adjudication"
++    }
++  ]
++}
 diff --git a/openspec/changes/add-visual-code-explainer/design.md b/openspec/changes/add-visual-code-explainer/design.md
-index c93dd0ff..72d47e64 100644
+index c93dd0ff..dce97280 100644
 --- a/openspec/changes/add-visual-code-explainer/design.md
 +++ b/openspec/changes/add-visual-code-explainer/design.md
 @@ -29,13 +29,16 @@ atlas already holds the symbol adjacency (`build_view_model()["symbolEdges"]`).
@@ -61,7 +433,7 @@ index c93dd0ff..72d47e64 100644
    values the page banner uses. `--no-coverage` suppresses it.
  
  Determinism: children sorted, no timestamps, no random ids. Byte-identical for a
-@@ -70,20 +77,39 @@ fixed graph and arguments (NFR "Determinism").
+@@ -70,20 +77,52 @@ fixed graph and arguments (NFR "Determinism").
  unique symbol `name`; a file path or basename matching a module, in which case
  the root is the module and hop 1 is the module's own symbols (aggregated view,
  mirroring the page's "selecting a file gives the aggregated module view").
@@ -79,54 +451,86 @@ index c93dd0ff..72d47e64 100644
  
  ### D5 — Disclosure line
  
- Every reply ends with exactly one line, never omitted, never collapsed:
+-Every reply ends with exactly one line, never omitted, never collapsed:
++Every **sketching** reply (a catalogue visual was emitted, grounded or not)
++ends with exactly one line, never omitted, never collapsed. Two reply shapes
++are explicit exceptions and MUST NOT carry a `Grounding:` line:
  
 -- grounded: `Grounding: graph @ <sha7>; python 14% / sql 37% covered`
 -- ungrounded: `Grounding: source read, unverified (graph <stale|absent|check failed>)`
-+- grounded call tree:
-+  `Grounding: graph @ <sha7>; python 14.4% / sql 37.0% covered`
-+  The coverage list (everything after `· ` and before the trailing
-+  ` covered` in the `--tree` footer from D3) is copied verbatim — same
-+  language order, ` / ` separators, and one-decimal percents — so the
-+  disclosure and footer cannot drift. The line uses `; ` after the sha
-+  (not the footer's `·`) and always starts with `Grounding:`.
-+- ungrounded / non-graph-backed:
-+  `Grounding: source read, unverified (<reason>)`
-+  where `<reason>` is exactly one of:
-+  - `graph stale` — `run_architecture.py --check` exited non-zero
-+  - `graph absent` — graph file or `--check` script missing
-+  - `graph check failed` — `--check` could not run (error/exception)
-+  - `symbol not in graph` — `--tree` exited `2`
-+  - `form not graph-backed` — reply used a catalogue form other than a
-+    call tree (component/file/sequence/structural-diff are model-authored)
++- **Ambiguous-symbol clarification** — `--tree` exited `3`; the skill lists
++  candidate ids and asks which was meant (no visual, no source fallback).
++- **Whole-repository redirect** — the skill names `/codebase-atlas` and stops
++  (no visual).
  
 -The grounded form copies the footer `--tree` prints (D3) so the two cannot
 -drift. The percentages are the atlas's optimistic upper bound and the reference
 -file says so.
++Sketching replies use one of:
++
++- grounded call tree:
++  `Grounding: graph @ <sha7>; python 14.4% / sql 37.0% covered`
++  Take the `--tree` footer from D3, copy the substring after `· ` and before
++  the trailing ` covered`, then re-append ` covered`. That substring is the
++  coverage list — same language order, ` / ` separators, and one-decimal
++  percents — so the disclosure and footer cannot drift. The line uses `; `
++  after the sha (not the footer's `·`) and always starts with `Grounding:`.
++- ungrounded / non-graph-backed:
++  `Grounding: source read, unverified (<reason>)`
++  where `<reason>` is exactly one of (decision order; first match wins):
++  - `graph absent` — before invoking `--check`, the skill finds the
++    `--check` script or the graph file missing
++  - `graph check failed` — the skill could not spawn/run `--check`
++    (OSError / exception before an exit code), or a subsequent `--tree`
++    exits `1` (input/IO) after a fresh `--check`
++  - `graph stale` — `--check` ran and exited non-zero (including exit `1`
++    for stale provenance and any other non-zero the script returns)
++  - `symbol not in graph` — `--tree` exited `2`
++  - `form not graph-backed` — reply used a catalogue form other than a
++    call tree (component/file/sequence/structural-diff are model-authored)
++
 +Only a call tree built from `--tree` after a fresh `--check` may use the
 +grounded form. The percentages are the atlas's optimistic upper bound and
 +the grounding reference says so.
  
  ### D6 — Frontmatter without `triggers:`; explicit key test
  
-@@ -106,8 +132,9 @@ the checkout; otherwise as pytest tests marked `e2e`. Independently of the
+@@ -106,8 +145,13 @@ the checkout; otherwise as pytest tests marked `e2e`. Independently of the
  harness, three **deterministic** tests always run in CI and encode the same
  three behaviours at the level the prompt can be checked without an LLM:
  
 -1. `SKILL.md` instructs the disclosure line for both grounded and ungrounded
 -   paths (D5 strings present in the grounding reference).
 +1. `SKILL.md` / grounding reference instruct the disclosure line for grounded
-+   and ungrounded paths (D5 strings and the full ungrounded reason set present
-+   in the grounding reference).
++   and ungrounded sketching paths (both D5 templates present; the closed
++   ungrounded reason set `graph stale|absent|check failed`, `symbol not in
++   graph`, `form not graph-backed` present as exact tokens; the
++   footer→disclosure mapping documented — copy after `· ` / before trailing
++   ` covered`, re-append ` covered`, use `; ` after the sha; clarification
++   and redirect replies exempt from `Grounding:`).
  2. `SKILL.md` instructs redirecting whole-repository questions to
     `/codebase-atlas` (string present, and the atlas is in `related:`).
  3. `SKILL.md` instructs never running `--ensure` or the analysis pipeline
+@@ -115,9 +159,10 @@ three behaviours at the level the prompt can be checked without an LLM:
+ 
+ The fourth behaviour — "a grounded call tree cannot invent symbols" — is
+ asserted where the code lives: `tests/codebase-atlas/test_atlas_tree.py`
+-checks that `--tree` on the `tiny_graph` fixture prints only fixture node ids.
+-Keeping it there lets `wp-skill` and `wp-atlas-tree` run in parallel without
+-`wp-skill` importing code it does not own.
++checks that every node printed for the `tiny_graph` fixture matches a
++fixture node by `(name, file)` (the tree format emits name/file/kind, not
++node ids). Keeping it there lets `wp-skill` and `wp-atlas-tree` run in
++parallel without `wp-skill` importing code it does not own.
+ 
+ Rationale: the inversion change is 0/10 tasks; this change must be green on
+ today's CI and must not block on it.
 diff --git a/openspec/changes/add-visual-code-explainer/plan-findings.md b/openspec/changes/add-visual-code-explainer/plan-findings.md
 new file mode 100644
-index 00000000..bd7e6058
+index 00000000..19dcc3f9
 --- /dev/null
 +++ b/openspec/changes/add-visual-code-explainer/plan-findings.md
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,41 @@
 +# Plan Findings — add-visual-code-explainer
 +
 +## Iteration 1 (2026-09-16) — autopilot-plan-iterate
@@ -151,8 +555,25 @@ index 00000000..bd7e6058
 +### Outcome
 +
 +Medium+ findings fixed in plan artifacts only. Ready for PLAN_REVIEW.
++
++## PLAN_REVIEW round 1 (2026-09-16) — adjudication
++
++Multi-vendor converge (antigravity, claude_code, codex, grok; pi failed JSON)
++returned `adjudication_required` for 6 high unconfirmed judgment findings
++(blocking_count 0; 1 confirmed medium). Conductor adjudication applied:
++
++| Cluster | Finding ids | Resolution |
++|---|---|---|
++| Disclosure vs ask/redirect | 1, 6, 12 | Exempt clarification + whole-repo redirect from `Grounding:`; disclosure applies to sketching replies only |
++| Fixture "node ids" wording | 13 | Assert printed nodes match fixture `(name, file)`; format does not emit ids |
++| Missing atlas WHEN/THEN | 3 (confirmed), 14 | Added scenarios: default hops/direction, hops clamp, `--no-coverage`, exit 1; task 1.1 covers them |
++| D7 enum / footer mapping | 17 | Strengthened D7/task 2.2/proposal Tests for closed reason tokens + footer→disclosure mapping |
++| stale vs check-failed | 5, 7, 20 | First-match reason order in D5/spec (`absent` → `check failed` → `stale` → …) |
++| Coverage substring phrasing | 9, 16 | Spec aligned with D5: copy after `· ` / before trailing ` covered`, re-append |
++
++Artifacts updated; `plan_revision` → 3. Re-run converge.
 diff --git a/openspec/changes/add-visual-code-explainer/proposal.md b/openspec/changes/add-visual-code-explainer/proposal.md
-index 6e209922..70ea4344 100644
+index 6e209922..cd4b6da6 100644
 --- a/openspec/changes/add-visual-code-explainer/proposal.md
 +++ b/openspec/changes/add-visual-code-explainer/proposal.md
 @@ -57,7 +57,8 @@ that gates them, and the analysis that motivated this change is fresh.
@@ -165,7 +586,7 @@ index 6e209922..70ea4344 100644
  - **Frontmatter written for the post-`rewrite-skill-frontmatter` world.** The new
    `SKILL.md` carries `name, description, category, tags, user_invocable, related`
    with a description that states capability and trigger condition in third
-@@ -72,12 +73,15 @@ that gates them, and the analysis that motivated this change is fresh.
+@@ -72,14 +73,20 @@ that gates them, and the analysis that motivated this change is fresh.
    `"tests/explain-code"`. Runtime mirrors regenerate via `skills/install.sh`.
  - **Tests.** `skills/tests/explain-code/test_skill_md.py` (frontmatter parses,
    explicit key presence, references resolve, related resolve, tail block
@@ -175,19 +596,26 @@ index 6e209922..70ea4344 100644
 -  `graph @` disclosure; (2) a stale graph yields a source-read sketch with an
 -  `unverified` disclosure; (3) a whole-repo question is redirected to
 -  `/codebase-atlas` rather than answered with a giant tree.
+-  `skills/tests/codebase-atlas/` gains `test_atlas_tree.py` and the flag tuple
+-  in `test_skill_md.py` gains `--tree`.
 +  present) plus **three deterministic behavioural checks** in
 +  `test_behaviour.py` that encode the behaviours
 +  `invert-skill-test-suite-to-behavioural` wants without blocking on that
 +  change (0/10 tasks today): (1) grounding reference contains both D5
-+  disclosure forms; (2) `SKILL.md` redirects whole-repo questions to
++  disclosure forms, the closed ungrounded reason tokens, the
++  footer→disclosure mapping, and the clarification/redirect disclosure
++  exemptions; (2) `SKILL.md` redirects whole-repo questions to
 +  `/codebase-atlas`; (3) `SKILL.md` forbids `--ensure` / the analysis
 +  pipeline. The "grounded call tree invents no symbols" assertion lives in
-+  `tests/codebase-atlas/test_atlas_tree.py` (fixture node ids only). Optional
-+  trajectory-harness fixtures are task 2.8 when the harness is present.
-   `skills/tests/codebase-atlas/` gains `test_atlas_tree.py` and the flag tuple
-   in `test_skill_md.py` gains `--tree`.
++  `tests/codebase-atlas/test_atlas_tree.py` (every printed node matches a
++  fixture node by `(name, file)`). Optional trajectory-harness fixtures are
++  task 2.8 when the harness is present. `skills/tests/codebase-atlas/` gains
++  `test_atlas_tree.py` and the flag tuple in `test_skill_md.py` gains
++  `--tree`.
  
-@@ -171,8 +175,9 @@ disclosure line makes that visible rather than hiding it.
+ ### Explicitly deferred to a follow-up change
+ 
+@@ -171,8 +178,9 @@ disclosure line makes that visible rather than hiding it.
  **Approach 1 selected at Gate 1** (2026-09-04) with no modifications to the
  approach itself. One refinement was made while designing it: the graph
  freshness check reuses the existing `refresh-architecture` read-only contract
@@ -199,7 +627,7 @@ index 6e209922..70ea4344 100644
  `refresh-architecture` to the skill's declared cross-skill dependencies; see
  `design.md` D2.
  
-@@ -198,7 +203,7 @@ affected.
+@@ -198,7 +206,7 @@ affected.
  - New: `skills/explain-code/SKILL.md`, `skills/explain-code/references/*.md`,
    `skills/tests/explain-code/`.
  - Modified: `skills/codebase-atlas/scripts/build_atlas.py` (new flag and a
@@ -208,8 +636,584 @@ index 6e209922..70ea4344 100644
    `collect-uncollected-skill-tests`), `skills/codebase-atlas/SKILL.md` (flag
    table row only), `skills/tests/codebase-atlas/test_skill_md.py`,
    `skills/install-manifest.json`, `skills/pyproject.toml`,
+diff --git a/openspec/changes/add-visual-code-explainer/reviews/converge-result.json b/openspec/changes/add-visual-code-explainer/reviews/converge-result.json
+new file mode 100644
+index 00000000..33282953
+--- /dev/null
++++ b/openspec/changes/add-visual-code-explainer/reviews/converge-result.json
+@@ -0,0 +1,570 @@
++{
++  "converged": false,
++  "reason": "adjudication_required",
++  "rounds": 1,
++  "checkpoint_dir": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-visual-code-explainer/--feature/openspec/changes/add-visual-code-explainer/.review-cache/round-1",
++  "escalate_findings": [
++    {
++      "id": 1,
++      "status": "open",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "97799ddea9ac3d81",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "description": "The requirement 'Explainer Grounding and Coverage Disclosure' mandates that 'Every reply SHALL end with exactly one disclosure line: Grounding: graph @ <sha7>; ... when grounded ..., or Grounding: source read, unverified (<reason>) when not, where <reason> is one of graph stale, graph absent, graph check failed, symbol not in graph, or form not graph-backed', and scenario 'Disclosure line present on every answer' requires that every reply end with a Grounding: line. However, scenario 'Ambiguous symbol asks instead of guessing' requires the skill to list candidate IDs and ask which symbol was meant without reading source or sketching a tree, and scenario 'Whole-repository question redirected' redirects to /codebase-atlas and stops. For these replies, source was not read, and none of the five allowed <reason> tokens represents an ambiguous symbol clarification prompt or a tool redirect. The disclosure requirement and scenario set contradict the clarification and redirection flows.",
++      "consensus_status": "unconfirmed",
++      "vendor_hits": [
++        "antigravity"
++      ],
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
++    },
++    {
++      "id": 6,
++      "status": "open",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "851f5d42b24b9857",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "description": "The diff closes the ungrounded reason set to exactly five values (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) and simultaneously adds the 'Ambiguous symbol asks instead of guessing' scenario. That reply contains no call tree and no catalogue form, yet 'Disclosure line present on every answer' still requires every reply to end with exactly one `Grounding:` line. None of the five reasons is valid for the ask reply: `symbol not in graph` is false (the symbol exists, that is the whole point of exit 3), `form not graph-backed` is false (no form was used), and the grounded form is forbidden. The same hole applies to the whole-repository redirect reply ('name /codebase-atlas and stop'). D5 in design.md has the identical closed list ('exactly one of'), and task 2.2 tests that the reference contains only this set, so an implementer cannot add a sixth reason without failing the deterministic test. Either add explicit reasons (e.g. `ambiguous symbol, awaiting choice` and `redirected to /codebase-atlas`) to D5, the spec requirement, task 2.2 and the grounding reference, or amend 'Disclosure line present on every answer' to exempt clarification and redirect replies.",
++      "consensus_status": "unconfirmed",
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
++      "spec_file": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
++    },
++    {
++      "id": 12,
++      "status": "open",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "82adfe62bbe6fd1b",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "description": "The whole-repository scenario requires the skill to name `/codebase-atlas` \u201cand stop,\u201d while the grounding requirement and D5 require every reply, without exception, to end with exactly one `Grounding:` line. The redirect response therefore has two incompatible required endings. Specify whether redirects append the disclosure or are an explicit exception.",
++      "consensus_status": "unconfirmed",
++      "vendor_hits": [
++        "codex"
++      ]
++    },
++    {
++      "id": 13,
++      "status": "open",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "647e698f37c00ad4",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "description": "Proposal.md and task 1.1 say the atlas test proves output contains only fixture node ids, but the specified tree format prints node names, file locations, and kinds\u2014not node ids. That assertion is not implementable as written and cannot establish the claimed no-invented-symbol guarantee. Define a validation based on emitted node tuples or include stable ids in the output contract.",
++      "consensus_status": "unconfirmed",
++      "vendor_hits": [
++        "codex"
++      ]
++    },
++    {
++      "id": 14,
++      "status": "open",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "16dee50575e0a0b3",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "description": "The Atlas Symbol Tree Export requirement contains SHALL clauses with no corresponding WHEN/THEN coverage: default hop/direction behavior; clamping hops above 4 with a stderr note; exact `<name> (<file>:<line>) [<kind>]` formatting; secondary sorting by id; `--no-coverage` suppression; unique-name and full-path resolution plus resolution precedence; exit 1 for input/IO errors; and the standard-library/no-network constraint. Add scenarios covering these obligations or move non-behavioral implementation guidance out of normative SHALL language.",
++      "consensus_status": "unconfirmed",
++      "vendor_hits": [
++        "codex"
++      ]
++    },
++    {
++      "id": 17,
++      "status": "open",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "high",
++      "evidence_class": "judgment",
++      "fingerprint": "7f6f19cbc301d122",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "description": "D5 / proposal / tasks still leave a disclosure-format gap for grounded call trees: design says the disclosure copies the --tree footer coverage list verbatim (language order, ` / ` separators, one-decimal percents) but uses `; ` after the sha and `Grounding:` prefix, while the grounded example and older proposal language still risk drift if implementers treat the whole footer as copy-paste. More importantly, D7 deterministic check #1 and proposal Tests bullet only require that D5 strings / both disclosure forms appear in the grounding reference \u2014 they do not require asserting the closed ungrounded reason enum (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) nor the footer\u2192disclosure mapping (`;` vs `\u00b7`). Task 2.5 was supposedly updated per plan-findings #2, but the contracted CI checks remain string-presence only, so a wrong reason token or footer/disclosure drift can still pass.",
++      "consensus_status": "unconfirmed",
++      "vendor_hits": [
++        "grok"
++      ],
++      "file_path": "openspec/changes/add-visual-code-explainer/design.md"
++    }
++  ],
++  "validation_errors": null,
++  "consensus": {
++    "schema_version": 1,
++    "review_type": "plan",
++    "target": "add-visual-code-explainer",
++    "reviewers": [
++      {
++        "vendor": "antigravity",
++        "agent_id": "antigravity",
++        "success": true,
++        "findings_count": 5,
++        "elapsed_seconds": 129.85658209165558,
++        "error": null
++      },
++      {
++        "vendor": "claude_code",
++        "agent_id": "claude_code",
++        "success": true,
++        "findings_count": 7,
++        "elapsed_seconds": 96.24072419386357,
++        "error": null
++      },
++      {
++        "vendor": "codex",
++        "agent_id": "codex",
++        "success": true,
++        "findings_count": 5,
++        "elapsed_seconds": 69.42573940614238,
++        "error": null
++      },
++      {
++        "vendor": "grok",
++        "agent_id": "grok",
++        "success": true,
++        "findings_count": 4,
++        "elapsed_seconds": 32.13823305303231,
++        "error": null
++      },
++      {
++        "vendor": "pi",
++        "agent_id": "pi",
++        "success": false,
++        "findings_count": 0,
++        "elapsed_seconds": 18.60979874106124,
++        "error": "Invalid JSON output: {\"type\":\"session\",\"version\":3,\"id\":\"01a0aa6d-b9b4-74e3-992d-d46b6a6da396\",\"timestamp\":\"2026-09-16T13:35:12.820Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-visual-code-explainer/--feature\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"## Review Round 1\\n\\nThe packet is complete; do not explore the repo for missing artifacts.\\n\\nReview the attached artifacts for correctness, completenes"
++      }
++    ],
++    "quorum_met": true,
++    "quorum_requested": 5,
++    "quorum_received": 4,
++    "consensus_findings": [
++      {
++        "id": 1,
++        "status": "unconfirmed",
++        "primary_vendor": "antigravity",
++        "primary_finding_id": 1,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "contract_mismatch",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "high",
++        "recommended_disposition": "accept",
++        "description": "The requirement 'Explainer Grounding and Coverage Disclosure' mandates that 'Every reply SHALL end with exactly one disclosure line: Grounding: graph @ <sha7>; ... when grounded ..., or Grounding: source read, unverified (<reason>) when not, where <reason> is one of graph stale, graph absent, graph check failed, symbol not in graph, or form not graph-backed', and scenario 'Disclosure line present on every answer' requires that every reply end with a Grounding: line. However, scenario 'Ambiguous symbol asks instead of guessing' requires the skill to list candidate IDs and ask which symbol was meant without reading source or sketching a tree, and scenario 'Whole-repository question redirected' redirects to /codebase-atlas and stops. For these replies, source was not read, and none of the five allowed <reason> tokens represents an ambiguous symbol clarification prompt or a tool redirect. The disclosure requirement and scenario set contradict the clarification and redirection flows.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "antigravity"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
++      },
++      {
++        "id": 2,
++        "status": "unconfirmed",
++        "primary_vendor": "antigravity",
++        "primary_finding_id": 2,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "medium",
++        "recommended_disposition": "accept",
++        "description": "Requirement 'Explainer Grounding and Coverage Disclosure' lacks a normative SHALL/MUST statement specifying how the skill handles exit code 3 (ambiguous target) from build_atlas.py --tree, even though scenario 'Ambiguous symbol asks instead of guessing' specifies that the skill SHALL list candidate ids from stderr and ask which one was meant instead of falling back to source reading. The requirement body should explicitly specify the ambiguous symbol handling contract.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "antigravity"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
++      },
++      {
++        "id": 3,
++        "status": "confirmed",
++        "primary_vendor": "antigravity",
++        "primary_finding_id": 3,
++        "matched_findings": [
++          {
++            "vendor": "claude_code",
++            "finding_id": 4
++          }
++        ],
++        "match_score": 0.6,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "medium",
++        "recommended_disposition": "fix",
++        "description": "Requirement 'Atlas Symbol Tree Export' specifies that --hops N has a maximum of 4 and that 'larger values clamped with a stderr note', that --no-coverage suppresses the coverage footer, and that exit code 1 is used for input or IO errors. None of these behaviors has a corresponding scenario with WHEN/THEN in the specification, violating Rule Group 2's requirement that every SHALL/MUST requirement has at least one scenario.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "antigravity",
++          "claude_code"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md"
++      },
++      {
++        "id": 4,
++        "status": "unconfirmed",
++        "primary_vendor": "antigravity",
++        "primary_finding_id": 4,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "contract_mismatch",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "medium",
++        "recommended_disposition": "accept",
++        "description": "In requirement 'Explainer Grounding and Coverage Disclosure', the grounded disclosure template Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered states in parentheses '(coverage list copied verbatim from the --tree footer after its \u00b7 separator, including order and / separators)'. Because the footer from specs/codebase-analysis/spec.md already ends with ' covered', verbatim copying after '\u00b7 ' would duplicate the trailing ' covered'. As properly specified in design D5, the specification should state that the coverage list is copied after '\u00b7 ' and before the trailing ' covered'.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "antigravity"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
++      },
++      {
++        "id": 5,
++        "status": "unconfirmed",
++        "primary_vendor": "antigravity",
++        "primary_finding_id": 5,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "contract_mismatch",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "low",
++        "recommended_disposition": "accept",
++        "description": "In design D5, 'graph stale' is defined as 'run_architecture.py --check exited non-zero'. However, D2 and the live contract define exit 1 specifically as stale provenance while other non-zero exits are execution or script failures ('graph check failed'). Defining 'graph stale' as any non-zero exit in D5 creates an internal inconsistency with D2.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "antigravity"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/design.md"
++      },
++      {
++        "id": 6,
++        "status": "unconfirmed",
++        "primary_vendor": "claude_code",
++        "primary_finding_id": 1,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "high",
++        "recommended_disposition": "accept",
++        "description": "The diff closes the ungrounded reason set to exactly five values (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) and simultaneously adds the 'Ambiguous symbol asks instead of guessing' scenario. That reply contains no call tree and no catalogue form, yet 'Disclosure line present on every answer' still requires every reply to end with exactly one `Grounding:` line. None of the five reasons is valid for the ask reply: `symbol not in graph` is false (the symbol exists, that is the whole point of exit 3), `form not graph-backed` is false (no form was used), and the grounded form is forbidden. The same hole applies to the whole-repository redirect reply ('name /codebase-atlas and stop'). D5 in design.md has the identical closed list ('exactly one of'), and task 2.2 tests that the reference contains only this set, so an implementer cannot add a sixth reason without failing the deterministic test. Either add explicit reasons (e.g. `ambiguous symbol, awaiting choice` and `redirected to /codebase-atlas`) to D5, the spec requirement, task 2.2 and the grounding reference, or amend 'Disclosure line present on every answer' to exempt clarification and redirect replies.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "claude_code"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
++      },
++      {
++        "id": 7,
++        "status": "unconfirmed",
++        "primary_vendor": "claude_code",
++        "primary_finding_id": 2,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "medium",
++        "recommended_disposition": "accept",
++        "description": "D2 now states that `run_architecture.py --check` returns `1` when provenance is not fresh and that 'other failures are also non-zero'. D5 then asks the skill to emit `graph stale` for 'exited non-zero' and `graph check failed` for 'could not run (error/exception)', and the spec scenario says 'as appropriate'. With the contract as documented, an exit `1` from a traceback and an exit `1` from stale provenance are indistinguishable to the skill, so the two reasons cannot be told apart deterministically; `graph stale` as written ('exited non-zero') also subsumes `graph check failed`. Two further cases have no mapping at all: `--check` exits `0` but `build_atlas.py --tree` itself exits `1` (input/IO error on the graph), and the graph file is missing but `--check` still runs (does the skill stat the file before calling `--check`, or rely on the exit code?). Pin a decision rule in D5/grounding.md (e.g. `graph absent` when the skill's own existence check on the script or graph fails, run before `--check`; `graph check failed` when the subprocess cannot be spawned or `--tree` exits `1`; `graph stale` for every other non-zero `--check` exit) or collapse `stale` and `check failed` into one reason so the disclosure is decidable.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "claude_code"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/design.md"
++      },
++      {
++        "id": 8,
++        "status": "unconfirmed",
++        "primary_vendor": "claude_code",
++        "primary_finding_id": 3,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "low",
++        "recommended_disposition": "accept",
++        "description": "D4 relies on `--check` and `--tree` never combining to keep the exit-2 meanings from colliding, but neither the codebase-analysis requirement nor task 1.3 requires `build_atlas.py` to reject the combination (argparse mutually exclusive group, or a spec sentence plus a scenario). As written, `--check --tree X` is undefined: it could render exit `2` meaning either 'stale page' or 'not found' depending on dispatch order in `main()`.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "claude_code"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/design.md"
++      },
++      {
++        "id": 9,
++        "status": "unconfirmed",
++        "primary_vendor": "claude_code",
++        "primary_finding_id": 5,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "contract_mismatch",
++        "agreed_axis": "readability",
++        "agreed_criticality": "low",
++        "recommended_disposition": "accept",
++        "description": "The spec says the copied span is everything 'after its `\u00b7 ` separator' (which includes the trailing word `covered`), while design D5 says the span is 'after `\u00b7 ` and before the trailing ` covered`' with `covered` then re-appended. The resulting strings are identical, but the two documents describe different substrings, and task 2.2's deterministic test will be written against one of them. Pick one phrasing and use it in both D5 and the spec.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "readability",
++        "vendor_hits": [
++          "claude_code"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
++      },
++      {
++        "id": 10,
++        "status": "unconfirmed",
++        "primary_vendor": "claude_code",
++        "primary_finding_id": 6,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "low",
++        "recommended_disposition": "accept",
++        "description": "The spec now mandates 'exactly one decimal place' and design D3 mandates 'the `Coverage.percent` value itself, never re-rounded'. These are compatible only if `Coverage.percent` already yields a one-decimal float; if it returns an unrounded float (14.37) or an int (37) the two constraints conflict (a naive `str()` prints `14.37` / `37`). The packet does not include the `Coverage` definition, so this cannot be confirmed here. Stating the exact format expression (e.g. `f\"{coverage.percent:.1f}%\"`) in D3 removes the ambiguity without changing intent.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "claude_code"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md"
++      },
++      {
++        "id": 11,
++        "status": "unconfirmed",
++        "primary_vendor": "claude_code",
++        "primary_finding_id": 7,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "readability",
++        "agreed_criticality": "low",
++        "recommended_disposition": "accept",
++        "description": "Proposal Tests bullet (1) still says the deterministic check verifies 'both D5 disclosure forms', while task 2.2 and D7 item 1 were widened in this same revision to require the full ungrounded reason set. Minor drift introduced by this iteration; the proposal is the document Gate reviewers read first.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "readability",
++        "vendor_hits": [
++          "claude_code"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/proposal.md"
++      },
++      {
++        "id": 12,
++        "status": "unconfirmed",
++        "primary_vendor": "codex",
++        "primary_finding_id": 1,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "contract_mismatch",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "high",
++        "recommended_disposition": "accept",
++        "description": "The whole-repository scenario requires the skill to name `/codebase-atlas` \u201cand stop,\u201d while the grounding requirement and D5 require every reply, without exception, to end with exactly one `Grounding:` line. The redirect response therefore has two incompatible required endings. Specify whether redirects append the disclosure or are an explicit exception.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "codex"
++        ]
++      },
++      {
++        "id": 13,
++        "status": "unconfirmed",
++        "primary_vendor": "codex",
++        "primary_finding_id": 2,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "contract_mismatch",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "high",
++        "recommended_disposition": "accept",
++        "description": "Proposal.md and task 1.1 say the atlas test proves output contains only fixture node ids, but the specified tree format prints node names, file locations, and kinds\u2014not node ids. That assertion is not implementable as written and cannot establish the claimed no-invented-symbol guarantee. Define a validation based on emitted node tuples or include stable ids in the output contract.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "codex"
++        ]
++      },
++      {
++        "id": 14,
++        "status": "unconfirmed",
++        "primary_vendor": "codex",
++        "primary_finding_id": 3,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "high",
++        "recommended_disposition": "accept",
++        "description": "The Atlas Symbol Tree Export requirement contains SHALL clauses with no corresponding WHEN/THEN coverage: default hop/direction behavior; clamping hops above 4 with a stderr note; exact `<name> (<file>:<line>) [<kind>]` formatting; secondary sorting by id; `--no-coverage` suppression; unique-name and full-path resolution plus resolution precedence; exit 1 for input/IO errors; and the standard-library/no-network constraint. Add scenarios covering these obligations or move non-behavioral implementation guidance out of normative SHALL language.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "codex"
++        ]
++      },
++      {
++        "id": 15,
++        "status": "unconfirmed",
++        "primary_vendor": "codex",
++        "primary_finding_id": 4,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "medium",
++        "recommended_disposition": "accept",
++        "description": "The skill-workflow specs also leave normative clauses without explicit scenario coverage. In particular, no scenario asserts that the skill does not open a browser, that `triggers:` is absent, that `SKILL.md` ends with all three required tail sections, or that the manifest contains the exact `portable` distribution and exact dependency list. Existing scenarios cover adjacent behavior but not these stated SHALL/SHALL NOT contracts.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "codex"
++        ]
++      },
++      {
++        "id": 16,
++        "status": "unconfirmed",
++        "primary_vendor": "codex",
++        "primary_finding_id": 5,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "contract_mismatch",
++        "agreed_axis": "readability",
++        "agreed_criticality": "medium",
++        "recommended_disposition": "accept",
++        "description": "The grounding spec says the coverage list is copied verbatim from the tree footer \u201cafter its `\u00b7` separator,\u201d which includes the footer\u2019s trailing `covered`, while the grounded disclosure template itself also ends in `covered`. D5 instead defines the copied span as after `\u00b7 ` and before the trailing ` covered`. Align the normative spec with D5 to prevent implementations from producing `covered covered` or interpreting \u201cverbatim\u201d inconsistently.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "readability",
++        "vendor_hits": [
++          "codex"
++        ]
++      },
++      {
++        "id": 17,
++        "status": "unconfirmed",
++        "primary_vendor": "grok",
++        "primary_finding_id": 1,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "contract_mismatch",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "high",
++        "recommended_disposition": "accept",
++        "description": "D5 / proposal / tasks still leave a disclosure-format gap for grounded call trees: design says the disclosure copies the --tree footer coverage list verbatim (language order, ` / ` separators, one-decimal percents) but uses `; ` after the sha and `Grounding:` prefix, while the grounded example and older proposal language still risk drift if implementers treat the whole footer as copy-paste. More importantly, D7 deterministic check #1 and proposal Tests bullet only require that D5 strings / both disclosure forms appear in the grounding reference \u2014 they do not require asserting the closed ungrounded reason enum (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`) nor the footer\u2192disclosure mapping (`;` vs `\u00b7`). Task 2.5 was supposedly updated per plan-findings #2, but the contracted CI checks remain string-presence only, so a wrong reason token or footer/disclosure drift can still pass.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "grok"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/design.md"
++      },
++      {
++        "id": 18,
++        "status": "unconfirmed",
++        "primary_vendor": "grok",
++        "primary_finding_id": 2,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "medium",
++        "recommended_disposition": "accept",
++        "description": "Ambiguous-symbol path (exit 3) is specified in design D4 and a skill-workflow scenario, but the proposal 'What Changes' / Tests section and D7's three deterministic CI checks do not encode any assertion that SKILL.md/workflow instructs ask-don't-guess on exit 3 (list stderr candidates, no source fallback). Without a prompt-level check, implementers can ship the atlas exit code and still omit the skill branch, and plan-findings iteration 1 did not call this out.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "grok"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/proposal.md"
++      },
++      {
++        "id": 19,
++        "status": "unconfirmed",
++        "primary_vendor": "grok",
++        "primary_finding_id": 4,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "spec_gap",
++        "agreed_axis": "compatibility",
++        "agreed_criticality": "low",
++        "recommended_disposition": "accept",
++        "description": "D3 footer format is now precise (`graph @ <sha7> \u00b7 python 14.4% / sql 37.0% covered`, sorted languages, one decimal, never re-rounded), and D5 says disclosure copies that coverage list verbatim after `; `. The grounded disclosure example correctly shows one-decimal percents, but D7 check #1 still phrases success as 'D5 strings present' without requiring the one-decimal / sorted-language / no-re-round rules to appear in the grounding reference or atlas tree tests. Acceptable residual risk if task 1.x atlas tests pin format; still a mild plan completeness gap between D3 precision and D7 check surface.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "compatibility",
++        "vendor_hits": [
++          "grok"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/design.md"
++      },
++      {
++        "id": 20,
++        "status": "unconfirmed",
++        "primary_vendor": "grok",
++        "primary_finding_id": 5,
++        "matched_findings": [],
++        "match_score": 0.0,
++        "agreed_type": "correctness",
++        "agreed_axis": "correctness",
++        "agreed_criticality": "medium",
++        "recommended_disposition": "accept",
++        "description": "D5 reason `graph check failed` is defined as '`--check` could not run (error/exception)' while `graph stale` is 'run_architecture.py --check exited non-zero'. Live contract clarification says the script returns 1 when provenance is not fresh and other failures are also non-zero \u2014 so a non-zero exit alone cannot distinguish stale vs check-failed. Design does not say how the skill classifies stderr/exception vs exit code for those two reasons, yet both appear in the closed reason set the skill must emit exactly. Implementers may invent heuristics or collapse them, breaking the 'exactly one of' contract.",
++        "eligible_vendors": 4,
++        "evidence_class": "judgment",
++        "axis": "correctness",
++        "vendor_hits": [
++          "grok"
++        ],
++        "file_path": "openspec/changes/add-visual-code-explainer/design.md"
++      }
++    ],
++    "summary": {
++      "total_unique_findings": 20,
++      "confirmed_count": 1,
++      "unconfirmed_count": 19,
++      "disagreement_count": 0,
++      "blocking_count": 0,
++      "advisory_count": 20
++    }
++  }
++}
 diff --git a/openspec/changes/add-visual-code-explainer/session-log.md b/openspec/changes/add-visual-code-explainer/session-log.md
-index ac09731b..4a47f0cb 100644
+index ac09731b..bc3b465f 100644
 --- a/openspec/changes/add-visual-code-explainer/session-log.md
 +++ b/openspec/changes/add-visual-code-explainer/session-log.md
 @@ -9,8 +9,8 @@
@@ -219,7 +1223,7 @@ index ac09731b..4a47f0cb 100644
 -2. **Freshness is decided by the existing run_architecture.py --check contract** `architectural: code-visualization` — Exit 0 alone means fresh; exit 1, exit 2, a missing script, or a missing graph all mean ungrounded. Re-deriving freshness from git_sha in prose would create a second, weaker definition alongside the architecture-refresh contract the atlas already mirrors. The skill never runs --ensure or the pipeline.
 -3. **Mandatory one-line coverage disclosure on every answer** `architectural: code-visualization` — The codeviz proposal's standing principle is that a visualisation must disclose its own coverage. The grounded form copies the --tree footer verbatim so the two cannot drift; the ungrounded form names the reason (stale, absent, check failed, symbol not in graph). This is the improvement on show-me, which trusts model memory silently.
 +2. **Freshness is decided by the existing run_architecture.py --check contract** `architectural: code-visualization` — Exit 0 alone means fresh; any non-zero exit (the script returns 1 when provenance is not fresh), a missing script, or a missing graph all mean ungrounded. Do not confuse with build_atlas.py --check (exit 2 = stale HTML page). Re-deriving freshness from git_sha in prose would create a second, weaker definition alongside the architecture-refresh contract. The skill never runs --ensure or the pipeline.
-+3. **Mandatory one-line coverage disclosure on every answer** `architectural: code-visualization` — The codeviz proposal's standing principle is that a visualisation must disclose its own coverage. The grounded form copies the --tree footer coverage list (after `· `) so percents cannot drift; the ungrounded form names an exact reason (`graph stale|absent|check failed`, `symbol not in graph`, or `form not graph-backed`). This is the improvement on show-me, which trusts model memory silently.
++3. **Mandatory one-line coverage disclosure on every sketching answer** `architectural: code-visualization` — The codeviz proposal's standing principle is that a visualisation must disclose its own coverage. The grounded form copies the --tree footer coverage list (after `· `, before trailing ` covered`) so percents cannot drift; the ungrounded form names an exact reason (`graph stale|absent|check failed`, `symbol not in graph`, or `form not graph-backed`). Ambiguous-symbol clarifications and whole-repository redirects are explicit exceptions (no visual → no `Grounding:` line). This is the improvement on show-me, which trusts model memory silently.
  4. **Frontmatter omits triggers; the skill test asserts keys explicitly** `architectural: skill-authoring` — rewrite-skill-frontmatter deletes triggers from all 52 skills, but the canonical spec and REQUIRED_FRONTMATTER_KEYS still require it. Asserting the six surviving keys directly instead of calling assert_required_keys_present makes the skill valid in both merge orderings, so this change does not block on that one.
  5. **Behavioural scenarios are CI-wired deterministically, harness-optional** `architectural: skill-authoring` — invert-skill-test-suite-to-behavioural wants three behavioural scenarios per user-invocable skill but is 0/10 tasks. Three deterministic prompt-content tests plus the fixture-node assertion in test_atlas_tree.py encode the same behaviours today; harness fixtures are a conditional task.
  
@@ -232,7 +1236,7 @@ index ac09731b..4a47f0cb 100644
  - [ ] The trajectory-scenario harness format for task 2.8 was not verified present in this checkout; the task is conditional and records 'harness absent' if it is not.
  - [ ] Whether the follow-up change should widen add-visual-plan-review's 'OpenSpec proposals only' boundary or create a separate general-artifact capability for HTML output.
  
-@@ -41,5 +41,21 @@
+@@ -41,5 +41,34 @@
  - `openspec/changes/add-visual-code-explainer/work-packages.yaml` — wp-atlas-tree and wp-skill in parallel, wp-integration last
  
  ### Context
@@ -254,9 +1258,22 @@ index ac09731b..4a47f0cb 100644
 +- `openspec/changes/add-visual-code-explainer/plan-findings.md` — iteration 1 findings table
 +- `openspec/changes/add-visual-code-explainer/design.md` — D2/D4/D5 corrections
 +- `openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md` — disclosure reason alignment
++
++## Phase: Plan Review (2026-09-16)
++
++**Agent**: autopilot-plan-review | **Session**: N/A
++
++### Decisions
++1. **Exempt clarification and redirect replies from disclosure** `architectural: code-visualization` — Ambiguous-symbol ask (`--tree` exit 3) and whole-repository redirect produce no catalogue visual; requiring a `Grounding:` line forced fake reasons. D5 and the skill-workflow spec now require disclosure only on sketching replies.
++2. **Pin first-match ungrounded reason order** `architectural: code-visualization` — `graph absent` (preflight missing script/graph) → `graph check failed` (spawn failure or `--tree` exit 1) → `graph stale` (any non-zero `--check` exit) → `symbol not in graph` → `form not graph-backed`. Distinguishes stale from check-failed without inventing exit-code heuristics.
++3. **Fixture assertion is `(name, file)` match, not printed ids** `architectural: code-visualization` — Tree format emits name/file/kind; invent-no-symbols is proven by matching printed nodes to fixture nodes, not by requiring ids in stdout.
++4. **Add missing atlas scenarios for hop defaults/clamp, `--no-coverage`, exit 1** `architectural: code-visualization` — Confirmed medium gap: normative SHALLs without WHEN/THEN. Scenarios added under codebase-analysis; task 1.1 covers them.
++
++### Next Steps
++- Re-run converge after adjudication fixes; then IMPLEMENT if converged.
  
 diff --git a/openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md b/openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md
-index e0c04fac..f5cd83f3 100644
+index e0c04fac..7bde8268 100644
 --- a/openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md
 +++ b/openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md
 @@ -2,7 +2,7 @@
@@ -289,25 +1306,56 @@ index e0c04fac..f5cd83f3 100644
  
  #### Scenario: Deterministic output
  
+@@ -49,3 +55,25 @@
+ 
+ - **WHEN** `--tree` runs without `--no-coverage`
+ - **THEN** the footer percentages SHALL equal the `Coverage.percent` values `build_view_model()` computes for the same repository root
++
++#### Scenario: Default hops and direction
++
++- **WHEN** `--tree <target>` is invoked with neither `--hops` nor `--direction`
++- **THEN** the traversal SHALL use `--hops 2` and `--direction out`
++- **AND** the exit code SHALL be `0` for a resolvable target
++
++#### Scenario: Hops above four are clamped
++
++- **WHEN** `--tree <target> --hops 9` is given
++- **THEN** the effective hop cap SHALL be `4`
++- **AND** stderr SHALL contain a note that the value was clamped
++
++#### Scenario: No-coverage suppresses the footer
++
++- **WHEN** `--tree <target> --no-coverage` runs
++- **THEN** stdout SHALL omit the `graph @` coverage footer line
++
++#### Scenario: Input or IO error exits 1
++
++- **WHEN** `--tree` cannot read the graph file (missing path via `--graph`, or unreadable IO)
++- **THEN** the exit code SHALL be `1`
 diff --git a/openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md b/openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md
-index bcb27546..aa909872 100644
+index bcb27546..dee7407c 100644
 --- a/openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md
 +++ b/openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md
-@@ -31,7 +31,7 @@ The repository SHALL provide a user-invocable, prompt-only skill `explain-code`
+@@ -31,30 +31,49 @@ The repository SHALL provide a user-invocable, prompt-only skill `explain-code`
  
  ### Requirement: Explainer Grounding and Coverage Disclosure
  
 -Before sketching a call tree, the skill SHALL determine graph freshness by running the read-only `run_architecture.py --check` from the co-installed `refresh-architecture` skill via `<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py`, treating exit code `0` alone as fresh. When fresh, the skill SHALL obtain callers and callees from `build_atlas.py --tree` (co-installed `codebase-atlas`) and SHALL build the call tree only from nodes that export returns. When stale, absent, or failing, the skill SHALL read source directly and label the sketch unverified. Every reply SHALL end with exactly one disclosure line: `Grounding: graph @ <sha7>; <language> <percent>% covered …` when grounded, or `Grounding: source read, unverified (graph <stale|absent|check failed>)` when not. The skill SHALL NOT run a refresh, `--ensure`, or the analysis pipeline itself.
-+Before sketching a call tree, the skill SHALL determine graph freshness by running the read-only `run_architecture.py --check` from the co-installed `refresh-architecture` skill via `<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py`, treating exit code `0` alone as fresh (any non-zero exit means ungrounded; the script returns `1` when provenance is not fresh). When fresh, the skill SHALL obtain callers and callees from `build_atlas.py --tree` (co-installed `codebase-atlas`) and SHALL build the call tree only from nodes that `build_atlas.py --tree` returns. When stale, absent, or failing, the skill SHALL read source directly and label the sketch unverified. Every reply SHALL end with exactly one disclosure line: `Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered` when grounded (coverage list copied verbatim from the `--tree` footer after its `· ` separator, including order and ` / ` separators), or `Grounding: source read, unverified (<reason>)` when not, where `<reason>` is one of `graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, or `form not graph-backed`. Only a call tree built from `--tree` after a fresh `--check` MAY use the grounded form; other catalogue forms SHALL use `form not graph-backed`. The skill SHALL NOT run a refresh, `--ensure`, or the analysis pipeline itself.
++Before sketching a call tree, the skill SHALL determine graph freshness by running the read-only `run_architecture.py --check` from the co-installed `refresh-architecture` skill via `<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py`, treating exit code `0` alone as fresh (any non-zero exit means ungrounded; the script returns `1` when provenance is not fresh). When fresh, the skill SHALL obtain callers and callees from `build_atlas.py --tree` (co-installed `codebase-atlas`) and SHALL build the call tree only from nodes that `build_atlas.py --tree` returns. When `--tree` exits `3` (ambiguous target), the skill SHALL list the candidate ids from stderr and ask which one was meant, and SHALL NOT fall back to source reading or sketch a tree. When stale, absent, or failing (including `--tree` exit `2`), the skill SHALL read source directly and label the sketch unverified. Every sketching reply (a catalogue visual was emitted) SHALL end with exactly one disclosure line: `Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered` when grounded (coverage list taken from the `--tree` footer by copying the substring after `· ` and before the trailing ` covered`, then re-appending ` covered`, preserving language order and ` / ` separators), or `Grounding: source read, unverified (<reason>)` when not, where `<reason>` is chosen by first-match order: `graph absent` (script or graph missing before `--check`), `graph check failed` (`--check` could not be spawned, or `--tree` exits `1` after a fresh `--check`), `graph stale` (`--check` ran and exited non-zero), `symbol not in graph` (`--tree` exited `2`), or `form not graph-backed` (non-call-tree catalogue form). Ambiguous-symbol clarification replies and whole-repository redirect replies SHALL NOT carry a `Grounding:` line. Only a call tree built from `--tree` after a fresh `--check` MAY use the grounded form; other catalogue forms SHALL use `form not graph-backed`. The skill SHALL NOT run a refresh, `--ensure`, or the analysis pipeline itself.
  
  #### Scenario: Fresh graph grounds the call tree
  
-@@ -43,14 +43,26 @@ Before sketching a call tree, the skill SHALL determine graph freshness by runni
+ - **WHEN** `run_architecture.py --check` exits `0` and the question names a symbol present in the graph
+ - **THEN** the call tree SHALL contain only nodes returned by `build_atlas.py --tree`
+-- **AND** the disclosure line SHALL read `Grounding: graph @ <sha7>; …` with per-language coverage percentages copied from the `--tree` footer
++- **AND** the disclosure line SHALL read `Grounding: graph @ <sha7>; …` with per-language coverage percentages copied from the `--tree` footer per the substring rule above
+ 
+ #### Scenario: Stale or absent graph falls back to source
  
  - **WHEN** `run_architecture.py --check` exits non-zero, or the script or graph file is missing
  - **THEN** the skill SHALL still answer, drawing the sketch from the source files it reads
 -- **AND** the disclosure line SHALL read `Grounding: source read, unverified (graph <reason>)`
-+- **AND** the disclosure line SHALL read `Grounding: source read, unverified (<reason>)` with reason `graph stale`, `graph absent`, or `graph check failed` as appropriate
++- **AND** the disclosure line SHALL read `Grounding: source read, unverified (<reason>)` with reason `graph stale`, `graph absent`, or `graph check failed` per the first-match order above
  - **AND** the skill SHALL NOT invoke `--ensure` or the analysis pipeline
  
  #### Scenario: Symbol outside graph coverage
@@ -316,9 +1364,11 @@ index bcb27546..aa909872 100644
  - **THEN** the skill SHALL fall back to source reading for that symbol
 -- **AND** the disclosure line SHALL use the unverified form with reason `symbol not in graph`
 +- **AND** the disclosure line SHALL read `Grounding: source read, unverified (symbol not in graph)`
-+
+ 
+-#### Scenario: Disclosure line present on every answer
 +#### Scenario: Non-call-tree form is not graph-backed
-+
+ 
+-- **WHEN** the skill produces any reply, grounded or not
 +- **WHEN** the skill answers with a catalogue form other than a call tree
 +- **THEN** the disclosure line SHALL read `Grounding: source read, unverified (form not graph-backed)`
 +- **AND** the skill SHALL NOT claim the grounded `graph @` form for that reply
@@ -328,11 +1378,22 @@ index bcb27546..aa909872 100644
 +- **WHEN** the graph is fresh and `build_atlas.py --tree` exits `3` (ambiguous name) for the requested symbol
 +- **THEN** the skill SHALL list the candidate ids from stderr and ask which one was meant
 +- **AND** the skill SHALL NOT fall back to source reading or sketch a tree for any candidate
- 
- #### Scenario: Disclosure line present on every answer
++- **AND** the reply SHALL NOT include a `Grounding:` line
++
++#### Scenario: Whole-repository redirect has no disclosure line
++
++- **WHEN** a user asks for the whole architecture, the full dependency graph, or a repository-wide map
++- **THEN** the skill SHALL name `/codebase-atlas` and stop
++- **AND** the reply SHALL NOT include a `Grounding:` line
++
++#### Scenario: Disclosure line present on every sketching answer
++
++- **WHEN** the skill produces a sketching reply (a catalogue visual was emitted), grounded or not
+ - **THEN** the final line of the reply SHALL begin with `Grounding:`
+ - **AND** the reply SHALL contain exactly one such line
  
 diff --git a/openspec/changes/add-visual-code-explainer/tasks.md b/openspec/changes/add-visual-code-explainer/tasks.md
-index e7243d68..9d9a33d8 100644
+index e7243d68..37729449 100644
 --- a/openspec/changes/add-visual-code-explainer/tasks.md
 +++ b/openspec/changes/add-visual-code-explainer/tasks.md
 @@ -5,8 +5,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED 
@@ -341,8 +1402,8 @@ index e7243d68..9d9a33d8 100644
  
 -- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `2` with candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, output contains only fixture node ids, a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
 -  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown or ambiguous target exits 2", "Deterministic output", "Coverage footer matches the page banner"
-+- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `3` with sorted candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, output contains only fixture node ids, a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
-+  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown target exits 2", "Ambiguous target exits 3", "Deterministic output", "Coverage footer matches the page banner"
++- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering, callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `3` with sorted candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent`, every printed node matches a fixture node by `(name, file)` (tree format emits name/file/kind, not ids), a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, default hops/direction, hops>4 clamp with stderr note, `--no-coverage` omits footer, unreadable `--graph` exits `1`, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
++  **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown target exits 2", "Ambiguous target exits 3", "Deterministic output", "Coverage footer matches the page banner", "Default hops and direction", "Hops above four are clamped", "No-coverage suppresses the footer", "Input or IO error exits 1"
    **Design decisions**: D3 (format), D4 (resolution), D7 (fixture-only nodes), D8 (module name)
    **Dependencies**: None
    **Size**: M
@@ -363,8 +1424,8 @@ index e7243d68..9d9a33d8 100644
  
 -- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
 -  **Spec scenarios**: skill-workflow "Disclosure line present on every answer", "Whole-repository question redirected", "Stale or absent graph falls back to source"
-+- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms and the full ungrounded reason set (`graph stale|absent|check failed`, `symbol not in graph`, `form not graph-backed`); `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
-+  **Spec scenarios**: skill-workflow "Disclosure line present on every answer", "Whole-repository question redirected", "Stale or absent graph falls back to source", "Non-call-tree form is not graph-backed"
++- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms, the closed ungrounded reason tokens (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`), the footer→disclosure mapping (`;` after sha, copy after `· ` / before trailing ` covered`), and the clarification/redirect disclosure exemptions; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
++  **Spec scenarios**: skill-workflow "Disclosure line present on every sketching answer", "Whole-repository question redirected", "Whole-repository redirect has no disclosure line", "Stale or absent graph falls back to source", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing"
    **Design decisions**: D2, D5, D7, D9
    **Dependencies**: None
    **Size**: S
@@ -374,13 +1435,13 @@ index e7243d68..9d9a33d8 100644
  
 -- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to copy the footer into the disclosure line (D5), the symbol-not-in-graph fallback, the whole-repository redirect, and the refusal list (D9)
 -  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Disclosure line present on every answer"
-+- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5), the ungrounded reason set including `symbol not in graph` (exit `2`) and `form not graph-backed`, the ask-don't-guess rule for an ambiguous name (exit `3`), the whole-repository redirect, and the refusal list (D9)
-+  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing", "Disclosure line present on every answer"
++- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5 substring rule), the closed ungrounded reason set with first-match order (`graph absent` → `graph check failed` → `graph stale` → `symbol not in graph` → `form not graph-backed`), the ask-don't-guess rule for an ambiguous name (exit `3`, no `Grounding:` line), the whole-repository redirect (no `Grounding:` line), and the refusal list (D9)
++  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing", "Whole-repository redirect has no disclosure line", "Disclosure line present on every sketching answer"
    **Design decisions**: D2, D5, D9
    **Dependencies**: 2.3
    **Size**: S
 diff --git a/openspec/changes/add-visual-code-explainer/work-packages.yaml b/openspec/changes/add-visual-code-explainer/work-packages.yaml
-index cc739615..fecb450c 100644
+index cc739615..4daa5786 100644
 --- a/openspec/changes/add-visual-code-explainer/work-packages.yaml
 +++ b/openspec/changes/add-visual-code-explainer/work-packages.yaml
 @@ -3,7 +3,7 @@ schema_version: 1
@@ -388,7 +1449,7 @@ index cc739615..fecb450c 100644
    id: add-visual-code-explainer
    title: "Visual code explainer — explain-code skill grounded through codebase-atlas --tree"
 -  plan_revision: 1
-+  plan_revision: 2
++  plan_revision: 3
    created_by: claude-code
  
  contracts:
@@ -457,9 +1518,11 @@ index cc739615..fecb450c 100644
 
 #### Group 1 (default: `(default)`)
 Applies to:
+- openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json
 - openspec/changes/add-visual-code-explainer/design.md
 - openspec/changes/add-visual-code-explainer/plan-findings.md
 - openspec/changes/add-visual-code-explainer/proposal.md
+- openspec/changes/add-visual-code-explainer/reviews/converge-result.json
 - openspec/changes/add-visual-code-explainer/session-log.md
 - openspec/changes/add-visual-code-explainer/tasks.md
 - openspec/changes/add-visual-code-explainer/work-packages.yaml
@@ -533,6 +1596,28 @@ Verify every SHALL/MUST has at least one Scenario with WHEN/THEN. Check that a M
 - **WHEN** `--tree` runs without `--no-coverage`
 - **THEN** the footer percentages SHALL equal the `Coverage.percent` values `build_view_model()` computes for the same repository root
 
+#### Scenario: Default hops and direction
+
+- **WHEN** `--tree <target>` is invoked with neither `--hops` nor `--direction`
+- **THEN** the traversal SHALL use `--hops 2` and `--direction out`
+- **AND** the exit code SHALL be `0` for a resolvable target
+
+#### Scenario: Hops above four are clamped
+
+- **WHEN** `--tree <target> --hops 9` is given
+- **THEN** the effective hop cap SHALL be `4`
+- **AND** stderr SHALL contain a note that the value was clamped
+
+#### Scenario: No-coverage suppresses the footer
+
+- **WHEN** `--tree <target> --no-coverage` runs
+- **THEN** stdout SHALL omit the `graph @` coverage footer line
+
+#### Scenario: Input or IO error exits 1
+
+- **WHEN** `--tree` cannot read the graph file (missing path via `--graph`, or unreadable IO)
+- **THEN** the exit code SHALL be `1`
+
 
 #### specs/skill-workflow/spec.md
 ## ADDED Requirements
@@ -568,19 +1653,19 @@ The repository SHALL provide a user-invocable, prompt-only skill `explain-code` 
 
 ### Requirement: Explainer Grounding and Coverage Disclosure
 
-Before sketching a call tree, the skill SHALL determine graph freshness by running the read-only `run_architecture.py --check` from the co-installed `refresh-architecture` skill via `<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py`, treating exit code `0` alone as fresh (any non-zero exit means ungrounded; the script returns `1` when provenance is not fresh). When fresh, the skill SHALL obtain callers and callees from `build_atlas.py --tree` (co-installed `codebase-atlas`) and SHALL build the call tree only from nodes that `build_atlas.py --tree` returns. When stale, absent, or failing, the skill SHALL read source directly and label the sketch unverified. Every reply SHALL end with exactly one disclosure line: `Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered` when grounded (coverage list copied verbatim from the `--tree` footer after its `· ` separator, including order and ` / ` separators), or `Grounding: source read, unverified (<reason>)` when not, where `<reason>` is one of `graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, or `form not graph-backed`. Only a call tree built from `--tree` after a fresh `--check` MAY use the grounded form; other catalogue forms SHALL use `form not graph-backed`. The skill SHALL NOT run a refresh, `--ensure`, or the analysis pipeline itself.
+Before sketching a call tree, the skill SHALL determine graph freshness by running the read-only `run_architecture.py --check` from the co-installed `refresh-architecture` skill via `<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py`, treating exit code `0` alone as fresh (any non-zero exit means ungrounded; the script returns `1` when provenance is not fresh). When fresh, the skill SHALL obtain callers and callees from `build_atlas.py --tree` (co-installed `codebase-atlas`) and SHALL build the call tree only from nodes that `build_atlas.py --tree` returns. When `--tree` exits `3` (ambiguous target), the skill SHALL list the candidate ids from stderr and ask which one was meant, and SHALL NOT fall back to source reading or sketch a tree. When stale, absent, or failing (including `--tree` exit `2`), the skill SHALL read source directly and label the sketch unverified. Every sketching reply (a catalogue visual was emitted) SHALL end with exactly one disclosure line: `Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered` when grounded (coverage list taken from the `--tree` footer by copying the substring after `· ` and before the trailing ` covered`, then re-appending ` covered`, preserving language order and ` / ` separators), or `Grounding: source read, unverified (<reason>)` when not, where `<reason>` is chosen by first-match order: `graph absent` (script or graph missing before `--check`), `graph check failed` (`--check` could not be spawned, or `--tree` exits `1` after a fresh `--check`), `graph stale` (`--check` ran and exited non-zero), `symbol not in graph` (`--tree` exited `2`), or `form not graph-backed` (non-call-tree catalogue form). Ambiguous-symbol clarification replies and whole-repository redirect replies SHALL NOT carry a `Grounding:` line. Only a call tree built from `--tree` after a fresh `--check` MAY use the grounded form; other catalogue forms SHALL use `form not graph-backed`. The skill SHALL NOT run a refresh, `--ensure`, or the analysis pipeline itself.
 
 #### Scenario: Fresh graph grounds the call tree
 
 - **WHEN** `run_architecture.py --check` exits `0` and the question names a symbol present in the graph
 - **THEN** the call tree SHALL contain only nodes returned by `build_atlas.py --tree`
-- **AND** the disclosure line SHALL read `Grounding: graph @ <sha7>; …` with per-language coverage percentages copied from the `--tree` footer
+- **AND** the disclosure line SHALL read `Grounding: graph @ <sha7>; …` with per-language coverage percentages copied from the `--tree` footer per the substring rule above
 
 #### Scenario: Stale or absent graph falls back to source
 
 - **WHEN** `run_architecture.py --check` exits non-zero, or the script or graph file is missing
 - **THEN** the skill SHALL still answer, drawing the sketch from the source files it reads
-- **AND** the disclosure line SHALL read `Grounding: source read, unverified (<reason>)` with reason `graph stale`, `graph absent`, or `graph check failed` as appropriate
+- **AND** the disclosure line SHALL read `Grounding: source read, unverified (<reason>)` with reason `graph stale`, `graph absent`, or `graph check failed` per the first-match order above
 - **AND** the skill SHALL NOT invoke `--ensure` or the analysis pipeline
 
 #### Scenario: Symbol outside graph coverage
@@ -600,10 +1685,17 @@ Before sketching a call tree, the skill SHALL determine graph freshness by runni
 - **WHEN** the graph is fresh and `build_atlas.py --tree` exits `3` (ambiguous name) for the requested symbol
 - **THEN** the skill SHALL list the candidate ids from stderr and ask which one was meant
 - **AND** the skill SHALL NOT fall back to source reading or sketch a tree for any candidate
+- **AND** the reply SHALL NOT include a `Grounding:` line
 
-#### Scenario: Disclosure line present on every answer
+#### Scenario: Whole-repository redirect has no disclosure line
 
-- **WHEN** the skill produces any reply, grounded or not
+- **WHEN** a user asks for the whole architecture, the full dependency graph, or a repository-wide map
+- **THEN** the skill SHALL name `/codebase-atlas` and stop
+- **AND** the reply SHALL NOT include a `Grounding:` line
+
+#### Scenario: Disclosure line present on every sketching answer
+
+- **WHEN** the skill produces a sketching reply (a catalogue visual was emitted), grounded or not
 - **THEN** the final line of the reply SHALL begin with `Grounding:`
 - **AND** the reply SHALL contain exactly one such line
 
