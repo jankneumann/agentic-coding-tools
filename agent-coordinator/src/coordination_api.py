@@ -3705,6 +3705,12 @@ def create_coordination_api() -> FastAPI:
             response = _sanitized_unavailable(validated)
         return response.to_dict()
 
+    # Keep routing orchestration transport-neutral so HTTP and MCP invoke the
+    # same service without MCP importing this API factory.
+    from .model_routing.api import install_routing_routes
+
+    install_routing_routes(app, verify_api_key)
+
     return app
 
 

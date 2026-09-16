@@ -343,6 +343,7 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
 
 VALID_TRANSPORTS = {"mcp", "http"}
 VALID_ISOLATION_MODES = {"worktree", "sandbox", "none"}
+VALID_ENDPOINT_KINDS = {"vendor-cli", "vendor-sdk", "openrouter", "local"}
 VALID_CAPABILITIES = {
     "lock", "queue", "memory", "guardrails", "handoff", "discover", "audit",
     "feature_registry",
@@ -395,6 +396,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
                     },
                     "api_key": {"type": "string"},
                     "openbao_role_id": {"type": "string", "minLength": 1},
+                    "endpoint_kind": {
+                        "type": "string",
+                        "enum": sorted(VALID_ENDPOINT_KINDS),
+                    },
+                    "base_url": {"type": "string", "format": "uri"},
                     "capabilities": {
                         "type": "array",
                         "minItems": 1,
@@ -585,6 +591,8 @@ class AgentEntry:
     isolation: str = "none"
     api_key: str | None = None
     openbao_role_id: str | None = None
+    endpoint_kind: str | None = None
+    base_url: str | None = None
     archetypes: list[str] = field(default_factory=list)
     cli: CliConfig | None = None
     sdk: SdkConfig | None = None
@@ -877,6 +885,8 @@ def load_agents_config(
                 archetypes=agent_data.get("archetypes", []),
                 api_key=resolved_key,
                 openbao_role_id=agent_data.get("openbao_role_id"),
+                endpoint_kind=agent_data.get("endpoint_kind"),
+                base_url=agent_data.get("base_url"),
                 cli=cli_config,
                 sdk=sdk_config,
             )
@@ -2493,7 +2503,7 @@ def _resolve_model_spec(
 # ---------------------------------------------------------------------------
 
 
-def resolve_archetype_for_phase(
+def _resolve_archetype_for_phase_static(
     phase: str,
     signals: dict[str, Any] | None = None,
     *,
@@ -2599,4 +2609,130 @@ def resolve_archetype_for_phase(
         provider=provider,
         write_capable=archetype.write_capable,
         thinking=spec.thinking,
+    )
+
+
+def _adaptive_routing_enabled() -> bool:
+    return os.environ.get("ROUTING_ADAPTIVE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _adaptive_task_signals(
+    phase: str,
+    signals: dict[str, Any] | None,
+    static: ResolvedArchetype,
+) -> dict[str, Any]:
+    mapping = _phase_mapping if _phase_mapping is not None else {}
+    entry = mapping.get(phase)
+    allowed = set(entry.signals) if entry is not None else set()
+    filtered = {key: value for key, value in (signals or {}).items() if key in allowed}
+    complexity = str(filtered.get("complexity", "medium"))
+    return {
+        "archetype": static.archetype,
+        "phase": phase,
+        "task_type": f"{static.archetype}/{complexity}-complexity",
+        **filtered,
+        "modality": "programmatic",
+    }
+
+
+def _bounded_adaptive_resolution(
+    *,
+    task_signals: dict[str, Any],
+    static_model: str,
+    provider: str | None,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    """Call the synchronous adaptive seam without exceeding the fallback SLA."""
+    import queue
+    import threading
+
+    outcomes: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
+
+    def _call() -> None:
+        try:
+            from .model_routing.api import resolve_phase_model
+
+            outcomes.put(
+                (
+                    True,
+                    resolve_phase_model(
+                        task_signals=task_signals,
+                        static_model=static_model,
+                        provider=provider,
+                        timeout_seconds=timeout_seconds,
+                    ),
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - caller degrades to static
+            outcomes.put((False, exc))
+
+    thread = threading.Thread(target=_call, name="adaptive-model-router", daemon=True)
+    thread.start()
+    try:
+        ok, outcome = outcomes.get(timeout=timeout_seconds)
+    except queue.Empty as exc:
+        raise TimeoutError("adaptive model routing timed out") from exc
+    if not ok:
+        raise outcome
+    if not isinstance(outcome, dict):
+        raise TypeError("adaptive model routing returned a non-object response")
+    return outcome
+
+
+def resolve_archetype_for_phase(
+    phase: str,
+    signals: dict[str, Any] | None = None,
+    *,
+    provider: str | None = None,
+) -> ResolvedArchetype:
+    """Resolve statically, optionally replacing only the selected model.
+
+    ``ROUTING_ADAPTIVE`` defaults off. Errors, malformed responses, and the
+    bounded timeout all return the exact static object, preserving the legacy
+    policy path as the rollback mechanism (adaptive-router D2).
+    """
+    static = _resolve_archetype_for_phase_static(phase, signals, provider=provider)
+    if not _adaptive_routing_enabled():
+        return static
+
+    try:
+        timeout_seconds = max(
+            0.001,
+            min(2.0, float(os.environ.get("ROUTING_ADAPTIVE_TIMEOUT_SECONDS", "2"))),
+        )
+        routed = _bounded_adaptive_resolution(
+            task_signals=_adaptive_task_signals(phase, signals, static),
+            static_model=static.model,
+            provider=provider,
+            timeout_seconds=timeout_seconds,
+        )
+        selected = routed.get("selected")
+        if not isinstance(selected, dict):
+            raise ValueError("adaptive response has no selected candidate")
+        model = selected.get("model")
+        if not isinstance(model, str) or not model:
+            raise ValueError("adaptive response selected candidate has no model")
+        selected_provider = selected.get("vendor")
+        if not isinstance(selected_provider, str) or not selected_provider:
+            selected_provider = provider
+    except Exception as exc:  # noqa: BLE001 - fallback is the design contract
+        logger.warning("Adaptive model routing failed; using static tier: %s", exc)
+        return static
+
+    return ResolvedArchetype(
+        model=model,
+        system_prompt=static.system_prompt,
+        archetype=static.archetype,
+        reasons=[
+            *static.reasons,
+            f"adaptive routing selected vendor={selected_provider} model={model}",
+        ],
+        provider=selected_provider,
+        write_capable=static.write_capable,
+        thinking=static.thinking,
     )

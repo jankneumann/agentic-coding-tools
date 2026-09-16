@@ -90,6 +90,37 @@ mcp = FastMCP(
 )
 
 
+@mcp.tool
+async def select_model_for_task(
+    task_signals: dict[str, Any],
+    objective_profile: str | None = None,
+    weight_overrides: dict[str, float] | None = None,
+    allow_exploration: bool = True,
+) -> dict[str, Any]:
+    """Select a feasible model using the coordinator's adaptive router.
+
+    This is the MCP mirror of ``POST /routing/select_model``. Direct-DB mode
+    and HTTP-proxy mode intentionally share the same request model and service.
+    """
+    if _transport == "http":
+        return await http_proxy.proxy_select_model_for_task(
+            task_signals=task_signals,
+            objective_profile=objective_profile,
+            weight_overrides=weight_overrides,
+            allow_exploration=allow_exploration,
+        )
+
+    from .model_routing.api import SelectModelRequest, get_routing_service
+
+    request = SelectModelRequest(
+        task_signals=task_signals,
+        objective_profile=objective_profile,
+        weight_overrides=weight_overrides,
+        allow_exploration=allow_exploration,
+    )
+    return await get_routing_service().select_model(request)
+
+
 # =============================================================================
 # HELPER: Get agent identity from environment
 # =============================================================================

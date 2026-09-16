@@ -1233,3 +1233,28 @@ async def proxy_run_gen_eval(
         "time_budget_minutes": time_budget_minutes,
     }
     return await _request("POST", "/gen-eval/run", json_body=body)
+
+
+# =============================================================================
+# PROXY FUNCTIONS: Model routing
+# =============================================================================
+
+
+async def proxy_select_model_for_task(
+    *,
+    task_signals: dict[str, Any],
+    objective_profile: str | None = None,
+    weight_overrides: dict[str, float] | None = None,
+    allow_exploration: bool = True,
+) -> dict[str, Any]:
+    """Proxy the MCP model-selection tool to the matching HTTP operation."""
+    return await _request(
+        "POST",
+        "/routing/select_model",
+        json_body={
+            "task_signals": task_signals,
+            "objective_profile": objective_profile,
+            "weight_overrides": weight_overrides,
+            "allow_exploration": allow_exploration,
+        },
+    )
