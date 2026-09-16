@@ -41,59 +41,59 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
 
 ## Phase 2 — `explain-code` skill (package `wp-skill`, parallel with Phase 1)
 
-- [ ] 2.1 Write `skills/tests/explain-code/test_skill_md.py`: frontmatter parses; `name`, `description`, `category: Architecture`, `tags`, `user_invocable: true`, `related` including codebase-atlas and refresh-architecture present and non-empty (asserted explicitly, not via `assert_required_keys_present`); no `triggers` key; `assert_references_resolve`; `assert_related_resolve`; `assert_tail_block_present` (Common Rationalizations / Red Flags / Verification); `SKILL.md ≤ 150` lines; no reference file links to another reference; description mentions `codebase-atlas`
+- [x] 2.1 Write `skills/tests/explain-code/test_skill_md.py`: frontmatter parses; `name`, `description`, `category: Architecture`, `tags`, `user_invocable: true`, `related` including codebase-atlas and refresh-architecture present and non-empty (asserted explicitly, not via `assert_required_keys_present`); no `triggers` key; `assert_references_resolve`; `assert_related_resolve`; `assert_tail_block_present` (Common Rationalizations / Red Flags / Verification); `SKILL.md ≤ 150` lines; no reference file links to another reference; description mentions `codebase-atlas`
   **Spec scenarios**: skill-workflow "Frontmatter valid in both orderings", "Frontmatter omits triggers and sets Architecture category", "Skill markdown ends with required tail sections", "Description carries the trigger condition", "Progressive disclosure layout"
   **Design decisions**: D6
   **Dependencies**: None
   **Size**: S
 
-- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms, the closed ungrounded reason tokens (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`), the footer→disclosure mapping (`;` after sha, copy after `· ` / before trailing ` covered`), non-call-tree source-read requirement, tree-tool-failure → `graph check failed`, and the clarification/redirect disclosure exemptions; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
+- [x] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms, the closed ungrounded reason tokens (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`), the footer→disclosure mapping (`;` after sha, copy after `· ` / before trailing ` covered`), non-call-tree source-read requirement, tree-tool-failure → `graph check failed`, and the clarification/redirect disclosure exemptions; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
   **Spec scenarios**: skill-workflow "Disclosure line present on every sketching answer", "Whole-repository question redirected", "Whole-repository redirect has no disclosure line", "Stale or absent graph falls back to source", "Non-call-tree form is not graph-backed", "Tree tool failure after fresh check", "Ambiguous symbol asks instead of guessing"
   **Design decisions**: D2, D5, D7, D9
   **Dependencies**: None
   **Size**: S
 
-- [ ] 2.3 Write `skills/explain-code/SKILL.md` — frontmatter per D6 (no `triggers`), one-paragraph purpose crediting humanlayer's MIT `show-me`, the five rules, a catalogue table linking each `references/<form>.md`, the grounding step summary linking `references/grounding.md`, the deferred-scope note (no HTML, no files, no browser), and the tail block copied from `skills/references/skill-tail-template.md`
+- [x] 2.3 Write `skills/explain-code/SKILL.md` — frontmatter per D6 (no `triggers`), one-paragraph purpose crediting humanlayer's MIT `show-me`, the five rules, a catalogue table linking each `references/<form>.md`, the grounding step summary linking `references/grounding.md`, the deferred-scope note (no HTML, no files, no browser), and the tail block copied from `skills/references/skill-tail-template.md`
   **Spec scenarios**: skill-workflow "Narrow question answered with the smallest visual", "No file or browser side effects", "Progressive disclosure layout"
   **Design decisions**: D1, D6, D9
   **Dependencies**: 2.1, 2.2
   **Size**: M
 
-- [ ] Checkpoint: run `skills/tests/explain-code`, review diff, verify scope stays inside `skills/explain-code/**` + `skills/tests/explain-code/**`
+- [x] Checkpoint: run `skills/tests/explain-code`, review diff, verify scope stays inside `skills/explain-code/**` + `skills/tests/explain-code/**`
 
-- [ ] 2.4 Write the five form references — `references/call-tree.md`, `component-tree.md`, `file-tree.md`, `sequence.md`, `structural-diff.md` — each with: when to use, the smallest-view rule for that form, one worked example adapted from humanlayer with attribution, and how to attach file locations
+- [x] 2.4 Write the five form references — `references/call-tree.md`, `component-tree.md`, `file-tree.md`, `sequence.md`, `structural-diff.md` — each with: when to use, the smallest-view rule for that form, one worked example adapted from humanlayer with attribution, and how to attach file locations
   **Spec scenarios**: skill-workflow "Narrow question answered with the smallest visual"
   **Design decisions**: D1
   **Dependencies**: 2.3
   **Size**: M
 
-- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5 substring rule), the closed ungrounded reason set with first-match order (`graph absent` → `graph check failed` → `graph stale` → `symbol not in graph` → `form not graph-backed`, including `--tree` spawn/unexpected-exit → `graph check failed`), non-call-tree source-read before sketching, the ask-don't-guess rule for an ambiguous name (exit `3`, no `Grounding:` line), the whole-repository redirect (no `Grounding:` line), and the refusal list (D9)
+- [x] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5 substring rule), the closed ungrounded reason set with first-match order (`graph absent` → `graph check failed` → `graph stale` → `symbol not in graph` → `form not graph-backed`, including `--tree` spawn/unexpected-exit → `graph check failed`), non-call-tree source-read before sketching, the ask-don't-guess rule for an ambiguous name (exit `3`, no `Grounding:` line), the whole-repository redirect (no `Grounding:` line), and the refusal list (D9)
   **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Non-call-tree form is not graph-backed", "Tree tool failure after fresh check", "Ambiguous symbol asks instead of guessing", "Whole-repository redirect has no disclosure line", "Disclosure line present on every sketching answer"
   **Design decisions**: D2, D5, D9
   **Dependencies**: 2.3
   **Size**: S
 
-- [ ] Checkpoint: run `skills/tests/explain-code`, confirm every `references/<form>.md` cited in SKILL.md exists, review diff
+- [x] Checkpoint: run `skills/tests/explain-code`, confirm every `references/<form>.md` cited in SKILL.md exists, review diff
 
-- [ ] 2.6 Add `"explain-code": {"distribution": "portable"}` to `skills/install-manifest.json` `skills`, plus `cross_skill_dependencies` `"explain-code": ["codebase-atlas", "refresh-architecture"]`
+- [x] 2.6 Add `"explain-code": {"distribution": "portable"}` to `skills/install-manifest.json` `skills`, plus `cross_skill_dependencies` `"explain-code": ["codebase-atlas", "refresh-architecture"]`
   **Spec scenarios**: skill-workflow "Manifest validation passes", "Manifest declares portable distribution and atlas dependencies", "Sibling skill paths use skill-base-dir form"
   **Design decisions**: D1
   **Dependencies**: 2.5
   **Size**: XS
 
-- [ ] 2.7 Add `"tests/explain-code"` to `testpaths` in `skills/pyproject.toml`
+- [x] 2.7 Add `"tests/explain-code"` to `testpaths` in `skills/pyproject.toml`
   **Spec scenarios**: skill-workflow "Tests collected by the default sweep"
   **Design decisions**: —
   **Dependencies**: 2.1
   **Size**: XS
 
-- [ ] 2.8 (conditional) Author three scenario fixtures under `skills/tests/explain-code/scenarios/` in the trajectory-scenario harness format if that harness is present in the checkout; otherwise record "harness absent" in the session log
+- [x] 2.8 (conditional) Author three scenario fixtures under `skills/tests/explain-code/scenarios/` in the trajectory-scenario harness format if that harness is present in the checkout; otherwise record "harness absent" in the session log
   **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Whole-repository question redirected"
   **Design decisions**: D7
   **Dependencies**: 2.5
   **Size**: S
 
-- [ ] Checkpoint: run `bash skills/install.sh --check` and `skills/.venv/bin/python -m pytest skills/tests/explain-code`, verify scope stayed inside the package's write_allow
+- [x] Checkpoint: run `bash skills/install.sh --check` and `skills/.venv/bin/python -m pytest skills/tests/explain-code`, verify scope stayed inside the package's write_allow
 
 ## Phase 3 — Integration (package `wp-integration`)
 
