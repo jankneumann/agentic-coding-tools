@@ -112,11 +112,13 @@ async def select_model_for_task(
 
     from .model_routing.api import SelectModelRequest, get_routing_service
 
-    request = SelectModelRequest(
-        task_signals=task_signals,
-        objective_profile=objective_profile,
-        weight_overrides=weight_overrides,
-        allow_exploration=allow_exploration,
+    request = SelectModelRequest.model_validate(
+        {
+            "task_signals": task_signals,
+            "objective_profile": objective_profile,
+            "weight_overrides": weight_overrides,
+            "allow_exploration": allow_exploration,
+        }
     )
     return await get_routing_service().select_model(request)
 
