@@ -31,3 +31,9 @@ def test_model_routing_migration_matches_endpoint_kind_contract() -> None:
     for kind in ("vendor-cli", "vendor-sdk", "openrouter", "local"):
         assert f"'{kind}'" in sql
     assert "UNIQUE (vendor, model, endpoint_kind)" in sql
+
+
+def test_deleting_catalog_entry_cascades_to_its_posteriors() -> None:
+    sql = (MIGRATIONS / "040_model_routing.sql").read_text()
+
+    assert "REFERENCES model_catalog(id) ON DELETE CASCADE" in sql

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from ..db import DatabaseClient, get_db
 
@@ -31,8 +32,14 @@ class UsageRecord:
 
 
 class LedgerService:
-    def __init__(self, db: DatabaseClient | None = None) -> None:
+    def __init__(
+        self,
+        db: DatabaseClient | None = None,
+        *,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
         self._db = db
+        self._now_fn = now_fn or (lambda: datetime.now(UTC))
 
     @property
     def db(self) -> DatabaseClient:
@@ -81,14 +88,30 @@ class LedgerService:
         self,
         *,
         include_estimated: bool = True,
+        window: Literal["day", "week", "month"] = "month",
         month: date | None = None,
     ) -> dict[str, Any]:
-        month = month or datetime.now(UTC).date().replace(day=1)
-        start = datetime(month.year, month.month, 1, tzinfo=UTC)
-        if month.month == 12:
-            end = datetime(month.year + 1, 1, 1, tzinfo=UTC)
+        now = self._now_fn()
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=UTC)
+        now = now.astimezone(UTC)
+        if month is not None:
+            start = datetime(month.year, month.month, 1, tzinfo=UTC)
+        elif window == "day":
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif window == "week":
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            start -= timedelta(days=start.weekday())
         else:
-            end = datetime(month.year, month.month + 1, 1, tzinfo=UTC)
+            start = datetime(now.year, now.month, 1, tzinfo=UTC)
+        if window == "day" and month is None:
+            end = start + timedelta(days=1)
+        elif window == "week" and month is None:
+            end = start + timedelta(days=7)
+        elif start.month == 12:
+            end = datetime(start.year + 1, 1, 1, tzinfo=UTC)
+        else:
+            end = datetime(start.year, start.month + 1, 1, tzinfo=UTC)
         inclusive_end = end - timedelta(microseconds=1)
         rows = await self.db.query(
             "routing_spend_ledger",
@@ -97,13 +120,20 @@ class LedgerService:
         selected = (
             rows if include_estimated else [row for row in rows if not row.get("tokens_estimated")]
         )
+        verified = [row for row in rows if not row.get("tokens_estimated")]
         actual = sum(float(row.get("actual_usd") or 0.0) for row in selected)
         counterfactual = sum(float(row.get("counterfactual_usd") or 0.0) for row in selected)
+        verified_actual = sum(float(row.get("actual_usd") or 0.0) for row in verified)
+        verified_counterfactual = sum(
+            float(row.get("counterfactual_usd") or 0.0) for row in verified
+        )
         return {
+            "window": window,
             "month": start.date().isoformat(),
             "actual_usd": actual,
             "counterfactual_usd": counterfactual,
             "savings_usd": counterfactual - actual,
+            "verified_savings_usd": verified_counterfactual - verified_actual,
             "prompt_tokens": sum(int(row.get("prompt_tokens") or 0) for row in selected),
             "completion_tokens": sum(int(row.get("completion_tokens") or 0) for row in selected),
             "entries": len(selected),
@@ -112,7 +142,7 @@ class LedgerService:
         }
 
     async def rollup_current_month(self) -> dict[str, Any]:
-        return await self.usage_summary()
+        return await self.usage_summary(window="month")
 
     async def reconcile_generation(
         self, generation_id: str, *, actual_usd: float

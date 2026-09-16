@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from src.config import reset_config
 from src.coordination_api import create_coordination_api
+from src.model_routing.api import RoutingService
 
 _TEST_KEY = "routing-test-key"
 
@@ -195,6 +196,28 @@ def test_usage_and_feedback_delegate_to_service(client: TestClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_routing_service_forwards_usage_window_and_reports_verified_savings() -> None:
+    ledger = AsyncMock()
+    ledger.usage_summary.return_value = {
+        "actual_usd": 3.0,
+        "counterfactual_usd": 10.0,
+        "savings_usd": 7.0,
+        "verified_savings_usd": 3.0,
+        "estimated_entries": 1,
+        "entries": 2,
+    }
+    service = RoutingService(catalog=AsyncMock(), ledger=ledger)
+
+    usage = await service.get_usage(window="week", include_estimates=True)
+
+    ledger.usage_summary.assert_awaited_once_with(
+        window="week", include_estimated=True
+    )
+    assert usage["net_savings_usd"] == pytest.approx(7.0)
+    assert usage["net_savings_usd_excluding_estimates"] == pytest.approx(3.0)
+
+
+@pytest.mark.asyncio
 async def test_mcp_select_model_uses_same_service_in_db_mode() -> None:
     from src import coordination_mcp
 
@@ -238,4 +261,3 @@ async def test_mcp_select_model_uses_http_proxy_in_proxy_mode() -> None:
         weight_overrides={"w_quality": 1.0, "w_cost": 0.0, "w_latency": 0.0},
         allow_exploration=True,
     )
-

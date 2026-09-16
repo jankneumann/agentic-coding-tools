@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_model_catalog_routable
 
 CREATE TABLE IF NOT EXISTS model_posteriors (
     id BIGSERIAL PRIMARY KEY,
-    catalog_id BIGINT NOT NULL REFERENCES model_catalog(id),
+    catalog_id BIGINT NOT NULL REFERENCES model_catalog(id) ON DELETE CASCADE,
     task_type TEXT NOT NULL,
     metric TEXT NOT NULL,
     value DOUBLE PRECISION NOT NULL,

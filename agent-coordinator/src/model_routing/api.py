@@ -115,6 +115,7 @@ class _Ledger(Protocol):
         self,
         *,
         include_estimated: bool = True,
+        window: Literal["day", "week", "month"] = "month",
         month: Any = None,
     ) -> dict[str, Any]: ...
 
@@ -247,9 +248,15 @@ class RoutingService:
         return await self.catalog.get_decision(str(decision_id))
 
     async def get_usage(
-        self, *, window: str, include_estimates: bool
+        self,
+        *,
+        window: Literal["day", "week", "month"],
+        include_estimates: bool,
     ) -> dict[str, Any]:
-        summary = await self.ledger.usage_summary(include_estimated=include_estimates)
+        summary = await self.ledger.usage_summary(
+            window=window,
+            include_estimated=include_estimates,
+        )
         actual = float(summary.get("actual_usd", 0.0))
         counterfactual = float(summary.get("counterfactual_usd", 0.0))
         estimates = int(summary.get("estimated_entries", 0))
@@ -259,8 +266,8 @@ class RoutingService:
             "window": window,
             "by_model": summary.get("by_model", []),
             "net_savings_usd": savings,
-            "net_savings_usd_excluding_estimates": (
-                savings if estimates == 0 else float(summary.get("verified_savings_usd", 0.0))
+            "net_savings_usd_excluding_estimates": float(
+                summary.get("verified_savings_usd", savings if estimates == 0 else 0.0)
             ),
             "exploration_usd_used": float(summary.get("exploration_usd_used", 0.0)),
             "metered_ceiling_usd": float(
@@ -389,4 +396,3 @@ def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
     )
     async def feedback_endpoint(event: FeedbackEvent) -> dict[str, bool]:
         return await get_routing_service().post_feedback(event)
-

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -69,7 +70,47 @@ async def test_usage_summary_can_exclude_estimated_entries() -> None:
     assert exact["savings_usd"] == pytest.approx(3.0)
     assert all_entries["actual_usd"] == pytest.approx(3.0)
     assert all_entries["savings_usd"] == pytest.approx(7.0)
+    assert all_entries["verified_savings_usd"] == pytest.approx(3.0)
     assert all_entries["estimated_entries"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("window", "expected_start", "expected_end"),
+    [
+        (
+            "day",
+            "2026-09-16T00:00:00+00:00",
+            "2026-09-16T23:59:59.999999+00:00",
+        ),
+        (
+            "week",
+            "2026-09-14T00:00:00+00:00",
+            "2026-09-20T23:59:59.999999+00:00",
+        ),
+        (
+            "month",
+            "2026-09-01T00:00:00+00:00",
+            "2026-09-30T23:59:59.999999+00:00",
+        ),
+    ],
+)
+async def test_usage_summary_queries_requested_calendar_window(
+    window: str, expected_start: str, expected_end: str
+) -> None:
+    db = _db()
+    ledger = LedgerService(
+        db,
+        now_fn=lambda: datetime(2026, 9, 16, 14, 30, tzinfo=UTC),
+    )
+
+    summary = await ledger.usage_summary(window=window)
+
+    assert summary["window"] == window
+    db.query.assert_awaited_once_with(
+        "routing_spend_ledger",
+        f"occurred_at=gte.{expected_start}&occurred_at=lte.{expected_end}",
+    )
 
 
 @pytest.mark.asyncio
