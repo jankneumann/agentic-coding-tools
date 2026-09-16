@@ -1,0 +1,440 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "implement-the-task-router-vendor-x-location-x-model-round-2",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 13,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 11,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 1
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "contracts/openapi/v1.1.yaml constrains ExcludedAssignment.reason to the regex pattern '^(lane|policy|catalog|roadmap|registry|cedar):[a-z0-9-]+$'. However, existing dg-00 resolver code in agent-coordinator/src/model_routing/resolver.py:160-166 produces exclusion reasons 'unavailable' (when not cand.available) and 'quota:exhausted' (when cand.quota_headroom_pct <= 0). Neither reason matches the pattern ('unavailable' has no prefix, and 'quota' is omitted from the allowed prefix set). Neither design.md nor tasks.md specifies normalizing these reasons in resolver.py to match the new prefix vocabulary (e.g. catalog:unavailable, catalog:quota-exhausted) or widening the regex pattern, which causes responses with catalog exclusions to fail OpenAPI contract validation.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Design D10 asserts that 'PostgreSQL coverage proves the additive JSONB decision round trip and durable audit link.' However, work-packages.yaml contains no package verification step that runs against a live PostgreSQL database. In wp-policy-service, test_routing_audit.py is grouped with unit tests, and in wp-integration, the coordinator regression explicitly excludes integration tests with -m 'not e2e and not integration'. Because real database tests in this repository live under tests/integration/postgres/ and require PostgreSQL, migration 042's atomic decision and audit RPC has no executable acceptance evidence anywhere in the work package pipeline.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The exact-join rule is correct but is infeasible against the deployed data, and the plan neither states this nor provides the missing population step. Every lane in agent-coordinator/agents.yaml has `catalog_vendor: null` and no `endpoint_kind`/`base_url`, and `cli.model` is null for most lanes, so `VendorRegistryService._agent_models` derives models from the provider map (`claude-sonnet-4-6`, `gpt-5.6-sol`, ...). The catalog is populated only by the OpenRouter refresher (`endpoint_kind: openrouter`, OpenRouter ids such as `anthropic/...`) and local endpoints; no migration or refresher writes `vendor-cli` or `vendor-sdk` rows. Under D4's rule every CLI lane is a projection miss, all catalog rows land in `catalog:no-configured-lane`, and each request returns 503 `no-feasible-routing-assignment`. The acceptance outcome 'return location, isolation, dispatch mode, and exact lane identity' cannot be demonstrated live, and D4 forbids the catalog-only fallback that would mask it. The plan must specify how vendor-cli catalog rows and lane `catalog_vendor`/`endpoint_kind` come to exist (in scope here or as a named prerequisite) and add a test that loads the real agents.yaml and asserts at least one lane projects.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "routing.schema.json fallback object requires location_order and isolation_order, but omits dispatch_mode_order. While defaults specifies global and phase dispatch defaults, design D8 specifies that local fallback deterministically selects among the lane's exact configured values when the coordinator is unreachable. When an agents.yaml lane configures multiple cli.dispatch_modes (e.g. review, alternative, quick) and the phase default is unsupported by that lane, the local fallback helper lacks a defined fallback order in routing.yaml to deterministically select the dispatch mode.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Design D7 requires that 'No raw secret, environment value, prompt, free-form task-signal extra, or unbounded path list enters either record; only typed/bounded categories and rationale enter persistence.' While spec.md specifies that persistence excludes legacy extras, contracts/openapi/v1.1.yaml defines task_signals with additionalProperties: true and defines no separate PersistedRequest schema. In current implementation, api.py stores request.model_dump() directly into JSONB without an allowlist filter. Without an explicit schema contract for the persisted request projection, redaction remains prose-only and unenforced by contract tests.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Design D8 specifies that skills/coordination-bridge/scripts/routing_fallback.py validates routing.yaml against its schema. However, contracts/config/routing.schema.json is located in the coordinator/openspec directory, which is absent in consumer repository installations where only skills/ is installed (verified by test_consumer_portability.py). The write_allow for wp-transports-fallback does not permit vendoring or locating the schema within skills/shared/, leaving routing_fallback.py without access to its validation schema in portable skill environments.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 7,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 3
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "escalate",
+      "description": "VendorRegistryService._snapshots (vendor_registry.py:340-357) emits a vendor_catalog_projection_miss audit event and warning for every unprojected or ambiguous lane-model on every invocation. Calling it on every routing request per design D4 means persistent catalog gaps will generate audit log entries on every select_model request. Design D4 should clarify whether RoutingService suppresses projection miss audit events or uses a cached registry snapshot to avoid swamping the audit log.",
+      "eligible_vendors": 3,
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix",
+        "grok": "fix"
+      }
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "wp-contract-config must exit 0 on `test_task_routing_contracts.py` (task 1.1 'parity tests for the additive HTTP/MCP request and response') and `test_routing_policy_config.py` (task 1.3 loader validation), yet the runtime models live in `agent-coordinator/src/model_routing/api.py` and the loader in `routing_policy.py`, both writable only by wp-policy-service, which depends on wp-contract-config. dg-00 avoided this by shipping `contracts/generated/models.py` and testing parity against it (see tests/model_routing/test_contracts_generated.py); the v1.1 overlay has no generated models. As written the first package cannot pass its own verification without editing files outside its scope. Either add generated models under contracts/ (and a jsonschema-only validation of routing.yaml) to wp-contract-config, or move the runtime parity and loader tests into wp-policy-service.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "`agent-coordinator/src/http_proxy.py` runs inside the coordinator MCP process and, in the container, under the Dockerfile COPY contract enforced by `scripts/check_docker_imports.py`; importing `skills/coordination-bridge/scripts/routing_fallback.py` from it requires a new COPY line and a config resolution that uses `AGENTS_YAML`/`ROUTING_CONFIG`/`/app/archetypes.yaml`, because there is no 'discovered checkout root' in the image. The Dockerfile is locked to wp-contract-config, which completes before wp-transports-fallback, so the transport package cannot add the COPY. The plan should either scope the local fallback to the skills-side bridge only (D8's first sentence) or specify the coordinator-side import path, Dockerfile COPY, and env-based config resolution, and assign the Dockerfile edit to the package that needs it.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The change adds and edits files under `skills/coordination-bridge/scripts/`, but wp-integration's verification runs only the bridge pytest. The skills CI job (.github/workflows/ci.yml lines 100-110) also runs `ruff check .` in skills/, `bash install.sh --check` (runtime copies in `.claude/skills/` and `.agents/skills/` are overwritten by install.sh), and `validate-feature/scripts/linters/dependency_direction.py`. A green wp-integration can therefore still fail CI on lint, stale runtime copies, or a dependency-direction violation from the new helper. Add those three steps to wp-integration.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Rule evaluation for an omitted/null `routing_profile` is unspecified. `contracts/openapi/v1.1.yaml` defaults `SelectModelRequest.routing_profile` to `null`, while `TaskRoutingProfile` fields themselves default to `read-only` / `headless` / `none` / `1` / `unknown` when an object is present. design.md D2/D3 and specs/task-routing/spec.md never say whether legacy callers that send only `task_signals.archetype` evaluate rules against those profile defaults or against absent profile signals. `{}` versus `null` therefore change matched rules and assignments without a SHALL.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Empty feasible-set behavior is contracted only in OpenAPI. `contracts/openapi/v1.1.yaml` 503 text invents detail `no-feasible-routing-assignment`, but specs/task-routing/spec.md has scenarios for `routing-registry-unavailable` and `routing-durability-unavailable` only, and design.md D5 never states the HTTP/MCP outcome when every lane/model pair is excluded. The live dg-00 service today raises `no feasible model-routing candidate`, so the renamed detail is neither justified nor test-pinned in the requirement set.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The file contracts/events/routing-decision.schema.json declares $id as routing-audit-link-v1.schema.json and title as 'Durable routing decision audit link'. While contracts/README.md documents that it defines the link-only coordinator audit event, naming the file routing-decision.schema.json creates confusion with the primary routing_decisions table row schema. Aligning the filename to routing-audit-link.schema.json would improve readability and consistency.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The audit link event admits only successful decisions, and design D7 records nothing durable for the three fail-closed outcomes (`routing-registry-unavailable`, `no-feasible-routing-assignment`, `routing-durability-unavailable`). The roadmap item says 'every decision recorded as a routing audit event'. The plan should either state explicitly that failed routing attempts are not audited and specify the structured WARNING they emit (with task type, policy checksum, and reason), or add a non-transactional failure event so operators can see why routing keeps falling back to static.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The local fallback algorithm is underspecified in three places that affect determinism tests: (a) whether `routing.yaml` `rules` and `defaults.phase_dispatch_modes` are evaluated locally or only the `fallback` order is used, which decides what `matched_rule_ids` and `dispatch_mode` contain; (b) how one lane is chosen when several agents.yaml lanes share the caller's provider type (claude_code and codex each have a local and a cloud lane), including the tiebreak after `location_order`/`isolation_order`; (c) what the helper returns when the provider has no lane at all. Spec scenario 'Coordinator is unreachable' only pins the provenance flags. State the selection order and tiebreak (e.g. `agent_id` ascending) and the no-lane failure so tests can be written first.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The service currently raises `RoutingUnavailableError(\"no feasible model-routing candidate\")` (api.py line 311) and the coordination_mcp test asserts that exact detail string (tests/model_routing/test_api.py lines 290-296). Renaming the detail to `no-feasible-routing-assignment` is a wire change on the existing dg-00 operation that D1 describes as unchanged. Callers via `resolve_archetype_for_phase` are safe because any non-200 falls back, but the plan should state the detail rename and list the dg-00 tests to update, so it is not treated as a regression during review.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "'Reference to an unconfigured phase' has no stated source of truth. `phase_dispatch_modes` in contracts/config/routing.schema.json accepts any key, so the loader must cross-check against something (presumably `archetypes.yaml` phase_mapping). Name the source, because the skills-side fallback helper must apply the same check from the checkout and both loaders must agree on what a configured phase is.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "`Candidate` carries both a top-level `agent_id` and `assignment.agent_id`, and a per-candidate `provenance`, while design D6 says candidates carry only `assignment` and provenance lives at the response top level. Pick one: either drop `Candidate.agent_id`/`Candidate.provenance` from the contract, or state in D6 that `selected.provenance` is populated and alternatives' `provenance` is null. Otherwise the parity test has no single answer for what a successful response contains.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 19,
+      "status": "disagreement",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 11
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "escalate",
+      "description": "The four packages form a strict chain, so nothing runs in parallel. The skills-side half of wp-transports-fallback (`routing_fallback.py`, `test_routing_fallback.py`, and the bridge helper) depends only on the routing.yaml schema and agents.yaml, not on the coordinator service. Splitting it into a package that depends only on wp-contract-config lets it run alongside wp-policy-service, leaving only the coordination_mcp/http_proxy mirror in the package that waits for the service.",
+      "eligible_vendors": 3,
+      "vendor_dispositions": {
+        "claude_code": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "D5 handles ordering for duplicate lane/model pairs but not their effect on the unchanged dg-00 exploration and normalisation. Each lane projecting the same catalog model becomes a separate `CandidateInput`, so that model contributes multiple entries to `choose()` (more exploration draws) and to the min-max cost/latency normalisation. State whether that weighting is accepted or whether exploration should be keyed by catalog identity, and add it to task 3.4's compatibility check.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: The dg-04 OpenAPI overlay weakens `weight_overrides` from the dg-00 typed `{w_quality,w_cost,w_latency}` object (`openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml`) to a bare `{type: [object, \"null\"]}` in `contracts/openapi/v1.1.yaml`. Current Pydantic still uses `WeightOverrides` with `extra=forbid`. The overlay therefore under-specifies a field the runtime already validates strictly.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 22,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Honest local-fallback provenance is required by prose and tests but not by schema. design.md D8, specs/task-routing/spec.md 'Coordinator is unreachable', and tasks.md 4.2 require `source=local-static` with `persisted=false` and `durable_audit=false`, yet `RoutingProvenance` in `contracts/openapi/v1.1.yaml` allows contradictory combinations such as `source=local-static` with `persisted=true` or `durable_audit=true`.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 23,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: The plan durably records decisions and link-only audit events, but it does not define operator-facing signals for routing failure modes such as counts/rates of `routing-registry-unavailable`, `no-feasible-routing-assignment`, `routing-durability-unavailable`, or local-fallback activations. Detection would rely on log/audit scraping unless added later.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 24,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Plan correctly keeps a single additive routing surface: proposal.md, design.md D1, specs/task-routing/spec.md, tasks.md 1.4, and contracts/README.md all forbid introducing `POST /route/task` and require extending only `POST /routing/select_model` plus `select_model_for_task`.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 25,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Plan correctly requires in-process dg-01 `VendorRegistryService` exact lane-to-catalog association (including `base_url`), forbids name/publisher/fuzzy joins, applies registry feasibility before dg-00 `score_and_rank`, preserves dg-00 static fallback equality, and keeps dg-05/dg-06/dg-07 admission, approval, and sandbox enforcement out of scope (design.md D4\u2013D5, D8\u2013D9; specs/task-routing/spec.md registry and fallback requirements).",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 26,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Plan correctly makes local fallback provenance honest and coordinator durability atomic: specs/task-routing/spec.md requires `fallback=true`, `source=local-static`, `persisted=false`, `durable_audit=false`, and null catalog key; design.md D7 plus migration `042_atomic_routing_audit.sql` / tasks.md 3.3\u20133.5 require an awaited decision+audit RPC with `routing-durability-unavailable` rollback semantics rather than fire-and-forget audit.",
+      "eligible_vendors": 3
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 26,
+    "confirmed_count": 1,
+    "unconfirmed_count": 23,
+    "disagreement_count": 2,
+    "blocking_count": 0,
+    "advisory_count": 26
+  }
+}

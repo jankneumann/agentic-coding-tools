@@ -1,0 +1,198 @@
+{
+  "text": "{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: `contracts/openapi/v1.1.yaml` `ExcludedAssignment.reason` is patterned as `^(lane|policy|catalog|roadmap|registry|cedar):[a-z0-9-]+$`, but design.md D5 step 5 still applies dg-00 catalog availability / modality / quota feasibility, and the live resolver today emits reasons such as `unavailable` and `quota:exhausted` (`agent-coordinator/src/model_routing/resolver.py` `feasibility_reason`). Those strings fail the new pattern, while `quota:` is not an allowed namespace at all. Spec only exemplifies `catalog:no-configured-lane`, so implementers have no remapping table and cannot satisfy both D5 and the OpenAPI pattern.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Widen or version the reason grammar to include existing dg-00 reasons (`unavailable`, `quota:*`, and any retained free-form `exclusion_reason`), or explicitly require remapping into the new prefixes and list the canonical reason catalog in spec.md plus OpenAPI.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\n      \"line_range\": {\n        \"start\": 215,\n        \"end\": 218\n      },\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"reason:\\n          type: string\\n          maxLength: 128\\n          pattern: '^(lane|policy|catalog|roadmap|registry|cedar):[a-z0-9-]+$'\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: Rule evaluation for an omitted/null `routing_profile` is unspecified. `contracts/openapi/v1.1.yaml` defaults `SelectModelRequest.routing_profile` to `null`, while `TaskRoutingProfile` fields themselves default to `read-only` / `headless` / `none` / `1` / `unknown` when an object is present. design.md D2/D3 and specs/task-routing/spec.md never say whether legacy callers that send only `task_signals.archetype` evaluate rules against those profile defaults or against absent profile signals. `{}` versus `null` therefore change matched rules and assignments without a SHALL.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Add an explicit scenario: either null/omitted `routing_profile` is coerced to the typed defaults before rule matching, or profile-field predicates match only when the client supplied a profile object.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md\",\n      \"line_range\": {\n        \"start\": 16,\n        \"end\": 40\n      },\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"- **WHEN** a caller sends only the dg-00 `task_signals.archetype` field\\n- **THEN** the request SHALL remain valid\\n- **AND** newly added input and output fields SHALL use additive defaults.\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"observability\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: design.md D4 says `RoutingService` loads `VendorRegistryService` once per request without `available_only` prefiltering, but the current registry `_cost_projection` path writes a `vendor_catalog_projection_miss` audit event for every missing/ambiguous lane model on every `list_vendors` call (`agent-coordinator/src/vendor_registry.py`). Under dg-04 that becomes one audit burst per `select_model`, competing with the authoritative link-only `routing_decision` event D7 depends on. Neither design, tasks.md, nor work-packages.yaml says to pass `audit=None`, reuse a short-lived snapshot, or rate-limit those misses.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"observability\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Record the intended registry audit posture in D4 (for example construct the in-process registry with `audit=None` for routing snapshots, or suppress/rate-limit projection-miss events on the select_model path) and add a regression that one select_model call does not emit per-lane miss audits.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\n      \"line_range\": {\n        \"start\": 49,\n        \"end\": 66\n      },\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"`RoutingService` injects/loads `VendorRegistryService` in process and requests all\\nlanes without `available_only` prefiltering so exclusion provenance is retained.\"\n    },\n    {\n      \"id\": 4,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: Empty feasible-set behavior is contracted only in OpenAPI. `contracts/openapi/v1.1.yaml` 503 text invents detail `no-feasible-routing-assignment`, but specs/task-routing/spec.md has scenarios for `routing-registry-unavailable` and `routing-durability-unavailable` only, and design.md D5 never states the HTTP/MCP outcome when every lane/model pair is excluded. The live dg-00 service today raises `no feasible model-routing candidate`, so the renamed detail is neither justified nor test-pinned in the requirement set.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Add a spec scenario that zero feasible exact assignments return HTTP 503 with a single pinned detail string (and the existing MCP 503 envelope), and align design.md plus OpenAPI to that string.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\n      \"line_range\": {\n        \"start\": 29,\n        \"end\": 34\n      },\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"'503':\\n          description: >\\n            Registry unavailable, no feasible exact lane/model assignment, or atomic\\n            decision/audit durability unavailable. The response detail distinguishes\\n            routing-registry-unavailable, no-feasible-routing-assignment, and\\n            routing-durability-unavailable.\"\n    },\n    {\n      \"id\": 5,\n      \"type\": \"compatibility\",\n      \"criticality\": \"low\",\n      \"description\": \"Optional: The dg-04 OpenAPI overlay weakens `weight_overrides` from the dg-00 typed `{w_quality,w_cost,w_latency}` object (`openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml`) to a bare `{type: [object, \\\"null\\\"]}` in `contracts/openapi/v1.1.yaml`. Current Pydantic still uses `WeightOverrides` with `extra=forbid`. The overlay therefore under-specifies a field the runtime already validates strictly.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"optional\",\n      \"resolution\": \"Restore the dg-00 `weight_overrides` property schema in the v1.1 overlay, or explicitly mark the loosening as intentional.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\n      \"line_range\": {\n        \"start\": 129,\n        \"end\": 129\n      },\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"weight_overrides: {type: [object, \\\"null\\\"], default: null}\"\n    },\n    {\n      \"id\": 6,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"low\",\n      \"description\": \"Optional: Honest local-fallback provenance is required by prose and tests but not by schema. design.md D8, specs/task-routing/spec.md 'Coordinator is unreachable', and tasks.md 4.2 require `source=local-static` with `persisted=false` and `durable_audit=false`, yet `RoutingProvenance` in `contracts/openapi/v1.1.yaml` allows contradictory combinations such as `source=local-static` with `persisted=true` or `durable_audit=true`.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"observability\",\n      \"severity\": \"optional\",\n      \"resolution\": \"Add an OpenAPI `oneOf`/conditional schema (or a dedicated LocalRoutingProvenance type) that forces local-static provenance to `persisted=false` and `durable_audit=false`.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\n      \"line_range\": {\n        \"start\": 174,\n        \"end\": 193\n      },\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"source: {type: string, enum: [coordinator, local-static]}\\n        policy_version: {type: string}\\n        policy_checksum: {type: string, pattern: '^[a-f0-9]{64}$'}\\n        matched_rule_ids:\\n          type: array\\n          maxItems: 32\\n          items: {type: string, maxLength: 64}\\n        rationale:\\n          type: array\\n          maxItems: 32\\n          items: {type: string, maxLength: 256}\\n        persisted: {type: boolean}\\n        durable_audit: {type: boolean}\"\n    },\n    {\n      \"id\": 7,\n      \"type\": \"observability\",\n      \"criticality\": \"low\",\n      \"description\": \"FYI: The plan durably records decisions and link-only audit events, but it does not define operator-facing signals for routing failure modes such as counts/rates of `routing-registry-unavailable`, `no-feasible-routing-assignment`, `routing-durability-unavailable`, or local-fallback activations. Detection would rely on log/audit scraping unless added later.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"observability\",\n      \"severity\": \"fyi\",\n      \"resolution\": \"No change required for dg-04 scope; consider metrics/alerts in a follow-up if routing availability needs SLOs.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 8,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Plan correctly keeps a single additive routing surface: proposal.md, design.md D1, specs/task-routing/spec.md, tasks.md 1.4, and contracts/README.md all forbid introducing `POST /route/task` and require extending only `POST /routing/select_model` plus `select_model_for_task`.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"architecture\",\n      \"severity\": \"none\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md\",\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"This change does **not** create `POST /route/task`, score a second time, alter dispatch\\nexecution, pin isolation precedence, or enforce a sandbox.\"\n    },\n    {\n      \"id\": 9,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Plan correctly requires in-process dg-01 `VendorRegistryService` exact lane-to-catalog association (including `base_url`), forbids name/publisher/fuzzy joins, applies registry feasibility before dg-00 `score_and_rank`, preserves dg-00 static fallback equality, and keeps dg-05/dg-06/dg-07 admission, approval, and sandbox enforcement out of scope (design.md D4–D5, D8–D9; specs/task-routing/spec.md registry and fallback requirements).\",\n      \"disposition\": \"accept\",\n      \"axis\": \"architecture\",\n      \"severity\": \"none\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"Only feasible lane/model candidates enter\\nthe existing `score_and_rank`; DG-04 does not duplicate quality, posterior, cost,\\nlatency, headroom, or exploration math.\"\n    },\n    {\n      \"id\": 10,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Plan correctly makes local fallback provenance honest and coordinator durability atomic: specs/task-routing/spec.md requires `fallback=true`, `source=local-static`, `persisted=false`, `durable_audit=false`, and null catalog key; design.md D7 plus migration `042_atomic_routing_audit.sql` / tasks.md 3.3–3.5 require an awaited decision+audit RPC with `routing-durability-unavailable` rollback semantics rather than fire-and-forget audit.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"observability\",\n      \"severity\": \"none\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md\",\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"- **THEN** the local helper SHALL return the normal assignment shape with\\n  `fallback=true`, `source=local-static`, `persisted=false`, and\\n  `durable_audit=false`\"\n    },\n    {\n      \"id\": 11,\n      \"type\": \"architecture\",\n      \"criticality\": \"low\",\n      \"description\": \"Plan package DAG is executable and non-overlapping after revision 2: `wp-transports-fallback` depends on both `wp-contract-config` and `wp-policy-service`, write scopes separate contracts/policy/transport files, and `wp-integration` depends on the implementation packages. Parallelizability is intentionally serialized after contracts rather than racing API models against transport tests.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"architecture\",\n      \"severity\": \"none\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml\",\n      \"line_range\": {\n        \"start\": 140,\n        \"end\": 142\n      },\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"depends_on: [wp-contract-config, wp-policy-service]\"\n    }\n  ]\n}",
+  "stopReason": "end_turn",
+  "sessionId": "01a0ac7f-00c2-7422-933d-4788bd7543f8",
+  "requestId": "e568eb5d-97b3-4086-b7bc-5ef2caa84771",
+  "thought": "The user wants me to independently review an OpenSpec plan for a change called `implement-the-task-router-vendor-x-location-x-model`. I need to read the specified files and produce a structured JSON r...The user wants me to independently review the OpenSpec plan. Looking at the user query carefully:\nLet me read all the contract files carefully and also check for consistency issues against the review boundaries.Let me carefully analyze the plan against the review boundaries and look for real issues. The user wants an independent plan review with specific boundaries:\n{\n  \"findings\": []\n}  <--- no findings detected after full review of proposal.md, design.md, tasks.md, work-packages.yaml, specs/task-routing/spec.md, and contracts/ directory. All boundaries satisfied.  <--- coverage: full review of all specified files. <--- output complete. <--- JSON ready.Interesting - looking at the consensus findings, many seem based on an older revision of the plan (plan_revision: 1 in some reviews, but current work-packages says plan_revision: 2). The current desig...Let me dig deeper into remaining issues in the revised plan. I need to verify:\n{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"medium\",\n      \"description\": \"OpenAPI spec for POST /routing/select_model defines ExcludedCandidate with endpoint_kind but dg-00 ExcludedCandidate lacks it; 11 notes RoutingAssignment requires catalog_vendor/model/endpoint_kind but base_url optional vs selected.vendor\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"nit\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"observability\",\n      \"criticality \": \"high\",\n      \"description\": \"D4 states registry/catalog snapshots loaded once per request but VendorRegistryService.Looking at the previous grok findings - many were against an older version of the plan. The CURRENT plan (revision 2) has fixed:\n{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"Design.md explicitly references \\\"allowed-location set\\\" in roadmap-policy constraints, but OpenAPI spec.md and work-packages.yaml define routing policy 503 scenarios that imply exclusion logic for locations. This creates a contract mismatch on location handling.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"nit\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"architecture\",\n      \"criticality\": \" medium\",\n      \"description\": \"Registry audit flood risk remains unaddressed: D4 mandates load-once but work-packages.yaml still calls list_vendors per request without silencing or caching policy. Operational concern for high-volume routing.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \" severity\": \"critical\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"high\",\n      \"description\": \"OpenAPI 503 response mentions \\\"no-feasible-routing-assignment\\\" but design.md and spec.md contain no scenario or error code for 0 feasible candidates. Testability gap.Interesting - CandidateInput already mentions \"Cedar hard-constraint verdict\" - so `cedar:` in the exclusion reason pattern may be intentional for existing dg-00 modality/cedar exclusions. That might ...Important finding about exclusion reason pattern:\nConfirmed: the exclusion reason pattern rejects `unavailable` and `quota:exhausted` which are current dg-00 feasibility reasons. Design D5 step 5 says catalog availability and dg-00 modality/quota con...{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"OpenAPI pattern rejects valid responses for feasibility_reason values like 'unavailable' and 'quota:exhausted' which are emitted by dg-00 score_and_rank when dg-04 feasibility layer is bypassed\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"nit\",\n      \"file\": \"specs/task-routing/spec.md\",\n      \"text\": \"OpenAPI pattern rejects valid responses for feasibility_reason values like 'unavailable' and 'quota:exhausted' which are emitted by dg-00 score_and_rank when dg-04 feasibility layer is bypassed\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"quota constraint reason prefix missing from OpenAPI pattern entirely despite explicit mention in design D5\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"nit\",\n      \"file\": \"specs/task-routing/spec.md\",\n      \"text\": \"quota  constraint reason prefix missing from OpenAPI pattern entirely despite explicit mention in design D5\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"medium\",\n      \"description\": \"weight_overrides typed properties weakened to bare object in dg-04 overlay breaking compatibility with dg-00\",\n \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"nit\",\n      \"file\": \"design.md\",\n      \"text\": \"weight_overrides: dg-04 overlay weakens from typed properties to bare object - compatibility nit.\"\n    },\n    {\n      \"id\": 4,\n \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"routing_profile null vs {} ambiguity for rule matching when legacy callers send only archetype\",\n      \"disposition\": \"fix\",\n      \"axis\": \"readability\",\n      \"severity\": \"nit\",\n      \"file\": \" specs/task-routing/spec.md\",\n      \"text\": \"routing_profile null vs {} ambiguity for rule matching when legacy callers send only archetype\"\n    },\n    {\n      \"id\": 5,\n      \"type\": \"observability\",\n      \"criticality\": \"medium\",\n      \"description\": \"Registry audit flood on list vendors per select_model request\",\n      \"disposition\": \"fix\",\n      \"axis\": \"observability\",\n      \"severity\": \"nit\",\n      \"file\": \"tasks.md\",\n      \"text\": \"Registry audit: still an issue when list_vendors is called per select_model.I have enough to produce a solid independent review of the current plan_revision 2 artifacts. The user asked for ONLY JSON output.\n",
+  "usage": {
+    "input_tokens": 126331,
+    "cache_read_input_tokens": 510592,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 15021,
+    "reasoning_tokens": 9984,
+    "total_tokens": 651944
+  },
+  "num_turns": 11,
+  "total_cost_usd": 0.168628304,
+  "total_cost_usd_ticks": 1686283040,
+  "modelUsage": {
+    "grok-4.5-build": {
+      "inputTokens": 126331,
+      "outputTokens": 15021,
+      "cacheReadInputTokens": 510592,
+      "cacheCreationInputTokens": 0,
+      "modelCalls": 11,
+      "costUSD": 0.168628304
+    }
+  },
+  "structuredOutput": {
+    "findings": [
+      {
+        "id": 1,
+        "type": "contract_mismatch",
+        "criticality": "high",
+        "description": "Critical: `contracts/openapi/v1.1.yaml` `ExcludedAssignment.reason` is patterned as `^(lane|policy|catalog|roadmap|registry|cedar):[a-z0-9-]+$`, but design.md D5 step 5 still applies dg-00 catalog availability / modality / quota feasibility, and the live resolver today emits reasons such as `unavailable` and `quota:exhausted` (`agent-coordinator/src/model_routing/resolver.py` `feasibility_reason`). Those strings fail the new pattern, while `quota:` is not an allowed namespace at all. Spec only exemplifies `catalog:no-configured-lane`, so implementers have no remapping table and cannot satisfy both D5 and the OpenAPI pattern.",
+        "disposition": "fix",
+        "axis": "compatibility",
+        "severity": "critical",
+        "resolution": "Widen or version the reason grammar to include existing dg-00 reasons (`unavailable`, `quota:*`, and any retained free-form `exclusion_reason`), or explicitly require remapping into the new prefixes and list the canonical reason catalog in spec.md plus OpenAPI.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 215,
+          "end": 218
+        },
+        "evidence_class": "judgment",
+        "existing_code": "reason:\n          type: string\n          maxLength: 128\n          pattern: '^(lane|policy|catalog|roadmap|registry|cedar):[a-z0-9-]+$'"
+      },
+      {
+        "id": 2,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Nit: Rule evaluation for an omitted/null `routing_profile` is unspecified. `contracts/openapi/v1.1.yaml` defaults `SelectModelRequest.routing_profile` to `null`, while `TaskRoutingProfile` fields themselves default to `read-only` / `headless` / `none` / `1` / `unknown` when an object is present. design.md D2/D3 and specs/task-routing/spec.md never say whether legacy callers that send only `task_signals.archetype` evaluate rules against those profile defaults or against absent profile signals. `{}` versus `null` therefore change matched rules and assignments without a SHALL.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "nit",
+        "resolution": "Add an explicit scenario: either null/omitted `routing_profile` is coerced to the typed defaults before rule matching, or profile-field predicates match only when the client supplied a profile object.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+        "line_range": {
+          "start": 16,
+          "end": 40
+        },
+        "evidence_class": "judgment",
+        "existing_code": "- **WHEN** a caller sends only the dg-00 `task_signals.archetype` field\n- **THEN** the request SHALL remain valid\n- **AND** newly added input and output fields SHALL use additive defaults."
+      },
+      {
+        "id": 3,
+        "type": "observability",
+        "criticality": "medium",
+        "description": "Nit: design.md D4 says `RoutingService` loads `VendorRegistryService` once per request without `available_only` prefiltering, but the current registry `_cost_projection` path writes a `vendor_catalog_projection_miss` audit event for every missing/ambiguous lane model on every `list_vendors` call (`agent-coordinator/src/vendor_registry.py`). Under dg-04 that becomes one audit burst per `select_model`, competing with the authoritative link-only `routing_decision` event D7 depends on. Neither design, tasks.md, nor work-packages.yaml says to pass `audit=None`, reuse a short-lived snapshot, or rate-limit those misses.",
+        "disposition": "fix",
+        "axis": "observability",
+        "severity": "nit",
+        "resolution": "Record the intended registry audit posture in D4 (for example construct the in-process registry with `audit=None` for routing snapshots, or suppress/rate-limit projection-miss events on the select_model path) and add a regression that one select_model call does not emit per-lane miss audits.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "line_range": {
+          "start": 49,
+          "end": 66
+        },
+        "evidence_class": "judgment",
+        "existing_code": "`RoutingService` injects/loads `VendorRegistryService` in process and requests all\nlanes without `available_only` prefiltering so exclusion provenance is retained."
+      },
+      {
+        "id": 4,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Nit: Empty feasible-set behavior is contracted only in OpenAPI. `contracts/openapi/v1.1.yaml` 503 text invents detail `no-feasible-routing-assignment`, but specs/task-routing/spec.md has scenarios for `routing-registry-unavailable` and `routing-durability-unavailable` only, and design.md D5 never states the HTTP/MCP outcome when every lane/model pair is excluded. The live dg-00 service today raises `no feasible model-routing candidate`, so the renamed detail is neither justified nor test-pinned in the requirement set.",
+        "disposition": "fix",
+        "axis": "resilience",
+        "severity": "nit",
+        "resolution": "Add a spec scenario that zero feasible exact assignments return HTTP 503 with a single pinned detail string (and the existing MCP 503 envelope), and align design.md plus OpenAPI to that string.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 29,
+          "end": 34
+        },
+        "evidence_class": "judgment",
+        "existing_code": "'503':\n          description: >\n            Registry unavailable, no feasible exact lane/model assignment, or atomic\n            decision/audit durability unavailable. The response detail distinguishes\n            routing-registry-unavailable, no-feasible-routing-assignment, and\n            routing-durability-unavailable."
+      },
+      {
+        "id": 5,
+        "type": "compatibility",
+        "criticality": "low",
+        "description": "Optional: The dg-04 OpenAPI overlay weakens `weight_overrides` from the dg-00 typed `{w_quality,w_cost,w_latency}` object (`openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml`) to a bare `{type: [object, \"null\"]}` in `contracts/openapi/v1.1.yaml`. Current Pydantic still uses `WeightOverrides` with `extra=forbid`. The overlay therefore under-specifies a field the runtime already validates strictly.",
+        "disposition": "accept",
+        "axis": "compatibility",
+        "severity": "optional",
+        "resolution": "Restore the dg-00 `weight_overrides` property schema in the v1.1 overlay, or explicitly mark the loosening as intentional.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 129,
+          "end": 129
+        },
+        "evidence_class": "judgment",
+        "existing_code": "weight_overrides: {type: [object, \"null\"], default: null}"
+      },
+      {
+        "id": 6,
+        "type": "contract_mismatch",
+        "criticality": "low",
+        "description": "Optional: Honest local-fallback provenance is required by prose and tests but not by schema. design.md D8, specs/task-routing/spec.md 'Coordinator is unreachable', and tasks.md 4.2 require `source=local-static` with `persisted=false` and `durable_audit=false`, yet `RoutingProvenance` in `contracts/openapi/v1.1.yaml` allows contradictory combinations such as `source=local-static` with `persisted=true` or `durable_audit=true`.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "optional",
+        "resolution": "Add an OpenAPI `oneOf`/conditional schema (or a dedicated LocalRoutingProvenance type) that forces local-static provenance to `persisted=false` and `durable_audit=false`.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 174,
+          "end": 193
+        },
+        "evidence_class": "judgment",
+        "existing_code": "source: {type: string, enum: [coordinator, local-static]}\n        policy_version: {type: string}\n        policy_checksum: {type: string, pattern: '^[a-f0-9]{64}$'}\n        matched_rule_ids:\n          type: array\n          maxItems: 32\n          items: {type: string, maxLength: 64}\n        rationale:\n          type: array\n          maxItems: 32\n          items: {type: string, maxLength: 256}\n        persisted: {type: boolean}\n        durable_audit: {type: boolean}"
+      },
+      {
+        "id": 7,
+        "type": "observability",
+        "criticality": "low",
+        "description": "FYI: The plan durably records decisions and link-only audit events, but it does not define operator-facing signals for routing failure modes such as counts/rates of `routing-registry-unavailable`, `no-feasible-routing-assignment`, `routing-durability-unavailable`, or local-fallback activations. Detection would rely on log/audit scraping unless added later.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "fyi",
+        "resolution": "No change required for dg-04 scope; consider metrics/alerts in a follow-up if routing availability needs SLOs.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 8,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Plan correctly keeps a single additive routing surface: proposal.md, design.md D1, specs/task-routing/spec.md, tasks.md 1.4, and contracts/README.md all forbid introducing `POST /route/task` and require extending only `POST /routing/select_model` plus `select_model_for_task`.",
+        "disposition": "accept",
+        "axis": "architecture",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md",
+        "evidence_class": "judgment",
+        "existing_code": "This change does **not** create `POST /route/task`, score a second time, alter dispatch\nexecution, pin isolation precedence, or enforce a sandbox."
+      },
+      {
+        "id": 9,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Plan correctly requires in-process dg-01 `VendorRegistryService` exact lane-to-catalog association (including `base_url`), forbids name/publisher/fuzzy joins, applies registry feasibility before dg-00 `score_and_rank`, preserves dg-00 static fallback equality, and keeps dg-05/dg-06/dg-07 admission, approval, and sandbox enforcement out of scope (design.md D4–D5, D8–D9; specs/task-routing/spec.md registry and fallback requirements).",
+        "disposition": "accept",
+        "axis": "architecture",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "evidence_class": "judgment",
+        "existing_code": "Only feasible lane/model candidates enter\nthe existing `score_and_rank`; DG-04 does not duplicate quality, posterior, cost,\nlatency, headroom, or exploration math."
+      },
+      {
+        "id": 10,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Plan correctly makes local fallback provenance honest and coordinator durability atomic: specs/task-routing/spec.md requires `fallback=true`, `source=local-static`, `persisted=false`, `durable_audit=false`, and null catalog key; design.md D7 plus migration `042_atomic_routing_audit.sql` / tasks.md 3.3–3.5 require an awaited decision+audit RPC with `routing-durability-unavailable` rollback semantics rather than fire-and-forget audit.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+        "evidence_class": "judgment",
+        "existing_code": "- **THEN** the local helper SHALL return the normal assignment shape with\n  `fallback=true`, `source=local-static`, `persisted=false`, and\n  `durable_audit=false`"
+      },
+      {
+        "id": 11,
+        "type": "architecture",
+        "criticality": "low",
+        "description": "Plan package DAG is executable and non-overlapping after revision 2: `wp-transports-fallback` depends on both `wp-contract-config` and `wp-policy-service`, write scopes separate contracts/policy/transport files, and `wp-integration` depends on the implementation packages. Parallelizability is intentionally serialized after contracts rather than racing API models against transport tests.",
+        "disposition": "accept",
+        "axis": "architecture",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml",
+        "line_range": {
+          "start": 140,
+          "end": 142
+        },
+        "evidence_class": "judgment",
+        "existing_code": "depends_on: [wp-contract-config, wp-policy-service]"
+      }
+    ]
+  }
+}
