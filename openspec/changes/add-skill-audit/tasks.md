@@ -151,7 +151,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
 
 ## Phase 3 — Integration (package `wp-integration`)
 
-- [ ] 3.1 Register `skill-audit` in `skills/install-manifest.json` (`distribution: portable`, `cross_skill_dependencies: [shared, coordination-bridge, improve-harness]`, `installed_assets` for the schema) and add `tests/skill-audit` to `testpaths` in `skills/pyproject.toml`
+- [x] 3.1 Register `skill-audit` in `skills/install-manifest.json` (`distribution: portable`, `cross_skill_dependencies: [shared, coordination-bridge, improve-harness]`, `installed_assets` for the schema) and add `tests/skill-audit` to `testpaths` in `skills/pyproject.toml`
   **Spec scenarios**: skill-workflow "Install manifest and testpaths include the skill"
   **Design decisions**: D9
   **Dependencies**: 2.12
