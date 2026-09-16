@@ -1,0 +1,109 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Moving flat-module isolation from skills/tests/conftest.py to skills/conftest.py correctly intercepts collection for both test trees (tests/ and scripts/tests/) at the common root, eliminating the cross-pollution window where scripts/tests suites were collected before tests/ conftest could activate.",
+      "resolution": "No action needed. The architectural relocation is correct.",
+      "disposition": "accept",
+      "package_id": "wp-isolation-fix",
+      "file_path": "skills/conftest.py",
+      "line_range": {
+        "start": 1,
+        "end": 116
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The new test_script_level_suites_reactivate_after_tests_tree_collection test directly exercises the failure mode \u2014 script-level suites (coordination-bridge/scripts/tests, refresh-architecture/scripts/tests) surviving later tests/ tree collection \u2014 and both cases pass in validation.",
+      "resolution": "No action needed. Test coverage targets the exact regression.",
+      "disposition": "accept",
+      "package_id": "wp-isolation-fix",
+      "file_path": "skills/tests/_shared/test_flat_module_isolation.py",
+      "line_range": {
+        "start": 58,
+        "end": 84
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: The _SCRIPT_DEPENDENCIES graph now includes refresh-architecture and candidate-work entries, ensuring shared script modules (roadmap-runtime, project-context-runtime, plan-roadmap, etc.) are reactivated in the correct dependency order when switching suites.",
+      "resolution": "No action needed. Dependency ordering handles shared-module reactivation correctly.",
+      "disposition": "accept",
+      "package_id": "wp-isolation-fix",
+      "file_path": "skills/conftest.py",
+      "line_range": {
+        "start": 30,
+        "end": 55
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Zero breaking changes to existing test collection \u2014 4775 infrastructure tests pass, 13 skipped (unchanged), Ruff clean. The skills/tests/conftest.py delegation preserves the public pytest hook surface while centralizing logic.",
+      "resolution": "No action needed. Full backward compatibility maintained.",
+      "disposition": "accept",
+      "package_id": "wp-isolation-fix",
+      "file_path": "skills/tests/conftest.py",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "FYI: The _suite_for function now returns 'tests/<skill>' for tests/ tree paths but bare skill name for scripts/tests/ paths. This asymmetry is intentional (scripts/tests suites key by skill name to match _SCRIPT_DEPENDENCIES keys) but could confuse future maintainers. Consider adding a comment clarifying the key convention.",
+      "resolution": "Add a docstring or inline comment explaining that scripts/tests suites use bare skill names as keys to align with _SCRIPT_DEPENDENCIES, while tests/ suites use 'tests/<skill>' for disambiguation.",
+      "disposition": "fix",
+      "package_id": "wp-isolation-fix",
+      "file_path": "skills/conftest.py",
+      "line_range": {
+        "start": 58,
+        "end": 75
+      },
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: The work-packages.yaml scope addition for skills/conftest.py is correct, but the package also modifies skills/tests/conftest.py and skills/tests/_shared/test_flat_module_isolation.py \u2014 verify these are covered by existing globs (they appear to be under skills/tests/**).",
+      "resolution": "Confirm the existing 'skills/tests/**' glob in work-packages.yaml covers the modified test files. No scope change needed if already covered.",
+      "disposition": "accept",
+      "package_id": "wp-isolation-fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "line_range": {
+        "start": 65,
+        "end": 75
+      },
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    }
+  ]
+}
