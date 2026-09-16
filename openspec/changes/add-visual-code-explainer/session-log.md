@@ -114,3 +114,28 @@ Planned a question-driven visual code explainer skill adopting humanlayer's MIT 
 ### Context
 Implemented codebase-atlas --tree export and the prompt-only explain-code skill in parallel package worktrees, merged into the feature branch, regenerated mirrors, and verified the full skills suite. Workflow subagent dispatch was unavailable from this autopilot subagent session, so packages were implemented inline in managed worktrees.
 
+## Phase: Implementation Review (2026-09-16)
+
+**Agent**: autopilot-impl-review (grok) | **Session**: N/A
+
+### Decisions
+1. **Slim review packet under MAX_ARG_STRLEN** `architectural: skill-workflow` — Excluded ledger/handoffs/session-log/docs noise and capped BUDGET_CHARS=100000 so argv vendors (codex/pi/agy) can dispatch; stdin vendors already worked.
+2. **Recover pi findings via string-id coercion** `architectural: skill-workflow` — pi emitted valid findings with string ids; schema rejected them as auth_required. Coerced ids and enriched evidence_class=judgment to restore quorum with grok.
+3. **Advisory judgment does not block IMPL_REVIEW** `architectural: skill-workflow` — Recovered consensus: 24 advisory / 0 blocking. Medium unconfirmed judgment findings (spec scenario gaps, proposal wording) stay advisory unless confirmed high/critical or deterministic.
+
+### Open Questions
+- [ ] Optional follow-up: add full-path module target scenario + `--check` spawn/OSError WHEN to specs (advisory from grok/pi).
+- [ ] Optional follow-up: fix proposal.md "four surviving keys" wording to "six".
+
+### Completed Work
+- Ran converge(review_type=implementation, fix_mode=targeted, max_rounds=3, min_quorum=2, fact_check=True)
+- Slimmed packet after ARG_MAX failures; recovered pi+grok quorum
+- Tests: 98 passed (codebase-atlas + explain-code)
+
+### Next Steps
+- validate-feature --phase spec,evidence
+- SUBMIT_PR when validation passes
+
+### Relevant Files
+- `openspec/changes/add-visual-code-explainer/.review-cache/round-1-implementation/` — IMPL_REVIEW evidence
+- `openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json` — judgment evidence_class corrected for advisory items
