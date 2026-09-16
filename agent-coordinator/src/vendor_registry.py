@@ -458,6 +458,22 @@ class VendorRegistryService:
         )
         return row if isinstance(row, dict) else None
 
+    async def audit_probe_persistence_failure(
+        self,
+        agent_id: str,
+        *,
+        source_agent_id: str,
+        reason: str,
+    ) -> None:
+        """Durably record a watchdog snapshot persistence failure."""
+        await self._audit_event(
+            source_agent_id,
+            "vendor_probe_persistence_failed",
+            agent_id,
+            {"status": "failed", "reason": reason},
+            success=False,
+        )
+
     async def record_rate_limit(
         self,
         agent_id: str,

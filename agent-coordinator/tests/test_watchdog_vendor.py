@@ -217,7 +217,9 @@ async def test_first_poll_persists_every_lane_without_transition_events() -> Non
 
 
 @pytest.mark.asyncio
-async def test_snapshot_failure_does_not_suppress_other_writes_or_transition() -> None:
+async def test_snapshot_failure_is_audited_without_suppressing_siblings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     from datetime import UTC, datetime
 
     registry = AsyncMock()
@@ -236,9 +238,49 @@ async def test_snapshot_failure_does_not_suppress_other_writes_or_transition() -
     }
     service._emit_event = AsyncMock()
 
-    await service._check_vendor_health()
+    with caplog.at_level("ERROR"):
+        await service._check_vendor_health()
 
     assert registry.persist_probe.await_count == 2
+    registry.audit_probe_persistence_failure.assert_awaited_once_with(
+        "codex-local",
+        source_agent_id="watchdog",
+        reason="probe_persistence_failed",
+    )
+    assert "failed to persist vendor probe for codex-local" in caplog.text
+    service._emit_event.assert_awaited_once()
+    assert service._emit_event.await_args.kwargs["event_type"] == "vendor.recovered"
+
+
+@pytest.mark.asyncio
+async def test_snapshot_audit_failure_does_not_suppress_siblings_or_transition(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from datetime import UTC, datetime
+
+    registry = AsyncMock()
+    registry.persist_probe.side_effect = [RuntimeError("db down"), None]
+    registry.audit_probe_persistence_failure.side_effect = RuntimeError("audit down")
+    service = WatchdogService(
+        db=AsyncMock(),
+        time_fn=lambda: 301.0,
+        now_fn=lambda: datetime(2026, 9, 16, 12, 0, tzinfo=UTC),
+        vendor_health_fn=_snapshot_report,
+        vendor_registry=registry,
+        routing_jobs={},
+    )
+    service._previous_vendor_state = {
+        "codex-local": False,
+        "grok-remote": False,
+    }
+    service._emit_event = AsyncMock()
+
+    with caplog.at_level("ERROR"):
+        await service._check_vendor_health()
+
+    assert registry.persist_probe.await_count == 2
+    registry.audit_probe_persistence_failure.assert_awaited_once()
+    assert "failed to audit vendor probe persistence failure" in caplog.text
     service._emit_event.assert_awaited_once()
     assert service._emit_event.await_args.kwargs["event_type"] == "vendor.recovered"
 
