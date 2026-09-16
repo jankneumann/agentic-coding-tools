@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS vendor_rate_limits (
     reset_at TIMESTAMPTZ NOT NULL,
     payload_hash TEXT NOT NULL,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-    CHECK (scope <> 'model' OR model IS NOT NULL)
+    CHECK (scope <> 'model' OR NULLIF(BTRIM(model), '') IS NOT NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_vendor_rate_limits_active
