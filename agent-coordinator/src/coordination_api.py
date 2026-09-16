@@ -155,7 +155,9 @@ def get_vendor_registry() -> VendorRegistryService:
     """Return the process-local registry service."""
     global _vendor_registry
     if _vendor_registry is None:
-        _vendor_registry = VendorRegistryService()
+        from .audit import get_audit_service
+
+        _vendor_registry = VendorRegistryService(audit=get_audit_service())
     return _vendor_registry
 
 

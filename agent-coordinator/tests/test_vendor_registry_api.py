@@ -145,6 +145,45 @@ def test_cross_lane_write_accepts_explicit_reporting_authority(
     )
     registry.record_rate_limit.assert_awaited_once()
 
+def test_trust_three_admin_can_report_cross_lane_without_reporter_capability(
+    registry_client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src import policy_engine, profiles, trust_resolution
+    from src.agents_config import derive_allowed_operations
+    from src.policy_engine import NativePolicyEngine
+    from src.profiles import ProfilesService
+
+    client, registry = registry_client
+    profile_db = AsyncMock()
+    profile_db.rpc.return_value = {
+        "success": True,
+        "source": "assignment",
+        "profile": {
+            "id": "profile-trust-three",
+            "name": "trust_three_admin",
+            "agent_type": "codex",
+            "trust_level": 3,
+            "allowed_operations": derive_allowed_operations(["lock"], trust_level=3),
+            "enabled": True,
+        },
+    }
+    monkeypatch.setattr(profiles, "_profiles_service", ProfilesService(profile_db))
+    engine = NativePolicyEngine(AsyncMock())
+    engine._log_policy_decision = AsyncMock()
+    monkeypatch.setattr(policy_engine, "_policy_engine", engine)
+    monkeypatch.setattr(
+        trust_resolution, "resolve_trust_level", AsyncMock(return_value=3)
+    )
+
+    response = client.post(
+        "/vendors/other-lane/rate-limit-observations",
+        headers={"X-Coordinator-API-Key": "coordinator-key"},
+        json={"observation_id": "obs-admin", "reason": "capacity"},
+    )
+
+    assert response.status_code == 202
+    registry.record_rate_limit.assert_awaited_once()
+
 
 def test_cross_lane_write_requires_reporting_authority(
     registry_client, monkeypatch: pytest.MonkeyPatch
