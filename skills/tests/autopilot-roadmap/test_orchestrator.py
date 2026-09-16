@@ -405,6 +405,45 @@ def test_wait_policy_persists_pause_and_does_not_retry_or_select_lane(
     assert resumed_checkpoint.get("pause_state") in (None, {})
 
 
+def test_wait_pause_sanitizes_adapter_reason_only_at_persistence_boundary(
+    tmp_path,
+) -> None:
+    vendor = "claude-api_key=lane-secret"
+    secret_reason = (
+        "capacity token=tok-secret "
+        "raw_response=private upstream payload"
+    )
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(default_action=PolicyAction.WAIT),
+    )
+
+    def dispatch(_item_id, phase, _context):
+        if phase == "implementing":
+            return {
+                "outcome": f"vendor_limit:{vendor}:{secret_reason}",
+                "agent_id": "claude-local",
+                "capacity_reset_at": "2999-09-17T12:00:00+00:00",
+            }
+        return "success"
+
+    result = execute_roadmap(tmp_path, dispatch_fn=dispatch)
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    persisted = checkpoint["pause_state"]
+
+    assert secret_reason in result["policy_decisions"][0]["decision"]["reason"]
+    assert persisted["reason"].startswith("Waiting for")
+    assert "[REDACTED:token]" in persisted["reason"]
+    assert "[REDACTED:raw_response]" in persisted["reason"]
+    assert "tok-secret" not in persisted["reason"]
+    assert "private upstream payload" not in persisted["reason"]
+    assert "[REDACTED:api_key]" in persisted["blocked_vendor"]
+    assert "lane-secret" not in persisted["blocked_vendor"]
+
+
 def test_vendor_limit_uses_registry_lanes_not_hardcoded_roster(tmp_path) -> None:
     roadmap = _write_roadmap(
         tmp_path,

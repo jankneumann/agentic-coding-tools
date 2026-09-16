@@ -71,6 +71,7 @@ from policy import (  # type: ignore[import-untyped]
     select_registry_lane,
 )
 from replanner import replan  # type: ignore[import-untyped]
+from sanitizer import sanitize_dict  # type: ignore[import-untyped]
 from shared.trust_posture import Gate  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -1379,7 +1380,7 @@ def _persist_policy_pause(
     }
     if expected_resume_at is not None:
         pause_state["expected_resume_at"] = expected_resume_at
-    checkpoint.pause_state = pause_state
+    checkpoint.pause_state = sanitize_dict(pause_state)
     mgr.save(checkpoint)
 
 

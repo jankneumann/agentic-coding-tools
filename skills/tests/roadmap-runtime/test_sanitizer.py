@@ -28,6 +28,14 @@ class TestSanitizeString:
         safe = "Selected REST API approach for better tooling"
         assert sanitize_string(safe) == safe
 
+    def test_redacts_embedded_prohibited_raw_response(self):
+        result = sanitize_string(
+            "capacity exhausted; raw_response=private upstream payload"
+        )
+
+        assert result == "capacity exhausted; [REDACTED:raw_response]"
+        assert "private upstream payload" not in result
+
 class TestSanitizeDict:
     def test_removes_prohibited_fields(self):
         data = {
