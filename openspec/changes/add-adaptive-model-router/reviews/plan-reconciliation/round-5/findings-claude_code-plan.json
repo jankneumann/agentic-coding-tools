@@ -1,0 +1,97 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The new wp-integration gate 'Plan and implementation reviews reach schema-valid multi-vendor convergence' hard-depends on openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json and consensus-impl.json, but the reviews/ directory is untracked on this branch (git status shows `?? openspec/changes/add-adaptive-model-router/reviews/`). The diff adds the gate without adding the artifacts it reads, so a fresh checkout of this commit fails the step with FileNotFoundError before any quorum check runs. Either commit the consensus artifacts alongside the gate, or make the step emit a distinct 'artifact missing' result rather than an opaque traceback.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/add-adaptive-model-router/work-packages.yaml",
+      "existing_code": "command: \"skills/.venv/bin/python skills/validate-packages/scripts/validate_schema.py openspec/schemas/consensus-report.schema.json openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json && skills/.venv/bin/python skills/validate-packages/scripts/validate_schema.py openspec/schemas/consensus-report.schema.json openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json",
+      "evidence_class": "judgment",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The convergence gate is self-referential: consensus-impl.json is the output of the implementation review that this wp-integration verification is itself part of, so the step can only pass on a re-run after the review has already converged. This is workable as a post-hoc re-verification gate, but the step name and tasks.md 8.2 should say so explicitly (e.g. 'previously produced consensus reports re-validate') so a fresh package run is not misread as a failed review.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "file_path": "openspec/changes/add-adaptive-model-router/work-packages.yaml",
+      "existing_code": "- name: \"Plan and implementation reviews reach schema-valid multi-vendor convergence\"",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 412,
+        "end": 412
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The convergence step chains three invocations with `&&` inside a single `kind: command` string. Every other step in this file is a single argv-style command. If the package runner executes commands without a shell (subprocess with shlex.split), `&&` becomes a literal argument to validate_schema.py and the step fails or, worse, only the first validator's exit code is observed. Split into three steps (one per artifact plus the quorum assertion) or confirm the runner uses shell=True.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "file_path": "openspec/changes/add-adaptive-model-router/work-packages.yaml",
+      "existing_code": "command: \"skills/.venv/bin/python skills/validate-packages/scripts/validate_schema.py openspec/schemas/consensus-report.schema.json openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json && ",
+      "evidence_class": "judgment",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "architecture-impact.md states TypeScript analysis was skipped and the last known TypeScript artifact was carried forward, yet the new 'Architecture graph is current' gate passes `--ts-src-dir apps` and expects exit 0 with the graph as evidence. Either the gate exercises TS analysis (and the report's 'skipped' note is stale), or the gate silently tolerates a skipped stage and the evidence is weaker than the step name claims. State in the report which one holds and whether the carried-forward TS artifact was regenerated at checkpoint 67ff34d8 or an older base.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "fyi",
+      "file_path": "openspec/changes/add-adaptive-model-router/architecture-impact.md",
+      "existing_code": "TypeScript analysis was skipped and the last known TypeScript artifact",
+      "evidence_class": "judgment",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Candidate.posterior_sample_size widened from int to float in both models.py and v1.yaml. If this reflects a real effective-sample-size (fractional) value from the resolver, the OpenAPI description should say so; if it was changed only to make the parity test pass against a resolver that emits a float where an int is meant, the fix belongs in the resolver. As written, a count field typed as `number` with no description is an ambiguity consumers will interpret inconsistently.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "optional",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "existing_code": "posterior_sample_size: {type: [number, \"null\"], default: null}",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 167,
+        "end": 167
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "wp-contracts now owns agent-coordinator/tests/model_routing/test_contracts_generated.py in write_allow, but no package's Ruff step lints it: wp-contracts has no Ruff step, and the wp-resolver and wp-db-catalog Ruff commands enumerate other test files explicitly. The new test file is the only Python file introduced under a package scope that escapes lint. Add it to a Ruff step (simplest: a wp-contracts Ruff step over that one file).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/add-adaptive-model-router/work-packages.yaml",
+      "existing_code": "- \"agent-coordinator/tests/model_routing/test_contracts_generated.py\"",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 52,
+        "end": 52
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

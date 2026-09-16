@@ -1,0 +1,43 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "correctness",
+      "criticality": "high",
+      "description": "LedgerService.usage_summary() in ledger.py does not calculate or return 'exploration_entries' in its summary dictionary. RoutingService._current_exploration_budget() in api.py directly accesses summary.get('exploration_entries') to determine budget consumption (pct_used = exploration_entries / entries). Because this key is absent from the ledger summary, summary.get('exploration_entries') returns None, causing pct_used to always evaluate to 0.0 regardless of actual exploration history. As a result, the ROUTING_EXPLORATION_PCT budget cap is never enforced, and decisions always log exploration_pct_used as 0.0 in decision budget_state.",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/model_routing/ledger.py",
+      "id": 1,
+      "line_range": "135-150",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "high",
+      "description": "In LocalEndpointService.sync_from_agents_config() (local_endpoints.py), the remediation diff replaced 'model = getattr(agent, \\\"model\\\", None)' with 'model = agent.sdk.model if agent.sdk is not None else None', eliminating retrieval of agent.model. For local endpoints declared in agents.yaml that define a model name without an SDK block (standard for local OpenAI-compatible endpoints), model is evaluated as None. Consequently, if (vendor, base_url) is already in known_endpoints, the entry is skipped entirely ('if model is None and (vendor, base_url) in known_endpoints: continue'); if not known, it falls back to 'model or agent.name', registering the agent name placeholder rather than the user's configured model.",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/model_routing/local_endpoints.py",
+      "id": 2,
+      "line_range": "85-92",
+      "severity": "critical",
+      "type": "correctness",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml defines the HTTPError schema under components/schemas, referenced by 401 and 503 responses. However, the generated contract file openspec/changes/add-adaptive-model-router/contracts/generated/models.py was not regenerated to include the HTTPError model, resulting in an out-of-sync generated contract module and requiring api.py to define an ad-hoc local HTTPErrorResponse class.",
+      "disposition": "regenerate",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/generated/models.py",
+      "id": 3,
+      "line_range": "1-140",
+      "severity": "optional",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    }
+  ]
+}

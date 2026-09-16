@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "add-adaptive-model-router",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude",
+      "agent_id": "claude",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 3,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The 422 response for POST /routing/select_model resolves to components/responses/Problem, whose schema is HTTPError with `detail: {type: string}` (v1.yaml lines 137-141, mirrored by the new generated `HTTPError(detail: str)` model). The actual 422 body emitted by FastAPI, and now deliberately mirrored by the MCP tool in coordination_mcp.py, carries `detail` as an array of error objects (`[{type, loc, msg, input}]`), as the new test_mcp_validation_error_matches_http_proxy_422_semantics asserts. Adding HTTPError to the parametrized requiredness test in test_contracts_generated.py makes the contract look verified while it still misdescribes the 422 payload. Fix: add an HTTPValidationError schema (detail: array of {loc, msg, type, input?}) and point the 422 response at it, regenerating models.py; keep HTTPError for 503/404.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Replacing `delete_entry` with `set_availability(..., available=False)` retains superseded local catalog rows, and `probe_all` still loads them via `list_entries(endpoint_kind=\"local\")` (default `include_unavailable=True`). Each retained placeholder/old model is re-probed every tick: on success it re-upserts the current reported id and marks itself unavailable again. One placeholder is a permanent +1 request per endpoint; repeated model-id changes accumulate unbounded probe fan-out while routing correctly ignores those rows.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The proxied branch of the new 422 test mocks the HTTP proxy to return the `expected` literal, so `direct == proxied == expected` proves only that the direct path matches a hand-written dict; the HTTP-transport half is tautological. The direct assertion is still a real check of the new ValidationError handling, so this does not block, but the test name overstates what it verifies.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: This remediation switches per-model `estimated_fraction` in `ledger._aggregate_by_model` to an entry-count ratio (`estimated_counts / entry_counts`, with tests now expecting `0.5`), but `contracts/openapi/v1.yaml` still documents `UsageAggregate.by_model.estimated_fraction` as \"Share of spend from estimated token counts\". Top-level `estimated_fraction` already says entry share, so the by-model OpenAPI description is now stale relative to the code this diff ships.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Round-2 confirmed defects are closed in this remediation: `db_postgres.query` now `_decode_query_value`s on eq/gt/gte/lte/in before coercion (with a postgres filter decode test), and `LedgerService.usage_summary` emits `exploration_entries` consumed by `_current_exploration_budget` (asserted in `test_usage_summary_aggregates_by_model_and_exploration_spend`). Related resilience extras (skip ledger when exploration is off; fail closed with `budget_state.status=unavailable`) and MCP 422 parity also look coherent; related unit tests in this packet passed locally.",
+      "eligible_vendors": 4
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 5,
+    "confirmed_count": 0,
+    "unconfirmed_count": 5,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 5
+  }
+}

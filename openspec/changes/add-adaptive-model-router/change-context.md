@@ -24,8 +24,7 @@ is preserved in `change-context-full-proposal.md`; deferred normative text is pr
 ## Coverage Summary
 
 - Canonical dg-00 requirements: 12 verified, 0 pending.
-- Roadmap acceptance outcomes: 4 have focused implementation evidence; final acceptance sign-off
-  remains pending tasks 8.1–8.2 (combined validation and implementation-review convergence).
+- Roadmap acceptance outcomes: 4 have focused implementation evidence; final acceptance sign-off is complete: combined validation and schema-valid plan/implementation review convergence both passed with 4-of-4 quorum and zero blocking findings.
 - Canonical packages: wp-contracts, wp-db-catalog, wp-resolver, wp-dispatch, wp-integration.
 - Deferred full-proposal areas: Cedar deployment, roadmap exploration enforcement, feedback
   producers/calibration, ToS/canary/tripwire/quota probes, dashboard/telemetry, and archival/docs.

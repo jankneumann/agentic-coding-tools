@@ -1,12 +1,12 @@
 schema_version: 1
 roadmap_id: dispatch-governance
 source_proposal: openspec/roadmaps/dispatch-governance/proposal.md
-status: planning
+status: in_progress
 items:
 - item_id: dg-00
   title: Wire the merged model-routing core
   change_id: add-adaptive-model-router
-  status: in_progress
+  status: completed
   priority: 1
   effort: L
   depends_on: []

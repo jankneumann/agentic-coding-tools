@@ -114,3 +114,34 @@ Plan revision 2 (approved by operator): incorporated Databricks multi-million-li
 ### Context
 Implemented the four compute-only packages of the adaptive model router in a cloud session (no test Postgres / Node): wp-contracts, wp-resolver core, wp-feedback core, wp-dispatch. 22/56 tasks, 64 new tests green (mypy --strict + ruff clean), 142 existing skills tests still passing. Remaining packages are DB/Cedar/Node-gated and should run in a local environment.
 
+
+
+---
+
+## Phase: Recovery Implementation and Validation (2026-09-16)
+
+**Agent**: codex | **Session**: dg-00 autopilot-roadmap recovery
+
+### Decisions
+1. **Reuse PR 237 compute core** `architectural: model-routing` — implemented only the four dg-00 wiring outcomes; no duplicate scoring, posterior, or cost logic.
+2. **Bound the canonical change** `scope: dg-00` — preserved non-dg-00 proposal work in deferred artifacts and kept ri-18 billing/cost-tier extension points unclaimed.
+3. **Treat judgment findings as diagnostic even when non-blocking** `validation: multi-vendor` — remediated backend defects found in implementation review until final quorum had zero confirmed and zero blocking findings.
+4. **Qualify architecture evidence** `validation: architecture` — used actual repository roots, recorded the TypeScript carry-forward and zero-test-link limitation, and relied on direct test evidence for behavioral coverage.
+
+### Completed Work
+- Added migration/catalog/refresher/local-probe/ledger/watchdog wiring.
+- Added five HTTP routes, MCP parity, bounded default-off adaptive delegation, and endpoint metadata.
+- Wired OpenAI-compatible discovery after CLI/SDK precedence.
+- Hardened Postgres filter decoding, exploration-budget accounting, refresh serialization, local model identity, and ledger-failure degradation.
+- Achieved plan and implementation review quorum at 4/4 with zero blocking findings.
+
+### Validation
+- Coordinator: 2,597 passed, 11 skipped, 132 deselected.
+- Affected skills: 735 passed, 2 skipped.
+- Focused integration: 345 passed.
+- Ruff, mypy, diff hygiene, strict OpenSpec, work-package DAG, architecture refresh, and scoped flows passed.
+
+### Deferred
+- Live quick-task E2E and deployment are outside the four dg-00 roadmap outcomes.
+- OpenRouter removed-model reconciliation remains DT-9.
+- Final vendor advisories remain recorded in `reviews/consensus-impl.json`.
