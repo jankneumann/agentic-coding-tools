@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+import src.coordination_api as api_module
 from src.agents_config import AgentEntry, CliConfig, ModeConfig
 from src.vendor_registry import ObservationConflictError, VendorRegistryService
 
@@ -20,6 +21,7 @@ def _agent(
     location: str = "local",
     endpoint_kind: str = "vendor-cli",
     model: str = "gpt-5.6",
+    model_fallbacks: list[str] | None = None,
 ) -> AgentEntry:
     return AgentEntry(
         name=name,
@@ -38,6 +40,7 @@ def _agent(
             dispatch_modes={"review": ModeConfig(args=[])},
             model_flag="-m",
             model=model,
+            model_fallbacks=model_fallbacks or [],
         ),
     )
 
@@ -59,6 +62,18 @@ def test_agent_entry_exposes_typed_lane_identity() -> None:
     assert agent.location == "local"
     assert agent.policy_vendor == "codex"
     assert agent.catalog_vendor is None
+
+
+def test_coordination_api_registry_factory_wires_durable_audit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    audit = AsyncMock()
+    monkeypatch.setattr(api_module, "_vendor_registry", None)
+    monkeypatch.setattr("src.audit.get_audit_service", lambda: audit)
+
+    registry = api_module.get_vendor_registry()
+
+    assert registry._audit is audit
 
 
 @pytest.mark.asyncio
@@ -94,6 +109,7 @@ async def test_list_vendors_batches_sources_and_applies_conjunctive_filters() ->
     service = VendorRegistryService(
         db,
         agents=[_agent(), _agent("codex-cloud", location="cloud")],
+        provider_model_map={},
         now_fn=lambda: NOW,
     )
 
@@ -217,6 +233,82 @@ async def test_local_catalog_gate_fails_closed_despite_successful_probe() -> Non
     assert lane["availability"]["reason"] == "catalog_unavailable"
 
 
+@pytest.mark.asyncio
+async def test_missing_catalog_model_makes_whole_projection_unknown_and_audits() -> None:
+    audit = AsyncMock()
+    service = VendorRegistryService(
+        _db(
+            {
+                "model_catalog": [
+                    {
+                        "vendor": "codex",
+                        "model": "gpt-5.6",
+                        "endpoint_kind": "vendor-cli",
+                        "base_url": None,
+                        "prompt_usd_per_mtok": 2.0,
+                        "completion_usd_per_mtok": 8.0,
+                        "refreshed_at": NOW.isoformat(),
+                        "available": True,
+                        "stale": False,
+                    }
+                ]
+            }
+        ),
+        agents=[_agent(model_fallbacks=["gpt-missing"])],
+        now_fn=lambda: NOW,
+        audit=audit,
+    )
+
+    lane = (await service.list_vendors())[0]
+
+    assert lane["cost"]["known"] is False
+    event = audit.log_operation.await_args.kwargs
+    assert event["operation"] == "vendor_catalog_projection_miss"
+    assert event["parameters"] == {"target_agent_id": "codex-local"}
+    assert event["result"]["model"] == "gpt-missing"
+    assert event["result"]["reason"] == "missing"
+    assert event["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_catalog_model_makes_whole_projection_unknown_and_audits() -> None:
+    exact = {
+        "vendor": "codex",
+        "endpoint_kind": "vendor-cli",
+        "base_url": None,
+        "prompt_usd_per_mtok": 2.0,
+        "completion_usd_per_mtok": 8.0,
+        "refreshed_at": NOW.isoformat(),
+        "available": True,
+        "stale": False,
+    }
+    audit = AsyncMock()
+    service = VendorRegistryService(
+        _db(
+            {
+                "model_catalog": [
+                    {**exact, "model": "gpt-5.6"},
+                    {**exact, "model": "gpt-ambiguous"},
+                    {**exact, "model": "gpt-ambiguous"},
+                ]
+            }
+        ),
+        agents=[_agent(model_fallbacks=["gpt-ambiguous"])],
+        now_fn=lambda: NOW,
+        audit=audit,
+    )
+
+    lane = (await service.list_vendors())[0]
+
+    assert lane["cost"]["known"] is False
+    event = audit.log_operation.await_args.kwargs
+    assert event["operation"] == "vendor_catalog_projection_miss"
+    assert event["result"]["model"] == "gpt-ambiguous"
+    assert event["result"]["reason"] == "ambiguous"
+    assert event["result"]["match_count"] == 2
+    assert event["success"] is False
+
+
 def test_quote_cost_rounds_an_exact_half_up_at_six_decimal_places() -> None:
     quote = VendorRegistryService.quote_cost(
         {
@@ -254,6 +346,62 @@ async def test_record_rate_limit_normalizes_reset_and_preserves_replay_marker() 
     assert params["p_reset_at"] == (NOW + timedelta(seconds=30)).isoformat()
     assert params["p_payload_hash"]
     assert result["reset_at"] == params["p_reset_at"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("write_status", ["accepted", "duplicate"])
+async def test_rate_limit_success_outcomes_are_durably_audited(
+    write_status: str,
+) -> None:
+    db = _db()
+    db.rpc.return_value = [
+        {
+            "write_status": write_status,
+            "normalized_reset_at": (NOW + timedelta(seconds=30)).isoformat(),
+        }
+    ]
+    audit = AsyncMock()
+    service = VendorRegistryService(
+        db, agents=[_agent()], now_fn=lambda: NOW, audit=audit
+    )
+
+    await service.record_rate_limit(
+        "codex-local",
+        observation_id="obs-audit",
+        reason="capacity",
+        source_agent_id="autopilot",
+        retry_after_seconds=30,
+    )
+
+    event = audit.log_operation.await_args.kwargs
+    assert event["operation"] == "vendor_rate_limit_observed"
+    assert event["result"]["status"] == write_status
+    assert event["result"]["reason"] == "capacity"
+    assert event["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_rejected_rate_limit_is_durably_audited() -> None:
+    audit = AsyncMock()
+    service = VendorRegistryService(
+        _db(), agents=[_agent()], now_fn=lambda: NOW, audit=audit
+    )
+
+    with pytest.raises(ValueError, match="exactly one"):
+        await service.record_rate_limit(
+            "codex-local",
+            observation_id="obs-rejected",
+            reason="capacity",
+            source_agent_id="autopilot",
+            reset_at=NOW + timedelta(minutes=1),
+            retry_after_seconds=30,
+        )
+
+    event = audit.log_operation.await_args.kwargs
+    assert event["operation"] == "vendor_rate_limit_observed"
+    assert event["result"]["status"] == "rejected"
+    assert event["result"]["reason"] == "conflicting_reset_fields"
+    assert event["success"] is False
 
 
 @pytest.mark.asyncio
@@ -305,3 +453,24 @@ async def test_probe_and_compaction_use_atomic_rpcs() -> None:
         "upsert_vendor_probe_state",
         "compact_vendor_rate_limits",
     ]
+
+
+@pytest.mark.asyncio
+async def test_compaction_is_durably_audited() -> None:
+    db = _db()
+    db.rpc.return_value = 2
+    audit = AsyncMock()
+    service = VendorRegistryService(
+        db, agents=[_agent()], now_fn=lambda: NOW, audit=audit
+    )
+
+    assert await service.compact_rate_limits() == 2
+
+    event = audit.log_operation.await_args.kwargs
+    assert event["operation"] == "vendor_rate_limits_compacted"
+    assert event["result"] == {
+        "status": "compacted",
+        "reason": "audit_retention_elapsed",
+        "deleted_count": 2,
+    }
+    assert event["success"] is True

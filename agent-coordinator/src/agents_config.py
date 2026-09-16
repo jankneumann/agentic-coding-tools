@@ -1070,6 +1070,7 @@ TRUST_DERIVED_OPERATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
             "mark_merged",
             "remove_from_merge_queue",
             "publish_work_projection",
+            "report_vendor_rate_limit",
         ),
     ),
 )

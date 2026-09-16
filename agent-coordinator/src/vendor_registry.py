@@ -104,7 +104,7 @@ class VendorRegistryService:
         ]
         snapshots = await self._snapshots(agents)
         lanes = [
-            self._lane(
+            await self._lane(
                 agent,
                 snapshots["probes"].get(agent.name),
                 snapshots["limits"].get(agent.name, []),
@@ -123,7 +123,7 @@ class VendorRegistryService:
     async def get_vendor(self, agent_id: str) -> dict[str, Any]:
         agent = self._agent(agent_id)
         snapshots = await self._snapshots([agent])
-        return self._lane(
+        return await self._lane(
             agent,
             snapshots["probes"].get(agent_id),
             snapshots["limits"].get(agent_id, []),
@@ -158,7 +158,7 @@ class VendorRegistryService:
             limits.setdefault(str(row["agent_id"]), []).append(row)
         return {"probes": probes, "limits": limits, "catalog": catalog_rows}
 
-    def _lane(
+    async def _lane(
         self,
         agent: AgentEntry,
         probe: dict[str, Any] | None,
@@ -166,7 +166,7 @@ class VendorRegistryService:
         catalog_rows: list[dict[str, Any]],
     ) -> dict[str, Any]:
         active_limits = self._active_limits(limits)
-        cost = self._cost_projection(agent, catalog_rows, active_limits)
+        cost = await self._cost_projection(agent, catalog_rows, active_limits)
         availability = self._availability(agent, probe, active_limits, cost["models"])
         return {
             "agent_id": agent.name,
@@ -316,12 +316,13 @@ class VendorRegistryService:
             "rate_limits": limits,
         }
 
-    def _cost_projection(
+    async def _cost_projection(
         self,
         agent: AgentEntry,
         rows: Sequence[dict[str, Any]],
         limits: Sequence[dict[str, Any]],
     ) -> dict[str, Any]:
+        all_models_matched = True
         model_limits = {
             str(row["model"]) for row in limits if row["scope"] == "model" and row.get("model")
         }
@@ -336,11 +337,24 @@ class VendorRegistryService:
                 and (agent.catalog_vendor is None or row.get("vendor") == agent.catalog_vendor)
             ]
             if len(matches) != 1:
-                if matches:
-                    logger.warning(
-                        "ambiguous vendor catalog join",
-                        extra={"agent_id": agent.name, "model": model},
-                    )
+                all_models_matched = False
+                miss_reason = "ambiguous" if matches else "missing"
+                logger.warning(
+                    "vendor catalog projection miss",
+                    extra={
+                        "agent_id": agent.name,
+                        "model": model,
+                        "reason": miss_reason,
+                        "match_count": len(matches),
+                    },
+                )
+                await self._audit_event(
+                    "vendor_registry",
+                    "vendor_catalog_projection_miss",
+                    agent.name,
+                    {"model": model, "reason": miss_reason, "match_count": len(matches)},
+                    success=False,
+                )
                 continue
             row = matches[0]
             projections.append(
@@ -356,7 +370,7 @@ class VendorRegistryService:
                     "stale": bool(row.get("stale", False)),
                 }
             )
-        known = bool(projections) and all(
+        known = all_models_matched and bool(projections) and all(
             row["prompt_usd_per_mtok"] is not None
             and row["completion_usd_per_mtok"] is not None
             and not row["stale"]
@@ -458,19 +472,36 @@ class VendorRegistryService:
         metadata: Mapping[str, Any] | None = None,
         received_at: str | datetime | None = None,
     ) -> dict[str, str]:
+        async def reject(rejection_reason: str, message: str) -> None:
+            await self._audit_event(
+                source_agent_id,
+                "vendor_rate_limit_observed",
+                agent_id,
+                {
+                    "status": "rejected",
+                    "observation_id": observation_id,
+                    "reason": rejection_reason,
+                },
+                success=False,
+            )
+            raise ValueError(message)
         self._agent(agent_id)
         received = _utc_datetime(received_at or self._now_fn())
         if reset_at is not None and retry_after_seconds is not None:
-            raise ValueError("exactly one reset form may be supplied")
+            await reject(
+                "conflicting_reset_fields", "exactly one reset form may be supplied"
+            )
         if not observation_id.strip() or not reason.strip():
-            raise ValueError("observation_id and reason are required")
+            await reject(
+                "missing_required_fields", "observation_id and reason are required"
+            )
         if scope not in {"lane", "model"}:
-            raise ValueError("scope must be lane or model")
+            await reject("invalid_scope", "scope must be lane or model")
         if scope == "model" and not (model and model.strip()):
-            raise ValueError("model scope requires a concrete model")
+            await reject("missing_model", "model scope requires a concrete model")
         if retry_after_seconds is not None:
             if retry_after_seconds < 1:
-                raise ValueError("retry_after_seconds must be positive")
+                await reject("invalid_retry_after", "retry_after_seconds must be positive")
             normalized_reset = received + timedelta(seconds=retry_after_seconds)
             reset_marker: Any = {"retry_after_seconds": retry_after_seconds}
         elif reset_at is not None:
@@ -480,9 +511,9 @@ class VendorRegistryService:
             normalized_reset = received + self._unknown_limit_ttl
             reset_marker = {"default_ttl": True}
         if normalized_reset <= received:
-            raise ValueError("reset_at must be in the future")
+            await reject("reset_not_future", "reset_at must be in the future")
         if normalized_reset - received > self._max_limit_ttl:
-            raise ValueError("reset exceeds configured maximum")
+            await reject("reset_exceeds_maximum", "reset exceeds configured maximum")
         canonical = {
             "agent_id": agent_id,
             "source_agent_id": source_agent_id,
@@ -520,7 +551,12 @@ class VendorRegistryService:
             source_agent_id,
             "vendor_rate_limit_observed",
             agent_id,
-            {"status": write_status, "observation_id": observation_id, "scope": scope},
+            {
+                "status": write_status,
+                "observation_id": observation_id,
+                "scope": scope,
+                "reason": reason,
+            },
         )
         if write_status == "conflict":
             raise ObservationConflictError(observation_id)
@@ -551,7 +587,16 @@ class VendorRegistryService:
             deleted = int(result.get("compact_vendor_rate_limits", result.get("deleted_count", 0)))
         else:
             deleted = 0
-        logger.info("vendor rate limits compacted", extra={"deleted_count": deleted})
+        await self._audit_event(
+            "watchdog",
+            "vendor_rate_limits_compacted",
+            "vendor_rate_limits",
+            {
+                "status": "compacted",
+                "reason": "audit_retention_elapsed",
+                "deleted_count": deleted,
+            },
+        )
         return deleted
 
     async def _audit_event(
@@ -560,6 +605,8 @@ class VendorRegistryService:
         operation: str,
         agent_id: str,
         result: dict[str, Any],
+        *,
+        success: bool = True,
     ) -> None:
         logger.info(
             operation,
@@ -571,5 +618,5 @@ class VendorRegistryService:
                 operation=operation,
                 parameters={"target_agent_id": agent_id},
                 result=result,
-                success=True,
+                success=success,
             )

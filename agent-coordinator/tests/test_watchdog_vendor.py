@@ -269,6 +269,18 @@ async def test_run_once_compacts_expired_vendor_limits() -> None:
     registry.compact_rate_limits.assert_awaited_once_with()
 
 
+def test_watchdog_registry_factory_wires_durable_audit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    audit = AsyncMock()
+    monkeypatch.setattr("src.audit.get_audit_service", lambda: audit)
+    service = WatchdogService(db=_make_mock_db(), routing_jobs={})
+
+    registry = service.vendor_registry
+
+    assert registry._audit is audit
+
+
 @pytest.mark.asyncio
 async def test_watchdog_starts_without_notification_channels() -> None:
     from src.coordination_api import start_notification_runtime
