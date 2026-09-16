@@ -682,3 +682,99 @@ def test_try_issue_create_unauthorized_returns_skipped(monkeypatch) -> None:
 
     assert result["status"] == "skipped"
     assert result["reason"] == "unauthorized"
+
+
+def test_vendor_registry_helpers_use_native_response_envelope(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    calls: list[dict[str, Any]] = []
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {"status_code": 200, "data": {"vendors": []}, "error": None}
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+
+    result = coordination_bridge.try_list_vendors(
+        capability="review", available_only=True
+    )
+
+    assert result["status"] == "ok"
+    assert result["operation"] == "list_vendors"
+    assert result["response"] == {"vendors": []}
+    assert calls[0]["path"] == "/vendors?capability=review&available_only=true"
+
+
+def test_vendor_availability_preserves_unknown_lane_problem(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {
+            "status_code": 404,
+            "data": {"detail": "unknown_vendor_lane"},
+            "error": "HTTP 404",
+        },
+    )
+
+    result = coordination_bridge.try_get_vendor_availability("missing")
+
+    assert result["status"] == "error"
+    assert result["operation"] == "get_vendor_availability"
+    assert result["status_code"] == 404
+    assert result["error"] == "unknown_vendor_lane"
+
+
+def test_report_vendor_rate_limit_posts_exact_lane_and_payload(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    calls: list[dict[str, Any]] = []
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {
+            "status_code": 202,
+            "data": {"observation_id": "obs-1", "status": "accepted"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+    payload = {"observation_id": "obs-1", "reason": "capacity"}
+
+    result = coordination_bridge.try_report_vendor_rate_limit("codex-local", payload)
+
+    assert result["status"] == "ok"
+    assert result["operation"] == "report_vendor_rate_limit"
+    assert calls[0]["path"] == "/vendors/codex-local/rate-limit-observations"
+    assert calls[0]["payload"] == payload
+
+
+def test_vendor_registry_malformed_success_is_not_empty_success(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {"status_code": 200, "data": [], "error": None},
+    )
+
+    result = coordination_bridge.try_list_vendors()
+
+    assert result["status"] == "error"
+    assert result["reason"] == "malformed_response"
+
+
+def test_vendor_registry_server_error_remains_distinct_from_timeout(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {
+            "status_code": 503,
+            "data": {"detail": "vendor_registry_unavailable"},
+            "error": "HTTP 503",
+        },
+    )
+
+    result = coordination_bridge.try_list_vendors()
+
+    assert result["status"] == "error"
+    assert result["reason"] == "server_error"
+    assert result["status_code"] == 503
