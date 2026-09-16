@@ -70,6 +70,15 @@ packages:
             artifacts: []
             result_keys:
               - "contract_parity_passed"
+        - name: "Contract parity test passes Ruff"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/tests/model_routing/test_contracts_generated.py openspec/changes/add-adaptive-model-router/contracts/generated/models.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contract_ruff_passed"
     metadata:
       loc_estimate: 300
       complexity: low
@@ -78,6 +87,7 @@ packages:
     outputs:
       result_keys:
         - "contract_parity_passed"
+        - "contract_ruff_passed"
 
   # ── wp-db-catalog — migrations, catalog service, refresher, local probes, ledger (tasks 2.1–2.11)
   - package_id: wp-db-catalog
@@ -401,7 +411,7 @@ packages:
               - "architecture_check_passed"
         - name: "Changed dg-00 runtime flows validate against the architecture graph"
           kind: command
-          command: "skills/.venv/bin/python skills/validate-flows/scripts/validate_flows.py --graph docs/architecture-analysis/architecture.graph.json --files agent-coordinator/src/model_routing/api.py,agent-coordinator/src/model_routing/catalog.py,agent-coordinator/src/model_routing/ledger.py,agent-coordinator/src/model_routing/local_endpoints.py,agent-coordinator/src/model_routing/refresher.py,agent-coordinator/src/agents_config.py,agent-coordinator/src/coordination_api.py,agent-coordinator/src/coordination_mcp.py,agent-coordinator/src/watchdog.py,skills/parallel-infrastructure/scripts/review_dispatcher.py"
+          command: "skills/.venv/bin/python skills/validate-flows/scripts/validate_flows.py --graph docs/architecture-analysis/architecture.graph.json --diff main...HEAD"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -409,9 +419,29 @@ packages:
               - "docs/architecture-analysis/architecture.diagnostics.scoped.json"
             result_keys:
               - "architecture_flows_passed"
-        - name: "Plan and implementation reviews reach schema-valid multi-vendor convergence"
+        - name: "Previously produced plan consensus report is schema-valid"
           kind: command
-          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_schema.py openspec/schemas/consensus-report.schema.json openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json && skills/.venv/bin/python skills/validate-packages/scripts/validate_schema.py openspec/schemas/consensus-report.schema.json openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json && skills/.venv/bin/python -c 'import json; paths=[\"openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json\",\"openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json\"]; docs=[json.load(open(path)) for path in paths]; assert all(doc[\"quorum_met\"] and len({row[\"vendor\"] for row in doc[\"reviewers\"] if row[\"success\"]}) >= 2 and doc[\"summary\"][\"blocking_count\"] == 0 for doc in docs)'"
+          command: "skills/.venv/bin/python -c 'import json, jsonschema; jsonschema.validate(json.load(open(\"openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json\")), json.load(open(\"openspec/schemas/consensus-report.schema.json\")))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json"
+            result_keys:
+              - "plan_consensus_schema_valid"
+        - name: "Previously produced implementation consensus report is schema-valid"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, jsonschema; jsonschema.validate(json.load(open(\"openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json\")), json.load(open(\"openspec/schemas/consensus-report.schema.json\")))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json"
+            result_keys:
+              - "implementation_consensus_schema_valid"
+        - name: "Previously produced reviews have multi-vendor quorum and zero blockers"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json; paths=[\"openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json\",\"openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json\"]; docs=[json.load(open(path)) for path in paths]; assert all(doc[\"quorum_met\"] and len({row[\"vendor\"] for row in doc[\"reviewers\"] if row[\"success\"]}) >= 2 and doc[\"summary\"][\"blocking_count\"] == 0 for doc in docs)'"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -434,5 +464,7 @@ packages:
         - "openspec_strict_passed"
         - "architecture_check_passed"
         - "architecture_flows_passed"
+        - "plan_consensus_schema_valid"
+        - "implementation_consensus_schema_valid"
         - "plan_review_converged"
         - "implementation_review_converged"

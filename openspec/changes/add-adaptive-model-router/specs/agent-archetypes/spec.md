@@ -14,6 +14,11 @@ static tier mapping unchanged.
 - **WHEN** `ROUTING_ADAPTIVE` is off and a phase resolves its archetype model
 - **THEN** the result SHALL equal the pre-change static tier resolution
 
+#### Scenario: Resolver unavailable preserves static behavior
+
+- **WHEN** `ROUTING_ADAPTIVE` is on and the resolver is unavailable, errors, or times out
+- **THEN** archetype/phase resolution SHALL equal the pre-change static tier resolution
+
 #### Scenario: Escalation signals become task signals
 
 - **WHEN** a phase resolves with escalation signals (complexity, write-dir count) and the flag is on

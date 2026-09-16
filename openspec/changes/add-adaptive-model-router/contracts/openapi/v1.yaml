@@ -26,6 +26,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SelectModelResponse'
+        '401':
+          $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
   /routing/catalog:
@@ -47,6 +49,8 @@ paths:
               schema:
                 type: array
                 items: {$ref: '#/components/schemas/CatalogRow'}
+        '401':
+          $ref: '#/components/responses/Problem'
   /routing/decisions/{decision_id}:
     get:
       operationId: getRoutingDecision
@@ -62,6 +66,8 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/RoutingDecision'}
+        '401':
+          $ref: '#/components/responses/Problem'
         '404':
           $ref: '#/components/responses/Problem'
   /routing/usage:
@@ -81,6 +87,8 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/UsageAggregate'}
+        '401':
+          $ref: '#/components/responses/Problem'
   /routing/feedback:
     post:
       operationId: postRoutingFeedback
@@ -93,6 +101,8 @@ paths:
       responses:
         '202':
           description: Accepted for best-effort audit recording
+        '401':
+          $ref: '#/components/responses/Problem'
 components:
   securitySchemes:
     CoordinatorBearer:
@@ -164,7 +174,10 @@ components:
         quality: {type: [number, "null"], default: null}
         norm_cost: {type: [number, "null"], default: null}
         norm_latency: {type: [number, "null"], default: null}
-        posterior_sample_size: {type: [number, "null"], default: null}
+        posterior_sample_size:
+          type: [number, "null"]
+          default: null
+          description: Effective sample mass after source weighting and time decay; may be fractional.
         stale_catalog: {type: boolean, default: false}
         cost_source:
           type: [string, "null"]

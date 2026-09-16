@@ -31,8 +31,8 @@ The generic architecture refresh must be invoked with this repository's actual r
 (`agent-coordinator/src`, `agent-coordinator/database/migrations`, and `apps`); its bare defaults
 target nonexistent generic paths and fail closed before promotion. With the configured roots,
 all Python, PostgreSQL, SQL tree-sitter, compiler, enrichment, validation, parallel-zone, view,
-and report stages passed. TypeScript analysis was skipped and the last known TypeScript artifact
-was carried forward.
+and report stages passed. TypeScript analysis was skipped; its last known artifact was carried
+from the pre-dg-00 committed baseline and was not regenerated at checkpoint `67ff34d8`.
 
 The baseline diff labels all five new HTTP routes as untested because this source-root refresh
 does not ingest `agent-coordinator/tests` (`test_linker` discovered zero tests). That is a tool
