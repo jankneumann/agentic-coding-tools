@@ -2,27 +2,30 @@ schema_version: 1
 roadmap_id: dispatch-governance
 source_proposal: openspec/roadmaps/dispatch-governance/proposal.md
 status: in_progress
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
 items:
 - item_id: dg-00
   title: Wire the merged model-routing core
-  change_id: add-adaptive-model-router
   status: completed
   priority: 1
   effort: L
   depends_on: []
   description: Land the wiring backlog that PR 237 deliberately deferred - the model_routing
     DB migration and catalog service, the /routing/* HTTP endpoints plus MCP tool,
-    ROUTING_ADAPTIVE delegation in agents_config.resolve_archetype_for_phase with static-tier
-    fallback, endpoint_kind/base_url fields in the agents.yaml schema, local endpoint
-    registration and health probe, refresher/probe/ledger scheduling in WatchdogService,
-    and OpenAICompatAdapter into review_dispatcher discovery order.
+    ROUTING_ADAPTIVE delegation in agents_config.resolve_archetype_for_phase with
+    static-tier fallback, endpoint_kind/base_url fields in the agents.yaml schema,
+    local endpoint registration and health probe, refresher/probe/ledger scheduling
+    in WatchdogService, and OpenAICompatAdapter into review_dispatcher discovery order.
   rationale: PR 237 merged 2026-07-14 and landed the routing intelligence - resolver.py
     scoring, feedback posteriors, epsilon-greedy exploration, OpenAPI contracts for
-    five /routing/* paths, DB contracts for four tables - but explicitly deferred every
-    wiring task to an environment with Postgres and Node. The result is inert - there
-    is no /routing/* endpoint, no ROUTING_ADAPTIVE flag, and no applied migration anywhere
-    in agent-coordinator/src. Both dg-01 and dg-04 assume this substrate exists. Tracked
-    at 21 of 71 task checkboxes with a documented deferred backlog.
+    five /routing/* paths, DB contracts for four tables - but explicitly deferred
+    every wiring task to an environment with Postgres and Node. The result is inert
+    - there is no /routing/* endpoint, no ROUTING_ADAPTIVE flag, and no applied migration
+    anywhere in agent-coordinator/src. Both dg-01 and dg-04 assume this substrate
+    exists. Tracked at 21 of 71 task checkboxes with a documented deferred backlog.
+  change_id: add-adaptive-model-router
   acceptance_outcomes:
   - The /routing/* paths in the merged OpenAPI contract are served by real endpoints
     and a matching MCP tool
@@ -33,8 +36,7 @@ items:
   - OpenAICompatAdapter is reachable through review_dispatcher's discovery order
 - item_id: dg-01
   title: Add live vendor capability and availability registry
-  change_id: add-live-vendor-capability-and-cost-registry
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on:
@@ -49,6 +51,7 @@ items:
     - was already delivered by PR 237, which swapped the hardcoded _estimate_cost_delta
     for catalog-aware pricing with static fallback. What remains unbuilt is the availability
     and rate-limit half - there is no GET /vendors anywhere in the coordinator.
+  change_id: add-live-vendor-capability-and-cost-registry
   acceptance_outcomes:
   - GET /vendors returns capabilities, availability, and rate-limit reset times for
     every configured vendor
@@ -56,27 +59,26 @@ items:
   - Cost figures are read from the dg-00 catalog, with no second cost table introduced
 - item_id: dg-02
   title: Build structured vendor result channel
-  change_id: build-structured-vendor-result-channel
   status: approved
   priority: 1
   effort: M
   depends_on: []
   description: Switch every CLI adapter to its vendor's structured JSON output mode
     with typed envelopes, replace stdout-regex completion polling with a coordinator
-    completion ledger (submit_work/complete_work as the single source of dispatch state),
-    add GET /locks?agent_id= plus bulk release to fix the cloud lock leak, and extend
-    or explicitly document SdkVendorAdapter coverage beyond review-only.
+    completion ledger (submit_work/complete_work as the single source of dispatch
+    state), add GET /locks?agent_id= plus bulk release to fix the cloud lock leak,
+    and extend or explicitly document SdkVendorAdapter coverage beyond review-only.
   rationale: Rewrites the same CliVendorAdapter methods that dg-07 later wraps and
     that dg-00 threads OpenAICompatAdapter into. Sequencing it early converts a three-way
     merge conflict into an ordering. Re-homed from repo-improvement ri-03, unchanged
     - no merged work touches it.
+  change_id: build-structured-vendor-result-channel
   acceptance_outcomes:
   - No dispatch result is obtained by regex over stdout
   - Dispatch state is readable from the coordinator completion ledger alone
   - Cloud sessions no longer leak locks
 - item_id: dg-03
   title: Widen execution-environment detection to an isolation posture
-  change_id: add-isolation-posture-detection
   status: candidate
   priority: 1
   effort: S
@@ -92,6 +94,7 @@ items:
     a demonstrated gap - planning this epic inside a cloud harness returned isolation_provided=False
     source=default, so worktree.py setup attempted a real worktree and failed against
     the already-checked-out branch.
+  change_id: add-isolation-posture-detection
   acceptance_outcomes:
   - Filesystem and network isolation are reported as independent dimensions
   - The cloud harness that currently reports source=default is detected correctly
@@ -99,7 +102,6 @@ items:
     change
 - item_id: dg-04
   title: Extend routing to vendor x location x isolation x dispatch mode
-  change_id: implement-the-task-router-vendor-x-location-x-model
   status: approved
   priority: 1
   effort: L
@@ -119,17 +121,17 @@ items:
     Two resolvers scoring overlapping decisions is the failure mode to avoid; this
     item adds the missing dimensions to the merged one instead. Its isolation output
     is what dg-05 pins and dg-07 enforces.
+  change_id: implement-the-task-router-vendor-x-location-x-model
   acceptance_outcomes:
   - Routing returns location, isolation, and dispatch_mode alongside the vendor and
     model the merged resolver already selects
-  - Exactly one resolver scores routing decisions, reachable through the existing /routing/*
-    namespace
+  - Exactly one resolver scores routing decisions, reachable through the existing
+    /routing/* namespace
   - Rules are deterministic and unit-testable with no model call in the decision path
   - A documented static fallback table produces a decision when the coordinator is
     unreachable
 - item_id: dg-05
   title: Pin the isolation contract between router and dispatch
-  change_id: pin-isolation-contract
   status: candidate
   priority: 1
   effort: S
@@ -146,6 +148,7 @@ items:
     the cheapest moment to get it right is before either is written. agents.yaml already
     implies per-mode postures (review uses read-only flags, alternative uses write
     flags) and currently cannot express them.
+  change_id: pin-isolation-contract
   acceptance_outcomes:
   - The isolation vocabulary and precedence ladder are specified once and referenced
     by both producer and consumer
@@ -154,7 +157,6 @@ items:
   - A coordinator-unreachable path yields a defined decision rather than an error
 - item_id: dg-06
   title: Make the orchestrator obey the router
-  change_id: make-the-orchestrator-obey-the-router
   status: approved
   priority: 1
   effort: M
@@ -168,9 +170,10 @@ items:
     detector to the roadmap loop, and un-stub the wall-clock estimator.
   rationale: Where the routing decision, including its isolation field, actually arrives
     at the point of execution. Until it lands, enforcement has nothing to enforce.
-    Re-homed from repo-improvement ri-06, with dg-05 added to its dependencies so the
-    isolation field it carries has a pinned meaning, and the cost-delta estimator dropped
-    from scope - PR 237 already replaced that stub with catalog-aware pricing.
+    Re-homed from repo-improvement ri-06, with dg-05 added to its dependencies so
+    the isolation field it carries has a pinned meaning, and the cost-delta estimator
+    dropped from scope - PR 237 already replaced that stub with catalog-aware pricing.
+  change_id: make-the-orchestrator-obey-the-router
   acceptance_outcomes:
   - No dispatch occurs without a routing decision attached to its context
   - Vendor switches are verified against the completion ledger before being treated
@@ -178,7 +181,6 @@ items:
   - The roadmap loop cannot spin indefinitely without progress
 - item_id: dg-07
   title: Enforce isolation at dispatch with an OS-level sandbox
-  change_id: add-dispatch-sandbox-enforcement
   status: candidate
   priority: 1
   effort: M
@@ -190,32 +192,30 @@ items:
     policy document and an argv wrapper; apply the wrapper in CliVendorAdapter between
     build_command() and subprocess.run(); add a network-policy export path so policy
     stays authored in the coordinator and is only rendered for the runtime. Initial
-    backend is srt (Seatbelt on macOS, bubblewrap plus seccomp on Linux) behind a render_*
-    seam.
+    backend is srt (Seatbelt on macOS, bubblewrap plus seccomp on Linux) behind a
+    render_* seam.
   rationale: Closes the epic by giving isolation - already declared, validated, and
     tested in agents_config.py since before this epic - a meaning at the operating
     system. One injection site covers every current and future vendor CLI, including
     vendors that ship no sandbox of their own. Both candidate runtimes are explicitly
     pre-1.0, which makes the renderer seam a requirement rather than speculative generality.
+  change_id: add-dispatch-sandbox-enforcement
   acceptance_outcomes:
-  - isolation sandbox produces observable filesystem and network restriction on a dispatched
-    vendor CLI
+  - isolation sandbox produces observable filesystem and network restriction on a
+    dispatched vendor CLI
   - The coordinator's existing network policy is enforced at the socket without policy
     being re-authored anywhere
-  - Missing runtime or unsupported platform degrades to unsandboxed dispatch with a
-    warning and an audit event
+  - Missing runtime or unsupported platform degrades to unsandboxed dispatch with
+    a warning and an audit event
   - Adding a second runtime backend requires only a new renderer function
 - item_id: dg-08
   title: Egress gateway rendering and request-time secret boundary
-  change_id: add-egress-gateway-boundary
   status: candidate
   priority: 2
   effort: M
   depends_on:
   - dg-03
   - dg-07
-  external_depends_on:
-  - principal-credential-architecture:pca-02
   description: Add render_iron_proxy_config() beside dg-07's srt renderer, turning
     the coordinator's network policy into an iron-proxy configuration (default-deny
     domain allowlist, header allowlist, structured audit log) so egress policy stays
@@ -223,36 +223,39 @@ items:
     (self-managed containers, the Sentinel fleet, an OpenShell netns later), dispatch
     egress routes through a per-boundary iron-proxy and the sandbox network policy
     admits only the gateway address. The gateway-side secret swap authenticates as
-    pca-02's egress-gateway service principal and validates every swap request
-    against the presenting token's per-dispatch scope - a request for a vendor the
-    token does not authorize is rejected, never served from the principal's broader
-    secret/vendors/* read access. Traffic to the coordinator LLM gateway
-    (add-coordinator-llm-gateway) is excluded from the swap path - LiteLLM virtual
-    keys are the inference credential and pass through untouched so budget and model
-    enforcement is not bypassed; iron-proxy merely allowlists that destination.
-    Dispatch-side injection of proxy tokens instead of real keys is pca-04's half
-    of the contract. Explicitly not deployed DNS-only on the local uid (same-uid
-    workloads can bypass the resolver, so a gateway there simulates containment)
-    and not deployed inside the managed cloud harness, whose platform proxy already
-    terminates TLS and owns the allowlist.
-  rationale: dg-07's srt backend can only allow or deny a connection; it cannot
-    inspect headers or MCP tool calls, and it leaves real vendor keys in the sandbox
-    env - the primary threat this epic names is a prompt-injected agent reading
-    exactly those. An egress gateway with boundary-side secret injection removes
-    the secret from the sandbox entirely and enforces content-level policy, which
-    is the machine-level containment TRUST_POSTURE.md gate-flipping is waiting on.
-    Placing it behind the render_* seam keeps it an addition per dg-07's own
-    acceptance outcome rather than a parallel policy system.
+    pca-02's egress-gateway service principal and validates every swap request against
+    the presenting token's per-dispatch scope - a request for a vendor the token does
+    not authorize is rejected, never served from the principal's broader secret/vendors/*
+    read access. Traffic to the coordinator LLM gateway (add-coordinator-llm-gateway)
+    is excluded from the swap path - LiteLLM virtual keys are the inference credential
+    and pass through untouched so budget and model enforcement is not bypassed; iron-proxy
+    merely allowlists that destination. Dispatch-side injection of proxy tokens instead
+    of real keys is pca-04's half of the contract. Explicitly not deployed DNS-only
+    on the local uid (same-uid workloads can bypass the resolver, so a gateway there
+    simulates containment) and not deployed inside the managed cloud harness, whose
+    platform proxy already terminates TLS and owns the allowlist.
+  rationale: dg-07's srt backend can only allow or deny a connection; it cannot inspect
+    headers or MCP tool calls, and it leaves real vendor keys in the sandbox env -
+    the primary threat this epic names is a prompt-injected agent reading exactly
+    those. An egress gateway with boundary-side secret injection removes the secret
+    from the sandbox entirely and enforces content-level policy, which is the machine-level
+    containment TRUST_POSTURE.md gate-flipping is waiting on. Placing it behind the
+    render_* seam keeps it an addition per dg-07's own acceptance outcome rather than
+    a parallel policy system.
+  change_id: add-egress-gateway-boundary
   acceptance_outcomes:
   - The coordinator's network policy renders to iron-proxy configuration through the
     same export path dg-07 uses; no allowlist is hand-authored in gateway config
   - In a gateway posture a dispatched agent's only reachable destination is the gateway;
     a denied domain is blocked at the proxy with a structured audit event naming the
     matched policy
-  - A swap request for a vendor outside the presenting token's per-dispatch scope is
-    rejected with an audit event, despite the gateway principal's broader read access
-    (rejection test)
+  - A swap request for a vendor outside the presenting token's per-dispatch scope
+    is rejected with an audit event, despite the gateway principal's broader read
+    access (rejection test)
   - Requests to the coordinator LLM gateway pass through with their LiteLLM virtual
     key untouched; iron-proxy performs no secret swap on inference routes
   - Local-uid and managed-cloud postures skip gateway deployment with an audit event
     recording why, rather than deploying a bypassable proxy
+  external_depends_on:
+  - principal-credential-architecture:pca-02
+updated_at: '2026-09-16T22:27:41.853245+00:00'

@@ -57,5 +57,5 @@
 - [x] 6.3 Send diff and exact validation evidence to every configured vendor-panel harness.
 - [x] 6.4 Resolve confirmed blocking findings and record consensus.
 - [x] 6.5 Update traceability, session log, validation report, and PhaseRecord.
-- [ ] 6.6 Reconcile roadmap/checkpoint only after every validation gate passes.
-- [ ] 6.7 Push commits and open a stacked PR against `openspec/add-adaptive-model-router`.
+- [x] 6.6 Reconcile roadmap/checkpoint only after every validation gate passes.
+- [x] 6.7 Push commits and open a stacked PR against `openspec/add-adaptive-model-router`.
