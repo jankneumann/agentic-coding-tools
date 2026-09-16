@@ -139,3 +139,30 @@ Implemented codebase-atlas --tree export and the prompt-only explain-code skill 
 ### Relevant Files
 - `openspec/changes/add-visual-code-explainer/.review-cache/round-1-implementation/` — IMPL_REVIEW evidence
 - `openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json` — judgment evidence_class corrected for advisory items
+
+---
+
+## Phase: Validation (2026-09-16)
+
+**Agent**: autopilot-validate | **Session**: N/A
+
+### Decisions
+1. **Mark container phases not applicable** `architectural: skill-workflow` — gate_logic --describe-surface deployable=false; issue #432 requires not applicable not skipped.
+2. **Skip Gen-Eval and Evidence work-queue audit** `architectural: skill-workflow` — Only unrelated agent-coordinator descriptor exists; no work-queue-result artifacts from sequential implement.
+
+### Completed Work
+- openspec validate --strict
+- skills/install.sh --check
+- pytest codebase-atlas + explain-code (98 passed)
+- pytest install_sh (32 passed)
+- tree determinism cmp
+- traceability gate change-scoped
+- architecture advisory diagnostics
+- validation-report.md + architecture-impact.md + change-context evidence
+
+### Next Steps
+- /cleanup-feature add-visual-code-explainer
+
+### Context
+VALIDATE passed for add-visual-code-explainer on non-deployable skills/docs surface. Spec Compliance green: openspec --strict, install.sh --check, 98 atlas+explain-code tests, 32 install_sh tests, tree determinism cmp, change-scoped traceability. Container phases not applicable.
+

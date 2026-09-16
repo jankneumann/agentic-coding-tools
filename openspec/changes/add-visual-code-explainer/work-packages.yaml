@@ -5,6 +5,7 @@ feature:
   title: "Visual code explainer — explain-code skill grounded through codebase-atlas --tree"
   plan_revision: 6
   created_by: claude-code
+  deployable: false
 
 contracts:
   revision: 1
