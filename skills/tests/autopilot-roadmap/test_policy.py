@@ -459,7 +459,7 @@ def test_exact_catalog_quote_requires_model_and_token_estimates() -> None:
     ) is None
 
 
-def test_static_tiers_rank_but_do_not_enforce_usd_ceiling() -> None:
+def test_static_tiers_rank_but_do_not_enforce_usd_ceiling(caplog) -> None:
     decision = select_registry_lane(
         policy=Policy(
             default_action=PolicyAction.SWITCH,
@@ -477,3 +477,4 @@ def test_static_tiers_rank_but_do_not_enforce_usd_ceiling() -> None:
     assert decision.to_agent_id == "codex-cloud"
     assert decision.expected_cost_delta_usd is None
     assert decision.cost_guard == "unavailable"
+    assert "cost_guard unavailable" in caplog.text

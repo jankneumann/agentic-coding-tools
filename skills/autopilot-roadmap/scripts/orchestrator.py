@@ -1030,88 +1030,122 @@ def _execute_item_phases(
             break
 
         mgr.advance_phase(checkpoint, phase)
+        selected_agent_id: str | None = None
 
-        context = {
-            "item_id": item_id,
-            "roadmap_id": roadmap.roadmap_id,
-            "completed_items": list(checkpoint.completed_items),
-        }
-
-        dispatch_result = dispatch(item_id, phase.value, context)
-        outcome, replan_signal = _normalize_outcome(dispatch_result)
-        dispatch_metadata = dispatch_result if isinstance(dispatch_result, Mapping) else {}
-
-        if outcome == "success":
-            logger.info("item.phase_success: item=%s phase=%s", item_id, phase.value)
-            continue
-
-        if outcome.startswith("failed:"):
-            reason = outcome[len("failed:"):]
-            logger.warning("item.phase_failed: item=%s phase=%s reason=%s", item_id, phase.value, reason)
-            _fail(reason, replan=replan_signal)
-            return False
-
-        if outcome.startswith("vendor_limit:"):
-            parts = outcome.split(":", 2)
-            vendor = parts[1] if len(parts) > 1 else "unknown"
-            reason = parts[2] if len(parts) > 2 else "rate limit"
-
-            decision = _handle_vendor_limit(
-                roadmap=roadmap,
-                item_id=item_id,
-                vendor=vendor,
-                reason=reason,
-                switch_attempts=switch_attempts,
-                registry_provider=registry_provider,
-                agents_yaml_fallback=agents_yaml_fallback,
-                phase=phase.value,
-                dispatch_agent_id=dispatch_metadata.get("dispatch_agent_id"),
-                model=dispatch_metadata.get("model"),
-                prompt_tokens=dispatch_metadata.get("prompt_tokens"),
-                completion_tokens=dispatch_metadata.get("completion_tokens"),
-                location=routing_location,
-            )
-            policy_decisions.append({
+        while True:
+            context = {
                 "item_id": item_id,
-                "phase": phase.value,
-                "decision": {
-                    "action": decision.action,
-                    "reason": decision.reason,
-                    "from_vendor": decision.from_vendor,
-                    "to_vendor": decision.to_vendor,
-                    "to_agent_id": decision.to_agent_id,
-                    "expected_cost_delta_usd": decision.expected_cost_delta_usd,
-                    "cost_guard": decision.cost_guard,
-                    "legacy_provider_scope": dispatch_metadata.get("dispatch_agent_id") is None,
-                    "durable_persistence": (
-                        "reported_by_dispatcher"
-                        if dispatch_metadata.get("dispatch_agent_id")
-                        else "skipped_ambiguous"
-                    ),
-                },
-            })
-            if on_policy_decision:
-                on_policy_decision(decision)
+                "roadmap_id": roadmap.roadmap_id,
+                "completed_items": list(checkpoint.completed_items),
+            }
+            if selected_agent_id is not None:
+                # dispatch_agent_id is the roadmap routing contract;
+                # agent_id is the additive provider/phase carrier field.
+                context["dispatch_agent_id"] = selected_agent_id
+                context["agent_id"] = selected_agent_id
 
-            if decision.action == "fail_closed":
-                # A vendor-policy stop is not a plan problem — no replan signal.
-                _fail(f"Policy fail_closed: {decision.reason}")
+            dispatch_result = dispatch(item_id, phase.value, context)
+            outcome, replan_signal = _normalize_outcome(dispatch_result)
+            dispatch_metadata = (
+                dispatch_result if isinstance(dispatch_result, Mapping) else {}
+            )
+            dispatch_agent_id = (
+                dispatch_metadata.get("dispatch_agent_id")
+                or dispatch_metadata.get("agent_id")
+            )
+
+            if outcome == "success":
+                logger.info(
+                    "item.phase_success: item=%s phase=%s", item_id, phase.value
+                )
+                break
+
+            if outcome.startswith("failed:"):
+                reason = outcome[len("failed:"):]
+                logger.warning(
+                    "item.phase_failed: item=%s phase=%s reason=%s",
+                    item_id,
+                    phase.value,
+                    reason,
+                )
+                _fail(reason, replan=replan_signal)
                 return False
 
-            # For "wait" and "switch" — the orchestrator records the decision
-            # but the actual vendor routing is handled by the prompt layer
-            # via the dispatch_fn on the next call. We continue the phase loop
-            # to let the dispatch_fn retry with the new context.
-            logger.info(
-                "policy.applied: item=%s action=%s vendor=%s->%s",
-                item_id, decision.action, decision.from_vendor, decision.to_vendor,
-            )
-            continue
+            if outcome.startswith("vendor_limit:"):
+                parts = outcome.split(":", 2)
+                vendor = parts[1] if len(parts) > 1 else "unknown"
+                reason = parts[2] if len(parts) > 2 else "rate limit"
 
-        # Unknown outcome — treat as failure
-        logger.warning("item.unknown_outcome: item=%s outcome=%s", item_id, outcome)
-        _fail(f"Unknown dispatch outcome: {outcome}")
-        return False
+                decision = _handle_vendor_limit(
+                    roadmap=roadmap,
+                    item_id=item_id,
+                    vendor=vendor,
+                    reason=reason,
+                    switch_attempts=switch_attempts,
+                    registry_provider=registry_provider,
+                    agents_yaml_fallback=agents_yaml_fallback,
+                    phase=phase.value,
+                    dispatch_agent_id=(
+                        str(dispatch_agent_id)
+                        if dispatch_agent_id is not None
+                        else None
+                    ),
+                    model=dispatch_metadata.get("model"),
+                    prompt_tokens=dispatch_metadata.get("prompt_tokens"),
+                    completion_tokens=dispatch_metadata.get("completion_tokens"),
+                    location=routing_location,
+                )
+                report_status = dispatch_metadata.get("capacity_report_status")
+                if dispatch_agent_id is None:
+                    durable_persistence = "skipped_ambiguous"
+                elif report_status in {"persisted", "failed", "skipped"}:
+                    durable_persistence = str(report_status)
+                else:
+                    durable_persistence = "delegated_unconfirmed"
+                policy_decisions.append({
+                    "item_id": item_id,
+                    "phase": phase.value,
+                    "decision": {
+                        "action": decision.action,
+                        "reason": decision.reason,
+                        "from_vendor": decision.from_vendor,
+                        "to_vendor": decision.to_vendor,
+                        "to_agent_id": decision.to_agent_id,
+                        "expected_cost_delta_usd": decision.expected_cost_delta_usd,
+                        "cost_guard": decision.cost_guard,
+                        "legacy_provider_scope": dispatch_agent_id is None,
+                        "durable_persistence": durable_persistence,
+                    },
+                })
+                if on_policy_decision:
+                    on_policy_decision(decision)
+
+                if decision.action == "fail_closed":
+                    # A vendor-policy stop is not a plan problem.
+                    _fail(f"Policy fail_closed: {decision.reason}")
+                    return False
+
+                # Retry this exact phase. Switches carry the selected lane through
+                # both the roadmap and provider field names at the boundary.
+                if decision.action == "switch":
+                    selected_agent_id = decision.to_agent_id
+                elif dispatch_agent_id is not None:
+                    selected_agent_id = str(dispatch_agent_id)
+                logger.info(
+                    "policy.applied: item=%s action=%s vendor=%s->%s",
+                    item_id,
+                    decision.action,
+                    decision.from_vendor,
+                    decision.to_vendor,
+                )
+                continue
+
+            # Unknown outcome -- treat as failure.
+            logger.warning(
+                "item.unknown_outcome: item=%s outcome=%s", item_id, outcome
+            )
+            _fail(f"Unknown dispatch outcome: {outcome}")
+            return False
 
     return True
 
