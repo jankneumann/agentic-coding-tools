@@ -1753,9 +1753,19 @@ def try_resolve_archetype_for_phase(
     timeout, non-200 status, malformed response). Failures emit a structured
     WARNING via the module logger and never raise.
 
+    Only the four keys above are required. Any further key the coordinator
+    sends (``provider``, ``write_capable``, ``thinking``, ``procedure_mode``)
+    is passed through unchanged. ``procedure_mode`` (OpenSpec add-skill-audit,
+    D3) is optional: an older coordinator omits it and callers treat the mode
+    as ``guided``. The bridge never injects the mode sentence itself; the
+    coordinator has already appended it to ``system_prompt`` when the mode is
+    not ``guided``, so forwarding ``system_prompt`` as-is is sufficient.
+
     Spec: openspec/changes/add-per-phase-archetype-resolution/specs/
           agent-coordinator/spec.md -- Phase Archetype Resolution Bridge Helper.
-    Design decisions: D4 (bridge helper), D9 (failure mode).
+          openspec/changes/add-skill-audit/specs/agent-archetypes/spec.md --
+          Procedure Mode Prompt Injection ("Bridge tolerates an older coordinator").
+    Design decisions: D4 (bridge helper), D9 (failure mode); add-skill-audit D3.
     """
     resolved_url = _resolve_http_url(http_url)
     if not resolved_url:

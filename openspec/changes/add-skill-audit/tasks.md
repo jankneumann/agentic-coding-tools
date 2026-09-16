@@ -44,7 +44,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/tests/coordination-bridge/test_archetype_resolve.py`
   **Size**: XS
 
-- [ ] 1.6 In `skills/coordination-bridge/scripts/coordination_bridge.py` `try_resolve_archetype_for_phase`, keep the required-key check as is and document `procedure_mode` as an optional passthrough in the docstring; no behaviour change
+- [x] 1.6 In `skills/coordination-bridge/scripts/coordination_bridge.py` `try_resolve_archetype_for_phase`, keep the required-key check as is and document `procedure_mode` as an optional passthrough in the docstring; no behaviour change
   **Spec scenarios**: as 1.5
   **Design decisions**: D3
   **Dependencies**: 1.5
