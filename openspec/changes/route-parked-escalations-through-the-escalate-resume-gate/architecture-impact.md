@@ -1,67 +1,35 @@
 # Architecture Impact: route-parked-escalations-through-the-escalate-resume-gate
 
-**Commit**: f8e2193f
+**Implementation commit**: 3e1293d9
 **Branch**: openspec/recover-ri-06-escalation-routing
-**Baseline**: origin/main at 45c529ba0ee5c458f2e7c10f078ea330d391c3a7
+**Canonical graph source**: d2bbfee29ea540fbd8652b5a9dd1dd3dc9d06cfb (not an ancestor of this branch)
 
-## Changed Files
+## Scoped Artifact Digest
 
-The branch diff contains 83 paths. The implementation-bearing paths are:
+The existing scoped diagnostic is preserved unchanged:
 
-- skills/roadmap-runtime/scripts/checkpoint.py
-- skills/roadmap-runtime/scripts/models.py
-- skills/supervise/scripts/cycle_state.py
-- skills/supervise/scripts/execution.py
-- skills/supervise/scripts/gate_router.py
-- skills/autopilot-roadmap/scripts/orchestrator.py
-- openspec/schemas/checkpoint.schema.json
-- openspec/schemas/gate-decision.schema.json
-- skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json
-- focused roadmap-runtime, supervise, and autopilot-roadmap tests
-- change-local OpenSpec planning, contract, review, handoff, and validation artifacts
+- `docs/architecture-analysis/architecture.diagnostics.scoped.json`
+- SHA-256: `765ad693856ecf70d8ebd2f1e4814afc9d0f80af5cd4284d16a55ce1f596452c`
+- Recorded scope: 83 paths, 0 findings, 0 entrypoints checked
 
-## Structural Diff
+The canonical architecture provenance was generated on 2026-09-14 from
+`agent-coordinator/database/migrations`, `agent-coordinator/src`, and `apps`. It excludes
+the changed `skills/` runtime and test roots, predates ri-06, and names repository id
+`recover-ri-09-work-queue-projection`. Therefore the scoped artifact is useful proof that
+no represented service-graph flow was implicated, but **is not proof that the changed
+supervise/roadmap skill architecture was freshly analyzed**.
 
-The architecture baseline diff reported 0 nodes added, 52 baseline-only test nodes removed,
-0 edges added or removed, 0 new dependency cycles, 0 new high-impact modules, and 0
-untested new routes. Architecture artifacts were fresh before the diff was generated.
-The removals are a branch-age diagnostic: the feature branch is 49 commits behind
-origin/main, and the removed nodes belong to architecture tests added on the newer
-baseline rather than files deleted by ri-06.
+## Qualified Advisory
 
-### New Cross-Layer Flows
+The prior diff compared a newer origin/main baseline with the older canonical graph and
+reported 52 baseline-only test nodes. That is an inverted/stale-projection diagnostic,
+not evidence of ri-06 deletions and not a reliable branch-age measurement. The changed
+skill architecture is instead guarded behaviorally by the 620-test focused recovery suite,
+including checkpoint authority, automatic/manual subject races, concurrent mirror merge,
+rehydration, bounded route output, and multi-member resumed cohorts.
 
-None represented in the canonical service graph. The changed supervisor and roadmap skill
-runtime modules are outside the graph's service-entrypoint roots.
-
-### Broken Cross-Layer Flows
-
-None. Scoped validation across all 83 branch-diff paths reported zero errors, warnings,
-or informational flow findings.
-
-### New High-Impact Nodes
-
-None.
-
-## Validation Findings
-
-| Severity | Category | Description | File |
-|---|---|---|---|
-| warn | dependency graph | No new node, edge, cycle, high-impact module, or untested route; 52 baseline-only test nodes reflect branch age. | docs/architecture-analysis/architecture.diff.json |
-| pass | flow validation | 83 paths scoped; zero findings. | docs/architecture-analysis/architecture.diagnostics.scoped.json |
-| advisory | file size | Structural lint reported 14 medium-criticality file-size nits, including large runtime/test files and generated/review artifacts. | branch-wide |
-
-Architecture mode is advisory. These nits remain visible but do not independently fail the
-validation gate.
-
-## Parallel Zone Impact
-
-The change retains one serial work package because checkpoint mutation, gate routing,
-resume, and delegated apply share one authority boundary. The architecture graph detected
-no new dependency edge that merges previously independent graph-derived zones.
-
-## Recommendations
-
-**No blocking architecture issue.** Treat the 14 file-size findings as advisory debt.
-Refresh the architecture projection after rebase or at the merge sync point so the
-baseline-only node removals are not mistaken for ri-06 deletions.
+Structural lint still reports 14 file-size findings. Architecture mode is advisory, so the
+stale projection and file-size debt do not independently block this validation. Refresh the
+canonical graph after rebase or at merge sync, with `skills/` included if the producer's
+scope is expanded; do not reinterpret the preserved zero-finding artifact as fresh skill
+coverage.
