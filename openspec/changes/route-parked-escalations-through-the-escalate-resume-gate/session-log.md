@@ -256,3 +256,30 @@ Canonical revalidation passed at pushed commit f8e2193f. The declared non-deploy
 
 ### Context
 Implementation commit `3e1293d97a2db43314d6072c4d7fdb7329637223`. Runner-owned `loop-state.json` was not edited and no runner state mutation was executed.
+
+---
+
+## Phase: Validation 3 (2026-09-16)
+
+**Agent**: autopilot-phase-validator | **Session**: ri06-final-validate-20260916
+
+### Decisions
+1. **Use behavioral suites as skill-runtime architecture evidence** `architectural: supervise` — The preserved service graph predates the branch and excludes skills, so its zero findings are qualified rather than overstated; 9 direct regressions, 620 focused tests, and the 6319-test full suite are the authoritative evidence.
+
+### Completed Work
+- Passed 9 direct post-fix routing and rehydration regressions
+- Passed 620 focused roadmap-runtime, supervise, and autopilot-roadmap tests
+- Passed the complete skills suite: 6319 passed, 6 skipped, 2 warnings
+- Passed Ruff, strict OpenSpec 90/90, work-package/result validation, requirement traceability, scope, pre-merge, and deterministic context-drift gates
+
+### Next Steps
+- Advance autopilot to final validation review
+
+### Relevant Files
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md` — Final post-fix passing validation report
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/change-context.md` — Named 14-scenario behavioral evidence
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-findings.json` — Advisory-only structured findings
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/architecture-impact.md` — Qualified architecture provenance and behavioral evidence
+
+### Context
+Final post-fix validation passed at pushed commit 3e1657b0. The exact routing contract, exact-once/concurrency, multiple-resume cohort, and ledger-to-mirror rehydration regressions pass; all required spec, package, full-suite, Ruff, OpenSpec, traceability, scope, and context-drift gates are green, with only advisory architecture provenance and file-size findings.
