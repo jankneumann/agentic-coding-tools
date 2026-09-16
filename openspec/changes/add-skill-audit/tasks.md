@@ -181,7 +181,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `.claude/skills/skill-audit/**`, `.agents/skills/skill-audit/**`, `.claude/skills/coordination-bridge/**`, `.agents/skills/coordination-bridge/**`
   **Size**: S
 
-- [ ] 3.5 Run the first audits (`merge-pull-requests`, `validate-feature`, `test-driven-development`, `debugging-and-error-recovery`, `performance-optimization`, `api-and-interface-design`) with `--propose`, commit the reports under `docs/reports/skill-audit/`, and append the Implement-phase session log via `PhaseRecord.write_both()` with any `### Capability Gaps Observed`
+- [x] 3.5 Run the first audits (`merge-pull-requests`, `validate-feature`, `test-driven-development`, `debugging-and-error-recovery`, `performance-optimization`, `api-and-interface-design`) with `--propose`, commit the reports under `docs/reports/skill-audit/`, and append the Implement-phase session log via `PhaseRecord.write_both()` with any `### Capability Gaps Observed`
   **Spec scenarios**: skill-workflow "Candidate-work stubs are schema-valid and deduplicated"
   **Design decisions**: D8, D9
   **Dependencies**: 3.4
