@@ -1,4 +1,4 @@
-"""wp-contracts verification (tasks 1.1–1.4).
+"""wp-contracts verification (tasks 1.1–1.3).
 
 Asserts the routing contract set is well-formed and that the generated Pydantic
 models stay in parity with the OpenAPI source — this is the coordination boundary
@@ -38,6 +38,10 @@ def _load_generated():
     return module
 
 
+def _load_openapi() -> dict:
+    return yaml.safe_load(_OPENAPI.read_text())
+
+
 def test_openapi_parses_and_has_routing_paths():
     """model-routing.4 / agent-coordinator.1 — OpenAPI contract is valid and complete."""
     doc = yaml.safe_load(_OPENAPI.read_text())
@@ -50,6 +54,29 @@ def test_openapi_parses_and_has_routing_paths():
         "/routing/feedback",
     ):
         assert path in doc["paths"], f"missing routing path {path}"
+
+
+def test_openapi_declares_bearer_auth_for_every_routing_operation():
+    doc = _load_openapi()
+    assert doc["components"]["securitySchemes"]["CoordinatorBearer"] == {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API key",
+    }
+    assert doc["security"] == [{"CoordinatorBearer": []}]
+
+
+def test_openapi_31_uses_json_schema_null_unions_not_nullable_keyword():
+    def assert_no_nullable(value: object, path: str = "$") -> None:
+        if isinstance(value, dict):
+            assert "nullable" not in value, f"OpenAPI 3.1 nullable keyword at {path}"
+            for key, child in value.items():
+                assert_no_nullable(child, f"{path}.{key}")
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                assert_no_nullable(child, f"{path}[{index}]")
+
+    assert_no_nullable(_load_openapi())
 
 
 def test_event_schema_is_valid_json_schema():
@@ -80,6 +107,7 @@ def test_generated_models_import_and_roundtrip():
         selected=m.Candidate(
             vendor="local", model="qwen3-coder-32b", endpoint_kind="local", score=0.66
         ),
+        alternatives=[],
         exploration=True,
         excluded=[
             m.ExcludedCandidate(
@@ -91,21 +119,65 @@ def test_generated_models_import_and_roundtrip():
     assert resp.excluded[0].reason.startswith("cedar:")
 
 
-def test_generated_candidate_matches_openapi_fields():
-    """Parity guard: generated Candidate field set == OpenAPI Candidate schema.
-
-    Bidirectional: the model may not drop an OpenAPI-declared field, and it may
-    not silently carry a field (e.g. provenance like ``cost_source``) that the
-    OpenAPI contract omits — OpenAPI-generated clients would drop/reject it.
-    """
+@pytest.mark.parametrize(
+    ("schema_name", "model_name"),
+    [
+        ("SelectModelRequest", "SelectModelRequest"),
+        ("Candidate", "Candidate"),
+        ("SelectModelResponse", "SelectModelResponse"),
+        ("CatalogRow", "CatalogRow"),
+        ("RoutingDecision", "RoutingDecision"),
+        ("UsageAggregate", "UsageAggregate"),
+        ("FeedbackEvent", "FeedbackEvent"),
+    ],
+)
+def test_generated_models_match_openapi_fields_and_requiredness(
+    schema_name: str, model_name: str
+):
+    """Parity guard covers fields and required/default semantics."""
     m = _load_generated()
-    doc = yaml.safe_load(_OPENAPI.read_text())
-    openapi_fields = set(doc["components"]["schemas"]["Candidate"]["properties"].keys())
-    model_fields = set(m.Candidate.model_fields.keys())
+    schema = _load_openapi()["components"]["schemas"][schema_name]
+    model_fields_by_name = getattr(m, model_name).model_fields
+    openapi_fields = set(schema["properties"])
+    model_fields = set(model_fields_by_name)
     missing = openapi_fields - model_fields
     extra = model_fields - openapi_fields
-    assert not missing, f"generated Candidate missing OpenAPI fields: {missing}"
-    assert not extra, f"generated Candidate has fields absent from OpenAPI: {extra}"
+    assert not missing, f"generated {model_name} missing OpenAPI fields: {missing}"
+    assert not extra, f"generated {model_name} has fields absent from OpenAPI: {extra}"
+    generated_required = {
+        name for name, field in model_fields_by_name.items() if field.is_required()
+    }
+    assert generated_required == set(schema.get("required", []))
+
+
+def test_excluded_candidate_requiredness_matches_generated_model():
+    m = _load_generated()
+    excluded = _load_openapi()["components"]["schemas"]["SelectModelResponse"][
+        "properties"
+    ]["excluded"]["items"]
+    generated_required = {
+        name
+        for name, field in m.ExcludedCandidate.model_fields.items()
+        if field.is_required()
+    }
+    assert generated_required == set(excluded.get("required", []))
+
+
+def test_posterior_sample_size_preserves_fractional_effective_counts():
+    candidate = _load_openapi()["components"]["schemas"]["Candidate"]
+    assert candidate["properties"]["posterior_sample_size"]["type"] == [
+        "number",
+        "null",
+    ]
+    annotation = _load_generated().Candidate.model_fields[
+        "posterior_sample_size"
+    ].annotation
+    assert float in get_args(annotation)
+
+
+def test_feedback_contract_states_dg00_audit_only_semantics():
+    feedback = _load_openapi()["components"]["schemas"]["FeedbackEvent"]
+    assert "does not associate feedback with a catalog row" in feedback["description"]
 
 
 def test_generated_feedback_source_enum_matches_contract():
