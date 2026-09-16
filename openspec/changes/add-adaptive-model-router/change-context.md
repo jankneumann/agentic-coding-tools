@@ -11,15 +11,15 @@ is preserved in `change-context-full-proposal.md`; deferred normative text is pr
 | agent-coordinator.1 | Five HTTP paths plus MCP selection parity | `contracts/openapi/v1.yaml` | D1 | `test_api.py`, `test_service.py` | `model_routing/api.py`, `coordination_api.py`, `coordination_mcp.py`, `http_proxy.py` | verified |
 | agent-coordinator.2 | Additive, idempotent routing migration | `contracts/db/schema.sql` | D8 | `test_fresh_database_migration.py`, `test_migrations_catalog.py` | `040_model_routing.sql` | verified |
 | agent-coordinator.3 | Independent refresher/probe/ledger watchdog jobs | — | D4 | `test_catalog_watchdog.py`, `test_watchdog.py` | `watchdog.py` | verified |
-| agent-archetypes.1 | Default-off adaptive delegation with exact bounded fallback | — | D2 | `test_delegation.py`, `test_coordination_api.py` | `agents_config.py`, `coordination_api.py` | verified |
-| agent-archetypes.2 | Endpoint metadata accepted and serialized | — | D5 | `test_agent_endpoints.py` | `agents_config.py` | verified |
+| agent-archetypes.1 | Signal forwarding plus default-off adaptive delegation with exact bounded fallback | — | D2 | `test_delegation.py`, `test_coordination_api.py` | `agents_config.py`, `coordination_api.py` | verified |
+| agent-archetypes.2 | Endpoint metadata accepted, serialized, and registered for probing | — | D5 | `test_agent_endpoints.py`, `test_local_endpoints.py` | `agents_config.py`, `model_routing/local_endpoints.py` | verified |
 | model-routing.1 | Storage-only catalog CRUD and staleness | `contracts/db/schema.sql#model_catalog` | D1 | `test_catalog.py` | `model_routing/catalog.py` | verified |
-| model-routing.2 | Refresh updates and failure preservation | `contracts/openapi/v1.yaml#/routing/catalog` | D4 | `test_refresher.py` | `model_routing/refresher.py` | verified |
+| model-routing.2 | Refresh updates and failure preservation | `contracts/openapi/v1.yaml#/paths/~1routing~1catalog` | D4 | `test_refresher.py` | `model_routing/refresher.py` | verified |
 | model-routing.3 | Local endpoint registration and health exclusion | `contracts/db/schema.sql#model_catalog` | D5 | `test_local_endpoints.py` | `model_routing/local_endpoints.py` | verified |
-| model-routing.4 | Resolver transport surface and durable decisions | `contracts/openapi/v1.yaml#/routing/select_model` | D3 | `test_api.py`, `test_service.py` | `model_routing/api.py` | verified |
+| model-routing.4 | Resolver transport surface and durable decisions | `contracts/openapi/v1.yaml#/paths/~1routing~1select_model` | D3 | `test_api.py`, `test_service.py` | `model_routing/api.py` | verified |
 | model-routing.5 | Actual/counterfactual ledger with estimate labels | `contracts/db/schema.sql#routing_spend_ledger` | D7 | `test_ledger.py` | `model_routing/ledger.py` | verified |
 | model-routing.6 | Static-tier kill switch and timeout fallback | — | D2 | `test_delegation.py` | `agents_config.py` | verified |
-| dg-00.4 | OpenAI-compatible adapter reachable in discovery order | — | D10 | `test_review_dispatcher.py` | `review_dispatcher.py` | verified |
+| parallel-infrastructure.1 | OpenAI-compatible adapter reachable in discovery order | — | D10 | `test_review_dispatcher.py` | `review_dispatcher.py` | verified |
 
 ## Coverage Summary
 

@@ -35,7 +35,7 @@
   **Spec scenarios**: agent-coordinator.1
 - [x] 3.8 Expose the merged resolver through one transport-neutral RoutingService [M]
   **Spec scenarios**: model-routing.4
-- [x] 3.9 Test default-off exact equality, enabled delegation, errors, and bounded timeout [M]
+- [x] 3.9 Test default-off exact equality, escalation-signal forwarding, enabled delegation, errors, and bounded timeout [M]
   **Spec scenarios**: agent-archetypes.1, model-routing.6
 - [x] 3.10 Implement `ROUTING_ADAPTIVE` delegation without blocking the coordinator event loop [M]
   **Spec scenarios**: agent-archetypes.1, model-routing.6
@@ -46,7 +46,9 @@
 ## Phase 4 — Dispatcher discovery (wp-dispatch)
 
 - [x] 4.1 Retain the merged OpenAI-compatible adapter tests and adapter implementation [S]
+  **Spec scenarios**: parallel-infrastructure.1
 - [x] 4.2 Make local/OpenRouter endpoints reachable after CLI and SDK discovery, with CLI precedence [M]
+  **Spec scenarios**: parallel-infrastructure.1
 - [x] Checkpoint: review-dispatcher tests and Ruff pass
 
 ## Phase 8 — Integrated review and validation (wp-integration)

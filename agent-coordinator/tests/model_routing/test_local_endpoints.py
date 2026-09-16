@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import httpx
@@ -82,3 +83,28 @@ async def test_successful_probe_marks_available_and_captures_latency() -> None:
     catalog.set_availability.assert_awaited_once_with(
         "local", "qwen", "local", available=True, p50_latency_ms=125.0
     )
+
+
+@pytest.mark.asyncio
+async def test_agents_registry_local_endpoint_is_registered_for_probing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = SimpleNamespace(
+        endpoint_kind="local",
+        type="local",
+        name="ollama-local",
+        base_url="http://localhost:11434/v1",
+        sdk=None,
+    )
+    monkeypatch.setattr("src.agents_config.get_agents_config", lambda: [agent])
+    catalog = AsyncMock()
+    service = LocalEndpointService(catalog)
+
+    count = await service.sync_from_agents_config()
+
+    assert count == 1
+    entry = catalog.upsert.await_args.args[0]
+    assert entry.vendor == "local"
+    assert entry.model == "ollama-local"
+    assert entry.endpoint_kind == "local"
+    assert entry.base_url == "http://localhost:11434/v1"
