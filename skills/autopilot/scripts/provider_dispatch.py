@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import urllib.parse
@@ -24,6 +25,14 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 logger = logging.getLogger(__name__)
+
+_PARALLEL_INFRA_SCRIPTS = (
+    Path(__file__).resolve().parents[2] / "parallel-infrastructure" / "scripts"
+)
+if str(_PARALLEL_INFRA_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_PARALLEL_INFRA_SCRIPTS))
+
+from vendor_limit_reporter import report_vendor_limit_result  # noqa: E402
 
 
 @dataclass
@@ -691,30 +700,57 @@ def _dry_run_result(payload: PhaseDispatchPayload) -> PhaseDispatchResult:
     )
 
 
+def _report_terminal_capacity(
+    result: PhaseDispatchResult,
+    reporter: Callable[[PhaseDispatchResult], Any],
+) -> None:
+    """Report a terminal capacity result without changing the dispatch outcome."""
+    error_class = getattr(result.error_class, "value", result.error_class)
+    if error_class not in {"capacity", "capacity_exhausted"}:
+        return
+    try:
+        reporter(result)
+    except Exception as exc:  # noqa: BLE001 — reporting is best effort
+        logger.warning(
+            "Provider capacity reporting failed for agent_id=%s: %s",
+            result.agent_id,
+            exc,
+        )
+
+
 def dispatch_phase(
     payload: PhaseDispatchPayload,
     *,
     runner: ProviderRunner | None = None,
     dry_run: bool = False,
+    rate_limit_reporter: Callable[[PhaseDispatchResult], Any] = (
+        report_vendor_limit_result
+    ),
 ) -> PhaseDispatchResult:
     """Dispatch a phase payload through a provider adapter.
 
     Production harnesses can pass *runner* to invoke their provider-specific
     execution surface. Without a runner, unsupported/nonconfigured adapters
     return a structured fallback result so the SKILL.md layer can continue
-    through inline execution.
+    through inline execution. Terminal capacity reporting is best effort and
+    never replaces the dispatch result.
     """
     if dry_run:
-        return _dry_run_result(payload)
-    if payload.provider not in _SUPPORTED_PROVIDERS:
-        return _fallback_result(
+        result = _dry_run_result(payload)
+    elif payload.provider not in _SUPPORTED_PROVIDERS:
+        result = _fallback_result(
             payload, f"adapter unavailable for provider {payload.provider!r}"
         )
-    if runner is None:
+    elif runner is None:
         if payload.provider == _LOCAL_PROVIDER:
-            return _dispatch_local(payload)
-        return _fallback_result(
-            payload,
-            f"adapter unavailable for provider {payload.provider!r} in this runtime",
-        )
-    return normalize_dispatch_result(runner(payload), payload, "harness")
+            result = _dispatch_local(payload)
+        else:
+            result = _fallback_result(
+                payload,
+                f"adapter unavailable for provider {payload.provider!r} in this runtime",
+            )
+    else:
+        result = normalize_dispatch_result(runner(payload), payload, "harness")
+
+    _report_terminal_capacity(result, rate_limit_reporter)
+    return result
