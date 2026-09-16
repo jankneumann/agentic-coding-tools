@@ -136,6 +136,7 @@ class UsageAggregate(BaseModel):
     exploration_usd_used: float = 0.0
     metered_ceiling_usd: float = 0.0
     metered_usd_used: float = 0.0
+    estimated_fraction: float = 0.0
 
 
 class FeedbackMetrics(BaseModel):

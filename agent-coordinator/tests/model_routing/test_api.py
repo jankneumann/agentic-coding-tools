@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from src.config import reset_config
 from src.coordination_api import create_coordination_api
-from src.model_routing.api import RoutingService
+from src.model_routing.api import RoutingService, RoutingUnavailableError
 
 _TEST_KEY = "routing-test-key"
 
@@ -84,6 +84,7 @@ def test_routing_routes_require_bearer_auth(
 ) -> None:
     response = client.request(method, path, json=body)
     assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid API key"}
 
 
 def test_select_model_returns_contract_shape(client: TestClient) -> None:
@@ -111,8 +112,33 @@ def test_select_model_returns_contract_shape(client: TestClient) -> None:
     assert payload["selected"]["model"] == "qwen3-coder-32b"
     assert payload["fallback"] is False
     request = service.select_model.await_args.args[0]
-    assert request.task_signals["complexity"] == "high"
+    assert request.task_signals.complexity == "high"
     assert request.objective_profile == "quality-first"
+
+
+def test_select_model_requires_task_signal_archetype(client: TestClient) -> None:
+    response = client.post(
+        "/routing/select_model",
+        headers=_auth_headers(),
+        json={"task_signals": {"phase": "IMPLEMENT"}},
+    )
+
+    assert response.status_code == 422
+
+
+def test_select_model_maps_no_candidate_to_documented_503(client: TestClient) -> None:
+    service = AsyncMock()
+    service.select_model.side_effect = RoutingUnavailableError("no feasible candidate")
+
+    with patch("src.model_routing.api.get_routing_service", return_value=service):
+        response = client.post(
+            "/routing/select_model",
+            headers=_auth_headers(),
+            json={"task_signals": {"archetype": "runner"}},
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "no feasible candidate"}
 
 
 def test_catalog_filters_without_external_refresh(client: TestClient) -> None:
@@ -187,6 +213,7 @@ def test_usage_and_feedback_delegate_to_service(client: TestClient) -> None:
 
     assert usage.status_code == 200
     assert usage.json()["window"] == "week"
+    assert usage.json()["estimated_fraction"] == 0.0
     service.get_usage.assert_awaited_once_with(
         window="week", include_estimates=False
     )
@@ -215,6 +242,22 @@ async def test_routing_service_forwards_usage_window_and_reports_verified_saving
     )
     assert usage["net_savings_usd"] == pytest.approx(7.0)
     assert usage["net_savings_usd_excluding_estimates"] == pytest.approx(3.0)
+    assert usage["estimated_fraction"] == pytest.approx(0.5)
+
+
+@pytest.mark.asyncio
+async def test_usage_tolerates_malformed_monthly_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ROUTING_MONTHLY_CEILING_USD", "not-a-number")
+    ledger = AsyncMock()
+    ledger.usage_summary.return_value = {"entries": 0}
+
+    usage = await RoutingService(catalog=AsyncMock(), ledger=ledger).get_usage(
+        window="month", include_estimates=True
+    )
+
+    assert usage["metered_ceiling_usd"] == 0.0
 
 
 @pytest.mark.asyncio
@@ -235,7 +278,44 @@ async def test_mcp_select_model_uses_same_service_in_db_mode() -> None:
         )
 
     assert result == _selection()
-    assert service.select_model.await_args.args[0].task_signals["phase"] == "INIT"
+    assert service.select_model.await_args.args[0].task_signals.phase == "INIT"
+
+
+@pytest.mark.asyncio
+async def test_mcp_no_candidate_matches_http_proxy_error_semantics() -> None:
+    from src import coordination_mcp
+
+    expected = {
+        "success": False,
+        "error": "http_503",
+        "status_code": 503,
+        "detail": {"detail": "no feasible model-routing candidate"},
+    }
+    service = AsyncMock()
+    service.select_model.side_effect = RoutingUnavailableError(
+        "no feasible model-routing candidate"
+    )
+
+    with (
+        patch.object(coordination_mcp, "_transport", "db"),
+        patch("src.model_routing.api.get_routing_service", return_value=service),
+    ):
+        direct = await coordination_mcp.select_model_for_task(
+            task_signals={"archetype": "runner"}
+        )
+
+    with (
+        patch.object(coordination_mcp, "_transport", "http"),
+        patch(
+            "src.coordination_mcp.http_proxy.proxy_select_model_for_task",
+            new=AsyncMock(return_value=expected),
+        ),
+    ):
+        proxied = await coordination_mcp.select_model_for_task(
+            task_signals={"archetype": "runner"}
+        )
+
+    assert direct == proxied == expected
 
 
 @pytest.mark.asyncio

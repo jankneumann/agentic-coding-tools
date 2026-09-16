@@ -27,7 +27,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/SelectModelResponse'
         '401':
-          $ref: '#/components/responses/Problem'
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/RoutingUnavailable'
         '422':
           $ref: '#/components/responses/Problem'
   /routing/catalog:
@@ -50,7 +52,7 @@ paths:
                 type: array
                 items: {$ref: '#/components/schemas/CatalogRow'}
         '401':
-          $ref: '#/components/responses/Problem'
+          $ref: '#/components/responses/Unauthorized'
   /routing/decisions/{decision_id}:
     get:
       operationId: getRoutingDecision
@@ -67,7 +69,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/RoutingDecision'}
         '401':
-          $ref: '#/components/responses/Problem'
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/Problem'
   /routing/usage:
@@ -88,7 +90,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/UsageAggregate'}
         '401':
-          $ref: '#/components/responses/Problem'
+          $ref: '#/components/responses/Unauthorized'
   /routing/feedback:
     post:
       operationId: postRoutingFeedback
@@ -102,7 +104,7 @@ paths:
         '202':
           description: Accepted for best-effort audit recording
         '401':
-          $ref: '#/components/responses/Problem'
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     CoordinatorBearer:
@@ -121,7 +123,22 @@ components:
               title: {type: string}
               status: {type: integer}
               detail: {type: string}
+    Unauthorized:
+      description: Missing or invalid coordinator API key
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/HTTPError'}
+    RoutingUnavailable:
+      description: No feasible model-routing candidate is available
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/HTTPError'}
   schemas:
+    HTTPError:
+      type: object
+      required: [detail]
+      properties:
+        detail: {type: string}
     EndpointKind:
       type: string
       enum: [vendor-cli, vendor-sdk, openrouter, local]
@@ -303,6 +320,7 @@ components:
         exploration_usd_used: {type: number, default: 0}
         metered_ceiling_usd: {type: number, default: 0}
         metered_usd_used: {type: number, default: 0}
+        estimated_fraction: {type: number, default: 0, description: Share of included entries with estimated token counts}
     FeedbackEvent:
       type: object
       description: >-

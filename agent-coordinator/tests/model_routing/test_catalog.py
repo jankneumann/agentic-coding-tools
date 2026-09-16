@@ -77,6 +77,7 @@ async def test_list_candidates_maps_catalog_and_task_posterior() -> None:
         "benchmark_priors": {"implementer/high": 0.8},
         "prompt_usd_per_mtok": 1.0,
         "completion_usd_per_mtok": 2.0,
+        "stale": True,
     }
     posterior_rows = [
         {"metric": "quality", "value": 0.9, "sample_size": 8},
@@ -95,6 +96,7 @@ async def test_list_candidates_maps_catalog_and_task_posterior() -> None:
     assert candidate.posterior.cost_per_task_usd == 0.4
     assert candidate.posterior.sample_size == 8
     assert candidate.available is True
+    assert candidate.stale_catalog is True
 
 
 @pytest.mark.asyncio

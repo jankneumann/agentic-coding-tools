@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import random
 from dataclasses import asdict, replace
@@ -27,6 +28,7 @@ FeedbackSource = Literal[
     "transcript-triage",
 ]
 
+
 class WeightOverrides(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -35,10 +37,20 @@ class WeightOverrides(BaseModel):
     w_latency: float | None = None
 
 
+class TaskSignals(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    archetype: str = Field(min_length=1)
+    phase: str | None = None
+    task_type: str | None = None
+    complexity: Literal["low", "medium", "high"] | None = None
+    modality: Literal["interactive", "programmatic"] = "programmatic"
+
+
 class SelectModelRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    task_signals: dict[str, Any]
+    task_signals: TaskSignals
     objective_profile: ObjectiveProfile | None = None
     weight_overrides: WeightOverrides | None = None
     allow_exploration: bool = True
@@ -72,6 +84,32 @@ class SelectModelResponse(BaseModel):
     exploration: bool = False
     fallback: bool = False
     excluded: list[ExcludedCandidate] = Field(default_factory=list)
+
+
+class UsageByModelResponse(BaseModel):
+    vendor: str
+    model: str
+    endpoint_kind: EndpointKind
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    actual_usd: float = 0.0
+    counterfactual_usd: float = 0.0
+    estimated_fraction: float = 0.0
+
+
+class UsageAggregateResponse(BaseModel):
+    window: Literal["day", "week", "month"]
+    by_model: list[UsageByModelResponse] = Field(default_factory=list)
+    net_savings_usd: float = 0.0
+    net_savings_usd_excluding_estimates: float = 0.0
+    exploration_usd_used: float = 0.0
+    metered_ceiling_usd: float = 0.0
+    metered_usd_used: float = 0.0
+    estimated_fraction: float = 0.0
+
+
+class HTTPErrorResponse(BaseModel):
+    detail: str
 
 
 class FeedbackMetrics(BaseModel):
@@ -135,17 +173,17 @@ def _candidate_payload(candidate: Any) -> dict[str, Any]:
         "norm_cost": raw["norm_cost"],
         "norm_latency": raw["norm_latency"],
         "posterior_sample_size": raw["posterior_sample_size"],
-        "stale_catalog": False,
+        "stale_catalog": bool(raw.get("stale_catalog", False)),
         "cost_source": raw["cost_source"],
     }
 
 
-def _task_type(signals: dict[str, Any]) -> str:
-    explicit = signals.get("task_type")
-    if isinstance(explicit, str) and explicit.strip():
+def _task_type(signals: TaskSignals) -> str:
+    explicit = signals.task_type
+    if explicit is not None and explicit.strip():
         return explicit.strip()
-    archetype = str(signals.get("archetype", "unknown"))
-    complexity = str(signals.get("complexity", "medium"))
+    archetype = signals.archetype
+    complexity = signals.complexity or "medium"
     return f"{archetype}/{complexity}-complexity"
 
 
@@ -160,6 +198,19 @@ def _weights(request: SelectModelRequest) -> Weights | None:
         w_cost=supplied.w_cost if supplied.w_cost is not None else base.w_cost,
         w_latency=supplied.w_latency if supplied.w_latency is not None else base.w_latency,
     )
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if math.isfinite(parsed) else default
+
+
+def _nonnegative_env_float(name: str, default: float) -> float:
+    parsed = _safe_float(os.environ.get(name), default)
+    return parsed if parsed >= 0 else default
 
 
 class RoutingService:
@@ -192,6 +243,36 @@ class RoutingService:
             self._ledger = get_routing_ledger()
         return self._ledger
 
+    async def _current_exploration_budget(
+        self,
+    ) -> tuple[ExplorationBudget, dict[str, float]]:
+        summary = await self.ledger.usage_summary(
+            window="month",
+            include_estimated=True,
+        )
+        entries = max(_safe_float(summary.get("entries")), 0.0)
+        exploration_entries = max(
+            _safe_float(summary.get("exploration_entries")),
+            0.0,
+        )
+        pct_used = exploration_entries / entries if entries else 0.0
+        usd_used = max(_safe_float(summary.get("exploration_usd_used")), 0.0)
+        metered_usd_used = max(_safe_float(summary.get("actual_usd")), 0.0)
+        budget = ExplorationBudget(
+            pct_used=pct_used,
+            pct_cap=_nonnegative_env_float("ROUTING_EXPLORATION_PCT", 0.10),
+            usd_used=usd_used,
+            usd_cap=_nonnegative_env_float(
+                "ROUTING_EXPLORATION_MONTHLY_USD",
+                0.0,
+            ),
+        )
+        return budget, {
+            "exploration_pct_used": pct_used,
+            "exploration_usd_used": usd_used,
+            "metered_usd_used": metered_usd_used,
+        }
+
     async def select_model(self, request: SelectModelRequest) -> dict[str, Any]:
         candidates = await self.catalog.list_candidates(_task_type(request.task_signals))
         ranked, excluded = score_and_rank(
@@ -199,10 +280,11 @@ class RoutingService:
             profile=request.objective_profile or "balanced",
             weight_overrides=_weights(request),
         )
+        budget, budget_state = await self._current_exploration_budget()
         selection = choose(
             ranked,
             allow_exploration=request.allow_exploration,
-            budget=ExplorationBudget(),
+            budget=budget,
             rng=self._rng,
         )
         if selection is None:
@@ -210,9 +292,7 @@ class RoutingService:
 
         selected = _candidate_payload(selection.selected)
         alternatives = [
-            _candidate_payload(candidate)
-            for candidate in ranked
-            if candidate != selection.selected
+            _candidate_payload(candidate) for candidate in ranked if candidate != selection.selected
         ]
         payload: dict[str, Any] = {
             "decision_id": str(uuid4()),
@@ -231,7 +311,7 @@ class RoutingService:
                 "created_at": datetime.now(UTC).isoformat(),
                 "request": request.model_dump(mode="json"),
                 "policy_version": "linear-utility-v1",
-                "budget_state": {},
+                "budget_state": budget_state,
             }
         )
         return payload
@@ -257,22 +337,21 @@ class RoutingService:
             window=window,
             include_estimated=include_estimates,
         )
-        actual = float(summary.get("actual_usd", 0.0))
-        counterfactual = float(summary.get("counterfactual_usd", 0.0))
-        estimates = int(summary.get("estimated_entries", 0))
-        entries = int(summary.get("entries", 0))
-        savings = float(summary.get("savings_usd", counterfactual - actual))
+        actual = _safe_float(summary.get("actual_usd"))
+        counterfactual = _safe_float(summary.get("counterfactual_usd"))
+        estimates = max(int(_safe_float(summary.get("estimated_entries"))), 0)
+        entries = max(int(_safe_float(summary.get("entries"))), 0)
+        savings = _safe_float(summary.get("savings_usd"), counterfactual - actual)
         return {
             "window": window,
             "by_model": summary.get("by_model", []),
             "net_savings_usd": savings,
-            "net_savings_usd_excluding_estimates": float(
-                summary.get("verified_savings_usd", savings if estimates == 0 else 0.0)
+            "net_savings_usd_excluding_estimates": _safe_float(
+                summary.get("verified_savings_usd"),
+                savings if estimates == 0 else 0.0,
             ),
-            "exploration_usd_used": float(summary.get("exploration_usd_used", 0.0)),
-            "metered_ceiling_usd": float(
-                os.environ.get("ROUTING_MONTHLY_CEILING_USD", "0") or 0
-            ),
+            "exploration_usd_used": _safe_float(summary.get("exploration_usd_used")),
+            "metered_ceiling_usd": _nonnegative_env_float("ROUTING_MONTHLY_CEILING_USD", 0.0),
             "metered_usd_used": actual,
             "estimated_fraction": estimates / entries if entries else 0.0,
         }
@@ -323,9 +402,7 @@ def resolve_phase_model(
     config = HttpProxyConfig.from_env()
     if config is None:
         raise RoutingUnavailableError("COORDINATION_API_URL is not configured")
-    headers = (
-        {"Authorization": f"Bearer {config.api_key}"} if config.api_key else {}
-    )
+    headers = {"Authorization": f"Bearer {config.api_key}"} if config.api_key else {}
     response = httpx.post(
         f"{config.base_url}/routing/select_model",
         json={"task_signals": task_signals},
@@ -339,12 +416,29 @@ def resolve_phase_model(
     return result
 
 
+_AUTH_RESPONSES: dict[int | str, dict[str, Any]] = {
+    401: {
+        "model": HTTPErrorResponse,
+        "description": "Missing or invalid coordinator API key",
+    }
+}
+_SELECT_RESPONSES = {
+    **_AUTH_RESPONSES,
+    503: {
+        "model": HTTPErrorResponse,
+        "description": "No feasible model-routing candidate is available",
+    },
+}
+
+
 def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
     """Register the five OpenAPI routing paths on the coordinator app."""
+
     @app.post(
         "/routing/select_model",
         response_model=SelectModelResponse,
         dependencies=[Depends(auth_dependency)],
+        responses=_SELECT_RESPONSES,
     )
     async def select_model_endpoint(request: SelectModelRequest) -> dict[str, Any]:
         try:
@@ -352,7 +446,11 @@ def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
         except RoutingUnavailableError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    @app.get("/routing/catalog", dependencies=[Depends(auth_dependency)])
+    @app.get(
+        "/routing/catalog",
+        dependencies=[Depends(auth_dependency)],
+        responses=_AUTH_RESPONSES,
+    )
     async def catalog_endpoint(
         endpoint_kind: EndpointKind | None = None,
         available_only: bool = True,
@@ -364,6 +462,7 @@ def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
     @app.get(
         "/routing/decisions/{decision_id}",
         dependencies=[Depends(auth_dependency)],
+        responses=_AUTH_RESPONSES,
     )
     async def decision_endpoint(decision_id: UUID) -> Any:
         decision = await get_routing_service().get_decision(decision_id)
@@ -380,7 +479,12 @@ def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
             },
         )
 
-    @app.get("/routing/usage", dependencies=[Depends(auth_dependency)])
+    @app.get(
+        "/routing/usage",
+        response_model=UsageAggregateResponse,
+        dependencies=[Depends(auth_dependency)],
+        responses=_AUTH_RESPONSES,
+    )
     async def usage_endpoint(
         window: Literal["day", "week", "month"] = "month",
         include_estimates: bool = True,
@@ -393,6 +497,7 @@ def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
         "/routing/feedback",
         status_code=202,
         dependencies=[Depends(auth_dependency)],
+        responses=_AUTH_RESPONSES,
     )
     async def feedback_endpoint(event: FeedbackEvent) -> dict[str, bool]:
         return await get_routing_service().post_feedback(event)

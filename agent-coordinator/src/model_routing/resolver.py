@@ -87,6 +87,7 @@ class CandidateInput:
     modality_eligible: bool = True          # Cedar verdict (D10)
     exclusion_reason: str | None = None      # pre-computed hard-constraint reason
     posterior: Posterior = field(default_factory=Posterior)
+    stale_catalog: bool = False
 
 
 @dataclass(frozen=True)
@@ -101,6 +102,7 @@ class ScoredCandidate:
     headroom: float
     cost_source: CostSource
     posterior_sample_size: float
+    stale_catalog: bool = False
 
 
 def blend_quality(
@@ -243,6 +245,7 @@ def score_and_rank(
                 headroom=headroom,
                 cost_source=src,
                 posterior_sample_size=c.posterior.sample_size,
+                stale_catalog=c.stale_catalog,
             )
         )
     scored.sort(key=lambda s: s.score, reverse=True)

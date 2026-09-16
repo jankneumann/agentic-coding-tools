@@ -167,6 +167,7 @@ class CatalogService:
                     # Stale rows remain routable when refresh is unavailable;
                     # callers retain the catalog row's stale provenance.
                     available=bool(row.get("available", True)),
+                    stale_catalog=bool(row.get("stale", False)),
                     posterior=Posterior(
                         quality=_metric_value(metrics, "quality"),
                         cost_per_task_usd=_optional_float(cost.get("value")) if cost else None,

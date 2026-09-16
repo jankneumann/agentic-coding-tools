@@ -66,6 +66,26 @@ def test_openapi_declares_bearer_auth_for_every_routing_operation():
     assert doc["security"] == [{"CoordinatorBearer": []}]
 
 
+def test_openapi_documents_actual_auth_and_unavailable_json_bodies():
+    doc = _load_openapi()
+    for path_item in doc["paths"].values():
+        for operation in path_item.values():
+            assert operation["responses"]["401"] == {
+                "$ref": "#/components/responses/Unauthorized"
+            }
+
+    select_responses = doc["paths"]["/routing/select_model"]["post"]["responses"]
+    assert select_responses["503"] == {
+        "$ref": "#/components/responses/RoutingUnavailable"
+    }
+    for name in ("Unauthorized", "RoutingUnavailable"):
+        content = doc["components"]["responses"][name]["content"]
+        assert set(content) == {"application/json"}
+        assert content["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/HTTPError"
+        }
+
+
 def test_openapi_31_uses_json_schema_null_unions_not_nullable_keyword():
     def assert_no_nullable(value: object, path: str = "$") -> None:
         if isinstance(value, dict):

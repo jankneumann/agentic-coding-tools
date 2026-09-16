@@ -110,7 +110,11 @@ async def select_model_for_task(
             allow_exploration=allow_exploration,
         )
 
-    from .model_routing.api import SelectModelRequest, get_routing_service
+    from .model_routing.api import (
+        RoutingUnavailableError,
+        SelectModelRequest,
+        get_routing_service,
+    )
 
     request = SelectModelRequest.model_validate(
         {
@@ -120,7 +124,15 @@ async def select_model_for_task(
             "allow_exploration": allow_exploration,
         }
     )
-    return await get_routing_service().select_model(request)
+    try:
+        return await get_routing_service().select_model(request)
+    except RoutingUnavailableError as exc:
+        return {
+            "success": False,
+            "error": "http_503",
+            "status_code": 503,
+            "detail": {"detail": str(exc)},
+        }
 
 
 # =============================================================================

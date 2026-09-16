@@ -77,6 +77,32 @@ def test_adaptive_flag_forwards_phase_archetype_and_escalation_signals(
     assert any("adaptive routing selected" in reason for reason in resolved.reasons)
 
 
+def test_adaptive_flag_preserves_caller_modality(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def _adaptive(**kwargs: Any) -> dict[str, Any]:
+        captured.update(kwargs)
+        return {
+            "selected": {
+                "vendor": "local",
+                "model": "qwen",
+                "endpoint_kind": "local",
+                "score": 0.5,
+            }
+        }
+
+    monkeypatch.setenv("ROUTING_ADAPTIVE", "true")
+    monkeypatch.setattr("src.model_routing.api.resolve_phase_model", _adaptive)
+
+    resolve_archetype_for_phase(
+        "IMPLEMENT", {"complexity": "low", "modality": "interactive"}
+    )
+
+    assert captured["task_signals"]["modality"] == "interactive"
+
+
 def test_adaptive_error_returns_static_result(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ROUTING_ADAPTIVE", "1")
     monkeypatch.setattr(

@@ -2634,14 +2634,18 @@ def _adaptive_task_signals(
     mapping = _phase_mapping if _phase_mapping is not None else {}
     entry = mapping.get(phase)
     allowed = set(entry.signals) if entry is not None else set()
-    filtered = {key: value for key, value in (signals or {}).items() if key in allowed}
+    supplied = signals or {}
+    filtered = {key: value for key, value in supplied.items() if key in allowed}
+    modality = supplied.get("modality", "programmatic")
+    if modality not in {"interactive", "programmatic"}:
+        modality = "programmatic"
     complexity = str(filtered.get("complexity", "medium"))
     return {
         "archetype": static.archetype,
         "phase": phase,
         "task_type": f"{static.archetype}/{complexity}-complexity",
         **filtered,
-        "modality": "programmatic",
+        "modality": modality,
     }
 
 

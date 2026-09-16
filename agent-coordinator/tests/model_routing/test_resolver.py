@@ -116,6 +116,21 @@ def test_unavailable_local_endpoint_excluded():
     ) == "unavailable"
 
 
+def test_stale_catalog_provenance_survives_scoring():
+    ranked, _ = score_and_rank(
+        [
+            CandidateInput(
+                vendor="local",
+                model="m",
+                endpoint_kind="local",
+                stale_catalog=True,
+            )
+        ]
+    )
+
+    assert ranked[0].stale_catalog is True
+
+
 # ── D13 (rev3): resilience objective rewards quota headroom ───────────────────
 
 def test_resilience_downranks_near_cap_provider():
