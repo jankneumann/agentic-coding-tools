@@ -133,14 +133,14 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
 
 - [ ] Checkpoint: run `skills/tests/skill-audit`, run `skill_audit.py quick-task --output-dir /tmp/sa` end to end with the stub backend, review the generated report by eye, verify scope
 
-- [ ] 2.11 Write `skills/tests/skill-audit/test_skill_md.py`: frontmatter parses; explicit keys `name`, `description`, `category`, `tags`, `user_invocable: true`, `related` (do not call `assert_required_keys_present`); passes with `triggers:` present and with it stripped in a temp copy; references resolve and are one level deep; tail block present; line count ≤ 150; `related` does not include `audit-choices`
+- [x] 2.11 Write `skills/tests/skill-audit/test_skill_md.py`: frontmatter parses; explicit keys `name`, `description`, `category`, `tags`, `user_invocable: true`, `related` (do not call `assert_required_keys_present`); passes with `triggers:` present and with it stripped in a temp copy; references resolve and are one level deep; tail block present; line count ≤ 150; `related` does not include `audit-choices`
   **Spec scenarios**: skill-workflow "Skill test passes in both frontmatter states"
   **Design decisions**: D7, D9
   **Dependencies**: None
   **Files**: `skills/tests/skill-audit/test_skill_md.py`
   **Size**: S
 
-- [ ] 2.12 Write `skills/skill-audit/SKILL.md` (≤ 150 lines: frontmatter with `triggers:` for today's invariants, purpose, arguments table, the five-step run, output locations, when to re-run, tail block per `skills/references/skill-tail-template.md`) and `references/usage.md` (worked example on `merge-pull-requests`, reading the report, feeding `--propose` into `/prioritize-proposals`)
+- [x] 2.12 Write `skills/skill-audit/SKILL.md` (≤ 150 lines: frontmatter with `triggers:` for today's invariants, purpose, arguments table, the five-step run, output locations, when to re-run, tail block per `skills/references/skill-tail-template.md`) and `references/usage.md` (worked example on `merge-pull-requests`, reading the report, feeding `--propose` into `/prioritize-proposals`)
   **Spec scenarios**: as 2.11
   **Design decisions**: D7, D9
   **Dependencies**: 2.10, 2.11
