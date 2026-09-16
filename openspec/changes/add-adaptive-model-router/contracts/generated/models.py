@@ -29,6 +29,10 @@ class WeightOverrides(BaseModel):
     w_latency: float | None = None
 
 
+class HTTPError(BaseModel):
+    detail: str
+
+
 class TaskSignals(BaseModel):
     archetype: str
     phase: str | None = None
@@ -98,9 +102,11 @@ class CatalogRow(BaseModel):
 
 
 class BudgetState(BaseModel):
+    status: Literal["available", "not-requested", "unavailable"] | None = None
     exploration_pct_used: float | None = None
     exploration_usd_used: float | None = None
     metered_usd_used: float | None = None
+    degraded_reason: str | None = None
 
 
 class RoutingDecision(BaseModel):

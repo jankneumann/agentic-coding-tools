@@ -143,6 +143,7 @@ def test_generated_models_import_and_roundtrip():
     ("schema_name", "model_name"),
     [
         ("SelectModelRequest", "SelectModelRequest"),
+        ("HTTPError", "HTTPError"),
         ("Candidate", "Candidate"),
         ("SelectModelResponse", "SelectModelResponse"),
         ("CatalogRow", "CatalogRow"),
@@ -181,6 +182,21 @@ def test_excluded_candidate_requiredness_matches_generated_model():
         if field.is_required()
     }
     assert generated_required == set(excluded.get("required", []))
+
+
+def test_budget_state_contract_exposes_degraded_read_status():
+    m = _load_generated()
+    budget = _load_openapi()["components"]["schemas"]["RoutingDecision"][
+        "properties"
+    ]["budget_state"]
+
+    assert set(budget["properties"]) == set(m.BudgetState.model_fields)
+    assert budget["properties"]["status"]["enum"] == [
+        "available",
+        "not-requested",
+        "unavailable",
+        None,
+    ]
 
 
 def test_posterior_sample_size_preserves_fractional_effective_counts():

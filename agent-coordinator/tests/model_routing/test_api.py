@@ -319,6 +319,45 @@ async def test_mcp_no_candidate_matches_http_proxy_error_semantics() -> None:
 
 
 @pytest.mark.asyncio
+async def test_mcp_validation_error_matches_http_proxy_422_semantics() -> None:
+    from src import coordination_mcp
+
+    expected = {
+        "success": False,
+        "error": "http_422",
+        "status_code": 422,
+        "detail": {
+            "detail": [
+                {
+                    "type": "missing",
+                    "loc": ["body", "task_signals", "archetype"],
+                    "msg": "Field required",
+                    "input": {"phase": "INIT"},
+                }
+            ]
+        },
+    }
+
+    with patch.object(coordination_mcp, "_transport", "db"):
+        direct = await coordination_mcp.select_model_for_task(
+            task_signals={"phase": "INIT"}
+        )
+
+    with (
+        patch.object(coordination_mcp, "_transport", "http"),
+        patch(
+            "src.coordination_mcp.http_proxy.proxy_select_model_for_task",
+            new=AsyncMock(return_value=expected),
+        ),
+    ):
+        proxied = await coordination_mcp.select_model_for_task(
+            task_signals={"phase": "INIT"}
+        )
+
+    assert direct == proxied == expected
+
+
+@pytest.mark.asyncio
 async def test_mcp_select_model_uses_http_proxy_in_proxy_mode() -> None:
     from src import coordination_mcp
 

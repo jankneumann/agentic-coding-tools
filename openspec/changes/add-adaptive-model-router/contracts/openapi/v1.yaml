@@ -288,9 +288,14 @@ components:
           type: object
           default: {}
           properties:
+            status:
+              type: [string, "null"]
+              enum: [available, not-requested, unavailable, null]
+              default: null
             exploration_pct_used: {type: [number, "null"], default: null}
             exploration_usd_used: {type: [number, "null"], default: null}
             metered_usd_used: {type: [number, "null"], default: null}
+            degraded_reason: {type: [string, "null"], default: null}
         outcome_ref:
           type: [string, "null"]
           default: null

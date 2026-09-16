@@ -45,10 +45,17 @@ async def test_service_scores_catalog_candidates_and_records_decision() -> None:
 
     assert result["selected"]["model"] == "qwen"
     assert result["fallback"] is False
+    ledger.usage_summary.assert_not_awaited()
     catalog.list_candidates.assert_awaited_once_with("runner/low-complexity")
     decision = catalog.record_decision.await_args.args[0]
     assert decision["decision_id"] == result["decision_id"]
     assert decision["request"]["task_signals"]["archetype"] == "runner"
+    assert decision["budget_state"] == {
+        "status": "not-requested",
+        "exploration_pct_used": None,
+        "exploration_usd_used": None,
+        "metered_usd_used": None,
+    }
 
 
 @pytest.mark.asyncio
@@ -105,11 +112,48 @@ async def test_service_applies_current_month_exploration_budget_and_records_stat
     entries = float(summary.get("entries", 0))
     decision = catalog.record_decision.await_args.args[0]
     assert decision["budget_state"] == {
+        "status": "available",
         "exploration_pct_used": pytest.approx(
             float(summary.get("exploration_entries", 0)) / entries
         ),
         "exploration_usd_used": pytest.approx(float(summary.get("exploration_usd_used", 0.0))),
         "metered_usd_used": pytest.approx(4.0),
+    }
+
+
+@pytest.mark.asyncio
+async def test_service_ledger_failure_fails_closed_to_exploitation_and_records_degraded_state() -> (
+    None
+):
+    catalog = AsyncMock()
+    catalog.list_candidates.return_value = [
+        CandidateInput(
+            vendor="local",
+            model="top",
+            endpoint_kind="local",
+            benchmark_prior=0.9,
+        ),
+        CandidateInput(
+            vendor="openrouter",
+            model="alternative",
+            endpoint_kind="openrouter",
+            benchmark_prior=0.5,
+        ),
+    ]
+    ledger = AsyncMock()
+    ledger.usage_summary.side_effect = RuntimeError("ledger unavailable")
+    service = RoutingService(catalog=catalog, ledger=ledger, rng=random.Random(31))
+
+    result = await service.select_model(SelectModelRequest(task_signals={"archetype": "runner"}))
+
+    assert result["selected"]["model"] == "top"
+    assert result["exploration"] is False
+    assert catalog.record_decision.await_args.args[0]["budget_state"] == {
+        "status": "unavailable",
+        "exploration_pct_used": None,
+        "exploration_usd_used": None,
+        "metered_usd_used": None,
+        "degraded_reason": "ledger-read-failed",
     }
 
 

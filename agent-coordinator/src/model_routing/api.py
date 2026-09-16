@@ -245,7 +245,7 @@ class RoutingService:
 
     async def _current_exploration_budget(
         self,
-    ) -> tuple[ExplorationBudget, dict[str, float]]:
+    ) -> tuple[ExplorationBudget, dict[str, Any]]:
         summary = await self.ledger.usage_summary(
             window="month",
             include_estimated=True,
@@ -268,6 +268,7 @@ class RoutingService:
             ),
         )
         return budget, {
+            "status": "available",
             "exploration_pct_used": pct_used,
             "exploration_usd_used": usd_used,
             "metered_usd_used": metered_usd_used,
@@ -280,10 +281,29 @@ class RoutingService:
             profile=request.objective_profile or "balanced",
             weight_overrides=_weights(request),
         )
-        budget, budget_state = await self._current_exploration_budget()
+        budget: ExplorationBudget | None = None
+        exploration_allowed = request.allow_exploration
+        budget_state: dict[str, Any] = {
+            "status": "not-requested",
+            "exploration_pct_used": None,
+            "exploration_usd_used": None,
+            "metered_usd_used": None,
+        }
+        if exploration_allowed:
+            try:
+                budget, budget_state = await self._current_exploration_budget()
+            except Exception:  # noqa: BLE001 - budget failure degrades to exploitation
+                exploration_allowed = False
+                budget_state = {
+                    "status": "unavailable",
+                    "exploration_pct_used": None,
+                    "exploration_usd_used": None,
+                    "metered_usd_used": None,
+                    "degraded_reason": "ledger-read-failed",
+                }
         selection = choose(
             ranked,
-            allow_exploration=request.allow_exploration,
+            allow_exploration=exploration_allowed,
             budget=budget,
             rng=self._rng,
         )

@@ -110,20 +110,36 @@ async def select_model_for_task(
             allow_exploration=allow_exploration,
         )
 
+    from pydantic import ValidationError
+
     from .model_routing.api import (
         RoutingUnavailableError,
         SelectModelRequest,
         get_routing_service,
     )
 
-    request = SelectModelRequest.model_validate(
-        {
-            "task_signals": task_signals,
-            "objective_profile": objective_profile,
-            "weight_overrides": weight_overrides,
-            "allow_exploration": allow_exploration,
+    try:
+        request = SelectModelRequest.model_validate(
+            {
+                "task_signals": task_signals,
+                "objective_profile": objective_profile,
+                "weight_overrides": weight_overrides,
+                "allow_exploration": allow_exploration,
+            }
+        )
+    except ValidationError as exc:
+        details = []
+        for error in exc.errors(include_url=False):
+            normalized = dict(error)
+            normalized["loc"] = ["body", *error["loc"]]
+            details.append(normalized)
+        return {
+            "success": False,
+            "error": "http_422",
+            "status_code": 422,
+            "detail": {"detail": details},
         }
-    )
+
     try:
         return await get_routing_service().select_model(request)
     except RoutingUnavailableError as exc:
