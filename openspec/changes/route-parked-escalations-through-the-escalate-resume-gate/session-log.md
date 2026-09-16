@@ -212,3 +212,31 @@ Validation failed at commit 3848e95d. Deploy, smoke, security, and E2E were not 
 ### Context
 All four blocking Validation 1 findings are closed. The runner-owned `loop-state.json` was not edited, and no runner state mutation was executed.
 
+---
+
+## Phase: Validation 2 (2026-09-16)
+
+**Agent**: autopilot-phase-validator | **Session**: ri06-revalidate-20260916
+
+### Decisions
+1. **Keep container phases not applicable** — The canonical surface classifier reports deployable=false, so deploy, smoke, security, and E2E could never apply and are not recorded as skipped.
+2. **Preserve Validation 1 as explicit history** — The canonical report now records the current pass while validation-history/validation-1-3848e95d.md retains the original failure evidence and its handoff remains durable.
+
+### Completed Work
+- Validated all 4 requirements and 14 scenarios through mapped passing behavioral suites
+- Ran the complete skills suite: 6310 passed, 6 skipped, 2 warnings
+- Passed Ruff, strict change and repository-wide OpenSpec validation, work-package and result validation, requirement traceability, and deterministic context drift
+- Refreshed architecture evidence and recorded 14 advisory file-size nits plus a branch-age diagnostic
+
+### Next Steps
+- Advance autopilot to validation review
+
+### Relevant Files
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md` — Fresh passing validation report
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/change-context.md` — 4/4 requirement and 14/14 scenario evidence
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-history/validation-1-3848e95d.md` — Preserved historical failed report
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-findings.json` — Advisory-only structured findings
+
+### Context
+Canonical revalidation passed at pushed commit f8e2193f. The declared non-deployable surface makes deploy, smoke, security, and E2E not applicable; spec, package evidence, complete tests, Ruff, OpenSpec, traceability, and context-drift gates pass, with only advisory architecture warnings for branch age and file size.
+
