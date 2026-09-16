@@ -58,8 +58,17 @@ from models import (  # type: ignore[import-untyped]
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
+_BRIDGE_DIR = _SKILLS_ROOT / "coordination-bridge" / "scripts"
+if str(_BRIDGE_DIR) not in sys.path:
+    sys.path.insert(0, str(_BRIDGE_DIR))
 
-from policy import PolicyDecision, VendorLimit, evaluate_policy  # type: ignore[import-untyped]
+from coordination_bridge import try_list_vendors  # type: ignore[import-untyped]
+from policy import (  # type: ignore[import-untyped]
+    PolicyDecision,
+    VendorLimit,
+    filter_registry_lanes,
+    select_registry_lane,
+)
 from replanner import replan  # type: ignore[import-untyped]
 from shared.trust_posture import Gate  # noqa: E402
 
@@ -828,6 +837,9 @@ def execute_roadmap(
     dispatch_fn: DispatchFn | None = None,
     on_policy_decision: Callable[[PolicyDecision], None] | None = None,
     gate_evaluator: GateEvaluator | None = None,
+    registry_provider: Callable[..., dict[str, Any]] | None = None,
+    agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None = None,
+    routing_location: str | None = None,
 ) -> dict[str, Any]:
     """Execute a roadmap from the given workspace.
 
@@ -856,6 +868,7 @@ def execute_roadmap(
     ``replan_requested`` and ``replan_request`` describes the handoff file.
     """
     dispatch = dispatch_fn or _default_dispatch
+    registry = registry_provider or try_list_vendors
     policy_decisions: list[dict[str, Any]] = []
     gate_decisions: list[dict[str, Any]] = []
     # Mutable because _execute_item_phases reports "the run must stop and hand
@@ -936,6 +949,9 @@ def execute_roadmap(
             gate_evaluator=gate_evaluator,
             gate_decisions=gate_decisions,
             replan_state=replan_state,
+            registry_provider=registry,
+            agents_yaml_fallback=agents_yaml_fallback,
+            routing_location=routing_location,
         )
 
         if replan_state.get("requested"):
@@ -986,6 +1002,9 @@ def _execute_item_phases(
     gate_evaluator: GateEvaluator | None,
     gate_decisions: list[dict[str, Any]],
     replan_state: dict[str, Any],
+    registry_provider: Callable[..., dict[str, Any]],
+    agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None,
+    routing_location: str | None,
 ) -> bool:
     """Walk an item through its phases. Returns True if item completed."""
     start_idx = _ITEM_PHASES.index(start_phase) if start_phase in _ITEM_PHASES else 0
@@ -1018,7 +1037,9 @@ def _execute_item_phases(
             "completed_items": list(checkpoint.completed_items),
         }
 
-        outcome, replan_signal = _normalize_outcome(dispatch(item_id, phase.value, context))
+        dispatch_result = dispatch(item_id, phase.value, context)
+        outcome, replan_signal = _normalize_outcome(dispatch_result)
+        dispatch_metadata = dispatch_result if isinstance(dispatch_result, Mapping) else {}
 
         if outcome == "success":
             logger.info("item.phase_success: item=%s phase=%s", item_id, phase.value)
@@ -1041,6 +1062,14 @@ def _execute_item_phases(
                 vendor=vendor,
                 reason=reason,
                 switch_attempts=switch_attempts,
+                registry_provider=registry_provider,
+                agents_yaml_fallback=agents_yaml_fallback,
+                phase=phase.value,
+                dispatch_agent_id=dispatch_metadata.get("dispatch_agent_id"),
+                model=dispatch_metadata.get("model"),
+                prompt_tokens=dispatch_metadata.get("prompt_tokens"),
+                completion_tokens=dispatch_metadata.get("completion_tokens"),
+                location=routing_location,
             )
             policy_decisions.append({
                 "item_id": item_id,
@@ -1050,6 +1079,15 @@ def _execute_item_phases(
                     "reason": decision.reason,
                     "from_vendor": decision.from_vendor,
                     "to_vendor": decision.to_vendor,
+                    "to_agent_id": decision.to_agent_id,
+                    "expected_cost_delta_usd": decision.expected_cost_delta_usd,
+                    "cost_guard": decision.cost_guard,
+                    "legacy_provider_scope": dispatch_metadata.get("dispatch_agent_id") is None,
+                    "durable_persistence": (
+                        "reported_by_dispatcher"
+                        if dispatch_metadata.get("dispatch_agent_id")
+                        else "skipped_ambiguous"
+                    ),
                 },
             })
             if on_policy_decision:
@@ -1227,26 +1265,91 @@ def _handle_vendor_limit(
     vendor: str,
     reason: str,
     switch_attempts: dict[str, int],
+    *,
+    registry_provider: Callable[..., dict[str, Any]] = try_list_vendors,
+    agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None = None,
+    phase: str = "implementing",
+    dispatch_agent_id: str | None = None,
+    model: str | None = None,
+    prompt_tokens: int | None = None,
+    completion_tokens: int | None = None,
+    location: str | None = None,
 ) -> PolicyDecision:
-    """Delegate to the policy engine for a vendor limit event."""
-    limit = VendorLimit(vendor=vendor, reason=reason)
-    attempts = switch_attempts.get(item_id, 0)
+    """Select an exact alternate lane from the registry, failing closed on outage."""
+    item = next((candidate for candidate in roadmap.items if candidate.item_id == item_id), None)
+    capability = item.capability if item is not None else None
+    archetype = {
+        "planning": "architect",
+        "implementing": "implementer",
+        "reviewing": "reviewer",
+        "validating": "validator",
+    }.get(phase)
+    dispatch_mode = "review" if phase == "reviewing" else "alternative"
+    filters = {
+        "capability": capability,
+        "archetype": archetype,
+        "dispatch_mode": dispatch_mode,
+        "location": location,
+        "available_only": False,
+    }
+    response = registry_provider(**filters)
+    allow_unknown = False
+    lanes: list[dict[str, Any]] = []
+    if response.get("status") == "ok":
+        payload = response.get("response")
+        if isinstance(payload, dict) and isinstance(payload.get("vendors"), list):
+            lanes = [lane for lane in payload["vendors"] if isinstance(lane, dict)]
+        else:
+            response = {"status": "error", "reason": "malformed_response"}
+    if response.get("status") != "ok":
+        if agents_yaml_fallback is None:
+            return PolicyDecision(
+                action="fail_closed",
+                reason=(
+                    "Vendor registry unavailable: "
+                    f"{response.get('reason') or response.get('error') or 'unknown'}"
+                ),
+                from_vendor=vendor,
+                cost_guard="unavailable",
+            )
+        lanes = agents_yaml_fallback(**filters)
+        allow_unknown = True
+        logger.warning("roadmap.registry_fallback: item=%s source=agents_yaml", item_id)
 
-    # Available vendors placeholder — in real usage, the prompt layer
-    # would provide this from vendor-status checks
-    available = ["claude", "codex", "antigravity", "grok", "pi"]
-    available = [v for v in available if v != vendor]
-
-    decision = evaluate_policy(
-        policy=roadmap.policy,
-        vendor_limit=limit,
-        available_vendors=available,
-        switch_attempts=attempts,
+    eligible = filter_registry_lanes(
+        lanes,
+        capability=capability,
+        archetype=archetype,
+        dispatch_mode=dispatch_mode,
+        location=location,
+        model=model,
+        allow_unknown=allow_unknown,
     )
-
+    excluded_agent_ids = {dispatch_agent_id} if dispatch_agent_id else set()
+    excluded_policy_vendors = set()
+    if dispatch_agent_id is None:
+        excluded_policy_vendors.add(vendor)
+        logger.warning(
+            "roadmap.vendor_limit_ambiguous: item=%s policy_vendor=%s "
+            "durable_persistence=skipped",
+            item_id,
+            vendor,
+        )
+    decision = select_registry_lane(
+        policy=roadmap.policy,
+        vendor_limit=VendorLimit(vendor=vendor, reason=reason),
+        lanes=eligible,
+        switch_attempts=switch_attempts.get(item_id, 0),
+        from_agent_id=dispatch_agent_id,
+        model=model,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        allow_unknown=allow_unknown,
+        excluded_agent_ids=excluded_agent_ids,
+        excluded_policy_vendors=excluded_policy_vendors,
+    )
     if decision.action == "switch":
-        switch_attempts[item_id] = attempts + 1
-
+        switch_attempts[item_id] = switch_attempts.get(item_id, 0) + 1
     return decision
 
 
