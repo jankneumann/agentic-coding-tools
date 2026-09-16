@@ -100,14 +100,14 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/skill-audit/scripts/dispatch_profile.py`, `skills/skill-audit/references/dispatch-map.md`
   **Size**: S
 
-- [ ] 2.7 Write `skills/tests/skill-audit/test_evidence_join.py` with a stubbed bridge, a recorded `/memory/query` response, a fixture `loop-state.json`, and a fixture discovery response: attribution via loop-state; via discovery heartbeat window; `unknown` bucket keeps the entry; 5/7 concentration across 4 sessions emits `tier_concentrated_failure` with count `5/7`; sources preserved and multi-source fraction counts once; coordinator down yields exit `0`, `evidence.status == "unavailable"`, empty `tier_rows`
+- [x] 2.7 Write `skills/tests/skill-audit/test_evidence_join.py` with a stubbed bridge, a recorded `/memory/query` response, a fixture `loop-state.json`, and a fixture discovery response: attribution via loop-state; via discovery heartbeat window; `unknown` bucket keeps the entry; 5/7 concentration across 4 sessions emits `tier_concentrated_failure` with count `5/7`; sources preserved and multi-source fraction counts once; coordinator down yields exit `0`, `evidence.status == "unavailable"`, empty `tier_rows`
   **Spec scenarios**: harness-engineering "Failure attributed through loop-state", "Failure attributed through discovery heartbeat", "Unattributable failure is kept", "Concentrated failure produces a finding", "Sources are preserved through the join"; skill-workflow "Coordinator down"
   **Design decisions**: D4, D10
   **Dependencies**: None
   **Files**: `skills/tests/skill-audit/test_evidence_join.py`, `skills/tests/skill-audit/fixtures/evidence/**`
   **Size**: M
 
-- [ ] 2.8 Implement `skills/skill-audit/scripts/evidence_join.py` importing `build_memory_query`, `_extract_tag`, `_extract_all_tags`, `deduplicate_findings` from `improve-harness/scripts/analyze_failures.py` (resolved via `<skill-base-dir>/../improve-harness/scripts`), loop-state scan under `openspec/changes/**/loop-state.json` (archive included), discovery lookup through the bridge, `unknown` bucket, tier rows, `multi_source_fraction`, and the 60 percent / 3 sessions concentration rule
+- [x] 2.8 Implement `skills/skill-audit/scripts/evidence_join.py` importing `build_memory_query`, `_extract_tag`, `_extract_all_tags`, `deduplicate_findings` from `improve-harness/scripts/analyze_failures.py` (resolved via `<skill-base-dir>/../improve-harness/scripts`), loop-state scan under `openspec/changes/**/loop-state.json` (archive included), discovery lookup through the bridge, `unknown` bucket, tier rows, `multi_source_fraction`, and the 60 percent / 3 sessions concentration rule
   **Spec scenarios**: as 2.7
   **Design decisions**: D4
   **Dependencies**: 2.7
