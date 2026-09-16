@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Implementation
+
+**Inline package implementation after workflow blocked** — workflow tool cannot launch from a subagent; used managed package worktrees instead of silent main-checkout work
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D1)
+
+---
+
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Implementation
+
+**Task 2.8 harness-absent** — No trajectory-scenario harness in checkout; deterministic behavioural tests cover the three behaviours
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D3)
+
+---
+
 ## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Plan
