@@ -47,8 +47,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: None
   **Size**: S
 
-- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
-  **Spec scenarios**: skill-workflow "Disclosure line present on every answer", "Whole-repository question redirected", "Stale or absent graph falls back to source"
+- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms and the full ungrounded reason set (`graph stale|absent|check failed`, `symbol not in graph`, `form not graph-backed`); `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
+  **Spec scenarios**: skill-workflow "Disclosure line present on every answer", "Whole-repository question redirected", "Stale or absent graph falls back to source", "Non-call-tree form is not graph-backed"
   **Design decisions**: D2, D5, D7, D9
   **Dependencies**: None
   **Size**: S
@@ -67,8 +67,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: 2.3
   **Size**: M
 
-- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to copy the footer into the disclosure line (D5), the symbol-not-in-graph fallback (exit `2`), the ask-don't-guess rule for an ambiguous name (exit `3`), the whole-repository redirect, and the refusal list (D9)
-  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Ambiguous symbol asks instead of guessing", "Disclosure line present on every answer"
+- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5), the ungrounded reason set including `symbol not in graph` (exit `2`) and `form not graph-backed`, the ask-don't-guess rule for an ambiguous name (exit `3`), the whole-repository redirect, and the refusal list (D9)
+  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing", "Disclosure line present on every answer"
   **Design decisions**: D2, D5, D9
   **Dependencies**: 2.3
   **Size**: S

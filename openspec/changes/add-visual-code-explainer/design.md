@@ -29,13 +29,16 @@ atlas already holds the symbol adjacency (`build_view_model()["symbolEdges"]`).
 ### D2 — Freshness is decided by the existing `--check` contract
 
 The skill runs `python3 "<skill-base-dir>/../refresh-architecture/scripts/
-run_architecture.py" --check` and treats **exit 0 only** as fresh. Exit 2
-(drift), exit 1 (error), a missing script, or a missing graph all mean
-*ungrounded*. Rationale: `--check` is the read-only half of the
-`architecture-refresh` contract that the atlas already mirrors; re-deriving
-freshness from `git_sha` in prose would be a second, weaker definition. The
-skill **never** runs `--ensure` or the full pipeline (proposal: "never
-triggers a refresh on its own").
+run_architecture.py" --check` and treats **exit 0 only** as fresh. Any
+non-zero exit — the script returns `1` when provenance is not fresh, and
+other failures are also non-zero — a missing script, or a missing graph all
+mean *ungrounded*. Do **not** confuse this with `build_atlas.py --check`,
+which uses exit `2` for a stale HTML page; that flag is unrelated to
+explain-code freshness. Rationale: `run_architecture.py --check` is the
+read-only half of the `architecture-refresh` contract; re-deriving freshness
+from `git_sha` in prose would be a second, weaker definition. The skill
+**never** runs `--ensure` or the full pipeline (proposal: "never triggers a
+refresh on its own").
 
 ### D3 — `--tree` output format
 
@@ -79,19 +82,34 @@ stderr (one per line, sorted) and exit `3`. The two stay distinct because the
 skill must react differently: a missing symbol falls back to source reading, but
 an ambiguous one exists in the graph, so a source fallback would silently answer
 about a guessed symbol; the skill asks which candidate was meant instead. Exit
-`1` remains input/IO errors, `0` success. `3` is unused by `build_atlas.py`, whose
-`--check` already owns `2` for drift; `--check` and `--tree` never combine.
+`1` remains input/IO errors, `0` success. Exit `3` is new for `--tree`.
+`build_atlas.py --check` already uses exit `2` for a stale HTML page;
+`--check` and `--tree` never combine on one invocation.
 
 ### D5 — Disclosure line
 
 Every reply ends with exactly one line, never omitted, never collapsed:
 
-- grounded: `Grounding: graph @ <sha7>; python 14.4% / sql 37.0% covered`
-- ungrounded: `Grounding: source read, unverified (graph <stale|absent|check failed>)`
+- grounded call tree:
+  `Grounding: graph @ <sha7>; python 14.4% / sql 37.0% covered`
+  The coverage list (everything after `· ` and before the trailing
+  ` covered` in the `--tree` footer from D3) is copied verbatim — same
+  language order, ` / ` separators, and one-decimal percents — so the
+  disclosure and footer cannot drift. The line uses `; ` after the sha
+  (not the footer's `·`) and always starts with `Grounding:`.
+- ungrounded / non-graph-backed:
+  `Grounding: source read, unverified (<reason>)`
+  where `<reason>` is exactly one of:
+  - `graph stale` — `run_architecture.py --check` exited non-zero
+  - `graph absent` — graph file or `--check` script missing
+  - `graph check failed` — `--check` could not run (error/exception)
+  - `symbol not in graph` — `--tree` exited `2`
+  - `form not graph-backed` — reply used a catalogue form other than a
+    call tree (component/file/sequence/structural-diff are model-authored)
 
-The grounded form copies the footer `--tree` prints (D3) so the two cannot
-drift. The percentages are the atlas's optimistic upper bound and the reference
-file says so.
+Only a call tree built from `--tree` after a fresh `--check` may use the
+grounded form. The percentages are the atlas's optimistic upper bound and
+the grounding reference says so.
 
 ### D6 — Frontmatter without `triggers:`; explicit key test
 
@@ -114,8 +132,9 @@ the checkout; otherwise as pytest tests marked `e2e`. Independently of the
 harness, three **deterministic** tests always run in CI and encode the same
 three behaviours at the level the prompt can be checked without an LLM:
 
-1. `SKILL.md` instructs the disclosure line for both grounded and ungrounded
-   paths (D5 strings present in the grounding reference).
+1. `SKILL.md` / grounding reference instruct the disclosure line for grounded
+   and ungrounded paths (D5 strings and the full ungrounded reason set present
+   in the grounding reference).
 2. `SKILL.md` instructs redirecting whole-repository questions to
    `/codebase-atlas` (string present, and the atlas is in `related:`).
 3. `SKILL.md` instructs never running `--ensure` or the analysis pipeline

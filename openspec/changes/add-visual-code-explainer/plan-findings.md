@@ -1,0 +1,24 @@
+# Plan Findings — add-visual-code-explainer
+
+## Iteration 1 (2026-09-16) — autopilot-plan-iterate
+
+`openspec validate add-visual-code-explainer --strict` passed before and after fixes.
+
+### Findings
+
+| # | Dimension | Criticality | Finding | Resolution |
+|---|---|---|---|---|
+| 1 | consistency / assumptions | high | D2 and proposal Selected Approach claimed `run_architecture.py --check` uses exit `2` for drift. Live contract: exit `0` fresh, exit `1` when provenance is not fresh. Exit `2` belongs to `build_atlas.py --check` (stale HTML page). | Corrected D2, D4 aside, proposal Selected Approach, session-log decision 2. Spec already used "exit 0 only / non-zero". |
+| 2 | consistency / clarity | medium | D5 ungrounded template `(graph <stale\|absent\|check failed>)` omitted `symbol not in graph` and did not define disclosure for non-call-tree forms; "copies footer verbatim" conflicted with `Grounding:` + `;` vs footer `·`. | Expanded D5 reason set; clarified footer→disclosure mapping; added skill-workflow scenario "Non-call-tree form is not graph-backed"; updated tasks 2.2/2.5. |
+| 3 | consistency / parallelizability | medium | `work-packages.yaml` package descriptions omitted tasks 1.5, 2.7–2.8, and 3.5 even though `tasks.md` and merge depends_on require them. | Widened WP task ranges to 1.1–1.5, 2.1–2.8, 3.1–3.5; bumped `plan_revision` to 2. |
+| 4 | consistency / clarity | medium | Proposal "What Changes" still promised behavioural scenarios in "replay-harness shape"; D7 already specified deterministic CI checks + optional harness. | Aligned proposal Tests bullet with D7. |
+| 5 | completeness | medium | Session-log open question still asked about `show-me` vs `explain-code` after Gate 2 rename; Context still said `skills/show-me/`. | Closed OQ; fixed Context naming. |
+
+### Left as low (no churn)
+
+- Proposal NFR node/edge counts (1,903 / 1,199) slightly behind current committed graph (~1,953 / 1,228); timing NFR still uses the committed graph.
+- `tiny_graph` has no cycle/import edges by default; task 1.1 already builds derived fixtures.
+
+### Outcome
+
+Medium+ findings fixed in plan artifacts only. Ready for PLAN_REVIEW.

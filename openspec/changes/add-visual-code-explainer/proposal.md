@@ -73,12 +73,15 @@ that gates them, and the analysis that motivated this change is fresh.
   `"tests/explain-code"`. Runtime mirrors regenerate via `skills/install.sh`.
 - **Tests.** `skills/tests/explain-code/test_skill_md.py` (frontmatter parses,
   explicit key presence, references resolve, related resolve, tail block
-  present) plus **three behavioural scenarios** in the replay-harness shape that
-  `invert-skill-test-suite-to-behavioural` prescribes: (1) a grounded question
-  yields a call tree whose nodes all exist in the fixture graph and a
-  `graph @` disclosure; (2) a stale graph yields a source-read sketch with an
-  `unverified` disclosure; (3) a whole-repo question is redirected to
-  `/codebase-atlas` rather than answered with a giant tree.
+  present) plus **three deterministic behavioural checks** in
+  `test_behaviour.py` that encode the behaviours
+  `invert-skill-test-suite-to-behavioural` wants without blocking on that
+  change (0/10 tasks today): (1) grounding reference contains both D5
+  disclosure forms; (2) `SKILL.md` redirects whole-repo questions to
+  `/codebase-atlas`; (3) `SKILL.md` forbids `--ensure` / the analysis
+  pipeline. The "grounded call tree invents no symbols" assertion lives in
+  `tests/codebase-atlas/test_atlas_tree.py` (fixture node ids only). Optional
+  trajectory-harness fixtures are task 2.8 when the harness is present.
   `skills/tests/codebase-atlas/` gains `test_atlas_tree.py` and the flag tuple
   in `test_skill_md.py` gains `--tree`.
 
@@ -172,8 +175,9 @@ disclosure line makes that visible rather than hiding it.
 **Approach 1 selected at Gate 1** (2026-09-04) with no modifications to the
 approach itself. One refinement was made while designing it: the graph
 freshness check reuses the existing `refresh-architecture` read-only contract
-(`run_architecture.py --check`, exit `0` fresh / `2` drift / `1` error) instead
-of re-implementing a provenance comparison in prose. This adds
+(`run_architecture.py --check`, exit `0` fresh / any non-zero ungrounded;
+the script returns `1` when provenance is not fresh) instead of
+re-implementing a provenance comparison in prose. This adds
 `refresh-architecture` to the skill's declared cross-skill dependencies; see
 `design.md` D2.
 
