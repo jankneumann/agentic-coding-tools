@@ -86,14 +86,14 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
 
 - [ ] Checkpoint: run `skills/tests/skill-audit`, review diff, verify scope stays inside `skills/skill-audit/**` + `skills/tests/skill-audit/**`
 
-- [ ] 2.5 Write `skills/tests/skill-audit/test_dispatch_profile.py` with a fixture `archetypes.yaml` (bare ids, `{model, thinking}`, one provider missing `frontier`, one archetype with `procedure_mode`): every provider in the file appears; tuples equal `archetype_roster.resolve_tier_for_provider`; the missing-frontier provider shows `degraded_from: frontier`; `procedure_mode` is reported when present and `null` otherwise
+- [x] 2.5 Write `skills/tests/skill-audit/test_dispatch_profile.py` with a fixture `archetypes.yaml` (bare ids, `{model, thinking}`, one provider missing `frontier`, one archetype with `procedure_mode`): every provider in the file appears; tuples equal `archetype_roster.resolve_tier_for_provider`; the missing-frontier provider shows `degraded_from: frontier`; `procedure_mode` is reported when present and `null` otherwise
   **Spec scenarios**: skill-workflow "Dispatch profile follows the roster"
   **Design decisions**: D4
   **Dependencies**: None
   **Files**: `skills/tests/skill-audit/test_dispatch_profile.py`, `skills/tests/skill-audit/fixtures/archetypes.yaml`
   **Size**: S
 
-- [ ] 2.6 Implement `skills/skill-audit/scripts/dispatch_profile.py`: archetypes for lifecycle skills from `phase_mapping` (skill → phases map documented in `references/dispatch-map.md`, seeded from the agent-archetypes "Skill Model Hint Integration" table), otherwise from fenced `Task(`/`Agent(` examples in the SKILL.md; providers enumerated from `model_aliases`; resolution through `archetype_roster`
+- [x] 2.6 Implement `skills/skill-audit/scripts/dispatch_profile.py`: archetypes for lifecycle skills from `phase_mapping` (skill → phases map documented in `references/dispatch-map.md`, seeded from the agent-archetypes "Skill Model Hint Integration" table), otherwise from fenced `Task(`/`Agent(` examples in the SKILL.md; providers enumerated from `model_aliases`; resolution through `archetype_roster`
   **Spec scenarios**: as 2.5
   **Design decisions**: D4
   **Dependencies**: 2.5
