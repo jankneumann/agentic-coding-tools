@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "route-parked-escalations-through-the-escalate-resume-gate",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 21,
+  "total_iterations": 24,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -28,7 +28,8 @@
     "val-review-adjudication-ri06-20260916",
     "validation-fix-2-1",
     "validation-3-1",
-    "validation-review-final-1"
+    "validation-review-final-1",
+    "validation-4-1"
   ],
   "phase_history": [
     {
@@ -110,17 +111,22 @@
       "at": "2026-09-16T14:06:06.463908+00:00",
       "outcome": "converged",
       "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-09-16T14:16:36.872996+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "validation-review-final-1",
+  "last_handoff_id": "validation-4-1",
   "started_at": "2026-09-15T00:29:14.417408+00:00",
-  "phase_started_at": "2026-09-16T14:06:06.525261+00:00",
-  "previous_phase": "IMPL_REVIEW",
-  "escalation_reason": "IMPL_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
+  "phase_started_at": "2026-09-16T14:16:39.227321+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": "goal gate refused: required section not passed: Validation Review (missing)",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "runner",
+  "phase_archetype": "validator",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -261,37 +267,119 @@
       "timeout_seconds": null
     },
     {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
       "gate": "pr_creation",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-16T14:06:56.442744+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "pr_creation",
+      "note": "Operator standing authorization: all writes to github.com/jankneumann are unconditionally authorized.",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator standing authorization: all writes to github.com/jankneumann are unconditionally authorized.",
+      "recorded_at": "2026-09-16T14:07:06.624926+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "merge",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-16T14:10:53.988549+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "merge",
+      "note": "Operator standing authorization: all writes to github.com/jankneumann are unconditionally authorized; autopilot records authorization only.",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'merge' approved by the operator \u2014 Operator standing authorization: all writes to github.com/jankneumann are unconditionally authorized; autopilot records authorization only.",
+      "recorded_at": "2026-09-16T14:10:54.092800+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "escalate_resume",
       "outcome": "blocked",
       "resolution": "posture_block",
       "authorizing_disposition": "block",
-      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
       "approval_id": null,
       "default_action": null,
       "posture_present": false,
       "notified": null,
       "timeout_seconds": null,
       "disposition": "block",
-      "phase": "SUBMIT_PR",
-      "recorded_at": "2026-09-16T14:06:56.442744+00:00"
+      "phase": "ESCALATE",
+      "recorded_at": "2026-09-16T14:16:39.084307+00:00"
     },
     {
-      "gate": "pr_creation",
+      "gate": "escalate_resume",
       "outcome": "proceed",
       "resolution": "console_approved",
       "authorizing_disposition": "block",
-      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator standing authorization: all writes to github.com/jankneumann are unconditionally authorized.",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Fresh Validation 4 passed after adding the required Validation Review report section; resume the authorized SUBMIT_PR completion.",
       "approval_id": null,
       "default_action": null,
       "posture_present": false,
       "notified": null,
       "timeout_seconds": null,
       "disposition": "block",
-      "phase": "SUBMIT_PR",
-      "recorded_at": "2026-09-16T14:07:06.624926+00:00",
-      "note": "Operator standing authorization: all writes to github.com/jankneumann are unconditionally authorized."
+      "phase": "ESCALATE",
+      "recorded_at": "2026-09-16T14:16:39.155720+00:00",
+      "note": "Fresh Validation 4 passed after adding the required Validation Review report section; resume the authorized SUBMIT_PR completion."
     }
   ],
   "pending_gate": null,
-  "goal_gate": null
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "checked_at": "2026-09-16T14:16:39.221815+00:00",
+      "merge_authorized": true,
+      "phase_statuses": {
+        "Spec Compliance": "pass",
+        "Validation Review": "pass"
+      },
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/557",
+      "report_mtime": "2026-09-16T14:11:44.515696+00:00",
+      "report_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md",
+      "required_sections": [
+        "Spec Compliance",
+        "Validation Review"
+      ],
+      "validate_at": "2026-09-16T14:16:36.872996+00:00",
+      "validate_outcome": "passed"
+    }
+  }
 }

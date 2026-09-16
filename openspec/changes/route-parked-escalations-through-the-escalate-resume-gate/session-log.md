@@ -306,3 +306,79 @@ Final post-fix validation passed at pushed commit 3e1657b0. The exact routing co
 
 ### Context
 Final validation review converged after a documented quorum-recovery replay: Grok and an independent Sol/Codex reviewer reported zero findings, with zero blocking or advisory findings.
+
+---
+
+## Phase: Submit PR (2026-09-16)
+
+**Agent**: autopilot-runner | **Session**: N/A
+
+### Decisions
+1. **Submit ri-06 for merge** — The implementation, traceability evidence, full test suite, strict OpenSpec validation, and final vendor-panel consensus are all green.
+
+### Completed Work
+- Pushed commit 770be3f2 to openspec/recover-ri-06-escalation-routing.
+- Opened https://github.com/jankneumann/agentic-coding-tools/pull/557 with the full evidence trail.
+- Attempted curated artifact opening; the local code CLI was unavailable, so the gate proceeded with the committed and linked evidence.
+
+### Next Steps
+- Record the operator standing merge authorization and transition autopilot to DONE.
+- Use cleanup-feature as the sole merge executor after this autopilot run.
+
+### Relevant Files
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/loop-state.json` — Complete 21-iteration lifecycle and gate history
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md` — Passing validation report
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/validation-convergence-final/.review-cache/round-1/consensus-implementation.json` — Final two-reviewer zero-finding consensus
+
+### Context
+Opened PR #557 after 21 lifecycle iterations. Multi-vendor validation review converged through documented recovery with two independent zero-finding reviews; all validation gates pass.
+
+---
+
+## Phase: Validation 4 (2026-09-16)
+
+**Agent**: autopilot-phase-validator | **Session**: ri06-validation-review-gate-20260916
+
+### Completed Work
+- Verified report parser statuses: Spec Compliance=pass and Validation Review=pass
+- Verified recovered consensus quorum 2/2 with blocking_count=0 and zero consensus findings
+- Passed 22 focused autopilot goal-gate tests
+- Passed strict change validation and repository-wide OpenSpec validation: 90/90
+- Verified tracked diff is limited to change-local validation evidence and orchestration state; no implementation paths changed
+
+### Next Steps
+- Resume the runner-owned goal-gate or submit-PR transition
+
+### Relevant Files
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md` — Required Spec Compliance and Validation Review pass sections
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/validation-convergence-final/.review-cache/round-1/consensus-implementation.json` — Recovered 2/2 zero-blocker consensus
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/session-log.md` — Validation 4 phase record
+
+### Context
+Narrow post-review revalidation passed. The canonical parser sees Spec Compliance=pass and Validation Review=pass; recovered consensus has quorum_met=true with 2/2 reviewers and 0 blocking findings; all 22 focused goal-gate tests and 90 strict OpenSpec artifacts pass. The tracked diff is confined to change-local evidence/state artifacts and contains no implementation-code edits.
+
+---
+
+## Phase: Post-DONE CI Repair (2026-09-16)
+
+**Agent**: autopilot-runner | **Session**: N/A
+
+### Decisions
+1. **Move pytest isolation ownership to the skills root** — Only a root conftest loads before both central tests/<skill> and sibling <skill>/scripts/tests collection, preventing stale flat modules from crossing suite boundaries.
+
+### Completed Work
+- Added two minimal red reproducers and a root-hook ownership guard.
+- Passed the exact infrastructure suite: 4775 passed, 13 skipped.
+- Passed Ruff, work-package validation, strict change validation, and strict OpenSpec 90/90.
+- Completed three-vendor consensus with zero blocking findings and applied both requested hardenings.
+
+### Next Steps
+- Commit and push the CI repair, then require PR #557 checks to pass before roadmap reconciliation.
+
+### Relevant Files
+- `skills/conftest.py` — Skills-root flat-module isolation hook
+- `skills/tests/_shared/test_flat_module_isolation.py` — Cross-tree regression coverage
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/post-ci-isolation/consensus-implementation.json` — Three-vendor zero-blocker consensus
+
+### Context
+Reproduced and fixed PR #557 infrastructure CI failures caused by the flat-module isolation hook loading below sibling scripts/tests trees. Final vendor review reached 3/5 quorum with zero blocking findings.
