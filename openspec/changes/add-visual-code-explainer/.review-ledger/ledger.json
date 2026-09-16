@@ -14,8 +14,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Eight spec scenarios added in round 2 adjudication ('Coverage footer shape', 'Target resolution p...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 2,
@@ -29,8 +28,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "plan-findings.md claims 'Ledger items from rounds 1\u20132 retired after adjudication (\\'retired\\' is ...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 3,
@@ -44,8 +42,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "In session-log.md under '## Phase: Plan Review (2026-09-16)', '### Next Steps' is placed prematur...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 4,
@@ -58,8 +55,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "reviews/converge-result.json records converged=false, reason=quorum_lost, and summary=null, while...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 5,
@@ -72,8 +68,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "The four codebase-analysis scenarios added during round-2 adjudication\u2014Coverage footer shape, Tar...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 6,
@@ -86,8 +81,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Several normative clauses still lack a corresponding WHEN/THEN scenario, contrary to the review r...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 7,
@@ -100,8 +94,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Every non-call-tree form is required to emit `Grounding: source read, unverified (form not graph-...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 8,
@@ -114,8 +107,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "The closed grounding-reason decision table does not cover failure to spawn/run build_atlas.py --t...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 9,
@@ -129,8 +121,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Round-2 atlas scenarios are orphaned from tasks: codebase-analysis adds \"Coverage footer shape\", ...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 10,
@@ -144,8 +135,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Explainer Grounding defines `graph check failed` for `--check` spawn/OSError and for `--tree` exi...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 11,
@@ -159,8 +149,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Round-2 frontmatter/distribution scenarios are under-wired in tasks. \"Frontmatter omits triggers ...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 12,
@@ -174,8 +163,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "D7 (and session-log shorthand) tells deterministic tests to treat `graph stale|absent|check faile...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 13,
@@ -190,8 +178,7 @@
       "last_seen_round": 1,
       "description": "Atlas target resolution SHALL accepts a module file path or basename, but only basename is covere...",
       "parked_reason": "disagreement",
-      "consensus_status": "disagreement",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "disagreement"
     },
     {
       "id": 14,
@@ -205,8 +192,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Round-2 frontmatter and distribution spec scenarios added to `specs/skill-workflow/spec.md` ('Fro...",
-      "consensus_status": "confirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "confirmed"
     },
     {
       "id": 15,
@@ -220,8 +206,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "In `design.md` D7, test check 1 instructs asserting 'the closed ungrounded reason set `graph stal...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 16,
@@ -235,8 +220,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "In `.review-ledger/ledger.json`, all items 1\u201313 are stamped with `first_seen_round: 1`, `last_see...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 17,
@@ -249,8 +233,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Critical: The closed grounding decision table does not define behavior when a fresh `--check` is ...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 18,
@@ -263,8 +246,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Critical: Non-call-tree replies must claim `Grounding: source read, unverified (form not graph-ba...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 19,
@@ -277,8 +259,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Critical: Atlas target resolution SHALL support both a module file path and a basename, but the o...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 20,
@@ -291,8 +272,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Critical: The CLI assigns exit 1 to input errors and exit 2 to target-not-found, but it neither d...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 21,
@@ -305,8 +285,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Nit: The Atlas Symbol Tree Export requires use of only the Python standard library and no network...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 22,
@@ -319,8 +298,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Nit: Task 1.1 proves printed nodes against the fixture using only `(name, file)`, although each e...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 23,
@@ -333,8 +311,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Nit: `session-log.md` places `### Next Steps` before the round-2 decisions and still says to reru...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 24,
@@ -348,8 +325,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Critical: proposal.md What Changes still says 'Coverage disclosure line. Every answer ends with o...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 25,
@@ -363,8 +339,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Nit: NFR 'Coverage honesty' targets '100% of behavioural-scenario replies, grounded and ungrounde...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 26,
@@ -378,8 +353,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Nit: proposal.md Frontmatter bullet says the skill test 'asserts the four surviving keys explicit...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 27,
@@ -393,8 +367,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Nit: Explainer Grounding's first-match reason table puts `form not graph-backed` last, but the sa...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 28,
@@ -408,8 +381,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Nit: The closed ungrounded reason set still leaves `--tree` spawn/OSError (and any `--tree` exit ...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 29,
@@ -423,8 +395,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Exit `3` for ambiguous `--tree` targets with ask-don't-guess (no source fallback, no `Grounding:`...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 30,
@@ -438,8 +409,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Task 1.1 Spec scenarios now enumerate the round-2/3 atlas scenarios (footer shape, resolution pre...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 31,
@@ -452,8 +422,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Task 2.5 (Write references/grounding.md) does not explicitly list documenting the 'optimistic upp...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 32,
@@ -466,8 +435,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Spec skill-workflow scenario 'Frontmatter valid in both orderings' asserts test SHALL fail if key...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 33,
@@ -480,8 +448,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Proposal.md describes exit codes as '0 ok, 1 input error, 2 symbol not found, plus 3 for ambiguou...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 34,
@@ -494,8 +461,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Proposal NFR table cites node/edge counts (1,903 / 1,199) from committed graph but plan-findings....",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 35,
@@ -508,8 +474,7 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Spec skill-workflow requirement 'Explainer Grounding and Coverage Disclosure' states 'When stale,...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 36,
@@ -522,8 +487,266 @@
       "first_seen_round": 1,
       "last_seen_round": 1,
       "description": "Spec skill-workflow scenario 'Stale or absent graph falls back to source' lists reasons 'graph st...",
-      "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-4"
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 37,
+      "status": "open",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "fingerprint": "949bf77353ce0d4b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "antigravity"
+      ],
+      "description": "Design decisions D8 (module name / atlas_tree.py helper) and D9 (refusal list) are referenced by tasks 1.1, 1.3, 2.2, 2.5 in tasks.md and by packages wp-atlas-tree and wp-skill in work-packages.yaml, but design.md only defines decisions up through D7. Neither D8 nor D9 is documented in design.md.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 38,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "fingerprint": "30de44a4bc7831be",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "antigravity"
+      ],
+      "description": "Task 2.5 in tasks.md outlines writing references/grounding.md including handling tree tool failures and mapping them to 'graph check failed', but omits skill-workflow scenario 'Tree tool failure after fresh check' from its Spec scenarios list, despite enumerating all other grounding scenarios.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 39,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
+      "fingerprint": "fb9a9246307a5f09",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "antigravity"
+      ],
+      "description": "In .review-ledger/ledger.json, item 13 is marked as status 'retired' with retired_reason 'plan-review-adjudication-round-4', which conflicts with reviews/parked-disagreements.json where item 13 is tracked as an active parked disagreement.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 40,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "353f44d7c1d440dc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The Atlas Symbol Tree Export requires module targets to resolve from either a full file path or a basename, but the only module-resolution scenario and task 1.1 cover a basename. The ordered resolution contract is also not exercised where a unique symbol name collides with a module path or basename. Add scenarios and tests for full-path resolution and the unique-name-before-module precedence.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 41,
+      "status": "open",
+      "axis": "security",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "23e14359c8fc14e1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The Atlas Symbol Tree Export says traversal SHALL use only the Python standard library and make no network requests, but no WHEN/THEN scenario or task verifies either constraint. This violates the rule that every SHALL/MUST be scenario-covered and leaves the security and operability boundary unenforced.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 42,
+      "status": "open",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "d943b057d42bc477",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The grounding requirement maps failure to spawn or run run_architecture.py --check to `graph check failed`, but no scenario has that WHEN condition. The stale/absent scenario covers non-zero exits and missing files, while the tool-failure scenario covers only build_atlas.py --tree after a successful check. Task 2.2 merely checks that the reason token exists, so an implementation could misclassify a check spawn failure and still pass. Add a dedicated check-spawn-failure scenario and behavioral assertion.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 43,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "196ed39968e35284",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The atlas requirement says every node line SHALL contain name, file, line, and kind, but the format scenario validates only the root line. Task 1.1 checks all printed nodes only by `(name, file)`, so incorrect line numbers or kinds on descendants would pass. Extend the scenario and test to validate every emitted node against all four fixture fields.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 44,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "cafc1bad8d96c6ed",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "In `proposal.md` What Changes, the Frontmatter bullet lists six keys (`name, description, category, tags, user_invocable, related`) but then says the skill test asserts the \"four surviving keys\". Spec/tasks/D6 require explicit assertions for all six. The count is wrong and can mis-brief implementers of task 2.1.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 45,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "a44be3d363279b53",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Round-4 added skill-workflow scenario \"Tree tool failure after fresh check\" and task 2.2 asserts the grounding reference documents tree-tool-failure \u2192 `graph check failed`, but task 2.5 (author `references/grounding.md`) Spec scenarios still omit that scenario. The normative mapping lives in grounding.md; leaving it off 2.5 orphans the new scenario from the implementation task that must encode it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 46,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "41bf48589c9a04b9",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Round-2 distribution scenarios remain under-wired in tasks: \"Manifest declares portable distribution and atlas dependencies\" is not listed on task 2.6 (only \"Manifest validation passes\"), and \"Sibling skill paths use skill-base-dir form\" is not listed on any task (2.5 documents `<skill-base-dir>/../codebase-atlas/` but does not cite the scenario). Implementers can miss the portable/deps and path-form acceptance checks.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 47,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "056cc69432fdf716",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "skill-workflow scenario \"Stale or absent graph falls back to source\" THEN allows reason `graph check failed`, but its WHEN (`--check` exits non-zero, or script/graph missing) cannot produce that reason under the first-match table: missing script/graph \u2192 `graph absent`; non-zero `--check` \u2192 `graph stale`. D5's `--check` spawn/OSError \u2192 `graph check failed` path has no WHEN/THEN coverage (\"Tree tool failure after fresh check\" only covers `--tree` after a fresh `--check`).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 48,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "4ee2093b828ef8bd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "In `session-log.md` Plan Review, `### Next Steps` still sits between round-1 and round-2 decisions and says to IMPLEMENT if converged, while rounds 3\u20134 adjudications (remove slimmed converge-result, extend task 1.1 scenarios, `--tree` failure \u2192 `graph check failed`, require source read for non-call-tree forms, proposal disclosure alignment; `plan_revision` \u2192 6) are recorded only in `plan-findings.md`. The session log is the standing decision record and is stale mid-review.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 49,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "fab34150f18dd6de",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Plan Review decision 2 in `session-log.md` understates `graph check failed` as \"spawn failure or `--tree` exit 1\", while D5 and the skill-workflow requirement also map any `--tree` exit other than `0`/`2`/`3` (after a fresh `--check`) to that reason. Drift from the closed decision table.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 50,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "e9dc0c139c628f32",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "The parked disagreement item 13 indicates that 'Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered' - this suggests the file path resolution aspect may not be fully tested or implemented despite being specified.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 51,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "904be6acec4ff879",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "In specs/codebase-analysis/spec.md, the Atlas Symbol Tree Export requirement states '<target> SHALL resolve as exact node id, then unique symbol name, then module file path or basename' but the corresponding test scenarios only cover basename resolution explicitly. The 'Target resolution precedence' scenario mentions resolving exact node id before symbol name but doesn't explicitly test file path resolution.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 52,
+      "status": "open",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "5bfd53715d3bfdf3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "While the design document mentions that task 1.1 covers file path resolution, there's no explicit scenario in the codebase-analysis spec that specifically tests module file path resolution as a distinct case from basename resolution.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }

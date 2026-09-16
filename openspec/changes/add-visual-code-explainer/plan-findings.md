@@ -73,3 +73,9 @@ reopened on merge). `plan_revision` → 4. Re-run converge.
 | proposal.md still said every answer / any non-zero = stale | Aligned What Changes + Coverage honesty NFR with D5 |
 
 `plan_revision` → 6. Re-run converge.
+
+## PLAN_REVIEW converged (2026-09-16)
+
+`converge()` returned `converged=True` after round-4 adjudication fixes
+(proposal/D5/spec/task alignment). Quorum met; no blocking ledger items;
+no adjudication leftovers. Ready for IMPLEMENT.

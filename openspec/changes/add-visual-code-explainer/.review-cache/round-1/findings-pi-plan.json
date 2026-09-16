@@ -6,61 +6,31 @@
     {
       "id": 1,
       "type": "spec_gap",
-      "criticality": "low",
-      "description": "Task 2.5 (Write references/grounding.md) does not explicitly list documenting the 'optimistic upper bound' caveat for coverage percentages in its scope, though design D5 states 'the grounding reference says so' and session-log confirms 'the reference file says the number is a ceiling'. The grounding reference must state this caveat for honesty.",
-      "disposition": "fix",
+      "criticality": "medium",
+      "description": "The parked disagreement item 13 indicates that 'Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered' - this suggests the file path resolution aspect may not be fully tested or implemented despite being specified.",
+      "disposition": "regenerate",
       "axis": "correctness",
-      "severity": "nit",
+      "severity": "optional",
       "evidence_class": "judgment"
     },
     {
       "id": 2,
-      "type": "spec_gap",
-      "criticality": "low",
-      "description": "Spec skill-workflow scenario 'Frontmatter valid in both orderings' asserts test SHALL fail if keys are 'missing or empty' but does not verify the category value equals 'Architecture' (only non-empty). A separate scenario 'Frontmatter omits triggers and sets Architecture category' covers the value check, but the first scenario should also validate the required value for completeness.",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "In specs/codebase-analysis/spec.md, the Atlas Symbol Tree Export requirement states '<target> SHALL resolve as exact node id, then unique symbol name, then module file path or basename' but the corresponding test scenarios only cover basename resolution explicitly. The 'Target resolution precedence' scenario mentions resolving exact node id before symbol name but doesn't explicitly test file path resolution.",
       "disposition": "fix",
       "axis": "correctness",
-      "severity": "nit",
+      "severity": "optional",
       "evidence_class": "judgment"
     },
     {
       "id": 3,
-      "type": "contract_mismatch",
+      "type": "spec_gap",
       "criticality": "low",
-      "description": "Proposal.md describes exit codes as '0 ok, 1 input error, 2 symbol not found, plus 3 for ambiguous name' while specs/codebase-analysis/spec.md uses 'target not found' (not 'symbol not found'). Terminology should be consistent across artifacts.",
-      "disposition": "fix",
-      "axis": "correctness",
-      "severity": "nit",
-      "evidence_class": "judgment"
-    },
-    {
-      "id": 4,
-      "type": "observability",
-      "criticality": "low",
-      "description": "Proposal NFR table cites node/edge counts (1,903 / 1,199) from committed graph but plan-findings.md acknowledges current graph is ~1,953 / 1,228. Marked 'Left as low (no churn)' but the NFR target '\u2264 2 s on the committed graph' should reference current counts for accuracy.",
+      "description": "While the design document mentions that task 1.1 covers file path resolution, there's no explicit scenario in the codebase-analysis spec that specifically tests module file path resolution as a distinct case from basename resolution.",
       "disposition": "accept",
-      "axis": "observability",
+      "axis": "architecture",
       "severity": "fyi",
-      "evidence_class": "judgment"
-    },
-    {
-      "id": 5,
-      "type": "correctness",
-      "criticality": "medium",
-      "description": "Spec skill-workflow requirement 'Explainer Grounding and Coverage Disclosure' states 'When stale, absent, or failing (including --tree exit 2), the skill SHALL read source directly' but the first-match reason order in D5/spec would classify --tree exit 2 as 'symbol not in graph' (not 'graph stale') when --check passed. The phrase 'including --tree exit 2' in the requirement is ambiguous about which reason applies; it should clarify that --tree exit 2 triggers fallback with reason 'symbol not in graph' per first-match order.",
-      "disposition": "fix",
-      "axis": "correctness",
-      "severity": "optional",
-      "evidence_class": "judgment"
-    },
-    {
-      "id": 7,
-      "type": "correctness",
-      "criticality": "medium",
-      "description": "Spec skill-workflow scenario 'Stale or absent graph falls back to source' lists reasons 'graph stale', 'graph absent', or 'graph check failed' per first-match order, but the requirement text says 'When stale, absent, or failing (including --tree exit 2)'. The scenario should explicitly note that --tree exit 2 falls under 'symbol not in graph' reason (when --check passed) not 'graph stale', to avoid confusion.",
-      "disposition": "fix",
-      "axis": "correctness",
-      "severity": "optional",
       "evidence_class": "judgment"
     }
   ]

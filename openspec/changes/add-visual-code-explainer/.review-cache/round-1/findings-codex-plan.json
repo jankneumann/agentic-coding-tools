@@ -5,21 +5,21 @@
   "findings": [
     {
       "id": 1,
-      "type": "resilience",
-      "criticality": "high",
-      "description": "Critical: The closed grounding decision table does not define behavior when a fresh `--check` is followed by failure to spawn or run `build_atlas.py --tree`, or when `--tree` returns an unexpected exit code. Only exits 1, 2, and 3 are mapped, leaving the required fallback and disclosure undefined. Add an explicit fallback reason and corresponding scenario/tasks.",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The Atlas Symbol Tree Export requires module targets to resolve from either a full file path or a basename, but the only module-resolution scenario and task 1.1 cover a basename. The ordered resolution contract is also not exercised where a unique symbol name collides with a module path or basename. Add scenarios and tests for full-path resolution and the unique-name-before-module precedence.",
       "disposition": "fix",
-      "axis": "resilience",
+      "axis": "correctness",
       "severity": "critical",
       "evidence_class": "judgment"
     },
     {
       "id": 2,
-      "type": "contract_mismatch",
-      "criticality": "high",
-      "description": "Critical: Non-call-tree replies must claim `Grounding: source read, unverified (form not graph-backed)`, but neither the requirement nor its scenario requires source files to be read before producing component trees, file trees, sequence diagrams, or structural diffs. The plan therefore permits a false provenance disclosure. Require source reading for these forms or change the disclosure text.",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The Atlas Symbol Tree Export says traversal SHALL use only the Python standard library and make no network requests, but no WHEN/THEN scenario or task verifies either constraint. This violates the rule that every SHALL/MUST be scenario-covered and leaves the security and operability boundary unenforced.",
       "disposition": "fix",
-      "axis": "correctness",
+      "axis": "security",
       "severity": "critical",
       "evidence_class": "judgment"
     },
@@ -27,49 +27,19 @@
       "id": 3,
       "type": "spec_gap",
       "criticality": "medium",
-      "description": "Critical: Atlas target resolution SHALL support both a module file path and a basename, but the only module-resolution scenario and task 1.1 test cover a basename. No scenario covers a full path or defines the result when one basename matches multiple modules, so those parts of the target contract can be implemented incorrectly without detection.",
+      "description": "The grounding requirement maps failure to spawn or run run_architecture.py --check to `graph check failed`, but no scenario has that WHEN condition. The stale/absent scenario covers non-zero exits and missing files, while the tool-failure scenario covers only build_atlas.py --tree after a successful check. Task 2.2 merely checks that the reason token exists, so an implementation could misclassify a check spawn failure and still pass. Add a dedicated check-spawn-failure scenario and behavioral assertion.",
       "disposition": "fix",
-      "axis": "correctness",
+      "axis": "resilience",
       "severity": "critical",
       "evidence_class": "judgment"
     },
     {
       "id": 4,
-      "type": "contract_mismatch",
-      "criticality": "medium",
-      "description": "Critical: The CLI assigns exit 1 to input errors and exit 2 to target-not-found, but it neither defines the valid lower bound for `--hops` nor specifies how parser-level errors such as an invalid direction, negative hop count, or missing flag value map to those codes. Typical argument parsing uses exit 2 for malformed input, colliding with the promised not-found code. Define the input domain, error mapping, and scenarios.",
-      "disposition": "fix",
-      "axis": "compatibility",
-      "severity": "critical",
-      "evidence_class": "judgment"
-    },
-    {
-      "id": 5,
       "type": "spec_gap",
-      "criticality": "medium",
-      "description": "Nit: The Atlas Symbol Tree Export requires use of only the Python standard library and no network requests, but no WHEN/THEN scenario or task 1.1 check verifies either constraint. Add a static dependency/import check or another deterministic scenario covering these requirements.",
-      "disposition": "fix",
-      "axis": "security",
-      "severity": "nit",
-      "evidence_class": "judgment"
-    },
-    {
-      "id": 6,
-      "type": "correctness",
-      "criticality": "medium",
-      "description": "Nit: Task 1.1 proves printed nodes against the fixture using only `(name, file)`, although each exported node also carries graph-derived `line` and `kind`. An implementation can emit incorrect or invented line/kind metadata and still pass. Match the complete emitted node tuple, or otherwise assert that all displayed metadata comes from the resolved fixture node.",
+      "criticality": "low",
+      "description": "The atlas requirement says every node line SHALL contain name, file, line, and kind, but the format scenario validates only the root line. Task 1.1 checks all printed nodes only by `(name, file)`, so incorrect line numbers or kinds on descendants would pass. Extend the scenario and test to validate every emitted node against all four fixture fields.",
       "disposition": "fix",
       "axis": "correctness",
-      "severity": "nit",
-      "evidence_class": "judgment"
-    },
-    {
-      "id": 7,
-      "type": "style",
-      "criticality": "low",
-      "description": "Nit: `session-log.md` places `### Next Steps` before the round-2 decisions and still says to rerun convergence after adjudication, even though later rounds are already recorded elsewhere. Move the next-steps section to the end of the Plan Review phase and update it to the current state.",
-      "disposition": "fix",
-      "axis": "readability",
       "severity": "nit",
       "evidence_class": "judgment"
     }

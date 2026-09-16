@@ -67,8 +67,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: 2.3
   **Size**: M
 
-- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5 substring rule), the closed ungrounded reason set with first-match order (`graph absent` → `graph check failed` → `graph stale` → `symbol not in graph` → `form not graph-backed`), the ask-don't-guess rule for an ambiguous name (exit `3`, no `Grounding:` line), the whole-repository redirect (no `Grounding:` line), and the refusal list (D9)
-  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing", "Whole-repository redirect has no disclosure line", "Disclosure line present on every sketching answer"
+- [ ] 2.5 Write `references/grounding.md` — the `--check` freshness command (D2: exit `0` only = fresh; non-zero ungrounded), the `--tree` invocation via `<skill-base-dir>/../codebase-atlas/`, how to map the footer coverage list into the `Grounding:` line (D5 substring rule), the closed ungrounded reason set with first-match order (`graph absent` → `graph check failed` → `graph stale` → `symbol not in graph` → `form not graph-backed`, including `--tree` spawn/unexpected-exit → `graph check failed`), non-call-tree source-read before sketching, the ask-don't-guess rule for an ambiguous name (exit `3`, no `Grounding:` line), the whole-repository redirect (no `Grounding:` line), and the refusal list (D9)
+  **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Symbol outside graph coverage", "Non-call-tree form is not graph-backed", "Tree tool failure after fresh check", "Ambiguous symbol asks instead of guessing", "Whole-repository redirect has no disclosure line", "Disclosure line present on every sketching answer"
   **Design decisions**: D2, D5, D9
   **Dependencies**: 2.3
   **Size**: S
@@ -76,7 +76,7 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
 - [ ] Checkpoint: run `skills/tests/explain-code`, confirm every `references/<form>.md` cited in SKILL.md exists, review diff
 
 - [ ] 2.6 Add `"explain-code": {"distribution": "portable"}` to `skills/install-manifest.json` `skills`, plus `cross_skill_dependencies` `"explain-code": ["codebase-atlas", "refresh-architecture"]`
-  **Spec scenarios**: skill-workflow "Manifest validation passes"
+  **Spec scenarios**: skill-workflow "Manifest validation passes", "Manifest declares portable distribution and atlas dependencies", "Sibling skill paths use skill-base-dir form"
   **Design decisions**: D1
   **Dependencies**: 2.5
   **Size**: XS

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "change_id": "add-visual-code-explainer",
   "review_type": "plan",
-  "created_at": "2026-09-16T14:12:04Z",
+  "created_at": "2026-09-16T14:22:37Z",
   "target": "add-visual-code-explainer",
   "dispatches": [
     {
@@ -12,7 +12,7 @@
       "models_attempted": [
         "gemini-3.8-flash-high"
       ],
-      "elapsed_seconds": 125.36944912327453,
+      "elapsed_seconds": 148.61732209380716,
       "error": null,
       "error_class": null
     },
@@ -23,7 +23,7 @@
       "models_attempted": [
         "fable"
       ],
-      "elapsed_seconds": 2.3451763708144426,
+      "elapsed_seconds": 2.293963769916445,
       "error": "Unknown error",
       "error_class": "unknown"
     },
@@ -34,7 +34,7 @@
       "models_attempted": [
         "gpt-5.6-sol"
       ],
-      "elapsed_seconds": 193.54954482614994,
+      "elapsed_seconds": 122.33360491599888,
       "error": null,
       "error_class": null
     },
@@ -45,18 +45,19 @@
       "models_attempted": [
         "grok-4.5"
       ],
-      "elapsed_seconds": 196.95461644418538,
+      "elapsed_seconds": 174.74617540789768,
       "error": null,
       "error_class": null
     },
     {
       "vendor": "pi",
       "success": true,
-      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "model_used": "qwen/qwen3-coder",
       "models_attempted": [
-        "nvidia/nemotron-3-ultra-550b-a55b"
+        "nvidia/nemotron-3-ultra-550b-a55b",
+        "qwen/qwen3-coder"
       ],
-      "elapsed_seconds": 63.84109287336469,
+      "elapsed_seconds": 54.00697697419673,
       "error": null,
       "error_class": null
     }
@@ -67,7 +68,7 @@
     {
       "name": "antigravity",
       "findings_path": "findings-antigravity-plan.json",
-      "finding_count": 5,
+      "finding_count": 4,
       "unanchored_findings": 0,
       "fact_check": "skipped",
       "fact_check_removed": 0,
@@ -76,7 +77,7 @@
     {
       "name": "codex",
       "findings_path": "findings-codex-plan.json",
-      "finding_count": 7,
+      "finding_count": 4,
       "unanchored_findings": 0,
       "fact_check": "ran",
       "fact_check_removed": 0,
@@ -85,18 +86,18 @@
     {
       "name": "grok",
       "findings_path": "findings-grok-plan.json",
-      "finding_count": 9,
-      "unanchored_findings": 0,
-      "fact_check": "ran",
+      "finding_count": 6,
+      "unanchored_findings": 6,
+      "fact_check": "skipped",
       "fact_check_removed": 0,
       "fact_check_tokens": 0
     },
     {
       "name": "pi",
       "findings_path": "findings-pi-plan.json",
-      "finding_count": 6,
+      "finding_count": 3,
       "unanchored_findings": 0,
-      "fact_check": "skipped",
+      "fact_check": "ran",
       "fact_check_removed": 0,
       "fact_check_tokens": 0
     }

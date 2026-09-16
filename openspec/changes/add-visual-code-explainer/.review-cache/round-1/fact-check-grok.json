@@ -2,46 +2,9 @@
   "schema_version": 1,
   "vendor": "grok",
   "round": 1,
-  "status": "ran",
-  "skip_reason": null,
+  "status": "skipped",
+  "skip_reason": "TimeoutExpired: Command '['grok', '--prompt-file', '/dev/stdin', '--always-approve']' timed out after 120 seconds",
   "model": null,
   "tokens": 0,
-  "decisions": [
-    {
-      "finding_id": "1",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "2",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "3",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "4",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "5",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "6",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "7",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "8",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "9",
-      "verdict": "kept"
-    }
-  ]
+  "decisions": []
 }
