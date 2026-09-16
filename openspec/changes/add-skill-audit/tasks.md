@@ -63,11 +63,11 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/tests/skill-audit/test_findings_schema.py`, `skills/tests/skill-audit/fixtures/ledgers/*.json`
   **Size**: S
 
-- [x] 2.2 Copy the schema to `skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json` and add `skills/skill-audit/scripts/findings.py` with a `Finding` dataclass, a `Ledger` builder, the contract-delete guard that raises before write, and `write_ledger()`
+- [x] 2.2 Copy the schema to `skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json` and add `skills/skill-audit/scripts/audit_findings.py` with a `Finding` dataclass, a `Ledger` builder, the contract-delete guard that raises before write, and `write_ledger()`
   **Spec scenarios**: as 2.1
   **Design decisions**: D5
   **Dependencies**: 2.1
-  **Files**: `skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json`, `skills/skill-audit/scripts/findings.py`
+  **Files**: `skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json`, `skills/skill-audit/scripts/audit_findings.py`
   **Size**: S
 
 - [x] 2.3 Write `skills/tests/skill-audit/test_classifier.py` with a `FixedStub` and `FailingStub` model backend and fixture SKILL.md files (`all_shaped.md`, `mixed.md`, `teaching_with_repo_token.md`): all-shaped yields zero model calls and zero `unclassified`; mixed yields exactly one call carrying every undecided section; failing stub labels the batch `unclassified` and logs one warning; teaching that names `docs/decisions/` is `keep` with the token in `evidence.repo_specific_tokens`; two runs produce byte-identical ledgers

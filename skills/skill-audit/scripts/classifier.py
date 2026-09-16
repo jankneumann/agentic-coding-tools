@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from audit_paths import ensure_sibling_paths, load_bridge
-from findings import Finding
+from audit_findings import Finding
 
 ensure_sibling_paths()
 

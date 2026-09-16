@@ -1,6 +1,6 @@
 """Path setup for the skill-audit test suite.
 
-The skill's scripts import each other by flat module name (``from findings
+The skill's scripts import each other by flat module name (``from audit_findings
 import ...``) and resolve sibling skills relative to their own location, so
 the scripts directory goes first on ``sys.path``.
 """

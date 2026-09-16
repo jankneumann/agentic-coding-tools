@@ -24,7 +24,7 @@ from classifier import (
     resolve_analyst,
     validate_model_output,
 )
-from findings import build_ledger, write_ledger
+from audit_findings import build_ledger, write_ledger
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 SKILLS = FIXTURES / "skills"

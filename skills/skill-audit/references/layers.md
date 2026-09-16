@@ -45,5 +45,5 @@ finding's `section_id` is stable across runs of the same file.
 | `tier_concentrated_failure` | One tier holds ≥ 60 % of the skill's failures across ≥ 3 sessions (see `evidence_join.py`) | `add_probe`, with the tier and `count` in evidence |
 | `convention_drift` | A rule of the selected `--convention` failed (see `conventions.py`) | Per rule: `move_to_reference` for size and depth, `add_probe` for the tail block, `keep` otherwise |
 
-A `contract` finding can never carry `delete`: `findings.py` raises before
+A `contract` finding can never carry `delete`: `audit_findings.py` raises before
 writing and the schema's `if/then` rejects the file.

@@ -85,7 +85,7 @@ def test_unclassified_layer_is_representable(validator):
     assert _errors(validator, ledger) == []
 
 
-# --- findings.py guard (task 2.2) -------------------------------------------
+# --- audit_findings.py guard (task 2.2) -------------------------------------------
 
 
 def _freshness() -> dict:
@@ -93,7 +93,7 @@ def _freshness() -> dict:
 
 
 def test_guard_raises_before_write(tmp_path):
-    from findings import ContractDeleteError, Finding, build_ledger, write_ledger
+    from audit_findings import ContractDeleteError, Finding, build_ledger, write_ledger
 
     bad = Finding(kind="contract_unpinned", layer="contract", section_id="SKILL.md#00", remediation="delete")
     with pytest.raises(ContractDeleteError):
@@ -111,7 +111,7 @@ def test_guard_raises_before_write(tmp_path):
 
 
 def test_write_ledger_is_schema_valid_and_deterministic(tmp_path, validator):
-    from findings import Finding, build_ledger, write_ledger
+    from audit_findings import Finding, build_ledger, write_ledger
 
     def make():
         return build_ledger(
@@ -130,7 +130,7 @@ def test_write_ledger_is_schema_valid_and_deterministic(tmp_path, validator):
 
 
 def test_finding_rejects_unknown_vocabulary():
-    from findings import Finding
+    from audit_findings import Finding
 
     with pytest.raises(ValueError):
         Finding(kind="vibes_bad", layer="teaching", section_id="x", remediation="keep")

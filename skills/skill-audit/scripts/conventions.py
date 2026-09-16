@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Callable
 
 from audit_paths import SKILLS_ROOT
-from findings import Finding
+from audit_findings import Finding
 
 CONVENTIONS = ("rightsizing", "current")
 RIGHTSIZING_MAX_LINES = 500

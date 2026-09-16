@@ -48,7 +48,7 @@ from evidence_join import (  # noqa: E402
     fetch_memory_entries,
     load_loop_states,
 )
-from findings import Finding, build_ledger, write_ledger  # noqa: E402
+from audit_findings import Finding, build_ledger, write_ledger  # noqa: E402
 from report import (  # noqa: E402
     freshness_stamp,
     newest_report,
