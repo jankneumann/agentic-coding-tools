@@ -34,6 +34,22 @@ _DEFAULT_LEDGER_ROLLUP_INTERVAL = 5 * 60
 RoutingJob = tuple[Callable[[], Awaitable[Any]], int]
 
 
+def _positive_int_env(name: str, default: int) -> int:
+    """Read a positive interval without letting bad optional config disable watchdog."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("Ignoring invalid %s=%r; using %d", name, raw, default)
+        return default
+    if value <= 0:
+        logger.warning("Ignoring non-positive %s=%r; using %d", name, raw, default)
+        return default
+    return value
+
+
 class WatchdogService:
     """Periodic health monitor running as an asyncio background task."""
 
@@ -135,29 +151,23 @@ class WatchdogService:
         return {
             "catalog_refresh": (
                 refresh_catalog,
-                int(
-                    os.environ.get(
-                        "ROUTING_CATALOG_REFRESH_INTERVAL_SECONDS",
-                        _DEFAULT_CATALOG_REFRESH_INTERVAL,
-                    )
+                _positive_int_env(
+                    "ROUTING_CATALOG_REFRESH_INTERVAL_SECONDS",
+                    _DEFAULT_CATALOG_REFRESH_INTERVAL,
                 ),
             ),
             "local_endpoint_probe": (
                 probe_local_endpoints,
-                int(
-                    os.environ.get(
-                        "ROUTING_LOCAL_PROBE_INTERVAL_SECONDS",
-                        _DEFAULT_LOCAL_PROBE_INTERVAL,
-                    )
+                _positive_int_env(
+                    "ROUTING_LOCAL_PROBE_INTERVAL_SECONDS",
+                    _DEFAULT_LOCAL_PROBE_INTERVAL,
                 ),
             ),
             "ledger_rollup": (
                 rollup_ledger,
-                int(
-                    os.environ.get(
-                        "ROUTING_LEDGER_ROLLUP_INTERVAL_SECONDS",
-                        _DEFAULT_LEDGER_ROLLUP_INTERVAL,
-                    )
+                _positive_int_env(
+                    "ROUTING_LEDGER_ROLLUP_INTERVAL_SECONDS",
+                    _DEFAULT_LEDGER_ROLLUP_INTERVAL,
                 ),
             ),
         }
