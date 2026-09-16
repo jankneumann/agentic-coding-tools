@@ -17,7 +17,7 @@
 | Spec Compliance | PASS | All 8 requirements and 33 scenarios are implemented and traced; contract parity passed 19 tests; strict OpenSpec passed 93/93. |
 | Validation Review | PASS | Final configured panel achieved semantic quorum 2/2 with 0 blocking and 0 disagreement findings; three unavailable harnesses were recorded as bounded timeouts. |
 | Static / Regression | PASS | Coordinator: 2,659 passed, 11 skipped, 132 deselected. Skills-root configured suite: 4,873 passed, 15 skipped. Ruff passed both trees; strict mypy passed 83 source files. |
-| CI/CD | PENDING | Local package contract is green. PR checks are recorded after the stacked PR is created. |
+| CI/CD | PASS | PR #562 replacement run 35157071348 passed 19 checks with 1 expected dependency-remediation skip and 0 failures. |
 
 ## Smoke Tests
 
@@ -90,7 +90,7 @@ The independent choices ledger records one sound, high-confidence silent-spec ch
 
 - One migration-sequence warning is expected on feature branches when a later numbered migration already exists; migration 041 does not collide.
 - Live production deployment was not requested. The image contract and behavioral startup/persistence path are tested locally.
-- CI status is appended after PR submission; roadmap reconciliation remains blocked until the submission checks complete.
+- PR #562 targets the finalized dg-00 branch; replacement CI run 35157071348 is fully green.
 
 ## Result
 
