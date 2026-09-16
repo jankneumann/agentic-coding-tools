@@ -45,7 +45,7 @@ packages:
         - "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/**"
         - "agent-coordinator/tests/test_vendor_registry_contracts.py"
       read_allow: ["**"]
-    context_impact: {surfaces: [apis, capabilities]}
+    context_impact: {surfaces: [apis, capabilities, documentation, semantic_code]}
     worktree: {name: dg01-contracts, mode: isolated}
     timeout_minutes: 60
     retry_budget: 1
