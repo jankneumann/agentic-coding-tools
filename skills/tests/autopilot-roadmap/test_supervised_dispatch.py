@@ -688,6 +688,113 @@ def test_apply_rejects_missing_current_result_before_callback(
     assert calls == []
 
 
+def _multiple_resumed_batch(
+    tmp_path: Path,
+) -> tuple[Path, Path, dict[str, Any], list[dict[str, Any]]]:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [
+            RoadmapItem("ri-01", "Applied", ItemStatus.APPROVED, 1, Effort.S, change_id="change-applied"),
+            RoadmapItem("ri-02", "Resumed A", ItemStatus.APPROVED, 2, Effort.S, change_id="change-a"),
+            RoadmapItem("ri-03", "Resumed B", ItemStatus.APPROVED, 3, Effort.S, change_id="change-b"),
+        ],
+    )
+    for change_id in ("change-applied", "change-a", "change-b"):
+        _write_work_packages(repo, change_id, f"src/{change_id}/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    _mark_attempt_effects_applied(workspace, prepared["requests"][0])
+    _mark_attempt_effects_applied(workspace, prepared["requests"][1], outcome="parked")
+    _mark_attempt_effects_applied(workspace, prepared["requests"][2], outcome="parked")
+    checkpoint_path = workspace / "checkpoint.json"
+    checkpoint = json.loads(checkpoint_path.read_text())
+    resumed_requests: list[dict[str, Any]] = []
+    for offset, attempt in enumerate(checkpoint["dispatch_attempts"][1:], start=2):
+        attempt.update(
+            status="launched",
+            lease_generation=2,
+            continuation={
+                "kind": "pending_gate",
+                "approval_ref": f"gate-decision:00000000-0000-4000-8000-{offset:012d}",
+            },
+            lease={
+                "generation": 2,
+                "owner_nonce": f"owner-nonce-000{offset}",
+                "state": "active",
+                "acquired_at": _NOW,
+                "heartbeat_at": _NOW,
+                "expires_at": "2026-09-01T00:05:00+00:00",
+            },
+            launch_evidence={
+                "kind": "host_ack",
+                "generation": 2,
+                "handle": f"task-{attempt['item_id']}",
+                "observed_at": _NOW,
+            },
+            launch_gate={
+                "generation": 2,
+                "state": "entered",
+                "handle": f"task-{attempt['item_id']}",
+                "go_released_at": _NOW,
+                "entered_at": _NOW,
+            },
+        )
+        for field in ("outcome", "resolved_at", "parked", "application_journal"):
+            attempt.pop(field, None)
+        original = next(
+            request
+            for request in prepared["requests"]
+            if request["dispatch_id"] == attempt["dispatch_id"]
+        )
+        resumed_requests.append(dict(original, lease_generation=2))
+    checkpoint_path.write_text(json.dumps(checkpoint, indent=2) + "\n")
+    return repo, workspace, prepared, resumed_requests
+
+
+def test_apply_requires_all_resumed_members_regardless_of_submission_order(
+    tmp_path: Path,
+) -> None:
+    repo, workspace, prepared, resumed = _multiple_resumed_batch(tmp_path)
+    calls: list[str] = []
+
+    applied = apply_delegated_batch(
+        workspace,
+        prepared["batch_id"],
+        [_result(resumed[1]), _result(resumed[0])],
+        lambda item_id, _phase, context: calls.append(item_id) or context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert set(applied["completed_item_ids"]) == {"ri-02", "ri-03"}
+    assert set(calls) == {"ri-02", "ri-03"}
+
+
+@pytest.mark.parametrize("invalid_membership", ["missing_resumed", "historical_peer"])
+def test_apply_rejects_inexact_multiple_resumed_cohort_before_callback(
+    tmp_path: Path,
+    invalid_membership: str,
+) -> None:
+    repo, workspace, prepared, resumed = _multiple_resumed_batch(tmp_path)
+    results = [_result(resumed[0])]
+    expected = "missing current dispatch result"
+    if invalid_membership == "historical_peer":
+        results = [*map(_result, resumed), _result(prepared["requests"][0])]
+        expected = "historical dispatch result"
+    calls: list[str] = []
+
+    with pytest.raises(ValueError, match=expected):
+        apply_delegated_batch(
+            workspace,
+            prepared["batch_id"],
+            results,
+            lambda item_id, _phase, context: calls.append(item_id) or context["dispatch_result"],
+            repo_root=repo,
+        )
+
+    assert calls == []
+
+
 def test_apply_accepts_resumed_current_generation_with_applied_peer_omitted(
     tmp_path: Path,
 ) -> None:
