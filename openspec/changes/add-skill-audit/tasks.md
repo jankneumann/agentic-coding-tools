@@ -35,7 +35,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `agent-coordinator/src/agents_config.py`, `agent-coordinator/src/coordination_api.py`
   **Size**: M
 
-- [ ] Checkpoint: run `agent-coordinator/tests/test_archetypes_yaml.py test_agents_config.py test_phase_archetype_resolution.py test_teams.py test_report_status_phase_archetype.py`, review diff, verify scope stays inside `agent-coordinator/**` and the archetype schema file
+- [x] Checkpoint: run `agent-coordinator/tests/test_archetypes_yaml.py test_agents_config.py test_phase_archetype_resolution.py test_teams.py test_report_status_phase_archetype.py`, review diff, verify scope stays inside `agent-coordinator/**` and the archetype schema file
 
 - [x] 1.5 Extend `skills/tests/coordination-bridge/test_archetype_resolve.py`: a response with `procedure_mode` is returned intact; a response without it is returned unchanged and callers see no key
   **Spec scenarios**: agent-archetypes "Bridge tolerates an older coordinator"
@@ -51,7 +51,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/coordination-bridge/scripts/coordination_bridge.py`
   **Size**: XS
 
-- [ ] Checkpoint: run `skills/tests/coordination-bridge`, `skills/tests/autopilot/test_phase_archetype_e2e.py`, `skills/tests/vendor-neutral-autopilot`, confirm the autopilot fold forwards the appended sentence with no code change
+- [x] Checkpoint: run `skills/tests/coordination-bridge`, `skills/tests/autopilot/test_phase_archetype_e2e.py`, `skills/tests/vendor-neutral-autopilot`, confirm the autopilot fold forwards the appended sentence with no code change
 
 ## Phase 2 — `skill-audit` skill (package `wp-skill-audit`)
 
