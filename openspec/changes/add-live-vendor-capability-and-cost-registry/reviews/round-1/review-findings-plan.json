@@ -1,0 +1,45 @@
+{
+  "review_type": "plan",
+  "target": "add-live-vendor-capability-and-cost-registry",
+  "reviewer_vendor": "codex-self",
+  "coverage": {
+    "reviewed": [
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/proposal.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/tasks.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/specs/vendor-registry/spec.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/work-packages.yaml",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/db/schema.sql",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/events/vendor-availability.schema.json"
+    ],
+    "skipped": [],
+    "rate": 1.0
+  },
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Nit: The current result grammar can report vendor_limit:claude without the concrete AgentEntry lane, while the plan correctly rejects ambiguous provider-only writes; the plan must define how dispatch context supplies agent_id before implementation.",
+      "resolution": "Specify a lane-resolving observation reporter that carries the selected agent_id alongside legacy provider text, and define bounded behavior when only an ambiguous provider is available.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The plan exposes raw per-model catalog prices but does not yet specify the deterministic model and token assumptions used to produce the scalar policy cost delta.",
+      "resolution": "Define a request-scoped quote rule with selected model or explicit cheapest-eligible fallback plus fixed token assumptions and provenance; never collapse prices silently.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}
