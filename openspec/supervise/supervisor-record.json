@@ -13,7 +13,14 @@
       "id": "1d8eb383-2f08-449b-a0d8-6dc9464ddd85",
       "rationale": "direct autopilot-roadmap invocation: supervisor roadmap",
       "scope": "roadmap-supervisor-orchestration"
+    },
+    {
+      "decided_at": "2026-09-16T15:00:01.350376+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "c0affb90-b7ec-4561-93e2-90dd3ea59835",
+      "rationale": "Direct autopilot-roadmap invocation for dg-00 recovery; stale in_progress state had no canonical checkpoint",
+      "scope": "dispatch-governance"
     }
   ],
-  "written_at": "2026-09-10T11:50:20.973467Z"
+  "written_at": "2026-09-16T15:00:01.340411Z"
 }

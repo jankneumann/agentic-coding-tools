@@ -2061,17 +2061,24 @@ def _dispatch_with_snapshot_fallback(
 class ReviewOrchestrator:
     """Multi-vendor review dispatch orchestrator.
 
-    Supports both CLI and SDK adapters with three-tier dispatch selection:
-    Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 3 (Skip).
+    Supports CLI, SDK, and OpenAI-compatible adapters with ordered selection:
+    Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 2.5 (OpenAI-compatible)
+    → Tier 3 (Skip).
     """
 
     def __init__(
         self,
         adapters: dict[str, CliVendorAdapter],
         sdk_adapters: dict[str, SdkVendorAdapter] | None = None,
+        openai_adapters: dict[str, Any] | None = None,
+        openai_key_envs: dict[str, str] | None = None,
+        openai_role_ids: dict[str, str | None] | None = None,
     ) -> None:
         self.adapters = adapters
         self.sdk_adapters = sdk_adapters or {}
+        self.openai_adapters = openai_adapters or {}
+        self.openai_key_envs = openai_key_envs or {}
+        self.openai_role_ids = openai_role_ids or {}
 
     @classmethod
     def from_config_dict(cls, data: dict[str, Any]) -> "ReviewOrchestrator":
@@ -2083,10 +2090,17 @@ class ReviewOrchestrator:
         """
         adapters: dict[str, CliVendorAdapter] = {}
         sdk_adapters: dict[str, SdkVendorAdapter] = {}
+        openai_adapters: dict[str, Any] = {}
+        openai_key_envs: dict[str, str] = {}
+        openai_role_ids: dict[str, str | None] = {}
         for agent in data.get("agents", []):
             cli = agent.get("cli")
             sdk = agent.get("sdk")
-            if not cli and not sdk:
+            endpoint_kind = agent.get("endpoint_kind")
+            base_url = agent.get("base_url")
+            if not cli and not sdk and not (
+                endpoint_kind in {"openrouter", "local"} and base_url
+            ):
                 continue
 
             # Build CLI adapter
@@ -2139,7 +2153,43 @@ class ReviewOrchestrator:
                     openbao_role_id=agent.get("openbao_role_id"),
                 )
 
-        return cls(adapters, sdk_adapters)
+            if endpoint_kind in {"openrouter", "local"} and base_url:
+                from openai_compat_adapter import OpenAICompatAdapter
+
+                model, _thinking = _resolve_review_model_spec(agent["type"])
+                derived_fallbacks = _derived_tier_fallbacks(agent["type"])
+                configured_model = (
+                    (sdk or {}).get("model")
+                    or (cli or {}).get("model")
+                    or model
+                    or (derived_fallbacks[0] if derived_fallbacks else None)
+                )
+                if configured_model:
+                    agent_id = agent["agent_id"]
+                    openai_adapters[agent_id] = OpenAICompatAdapter(
+                        agent_id=agent_id,
+                        vendor=agent["type"],
+                        model=configured_model,
+                        base_url=base_url,
+                        endpoint_kind=endpoint_kind,
+                        model_fallbacks=(sdk or {}).get("model_fallbacks")
+                        or (cli or {}).get("model_fallbacks", derived_fallbacks[1:]),
+                    )
+                    openai_key_envs[agent_id] = (
+                        agent.get("api_key_env")
+                        or (sdk or {}).get("api_key_env")
+                        or (cli or {}).get("api_key_env")
+                        or (
+                            "OPENROUTER_API_KEY"
+                            if endpoint_kind == "openrouter"
+                            else ""
+                        )
+                    )
+                    openai_role_ids[agent_id] = agent.get("openbao_role_id")
+
+        return cls(
+            adapters, sdk_adapters, openai_adapters, openai_key_envs, openai_role_ids
+        )
 
     @staticmethod
     def _config_from_agents_yaml(path: Path) -> dict[str, Any] | None:
@@ -2164,13 +2214,20 @@ class ReviewOrchestrator:
         for agent_id, agent in (raw.get("agents") or {}).items():
             cli = agent.get("cli")
             sdk = agent.get("sdk")
-            if not cli and not sdk:
+            endpoint_kind = agent.get("endpoint_kind")
+            base_url = agent.get("base_url")
+            if not cli and not sdk and not (
+                endpoint_kind in {"openrouter", "local"} and base_url
+            ):
                 continue
             agents_out.append({
                 "agent_id": agent_id,
                 "type": agent.get("type"),
                 "transport": agent.get("transport", "mcp"),
                 "openbao_role_id": agent.get("openbao_role_id"),
+                "endpoint_kind": endpoint_kind,
+                "base_url": base_url,
+                "api_key_env": agent.get("api_key_env"),
                 "cli": cli,
                 "sdk": sdk,
             })
@@ -2301,10 +2358,11 @@ class ReviewOrchestrator:
         exclude_vendor: str | None = None,
         dispatch_mode: str = "review",
     ) -> list[ReviewerInfo]:
-        """Discover available reviewers with three-tier selection.
+        """Discover available reviewers with ordered transport selection.
 
         For each vendor, selects the best available dispatch method:
-        Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 3 (Skip).
+        Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 2.5
+        (OpenAI-compatible) → Tier 3 (Skip).
         Deduplicates by vendor — at most one reviewer per vendor type.
         """
         # Collect all CLI adapters (local transport only)
@@ -2324,8 +2382,18 @@ class ReviewOrchestrator:
             if adapter.vendor not in sdk_by_vendor:
                 sdk_by_vendor[adapter.vendor] = (agent_id, adapter)
 
-        # Three-tier selection per vendor
-        all_vendors = set(cli_by_vendor.keys()) | set(sdk_by_vendor.keys())
+        openai_by_vendor: dict[str, tuple[str, Any]] = {}
+        for agent_id, adapter in self.openai_adapters.items():
+            if exclude_vendor and adapter.vendor == exclude_vendor:
+                continue
+            if adapter.vendor not in openai_by_vendor:
+                openai_by_vendor[adapter.vendor] = (agent_id, adapter)
+
+        all_vendors = (
+            set(cli_by_vendor.keys())
+            | set(sdk_by_vendor.keys())
+            | set(openai_by_vendor.keys())
+        )
         reviewers: list[ReviewerInfo] = []
 
         for vendor in sorted(all_vendors):
@@ -2359,8 +2427,29 @@ class ReviewOrchestrator:
                     ))
                     continue
 
+            # Tier 2.5: OpenAI-compatible HTTP endpoint. This follows SDK so
+            # existing local/provider-native paths remain the preferred route.
+            if vendor in openai_by_vendor:
+                agent_id, openai_adapter = openai_by_vendor[vendor]
+                if openai_adapter.can_dispatch(dispatch_mode):
+                    logger.info(
+                        "Tier 2.5 (OpenAI-compatible) selected for %s: %s",
+                        vendor,
+                        agent_id,
+                    )
+                    reviewers.append(ReviewerInfo(
+                        vendor=vendor,
+                        agent_id=agent_id,
+                        available=True,
+                        dispatch_tier="openai",
+                    ))
+                    continue
+
             # Tier 3: Skip
-            logger.info("Tier 3 (skip) for %s: no CLI or SDK available", vendor)
+            logger.info(
+                "Tier 3 (skip) for %s: no CLI, SDK, or OpenAI endpoint available",
+                vendor,
+            )
 
         return reviewers
 
@@ -2529,6 +2618,34 @@ class ReviewOrchestrator:
                     vendor_timeout,
                     partial(
                         sdk_adapter.dispatch,
+                        dispatch_mode,
+                        prompt,
+                        cwd,
+                        vendor_timeout,
+                        api_key,
+                    ),
+                ))
+
+            elif reviewer.dispatch_tier == "openai":
+                openai_adapter = self.openai_adapters[reviewer.agent_id]
+                api_key = api_key_resolver.resolve(
+                    self.openai_role_ids.get(reviewer.agent_id),
+                    self.openai_key_envs.get(reviewer.agent_id, ""),
+                )
+                logger.info(
+                    "OpenAI-compatible dispatching %s review to %s (key: %s)",
+                    review_type,
+                    reviewer.agent_id,
+                    "resolved" if api_key else "not-required-or-missing",
+                )
+                idx = next_index
+                next_index += 1
+                sync_jobs.append((
+                    idx,
+                    reviewer.vendor,
+                    vendor_timeout,
+                    partial(
+                        openai_adapter.dispatch,
                         dispatch_mode,
                         prompt,
                         cwd,
@@ -2784,7 +2901,11 @@ def _orchestrator_for_dispatch(
         return ReviewOrchestrator.from_agents_yaml(local)
 
     orchestrator = ReviewOrchestrator.from_coordinator()
-    if not orchestrator.adapters and not orchestrator.sdk_adapters:
+    if (
+        not orchestrator.adapters
+        and not orchestrator.sdk_adapters
+        and not orchestrator.openai_adapters
+    ):
         logger.info("Coordinator unavailable, trying agents.yaml on disk")
         orchestrator = ReviewOrchestrator.from_agents_yaml()
     return orchestrator

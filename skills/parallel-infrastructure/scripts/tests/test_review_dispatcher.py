@@ -73,6 +73,78 @@ def _resolved_primary(vendor: str = "codex") -> str:
     return model or "(default)"
 
 
+def test_openai_compatible_endpoint_is_discovered_after_cli_and_sdk() -> None:
+    orchestrator = ReviewOrchestrator.from_config_dict({
+        "agents": [
+            {
+                "agent_id": "local-openai",
+                "type": "local",
+                "transport": "http",
+                "endpoint_kind": "local",
+                "base_url": "http://127.0.0.1:11434/v1",
+            },
+        ],
+    })
+
+    reviewers = orchestrator.discover_reviewers(dispatch_mode="review")
+
+    assert [reviewer.agent_id for reviewer in reviewers] == ["local-openai"]
+    assert reviewers[0].dispatch_tier == "openai"
+    assert orchestrator.openai_adapters["local-openai"].base_url == (
+        "http://127.0.0.1:11434/v1"
+    )
+
+
+def test_cli_keeps_precedence_over_openai_compatible_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("shutil.which", lambda _command: "/usr/bin/vendor")
+    orchestrator = ReviewOrchestrator.from_config_dict({
+        "agents": [
+            {
+                "agent_id": "codex-local",
+                "type": "codex",
+                "transport": "mcp",
+                "endpoint_kind": "local",
+                "base_url": "http://127.0.0.1:11434/v1",
+                "cli": {
+                    "command": "codex",
+                    "dispatch_modes": {"review": {"args": ["exec"]}},
+                    "model_flag": "-m",
+                },
+            },
+        ],
+    })
+
+    reviewers = orchestrator.discover_reviewers(dispatch_mode="review")
+
+    assert reviewers[0].dispatch_tier == "cli"
+
+def test_openai_compatible_discovery_path_dispatches_review(tmp_path: Path) -> None:
+    orchestrator = ReviewOrchestrator.from_config_dict({
+        "agents": [{
+            "agent_id": "local-openai",
+            "type": "local",
+            "transport": "http",
+            "endpoint_kind": "local",
+            "base_url": "http://127.0.0.1:11434/v1",
+        }],
+    })
+    adapter = orchestrator.openai_adapters["local-openai"]
+    adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="local", success=True, findings={"findings": []}))
+
+    results = orchestrator.dispatch_and_wait(
+        review_type="implementation",
+        dispatch_mode="review",
+        prompt="review",
+        cwd=tmp_path,
+    )
+
+    assert len(results) == 1
+    assert results[0].success is True
+    adapter.dispatch.assert_called_once()
+
+
 VALID_FINDINGS_JSON = json.dumps({
     "review_type": "plan",
     "target": "test-feature",
