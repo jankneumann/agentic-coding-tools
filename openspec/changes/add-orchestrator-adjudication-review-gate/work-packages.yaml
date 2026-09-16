@@ -1,0 +1,379 @@
+schema_version: 1
+
+feature:
+  id: add-orchestrator-adjudication-review-gate
+  title: "Adjudicate single-vendor critical findings in both review gates"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-09-16T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-orchestrator-adjudication-review-gate/contracts/adjudication-verdict.schema.json"
+    files:
+      - "openspec/changes/add-orchestrator-adjudication-review-gate/contracts/adjudication-verdict.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-evidence-class
+    title: "Persist evidence_class in consensus reports"
+    task_type: implement
+    role: implementer
+    description: >-
+      DF1. ConsensusSynthesizer.to_dict drops evidence_class, so no consumer of a
+      persisted report can tell a judgment finding from a deterministic one.
+      Serialize the field and declare it (and eligible_vendors) in the schema.
+      Do not touch matching, classification, or counting.
+    priority: 1
+    depends_on: []
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "openspec/schemas/consensus-report.schema.json"
+      keys:
+        - "contract:openspec/schemas/consensus-report.schema.json"
+      ttl_minutes: 60
+      reason: "Adds two already-produced fields to the consensus report contract"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "openspec/schemas/consensus-report.schema.json"
+        - "skills/tests/parallel-infrastructure/test_consensus_evidence_class.py"
+      read_allow:
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/**"
+        - "skills/parallel-infrastructure/**"
+        - "skills/tests/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "apis"
+    worktree:
+      name: wp-evidence-class
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Evidence-class round trip"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_consensus_evidence_class.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["evidence_class_tests"]
+    outputs:
+      result_keys: ["evidence_class_tests"]
+    metadata:
+      loc_estimate: 80
+      package_kind: data_model
+
+  - package_id: wp-predicate
+    title: "One adjudication predicate, two entry points"
+    task_type: implement
+    role: implementer
+    description: >-
+      DF2. Extract is_adjudication_candidate from adjudication_items and add a
+      consensus-shaped entry point, so the merge gate can reach the same rule
+      the convergence loop already uses. adjudication_items keeps its signature.
+    priority: 1
+    depends_on: []
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+      keys:
+        - "feature:review-ledger-adjudication-predicate"
+      ttl_minutes: 60
+      reason: "Single owner of the shared gate predicate"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+        - "skills/tests/parallel-infrastructure/test_adjudication_predicate.py"
+      read_allow:
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/**"
+        - "skills/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-predicate
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Predicate parity and single ownership"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_adjudication_predicate.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["predicate_tests"]
+    outputs:
+      result_keys: ["predicate_tests"]
+    metadata:
+      loc_estimate: 90
+      package_kind: algorithm
+
+  - package_id: wp-adjudication
+    title: "Verdict production and computed outcomes"
+    task_type: implement
+    role: implementer
+    description: >-
+      D3, D4, D5, D6. New adjudication.py: dispatch one schema-validated verdict
+      per candidate under a rubric, stamp adjudicator identity and head SHA,
+      flag same-family adjudication, and compute the gate outcome in code from
+      the verdicts. The adjudicator never names an outcome.
+    priority: 2
+    depends_on: ["wp-predicate"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/adjudication.py"
+      keys:
+        - "feature:orchestrator-adjudication"
+      ttl_minutes: 120
+      reason: "New module owning verdict production and outcome computation"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/adjudication.py"
+        - "skills/tests/parallel-infrastructure/test_adjudication.py"
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/contracts/**"
+      read_allow:
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/**"
+        - "skills/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: wp-adjudication
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: "Verdict schema and outcome table"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_adjudication.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["adjudication_tests"]
+    outputs:
+      result_keys: ["adjudication_tests"]
+    metadata:
+      loc_estimate: 320
+      package_kind: algorithm
+
+  - package_id: wp-merge-gate
+    title: "Wire the merge-pull-requests gate"
+    task_type: implement
+    role: implementer
+    description: >-
+      D7. blocking_count alone stops being sufficient to merge. Adjudicate the
+      selected findings, persist verdicts as merge evidence, distinguish "not
+      adjudicable" from "no blocking findings", and route unverifiable blocking
+      claims to a fail-closed human gate.
+    priority: 3
+    depends_on: ["wp-adjudication", "wp-evidence-class"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/execution_safety.py"
+      keys:
+        - "feature:merge-vendor-gate"
+      ttl_minutes: 120
+      reason: "Owns the merge-time vendor gate predicate"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/scripts/execution_safety.py"
+        - "skills/merge-pull-requests/scripts/execute_plan.py"
+        - "skills/tests/merge-pull-requests/test_merge_adjudication_gate.py"
+      read_allow:
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/**"
+        - "skills/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-merge-gate
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: "Merge gate blocks the #484 shape"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/test_merge_adjudication_gate.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["merge_gate_tests"]
+    outputs:
+      result_keys: ["merge_gate_tests"]
+    metadata:
+      loc_estimate: 200
+      package_kind: integration
+
+  - package_id: wp-convergence
+    title: "Wire the autopilot convergence loop"
+    task_type: implement
+    role: implementer
+    description: >-
+      D7. Adjudicate before escalating. Only unverifiable blocking claims reach
+      escalation_callback; verified blocking claims go to the fix path with their
+      evidence. Medium-criticality judgment findings stay advisory.
+    priority: 3
+    depends_on: ["wp-adjudication"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/autopilot/scripts/convergence_loop.py"
+      keys:
+        - "feature:convergence-adjudication"
+      ttl_minutes: 120
+      reason: "Owns the convergence adjudication halt"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/autopilot/scripts/tests/test_convergence_adjudication.py"
+      read_allow:
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/**"
+        - "skills/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-convergence
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: "Escalation carries only unverifiable blocking claims"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/autopilot/scripts/tests/test_convergence_adjudication.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["convergence_tests"]
+    outputs:
+      result_keys: ["convergence_tests"]
+    metadata:
+      loc_estimate: 180
+      package_kind: integration
+
+  - package_id: wp-replay
+    title: "PR #484 replay golden test"
+    task_type: test
+    role: implementer
+    description: >-
+      Replay the real stored #484 consensus. With evidence_class stamped, the
+      gate must return exactly two blocking verdicts, for findings 1 and 12 —
+      the two defects #548 actually fixed — and neither 9 nor 11 may block. A
+      companion test pins that the pre-change path merged the same input.
+    priority: 4
+    depends_on: ["wp-merge-gate", "wp-convergence"]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/tests/parallel-infrastructure/fixtures/pr484-consensus.json"
+      keys:
+        - "feature:pr484-replay-fixture"
+      ttl_minutes: 60
+      reason: "Golden fixture for the regression this change closes"
+    scope:
+      write_allow:
+        - "skills/tests/parallel-infrastructure/test_pr484_replay.py"
+        - "skills/tests/parallel-infrastructure/fixtures/pr484-consensus.json"
+      read_allow:
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/**"
+        - "skills/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-replay
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: "Exactly two blocking verdicts"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_pr484_replay.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["replay_tests"]
+    outputs:
+      result_keys: ["replay_tests"]
+    metadata:
+      loc_estimate: 140
+      package_kind: integration
+
+  - package_id: wp-roadmap
+    title: "Correct the #484 finding counts"
+    task_type: docs
+    role: implementer
+    description: >-
+      ri-21 and issue #550 record "7 critical" unconfirmed findings on #484. The
+      stored consensus has 4 high, 12 medium, 7 low, and none critical. Correct
+      the roadmap item through refine-roadmap, and the issue and merge log by
+      hand.
+    priority: 1
+    depends_on: []
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "openspec/roadmaps/skill-rightsizing/roadmap.yaml"
+      keys:
+        - "feature:skill-rightsizing-roadmap"
+      ttl_minutes: 60
+      reason: "refine-roadmap transaction on the active roadmap"
+    scope:
+      write_allow:
+        - "openspec/roadmaps/skill-rightsizing/roadmap.yaml"
+        - "openspec/roadmaps/skill-rightsizing/roadmap.md"
+        - "docs/merge-logs/2026-09-14.md"
+      read_allow:
+        - "openspec/**"
+        - "docs/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "documentation"
+    worktree:
+      name: wp-roadmap
+      mode: isolated
+    verification:
+      tier_required: C
+      steps:
+        - name: "Roadmap still validates"
+          kind: command
+          command: "openspec validate --strict --all"
+          evidence:
+            artifacts: []
+            result_keys: ["roadmap_validation"]
+    outputs:
+      result_keys: ["roadmap_validation"]
+    metadata:
+      loc_estimate: 40
+      package_kind: config
