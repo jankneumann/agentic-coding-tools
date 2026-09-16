@@ -64,6 +64,33 @@ class TestWaitPolicy:
         assert decision.action == "wait"
         assert decision.expected_wait_seconds is None
 
+
+def test_registry_lane_selection_honors_wait_policy_without_selecting_lane():
+    decision = select_registry_lane(
+        policy=Policy(default_action=PolicyAction.WAIT),
+        vendor_limit=VendorLimit(
+            vendor="claude",
+            reason="capacity",
+            reset_at="2026-09-17T12:00:00+00:00",
+        ),
+        lanes=[{
+            "agent_id": "codex-cloud",
+            "policy_vendor": "codex",
+            "dispatchable": True,
+            "availability": {
+                "available": True,
+                "status": "available",
+                "rate_limits": [],
+            },
+        }],
+    )
+
+    assert decision.action == "wait"
+    assert decision.to_vendor is None
+    assert decision.to_agent_id is None
+    assert decision.expected_wait_seconds is not None
+
+
 class TestSwitchPolicy:
     """Tests for switch_if_time_saved policy."""
 

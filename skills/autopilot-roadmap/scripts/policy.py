@@ -388,6 +388,8 @@ def select_registry_lane(
     excluded_policy_vendors: set[str] | None = None,
 ) -> PolicyDecision:
     """Select a concrete registry lane while retaining provider compatibility."""
+    if policy.default_action == PolicyAction.WAIT:
+        return _evaluate_wait(policy, vendor_limit, vendor_limit.vendor)
     if switch_attempts >= policy.max_switch_attempts_per_item:
         return PolicyDecision(
             action="fail_closed",
