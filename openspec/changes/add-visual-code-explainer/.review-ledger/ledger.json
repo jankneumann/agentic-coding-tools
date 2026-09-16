@@ -1,7 +1,237 @@
 {
   "schema_version": 1,
   "change_id": "add-visual-code-explainer",
-  "items": [],
-  "next_id": 1,
-  "note": "Reset after PLAN_REVIEW adjudication rounds 1-2; prior items applied to plan artifacts."
+  "items": [
+    {
+      "id": 1,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "fingerprint": "27830ee665714cd4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "antigravity"
+      ],
+      "description": "Eight spec scenarios added in round 2 adjudication ('Coverage footer shape', 'Target resolution precedence', 'Unique ...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 2,
+      "status": "retired",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
+      "fingerprint": "32d7dac329eb5ab4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "antigravity"
+      ],
+      "description": "plan-findings.md claims 'Ledger items from rounds 1\u20132 retired after adjudication (\\'retired\\' is not reopened on merg...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 3,
+      "status": "retired",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/session-log.md",
+      "fingerprint": "ac6ae80367caef89",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "antigravity"
+      ],
+      "description": "In session-log.md under '## Phase: Plan Review (2026-09-16)', '### Next Steps' is placed prematurely between Decision...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 4,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "e0043d2aff26a3b4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "reviews/converge-result.json records converged=false, reason=quorum_lost, and summary=null, while its note and plan-f...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 5,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "6358950dfb34b8b5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The four codebase-analysis scenarios added during round-2 adjudication\u2014Coverage footer shape, Target resolution prece...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 6,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "56b5a98e4105373c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Several normative clauses still lack a corresponding WHEN/THEN scenario, contrary to the review rule: codebase-analys...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 7,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "9ff0753badfc5088",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Every non-call-tree form is required to emit `Grounding: source read, unverified (form not graph-backed)`, but the wo...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 8,
+      "status": "retired",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "030e4384116c5f83",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The closed grounding-reason decision table does not cover failure to spawn/run build_atlas.py --tree or an unexpected...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 9,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "fingerprint": "8c0e1a7296740a24",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Round-2 atlas scenarios are orphaned from tasks: codebase-analysis adds \"Coverage footer shape\", \"Target resolution p...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 10,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "spec_file": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "fingerprint": "db19e5732712359d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Explainer Grounding defines `graph check failed` for `--check` spawn/OSError and for `--tree` exit `1` after a fresh ...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 11,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "fingerprint": "9f3dbec5e764d08a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Round-2 frontmatter/distribution scenarios are under-wired in tasks. \"Frontmatter omits triggers and sets Architectur...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 12,
+      "status": "retired",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "fingerprint": "09fafe46d39bf37e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "D7 (and session-log shorthand) tells deterministic tests to treat `graph stale|absent|check failed` as exact tokens, ...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    },
+    {
+      "id": 13,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "spec_file": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "fingerprint": "7b04c2d60cb19449",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered (\"File target give...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-3"
+    }
+  ]
 }

@@ -54,3 +54,12 @@ single-vendor high judgment findings (0 confirmed, 0 blocking):
 
 Ledger items from rounds 1–2 retired after adjudication (`retired` is not
 reopened on merge). `plan_revision` → 4. Re-run converge.
+
+## PLAN_REVIEW round 3 (2026-09-16) — adjudication
+
+| Finding | Resolution |
+|---|---|
+| Stale slimmed `reviews/converge-result.json` contradicted plan-findings | Removed process snapshot from the change tree; reviews/README.md points at `.review-cache` |
+| Task 1.1 omitted four new atlas scenarios | Extended task 1.1 test scope + Spec scenarios list |
+
+`plan_revision` → 5. Re-run converge.

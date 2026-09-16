@@ -3,8 +3,8 @@
   "change_id": "add-visual-code-explainer",
   "round": 1,
   "body_path": "review-packet.md",
-  "sha256": "6ed5d4fceb8952efa02364a54cfcf96b870a60e15ba34cf74ab203d23f0720a6",
-  "char_length": 185799,
+  "sha256": "0dacc960fc37d631dbd03e5d7f10eff043d8b8f2321a48c689afb59fccdc202a",
+  "char_length": 74273,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -17,7 +17,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 15750
+        "est_tokens": 129
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/design.md",
@@ -45,14 +45,14 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 12394
+        "est_tokens": 136
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/session-log.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2255
+        "est_tokens": 2253
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
@@ -145,7 +145,7 @@
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 2355
+        "est_tokens": 209
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-pi-plan.json",
@@ -166,14 +166,7 @@
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 181
-      },
-      {
-        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-antigravity-plan.txt",
-        "status": "added",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 4505
+        "est_tokens": 180
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-claude_code-plan.meta.json",
@@ -183,32 +176,11 @@
         "est_tokens": 180
       },
       {
-        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-claude_code-plan.txt",
-        "status": "added",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 2538
-      },
-      {
         "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-codex-plan.meta.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 185
-      },
-      {
-        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-codex-plan.stderr.txt",
-        "status": "added",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 32443
-      },
-      {
-        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-codex-plan.txt",
-        "status": "added",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 1358
+        "est_tokens": 172
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-grok-plan.meta.json",
@@ -218,46 +190,25 @@
         "est_tokens": 172
       },
       {
-        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-grok-plan.txt",
-        "status": "added",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 5999
-      },
-      {
         "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-pi-plan.meta.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 170
-      },
-      {
-        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-pi-plan.txt",
-        "status": "added",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 699889
+        "est_tokens": 168
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/review-manifest.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 809
-      },
-      {
-        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/review-packet.md",
-        "status": "added",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 30943
+        "est_tokens": 517
       },
       {
         "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/review-packet.meta.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 2474
+        "est_tokens": 2602
       }
     ],
     "truncated": []

@@ -6,67 +6,34 @@
     {
       "axis": "correctness",
       "criticality": "medium",
-      "description": "Requirement 'Explainer Frontmatter Without Triggers' contains normative obligations that lack Scenario coverage: 'The SKILL.md SHALL end with the ## Common Rationalizations, ## Red Flags, and ## Verification sections required of user-invocable skills' and 'SHALL NOT declare a triggers: key'. Neither of the requirement's two scenarios ('Frontmatter valid in both orderings' and 'Description carries the trigger condition') asserts the presence of the three required tail sections or verifies the absence of triggers:, violating Rule Group 2's requirement that every SHALL/MUST have at least one scenario.",
+      "description": "Eight spec scenarios added in round 2 adjudication ('Coverage footer shape', 'Target resolution precedence', 'Unique name resolves', 'Direction both labels sections' in codebase-analysis/spec.md; 'Frontmatter omits triggers and sets Architecture category', 'Skill markdown ends with required tail sections', 'Manifest declares portable distribution and atlas dependencies', 'Sibling skill paths use skill-base-dir form' in skill-workflow/spec.md) are not mapped under '**Spec scenarios**' in tasks.md, and Task 1.1's test description omits test cases for direction-both section labels, precedence resolution, and multi-language footer formatting.",
       "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
       "id": 1,
       "severity": "nit",
       "type": "spec_gap",
       "evidence_class": "judgment"
     },
     {
-      "axis": "correctness",
-      "criticality": "medium",
-      "description": "Requirement 'Atlas Symbol Tree Export' contains normative SHALL obligations that lack Scenario coverage under Rule Group 2: (1) 'Each line SHALL show <name>  (<file>:<line>)  [<kind>]', (2) 'children SHALL be sorted by name then id' (secondary sort by id is omitted from scenarios), and (3) '<target> SHALL resolve as exact node id, then unique symbol name...' (existing scenarios cover node id and module basename, but no scenario verifies resolving a unique bare symbol name).",
-      "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
-      "id": 2,
-      "severity": "nit",
-      "type": "spec_gap",
-      "evidence_class": "judgment"
-    },
-    {
-      "axis": "correctness",
-      "criticality": "medium",
-      "description": "Design D7 and task 2.2 define three deterministic behavioural checks in test_behaviour.py, and task 2.2 lists scenario 'Ambiguous symbol asks instead of guessing' as covered. However, none of the three checks asserts that SKILL.md or references/grounding.md instructs the skill to ask rather than guess when --tree exits 3 (listing stderr candidate ids without source fallback). Check 1 only verifies that clarification and redirect replies are exempt from Grounding:. An implementation that omits the exit 3 prompt instructions would pass all three deterministic checks.",
-      "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
-      "id": 3,
-      "severity": "nit",
-      "type": "spec_gap",
-      "evidence_class": "judgment"
-    },
-    {
-      "axis": "correctness",
+      "axis": "compatibility",
       "criticality": "low",
-      "description": "Requirement 'Explainer Grounding and Coverage Disclosure' specifies that if build_atlas.py --tree exits 1 after a fresh --check, the skill SHALL fall back to source reading and emit disclosure reason 'graph check failed'. However, scenario 'Stale or absent graph falls back to source' only triggers WHEN run_architecture.py --check exits non-zero or the script/graph file is missing, leaving the post-fresh --tree exit 1 failure branch without scenario coverage.",
-      "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
-      "id": 4,
-      "severity": "nit",
-      "type": "spec_gap",
-      "evidence_class": "judgment"
-    },
-    {
-      "axis": "correctness",
-      "criticality": "low",
-      "description": "In .review-ledger/ledger.json, item 15 (uncovered normative clauses in skill-workflow/spec.md including triggers absence and required tail sections) is recorded as status 'addressed' by 'plan-review-adjudication'. However, plan-findings.md's adjudication table omitted item 15 and no corresponding scenarios were added to skill-workflow/spec.md, resulting in an unaddressed finding prematurely marked addressed in the ledger.",
+      "description": "plan-findings.md claims 'Ledger items from rounds 1\u20132 retired after adjudication (\\'retired\\' is not reopened on merge)', but .review-ledger/ledger.json emptied items to [] and reset next_id: 1 rather than recording the adjudicated items with status 'retired', breaking the documented merge protection.",
       "disposition": "fix",
       "file_path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
-      "id": 5,
+      "id": 2,
       "severity": "nit",
       "type": "contract_mismatch",
       "evidence_class": "judgment"
     },
     {
-      "axis": "architecture",
+      "axis": "readability",
       "criticality": "low",
-      "description": "Design D4 notes that build_atlas.py --check uses exit 2 for a stale HTML page and states that '--check and --tree never combine on one invocation.' However, neither codebase-analysis/spec.md nor task 1.3 requires parse_args() in build_atlas.py to enforce mutual exclusivity (e.g. via an argparse mutually exclusive group). If both flags are passed, the meaning of exit code 2 is ambiguous.",
+      "description": "In session-log.md under '## Phase: Plan Review (2026-09-16)', '### Next Steps' is placed prematurely between Decisions 1-4 and Decisions (round 2) 5-7, stating to re-run converge before the round 2 decisions are recorded.",
       "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
-      "id": 6,
-      "severity": "nit",
-      "type": "spec_gap",
+      "file_path": "openspec/changes/add-visual-code-explainer/session-log.md",
+      "id": 3,
+      "severity": "fyi",
+      "type": "style",
       "evidence_class": "judgment"
     }
   ]

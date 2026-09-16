@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: add-visual-code-explainer
   title: "Visual code explainer — explain-code skill grounded through codebase-atlas --tree"
-  plan_revision: 4
+  plan_revision: 5
   created_by: claude-code
 
 contracts:

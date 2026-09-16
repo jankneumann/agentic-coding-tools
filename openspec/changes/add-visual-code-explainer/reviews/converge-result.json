@@ -1,8 +1,0 @@
-{
-  "converged": false,
-  "reason": "quorum_lost",
-  "rounds": 1,
-  "summary": null,
-  "escalate_count": 0,
-  "note": "Full consensus retained under .review-cache/round-1/; slimmed to keep review packets under ARG_MAX."
-}

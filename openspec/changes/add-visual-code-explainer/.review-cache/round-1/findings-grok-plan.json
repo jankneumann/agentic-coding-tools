@@ -5,13 +5,83 @@
   "findings": [
     {
       "id": 1,
-      "type": "spec_gap",
-      "criticality": "high",
-      "description": "Placeholder \u2014 reading full review packet before emitting real findings.",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Round-2 atlas scenarios are orphaned from tasks: codebase-analysis adds \"Coverage footer shape\", \"Target resolution precedence\", \"Unique name resolves\", and \"Direction both labels sections\", but tasks 1.1/1.2 Spec scenarios and the 1.1 test body still omit them (no footer multi-language shape/sort/` / ` join assertion, no id-over-name precedence, no unique-name success path, no `--direction both` section labels). plan-findings claims these scenarios were added to close residual SHALLs; without task linkage they will not be implemented or verified.",
       "disposition": "fix",
       "axis": "correctness",
       "severity": "critical",
-      "evidence_class": "judgment"
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "line_range": {
+        "start": 7,
+        "end": 16
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Explainer Grounding defines `graph check failed` for `--check` spawn/OSError and for `--tree` exit `1` after a fresh `--check`, but no WHEN/THEN scenario exercises either path. The existing \"Stale or absent graph falls back to source\" WHEN only covers non-zero `--check` or missing script/graph (\u2192 `graph stale` / `graph absent`) yet its THEN also allows `graph check failed`, which those triggers never produce. Round-1 adjudication explicitly separated stale vs check-failed; that distinction is still untestable as written.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 43,
+        "end": 48
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Round-2 frontmatter/distribution scenarios are under-wired in tasks. \"Frontmatter omits triggers and sets Architecture category\" and \"Skill markdown ends with required tail sections\" are not listed on task 2.1 Spec scenarios; task 2.1 only requires keys present/non-empty and does not require `category: Architecture` or `related` to include both `codebase-atlas` and `refresh-architecture`. \"Manifest declares portable distribution and atlas dependencies\" is not listed on task 2.6; \"Sibling skill paths use skill-base-dir form\" is not listed on task 2.5/2.6. Behaviors partially appear in task prose, but Spec scenario linkage and the Architecture/related assertions remain incomplete relative to the added SHALLs.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "line_range": {
+        "start": 44,
+        "end": 82
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "D7 (and session-log shorthand) tells deterministic tests to treat `graph stale|absent|check failed` as exact tokens, while D5/spec/task 2.2 require three separate reasons: `graph stale`, `graph absent`, `graph check failed`. A literal-token check against the pipe form will fail or under-assert the closed set. Align D7 with the expanded tokens already listed in task 2.2.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "line_range": {
+        "start": 149,
+        "end": 155
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered (\"File target gives the aggregated module view\"). There is no scenario for a full module file path resolving to the aggregated module view, so that half of the resolution SHALL is untested.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "line_range": {
+        "start": 34,
+        "end": 38
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
     }
   ]
 }
