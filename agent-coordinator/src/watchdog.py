@@ -93,9 +93,10 @@ class WatchdogService:
     @property
     def vendor_registry(self) -> Any:
         if self._vendor_registry is None:
+            from .audit import get_audit_service
             from .vendor_registry import VendorRegistryService
 
-            self._vendor_registry = VendorRegistryService(db=self.db)
+            self._vendor_registry = VendorRegistryService(db=self.db, audit=get_audit_service())
         return self._vendor_registry
 
     @property
