@@ -17,6 +17,13 @@ from .resolver import CandidateInput, Posterior
 DEFAULT_STALE_AFTER = timedelta(hours=12)
 
 
+def encode_filter_value(value: Any) -> str:
+    """Escape delimiters before interpolating a value into a DB filter string."""
+    return (
+        str(value).replace("%", "%25").replace("&", "%26").replace("#", "%23").replace("+", "%2B")
+    )
+
+
 @dataclass(frozen=True)
 class CatalogEntry:
     vendor: str
@@ -73,7 +80,7 @@ class CatalogService:
     ) -> list[dict[str, Any]]:
         filters: list[str] = []
         if endpoint_kind:
-            filters.append(f"endpoint_kind=eq.{endpoint_kind}")
+            filters.append(f"endpoint_kind=eq.{encode_filter_value(endpoint_kind)}")
         if not include_unavailable:
             filters.append("available=eq.true")
         filters.append("order=vendor.asc")
@@ -83,7 +90,9 @@ class CatalogService:
     async def get_entry(self, vendor: str, model: str, endpoint_kind: str) -> dict[str, Any] | None:
         rows = await self.db.query(
             "model_catalog",
-            f"vendor=eq.{vendor}&model=eq.{model}&endpoint_kind=eq.{endpoint_kind}&limit=1",
+            f"vendor=eq.{encode_filter_value(vendor)}"
+            f"&model=eq.{encode_filter_value(model)}"
+            f"&endpoint_kind=eq.{encode_filter_value(endpoint_kind)}&limit=1",
         )
         return self._with_derived_staleness(rows[0]) if rows else None
 
@@ -132,7 +141,8 @@ class CatalogService:
         for row in await self.list_entries(include_unavailable=False):
             post_rows = await self.db.query(
                 "model_posteriors",
-                f"catalog_id=eq.{row['id']}&task_type=eq.{task_type}",
+                f"catalog_id=eq.{encode_filter_value(row['id'])}"
+                f"&task_type=eq.{encode_filter_value(task_type)}",
             )
             metrics = {str(item["metric"]): item for item in post_rows}
             sample_size = max(
@@ -177,7 +187,10 @@ class CatalogService:
         return await self.db.insert("routing_decisions", data)
 
     async def get_decision(self, decision_id: str) -> dict[str, Any] | None:
-        rows = await self.db.query("routing_decisions", f"decision_id=eq.{decision_id}&limit=1")
+        rows = await self.db.query(
+            "routing_decisions",
+            f"decision_id=eq.{encode_filter_value(decision_id)}&limit=1",
+        )
         return rows[0] if rows else None
 
     def _with_derived_staleness(self, row: dict[str, Any]) -> dict[str, Any]:

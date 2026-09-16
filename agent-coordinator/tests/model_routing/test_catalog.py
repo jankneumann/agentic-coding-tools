@@ -165,3 +165,52 @@ async def test_catalog_delete_removes_existing_row() -> None:
     await service.delete_entry("local", "qwen3-coder", "local")
 
     db.delete.assert_awaited_once_with("model_catalog", {"id": 9})
+
+
+@pytest.mark.asyncio
+async def test_catalog_percent_encodes_dynamic_filter_values() -> None:
+    db = _db()
+    service = CatalogService(db)
+
+    await service.list_entries(endpoint_kind="local&limit=0")
+    await service.get_entry("ven&dor", "model+#%", "openrouter")
+    await service.get_decision("decision&limit=0")
+
+    assert db.query.await_args_list[0].args == (
+        "model_catalog",
+        "endpoint_kind=eq.local%26limit=0&order=vendor.asc",
+    )
+    assert db.query.await_args_list[1].args == (
+        "model_catalog",
+        "vendor=eq.ven%26dor&model=eq.model%2B%23%25&endpoint_kind=eq.openrouter&limit=1",
+    )
+    assert db.query.await_args_list[2].args == (
+        "routing_decisions",
+        "decision_id=eq.decision%26limit=0&limit=1",
+    )
+
+
+@pytest.mark.asyncio
+async def test_candidate_task_type_filter_is_percent_encoded() -> None:
+    db = _db()
+    db.query = AsyncMock(
+        side_effect=[
+            [
+                {
+                    "id": 11,
+                    "vendor": "openrouter",
+                    "model": "m",
+                    "endpoint_kind": "openrouter",
+                    "available": True,
+                }
+            ],
+            [],
+        ]
+    )
+
+    await CatalogService(db).list_candidates("implementer/high&limit=0")
+
+    assert db.query.await_args_list[1].args == (
+        "model_posteriors",
+        "catalog_id=eq.11&task_type=eq.implementer/high%26limit=0",
+    )

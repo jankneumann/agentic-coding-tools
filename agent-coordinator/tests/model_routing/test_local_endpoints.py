@@ -11,9 +11,13 @@ import pytest
 from src.model_routing.local_endpoints import LocalEndpointService
 
 
-def _response(status: int = 200) -> httpx.Response:
+def _response(status: int = 200, *, models: list[str] | None = None) -> httpx.Response:
     request = httpx.Request("GET", "http://localhost:11434/v1/models")
-    return httpx.Response(status, request=request, json={"data": []})
+    return httpx.Response(
+        status,
+        request=request,
+        json={"data": [{"id": model} for model in models or []]},
+    )
 
 
 @pytest.mark.asyncio
@@ -108,3 +112,96 @@ async def test_agents_registry_local_endpoint_is_registered_for_probing(
     assert entry.model == "ollama-local"
     assert entry.endpoint_kind == "local"
     assert entry.base_url == "http://localhost:11434/v1"
+
+
+@pytest.mark.asyncio
+async def test_probe_failure_for_one_row_does_not_block_later_rows() -> None:
+    catalog = AsyncMock()
+    catalog.list_entries.return_value = [
+        {
+            "vendor": "local",
+            "model": "broken",
+            "endpoint_kind": "local",
+            "base_url": "http://broken.test/v1",
+        },
+        {
+            "vendor": "local",
+            "model": "healthy",
+            "endpoint_kind": "local",
+            "base_url": "http://healthy.test/v1",
+        },
+    ]
+
+    async def set_availability(_vendor, model, _kind, **_fields):
+        if model == "broken":
+            raise RuntimeError("catalog write failed")
+        return {"model": model}
+
+    catalog.set_availability.side_effect = set_availability
+    client = AsyncMock()
+    client.get.return_value = _response()
+    service = LocalEndpointService(catalog, client=client)
+
+    results = await service.probe_all()
+
+    assert [result.model for result in results] == ["broken", "healthy"]
+    assert results[0].available is False
+    assert "catalog write failed" in (results[0].error or "")
+    assert results[1].available is True
+    assert client.get.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_probe_replaces_endpoint_placeholder_with_single_reported_model() -> None:
+    catalog = AsyncMock()
+    catalog.list_entries.return_value = [
+        {
+            "vendor": "local",
+            "model": "ollama-local",
+            "endpoint_kind": "local",
+            "base_url": "http://localhost:11434/v1",
+            "prompt_usd_per_mtok": 0.0,
+            "completion_usd_per_mtok": 0.0,
+            "benchmark_priors": {},
+        }
+    ]
+    client = AsyncMock()
+    client.get.return_value = _response(models=["qwen3-coder:30b"])
+    service = LocalEndpointService(catalog, client=client)
+
+    [result] = await service.probe_all()
+
+    discovered = catalog.upsert.await_args.args[0]
+    assert discovered.model == "qwen3-coder:30b"
+    assert discovered.base_url == "http://localhost:11434/v1"
+    catalog.delete_entry.assert_awaited_once_with("local", "ollama-local", "local")
+    assert result.model == "qwen3-coder:30b"
+    assert result.available is True
+
+
+@pytest.mark.asyncio
+async def test_config_sync_keeps_discovered_model_for_known_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = SimpleNamespace(
+        endpoint_kind="local",
+        type="local",
+        name="ollama-local",
+        base_url="http://localhost:11434/v1",
+        sdk=None,
+    )
+    monkeypatch.setattr("src.agents_config.get_agents_config", lambda: [agent])
+    catalog = AsyncMock()
+    catalog.list_entries.return_value = [
+        {
+            "vendor": "local",
+            "model": "qwen3-coder:30b",
+            "endpoint_kind": "local",
+            "base_url": "http://localhost:11434/v1",
+        }
+    ]
+
+    count = await LocalEndpointService(catalog).sync_from_agents_config()
+
+    assert count == 0
+    catalog.upsert.assert_not_awaited()

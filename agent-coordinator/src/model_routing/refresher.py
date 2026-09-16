@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -9,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from .catalog import CatalogEntry, CatalogService
+from .catalog import CatalogService
 
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 
@@ -50,35 +51,61 @@ class OpenRouterRefresher:
             raise ValueError("OpenRouter models response has no data list")
 
         refreshed_at = self._now_fn()
-        entries = [self._entry(item, refreshed_at) for item in raw_models]
+        entries = [
+            entry for item in raw_models if (entry := self._entry(item, refreshed_at)) is not None
+        ]
         for entry in entries:
             await self._catalog.upsert(entry)
         return RefreshResult(updated=len(entries), refreshed_at=refreshed_at)
 
     @staticmethod
-    def _entry(item: dict[str, Any], refreshed_at: datetime) -> CatalogEntry:
-        model_id = str(item["id"])
+    def _entry(item: Any, refreshed_at: datetime) -> dict[str, Any] | None:
+        if not isinstance(item, dict):
+            return None
+        raw_model_id = item.get("id")
+        if not isinstance(raw_model_id, str) or not raw_model_id.strip():
+            return None
+        model_id = raw_model_id.strip()
         vendor = model_id.split("/", 1)[0] if "/" in model_id else "openrouter"
-        pricing = item.get("pricing") or {}
-        priors = item.get("benchmark_priors") or item.get("benchmarks") or {}
-        return CatalogEntry(
-            vendor=vendor,
-            model=model_id,
-            endpoint_kind="openrouter",
-            base_url="https://openrouter.ai/api/v1",
-            prompt_usd_per_mtok=_per_million(pricing.get("prompt")),
-            completion_usd_per_mtok=_per_million(pricing.get("completion")),
-            context_window=_optional_int(item.get("context_length")),
-            benchmark_priors=priors if isinstance(priors, dict) else {},
-            available=True,
-            refreshed_at=refreshed_at,
-            stale=False,
-        )
+        entry: dict[str, Any] = {
+            "vendor": vendor,
+            "model": model_id,
+            "endpoint_kind": "openrouter",
+            "base_url": "https://openrouter.ai/api/v1",
+            "available": True,
+            "refreshed_at": refreshed_at,
+            "stale": False,
+        }
+        pricing = item.get("pricing")
+        if isinstance(pricing, dict):
+            if "prompt" in pricing:
+                entry["prompt_usd_per_mtok"] = _per_million(pricing.get("prompt"))
+            if "completion" in pricing:
+                entry["completion_usd_per_mtok"] = _per_million(pricing.get("completion"))
+        context_window = _optional_int(item.get("context_length"))
+        if context_window is not None:
+            entry["context_window"] = context_window
+        priors = item.get("benchmark_priors") or item.get("benchmarks")
+        if isinstance(priors, dict):
+            entry["benchmark_priors"] = priors
+        return entry
 
 
 def _per_million(value: Any) -> float | None:
-    return None if value is None else float(value) * 1_000_000
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        price = float(value)
+    except (TypeError, ValueError):
+        return None
+    return price * 1_000_000 if math.isfinite(price) and price >= 0 else None
 
 
 def _optional_int(value: Any) -> int | None:
-    return None if value is None else int(value)
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None

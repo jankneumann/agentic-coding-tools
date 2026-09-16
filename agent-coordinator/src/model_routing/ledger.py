@@ -8,6 +8,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
 from ..db import DatabaseClient, get_db
+from .catalog import encode_filter_value
 
 
 @dataclass(frozen=True)
@@ -115,7 +116,8 @@ class LedgerService:
         inclusive_end = end - timedelta(microseconds=1)
         rows = await self.db.query(
             "routing_spend_ledger",
-            f"occurred_at=gte.{start.isoformat()}&occurred_at=lte.{inclusive_end.isoformat()}",
+            f"occurred_at=gte.{encode_filter_value(start.isoformat())}"
+            f"&occurred_at=lte.{encode_filter_value(inclusive_end.isoformat())}",
         )
         selected = (
             rows if include_estimated else [row for row in rows if not row.get("tokens_estimated")]
@@ -127,6 +129,7 @@ class LedgerService:
         verified_counterfactual = sum(
             float(row.get("counterfactual_usd") or 0.0) for row in verified
         )
+        by_model = _aggregate_by_model(selected)
         return {
             "window": window,
             "month": start.date().isoformat(),
@@ -139,6 +142,10 @@ class LedgerService:
             "entries": len(selected),
             "estimated_entries": sum(bool(row.get("tokens_estimated")) for row in selected),
             "includes_estimates": include_estimated,
+            "by_model": by_model,
+            "exploration_usd_used": sum(
+                float(row.get("actual_usd") or 0.0) for row in selected if row.get("exploration")
+            ),
         }
 
     async def rollup_current_month(self) -> dict[str, Any]:
@@ -164,6 +171,42 @@ def _token_cost(
         prompt_tokens * float(prompt_rate or 0.0)
         + completion_tokens * float(completion_rate or 0.0)
     ) / 1_000_000
+
+
+def _aggregate_by_model(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str, str], dict[str, Any]] = {}
+    estimated_spend: dict[tuple[str, str, str], float] = {}
+    for row in rows:
+        key = (
+            str(row.get("vendor") or ""),
+            str(row.get("model") or ""),
+            str(row.get("endpoint_kind") or ""),
+        )
+        group = groups.setdefault(
+            key,
+            {
+                "vendor": key[0],
+                "model": key[1],
+                "endpoint_kind": key[2],
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "actual_usd": 0.0,
+                "counterfactual_usd": 0.0,
+                "estimated_fraction": 0.0,
+            },
+        )
+        actual = float(row.get("actual_usd") or 0.0)
+        group["prompt_tokens"] += int(row.get("prompt_tokens") or 0)
+        group["completion_tokens"] += int(row.get("completion_tokens") or 0)
+        group["actual_usd"] += actual
+        group["counterfactual_usd"] += float(row.get("counterfactual_usd") or 0.0)
+        if row.get("tokens_estimated"):
+            estimated_spend[key] = estimated_spend.get(key, 0.0) + actual
+
+    for key, group in groups.items():
+        actual = float(group["actual_usd"])
+        group["estimated_fraction"] = estimated_spend.get(key, 0.0) / actual if actual else 0.0
+    return [groups[key] for key in sorted(groups)]
 
 
 _routing_ledger: LedgerService | None = None

@@ -37,3 +37,9 @@ def test_deleting_catalog_entry_cascades_to_its_posteriors() -> None:
     sql = (MIGRATIONS / "040_model_routing.sql").read_text()
 
     assert "REFERENCES model_catalog(id) ON DELETE CASCADE" in sql
+
+
+def test_spend_ledger_has_raw_occurred_at_range_index() -> None:
+    sql = (MIGRATIONS / "040_model_routing.sql").read_text()
+
+    assert "ON routing_spend_ledger (occurred_at)" in sql

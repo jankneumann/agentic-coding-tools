@@ -79,4 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_spend_ledger_month
         date_trunc('month', occurred_at AT TIME ZONE 'UTC'), endpoint_kind
     );
 
+CREATE INDEX IF NOT EXISTS idx_spend_ledger_occurred_at
+    ON routing_spend_ledger (occurred_at);
+
 COMMIT;

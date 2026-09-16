@@ -75,6 +75,73 @@ async def test_usage_summary_can_exclude_estimated_entries() -> None:
 
 
 @pytest.mark.asyncio
+async def test_usage_summary_aggregates_by_model_and_exploration_spend() -> None:
+    db = _db(
+        [
+            {
+                "vendor": "openrouter",
+                "model": "vendor/a",
+                "endpoint_kind": "openrouter",
+                "actual_usd": 1.0,
+                "counterfactual_usd": 4.0,
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "tokens_estimated": False,
+                "exploration": True,
+            },
+            {
+                "vendor": "openrouter",
+                "model": "vendor/a",
+                "endpoint_kind": "openrouter",
+                "actual_usd": 3.0,
+                "counterfactual_usd": 6.0,
+                "prompt_tokens": 20,
+                "completion_tokens": 8,
+                "tokens_estimated": True,
+                "exploration": False,
+            },
+            {
+                "vendor": "local",
+                "model": "qwen",
+                "endpoint_kind": "local",
+                "actual_usd": 0.0,
+                "counterfactual_usd": 2.0,
+                "prompt_tokens": 30,
+                "completion_tokens": 12,
+                "tokens_estimated": False,
+                "exploration": True,
+            },
+        ]
+    )
+
+    summary = await LedgerService(db).usage_summary()
+
+    assert summary["exploration_usd_used"] == pytest.approx(1.0)
+    assert summary["by_model"] == [
+        {
+            "vendor": "local",
+            "model": "qwen",
+            "endpoint_kind": "local",
+            "prompt_tokens": 30,
+            "completion_tokens": 12,
+            "actual_usd": 0.0,
+            "counterfactual_usd": 2.0,
+            "estimated_fraction": 0.0,
+        },
+        {
+            "vendor": "openrouter",
+            "model": "vendor/a",
+            "endpoint_kind": "openrouter",
+            "prompt_tokens": 30,
+            "completion_tokens": 13,
+            "actual_usd": 4.0,
+            "counterfactual_usd": 10.0,
+            "estimated_fraction": 0.75,
+        },
+    ]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("window", "expected_start", "expected_end"),
     [
@@ -109,7 +176,8 @@ async def test_usage_summary_queries_requested_calendar_window(
     assert summary["window"] == window
     db.query.assert_awaited_once_with(
         "routing_spend_ledger",
-        f"occurred_at=gte.{expected_start}&occurred_at=lte.{expected_end}",
+        f"occurred_at=gte.{expected_start.replace('+', '%2B')}"
+        f"&occurred_at=lte.{expected_end.replace('+', '%2B')}",
     )
 
 
