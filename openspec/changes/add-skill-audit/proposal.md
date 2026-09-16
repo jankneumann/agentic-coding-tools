@@ -268,7 +268,7 @@ Code and docs:
 - `skills/tests/skill-audit/`
 - `agent-coordinator/archetypes.yaml` (schema_version 4, `procedure_mode` on `runner` and `architect`)
 - `skills/autopilot/install_assets/openspec/schemas/archetypes.schema.json`
-- `agent-coordinator/src/agents_config.py` (`ArchetypeConfig.procedure_mode`, `compose_prompt`), `agent-coordinator/tests/test_archetypes_yaml.py`, `test_agents_config.py`
+- `agent-coordinator/src/agents_config.py` (`ArchetypeConfig.procedure_mode`, `PROCEDURE_MODE_SENTENCES`, `resolve_archetype_for_phase`; `compose_prompt` is deliberately untouched per design D3), `agent-coordinator/tests/test_archetypes_yaml.py`, `test_agents_config.py`
 - `skills/coordination-bridge/scripts/coordination_bridge.py` (`try_resolve_archetype_for_phase` passes `procedure_mode` through when present; no behaviour change otherwise)
 - `skills/install-manifest.json`, `skills/pyproject.toml` (testpaths), `.github/workflows/*` (non-blocking freshness job)
 - `docs/guides/skills.md` (one paragraph: when to run the audit), `docs/reports/skill-audit/` (generated)
