@@ -123,3 +123,45 @@ async def test_decision_round_trip_uses_routing_decisions_storage() -> None:
         "routing_decisions",
         decision,
     )
+
+
+@pytest.mark.asyncio
+async def test_catalog_upsert_inserts_missing_row() -> None:
+    db = _db()
+    service = CatalogService(db)
+    entry = CatalogEntry(
+        vendor="local",
+        model="qwen3-coder",
+        endpoint_kind="local",
+        base_url="http://localhost:11434/v1",
+    )
+
+    row = await service.upsert(entry)
+
+    db.insert.assert_awaited_once()
+    table, payload = db.insert.await_args.args
+    assert table == "model_catalog"
+    assert payload["vendor"] == "local"
+    assert payload["model"] == "qwen3-coder"
+    assert payload["endpoint_kind"] == "local"
+    db.update.assert_not_awaited()
+    assert row["model"] == "qwen3-coder"
+
+
+@pytest.mark.asyncio
+async def test_catalog_delete_removes_existing_row() -> None:
+    db = _db(
+        [
+            {
+                "id": 9,
+                "vendor": "local",
+                "model": "qwen3-coder",
+                "endpoint_kind": "local",
+            }
+        ]
+    )
+    service = CatalogService(db)
+
+    await service.delete_entry("local", "qwen3-coder", "local")
+
+    db.delete.assert_awaited_once_with("model_catalog", {"id": 9})

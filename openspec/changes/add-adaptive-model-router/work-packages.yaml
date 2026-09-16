@@ -1,4 +1,7 @@
 schema_version: 1
+# Historical full-proposal package DAG (revision 3). The bounded dg-00 recovery
+# executes wp-db-catalog, wp-resolver API/delegation, wp-dispatch discovery, and
+# wp-integration only; excluded package work is preserved in deferred-tasks.md.
 
 feature:
   id: add-adaptive-model-router

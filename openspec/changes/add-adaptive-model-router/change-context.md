@@ -3,7 +3,20 @@
 Traceability skeleton generated at implementation start (Phase 1). Requirement IDs are
 `<capability>.<n>` in spec order. Contract refs point at `contracts/`; design refs at `design.md`.
 
-## Requirement Traceability Matrix
+## dg-00 Roadmap Acceptance Traceability (2026-09-16)
+
+This recovery executes only the four dg-00 wiring outcomes. The original full-proposal
+matrix below remains as historical scope accounting; rows labeled pending there are not claimed
+as delivered and are preserved in `deferred-tasks.md`.
+
+| dg-00 outcome | Implementation | Tests | Status |
+|---|---|---|---|
+| Five `/routing/*` OpenAPI paths and matching MCP selection tool | `src/model_routing/api.py`, `src/coordination_api.py`, `src/coordination_mcp.py`, `src/http_proxy.py` | `test_api.py`, `test_service.py` | verified |
+| Additive routing migration plus storage-only catalog reads | `database/migrations/040_model_routing.sql`, `src/model_routing/catalog.py` | `test_fresh_database_migration.py`, `test_migrations_catalog.py`, `test_catalog.py` | verified |
+| Adaptive flag off preserves exact static result; on delegates with bounded fallback | `src/agents_config.py` | `test_delegation.py`, `test_agent_endpoints.py` | verified |
+| OpenAI-compatible adapter reachable in dispatcher discovery order | `skills/parallel-infrastructure/scripts/review_dispatcher.py` | `test_review_dispatcher.py` | verified |
+
+## Original Full-Proposal Requirement Matrix (not a dg-00 completion claim)
 
 | Req | Requirement (short) | Contract Ref | Design | Test | Files Changed | Status |
 |-----|--------------------|--------------|--------|------|---------------|--------|
@@ -39,7 +52,7 @@ D4 refresher standing-key · D5 local endpoints · D6 exploration dual-ceiling �
 D8 signal placement · D9 feedback weights (deterministic > LLM-judged, rev2) · D10 dispatch adapter ·
 D11 probes/tripwires · D12 dashboard (cost-per-completed-task headline, rev2).
 
-## Coverage Summary
+## Original Planning Snapshot
 
 - Requirements: 23 total, 1 verified (exploration), 3 core-complete (resolver/feasibility), 19 pending
 - Contracts: OpenAPI (5 paths), DB (4 tables), events (1 schema) — all present, parse-validated
