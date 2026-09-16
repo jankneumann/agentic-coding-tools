@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "add-live-vendor-capability-and-cost-registry",
+  "round": 4,
+  "valid_for_consensus": [],
+  "excluded": [
+    {
+      "vendor": "antigravity",
+      "reason": "timeout"
+    },
+    {
+      "vendor": "codex",
+      "reason": "timeout"
+    },
+    {
+      "vendor": "pi",
+      "reason": "auth_required"
+    },
+    {
+      "vendor": "claude_code",
+      "reason": "review_contract_violation",
+      "details": [
+        "finding 3 uses axis=security with disposition=accept; canonical review contract forbids security+accept"
+      ]
+    },
+    {
+      "vendor": "grok",
+      "reason": "review_contract_violation",
+      "details": [
+        "finding 3 uses axis=security with disposition=accept; canonical review contract forbids security+accept"
+      ]
+    }
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 0,
+  "quorum_met": false,
+  "blocking_count": null,
+  "disposition": "rerun_with_positive_sanitizer_on_non_security_axis"
+}
