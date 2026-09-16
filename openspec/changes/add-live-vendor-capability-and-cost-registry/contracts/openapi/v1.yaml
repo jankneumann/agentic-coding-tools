@@ -1,0 +1,214 @@
+openapi: 3.1.0
+info:
+  title: Vendor Registry API
+  version: 1.1.0
+security:
+  - CoordinatorBearer: []
+  - CoordinatorApiKey: []
+  - CoordinatorLegacyApiKey: []
+paths:
+  /vendors:
+    get:
+      operationId: listVendors
+      parameters:
+        - {name: capability, in: query, schema: {type: string}}
+        - {name: archetype, in: query, schema: {type: string}}
+        - {name: dispatch_mode, in: query, schema: {type: string}}
+        - {name: location, in: query, schema: {type: string, enum: [local, cloud, unknown]}}
+        - {name: available_only, in: query, schema: {type: boolean, default: false}}
+      responses:
+        "200":
+          description: Configured dispatch lanes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [vendors]
+                properties:
+                  vendors:
+                    type: array
+                    items: {$ref: "#/components/schemas/VendorLane"}
+        "401": {description: Unauthenticated}
+        "403": {description: Unauthorized}
+        "503": {description: "Registry unavailable; Problem.type=urn:vendor-registry:unavailable"}
+  /vendors/{agent_id}/availability:
+    get:
+      operationId: getVendorAvailability
+      parameters:
+        - {$ref: "#/components/parameters/AgentId"}
+      responses:
+        "200":
+          description: Effective lane availability
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Availability"}
+        "401": {description: Unauthenticated}
+        "403": {description: Unauthorized}
+        "404":
+          description: "Unknown lane; Problem.type=urn:vendor-registry:unknown-lane"
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
+  /vendors/{agent_id}/rate-limit-observations:
+    post:
+      operationId: reportVendorRateLimit
+      parameters:
+        - {$ref: "#/components/parameters/AgentId"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/RateLimitObservation"}
+      responses:
+        "202":
+          description: Observation accepted or identical replay
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RateLimitWriteResponse"}
+        "400": {description: Invalid observation or reset}
+        "401": {description: Unauthenticated}
+        "403": {description: Principal cannot report this lane}
+        "404":
+          description: "Unknown lane; Problem.type=urn:vendor-registry:unknown-lane"
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
+        "409":
+          description: "Replay conflict; Problem.type=urn:vendor-registry:observation-conflict"
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
+        "503": {description: "Registry unavailable; Problem.type=urn:vendor-registry:unavailable"}
+components:
+  securitySchemes:
+    CoordinatorBearer: {type: http, scheme: bearer}
+    CoordinatorApiKey: {type: apiKey, in: header, name: X-API-Key}
+    CoordinatorLegacyApiKey: {type: apiKey, in: header, name: X-Coordinator-API-Key}
+  parameters:
+    AgentId:
+      name: agent_id
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 128}
+  schemas:
+    CatalogModelPrice:
+      type: object
+      required: [catalog_vendor, model, endpoint_kind, available, stale]
+      properties:
+        catalog_vendor: {type: string}
+        model: {type: string}
+        endpoint_kind: {type: string}
+        base_url: {type: [string, "null"]}
+        prompt_usd_per_mtok: {type: [number, "null"], minimum: 0}
+        completion_usd_per_mtok: {type: [number, "null"], minimum: 0}
+        refreshed_at: {type: [string, "null"], format: date-time}
+        available: {type: boolean}
+        stale: {type: boolean}
+    CostProjection:
+      type: object
+      required: [source, known, models]
+      properties:
+        source: {type: string, enum: [model_catalog]}
+        known: {type: boolean}
+        models:
+          type: array
+          items: {$ref: "#/components/schemas/CatalogModelPrice"}
+    ActiveRateLimit:
+      type: object
+      required: [observation_id, scope, reason, source_agent_id, observed_at, reset_at]
+      properties:
+        observation_id: {type: string}
+        scope: {type: string, enum: [lane, model]}
+        model: {type: [string, "null"]}
+        reason: {type: string}
+        source_agent_id: {type: string}
+        observed_at: {type: string, format: date-time}
+        reset_at: {type: string, format: date-time}
+    Availability:
+      type: object
+      required: [agent_id, status, available, rate_limits]
+      properties:
+        agent_id: {type: string}
+        status: {type: string, enum: [available, unavailable, limited, unknown]}
+        available: {type: boolean}
+        reason: {type: [string, "null"]}
+        source: {type: [string, "null"]}
+        observed_at: {type: [string, "null"], format: date-time}
+        stale_after: {type: [string, "null"], format: date-time}
+        reset_at: {type: [string, "null"], format: date-time}
+        rate_limits:
+          type: array
+          items: {$ref: "#/components/schemas/ActiveRateLimit"}
+    VendorLane:
+      type: object
+      required:
+        - agent_id
+        - vendor_type
+        - policy_vendor
+        - location
+        - capabilities
+        - archetypes
+        - isolation
+        - transport
+        - dispatch_modes
+        - dispatchable
+        - availability
+        - cost
+      properties:
+        agent_id: {type: string}
+        vendor_type: {type: string}
+        policy_vendor: {type: string}
+        catalog_vendor: {type: [string, "null"]}
+        location: {type: string, enum: [local, cloud, unknown]}
+        capabilities: {type: array, items: {type: string}, uniqueItems: true}
+        archetypes: {type: array, items: {type: string}, uniqueItems: true}
+        isolation: {type: string}
+        transport: {type: string}
+        dispatch_modes: {type: array, items: {type: string}, uniqueItems: true}
+        dispatchable: {type: boolean, description: "A configured executable transport or adapter exists; independent of live availability."}
+        availability: {$ref: "#/components/schemas/Availability"}
+        cost: {$ref: "#/components/schemas/CostProjection"}
+    RateLimitObservation:
+      type: object
+      additionalProperties: false
+      required: [observation_id, reason]
+      properties:
+        observation_id: {type: string, minLength: 1, maxLength: 200}
+        reason: {type: string, minLength: 1, maxLength: 2000}
+        reset_at: {type: string, format: date-time}
+        retry_after_seconds: {type: integer, minimum: 1, maximum: 604800}
+        scope: {type: string, enum: [lane, model], default: lane}
+        model: {type: [string, "null"], minLength: 1, maxLength: 200}
+        metadata: {type: object, maxProperties: 20}
+      oneOf:
+        - required: [reset_at]
+          not: {required: [retry_after_seconds]}
+        - required: [retry_after_seconds]
+          not: {required: [reset_at]}
+        - not:
+            anyOf:
+              - {required: [reset_at]}
+              - {required: [retry_after_seconds]}
+      allOf:
+        - if: {properties: {scope: {const: model}}}
+          then: {required: [model]}
+    RateLimitWriteResponse:
+      type: object
+      required: [observation_id, status, reset_at]
+      properties:
+        observation_id: {type: string}
+        status: {type: string, enum: [accepted, duplicate]}
+        reset_at: {type: string, format: date-time}
+    Problem:
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type:
+          type: string
+          enum:
+            - urn:vendor-registry:unknown-lane
+            - urn:vendor-registry:unavailable
+            - urn:vendor-registry:observation-conflict
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}

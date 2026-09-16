@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-16T19:03:02.944943+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": "dg-01-autopilot-roadmap",
+    "summary": "Reconciled stale ri-04 scaffold to dispatch-governance dg-01 on exact dg-00 head. Three bounded vendor-panel rounds drove typed lane/provider/policy/catalog identity, explicit location, catalog-only pricing, durable bounded availability, principal-authorized ingestion, exact dispatcher reporting, and executable package gates. Final consensus met quorum with zero deterministic blockers; later advisory corrections were revalidated.",
+    "completed_work": [
+      "Pinned managed worktree and branch to dg-00 d125ebadcc64799962aae65142d418ff72705a8b",
+      "Reconciled proposal, design, normative spec, OpenAPI/SQL/event contracts, tasks, traceability, and work-package DAG",
+      "Preserved three review rounds; final consensus quorum met with zero deterministic blockers",
+      "Passed diff hygiene, contract parsing, strict OpenSpec, work-package schema/DAG/lock, and scope validation"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Lane identity is AgentEntry.name",
+        "rationale": "local, remote, SDK, and endpoint lanes can fail or rate-limit independently; provider grouping remains explicit",
+        "capability": "vendor-registry",
+        "supersedes": null
+      },
+      {
+        "title": "Pricing remains owned by dg-00 model_catalog",
+        "rationale": "registry projects exact model rows and request quotes without a second price store or heuristic publisher join",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Explicit config-sourced location",
+        "rationale": "dg-04 needs a typed local/cloud/unknown constraint and must not infer it from lane names or catalog publishers",
+        "capability": "dispatch-governance",
+        "supersedes": null
+      },
+      {
+        "title": "Bound and authorize rate-limit state",
+        "rationale": "atomic RPC replay, finite resets, explicit reporting capability, audit, and compaction make live state safe under concurrency",
+        "capability": "vendor-registry",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Commit and push the converged plan",
+      "Execute wp-contracts and wp-registry-core with RED tests first",
+      "Continue API/watchdog, dispatch reporting, roadmap policy, final validation and stacked PR"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+        "description": "load-bearing decisions"
+      },
+      {
+        "path": "openspec/changes/add-live-vendor-capability-and-cost-registry/work-packages.yaml",
+        "description": "validated execution DAG"
+      },
+      {
+        "path": "openspec/changes/add-live-vendor-capability-and-cost-registry/reviews/consensus-plan.json",
+        "description": "final panel consensus"
+      }
+    ]
+  }
+}

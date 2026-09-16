@@ -1,0 +1,368 @@
+schema_version: 1
+feature:
+  id: add-live-vendor-capability-and-cost-registry
+  title: "dg-01 live vendor capability and availability registry"
+  plan_revision: 3
+  created_by: codex
+  deployable: true
+contracts:
+  revision: 3
+  openapi:
+    primary: "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml"
+      - "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/db/schema.sql"
+      - "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/events/vendor-availability.schema.json"
+      - "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/README.md"
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+  - package_id: wp-contracts
+    title: "Vendor registry contracts"
+    task_type: contracts
+    description: "TDD semantic parity for OpenAPI, SQL, event schema, and runtime-facing models."
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:vendor-registry"
+        - "api:GET /vendors"
+        - "api:GET /vendors/{agent_id}/availability"
+        - "api:POST /vendors/{agent_id}/rate-limit-observations"
+        - "db:schema:vendor_registry"
+        - "event:vendor.availabilityobserved"
+      ttl_minutes: 60
+      reason: "Canonical dg-01 contract boundary"
+    scope:
+      write_allow:
+        - "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/**"
+        - "agent-coordinator/tests/test_vendor_registry_contracts.py"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities]}
+    worktree: {name: dg01-contracts, mode: isolated}
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Registry contract parity"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_vendor_registry_contracts.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [contract_parity_passed]}
+        - name: "Contract test lint"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/tests/test_vendor_registry_contracts.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [contract_lint_passed]}
+    metadata: {loc_estimate: 300, complexity: medium, package_kind: config}
+    inputs: {}
+    outputs: {result_keys: [contract_parity_passed, contract_lint_passed]}
+
+  - package_id: wp-registry-core
+    title: "Configured identity and durable registry core"
+    task_type: backend
+    description: "TDD explicit identity/location config, state precedence/expiry, catalog joins/quotes, batching, audit, and migration."
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/agents.yaml"
+      keys:
+        - "db:schema:vendor_registry"
+        - "feature:vendor-registry:core"
+      ttl_minutes: 180
+      reason: "Owns identity and registry aggregation"
+    scope:
+      write_allow:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/database/migrations/041_vendor_registry.sql"
+        - "agent-coordinator/src/vendor_registry.py"
+        - "agent-coordinator/tests/model_routing/test_agent_endpoints.py"
+        - "agent-coordinator/tests/test_vendor_registry.py"
+        - "agent-coordinator/tests/test_vendor_registry_migration.py"
+        - "agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py"
+        - "agent-coordinator/tests/integration/postgres/conftest.py"
+      read_allow: ["**"]
+    context_impact: {surfaces: [capabilities, architecture, semantic_code]}
+    worktree: {name: dg01-registry-core, mode: isolated}
+    timeout_minutes: 210
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Registry core tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing/test_agent_endpoints.py agent-coordinator/tests/test_vendor_registry.py agent-coordinator/tests/test_vendor_registry_migration.py agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py -q"
+          cwd: "."
+          env: {REQUIRE_POSTGRES_TESTS: "1"}
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [registry_core_tests_passed]}
+        - name: "Registry core static checks"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/agents_config.py agent-coordinator/src/vendor_registry.py agent-coordinator/tests/test_vendor_registry.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [registry_core_ruff_passed]}
+    metadata: {loc_estimate: 900, complexity: high, package_kind: data_model}
+    inputs: {}
+    outputs: {result_keys: [registry_core_tests_passed, registry_core_ruff_passed]}
+
+  - package_id: wp-api-watchdog
+    title: "Authenticated API and deployed watchdog producer"
+    task_type: backend
+    description: "TDD served routes, principal authorization, first-poll persistence, failure isolation, and deployed probe packaging."
+    role: backend-implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-registry-core]
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/watchdog.py"
+      keys:
+        - "api:GET /vendors"
+        - "api:GET /vendors/{agent_id}/availability"
+        - "api:POST /vendors/{agent_id}/rate-limit-observations"
+      ttl_minutes: 180
+      reason: "Coordinator API and health producer"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/tests/test_vendor_registry_api.py"
+        - "agent-coordinator/tests/test_watchdog.py"
+        - "agent-coordinator/tests/test_watchdog_vendor.py"
+        - "agent-coordinator/tests/test_dockerfile_vendor_registry.py"
+        - "skills/parallel-infrastructure/scripts/vendor_health.py"
+        - "skills/parallel-infrastructure/tests/test_vendor_health.py"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities, semantic_code]}
+    worktree: {name: dg01-api-watchdog, mode: isolated}
+    timeout_minutes: 210
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "API and watchdog tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_vendor_registry_api.py agent-coordinator/tests/test_watchdog.py agent-coordinator/tests/test_watchdog_vendor.py agent-coordinator/tests/test_dockerfile_vendor_registry.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [api_watchdog_tests_passed]}
+        - name: "Vendor health tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest -c skills/pyproject.toml skills/parallel-infrastructure/tests/test_vendor_health.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [vendor_health_tests_passed]}
+    metadata: {loc_estimate: 700, complexity: high, package_kind: integration}
+    inputs: {}
+    outputs: {result_keys: [api_watchdog_tests_passed, vendor_health_tests_passed]}
+
+  - package_id: wp-dispatch-reporting
+    title: "Bridge and exact-lane dispatcher reporting"
+    task_type: integration
+    description: "TDD native bridge helpers and exact lane/reset reporting at shared review and provider result collectors."
+    role: backend-implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-api-watchdog]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/autopilot/scripts/provider_dispatch.py"
+        - "skills/autopilot/scripts/phase_agent.py"
+      keys:
+        - "feature:vendor-registry:bridge"
+        - "feature:vendor-registry:reporting"
+      ttl_minutes: 180
+      reason: "Skills-side registry writes and result attribution"
+    scope:
+      write_allow:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/coordination-bridge/scripts/tests/test_coordination_bridge.py"
+        - "skills/parallel-infrastructure/scripts/vendor_limit_reporter.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/tests/test_vendor_limit_reporter.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "skills/autopilot/scripts/provider_dispatch.py"
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/tests/test_provider_dispatch.py"
+        - "skills/tests/phase-record-compaction/test_phase_agent.py"
+      read_allow: ["**"]
+    context_impact: {surfaces: [capabilities, semantic_code]}
+    worktree: {name: dg01-dispatch-reporting, mode: isolated}
+    timeout_minutes: 210
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Bridge and dispatcher tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest -c skills/pyproject.toml skills/coordination-bridge/scripts/tests/test_coordination_bridge.py skills/parallel-infrastructure/tests/test_vendor_limit_reporter.py skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/autopilot/scripts/tests/test_provider_dispatch.py skills/tests/phase-record-compaction/test_phase_agent.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [dispatch_reporting_tests_passed]}
+    metadata: {loc_estimate: 750, complexity: high, package_kind: integration}
+    inputs: {}
+    outputs: {result_keys: [dispatch_reporting_tests_passed]}
+
+  - package_id: wp-roadmap-policy
+    title: "Lane-aware roadmap policy"
+    task_type: integration
+    description: "TDD filtered lane snapshots, namespace compatibility, catalog quotes, explicit fallback posture, and hardcoded-roster removal."
+    role: backend-implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-dispatch-reporting]
+    locks:
+      files:
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/autopilot-roadmap/scripts/policy.py"
+      keys:
+        - "feature:vendor-registry:policy"
+      ttl_minutes: 180
+      reason: "Roadmap registry consumption"
+    scope:
+      write_allow:
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/autopilot-roadmap/scripts/policy.py"
+        - "skills/tests/autopilot-roadmap/test_orchestrator.py"
+        - "skills/tests/autopilot-roadmap/test_policy.py"
+        - "skills/tests/autopilot-roadmap/test_routing_policy.py"
+      read_allow: ["**"]
+    context_impact: {surfaces: [capabilities, semantic_code]}
+    worktree: {name: dg01-roadmap-policy, mode: isolated}
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Roadmap policy tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest -c skills/pyproject.toml skills/tests/autopilot-roadmap/test_orchestrator.py skills/tests/autopilot-roadmap/test_policy.py skills/tests/autopilot-roadmap/test_routing_policy.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [roadmap_policy_tests_passed]}
+    metadata: {loc_estimate: 550, complexity: high, package_kind: integration}
+    inputs: {}
+    outputs: {result_keys: [roadmap_policy_tests_passed]}
+
+  - package_id: wp-integration
+    title: "Integration, panel review, and roadmap evidence"
+    task_type: integration
+    description: "Run focused/full gates, vendor-panel convergence, traceability, then reconcile roadmap state."
+    role: validator
+    archetype: validator
+    priority: 5
+    depends_on: [wp-dispatch-reporting, wp-roadmap-policy]
+    locks:
+      files: []
+      keys: ["feature:vendor-registry:integration"]
+      ttl_minutes: 240
+      reason: "Final dg-01 validation"
+    scope:
+      write_allow:
+        - "openspec/changes/add-live-vendor-capability-and-cost-registry/**"
+        - "openspec/roadmaps/dispatch-governance/roadmap.yaml"
+        - "openspec/roadmaps/dispatch-governance/checkpoint.json"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities, architecture, decisions, documentation, semantic_code]}
+    worktree: {name: dg01-integration, mode: isolated}
+    timeout_minutes: 300
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Coordinator regression"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -m 'not e2e and not integration' -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [coordinator_regression_passed]}
+        - name: "Skills regression"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest -c skills/pyproject.toml"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [skills_regression_passed]}
+        - name: "Strict OpenSpec"
+          kind: command
+          command: "openspec validate add-live-vendor-capability-and-cost-registry --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: ["openspec/changes/add-live-vendor-capability-and-cost-registry/validation-report.md"]
+            result_keys: [openspec_strict_passed]
+        - name: "Repository lint"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src agent-coordinator/tests"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [coordinator_ruff_passed]}
+        - name: "Skills lint"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [skills_ruff_passed]}
+        - name: "Contract parity on merged tree"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_vendor_registry_contracts.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [merged_contract_parity_passed]}
+        - name: "Fresh migration gate"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py -q"
+          cwd: "."
+          env: {REQUIRE_POSTGRES_TESTS: "1"}
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [fresh_migration_passed]}
+        - name: "Coordinator mypy"
+          kind: command
+          command: ".venv/bin/python -m mypy --strict src"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [coordinator_mypy_passed]}
+        - name: "Work package DAG and scope"
+          kind: command
+          command: "python3 .agents/skills/refresh-architecture/scripts/parallel_zones.py --validate-packages openspec/changes/add-live-vendor-capability-and-cost-registry/work-packages.yaml --json"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [dag_scope_passed]}
+    metadata: {loc_estimate: 300, complexity: high, package_kind: integration}
+    inputs: {}
+    outputs:
+      result_keys:
+        - coordinator_regression_passed
+        - skills_regression_passed
+        - openspec_strict_passed
+        - coordinator_ruff_passed
+        - skills_ruff_passed
+        - merged_contract_parity_passed
+        - fresh_migration_passed
+        - coordinator_mypy_passed
+        - dag_scope_passed
+      artifacts: ["openspec/changes/add-live-vendor-capability-and-cost-registry/validation-report.md"]
