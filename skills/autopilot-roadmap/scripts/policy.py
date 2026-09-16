@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import logging
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
+from typing import Any
 
 _RUNTIME_DIR = Path(__file__).resolve().parent.parent.parent / "roadmap-runtime" / "scripts"
 if str(_RUNTIME_DIR) not in sys.path:
@@ -46,6 +48,8 @@ class PolicyDecision:
     to_vendor: str | None = None
     expected_wait_seconds: int | None = None
     expected_cost_delta_usd: float | None = None
+    to_agent_id: str | None = None
+    cost_guard: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -231,11 +235,13 @@ def _evaluate_switch(
     if policy.preferred_vendor and policy.preferred_vendor in alternates:
         to_vendor = policy.preferred_vendor
 
-    # Estimate cost delta (placeholder — real implementation would query
-    # vendor pricing APIs)
-    estimated_cost_delta = _estimate_cost_delta(from_vendor, to_vendor)
+    relative_delta, cost_source = _estimate_cost_delta_with_source(
+        from_vendor, to_vendor
+    )
+    # Static tiers are ordinal ranking hints, never dollar-denominated quotes.
+    estimated_cost_delta = relative_delta if cost_source == "catalog" else None
+    cost_guard = "available" if estimated_cost_delta is not None else "unavailable"
 
-    # Check cost ceiling
     if (
         policy.cost_ceiling_usd is not None
         and estimated_cost_delta is not None
@@ -254,6 +260,13 @@ def _evaluate_switch(
             from_vendor=from_vendor,
             to_vendor=to_vendor,
             expected_cost_delta_usd=estimated_cost_delta,
+            cost_guard=cost_guard,
+        )
+    if policy.cost_ceiling_usd is not None and estimated_cost_delta is None:
+        logger.warning(
+            "policy.cost_guard unavailable for %s -> %s; continuing by availability",
+            from_vendor,
+            to_vendor,
         )
 
     logger.info(
@@ -268,6 +281,196 @@ def _evaluate_switch(
         from_vendor=from_vendor,
         to_vendor=to_vendor,
         expected_cost_delta_usd=estimated_cost_delta,
+        cost_guard=cost_guard,
+    )
+
+
+def filter_registry_lanes(
+    lanes: Sequence[Mapping[str, Any]],
+    *,
+    capability: str | None = None,
+    archetype: str | None = None,
+    dispatch_mode: str | None = None,
+    location: str | None = None,
+    model: str | None = None,
+    excluded_agent_ids: set[str] | None = None,
+    excluded_policy_vendors: set[str] | None = None,
+    allow_unknown: bool = False,
+) -> list[dict[str, Any]]:
+    """Apply the registry's typed routing and active-limit constraints."""
+    excluded_ids = excluded_agent_ids or set()
+    excluded_vendors = excluded_policy_vendors or set()
+    eligible: list[dict[str, Any]] = []
+    for raw_lane in lanes:
+        lane = dict(raw_lane)
+        if lane.get("agent_id") in excluded_ids:
+            continue
+        if lane.get("policy_vendor") in excluded_vendors:
+            continue
+        if capability and capability not in lane.get("capabilities", []):
+            continue
+        if archetype and archetype not in lane.get("archetypes", []):
+            continue
+        if dispatch_mode and dispatch_mode not in lane.get("dispatch_modes", []):
+            continue
+        if location and lane.get("location") != location:
+            continue
+        if not lane.get("dispatchable", False):
+            continue
+        availability = lane.get("availability") or {}
+        status = availability.get("status")
+        if not availability.get("available", False) and not (
+            allow_unknown and status == "unknown"
+        ):
+            continue
+        limited = False
+        for limit in availability.get("rate_limits") or []:
+            if limit.get("scope") == "lane":
+                limited = True
+                break
+            if model and limit.get("scope") == "model" and limit.get("model") == model:
+                limited = True
+                break
+        if limited:
+            continue
+        if model:
+            models = (lane.get("cost") or {}).get("models") or []
+            matching = [entry for entry in models if entry.get("model") == model]
+            if matching and not any(entry.get("available", False) for entry in matching):
+                continue
+        eligible.append(lane)
+    return eligible
+
+
+def quote_lane_cost(
+    lane: Mapping[str, Any],
+    *,
+    model: str | None = None,
+    prompt_tokens: int | None = None,
+    completion_tokens: int | None = None,
+) -> float | None:
+    """Return an exact six-decimal catalog quote, never a static-tier estimate."""
+    if model is None or prompt_tokens is None or completion_tokens is None:
+        return None
+    matches = [
+        entry
+        for entry in ((lane.get("cost") or {}).get("models") or [])
+        if entry.get("model") == model
+        and entry.get("available", False)
+        and not entry.get("stale", False)
+    ]
+    if len(matches) != 1:
+        return None
+    try:
+        prompt_price = Decimal(str(matches[0]["prompt_usd_per_mtok"]))
+        completion_price = Decimal(str(matches[0]["completion_usd_per_mtok"]))
+    except (InvalidOperation, KeyError, TypeError):
+        return None
+    quote = (
+        Decimal(prompt_tokens) * prompt_price
+        + Decimal(completion_tokens) * completion_price
+    ) / Decimal(1_000_000)
+    return float(quote.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP))
+
+
+def select_registry_lane(
+    *,
+    policy: Policy,
+    vendor_limit: VendorLimit,
+    lanes: Sequence[Mapping[str, Any]],
+    switch_attempts: int = 0,
+    from_agent_id: str | None = None,
+    model: str | None = None,
+    prompt_tokens: int | None = None,
+    completion_tokens: int | None = None,
+    allow_unknown: bool = False,
+    excluded_agent_ids: set[str] | None = None,
+    excluded_policy_vendors: set[str] | None = None,
+) -> PolicyDecision:
+    """Select a concrete registry lane while retaining provider compatibility."""
+    if switch_attempts >= policy.max_switch_attempts_per_item:
+        return PolicyDecision(
+            action="fail_closed",
+            reason="Exceeded max switch attempts",
+            from_vendor=vendor_limit.vendor,
+        )
+    candidates = filter_registry_lanes(
+        lanes,
+        model=model,
+        excluded_agent_ids=excluded_agent_ids,
+        excluded_policy_vendors=excluded_policy_vendors,
+        allow_unknown=allow_unknown,
+    )
+    if not candidates:
+        return PolicyDecision(
+            action="fail_closed",
+            reason="No registry-eligible alternate lanes available",
+            from_vendor=vendor_limit.vendor,
+        )
+    candidates.sort(
+        key=lambda lane: (
+            0 if lane.get("policy_vendor") == policy.preferred_vendor else 1,
+            _STATIC_COST_TIERS.get(str(lane.get("policy_vendor")), float("inf")),
+            str(lane.get("agent_id")),
+        )
+    )
+    target = candidates[0]
+    target_vendor = str(target.get("policy_vendor") or "unknown")
+    target_quote = quote_lane_cost(
+        target,
+        model=model,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+    )
+    source_lane = next(
+        (
+            lane
+            for lane in lanes
+            if (from_agent_id and lane.get("agent_id") == from_agent_id)
+        ),
+        None,
+    )
+    source_quote = (
+        quote_lane_cost(
+            source_lane,
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )
+        if source_lane is not None
+        else None
+    )
+    cost_delta = (
+        round(target_quote - source_quote, 6)
+        if target_quote is not None and source_quote is not None
+        else None
+    )
+    cost_guard = "available" if cost_delta is not None else "unavailable"
+    if (
+        policy.cost_ceiling_usd is not None
+        and cost_delta is not None
+        and cost_delta > policy.cost_ceiling_usd
+    ):
+        return PolicyDecision(
+            action="fail_closed",
+            reason="Exact catalog quote exceeds configured USD ceiling",
+            from_vendor=vendor_limit.vendor,
+            to_vendor=target_vendor,
+            to_agent_id=str(target["agent_id"]),
+            expected_cost_delta_usd=cost_delta,
+            cost_guard=cost_guard,
+        )
+    return PolicyDecision(
+        action="switch",
+        reason=(
+            f"Switching from {vendor_limit.vendor} to {target_vendor}: "
+            f"{vendor_limit.reason}"
+        ),
+        from_vendor=vendor_limit.vendor,
+        to_vendor=target_vendor,
+        to_agent_id=str(target["agent_id"]),
+        expected_cost_delta_usd=cost_delta,
+        cost_guard=cost_guard,
     )
 
 
