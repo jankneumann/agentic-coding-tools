@@ -117,6 +117,7 @@ async def test_usage_summary_aggregates_by_model_and_exploration_spend() -> None
     summary = await LedgerService(db).usage_summary()
 
     assert summary["exploration_usd_used"] == pytest.approx(1.0)
+    assert summary["exploration_entries"] == 2
     assert summary["by_model"] == [
         {
             "vendor": "local",
@@ -136,7 +137,7 @@ async def test_usage_summary_aggregates_by_model_and_exploration_spend() -> None
             "completion_tokens": 13,
             "actual_usd": 4.0,
             "counterfactual_usd": 10.0,
-            "estimated_fraction": 0.75,
+            "estimated_fraction": 0.5,
         },
     ]
 

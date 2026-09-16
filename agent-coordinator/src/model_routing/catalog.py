@@ -6,7 +6,7 @@ live in ``refresher.py`` and local health probes in ``local_endpoints.py``.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -96,7 +96,7 @@ class CatalogService:
         )
         return self._with_derived_staleness(rows[0]) if rows else None
 
-    async def upsert(self, entry: CatalogEntry | dict[str, Any]) -> dict[str, Any]:
+    async def upsert(self, entry: CatalogEntry | Mapping[str, Any]) -> dict[str, Any]:
         data = entry.to_row() if isinstance(entry, CatalogEntry) else dict(entry)
         key = {
             "vendor": data["vendor"],

@@ -158,7 +158,15 @@ class LocalEndpointService:
                         available=True,
                     )
                 )
-                await self._catalog.delete_entry(vendor, model, "local")
+                # Keep any learned posterior history attached to the configured
+                # placeholder while preventing it from being routed.
+                await self._catalog.set_availability(
+                    vendor,
+                    model,
+                    "local",
+                    available=False,
+                    p50_latency_ms=None,
+                )
                 model = reported_model
             else:
                 await self._catalog.set_availability(

@@ -73,7 +73,7 @@ class OpenRouterRefresher:
             "endpoint_kind": "openrouter",
             "base_url": "https://openrouter.ai/api/v1",
             "available": True,
-            "refreshed_at": refreshed_at,
+            "refreshed_at": refreshed_at.isoformat(),
             "stale": False,
         }
         pricing = item.get("pricing")

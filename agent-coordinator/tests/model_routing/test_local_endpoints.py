@@ -174,7 +174,14 @@ async def test_probe_replaces_endpoint_placeholder_with_single_reported_model() 
     discovered = catalog.upsert.await_args.args[0]
     assert discovered.model == "qwen3-coder:30b"
     assert discovered.base_url == "http://localhost:11434/v1"
-    catalog.delete_entry.assert_awaited_once_with("local", "ollama-local", "local")
+    catalog.set_availability.assert_awaited_once_with(
+        "local",
+        "ollama-local",
+        "local",
+        available=False,
+        p50_latency_ms=None,
+    )
+    catalog.delete_entry.assert_not_awaited()
     assert result.model == "qwen3-coder:30b"
     assert result.available is True
 

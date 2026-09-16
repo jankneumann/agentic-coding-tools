@@ -146,6 +146,9 @@ class LedgerService:
             "exploration_usd_used": sum(
                 float(row.get("actual_usd") or 0.0) for row in selected if row.get("exploration")
             ),
+            "exploration_entries": sum(
+                bool(row.get("exploration")) for row in selected
+            ),
         }
 
     async def rollup_current_month(self) -> dict[str, Any]:
@@ -175,7 +178,8 @@ def _token_cost(
 
 def _aggregate_by_model(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     groups: dict[tuple[str, str, str], dict[str, Any]] = {}
-    estimated_spend: dict[tuple[str, str, str], float] = {}
+    entry_counts: dict[tuple[str, str, str], int] = {}
+    estimated_counts: dict[tuple[str, str, str], int] = {}
     for row in rows:
         key = (
             str(row.get("vendor") or ""),
@@ -200,12 +204,12 @@ def _aggregate_by_model(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         group["completion_tokens"] += int(row.get("completion_tokens") or 0)
         group["actual_usd"] += actual
         group["counterfactual_usd"] += float(row.get("counterfactual_usd") or 0.0)
+        entry_counts[key] = entry_counts.get(key, 0) + 1
         if row.get("tokens_estimated"):
-            estimated_spend[key] = estimated_spend.get(key, 0.0) + actual
+            estimated_counts[key] = estimated_counts.get(key, 0) + 1
 
     for key, group in groups.items():
-        actual = float(group["actual_usd"])
-        group["estimated_fraction"] = estimated_spend.get(key, 0.0) / actual if actual else 0.0
+        group["estimated_fraction"] = estimated_counts.get(key, 0) / entry_counts[key]
     return [groups[key] for key in sorted(groups)]
 
 

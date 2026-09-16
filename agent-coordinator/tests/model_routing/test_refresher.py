@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
@@ -40,7 +41,8 @@ async def test_refresh_updates_per_token_prices_as_per_mtok() -> None:
     entry = catalog.upsert.await_args.args[0]
     assert entry["prompt_usd_per_mtok"] == pytest.approx(1.5)
     assert entry["completion_usd_per_mtok"] == pytest.approx(4.0)
-    assert entry["refreshed_at"] == now
+    assert entry["refreshed_at"] == now.isoformat()
+    json.dumps(entry)
     assert "p50_latency_ms" not in entry
     assert "quota_headroom_pct" not in entry
     assert "quota_reset_at" not in entry
