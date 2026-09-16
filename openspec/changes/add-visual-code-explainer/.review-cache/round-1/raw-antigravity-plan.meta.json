@@ -3,9 +3,9 @@
   "vendor": "antigravity",
   "review_type": "plan",
   "stdout_path": "raw-antigravity-plan.txt",
-  "byte_length": 17653,
+  "byte_length": 0,
   "truncated": false,
-  "sha256": "340e24b584c6077ac7e5a4e15bbf47e3b040efb00701c863bd61d8bdee7d42bb",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "repair_attempted": false,
   "coercions": []
 }

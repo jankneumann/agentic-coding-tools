@@ -3,9 +3,9 @@
   "vendor": "grok",
   "review_type": "plan",
   "stdout_path": "raw-grok-plan.txt",
-  "byte_length": 23552,
+  "byte_length": 1469,
   "truncated": false,
-  "sha256": "ecdff7f06ea36c227221dffdacd54fd298f261aef066348b2e48679bb799760b",
+  "sha256": "705a1998bae5a230aab9965b6750547250fab2b966d84be41d8da15247212071",
   "repair_attempted": false,
   "coercions": []
 }
