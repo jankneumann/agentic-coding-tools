@@ -95,3 +95,30 @@ Planned add-skill-audit: a recurring, evidence-joined audit of SKILL.md files by
 ### Context
 Implemented add-skill-audit across three work packages: the optional procedure_mode field on archetypes (schema v4, injected once at resolve_archetype_for_phase), the new read-only skill-audit skill with 86 tests, and integration wiring. Ran local-parallel tier rather than coordinated because the coordinator rejects this session's key for lock and memory operations. Two defects found and fixed at integration that neither package could see alone: a flat module-name collision and a stale schema copy.
 
+---
+
+## Phase: Validation (2026-09-16)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Ran the traceability gate with --base-ref origin/main** — Local main in this cloud clone is stale and divergent by 85 commits, so the default base cannot resolve a merge base. origin/main is the real integration branch; the gate then passed with no violation naming this change's capabilities.
+2. **Reverted declaring tasks.md in the implementation packages' write_allow** — Declaring it satisfies this phase's cross-package rule but fails validate_scope_overlap, which forbids any write_allow overlap between parallel packages and exempts only wp-integration. Both directions were tried and each failure reproduced. Kept the package validator green, which is also the prevailing repo convention, and filed the contradiction as finding E1 rather than silently picking a side.
+3. **Recorded Smoke, Security, and E2E as skipped rather than not applicable** — gate_logic classifies the surface deployable because the change edits agent-coordinator/src. A skills-only change could record them not applicable; this one cannot.
+
+### Open Questions
+- [ ] Finding E1: implement-feature mandates task-coupled checkbox commits, the evidence phase permits a shared task record only when every writer declares it, and validate_scope_overlap forbids the declaration. The three rules cannot all hold; the validator needs a shared-record exemption or the evidence rule needs rewording.
+- [ ] Smoke, Security, and E2E have not run; they need a container runtime.
+- [ ] No work-queue-result.json exists because packages ran as in-session sub-agents, so per-package result schemas were never exercised on this change.
+
+### Completed Work
+- spec
+- evidence
+
+### Next Steps
+- Run /validate-feature add-skill-audit --phase deploy,smoke,security,e2e where a container runtime is available.
+- Then /cleanup-feature add-skill-audit once the pre-merge gate clears.
+
+### Context
+Ran the spec and evidence phases. Both pass: 9/9 requirements verified against the live system, both critical spec sub-gates green. The pre-merge gate still halts because Smoke, Security, and E2E are required for this deployable surface and were not requested. One structural finding recorded about the shared task record.
+
