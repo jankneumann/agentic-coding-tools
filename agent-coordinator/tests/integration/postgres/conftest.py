@@ -147,3 +147,13 @@ def make_pg_agent():
         return client, LockService(db=client), WorkQueueService(db=client)
 
     return _make
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Required Postgres gates fail closed when integration coverage skips."""
+    if os.environ.get("REQUIRE_POSTGRES_TESTS") != "1":
+        return
+    reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+    skipped = reporter.stats.get("skipped", []) if reporter is not None else []
+    if not _postgres_available or skipped:
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
