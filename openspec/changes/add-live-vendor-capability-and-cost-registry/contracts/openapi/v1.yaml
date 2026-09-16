@@ -93,7 +93,16 @@ components:
   schemas:
     CatalogModelPrice:
       type: object
-      required: [catalog_vendor, model, endpoint_kind, available, stale]
+      required:
+        - catalog_vendor
+        - model
+        - endpoint_kind
+        - base_url
+        - prompt_usd_per_mtok
+        - completion_usd_per_mtok
+        - refreshed_at
+        - available
+        - stale
       properties:
         catalog_vendor: {type: string}
         model: {type: string}
@@ -124,6 +133,14 @@ components:
         source_agent_id: {type: string}
         observed_at: {type: string, format: date-time}
         reset_at: {type: string, format: date-time}
+      allOf:
+        - if:
+            required: [scope]
+            properties: {scope: {const: model}}
+          then:
+            required: [model]
+            properties:
+              model: {type: string, minLength: 1, maxLength: 200, pattern: ".*\\S.*"}
     Availability:
       type: object
       required: [agent_id, status, available, rate_limits]
@@ -190,8 +207,13 @@ components:
               - {required: [reset_at]}
               - {required: [retry_after_seconds]}
       allOf:
-        - if: {properties: {scope: {const: model}}}
-          then: {required: [model]}
+        - if:
+            required: [scope]
+            properties: {scope: {const: model}}
+          then:
+            required: [model]
+            properties:
+              model: {type: string, minLength: 1, maxLength: 200, pattern: ".*\\S.*"}
     RateLimitWriteResponse:
       type: object
       required: [observation_id, status, reset_at]

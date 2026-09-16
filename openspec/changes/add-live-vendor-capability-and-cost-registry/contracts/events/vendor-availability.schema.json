@@ -24,7 +24,11 @@
       "if": {"properties": {"kind": {"const": "rate_limit"}}},
       "then": {
         "required": ["reason", "scope", "reset_at"],
-        "properties": {"status": false, "stale_after": false}
+        "properties": {
+          "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "status": false,
+          "stale_after": false
+        }
       }
     },
     {
@@ -35,8 +39,21 @@
       }
     },
     {
-      "if": {"properties": {"scope": {"const": "model"}}},
-      "then": {"required": ["model"]}
+      "if": {
+        "required": ["scope"],
+        "properties": {"scope": {"const": "model"}}
+      },
+      "then": {
+        "required": ["model"],
+        "properties": {
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": ".*\\S.*"
+          }
+        }
+      }
     }
   ]
 }
