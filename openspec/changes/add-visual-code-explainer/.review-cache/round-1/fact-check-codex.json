@@ -26,6 +26,14 @@
     {
       "finding_id": "5",
       "verdict": "kept"
+    },
+    {
+      "finding_id": "6",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "7",
+      "verdict": "kept"
     }
   ]
 }

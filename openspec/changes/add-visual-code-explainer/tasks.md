@@ -41,14 +41,14 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
 
 ## Phase 2 — `explain-code` skill (package `wp-skill`, parallel with Phase 1)
 
-- [ ] 2.1 Write `skills/tests/explain-code/test_skill_md.py`: frontmatter parses; `name`, `description`, `category`, `tags`, `user_invocable`, `related` present and non-empty (asserted explicitly, not via `assert_required_keys_present`); no `triggers` key; `assert_references_resolve`; `assert_related_resolve`; `assert_tail_block_present`; `SKILL.md ≤ 150` lines; no reference file links to another reference; description mentions `codebase-atlas`
-  **Spec scenarios**: skill-workflow "Frontmatter valid in both orderings", "Description carries the trigger condition", "Progressive disclosure layout"
+- [ ] 2.1 Write `skills/tests/explain-code/test_skill_md.py`: frontmatter parses; `name`, `description`, `category: Architecture`, `tags`, `user_invocable: true`, `related` including codebase-atlas and refresh-architecture present and non-empty (asserted explicitly, not via `assert_required_keys_present`); no `triggers` key; `assert_references_resolve`; `assert_related_resolve`; `assert_tail_block_present` (Common Rationalizations / Red Flags / Verification); `SKILL.md ≤ 150` lines; no reference file links to another reference; description mentions `codebase-atlas`
+  **Spec scenarios**: skill-workflow "Frontmatter valid in both orderings", "Frontmatter omits triggers and sets Architecture category", "Skill markdown ends with required tail sections", "Description carries the trigger condition", "Progressive disclosure layout"
   **Design decisions**: D6
   **Dependencies**: None
   **Size**: S
 
-- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms, the closed ungrounded reason tokens (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`), the footer→disclosure mapping (`;` after sha, copy after `· ` / before trailing ` covered`), and the clarification/redirect disclosure exemptions; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
-  **Spec scenarios**: skill-workflow "Disclosure line present on every sketching answer", "Whole-repository question redirected", "Whole-repository redirect has no disclosure line", "Stale or absent graph falls back to source", "Non-call-tree form is not graph-backed", "Ambiguous symbol asks instead of guessing"
+- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms, the closed ungrounded reason tokens (`graph stale`, `graph absent`, `graph check failed`, `symbol not in graph`, `form not graph-backed`), the footer→disclosure mapping (`;` after sha, copy after `· ` / before trailing ` covered`), non-call-tree source-read requirement, tree-tool-failure → `graph check failed`, and the clarification/redirect disclosure exemptions; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
+  **Spec scenarios**: skill-workflow "Disclosure line present on every sketching answer", "Whole-repository question redirected", "Whole-repository redirect has no disclosure line", "Stale or absent graph falls back to source", "Non-call-tree form is not graph-backed", "Tree tool failure after fresh check", "Ambiguous symbol asks instead of guessing"
   **Design decisions**: D2, D5, D7, D9
   **Dependencies**: None
   **Size**: S

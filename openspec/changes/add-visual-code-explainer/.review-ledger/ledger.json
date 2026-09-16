@@ -13,12 +13,9 @@
       "fingerprint": "27830ee665714cd4",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "antigravity"
-      ],
-      "description": "Eight spec scenarios added in round 2 adjudication ('Coverage footer shape', 'Target resolution precedence', 'Unique ...",
+      "description": "Eight spec scenarios added in round 2 adjudication ('Coverage footer shape', 'Target resolution p...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 2,
@@ -31,12 +28,9 @@
       "fingerprint": "32d7dac329eb5ab4",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "antigravity"
-      ],
-      "description": "plan-findings.md claims 'Ledger items from rounds 1\u20132 retired after adjudication (\\'retired\\' is not reopened on merg...",
+      "description": "plan-findings.md claims 'Ledger items from rounds 1\u20132 retired after adjudication (\\'retired\\' is ...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 3,
@@ -49,12 +43,9 @@
       "fingerprint": "ac6ae80367caef89",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "antigravity"
-      ],
-      "description": "In session-log.md under '## Phase: Plan Review (2026-09-16)', '### Next Steps' is placed prematurely between Decision...",
+      "description": "In session-log.md under '## Phase: Plan Review (2026-09-16)', '### Next Steps' is placed prematur...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 4,
@@ -66,12 +57,9 @@
       "fingerprint": "e0043d2aff26a3b4",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "codex"
-      ],
-      "description": "reviews/converge-result.json records converged=false, reason=quorum_lost, and summary=null, while its note and plan-f...",
+      "description": "reviews/converge-result.json records converged=false, reason=quorum_lost, and summary=null, while...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 5,
@@ -83,12 +71,9 @@
       "fingerprint": "6358950dfb34b8b5",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "codex"
-      ],
-      "description": "The four codebase-analysis scenarios added during round-2 adjudication\u2014Coverage footer shape, Target resolution prece...",
+      "description": "The four codebase-analysis scenarios added during round-2 adjudication\u2014Coverage footer shape, Tar...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 6,
@@ -100,12 +85,9 @@
       "fingerprint": "56b5a98e4105373c",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "codex"
-      ],
-      "description": "Several normative clauses still lack a corresponding WHEN/THEN scenario, contrary to the review rule: codebase-analys...",
+      "description": "Several normative clauses still lack a corresponding WHEN/THEN scenario, contrary to the review r...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 7,
@@ -117,12 +99,9 @@
       "fingerprint": "9ff0753badfc5088",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "codex"
-      ],
-      "description": "Every non-call-tree form is required to emit `Grounding: source read, unverified (form not graph-backed)`, but the wo...",
+      "description": "Every non-call-tree form is required to emit `Grounding: source read, unverified (form not graph-...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 8,
@@ -134,12 +113,9 @@
       "fingerprint": "030e4384116c5f83",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "codex"
-      ],
-      "description": "The closed grounding-reason decision table does not cover failure to spawn/run build_atlas.py --tree or an unexpected...",
+      "description": "The closed grounding-reason decision table does not cover failure to spawn/run build_atlas.py --t...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 9,
@@ -152,12 +128,9 @@
       "fingerprint": "8c0e1a7296740a24",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "grok"
-      ],
-      "description": "Round-2 atlas scenarios are orphaned from tasks: codebase-analysis adds \"Coverage footer shape\", \"Target resolution p...",
+      "description": "Round-2 atlas scenarios are orphaned from tasks: codebase-analysis adds \"Coverage footer shape\", ...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 10,
@@ -167,16 +140,12 @@
       "criticality": "medium",
       "evidence_class": "judgment",
       "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
-      "spec_file": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
       "fingerprint": "db19e5732712359d",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "grok"
-      ],
-      "description": "Explainer Grounding defines `graph check failed` for `--check` spawn/OSError and for `--tree` exit `1` after a fresh ...",
+      "description": "Explainer Grounding defines `graph check failed` for `--check` spawn/OSError and for `--tree` exi...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 11,
@@ -189,12 +158,9 @@
       "fingerprint": "9f3dbec5e764d08a",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "grok"
-      ],
-      "description": "Round-2 frontmatter/distribution scenarios are under-wired in tasks. \"Frontmatter omits triggers and sets Architectur...",
+      "description": "Round-2 frontmatter/distribution scenarios are under-wired in tasks. \"Frontmatter omits triggers ...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 12,
@@ -207,12 +173,9 @@
       "fingerprint": "09fafe46d39bf37e",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "grok"
-      ],
-      "description": "D7 (and session-log shorthand) tells deterministic tests to treat `graph stale|absent|check failed` as exact tokens, ...",
+      "description": "D7 (and session-log shorthand) tells deterministic tests to treat `graph stale|absent|check faile...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
     },
     {
       "id": 13,
@@ -222,16 +185,345 @@
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
-      "spec_file": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
       "fingerprint": "7b04c2d60cb19449",
       "first_seen_round": 1,
       "last_seen_round": 1,
-      "vendor_hits": [
-        "grok"
-      ],
-      "description": "Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered (\"File target give...",
+      "description": "Atlas target resolution SHALL accepts a module file path or basename, but only basename is covere...",
+      "parked_reason": "disagreement",
+      "consensus_status": "disagreement",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 14,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "fingerprint": "bd32d71dfa28f73f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Round-2 frontmatter and distribution spec scenarios added to `specs/skill-workflow/spec.md` ('Fro...",
+      "consensus_status": "confirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 15,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "fingerprint": "9738c544d7c50335",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "In `design.md` D7, test check 1 instructs asserting 'the closed ungrounded reason set `graph stal...",
       "consensus_status": "unconfirmed",
-      "retired_reason": "plan-review-adjudication-round-3"
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 16,
+      "status": "retired",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
+      "fingerprint": "b477dad4dfc1da5b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "In `.review-ledger/ledger.json`, all items 1\u201313 are stamped with `first_seen_round: 1`, `last_see...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 17,
+      "status": "retired",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "a3ab596deff378cc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Critical: The closed grounding decision table does not define behavior when a fresh `--check` is ...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 18,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "f5ff05fda4935aeb",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Critical: Non-call-tree replies must claim `Grounding: source read, unverified (form not graph-ba...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 19,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "409f0d87a3115275",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Critical: Atlas target resolution SHALL support both a module file path and a basename, but the o...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 20,
+      "status": "retired",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "847af84344cdc568",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Critical: The CLI assigns exit 1 to input errors and exit 2 to target-not-found, but it neither d...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 21,
+      "status": "retired",
+      "axis": "security",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "6c58cbb570b588c3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Nit: The Atlas Symbol Tree Export requires use of only the Python standard library and no network...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 22,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "0408a405902b12ca",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Nit: Task 1.1 proves printed nodes against the fixture using only `(name, file)`, although each e...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 23,
+      "status": "retired",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "f574e944053f6a87",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Nit: `session-log.md` places `### Next Steps` before the round-2 decisions and still says to reru...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 24,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
+      "fingerprint": "da1481e8d53bcb93",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Critical: proposal.md What Changes still says 'Coverage disclosure line. Every answer ends with o...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 25,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
+      "fingerprint": "62c45a1f6fb29450",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Nit: NFR 'Coverage honesty' targets '100% of behavioural-scenario replies, grounded and ungrounde...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 26,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
+      "fingerprint": "976824a67976599a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Nit: proposal.md Frontmatter bullet says the skill test 'asserts the four surviving keys explicit...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 27,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "fingerprint": "0e3db0b9cdae65a6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Nit: Explainer Grounding's first-match reason table puts `form not graph-backed` last, but the sa...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 28,
+      "status": "retired",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "fingerprint": "c4cf14895bcdbdc4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Nit: The closed ungrounded reason set still leaves `--tree` spawn/OSError (and any `--tree` exit ...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 29,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "fingerprint": "8971b92ddba7ce18",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Exit `3` for ambiguous `--tree` targets with ask-don't-guess (no source fallback, no `Grounding:`...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 30,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "fingerprint": "79ee76cffbefa5a6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Task 1.1 Spec scenarios now enumerate the round-2/3 atlas scenarios (footer shape, resolution pre...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 31,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "21b1d6f76c762d31",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Task 2.5 (Write references/grounding.md) does not explicitly list documenting the 'optimistic upp...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 32,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "785a2bf51cbfd55e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Spec skill-workflow scenario 'Frontmatter valid in both orderings' asserts test SHALL fail if key...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 33,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "ef0659d626bbb5f7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Proposal.md describes exit codes as '0 ok, 1 input error, 2 symbol not found, plus 3 for ambiguou...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 34,
+      "status": "retired",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "7b58089dcec06a5e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Proposal NFR table cites node/edge counts (1,903 / 1,199) from committed graph but plan-findings....",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 35,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "9944ae7af1e9b21e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Spec skill-workflow requirement 'Explainer Grounding and Coverage Disclosure' states 'When stale,...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
+    },
+    {
+      "id": 36,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "f8be620af73e77cd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "description": "Spec skill-workflow scenario 'Stale or absent graph falls back to source' lists reasons 'graph st...",
+      "consensus_status": "unconfirmed",
+      "retired_reason": "plan-review-adjudication-round-4"
     }
   ]
 }

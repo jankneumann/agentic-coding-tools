@@ -63,3 +63,13 @@ reopened on merge). `plan_revision` → 4. Re-run converge.
 | Task 1.1 omitted four new atlas scenarios | Extended task 1.1 test scope + Spec scenarios list |
 
 `plan_revision` → 5. Re-run converge.
+
+## PLAN_REVIEW round 4 (2026-09-16) — adjudication
+
+| Finding | Resolution |
+|---|---|
+| `--tree` spawn/unexpected exit undefined after fresh `--check` | Map to `graph check failed` + source fallback; new scenario |
+| `form not graph-backed` claimed without requiring source read | Require source read before non-call-tree sketches |
+| proposal.md still said every answer / any non-zero = stale | Aligned What Changes + Coverage honesty NFR with D5 |
+
+`plan_revision` → 6. Re-run converge.

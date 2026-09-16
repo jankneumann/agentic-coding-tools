@@ -41,17 +41,20 @@ that gates them, and the analysis that motivated this change is fresh.
   worked example adapted from humanlayer (with attribution) and the form's
   "smallest view" rule. **HTML output is explicitly out of scope for v1** — the
   skill emits text and Mermaid only, inline in the reply.
-- **Grounding step.** Before sketching, the skill checks graph freshness with
-  the existing read-only `run_architecture.py --check` (exit `0` is fresh;
-  anything else is treated as stale) and, when fresh,
-  obtains callers/callees from the new atlas `--tree` export and builds the call
-  tree from that data. When the graph is stale, absent, or does not cover the
-  files in question, the skill reads source directly and **labels the sketch
-  unverified**. It never refuses and never triggers a refresh on its own.
-- **Coverage disclosure line.** Every answer ends with one line stating the
-  grounding source (`graph @ <sha>`, or `source read, unverified`) and, for
-  grounded sketches, the per-language coverage percentage the atlas already
-  computes. The line is not optional and not collapsible.
+- **Grounding step.** Before sketching a call tree, the skill checks graph
+  freshness with the existing read-only `run_architecture.py --check` (exit `0`
+  alone is fresh; missing script/graph → `graph absent`; spawn failure →
+  `graph check failed`; any non-zero `--check` exit → `graph stale`) and, when
+  fresh, obtains callers/callees from the new atlas `--tree` export. When the
+  graph is unusable or the symbol is outside coverage, the skill reads source
+  directly and **labels the sketch unverified**. Ambiguous `--tree` exit `3`
+  asks instead of guessing. It never refuses and never triggers a refresh on
+  its own.
+- **Coverage disclosure line.** Every **sketching** reply ends with one
+  `Grounding:` line (`graph @ <sha>; … covered`, or
+  `source read, unverified (<reason>)`). Ambiguous-symbol clarifications and
+  whole-repository redirects are explicit exceptions and carry no disclosure
+  line. The line is otherwise not optional and not collapsible.
 - **`codebase-atlas` gains `--tree <symbol-or-file> [--hops N] [--direction in|out|both]`.**
   A stdlib-only text export in `build_atlas.py` that BFS-walks the `call` edges of
   the existing `symbolEdges` adjacency from `build_view_model()` and prints an indented tree
@@ -107,7 +110,7 @@ Chosen at discovery to keep this change to one capability:
 
 | Attribute | Metric | Target | Verified by (phase) |
 |-----------|--------|--------|---------------------|
-| Coverage honesty | Answers carrying a disclosure line | 100% of behavioural-scenario replies, grounded and ungrounded | Behavioural scenarios in CI (skill test suite) |
+| Coverage honesty | Sketching replies carrying a disclosure line | 100% of sketching behavioural-scenario replies (clarification/redirect scenarios exempt) | Behavioural scenarios in CI (skill test suite) |
 | Determinism | `--tree` output for a fixed graph and args | Byte-identical across two runs; sorted children | `tests/codebase-atlas/test_atlas_tree.py` |
 | Operability | `--tree` wall time on the committed graph (1,903 nodes / 1,199 edges) | ≤ 2 s, stdlib only, zero network | `test_atlas_tree.py` timing assertion on the committed graph |
 | Context cost | `SKILL.md` line count; reference depth | `SKILL.md` ≤ 150 lines (hard cap 500 per `apply-progressive-disclosure-oversized-skills`); references one level deep; TOC if > 100 lines | `test_skill_md.py` |

@@ -5,19 +5,19 @@
   "findings": [
     {
       "id": 1,
-      "type": "contract_mismatch",
+      "type": "resilience",
       "criticality": "high",
-      "description": "reviews/converge-result.json records converged=false, reason=quorum_lost, and summary=null, while its note and plan-findings.md claim that full consensus was obtained. Machine consumers must treat the authoritative result as failed, so the plan has not passed its convergence gate. Regenerate a compact but truthful successful/adjudicated result or complete another convergence run.",
-      "disposition": "regenerate",
-      "axis": "correctness",
+      "description": "Critical: The closed grounding decision table does not define behavior when a fresh `--check` is followed by failure to spawn or run `build_atlas.py --tree`, or when `--tree` returns an unexpected exit code. Only exits 1, 2, and 3 are mapped, leaving the required fallback and disclosure undefined. Add an explicit fallback reason and corresponding scenario/tasks.",
+      "disposition": "fix",
+      "axis": "resilience",
       "severity": "critical",
       "evidence_class": "judgment"
     },
     {
       "id": 2,
-      "type": "spec_gap",
+      "type": "contract_mismatch",
       "criticality": "high",
-      "description": "The four codebase-analysis scenarios added during round-2 adjudication\u2014Coverage footer shape, Target resolution precedence, Unique name resolves, and Direction both labels sections\u2014are absent from task 1.1's test scope and Spec scenarios list. Nothing in the implementation plan therefore requires tests for these newly normative behaviors.",
+      "description": "Critical: Non-call-tree replies must claim `Grounding: source read, unverified (form not graph-backed)`, but neither the requirement nor its scenario requires source files to be read before producing component trees, file trees, sequence diagrams, or structural diffs. The plan therefore permits a false provenance disclosure. Require source reading for these forms or change the disclosure text.",
       "disposition": "fix",
       "axis": "correctness",
       "severity": "critical",
@@ -27,7 +27,7 @@
       "id": 3,
       "type": "spec_gap",
       "criticality": "medium",
-      "description": "Several normative clauses still lack a corresponding WHEN/THEN scenario, contrary to the review rule: codebase-analysis has no scenario proving --tree avoids page rendering/network access, uses only the standard library, applies the required line format to every emitted node, or resolves an exact file path; skill-workflow has no scenario for placing visuals next to supporting text or for directly avoiding assert_required_keys_present. Add scenarios and assign their tests in tasks.md.",
+      "description": "Critical: Atlas target resolution SHALL support both a module file path and a basename, but the only module-resolution scenario and task 1.1 test cover a basename. No scenario covers a full path or defines the result when one basename matches multiple modules, so those parts of the target contract can be implemented incorrectly without detection.",
       "disposition": "fix",
       "axis": "correctness",
       "severity": "critical",
@@ -35,22 +35,42 @@
     },
     {
       "id": 4,
-      "type": "correctness",
+      "type": "contract_mismatch",
       "criticality": "medium",
-      "description": "Every non-call-tree form is required to emit `Grounding: source read, unverified (form not graph-backed)`, but the workflow never requires source to be read before producing such a form. A response based on supplied context or model knowledge would therefore make a false provenance claim. Require a source read for this path or use a disclosure template that does not assert one occurred.",
+      "description": "Critical: The CLI assigns exit 1 to input errors and exit 2 to target-not-found, but it neither defines the valid lower bound for `--hops` nor specifies how parser-level errors such as an invalid direction, negative hop count, or missing flag value map to those codes. Typical argument parsing uses exit 2 for malformed input, colliding with the promised not-found code. Define the input domain, error mapping, and scenarios.",
       "disposition": "fix",
-      "axis": "correctness",
+      "axis": "compatibility",
       "severity": "critical",
       "evidence_class": "judgment"
     },
     {
       "id": 5,
-      "type": "resilience",
+      "type": "spec_gap",
       "criticality": "medium",
-      "description": "The closed grounding-reason decision table does not cover failure to spawn/run build_atlas.py --tree or an unexpected --tree exit other than 1, 2, or 3. Those failures occur after a fresh check but provide no permitted ungrounded reason or mandated fallback, so the skill cannot satisfy the exactly-one-disclosure contract. Define this path explicitly, such as mapping tree invocation failures to graph check failed, and add a scenario.",
+      "description": "Nit: The Atlas Symbol Tree Export requires use of only the Python standard library and no network requests, but no WHEN/THEN scenario or task 1.1 check verifies either constraint. Add a static dependency/import check or another deterministic scenario covering these requirements.",
       "disposition": "fix",
-      "axis": "resilience",
-      "severity": "critical",
+      "axis": "security",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Task 1.1 proves printed nodes against the fixture using only `(name, file)`, although each exported node also carries graph-derived `line` and `kind`. An implementation can emit incorrect or invented line/kind metadata and still pass. Match the complete emitted node tuple, or otherwise assert that all displayed metadata comes from the resolved fixture node.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: `session-log.md` places `### Next Steps` before the round-2 decisions and still says to rerun convergence after adjudication, even though later rounds are already recorded elsewhere. Move the next-steps section to the end of the Plan Review phase and update it to the current state.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
       "evidence_class": "judgment"
     }
   ]

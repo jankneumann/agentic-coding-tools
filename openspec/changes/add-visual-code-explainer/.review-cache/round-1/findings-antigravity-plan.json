@@ -6,34 +6,56 @@
     {
       "axis": "correctness",
       "criticality": "medium",
-      "description": "Eight spec scenarios added in round 2 adjudication ('Coverage footer shape', 'Target resolution precedence', 'Unique name resolves', 'Direction both labels sections' in codebase-analysis/spec.md; 'Frontmatter omits triggers and sets Architecture category', 'Skill markdown ends with required tail sections', 'Manifest declares portable distribution and atlas dependencies', 'Sibling skill paths use skill-base-dir form' in skill-workflow/spec.md) are not mapped under '**Spec scenarios**' in tasks.md, and Task 1.1's test description omits test cases for direction-both section labels, precedence resolution, and multi-language footer formatting.",
+      "description": "Round-2 frontmatter and distribution spec scenarios added to `specs/skill-workflow/spec.md` ('Frontmatter omits triggers and sets Architecture category', 'Skill markdown ends with required tail sections', 'Manifest declares portable distribution and atlas dependencies', 'Sibling skill paths use skill-base-dir form') are not wired into `tasks.md`. Phase 2 tasks (tasks 2.1, 2.3, 2.6, 2.7) should list these scenarios under their `Spec scenarios:`.",
       "disposition": "fix",
       "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
       "id": 1,
-      "severity": "nit",
-      "type": "spec_gap",
+      "severity": "optional",
+      "type": "contract_mismatch",
       "evidence_class": "judgment"
     },
     {
-      "axis": "compatibility",
+      "axis": "correctness",
       "criticality": "low",
-      "description": "plan-findings.md claims 'Ledger items from rounds 1\u20132 retired after adjudication (\\'retired\\' is not reopened on merge)', but .review-ledger/ledger.json emptied items to [] and reset next_id: 1 rather than recording the adjudicated items with status 'retired', breaking the documented merge protection.",
+      "description": "The requirement 'Atlas Symbol Tree Export' states that `<target>` SHALL resolve as module file path or basename ('then module file path or basename (rooting the tree at the module with its own symbols as hop 1)'), but only module basename is verified in 'Scenario: File target gives the aggregated module view' (`--tree <file-basename>`). Resolution by module file path lacks a corresponding WHEN/THEN scenario.",
       "disposition": "fix",
-      "file_path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
       "id": 2,
-      "severity": "nit",
-      "type": "contract_mismatch",
+      "severity": "optional",
+      "type": "spec_gap",
       "evidence_class": "judgment"
     },
     {
       "axis": "readability",
       "criticality": "low",
-      "description": "In session-log.md under '## Phase: Plan Review (2026-09-16)', '### Next Steps' is placed prematurely between Decisions 1-4 and Decisions (round 2) 5-7, stating to re-run converge before the round 2 decisions are recorded.",
+      "description": "In `session-log.md` under '## Phase: Plan Review (2026-09-16)', '### Next Steps' is positioned prematurely between round 1 decisions (1\u20134) and round 2 decisions (5\u20137). Additionally, round 3 adjudication is recorded in `plan-findings.md` with revision bumped to 5, but is missing from `session-log.md`.",
       "disposition": "fix",
       "file_path": "openspec/changes/add-visual-code-explainer/session-log.md",
       "id": 3,
-      "severity": "fyi",
+      "severity": "nit",
       "type": "style",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "In `design.md` D7, test check 1 instructs asserting 'the closed ungrounded reason set `graph stale|absent|check failed`, `symbol not in graph`, `form not graph-backed` present as exact tokens'. The shorthand pipe syntax `graph stale|absent|check failed` contradicts task 2.2 and D5, which specify the exact tokens as separate strings (`graph stale`, `graph absent`, `graph check failed`).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "id": 4,
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "In `.review-ledger/ledger.json`, all items 1\u201313 are stamped with `first_seen_round: 1`, `last_seen_round: 1`, and `retired_reason: \"plan-review-adjudication-round-3\"`, even though items 9\u201313 were raised in round 2 and `plan-findings.md` states rounds 1\u20132 ledger items were retired after round 2 adjudication. Furthermore, item 11 was marked retired in round 3 without being mentioned or addressed in the round 3 adjudication in `plan-findings.md`.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
+      "id": 5,
+      "severity": "fyi",
+      "type": "contract_mismatch",
       "evidence_class": "judgment"
     }
   ]

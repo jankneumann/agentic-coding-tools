@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "change_id": "add-visual-code-explainer",
+  "items": [
+    {
+      "ledger_id": 13,
+      "round": 1,
+      "vendor_dispositions": {
+        "antigravity": "fix",
+        "grok": "accept"
+      },
+      "description": "Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered (\"File target give...",
+      "parked_at": "2026-09-16T14:12:04Z"
+    }
+  ]
+}

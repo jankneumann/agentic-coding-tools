@@ -113,13 +113,16 @@ Sketching replies use one of:
   - `graph absent` — before invoking `--check`, the skill finds the
     `--check` script or the graph file missing
   - `graph check failed` — the skill could not spawn/run `--check`
-    (OSError / exception before an exit code), or a subsequent `--tree`
-    exits `1` (input/IO) after a fresh `--check`
+    (OSError / exception before an exit code); or, after a fresh `--check`,
+    could not spawn/run `--tree`, `--tree` exits `1` (input/IO), or `--tree`
+    returns any exit other than `0`/`2`/`3`
   - `graph stale` — `--check` ran and exited non-zero (including exit `1`
     for stale provenance and any other non-zero the script returns)
   - `symbol not in graph` — `--tree` exited `2`
   - `form not graph-backed` — reply used a catalogue form other than a
-    call tree (component/file/sequence/structural-diff are model-authored)
+    call tree (component/file/sequence/structural-diff). Those forms are
+    model-authored from source the skill **must read** before sketching;
+    the disclosure still uses this reason (they are not graph-backed)
 
 Only a call tree built from `--tree` after a fresh `--check` may use the
 grounded form. The percentages are the atlas's optimistic upper bound and

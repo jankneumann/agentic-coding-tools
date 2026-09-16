@@ -6,43 +6,97 @@
     {
       "id": 1,
       "type": "contract_mismatch",
-      "criticality": "medium",
-      "description": "Round-2 atlas scenarios are orphaned from tasks: codebase-analysis adds \"Coverage footer shape\", \"Target resolution precedence\", \"Unique name resolves\", and \"Direction both labels sections\", but tasks 1.1/1.2 Spec scenarios and the 1.1 test body still omit them (no footer multi-language shape/sort/` / ` join assertion, no id-over-name precedence, no unique-name success path, no `--direction both` section labels). plan-findings claims these scenarios were added to close residual SHALLs; without task linkage they will not be implemented or verified.",
+      "criticality": "high",
+      "description": "Critical: proposal.md What Changes still says 'Coverage disclosure line. Every answer ends with one line\u2026 The line is not optional and not collapsible' and treats any non-zero `--check` as 'stale', but adjudicated D5 / skill-workflow 'Explainer Grounding' require `Grounding:` only on sketching replies, exempt ambiguous-symbol clarification (`--tree` exit 3) and whole-repository redirects, and distinguish `graph absent` / `graph check failed` / `graph stale`. An implementer or reviewer reading the proposal gets the pre-adjudication contract.",
       "disposition": "fix",
       "axis": "correctness",
       "severity": "critical",
-      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "resolution": "Rewrite the Coverage disclosure and Grounding bullets in proposal.md to match D5: disclosure on sketching replies only; name the two exemptions; point at the closed first-match reason set instead of collapsing all failures to 'stale'.",
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
       "line_range": {
-        "start": 7,
-        "end": 16
+        "start": 44,
+        "end": 54
       },
       "evidence_class": "judgment",
       "line_resolution": "vendor"
     },
     {
       "id": 2,
-      "type": "spec_gap",
+      "type": "contract_mismatch",
       "criticality": "medium",
-      "description": "Explainer Grounding defines `graph check failed` for `--check` spawn/OSError and for `--tree` exit `1` after a fresh `--check`, but no WHEN/THEN scenario exercises either path. The existing \"Stale or absent graph falls back to source\" WHEN only covers non-zero `--check` or missing script/graph (\u2192 `graph stale` / `graph absent`) yet its THEN also allows `graph check failed`, which those triggers never produce. Round-1 adjudication explicitly separated stale vs check-failed; that distinction is still untestable as written.",
+      "description": "Nit: NFR 'Coverage honesty' targets '100% of behavioural-scenario replies, grounded and ungrounded' carrying a disclosure line, but skill-workflow now has behavioural scenarios that MUST NOT include `Grounding:` ('Ambiguous symbol asks instead of guessing', 'Whole-repository redirect has no disclosure line'). The metric contradicts the exempted reply shapes.",
       "disposition": "fix",
       "axis": "correctness",
-      "severity": "critical",
-      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "severity": "nit",
+      "resolution": "Narrow the NFR to sketching replies (catalogue visual emitted), or to the deterministic disclosure checks in test_behaviour.py, and exclude clarification/redirect replies.",
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
       "line_range": {
-        "start": 43,
-        "end": 48
+        "start": 110,
+        "end": 110
       },
       "evidence_class": "judgment",
       "line_resolution": "vendor"
     },
     {
       "id": 3,
-      "type": "contract_mismatch",
-      "criticality": "medium",
-      "description": "Round-2 frontmatter/distribution scenarios are under-wired in tasks. \"Frontmatter omits triggers and sets Architecture category\" and \"Skill markdown ends with required tail sections\" are not listed on task 2.1 Spec scenarios; task 2.1 only requires keys present/non-empty and does not require `category: Architecture` or `related` to include both `codebase-atlas` and `refresh-architecture`. \"Manifest declares portable distribution and atlas dependencies\" is not listed on task 2.6; \"Sibling skill paths use skill-base-dir form\" is not listed on task 2.5/2.6. Behaviors partially appear in task prose, but Spec scenario linkage and the Architecture/related assertions remain incomplete relative to the added SHALLs.",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: proposal.md Frontmatter bullet says the skill test 'asserts the four surviving keys explicitly', but the declared key set is six (`name`, `description`, `category`, `tags`, `user_invocable`, `related`) \u2014 matching D6 and the Frontmatter requirement. 'Four' is a stale count.",
       "disposition": "fix",
       "axis": "correctness",
-      "severity": "critical",
+      "severity": "nit",
+      "resolution": "Replace 'four surviving keys' with 'six surviving keys' (or list them) so the proposal matches D6/spec/tasks 2.1.",
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
+      "line_range": {
+        "start": 62,
+        "end": 68
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Explainer Grounding's first-match reason table puts `form not graph-backed` last, but the same requirement also says 'other catalogue forms SHALL use `form not graph-backed`' and the Non-call-tree scenario always expects that reason. If the skill also observes `graph absent`/`graph stale` while answering with a component/file/sequence/structural-diff form, first-match and the form-SHALL disagree on the disclosure token.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "State that catalogue-form selection short-circuits the graph reason chain: non-call-tree sketching replies always use `form not graph-backed`, and the first-match table applies only when the chosen form is a call tree.",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 35,
+        "end": 60
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: The closed ungrounded reason set still leaves `--tree` spawn/OSError (and any `--tree` exit other than 1/2/3) undefined after a fresh `--check`. `graph check failed` covers `--check` spawn failure and `--tree` exit `1` only. 'Stale or absent graph falls back to source' WHEN also omits `--check` spawn failure, yet THEN lists `graph check failed` as a reason \u2014 so that token has no dedicated WHEN/THEN for either spawn path.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "Extend `graph check failed` (in D5 + spec) to include failure to spawn/run `--tree`, and add a scenario WHEN `--check` cannot be spawned or `--tree` exits `1`/cannot be spawned after a fresh check THEN disclosure uses `graph check failed`.",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "line_range": {
+        "start": 110,
+        "end": 122
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: Round-2 frontmatter/distribution scenarios remain under-linked in tasks.md Spec scenarios lines. Task 2.1 body asserts no `triggers`, Architecture-related keys, and tail sections, but its Spec scenarios omit 'Frontmatter omits triggers and sets Architecture category' and 'Skill markdown ends with required tail sections'. Task 2.6 lists only 'Manifest validation passes' while omitting 'Manifest declares portable distribution and atlas dependencies'; task 2.5/2.6 never cite 'Sibling skill paths use skill-base-dir form'.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Extend task 2.1 Spec scenarios with the triggers/category/tail scenarios; extend 2.6 with the portable/deps scenario; attach the skill-base-dir scenario to 2.5 or 2.6.",
       "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
       "line_range": {
         "start": 44,
@@ -52,33 +106,45 @@
       "line_resolution": "vendor"
     },
     {
-      "id": 4,
-      "type": "correctness",
+      "id": 7,
+      "type": "spec_gap",
       "criticality": "low",
-      "description": "D7 (and session-log shorthand) tells deterministic tests to treat `graph stale|absent|check failed` as exact tokens, while D5/spec/task 2.2 require three separate reasons: `graph stale`, `graph absent`, `graph check failed`. A literal-token check against the pipe form will fail or under-assert the closed set. Align D7 with the expanded tokens already listed in task 2.2.",
-      "disposition": "fix",
-      "axis": "readability",
-      "severity": "nit",
-      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "description": "Optional: Atlas target resolution SHALL accepts 'module file path or basename', but the only module scenario is 'File target gives the aggregated module view' with `--tree <file-basename>`. A path-form target (e.g. `skills/foo/bar.py`) has no WHEN/THEN, so path vs basename behaviour is unpinned for implementers.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Accept if basename coverage is enough for v1, or add a scenario WHEN `--tree` is given a module file path THEN it roots at that module like the basename case.",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
       "line_range": {
-        "start": 149,
-        "end": 155
+        "start": 31,
+        "end": 35
       },
       "evidence_class": "judgment",
       "line_resolution": "vendor"
     },
     {
-      "id": 5,
-      "type": "spec_gap",
+      "id": 8,
+      "type": "correctness",
       "criticality": "low",
-      "description": "Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered (\"File target gives the aggregated module view\"). There is no scenario for a full module file path resolving to the aggregated module view, so that half of the resolution SHALL is untested.",
-      "disposition": "fix",
+      "description": "Exit `3` for ambiguous `--tree` targets with ask-don't-guess (no source fallback, no `Grounding:`) is consistently specified across D4/D5, codebase-analysis, and skill-workflow, and task 1.1/2.5 cite the matching scenarios.",
+      "disposition": "accept",
       "axis": "correctness",
-      "severity": "optional",
-      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "severity": "none",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 1.1 Spec scenarios now enumerate the round-2/3 atlas scenarios (footer shape, resolution precedence, unique name, direction both, defaults/clamp/`--no-coverage`/exit 1) and the exit-3 split, matching codebase-analysis \u2014 closing the earlier orphaned-scenario gap for wp-atlas-tree.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
       "line_range": {
-        "start": 34,
-        "end": 38
+        "start": 8,
+        "end": 9
       },
       "evidence_class": "judgment",
       "line_resolution": "vendor"
