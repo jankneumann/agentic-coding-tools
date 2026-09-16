@@ -38,6 +38,7 @@ class PhaseDispatchPayload:
     system_prompt: str | None
     isolation: str | None
     expected_outcomes: list[str]
+    agent_id: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PhaseDispatchPayload":
@@ -52,6 +53,7 @@ class PhaseDispatchPayload:
             system_prompt=data.get("system_prompt"),
             isolation=data.get("isolation"),
             expected_outcomes=list(data.get("expected_outcomes") or []),
+            agent_id=data.get("agent_id"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -67,6 +69,12 @@ class PhaseDispatchResult:
     model_used: str | None = None
     dispatch_tier: str = "fallback"
     warnings: list[str] = field(default_factory=list)
+    agent_id: str | None = None
+    error_class: str | None = None
+    capacity_scope: str | None = None
+    capacity_model: str | None = None
+    capacity_reset_at: str | None = None
+    capacity_retry_after_seconds: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -366,6 +374,11 @@ def normalize_dispatch_result(
     outcome: str | None = None
     handoff_id: str | None = None
     model_used = payload.model
+    error_class: str | None = None
+    capacity_scope: str | None = None
+    capacity_model: str | None = None
+    capacity_reset_at: str | None = None
+    capacity_retry_after_seconds: int | None = None
 
     if isinstance(raw, tuple) and len(raw) == 2:
         outcome, handoff_id = raw
@@ -373,6 +386,11 @@ def normalize_dispatch_result(
         outcome = raw.get("outcome")
         handoff_id = raw.get("handoff_id")
         model_used = raw.get("model_used", model_used)
+        error_class = raw.get("error_class")
+        capacity_scope = raw.get("capacity_scope")
+        capacity_model = raw.get("capacity_model")
+        capacity_reset_at = raw.get("capacity_reset_at")
+        capacity_retry_after_seconds = raw.get("capacity_retry_after_seconds")
         raw_warnings = raw.get("warnings")
         if isinstance(raw_warnings, list):
             warnings = [str(item) for item in raw_warnings]
@@ -394,6 +412,12 @@ def normalize_dispatch_result(
         model_used=model_used,
         dispatch_tier=dispatch_tier,
         warnings=warnings,
+        agent_id=payload.agent_id,
+        error_class=error_class,
+        capacity_scope=capacity_scope,
+        capacity_model=capacity_model,
+        capacity_reset_at=capacity_reset_at,
+        capacity_retry_after_seconds=capacity_retry_after_seconds,
     )
 
 
@@ -409,6 +433,7 @@ def _fallback_result(
         model_used=payload.model,
         dispatch_tier="fallback",
         warnings=[warning],
+        agent_id=payload.agent_id,
     )
 
 
@@ -631,6 +656,7 @@ def _dry_run_result(payload: PhaseDispatchPayload) -> PhaseDispatchResult:
             provider=payload.provider,
             model_used=payload.model,
             dispatch_tier="dry_run",
+            agent_id=payload.agent_id,
             warnings=[
                 f"Claude alias {payload.model!r} is not valid for provider {payload.provider!r}",
             ],
@@ -661,6 +687,7 @@ def _dry_run_result(payload: PhaseDispatchPayload) -> PhaseDispatchResult:
         model_used=payload.model,
         dispatch_tier="dry_run",
         warnings=[],
+        agent_id=payload.agent_id,
     )
 
 

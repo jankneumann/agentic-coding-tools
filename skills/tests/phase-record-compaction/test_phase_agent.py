@@ -24,7 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "skills/session-log/scripts"))
 sys.path.insert(0, str(REPO_ROOT / "skills/autopilot/scripts"))
 
-from phase_agent import run_phase_subagent  # noqa: E402
+from phase_agent import build_phase_dispatch_payload, run_phase_subagent  # noqa: E402
 from phase_record import PhaseRecord  # noqa: E402
 
 
@@ -182,3 +182,28 @@ class TestWorktreeIsolation:
         )
         opts = runner.calls[0]["options"]
         assert (opts.get("isolation") == "worktree") is isolated
+
+
+def test_phase_payload_preserves_explicit_agent_id(monkeypatch) -> None:
+    import phase_agent
+
+    monkeypatch.setattr(
+        phase_agent,
+        "build_phase_dispatch_kwargs",
+        lambda **kwargs: {
+            "schema_version": 1,
+            "change_id": kwargs["change_id"],
+            "phase": kwargs["phase"],
+            "provider": kwargs["provider"],
+        },
+    )
+
+    payload = build_phase_dispatch_payload(
+        "IMPLEMENT",
+        "demo",
+        provider="codex",
+        agent_id="codex-local",
+    )
+
+    assert payload["provider"] == "codex"
+    assert payload["agent_id"] == "codex-local"

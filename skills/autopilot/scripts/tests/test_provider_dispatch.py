@@ -933,3 +933,40 @@ def test_concurrency_cap_is_read_once_per_process(
 
     provider_dispatch.reset_local_adapter_state()
     assert provider_dispatch._local_gate() is not gate
+
+
+def test_exact_agent_id_survives_payload_result_and_structured_capacity() -> None:
+    payload = _payload(
+        provider="codex",
+        model="gpt-5.6",
+        agent_id="codex-local",
+    )
+
+    result = dispatch_phase(
+        payload,
+        runner=lambda _payload: {
+            "outcome": "failed",
+            "handoff_id": "handoff-capacity",
+            "error_class": "capacity_exhausted",
+            "capacity_scope": "model",
+            "capacity_model": "gpt-5.6",
+            "capacity_retry_after_seconds": 30,
+        },
+    )
+
+    assert payload.to_dict()["agent_id"] == "codex-local"
+    assert result.agent_id == "codex-local"
+    assert result.capacity_scope == "model"
+    assert result.capacity_model == "gpt-5.6"
+    assert result.capacity_retry_after_seconds == 30
+
+
+def test_provider_name_is_never_inferred_as_agent_id() -> None:
+    payload = _payload(provider="codex", model="gpt-5.6")
+
+    result = dispatch_phase(
+        payload,
+        runner=lambda _payload: ("complete", "handoff-ok"),
+    )
+
+    assert result.agent_id is None

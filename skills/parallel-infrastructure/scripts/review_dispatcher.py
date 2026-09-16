@@ -39,6 +39,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 import line_resolver
+from vendor_limit_reporter import report_vendor_limit_result
 
 logger = logging.getLogger(__name__)
 
@@ -623,6 +624,29 @@ class ReviewResult:
     coverage_rate: float | None = None
     coverage_eligibility: str = "full"
     coverage_status: str = "unreported"
+    # Exact lane and optional capacity metadata are additive for old callers.
+    agent_id: str | None = None
+    capacity_scope: str | None = None
+    capacity_model: str | None = None
+    capacity_reset_at: str | None = None
+    capacity_retry_after_seconds: int | None = None
+
+
+def _notify_capacity(
+    callback: Callable[[ReviewResult], Any] | None,
+    result: ReviewResult,
+) -> None:
+    """Keep optional reporting failures from changing dispatch outcomes."""
+    if callback is None:
+        return
+    try:
+        callback(result)
+    except Exception as exc:  # noqa: BLE001 — reporting is best-effort
+        logger.warning(
+            "Capacity reporting failed for agent_id=%s: %s",
+            result.agent_id,
+            exc,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -748,6 +772,7 @@ class CliVendorAdapter:
         archetype_model: str | None = None,
         thinking: str | None = None,
         repair_attempted: bool = False,
+        capacity_callback: Callable[[ReviewResult], Any] | None = None,
     ) -> ReviewResult:
         """Dispatch a review with model fallback on capacity errors.
 
@@ -761,6 +786,9 @@ class CliVendorAdapter:
             thinking: Optional thinking/effort level from the tier map; when
                 omitted, resolved from archetypes.yaml premium for this vendor.
         """
+        capacity_callback = capacity_callback or getattr(
+            self, "_capacity_callback", None
+        )
         resolved_model, resolved_thinking = _resolve_review_model_spec(self.vendor)
         primary = archetype_model or self.cli_config.model or resolved_model
         effective_thinking = thinking if thinking is not None else resolved_thinking
@@ -832,6 +860,16 @@ class CliVendorAdapter:
                     if ingested.error_class == ErrorClass.CAPACITY:
                         last_error = ingested.error or ""
                         last_error_class = ErrorClass.CAPACITY
+                        if capacity_callback is not None:
+                            _notify_capacity(capacity_callback, ReviewResult(
+                                vendor=self.vendor,
+                                success=False,
+                                agent_id=self.agent_id,
+                                error=last_error,
+                                error_class=ErrorClass.CAPACITY,
+                                capacity_scope="model",
+                                capacity_model=model_name,
+                            ))
                         continue
                     if not repair_attempted:
                         repair_prompt = (
@@ -847,6 +885,7 @@ class CliVendorAdapter:
                             timeout_seconds=timeout_seconds,
                             archetype_model=archetype_model,
                             repair_attempted=True,
+                            capacity_callback=capacity_callback,
                         )
                     return ingested
                 else:
@@ -880,7 +919,17 @@ class CliVendorAdapter:
                     )
 
                 if last_error_class == ErrorClass.CAPACITY:
-                    # Try next model in fallback chain
+                    # Report this model before fallback; final success must not erase it.
+                    if capacity_callback is not None:
+                        _notify_capacity(capacity_callback, ReviewResult(
+                            vendor=self.vendor,
+                            success=False,
+                            agent_id=self.agent_id,
+                            error=last_error[:500] if last_error else "capacity_exhausted",
+                            error_class=ErrorClass.CAPACITY,
+                            capacity_scope="model",
+                            capacity_model=model_name,
+                        ))
                     logger.info(
                         "%s model %s capacity exhausted, trying fallback",
                         self.vendor, model_name,
@@ -2534,12 +2583,14 @@ class ReviewOrchestrator:
 
         async_jobs: list[dict[str, Any]] = []
         sync_jobs: list[tuple[int, str, int, Callable[[], ReviewResult]]] = []
+        job_agent_ids: dict[int, str] = {}
         next_index = 0
 
         for reviewer in available:
             vendor_timeout = timeout_for_vendor(reviewer.vendor, timeout_seconds)
             if reviewer.dispatch_tier == "cli":
                 adapter = self.adapters[reviewer.agent_id]
+                adapter._capacity_callback = report_vendor_limit_result
                 if not adapter.can_dispatch(dispatch_mode):
                     logger.info(
                         "Skipping %s: dispatch mode '%s' not configured",
@@ -2550,6 +2601,7 @@ class ReviewOrchestrator:
                 mode_config = adapter.cli_config.dispatch_modes[dispatch_mode]
                 idx = next_index
                 next_index += 1
+                job_agent_ids[idx] = reviewer.agent_id
 
                 if mode_config.async_dispatch:
                     logger.info(
@@ -2588,6 +2640,7 @@ class ReviewOrchestrator:
 
             elif reviewer.dispatch_tier == "sdk":
                 sdk_adapter = self.sdk_adapters[reviewer.agent_id]
+                sdk_adapter._capacity_callback = report_vendor_limit_result
                 api_key = api_key_resolver.resolve(
                     sdk_adapter.openbao_role_id,
                     sdk_adapter.sdk_config.api_key_env,
@@ -2599,6 +2652,7 @@ class ReviewOrchestrator:
                 )
                 idx = next_index
                 next_index += 1
+                job_agent_ids[idx] = reviewer.agent_id
                 if not api_key:
                     sync_jobs.append((
                         idx,
@@ -2640,6 +2694,7 @@ class ReviewOrchestrator:
                 )
                 idx = next_index
                 next_index += 1
+                job_agent_ids[idx] = reviewer.agent_id
                 sync_jobs.append((
                     idx,
                     reviewer.vendor,
@@ -2661,6 +2716,10 @@ class ReviewOrchestrator:
         collected: dict[int, ReviewResult] = {}
 
         def _collect(index: int, result: ReviewResult) -> None:
+            if result.agent_id is None:
+                result.agent_id = job_agent_ids[index]
+            if result.error_class == ErrorClass.CAPACITY:
+                report_vendor_limit_result(result)
             if result_callback is not None:
                 result_callback(result, job_count)
             collected[index] = result
