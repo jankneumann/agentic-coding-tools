@@ -77,6 +77,28 @@ def test_coordination_api_registry_factory_wires_durable_audit(
 
 
 @pytest.mark.asyncio
+async def test_probe_persistence_failure_audit_identifies_lane_and_reason() -> None:
+    audit = AsyncMock()
+    service = VendorRegistryService(_db(), agents=[_agent()], audit=audit)
+
+    await service.audit_probe_persistence_failure(
+        "codex-local",
+        source_agent_id="watchdog",
+        reason="probe_persistence_failed",
+    )
+
+    event = audit.log_operation.await_args.kwargs
+    assert event["agent_id"] == "watchdog"
+    assert event["operation"] == "vendor_probe_persistence_failed"
+    assert event["parameters"] == {"target_agent_id": "codex-local"}
+    assert event["result"] == {
+        "status": "failed",
+        "reason": "probe_persistence_failed",
+    }
+    assert event["success"] is False
+
+
+@pytest.mark.asyncio
 async def test_list_vendors_batches_sources_and_applies_conjunctive_filters() -> None:
     db = _db(
         {

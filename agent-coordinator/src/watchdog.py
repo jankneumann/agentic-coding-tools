@@ -479,6 +479,19 @@ class WatchdogService:
                         vendor.agent_id,
                         exc,
                     )
+                    try:
+                        await self.vendor_registry.audit_probe_persistence_failure(
+                            vendor.agent_id,
+                            source_agent_id="watchdog",
+                            reason="probe_persistence_failed",
+                        )
+                    except Exception as audit_exc:  # noqa: BLE001
+                        logger.error(
+                            "Watchdog: failed to audit vendor probe persistence "
+                            "failure for %s: %s",
+                            vendor.agent_id,
+                            audit_exc,
+                        )
 
             # The first poll establishes transition state but still persists snapshots.
             if not self._previous_vendor_state:
