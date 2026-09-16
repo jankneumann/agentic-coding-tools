@@ -303,7 +303,7 @@ packages:
           evidence: {artifacts: [], result_keys: [coordinator_regression_passed]}
         - name: "Skills regression"
           kind: command
-          command: "skills/.venv/bin/python -m pytest -c skills/pyproject.toml"
+          command: "cd skills && .venv/bin/python -m pytest -q"
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [skills_regression_passed]}
