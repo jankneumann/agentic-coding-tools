@@ -95,7 +95,7 @@ The original item remains as `superseded` provenance. Replacement items inherit 
   before: ri-06              # use before OR after
 ```
 
-Reordering moves one item. When priorities are a strict `1..N` sequence in list order, they are renumbered to match the new order. Otherwise priority is a tier shared by several items, and only the moved item changes: it takes its anchor's (`before`/`after` target's) priority, and list order breaks the tie within that tier. The same rule governs split, so a structural edit never rewrites the priority tiers of unrelated items. The preview shows the resulting execution waves and every priority change before any write. Ties inside a tier are broken by list order in sequential dispatch but by `item_id` in coordinated batches (roadmap-orchestration "Scope-Safe Ready Batches"), so a reorder that contradicts item-id order within its tier carries a preview warning: it changes sequential order only.
+Reordering moves one item. When priorities are a strict `1..N` sequence in list order, they are renumbered to match the new order. Otherwise priority is a tier shared by several items, and only the moved item changes: it takes its anchor's (`before`/`after` target's) priority, and list order breaks the tie within that tier. The same rule governs split, so a structural edit never rewrites the priority tiers of unrelated items. The preview shows the resulting execution waves and every priority change before any write. Ties inside a tier are broken by list order in every dispatch path — sequential readiness, coordinated batches, and the cross-roadmap resolver (roadmap-orchestration "Roadmap List Order Breaks Priority Ties") — so a within-tier reorder takes effect everywhere and needs no caveat.
 
 ### Supersede
 

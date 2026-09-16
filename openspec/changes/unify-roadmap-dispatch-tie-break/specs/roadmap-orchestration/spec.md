@@ -14,6 +14,11 @@ Every roadmap dispatch path SHALL break ties among equal-priority ready items by
 - **WHEN** ready items are passed to coordinated batch selection in an order other than roadmap list order
 - **THEN** selection SHALL order them by their declared position, not by argument order.
 
+#### Scenario: Naming the first ready item agrees with dispatch
+
+- **WHEN** a surface outside dispatch names a roadmap's first ready item, such as the supervisor mirror recording a parked `roadmap_approval` gate's `change_id`
+- **THEN** it SHALL resolve "first" by the same order, so the name it records is the item dispatch will select.
+
 #### Scenario: Reordering within a tier takes effect
 
 - **WHEN** an operator reorders an item ahead of a same-priority item without changing either priority
