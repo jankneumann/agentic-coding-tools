@@ -55,7 +55,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
 
 ## Phase 2 — `skill-audit` skill (package `wp-skill-audit`)
 
-- [ ] 2.1 Write `skills/tests/skill-audit/test_findings_schema.py` against `contracts/schemas/skill-audit-findings.schema.json` copied to `install_assets`: a minimal valid ledger validates; `layer: contract` with `remediation: delete` fails; unknown `kind` fails; `evidence.benchmark` may be null or absent
+- [x] 2.1 Write `skills/tests/skill-audit/test_findings_schema.py` against `contracts/schemas/skill-audit-findings.schema.json` copied to `install_assets`: a minimal valid ledger validates; `layer: contract` with `remediation: delete` fails; unknown `kind` fails; `evidence.benchmark` may be null or absent
   **Spec scenarios**: skill-workflow "Contract sections cannot be deleted"
   **Contracts**: `contracts/schemas/skill-audit-findings.schema.json`
   **Design decisions**: D5
