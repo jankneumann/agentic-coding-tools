@@ -20,7 +20,7 @@ import re
 import secrets
 import sys
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Protocol, Sequence, Union
 
@@ -47,6 +47,7 @@ from models import (  # type: ignore[import-untyped]
     LearningDecision,
     LearningEntry,
     LearningPhase,
+    PolicyAction,
     Roadmap,
     RoadmapItem,
     completed_external_refs,
@@ -894,6 +895,23 @@ def execute_roadmap(
         checkpoint = mgr.create(roadmap)
         logger.info("Created new checkpoint for %s", roadmap.roadmap_id)
 
+    if _pause_is_active(checkpoint.pause_state):
+        logger.info(
+            "roadmap.policy_pause_active: vendor=%s resume_at=%s",
+            checkpoint.pause_state.get("blocked_vendor"),
+            checkpoint.pause_state.get("expected_resume_at"),
+        )
+        return _build_summary(
+            roadmap,
+            checkpoint,
+            policy_decisions,
+            gate_decisions,
+            replan_state,
+        )
+    if checkpoint.pause_state.get("paused"):
+        checkpoint.pause_state = {}
+        mgr.save(checkpoint)
+
     # Track vendor switch attempts per item
     switch_attempts: dict[str, int] = {}
 
@@ -953,6 +971,10 @@ def execute_roadmap(
             agents_yaml_fallback=agents_yaml_fallback,
             routing_location=routing_location,
         )
+
+        if checkpoint.pause_state.get("paused"):
+            save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
+            break
 
         if replan_state.get("requested"):
             # The gate said proceed: the roadmap's remaining shape is now the
@@ -1053,6 +1075,7 @@ def _execute_item_phases(
                 dispatch_metadata.get("dispatch_agent_id")
                 or dispatch_metadata.get("agent_id")
             )
+            capacity_reset_at = _capacity_reset_at(dispatch_metadata)
 
             if outcome == "success":
                 logger.info(
@@ -1094,6 +1117,7 @@ def _execute_item_phases(
                     prompt_tokens=dispatch_metadata.get("prompt_tokens"),
                     completion_tokens=dispatch_metadata.get("completion_tokens"),
                     location=routing_location,
+                    reset_at=capacity_reset_at,
                 )
                 report_status = dispatch_metadata.get("capacity_report_status")
                 if dispatch_agent_id is None:
@@ -1123,6 +1147,14 @@ def _execute_item_phases(
                 if decision.action == "fail_closed":
                     # A vendor-policy stop is not a plan problem.
                     _fail(f"Policy fail_closed: {decision.reason}")
+                    return False
+                if decision.action == "wait":
+                    _persist_policy_pause(
+                        checkpoint=checkpoint,
+                        mgr=mgr,
+                        decision=decision,
+                        expected_resume_at=capacity_reset_at,
+                    )
                     return False
 
                 # Retry this exact phase. Switches carry the selected lane through
@@ -1293,6 +1325,64 @@ def _repo_relative(path: Path, repo_root: Path | None) -> str:
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _parse_reset_at(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _capacity_reset_at(metadata: Mapping[str, Any]) -> str | None:
+    reset_at = metadata.get("capacity_reset_at")
+    if _parse_reset_at(reset_at) is not None:
+        return str(reset_at)
+
+    retry_after = metadata.get("capacity_retry_after_seconds")
+    if (
+        isinstance(retry_after, (int, float))
+        and not isinstance(retry_after, bool)
+        and retry_after >= 0
+    ):
+        return (
+            datetime.now(timezone.utc) + timedelta(seconds=float(retry_after))
+        ).isoformat()
+    return None
+
+
+def _pause_is_active(pause_state: Mapping[str, Any]) -> bool:
+    if not pause_state.get("paused"):
+        return False
+    expected_resume_at = pause_state.get("expected_resume_at")
+    parsed = _parse_reset_at(expected_resume_at)
+    if parsed is None:
+        return True
+    return datetime.now(timezone.utc) < parsed
+
+
+def _persist_policy_pause(
+    *,
+    checkpoint: Any,
+    mgr: CheckpointManager,
+    decision: PolicyDecision,
+    expected_resume_at: str | None,
+) -> None:
+    pause_state: dict[str, Any] = {
+        "paused": True,
+        "reason": decision.reason,
+        "paused_at": datetime.now(timezone.utc).isoformat(),
+        "blocked_vendor": decision.from_vendor,
+    }
+    if expected_resume_at is not None:
+        pause_state["expected_resume_at"] = expected_resume_at
+    checkpoint.pause_state = pause_state
+    mgr.save(checkpoint)
+
+
 def _handle_vendor_limit(
     roadmap: Roadmap,
     item_id: str,
@@ -1308,8 +1398,21 @@ def _handle_vendor_limit(
     prompt_tokens: int | None = None,
     completion_tokens: int | None = None,
     location: str | None = None,
+    reset_at: str | None = None,
 ) -> PolicyDecision:
-    """Select an exact alternate lane from the registry, failing closed on outage."""
+    """Honor WAIT directly or select an exact alternate registry lane.
+
+    WAIT does not require registry availability because it preserves the current lane.
+    """
+    vendor_limit = VendorLimit(vendor=vendor, reason=reason, reset_at=reset_at)
+    if roadmap.policy.default_action == PolicyAction.WAIT:
+        return select_registry_lane(
+            policy=roadmap.policy,
+            vendor_limit=vendor_limit,
+            lanes=(),
+            switch_attempts=switch_attempts.get(item_id, 0),
+        )
+
     item = next((candidate for candidate in roadmap.items if candidate.item_id == item_id), None)
     capability = item.capability if item is not None else None
     archetype = {
@@ -1371,7 +1474,7 @@ def _handle_vendor_limit(
         )
     decision = select_registry_lane(
         policy=roadmap.policy,
-        vendor_limit=VendorLimit(vendor=vendor, reason=reason),
+        vendor_limit=vendor_limit,
         lanes=eligible,
         switch_attempts=switch_attempts.get(item_id, 0),
         from_agent_id=dispatch_agent_id,
@@ -1468,6 +1571,9 @@ def _build_summary(
         "policy_decisions": policy_decisions,
         "gate_decisions": list(gate_decisions or []),
     }
+    if checkpoint.pause_state.get("paused"):
+        summary["status"] = "paused"
+        summary["pause_state"] = copy.deepcopy(checkpoint.pause_state)
     if replan_state.get("requested"):
         # The run stopped deliberately to hand off to the host; that is a
         # different outcome from "blocked_all" and the host branches on it.

@@ -326,6 +326,85 @@ def _registry_lane(agent_id: str, policy_vendor: str) -> dict:
     }
 
 
+def test_wait_policy_persists_pause_and_does_not_retry_or_select_lane(
+    tmp_path,
+) -> None:
+    reset_at = "2999-09-17T12:00:00+00:00"
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(default_action=PolicyAction.WAIT),
+    )
+    dispatch_calls: list[tuple[str, dict]] = []
+    registry_calls: list[dict] = []
+
+    def dispatch(_item_id, phase, context):
+        dispatch_calls.append((phase, dict(context)))
+        if phase == "implementing":
+            if sum(call_phase == "implementing" for call_phase, _ in dispatch_calls) > 1:
+                raise AssertionError("WAIT policy retried the paused phase")
+            return {
+                "outcome": "vendor_limit:claude:capacity",
+                "agent_id": "claude-local",
+                "capacity_reset_at": reset_at,
+                "capacity_report_status": "persisted",
+            }
+        return "success"
+
+    def registry_provider(**filters):
+        registry_calls.append(filters)
+        return {
+            "status": "ok",
+            "response": {"vendors": [_registry_lane("codex-cloud", "codex")]},
+        }
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        registry_provider=registry_provider,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert result["status"] == "paused"
+    assert checkpoint["phase"] == "implementing"
+    assert checkpoint["pause_state"]["paused"] is True
+    assert checkpoint["pause_state"]["blocked_vendor"] == "claude"
+    assert checkpoint["pause_state"]["expected_resume_at"] == reset_at
+    assert "capacity" in checkpoint["pause_state"]["reason"]
+    assert [phase for phase, _ in dispatch_calls].count("implementing") == 1
+    assert registry_calls == []
+    decision = result["policy_decisions"][0]["decision"]
+    assert decision["action"] == "wait"
+    assert decision["to_agent_id"] is None
+
+    resumed_dispatches: list[str] = []
+    still_paused = execute_roadmap(
+        tmp_path,
+        dispatch_fn=lambda _item, phase, _context: (
+            resumed_dispatches.append(phase) or "success"
+        ),
+        registry_provider=registry_provider,
+    )
+    assert still_paused["status"] == "paused"
+    assert resumed_dispatches == []
+
+    checkpoint["pause_state"]["expected_resume_at"] = "2000-01-01T00:00:00+00:00"
+    (tmp_path / "checkpoint.json").write_text(json.dumps(checkpoint))
+    resumed = execute_roadmap(
+        tmp_path,
+        dispatch_fn=lambda _item, phase, _context: (
+            resumed_dispatches.append(phase) or "success"
+        ),
+        registry_provider=registry_provider,
+    )
+    assert resumed["status"] == "completed"
+    assert resumed_dispatches[0] == "implementing"
+    resumed_checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert resumed_checkpoint.get("pause_state") in (None, {})
+
+
 def test_vendor_limit_uses_registry_lanes_not_hardcoded_roster(tmp_path) -> None:
     roadmap = _write_roadmap(
         tmp_path,
