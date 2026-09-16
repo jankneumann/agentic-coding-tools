@@ -31,13 +31,22 @@ _PROHIBITED_FIELDS = {
     "env_value",
 }
 
+_PROHIBITED_STRING_PATTERN = re.compile(
+    rf"\b(?P<field>{'|'.join(sorted(field.replace('_', '[-_]') for field in _PROHIBITED_FIELDS))})"
+    r"\s*[:=].*$",
+    re.IGNORECASE | re.DOTALL,
+)
+
 
 def sanitize_string(text: str) -> str:
     """Redact sensitive patterns from a string."""
     result = text
     for name, pattern in _SENSITIVE_PATTERNS:
         result = pattern.sub(f"[REDACTED:{name}]", result)
-    return result
+    return _PROHIBITED_STRING_PATTERN.sub(
+        lambda match: f"[REDACTED:{match.group('field').lower().replace('-', '_')}]",
+        result,
+    )
 
 
 def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:

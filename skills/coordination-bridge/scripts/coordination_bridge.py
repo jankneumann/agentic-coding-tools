@@ -558,6 +558,144 @@ def _execute_single_endpoint_operation(
     )
 
 
+def _execute_vendor_registry_operation(
+    *,
+    operation: str,
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Execute a registry route without pretending errors are empty success."""
+    state = detect_coordination(http_url=http_url, api_key=api_key)
+    if not state["COORDINATOR_AVAILABLE"]:
+        return _skipped_operation(
+            operation=operation,
+            reason="coordinator_unavailable",
+            state=state,
+        )
+    response = _http_request(
+        method=method,
+        path=path,
+        payload=payload,
+        http_url=state.get("http_url"),
+        api_key=_resolve_api_key(api_key),
+    )
+    data = response.get("data")
+    status_code = response.get("status_code")
+    if isinstance(status_code, int) and status_code >= 500:
+        return {
+            "status": "error",
+            "operation": operation,
+            "reason": "server_error",
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+            "status_code": status_code,
+            "response": data,
+            "error": response.get("error"),
+        }
+    if isinstance(status_code, int) and 200 <= status_code < 300 and not isinstance(
+        data, dict
+    ):
+        return {
+            "status": "error",
+            "operation": operation,
+            "reason": "malformed_response",
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+            "status_code": status_code,
+            "response": data,
+            "error": "Coordinator returned a non-object registry payload",
+        }
+    if status_code == 404 and isinstance(data, dict):
+        detail = data.get("detail")
+        if detail == "unknown_vendor_lane":
+            return {
+                "status": "error",
+                "operation": operation,
+                "COORDINATOR_AVAILABLE": True,
+                "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+                "status_code": 404,
+                "response": data,
+                "error": detail,
+            }
+    return _normalize_operation_response(
+        operation=operation,
+        response=response,
+        state=state,
+    )
+
+
+def try_list_vendors(
+    *,
+    capability: str | None = None,
+    archetype: str | None = None,
+    dispatch_mode: str | None = None,
+    location: str | None = None,
+    available_only: bool = False,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Return configured vendor lanes through the native operation envelope."""
+    params: list[tuple[str, str]] = []
+    for name, value in (
+        ("capability", capability),
+        ("archetype", archetype),
+        ("dispatch_mode", dispatch_mode),
+        ("location", location),
+    ):
+        if value is not None:
+            params.append((name, value))
+    if available_only:
+        params.append(("available_only", "true"))
+    query = url_parse.urlencode(params)
+    path = f"/vendors?{query}" if query else "/vendors"
+    return _execute_vendor_registry_operation(
+        operation="list_vendors",
+        method="GET",
+        path=path,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_get_vendor_availability(
+    agent_id: str,
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Return one exact lane's availability without provider-name inference."""
+    quoted_agent_id = url_parse.quote(agent_id, safe="")
+    return _execute_vendor_registry_operation(
+        operation="get_vendor_availability",
+        method="GET",
+        path=f"/vendors/{quoted_agent_id}/availability",
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_report_vendor_rate_limit(
+    agent_id: str,
+    observation: dict[str, Any],
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Report a capacity observation for an exact configured lane."""
+    quoted_agent_id = url_parse.quote(agent_id, safe="")
+    return _execute_vendor_registry_operation(
+        operation="report_vendor_rate_limit",
+        method="POST",
+        path=f"/vendors/{quoted_agent_id}/rate-limit-observations",
+        payload=observation,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def _execute_multi_endpoint_operation(
     *,
     operation: str,

@@ -1,0 +1,45 @@
+{
+  "review_type": "plan",
+  "target": "add-live-vendor-capability-and-cost-registry",
+  "reviewer_vendor": "codex-self",
+  "coverage": {
+    "reviewed": [
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/proposal.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/tasks.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/specs/vendor-registry/spec.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/work-packages.yaml",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/db/schema.sql",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/events/vendor-availability.schema.json"
+    ],
+    "skipped": [],
+    "rate": 1.0
+  },
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Revision 3 assigns every runtime seam and integration dependency, preserves typed lane/provider/policy/catalog identities and explicit location, and keeps model pricing solely in dg-00.",
+      "resolution": "Proceed with package-ordered TDD.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Probe and limit evidence now have deterministic freshness, bounded reset, atomic replay, compaction ownership, explicit unavailable behavior, and validation gates.",
+      "resolution": "Proceed with failure-first tests.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/specs/vendor-registry/spec.md",
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

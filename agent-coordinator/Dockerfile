@@ -76,6 +76,8 @@ COPY agent-coordinator/src/ /app/src/
 # Keep it outside coordinator internals so consumer skill installs can use the
 # same implementation without depending on /app/src.
 COPY skills/shared/github_classifier.py /app/skills/shared/github_classifier.py
+# Watchdog loads this probe through SKILLS_ROOT in the deployed runtime.
+COPY skills/parallel-infrastructure/scripts/vendor_health.py /app/skills/parallel-infrastructure/scripts/vendor_health.py
 COPY agent-coordinator/profiles/ /app/profiles/
 COPY agent-coordinator/cedar/ /app/cedar/
 # Evaluation module is imported by src/coordination_api.py for the
@@ -113,6 +115,7 @@ USER appuser
 ENV DB_BACKEND=postgres \
     PYTHONPATH=/app \
     SKILLS_ROOT=/app/skills \
+    AGENTS_YAML=/app/agents.yaml \
     # Prepend the venv to PATH so `python` (and other installed entry points)
     # resolve to /app/.venv/ instead of the base image's /usr/local/bin/python.
     # Without this, ad-hoc invocations like `docker run --entrypoint python ...`

@@ -318,6 +318,13 @@ class TestDeriveAllowedOperations:
         assert "publish_work_projection" not in low
         assert "publish_work_projection" in high
 
+    def test_trust_three_derives_vendor_rate_limit_admin_override(self) -> None:
+        low = derive_allowed_operations(["lock"], trust_level=2)
+        high = derive_allowed_operations(["lock"], trust_level=3)
+
+        assert "report_vendor_rate_limit" not in low
+        assert "report_vendor_rate_limit" in high
+
     def test_output_is_sorted_and_deduplicated(self) -> None:
         # feature_registry and trust>=3 both grant register_feature.
         ops = derive_allowed_operations(["feature_registry"], trust_level=3)
@@ -330,11 +337,11 @@ class TestDeriveAllowedOperations:
 
 
 class TestClaudeCodeLocalRegression:
-    """Task 2.5 — the derived grants must reproduce migrations 007/019/022.
+    """Task 2.5 — derived grants reproduce migrations 007/019/022/039/041.
 
     ``claude_code_cli`` was seeded by 007, renamed to ``claude_code_local`` by
-    019, and topped up by 022 and 039. The union below is what a live deployment's row
-    holds today; the projection must not silently drop any of it.
+    019, and topped up by 022, 039, and 041. The union below is what a live
+    deployment's row holds today; the projection must not silently drop any of it.
     """
 
     MIGRATION_GRANTS = {
@@ -363,6 +370,7 @@ class TestClaudeCodeLocalRegression:
         "mark_merged",
         "remove_from_merge_queue",
         "publish_work_projection",
+        "report_vendor_rate_limit",
     }
 
     def test_derived_operations_match_migrations(self) -> None:
