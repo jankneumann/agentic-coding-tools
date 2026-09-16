@@ -1,0 +1,196 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: DG-04 says it will not define isolation precedence, but `contracts/config/routing.schema.json:26-42` introduces an ordered `fallback.isolation_order`, and `design.md:104-115` requires the local helper to use that fallback dimension order. This is an isolation-precedence policy and conflicts with `proposal.md:23-25` and `design.md:121-127`, which reserve the precedence ladder for DG-05.",
+      "resolution": "Remove isolation ordering from DG-04. Local fallback should preserve the exact configured lane isolation and use a non-isolation tie-breaker such as exact lane identity; leave isolation precedence and overrides to DG-05.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/config/routing.schema.json",
+      "line_range": {
+        "start": 26,
+        "end": 42
+      },
+      "existing_code": "\"isolation_order\": {\n          \"type\": \"array\",\n          \"minItems\": 1,\n          \"uniqueItems\": true,\n          \"items\": {\"$ref\": \"#/$defs/isolation\"}\n        }"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The normative exact-association scenario in `specs/task-routing/spec.md:47-53` requires equality only on catalog vendor, model, and endpoint kind, while `design.md:46-58` defines the exact projection key as `(catalog_vendor, model, endpoint_kind, base_url)` and the OpenAPI provenance key contains four elements. Omitting `base_url` from the requirement permits two differently configured local endpoints to be treated as the same catalog association.",
+      "resolution": "Amend the requirement and its tests to include exact `base_url` equality, including null equality, matching DG-01's projection identity and the four-element `catalog_key` contract.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+      "line_range": {
+        "start": 47,
+        "end": 53
+      },
+      "existing_code": "- **THEN** routing SHALL associate it only by the exact projected catalog vendor, model,\n  and endpoint-kind identity"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: `design.md:21-24` promises allowed and excluded lane, vendor, and location sets, but `contracts/openapi/v1.1.yaml:46-57` defines `allowed_locations` without a corresponding `excluded_locations`. The typed roadmap-policy contract therefore cannot express the documented excluded-location constraint.",
+      "resolution": "Add typed `excluded_locations` with unique `Location` items and add boundary and feasibility tests for it.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+      "line_range": {
+        "start": 46,
+        "end": 57
+      },
+      "existing_code": "allowed_locations:\n          type: array\n          items: {$ref: '#/components/schemas/Location'}\n          uniqueItems: true"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: `specs/task-routing/spec.md:100-104` and `design.md:86-87` require every alternative to retain its exact lane assignment, but `contracts/openapi/v1.1.yaml:126-141` gives `Candidate` only an optional `agent_id`; it has no vendor type, location, isolation, dispatch mode, or per-alternative assignment. `SelectModelResponse.alternatives` reuses this incomplete schema at lines 182-200.",
+      "resolution": "Define a typed candidate-assignment shape for selected and alternative candidates, or add a required `assignment` object to each DG-04 candidate, while retaining the existing candidate fields additively.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+      "line_range": {
+        "start": 126,
+        "end": 141
+      },
+      "existing_code": "Candidate:\n      type: object\n      required: [vendor, model, endpoint_kind, score]"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: The audit-event payload has three mutually incompatible definitions. `design.md:89-99` makes the generic audit event a link containing only decision ID, selected agent/model, policy version, and source; `specs/task-routing/spec.md:93-98` requires sanitized request, assignment, policy provenance, and success; and `contracts/README.md:10-11` plus `contracts/events/routing-decision.schema.json:6-24` define a full decision snapshot shared by both stores. Implementers cannot preserve the routing row as the sole authority while satisfying all three contracts.",
+      "resolution": "Choose the design's authoritative-row/link-event model required by the stated boundary: define a separate strict audit-link schema containing the decision ID, selected lane/model, policy version, source, success, and durable audit entry ID as appropriate; keep the full snapshot exclusively in `routing_decisions`; update the spec and README accordingly.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+      "line_range": {
+        "start": 89,
+        "end": 99
+      },
+      "existing_code": "The generic audit event is\nan index/link, not a second source of routing truth."
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "critical",
+      "description": "Critical: `design.md:89-93` asserts that the existing JSONB columns can retain additive assignment and provenance without migration, but it never defines where those top-level response objects are embedded. The existing `routing_decisions` table has JSONB columns only for `request`, `selected`, `alternatives`, and `excluded`, whereas the OpenAPI response defines top-level `assignment` and `provenance`. The current record path cannot insert undeclared top-level columns, and `work-packages.yaml:94-106` provides no migration scope.",
+      "resolution": "Specify and contract-test an exact storage projection, such as embedding assignment in each selected/alternative JSONB candidate and decision provenance at a documented JSONB path, including reconstruction on reads; alternatively add an explicit migration package and rollback plan.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+      "line_range": {
+        "start": 89,
+        "end": 93
+      },
+      "existing_code": "Its\nJSONB request/selected/alternatives/excluded fields accept additive assignment and\nprovenance, so no schema migration is required."
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "critical",
+      "description": "Critical: `design.md:95-99` prescribes inserting the authoritative routing row first and then writing the durable audit event, failing the request if the second write is not durable. It does not define a transaction, outbox, idempotency key, compensation, or recoverable incomplete state. An audit failure therefore leaves an authoritative routing decision without its required linked event, and a client retry can create another decision.",
+      "resolution": "Define an atomic transaction or transactional-outbox protocol for the routing row and audit link, including idempotent retry semantics and tests for failure after each write. If atomicity is impossible, explicitly model and reconcile a pending-audit state before returning success.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+      "line_range": {
+        "start": 95,
+        "end": 99
+      },
+      "existing_code": "After that row is inserted, DG-04 emits a sanitized `routing_decision` audit-log event\nthat links only the decision ID, selected agent/model, policy version, and source."
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: Honest local-fallback provenance is prose-only. `design.md:112-115` requires `fallback=true`, `source=local-static`, `persisted=false`, and `durable_audit=false`, but `specs/task-routing/spec.md:112-118` omits `persisted=false`, and `contracts/openapi/v1.1.yaml:159-200` permits contradictory combinations such as `source=local-static` with `persisted=true`, `durable_audit=true`, or `fallback=false`.",
+      "resolution": "Add the missing persisted requirement and define/test conditional response invariants tying fallback, source, persistence, and durable-audit values together. Coordinator results should likewise require `source=coordinator`, `fallback=false`, `persisted=true`, and `durable_audit=true` before success is returned.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+      "line_range": {
+        "start": 159,
+        "end": 200
+      },
+      "existing_code": "source: {type: string, enum: [coordinator, local-static]}\n        policy_version: {type: string}\n        policy_checksum: {type: string, pattern: '^[a-f0-9]{64}$'}\n        matched_rule_ids: {type: array, items: {type: string}}\n        rationale: {type: array, items: {type: string}}\n        persisted: {type: boolean}\n        durable_audit: {type: boolean}"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: The plan promises that no secret, environment value, prompt, or unbounded path list enters persistence (`design.md:101-102`), but legacy `task_signals` explicitly permits arbitrary extra fields (`design.md:13-15` and `contracts/openapi/v1.1.yaml:105-114`), while the event contract accepts an unconstrained `request` object (`contracts/events/routing-decision.schema.json:9`). No allowlisted persistence projection or redaction behavior is specified, so existing callers can place sensitive values in extra fields that are then copied into the authoritative record or audit payload.",
+      "resolution": "Define a strict sanitized persisted-request DTO containing only approved typed categories, explicitly drop legacy extra fields before persistence/audit, constrain the event schema to that DTO, and add tests using prompt, environment, secret, and path-list sentinel fields.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+      "line_range": {
+        "start": 105,
+        "end": 114
+      },
+      "existing_code": "task_signals:\n          type: object\n          required: [archetype]\n          properties:\n            archetype: {type: string, minLength: 1}\n            phase: {type: [string, \"null\"], default: null}\n            task_type: {type: [string, \"null\"], default: null}\n            complexity: {type: [string, \"null\"], enum: [low, medium, high, null]}\n            modality: {type: string, enum: [interactive, programmatic], default: programmatic}\n          additionalProperties: true"
+    },
+    {
+      "id": 10,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: The plan does not specify coordinator behavior when the in-process `VendorRegistryService` read itself fails or returns malformed data. `design.md:46-58` defines exact association and `design.md:60-73` defines filtering, but the only fallback scenario covers client-to-coordinator transport failure. Without a fail-closed requirement, implementation could accidentally score catalog-only candidates and bypass registry feasibility, or return an unspecified 500.",
+      "resolution": "Add a scenario requiring registry read/projection failure to stop routing before `score_and_rank`, return the existing sanitized routing-unavailable response, emit bounded diagnostics, and never substitute catalog-only or heuristic candidates. Add a test asserting the scorer is not called.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+      "line_range": {
+        "start": 42,
+        "end": 66
+      },
+      "existing_code": "The router SHALL consume `VendorRegistryService` in process and remove infeasible\nlane/model assignments before invoking the existing dg-00 utility scorer."
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: `design.md:129-136` requires PostgreSQL coverage for the additive JSONB decision round trip and durable audit link, but no package owns such a test. `wp-policy-service` lists only model-routing unit-test paths, while `wp-integration` cannot write PostgreSQL tests and its coordinator regression explicitly excludes both `integration` and `e2e` markers (`work-packages.yaml:213-218`). The central durability claim therefore has no executable acceptance evidence.",
+      "resolution": "Add an integration/PostgreSQL test path to an owning package's write scope and verification commands. Exercise the stored assignment/provenance shape, linked durable audit record, retrieval, and audit-write failure behavior against a real PostgreSQL backend.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml",
+      "line_range": {
+        "start": 210,
+        "end": 218
+      },
+      "existing_code": "- name: \"Coordinator regression\"\n          kind: command\n          command: \"agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -m 'not e2e and not integration' -q\""
+    },
+    {
+      "id": 12,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: `tasks.md:8-10` requires a typed exclusion schema and `specs/task-routing/spec.md:55-60` requires a machine-readable exclusion reason, but `contracts/openapi/v1.1.yaml:191` declares each exclusion as an unconstrained object. The contract does not require lane identity, catalog identity, a reason code, or sanitized detail.",
+      "resolution": "Add a strict `RoutingExclusion` component with exact lane/catalog identity and an enumerated reason code plus optional bounded sanitized detail, and use it in the response and persisted-decision schemas.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+      "line_range": {
+        "start": 182,
+        "end": 200
+      },
+      "existing_code": "excluded: {type: array, default: [], items: {type: object}}"
+    }
+  ]
+}
