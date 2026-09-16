@@ -10,6 +10,7 @@ import asyncio
 import logging
 import os
 import time
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,11 @@ _AGING_APPROVAL_THRESHOLD_MINUTES = 15
 _REMINDER_DEBOUNCE_SECONDS = 30 * 60  # 30 minutes
 _LOCK_EXPIRY_WARNING_MINUTES = 10
 _DEFAULT_VENDOR_HEALTH_INTERVAL = 300  # 5 minutes
+_DEFAULT_CATALOG_REFRESH_INTERVAL = 6 * 60 * 60
+_DEFAULT_LOCAL_PROBE_INTERVAL = 5 * 60
+_DEFAULT_LEDGER_ROLLUP_INTERVAL = 5 * 60
+
+RoutingJob = tuple[Callable[[], Awaitable[Any]], int]
 
 
 class WatchdogService:
@@ -36,6 +42,7 @@ class WatchdogService:
         db: DatabaseClient | None = None,
         check_interval: int | None = None,
         time_fn: Any = None,
+        routing_jobs: Mapping[str, RoutingJob] | None = None,
     ) -> None:
         self._db = db
         self._interval = check_interval or int(
@@ -50,6 +57,10 @@ class WatchdogService:
         )
         self._last_vendor_check: float = 0.0
         self._previous_vendor_state: dict[str, bool] = {}  # agent_id -> healthy
+        self._routing_jobs = (
+            dict(routing_jobs) if routing_jobs is not None else self._default_routing_jobs()
+        )
+        self._last_routing_run: dict[str, float] = {}
 
     @property
     def db(self) -> DatabaseClient:
@@ -89,6 +100,104 @@ class WatchdogService:
         await self._cleanup_expired_tokens()
         await self._check_event_bus_health()
         await self._check_vendor_health()
+        await self._run_routing_jobs()
+
+    def _default_routing_jobs(self) -> dict[str, RoutingJob]:
+        """Build lazy routing jobs; missing optional credentials degrade safely."""
+
+        async def refresh_catalog() -> dict[str, Any]:
+            api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+            if not api_key:
+                return {"skipped": "OPENROUTER_API_KEY is not configured"}
+            from .model_routing.catalog import CatalogService
+            from .model_routing.refresher import OpenRouterRefresher
+
+            result = await OpenRouterRefresher(CatalogService(self.db), api_key=api_key).refresh()
+            return {"updated": result.updated}
+
+        async def probe_local_endpoints() -> dict[str, Any]:
+            from .model_routing.catalog import CatalogService
+            from .model_routing.local_endpoints import LocalEndpointService
+
+            service = LocalEndpointService(CatalogService(self.db))
+            await service.sync_from_agents_config()
+            results = await service.probe_all()
+            return {
+                "probed": len(results),
+                "available": sum(result.available for result in results),
+            }
+
+        async def rollup_ledger() -> dict[str, Any]:
+            from .model_routing.ledger import LedgerService
+
+            return await LedgerService(self.db).rollup_current_month()
+
+        return {
+            "catalog_refresh": (
+                refresh_catalog,
+                int(
+                    os.environ.get(
+                        "ROUTING_CATALOG_REFRESH_INTERVAL_SECONDS",
+                        _DEFAULT_CATALOG_REFRESH_INTERVAL,
+                    )
+                ),
+            ),
+            "local_endpoint_probe": (
+                probe_local_endpoints,
+                int(
+                    os.environ.get(
+                        "ROUTING_LOCAL_PROBE_INTERVAL_SECONDS",
+                        _DEFAULT_LOCAL_PROBE_INTERVAL,
+                    )
+                ),
+            ),
+            "ledger_rollup": (
+                rollup_ledger,
+                int(
+                    os.environ.get(
+                        "ROUTING_LEDGER_ROLLUP_INTERVAL_SECONDS",
+                        _DEFAULT_LEDGER_ROLLUP_INTERVAL,
+                    )
+                ),
+            ),
+        }
+
+    async def _run_routing_jobs(self) -> None:
+        """Run due routing jobs independently so one failure cannot stop peers."""
+        current_time = self._time_fn()
+        for name, (job, interval) in self._routing_jobs.items():
+            last_run = self._last_routing_run.get(name)
+            if last_run is not None and current_time - last_run < interval:
+                continue
+            self._last_routing_run[name] = current_time
+            try:
+                await job()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.error("Watchdog routing job %s failed: %s", name, exc, exc_info=True)
+                await self._record_routing_job_failure(name, exc)
+
+    async def _record_routing_job_failure(self, name: str, exc: Exception) -> None:
+        try:
+            await self.db.insert(
+                "audit_log",
+                {
+                    "agent_id": "watchdog",
+                    "agent_type": "system",
+                    "operation": "signal.routing_job_failed",
+                    "parameters": {"job": name},
+                    "result": {},
+                    "success": False,
+                    "error_message": str(exc),
+                },
+            )
+        except Exception as audit_exc:
+            logger.error(
+                "Watchdog could not record routing job failure for %s: %s",
+                name,
+                audit_exc,
+            )
 
     async def _loop(self) -> None:
         """Main loop: run checks at the configured interval."""
