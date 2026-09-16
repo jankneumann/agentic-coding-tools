@@ -1165,6 +1165,9 @@ def _cmd_rehydrate(args: argparse.Namespace) -> int:
     mirror = _read_json_file(str(mirror_path))
     handoff_record = _extract_supervisor_record(handoff)
     prior, source = _select_prior_with_source(handoff, mirror)
+    from gate_router import reconcile_escalation_pending_gates
+
+    prior = reconcile_escalation_pending_gates(repo, prior, now=args.now)
     if handoff_record is None:
         print("Degraded: handoff", file=sys.stderr)
     elif source == "mirror":

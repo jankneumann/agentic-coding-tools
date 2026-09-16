@@ -989,26 +989,84 @@ class ExecutionAdapter:
         batch_id: str,
         repo_root: Path,
         evaluator: Any = None,
-    ) -> dict[str, Any]:
-        """Route only fully-applied policy pauses; partial batches are never gated."""
+    ) -> list[dict[str, Any]]:
+        """Return bounded resolutions for a fully-applied or already-routed batch."""
         manager = CheckpointManager(workspace)
         checkpoint = manager.load()
         batch = _batch_attempts(checkpoint, batch_id)
-        if not all(_has_current_effects_applied(attempt) for attempt in batch):
-            raise ExecutionStateError("delegated batch is not fully effects-applied")
-        routed: list[str] = []
-        already_routed: list[str] = []
-        for candidate in sorted(batch, key=lambda attempt: str(attempt["dispatch_id"])):
-            if candidate.get("status") == "prepared" and candidate.get("continuation", {}).get("kind") == "policy_pause":
-                already_routed.append(candidate["dispatch_id"])
-                continue
-            if candidate.get("status") != "parked" or candidate.get("parked", {}).get("kind") != "policy_pause":
-                continue
-            gate_router.resolve_parked(
-                candidate, workspace=workspace, repo_root=repo_root, adapter=self, evaluator=evaluator
+
+        def prepared_policy_pause(attempt: Mapping[str, Any]) -> bool:
+            return (
+                attempt.get("status") == "prepared"
+                and attempt.get("continuation", {}).get("kind") == "policy_pause"
             )
-            routed.append(candidate["dispatch_id"])
-        return {"batch_id": batch_id, "routed_dispatch_ids": routed, "already_routed_dispatch_ids": already_routed}
+
+        if not all(
+            _has_current_effects_applied(attempt) or prepared_policy_pause(attempt)
+            for attempt in batch
+        ):
+            raise ExecutionStateError("delegated batch is not fully effects-applied")
+
+        resolutions: list[dict[str, Any]] = []
+        for candidate in sorted(batch, key=lambda attempt: str(attempt["dispatch_id"])):
+            if prepared_policy_pause(candidate):
+                resumed_generation = candidate["lease_generation"]
+                approval_ref = candidate["continuation"].get("approval_ref", "")
+                decision_id = approval_ref.removeprefix("gate-decision:")
+                record = next(
+                    (
+                        item
+                        for item in checkpoint.gate_decisions
+                        if item.get("decision_id") == decision_id
+                        and item.get("gate") == Gate.ESCALATE_RESUME.value
+                        and item.get("outcome") == "proceed"
+                        and item.get("dispatch_id") == candidate["dispatch_id"]
+                    ),
+                    None,
+                )
+                if record is None:
+                    raise ExecutionStateError(
+                        "prepared policy-pause continuation has no durable proceed decision"
+                    )
+                decided_generation = record.get("lease_generation")
+                if decided_generation is None:
+                    decided_generation = resumed_generation - 1
+                resolutions.append(
+                    {
+                        "dispatch_id": candidate["dispatch_id"],
+                        "outcome": "already_routed",
+                        "decided_lease_generation": decided_generation,
+                        "resumed_lease_generation": resumed_generation,
+                    }
+                )
+                continue
+            if (
+                candidate.get("status") != "parked"
+                or candidate.get("parked", {}).get("kind") != "policy_pause"
+            ):
+                continue
+            resolution = gate_router.resolve_parked(
+                candidate,
+                workspace=workspace,
+                repo_root=repo_root,
+                adapter=self,
+                evaluator=evaluator,
+            )
+            entry: dict[str, Any] = {
+                "dispatch_id": candidate["dispatch_id"],
+                "outcome": resolution.outcome,
+                "decided_lease_generation": resolution.routed.record.get(
+                    "lease_generation", candidate["lease_generation"]
+                ),
+            }
+            if resolution.outcome == "proceed":
+                entry["resumed_lease_generation"] = resolution.resume_result[
+                    "lease_generation"
+                ]
+            else:
+                entry["pending_gate"] = dict(resolution.pending_gate_entry or {})
+            resolutions.append(entry)
+        return resolutions
 
     def _validate_exact_evidence(
         self,

@@ -27,7 +27,13 @@ from models import Effort, ItemStatus, Roadmap, RoadmapItem  # noqa: E402
 import execution  # noqa: E402
 import gate_router  # noqa: E402
 from execution import ExecutionAdapter, ExecutionStateError  # noqa: E402
-from shared.trust_posture import Gate  # noqa: E402
+from shared.approval_gate import ApprovalGate  # noqa: E402
+from shared.trust_posture import (  # noqa: E402
+    Disposition,
+    Gate,
+    GateDisposition,
+    TrustPosture,
+)
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -180,6 +186,23 @@ def _adapter(
         commit_resolver=lambda _: "a" * 40,
         liveness_probe=lambda _: liveness,
         host_entry=lambda change_id, request: calls.append((change_id, request)) or "entered",
+    )
+
+
+class _RecordingAudit:
+    def record(self, _record: dict[str, Any]) -> bool:
+        return True
+
+
+def _escalation_service(disposition: Disposition) -> ApprovalGate:
+    posture = TrustPosture(
+        gates={Gate.ESCALATE_RESUME: GateDisposition(disposition)},
+        present=True,
+    )
+    return ApprovalGate(
+        coordinator=object(),
+        audit=_RecordingAudit(),
+        posture_loader=lambda repo_root=None, path=None: posture,
     )
 
 
@@ -1455,6 +1478,109 @@ def test_route_parked_escalations_rejects_partial_batch_before_gate_evaluation(
         )
 
     assert calls == []
+
+
+def _fully_applied_policy_pause(
+    tmp_path: Path,
+) -> tuple[Path, Path, ExecutionAdapter, dict[str, Any], str]:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    batch_id = request["dispatch_id"].split(":", 1)[0]
+    adapter.apply(
+        workspace,
+        batch_id=batch_id,
+        results=[_result("parked-result.json", request)],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    manager = execution.CheckpointManager(workspace)
+    checkpoint = manager.load()
+    checkpoint.dispatch_attempts[0]["parked"]["kind"] = "policy_pause"
+    manager.save(checkpoint)
+    return repo, workspace, adapter, request, batch_id
+
+
+def _escalation_decisions(workspace: Path) -> list[dict[str, Any]]:
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text(encoding="utf-8"))
+    return [
+        record
+        for record in checkpoint.get("gate_decisions", [])
+        if record.get("gate") == Gate.ESCALATE_RESUME.value
+    ]
+
+
+def test_route_parked_escalations_returns_exact_proceed_resolution_once(
+    tmp_path: Path,
+) -> None:
+    repo, workspace, adapter, request, batch_id = _fully_applied_policy_pause(tmp_path)
+
+    result = adapter.route_parked_escalations(
+        workspace, batch_id=batch_id, repo_root=repo,
+        evaluator=_escalation_service(Disposition.AUTO),
+    )
+
+    assert result == [{
+        "dispatch_id": request["dispatch_id"],
+        "outcome": "proceed",
+        "decided_lease_generation": 1,
+        "resumed_lease_generation": 2,
+    }]
+    assert len(_escalation_decisions(workspace)) == 1
+    resumed = _attempt(workspace)
+    assert resumed["status"] == "prepared"
+    assert resumed["lease_generation"] == 2
+    assert "application_journal" not in resumed
+
+
+def test_route_parked_escalations_returns_exact_blocked_resolution_once(
+    tmp_path: Path,
+) -> None:
+    repo, workspace, adapter, request, batch_id = _fully_applied_policy_pause(tmp_path)
+
+    result = adapter.route_parked_escalations(
+        workspace, batch_id=batch_id, repo_root=repo,
+        evaluator=_escalation_service(Disposition.BLOCK),
+    )
+
+    decisions = _escalation_decisions(workspace)
+    mirror = json.loads(
+        (repo / "openspec" / "supervise" / "supervisor-record.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert len(decisions) == 1
+    assert result == [{
+        "dispatch_id": request["dispatch_id"],
+        "outcome": "blocked",
+        "decided_lease_generation": 1,
+        "pending_gate": mirror["pending_gates"][0],
+    }]
+    assert _attempt(workspace)["status"] == "parked"
+
+
+def test_route_parked_escalations_retry_reports_durable_already_routed_state(
+    tmp_path: Path,
+) -> None:
+    repo, workspace, adapter, request, batch_id = _fully_applied_policy_pause(tmp_path)
+    adapter.route_parked_escalations(
+        workspace, batch_id=batch_id, repo_root=repo,
+        evaluator=_escalation_service(Disposition.AUTO),
+    )
+
+    retried = adapter.route_parked_escalations(
+        workspace, batch_id=batch_id, repo_root=repo,
+        evaluator=_escalation_service(Disposition.AUTO),
+    )
+
+    assert retried == [{
+        "dispatch_id": request["dispatch_id"],
+        "outcome": "already_routed",
+        "decided_lease_generation": 1,
+        "resumed_lease_generation": 2,
+    }]
+    assert len(_escalation_decisions(workspace)) == 1
 
 
 def test_atomic_escalation_resume_publishes_decision_and_generation_together(

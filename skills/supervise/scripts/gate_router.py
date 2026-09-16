@@ -79,6 +79,21 @@ _POLICY_PAUSE_REASON = "supervised phase retry budget exhausted"
 
 
 @contextlib.contextmanager
+def _mirror_projection_lock(repo_root: Path) -> Iterator[None]:
+    """Serialize the derived mirror's read-merge-write projection."""
+    identity = hashlib.sha256(str(repo_root.resolve()).encode()).hexdigest()
+    lock_dir = Path(tempfile.gettempdir()) / "supervise-mirror-projection-locks"
+    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor = os.open(lock_dir / f"{identity}.lock", os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+@contextlib.contextmanager
 def _escalate_subject_lock(workspace: Path, dispatch_id: str, generation: int) -> Iterator[None]:
     """Serialize one parked escalation generation without blocking other work."""
     identity = hashlib.sha256(f"{workspace.resolve()}|{dispatch_id}|{generation}".encode()).hexdigest()
@@ -443,7 +458,7 @@ def _parse_iso(value: Any) -> Optional[datetime]:
     return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
 
 
-def _project(
+def _project_unlocked(
     gate: Gate,
     decision: ApprovalDecision,
     record: dict[str, Any],
@@ -510,6 +525,125 @@ def _project(
         ),
     }
     write_mirror(repo_root, merged, now=moment)
+
+
+def _project(
+    gate: Gate,
+    decision: ApprovalDecision,
+    record: dict[str, Any],
+    key: tuple,
+    *,
+    roadmap: Roadmap,
+    repo_root: Path,
+    prior_decision_id: Optional[str] = None,
+    now: Optional[datetime] = None,
+) -> None:
+    with _mirror_projection_lock(repo_root):
+        _project_unlocked(
+            gate,
+            decision,
+            record,
+            key,
+            roadmap=roadmap,
+            repo_root=repo_root,
+            prior_decision_id=prior_decision_id,
+            now=now,
+        )
+
+
+def reconcile_escalation_pending_gates(
+    repo_root: Path,
+    prior: Optional[dict[str, Any]],
+    *,
+    now: Optional[Union[str, datetime]] = None,
+) -> dict[str, Any]:
+    """Rebuild derived escalate-resume pending gates from checkpoint authority."""
+    root = Path(repo_root).resolve()
+    if isinstance(now, datetime):
+        moment = now
+    else:
+        moment = _parse_iso(now) if isinstance(now, str) else None
+    moment = moment or datetime.now(timezone.utc)
+    reconciled = dict(prior or {})
+    reconciled.setdefault("written_at", moment.isoformat())
+    reconciled.setdefault("standing_decisions", [])
+    reconciled.setdefault(
+        "back_edge",
+        {"last_digest_at": None, "last_fingerprint": None, "digested_stubs": []},
+    )
+    pending = list(reconciled.get("pending_gates", []))
+    authoritative_ids: set[str] = set()
+    restored: dict[str, dict[str, Any]] = {}
+
+    roadmaps_root = root / "openspec" / "roadmaps"
+    for checkpoint_path in sorted(roadmaps_root.glob("*/checkpoint.json")):
+        workspace = checkpoint_path.parent
+        try:
+            roadmap = load_roadmap(workspace / "roadmap.yaml", root)
+            checkpoint = CheckpointManager(workspace, root).load()
+        except (FileNotFoundError, OSError, TypeError, ValueError):
+            continue
+        escalation_records = [
+            record
+            for record in checkpoint.gate_decisions
+            if record.get("gate") == Gate.ESCALATE_RESUME.value
+        ]
+        authoritative_ids.update(
+            record["decision_id"]
+            for record in escalation_records
+            if isinstance(record.get("decision_id"), str)
+        )
+        current_attempts: dict[str, dict[str, Any]] = {}
+        for attempt in checkpoint.dispatch_attempts:
+            dispatch_id = attempt.get("dispatch_id")
+            if not isinstance(dispatch_id, str):
+                continue
+            is_parked = (
+                attempt.get("status") == "parked"
+                and attempt.get("parked", {}).get("kind") == "policy_pause"
+            )
+            is_prepared = (
+                attempt.get("status") == "prepared"
+                and attempt.get("continuation", {}).get("kind") == "policy_pause"
+            )
+            if is_parked or is_prepared:
+                previous = current_attempts.get(dispatch_id)
+                if previous is None or attempt.get("lease_generation", 0) > previous.get(
+                    "lease_generation", 0
+                ):
+                    current_attempts[dispatch_id] = attempt
+        for dispatch_id, attempt in current_attempts.items():
+            if attempt.get("status") != "parked":
+                continue
+            key = _subject_key(
+                Gate.ESCALATE_RESUME,
+                roadmap_id=roadmap.roadmap_id,
+                dispatch_id=dispatch_id,
+                fingerprint=None,
+                lease_generation=attempt.get("lease_generation"),
+            )
+            record = _latest_record_for_subject(checkpoint, Gate.ESCALATE_RESUME, key)
+            if record is None or record.get("outcome") != "blocked":
+                continue
+            decision = _decision_from_record(record)
+            entry = _pending_gate_entry(
+                Gate.ESCALATE_RESUME,
+                decision,
+                record,
+                roadmap=roadmap,
+                repo_root=root,
+                now=moment,
+            )
+            restored[record["decision_id"]] = entry
+
+    pending = [
+        entry
+        for entry in pending
+        if entry.get("decision_id") not in authoritative_ids
+    ]
+    pending.extend(restored[key] for key in sorted(restored))
+    reconciled["pending_gates"] = pending
+    return reconciled
 
 
 # --------------------------------------------------------------------------- #
