@@ -970,3 +970,38 @@ def test_provider_name_is_never_inferred_as_agent_id() -> None:
     )
 
     assert result.agent_id is None
+
+
+def test_terminal_capacity_invokes_configured_reporter_once() -> None:
+    reported: list[PhaseDispatchResult] = []
+
+    result = dispatch_phase(
+        _payload(agent_id="codex-local"),
+        runner=lambda _payload: {
+            "outcome": "failed",
+            "handoff_id": "handoff-capacity",
+            "error_class": "capacity_exhausted",
+        },
+        rate_limit_reporter=reported.append,
+    )
+
+    assert reported == [result]
+
+
+def test_terminal_capacity_reporting_failure_does_not_mask_result() -> None:
+    def broken_reporter(_result: PhaseDispatchResult) -> None:
+        raise RuntimeError("coordinator unavailable")
+
+    result = dispatch_phase(
+        _payload(agent_id="codex-local"),
+        runner=lambda _payload: {
+            "outcome": "failed",
+            "handoff_id": "handoff-capacity",
+            "error_class": "capacity_exhausted",
+        },
+        rate_limit_reporter=broken_reporter,
+    )
+
+    assert result.outcome == "failed"
+    assert result.handoff_id == "handoff-capacity"
+    assert result.agent_id == "codex-local"
