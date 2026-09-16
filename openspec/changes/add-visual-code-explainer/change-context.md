@@ -6,11 +6,11 @@
 
 | Req ID | Spec Source | Description | Contract Ref | Design Decision | Files Changed | Test(s) | Evidence |
 |--------|-------------|-------------|--------------|-----------------|---------------|---------|----------|
-| codebase-analysis.1 | specs/codebase-analysis/spec.md | Atlas Symbol Tree Export — `skills/codebase-atlas/scripts/build_atlas.py` SHALL accept `--tree <target>` with optional ` | --- | D3, D4, D8 | --- | skills/tests/codebase-atlas/test_atlas_tree.py | --- |
-| skill-workflow.1 | specs/skill-workflow/spec.md | Visual Code Explainer Skill — The repository SHALL provide a user-invocable, prompt-only skill `explain-code` that answe | --- | D1, D6, D9 | --- | skills/tests/explain-code/test_skill_md.py; test_behaviour.py | --- |
-| skill-workflow.2 | specs/skill-workflow/spec.md | Explainer Grounding and Coverage Disclosure — Before sketching a call tree, the skill SHALL determine graph freshness by | --- | D2, D5, D9 | --- | skills/tests/explain-code/test_behaviour.py | --- |
-| skill-workflow.3 | specs/skill-workflow/spec.md | Explainer Frontmatter Without Triggers — The `explain-code` `SKILL.md` frontmatter SHALL declare `name`, `description`,  | --- | D6 | --- | skills/tests/explain-code/test_skill_md.py | --- |
-| skill-workflow.4 | specs/skill-workflow/spec.md | Explainer Distribution Wiring — `skills/install-manifest.json` SHALL declare `"explain-code": {"distribution": "portable | --- | D1 | --- | skills/tests/explain-code/test_skill_md.py; install.sh --check | --- |
+| codebase-analysis.1 | specs/codebase-analysis/spec.md | Atlas Symbol Tree Export — `skills/codebase-atlas/scripts/build_atlas.py` SHALL accept `--tree <target>` with optional ` | --- | D3, D4, D8 | skills/codebase-atlas/SKILL.md, skills/codebase-atlas/scripts/atlas_tree.py, skills/codebase-atlas/scripts/build_atlas.py, skills/tests/codebase-atlas/test_atlas_tree.py, skills/tests/codebase-atlas/test_skill_md.py | skills/tests/codebase-atlas/test_atlas_tree.py | --- |
+| skill-workflow.1 | specs/skill-workflow/spec.md | Visual Code Explainer Skill — The repository SHALL provide a user-invocable, prompt-only skill `explain-code` that answe | --- | D1, D6, D9 | skills/explain-code/SKILL.md, skills/explain-code/references/call-tree.md, skills/explain-code/references/component-tree.md, skills/explain-code/references/file-tree.md, skills/explain-code/references/grounding.md, skills/explain-code/references/sequence.md, skills/explain-code/references/structural-diff.md, skills/install-manifest.json, skills/pyproject.toml, skills/tests/explain-code/test_behaviour.py, skills/tests/explain-code/test_skill_md.py | skills/tests/explain-code/test_skill_md.py; test_behaviour.py | --- |
+| skill-workflow.2 | specs/skill-workflow/spec.md | Explainer Grounding and Coverage Disclosure — Before sketching a call tree, the skill SHALL determine graph freshness by | --- | D2, D5, D9 | skills/explain-code/SKILL.md, skills/explain-code/references/call-tree.md, skills/explain-code/references/component-tree.md, skills/explain-code/references/file-tree.md, skills/explain-code/references/grounding.md, skills/explain-code/references/sequence.md, skills/explain-code/references/structural-diff.md, skills/install-manifest.json, skills/pyproject.toml, skills/tests/explain-code/test_behaviour.py, skills/tests/explain-code/test_skill_md.py | skills/tests/explain-code/test_behaviour.py | --- |
+| skill-workflow.3 | specs/skill-workflow/spec.md | Explainer Frontmatter Without Triggers — The `explain-code` `SKILL.md` frontmatter SHALL declare `name`, `description`,  | --- | D6 | skills/explain-code/SKILL.md, skills/explain-code/references/call-tree.md, skills/explain-code/references/component-tree.md, skills/explain-code/references/file-tree.md, skills/explain-code/references/grounding.md, skills/explain-code/references/sequence.md, skills/explain-code/references/structural-diff.md, skills/install-manifest.json, skills/pyproject.toml, skills/tests/explain-code/test_behaviour.py, skills/tests/explain-code/test_skill_md.py | skills/tests/explain-code/test_skill_md.py | --- |
+| skill-workflow.4 | specs/skill-workflow/spec.md | Explainer Distribution Wiring — `skills/install-manifest.json` SHALL declare `"explain-code": {"distribution": "portable | --- | D1 | skills/explain-code/SKILL.md, skills/explain-code/references/call-tree.md, skills/explain-code/references/component-tree.md, skills/explain-code/references/file-tree.md, skills/explain-code/references/grounding.md, skills/explain-code/references/sequence.md, skills/explain-code/references/structural-diff.md, skills/install-manifest.json, skills/pyproject.toml, skills/tests/explain-code/test_behaviour.py, skills/tests/explain-code/test_skill_md.py | skills/tests/explain-code/test_skill_md.py; install.sh --check | --- |
 
 ## Design Decision Trace
 
@@ -32,7 +32,7 @@
 |--------|-------|
 | Requirements | 5 |
 | With tests planned | 5 |
-| Implemented (Files Changed filled) | 0 |
+| Implemented (Files Changed filled) | 5 |
 | Evidence pass | 0 |
 
 ## Review Findings Summary

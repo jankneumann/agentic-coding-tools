@@ -77,3 +77,40 @@ Planned a question-driven visual code explainer skill adopting humanlayer's MIT 
 6. **Read-only graph/source access is not a side effect** `architectural: code-visualization` — "No file or browser side effects" forbids create/modify/browser; grounding MAY read files.
 7. **`(+<n> more)` counts omitted neighbours beyond hop depth** `architectural: code-visualization` — Not child-count vs hops; wording aligned in D3 and the atlas requirement.
 
+---
+
+## Phase: Implementation (2026-09-16)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Inline package implementation after workflow blocked** `architectural: skill-workflow` — workflow tool cannot launch from a subagent; used managed package worktrees instead of silent main-checkout work
+2. **stdlib atlas_tree over call-typed symbolEdges** `architectural: codebase-analysis` — Reuses build_view_model adjacency; excludes import edges per D3
+3. **Task 2.8 harness-absent** `architectural: skill-workflow` — No trajectory-scenario harness in checkout; deterministic behavioural tests cover the three behaviours
+
+### Alternatives Considered
+- Scripted explainer emitting every form deterministically: rejected because Rejected at plan time (Approach 2); catalogue stays prompt-only
+
+### Trade-offs
+- Accepted Only call trees are machine-verified over Deterministic emitters for every catalogue form because Smallest shippable grounding surface; other forms disclose form not graph-backed
+
+### Open Questions
+- [ ] validate-feature spec/evidence phases should fill Evidence column with pass SHAs
+
+### Completed Work
+- wp-atlas-tree: atlas_tree.py + CLI flags + tests
+- wp-skill: explain-code skill, references, tests, manifest/testpaths
+- wp-integration: merge, mirrors, codeviz Phase 0b note, verification green
+
+### Next Steps
+- Run validate-feature --phase spec,evidence
+- Open PR and await review
+
+### Relevant Files
+- `skills/codebase-atlas/scripts/atlas_tree.py` — --tree BFS/format/footer
+- `skills/explain-code/SKILL.md` — Prompt-only explainer index
+- `skills/explain-code/references/grounding.md` — D2/D5/D9 grounding contract
+
+### Context
+Implemented codebase-atlas --tree export and the prompt-only explain-code skill in parallel package worktrees, merged into the feature branch, regenerated mirrors, and verified the full skills suite. Workflow subagent dispatch was unavailable from this autopilot subagent session, so packages were implemented inline in managed worktrees.
+

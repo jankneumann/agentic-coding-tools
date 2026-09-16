@@ -97,33 +97,33 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
 
 ## Phase 3 — Integration (package `wp-integration`)
 
-- [ ] 3.1 Merge the `wp-atlas-tree` and `wp-skill` package branches into the feature branch, resolving any overlap in `skills/install-manifest.json`
+- [x] 3.1 Merge the `wp-atlas-tree` and `wp-skill` package branches into the feature branch, resolving any overlap in `skills/install-manifest.json`
   **Spec scenarios**: —
   **Design decisions**: —
   **Dependencies**: 1.5, 2.7, 2.8
   **Size**: XS
 
-- [ ] 3.2 Regenerate the runtime mirrors with `bash skills/install.sh --mode rsync --deps none --python-tools none`
+- [x] 3.2 Regenerate the runtime mirrors with `bash skills/install.sh --mode rsync --deps none --python-tools none`
   **Spec scenarios**: skill-workflow "Manifest validation passes"
   **Design decisions**: —
   **Dependencies**: 3.1
   **Size**: XS
 
-- [ ] 3.3 Record "Phase 0b shipped: `/explain-code` question-driven explainer" in `docs/proposals/codebase-visualization-tool.md` delivery status
+- [x] 3.3 Record "Phase 0b shipped: `/explain-code` question-driven explainer" in `docs/proposals/codebase-visualization-tool.md` delivery status
   **Spec scenarios**: —
   **Design decisions**: —
   **Dependencies**: 3.2
   **Size**: XS
 
-- [ ] 3.4 Run the full verification block from `design.md`: `pytest skills/tests/codebase-atlas skills/tests/explain-code skills/tests/install_sh`, `openspec validate add-visual-code-explainer --strict`, `bash skills/install.sh --check`, and the two-run `cmp` determinism check
+- [x] 3.4 Run the full verification block from `design.md`: `pytest skills/tests/codebase-atlas skills/tests/explain-code skills/tests/install_sh`, `openspec validate add-visual-code-explainer --strict`, `bash skills/install.sh --check`, and the two-run `cmp` determinism check
   **Spec scenarios**: all
   **Design decisions**: all
   **Dependencies**: 3.3
   **Size**: S
 
-- [ ] Checkpoint: review cumulative diff against `tasks.md`; every change maps to a task
+- [x] Checkpoint: review cumulative diff against `tasks.md`; every change maps to a task
 
-- [ ] 3.5 Append the Implement phase record to `session-log.md` via `PhaseRecord.write_both()`
+- [x] 3.5 Append the Implement phase record to `session-log.md` via `PhaseRecord.write_both()`
   **Spec scenarios**: —
   **Design decisions**: —
   **Dependencies**: 3.4
