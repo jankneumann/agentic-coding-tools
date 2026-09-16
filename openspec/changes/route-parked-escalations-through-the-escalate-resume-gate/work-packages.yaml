@@ -81,6 +81,7 @@ packages:
         - capabilities
         - decisions
         - apis
+        - architecture
     worktree:
       name: authority-recovery
       mode: isolated
