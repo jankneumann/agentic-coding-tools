@@ -172,9 +172,9 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `docs/guides/skills.md`, `docs/reports/skill-audit/README.md`
   **Size**: XS
 
-- [ ] Checkpoint: run `bash skills/install.sh --check`, `skills/.venv/bin/python -m pytest skills/tests/ci_coverage`, review diff
+- [x] Checkpoint: run `bash skills/install.sh --check`, `skills/.venv/bin/python -m pytest skills/tests/ci_coverage`, review diff
 
-- [ ] 3.4 Merge `wp-procedure-mode` and `wp-skill-audit`; run `bash skills/install.sh --mode rsync --deps none --python-tools none` to regenerate `.claude/skills/` and `.agents/skills/`; run the full skills suite, the coordinator suite, and `openspec validate add-skill-audit --strict`
+- [x] 3.4 Merge `wp-procedure-mode` and `wp-skill-audit`; run `bash skills/install.sh --mode rsync --deps none --python-tools none` to regenerate `.claude/skills/` and `.agents/skills/`; run the full skills suite, the coordinator suite, and `openspec validate add-skill-audit --strict`
   **Spec scenarios**: all
   **Design decisions**: —
   **Dependencies**: 1.6, 2.12, 3.1, 3.2, 3.3
