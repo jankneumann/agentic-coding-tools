@@ -26,7 +26,7 @@
 - [ ] 2.4 Test: exactly one definition of the predicate exists under `skills/` (AST guard, matching the existing `_get_ready_items` ownership test).
 - [ ] 2.5 Test: a finding with no `evidence_class` is not selected, and is distinguishable from one explicitly marked `deterministic`.
 
-## wp-verdict — the adjudication step (D3, D5, D6)
+## wp-adjudication, part 1 — verdict production (D3, D5, D6)
 
 - [ ] 3.1 New `skills/parallel-infrastructure/scripts/adjudication.py` with `adjudicate(candidates, *, head_sha, context)`.
 - [ ] 3.2 Author the rubric prompt: the finding, the diff, the code it names; a verdict per the contract; no gate outcome.
@@ -35,8 +35,10 @@
 - [ ] 3.5 Test: a `verified` verdict without `file:line` evidence is rejected.
 - [ ] 3.6 Test: a verdict whose `head_sha` is not current is stale and triggers re-adjudication.
 - [ ] 3.7 Test: adjudication dispatch failure fails closed — it never yields `pass`.
+- [ ] 3.8 Enforce one-to-one candidate-to-verdict correspondence in code: the returned `finding_id` set must equal the dispatched candidate set, each exactly once. The schema cannot express this — it only constrains `finding_id` to a positive integer — so a duplicate id, a foreign id, or an omitted candidate is otherwise schema-valid and would leave a real blocker unadjudicated while the gate acts on unrelated verdicts.
+- [ ] 3.9 Test each failure mode separately — duplicate, foreign, missing — and that each rejects the verdict set **as a whole** rather than acting on its well-formed members.
 
-## wp-outcome — computed outcomes (D4)
+## wp-adjudication, part 2 — computed outcomes (D4)
 
 - [ ] 4.1 `gate_outcome(verdicts)` in `adjudication.py`, a pure function over the D4 table.
 - [ ] 4.2 Test the full cross product of `claim` × `impact_if_true`, including mixed verdict sets.
@@ -69,3 +71,9 @@
 
 - [ ] 8.1 Correct ri-21's rationale via `refine-roadmap`: #484 had 4 unconfirmed `high` findings (12 medium, 7 low), not "7 critical".
 - [ ] 8.2 Correct the same count on issue #550 and in `docs/merge-logs/2026-09-14.md`.
+
+## wp-integration — terminal integration (always last)
+
+- [ ] 9.1 Merge every package worktree back into the feature branch.
+- [ ] 9.2 Validate what no per-package suite can: serialized `evidence_class` reaching the shared predicate, the predicate feeding adjudication, and both gates computing outcomes from the same verdicts.
+- [ ] 9.3 Run the full suite, the isolated per-skill suites CI runs separately, `openspec validate --strict --all`, and `install.sh --check`.
