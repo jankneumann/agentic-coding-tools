@@ -110,4 +110,3 @@ def test_adaptive_timeout_is_bounded_and_returns_static_result(
 
     assert time.monotonic() - started < 0.15
     assert actual == expected
-

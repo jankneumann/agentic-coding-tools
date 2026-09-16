@@ -391,7 +391,7 @@ packages:
               - "openspec_strict_passed"
         - name: "Architecture graph is current"
           kind: command
-          command: "make architecture-check"
+          command: "skills/.venv/bin/python skills/refresh-architecture/scripts/run_architecture.py --ensure --python agent-coordinator/.venv/bin/python --python-src-dir agent-coordinator/src --ts-src-dir apps --migrations-dir agent-coordinator/database/migrations"
           cwd: "."
           expect_exit_code: 0
           evidence:
