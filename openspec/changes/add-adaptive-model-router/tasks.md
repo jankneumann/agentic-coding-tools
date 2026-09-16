@@ -53,7 +53,7 @@
 
 ## Phase 8 — Integrated review and validation (wp-integration)
 
-- [ ] 8.1 Run the full affected coordinator and skills test suites [S]
+- [x] 8.1 Run the full affected coordinator and skills test suites [S]
   **Dependencies**: all implemented dg-00 tasks
 - [ ] 8.2 Validate the package DAG/overlap, strict OpenSpec, architecture freshness/scoped
   flows, and schema-valid multi-vendor plan/implementation consensus with quorum and zero
