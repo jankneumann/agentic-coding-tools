@@ -165,7 +165,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `.github/workflows/ci.yml`
   **Size**: S
 
-- [ ] 3.3 Add a "Auditing a skill for model-tier fit" paragraph to `docs/guides/skills.md` naming the command, the report location, and the re-run trigger; create `docs/reports/skill-audit/README.md` describing the directory
+- [x] 3.3 Add a "Auditing a skill for model-tier fit" paragraph to `docs/guides/skills.md` naming the command, the report location, and the re-run trigger; create `docs/reports/skill-audit/README.md` describing the directory
   **Spec scenarios**: (documentation of 2.10)
   **Design decisions**: D6, D9
   **Dependencies**: 3.1
