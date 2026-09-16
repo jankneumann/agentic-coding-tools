@@ -56,6 +56,8 @@ REQUIRED_TABLES = [
     "audit_log",
     "file_locks",
     "work_queue",
+    "vendor_probe_state",
+    "vendor_rate_limits",
 ]
 
 REQUIRED_FUNCTIONS = [
@@ -64,6 +66,9 @@ REQUIRED_FUNCTIONS = [
     "coordinator_notify",
     "get_agent_profile",
     "is_domain_allowed",
+    "upsert_vendor_probe_state",
+    "record_vendor_rate_limit",
+    "compact_vendor_rate_limits",
     "mutate_issue_if_unowned",
     "close_issues_if_unowned",
 ]
