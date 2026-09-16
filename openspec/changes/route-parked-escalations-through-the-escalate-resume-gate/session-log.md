@@ -240,3 +240,19 @@ All four blocking Validation 1 findings are closed. The runner-owned `loop-state
 ### Context
 Canonical revalidation passed at pushed commit f8e2193f. The declared non-deployable surface makes deploy, smoke, security, and E2E not applicable; spec, package evidence, complete tests, Ruff, OpenSpec, traceability, and context-drift gates pass, with only advisory architecture warnings for branch age and file size.
 
+
+---
+
+## Phase: Validation Fix 2 (2026-09-16)
+
+**Agent**: autopilot-phase-validation-fixer | **Session**: ri06-val-fix2-20260916
+
+### Completed Work
+- Fixed exact bounded route output and durable already-routed retry semantics.
+- Added authoritative ledger-to-mirror rehydrate reconciliation and serialized concurrent mirror projection.
+- Added direct evidence for complete routing, multiple resumed members, and routing races.
+- Verified 620 focused tests and 6,319 full-suite tests (6 skipped, 2 warnings).
+- Preserved the scoped architecture artifact digest and qualified its stale, skills-excluding advisory meaning.
+
+### Context
+Implementation commit `3e1293d97a2db43314d6072c4d7fdb7329637223`. Runner-owned `loop-state.json` was not edited and no runner state mutation was executed.

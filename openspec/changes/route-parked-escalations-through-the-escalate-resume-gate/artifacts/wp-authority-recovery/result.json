@@ -7,7 +7,7 @@
   "contracts_revision": 3,
   "status": "completed",
   "timestamps": {
-    "finished_at": "2026-09-16T12:25:03.096723+00:00"
+    "finished_at": "2026-09-16T13:38:27.940295+00:00"
   },
   "locks": {
     "files": [
@@ -57,6 +57,8 @@
     "docs/architecture-analysis/architecture.diff.json",
     "docs/decisions/roadmap-orchestration.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/architecture-impact.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/artifacts/wp-authority-recovery/result.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/change-context.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/gatekeeper-1.json",
@@ -65,6 +67,9 @@
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/plan-iteration-2-1.json",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/plan-review-3-1.json",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/validation-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/validation-2-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/validation-fix-1-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/validation-fix-2-1.json",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/proposal.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/review-findings-plan.json",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/adjudication-plan.json",
@@ -114,6 +119,7 @@
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-findings.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-history/validation-1-3848e95d.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md",
     "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
     "openspec/schemas/checkpoint.schema.json",
@@ -145,7 +151,7 @@
       "ref": "origin/main"
     },
     "head": {
-      "commit": "ec01ebc6defd253b263f2be27f588a8fdfe922bf",
+      "commit": "3e1293d97a2db43314d6072c4d7fdb7329637223",
       "branch": "openspec/recover-ri-06-escalation-routing",
       "worktree": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/route-parked-escalations-through-the-escalate-resume-gate"
     }
@@ -165,7 +171,7 @@
           "artifacts": [],
           "metrics": {
             "recovery_suites": {
-              "passed": 611,
+              "passed": 620,
               "failed": 0
             }
           }
@@ -182,7 +188,7 @@
           "artifacts": [],
           "metrics": {
             "full_suite": {
-              "passed": 6310,
+              "passed": 6319,
               "skipped": 6,
               "warnings": 2
             }
@@ -277,7 +283,7 @@
           "metrics": {
             "scope_compliance": {
               "passed": true,
-              "files_checked": 81,
+              "files_checked": 87,
               "violations": 0
             }
           }
@@ -285,6 +291,6 @@
       }
     ]
   },
-  "notes": "Validation-fix evidence for implementation head ec01ebc6. The order-dependent flat-module isolation regression is guarded, all declared package checks pass, and task/context declarations are reconciled against proven implementation.",
+  "notes": "VAL_FIX evidence for implementation head 3e1293d9: exact bounded route output, durable already-routed retry, mirror rehydrate reconciliation, and direct 14-scenario behavioral coverage. Architecture evidence is preserved with qualified advisory provenance.",
   "escalations": []
 }
