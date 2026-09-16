@@ -26,12 +26,8 @@ def _write_agent(path: Path, *, endpoint_kind: str, base_url: str | None = None)
     )
 
 
-@pytest.mark.parametrize(
-    "endpoint_kind", ["vendor-cli", "vendor-sdk", "openrouter", "local"]
-)
-def test_registry_accepts_known_endpoint_kinds(
-    tmp_path: Path, endpoint_kind: str
-) -> None:
+@pytest.mark.parametrize("endpoint_kind", ["vendor-cli", "vendor-sdk", "openrouter", "local"])
+def test_registry_accepts_known_endpoint_kinds(tmp_path: Path, endpoint_kind: str) -> None:
     path = tmp_path / "agents.yaml"
     _write_agent(
         path,
@@ -42,9 +38,7 @@ def test_registry_accepts_known_endpoint_kinds(
     [agent] = load_agents_config(path, secrets_path=tmp_path / "none")
 
     assert agent.endpoint_kind == endpoint_kind
-    assert agent.base_url == (
-        "http://localhost:11434/v1" if endpoint_kind == "local" else None
-    )
+    assert agent.base_url == ("http://localhost:11434/v1" if endpoint_kind == "local" else None)
 
 
 def test_registry_rejects_unknown_endpoint_kind(tmp_path: Path) -> None:
@@ -82,3 +76,21 @@ def test_dispatch_config_includes_endpoint_only_agent() -> None:
             }
         ]
     }
+
+
+def test_bundled_registry_declares_lane_identity_and_reporter_capability() -> None:
+    import yaml
+
+    path = Path(__file__).parents[2] / "agents.yaml"
+    raw_agents = yaml.safe_load(path.read_text())["agents"]
+    loaded = {agent.name: agent for agent in load_agents_config(path)}
+
+    for name, raw in raw_agents.items():
+        assert raw["location"] in {"local", "cloud", "unknown"}, name
+        assert raw["policy_vendor"], name
+        assert "catalog_vendor" in raw, name
+        assert loaded[name].location == raw["location"]
+        assert loaded[name].policy_vendor == raw["policy_vendor"]
+        assert loaded[name].catalog_vendor == raw["catalog_vendor"]
+        if loaded[name].trust_level < 3 and name != "ocr-local":
+            assert "vendor_limit_reporter" in loaded[name].capabilities, name

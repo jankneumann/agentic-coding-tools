@@ -344,9 +344,10 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
 VALID_TRANSPORTS = {"mcp", "http"}
 VALID_ISOLATION_MODES = {"worktree", "sandbox", "none"}
 VALID_ENDPOINT_KINDS = {"vendor-cli", "vendor-sdk", "openrouter", "local"}
+VALID_LOCATIONS = {"local", "cloud", "unknown"}
 VALID_CAPABILITIES = {
     "lock", "queue", "memory", "guardrails", "handoff", "discover", "audit",
-    "feature_registry",
+    "feature_registry", "vendor_limit_reporter",
 }
 
 AGENTS_SCHEMA: dict[str, Any] = {
@@ -401,6 +402,9 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         "enum": sorted(VALID_ENDPOINT_KINDS),
                     },
                     "base_url": {"type": "string", "format": "uri"},
+                    "location": {"type": "string", "enum": sorted(VALID_LOCATIONS)},
+                    "policy_vendor": {"type": "string", "minLength": 1},
+                    "catalog_vendor": {"type": ["string", "null"], "minLength": 1},
                     "capabilities": {
                         "type": "array",
                         "minItems": 1,
@@ -593,6 +597,9 @@ class AgentEntry:
     openbao_role_id: str | None = None
     endpoint_kind: str | None = None
     base_url: str | None = None
+    location: str = "unknown"
+    policy_vendor: str | None = None
+    catalog_vendor: str | None = None
     archetypes: list[str] = field(default_factory=list)
     cli: CliConfig | None = None
     sdk: SdkConfig | None = None
@@ -887,6 +894,9 @@ def load_agents_config(
                 openbao_role_id=agent_data.get("openbao_role_id"),
                 endpoint_kind=agent_data.get("endpoint_kind"),
                 base_url=agent_data.get("base_url"),
+                location=agent_data.get("location", "unknown"),
+                policy_vendor=agent_data.get("policy_vendor", agent_data["type"]),
+                catalog_vendor=agent_data.get("catalog_vendor"),
                 cli=cli_config,
                 sdk=sdk_config,
             )
@@ -1041,6 +1051,7 @@ CAPABILITY_OPERATIONS: dict[str, tuple[str, ...]] = {
     "discover": ("register_session", "discover_agents", "heartbeat"),
     "audit": ("query_audit",),
     "feature_registry": ("register_feature", "deregister_feature"),
+    "vendor_limit_reporter": ("report_vendor_rate_limit",),
 }
 
 #: Operations granted by *trust level* rather than by capability, as
