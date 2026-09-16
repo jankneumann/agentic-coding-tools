@@ -729,6 +729,36 @@ class TestAsyncDispatch:
         assert result.async_dispatch is True
 
     @patch("review_dispatcher.subprocess.run")
+    def test_async_capacity_callback_fires_before_successful_fallback(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.side_effect = [
+            subprocess.CompletedProcess(
+                args=[], returncode=1, stdout="", stderr="429 capacity",
+            ),
+            subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="task: abc123", stderr="",
+            ),
+        ]
+        adapter = _async_adapter()
+        adapter.cli_config.model = "gpt-primary"
+        adapter.cli_config.model_fallbacks = ["gpt-fallback"]
+        observations: list[ReviewResult] = []
+
+        result = adapter.dispatch_async(
+            "alternative",
+            "prompt",
+            cwd=tmp_path,
+            capacity_callback=observations.append,
+        )
+
+        assert result.success is True
+        assert len(observations) == 1
+        assert observations[0].agent_id == "codex-remote"
+        assert observations[0].capacity_scope == "model"
+        assert observations[0].capacity_model == "gpt-primary"
+
+    @patch("review_dispatcher.subprocess.run")
     def test_async_submit_no_task_id(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1025,6 +1055,33 @@ class TestSdkDispatch:
         assert result.models_attempted == [
             "claude-sonnet-4-6", "claude-haiku-4-5-20251001",
         ]
+
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_capacity_callback_fires_before_successful_model_fallback(
+        self, mock_call: MagicMock, tmp_path: Path,
+    ) -> None:
+        from review_dispatcher import _SdkCapacityError
+
+        mock_call.side_effect = [
+            _SdkCapacityError(),
+            json.loads(VALID_FINDINGS_JSON),
+        ]
+        adapter = _sdk_adapter(model_fallbacks=["claude-haiku-4-5-20251001"])
+        observations: list[ReviewResult] = []
+
+        result = adapter.dispatch(
+            "review",
+            "prompt",
+            cwd=tmp_path,
+            api_key="sk-test",
+            capacity_callback=observations.append,
+        )
+
+        assert result.success is True
+        assert len(observations) == 1
+        assert observations[0].agent_id == "claude-remote"
+        assert observations[0].capacity_scope == "model"
+        assert observations[0].capacity_model == "claude-sonnet-4-6"
 
     @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
     def test_dispatch_auth_error_no_fallback(
@@ -2092,3 +2149,64 @@ def test_capacity_reporting_failure_does_not_mask_successful_fallback(
 
     assert result.success is True
     assert result.model_used == "gpt-fallback"
+
+
+def test_all_models_exhausted_reports_intermediate_models_and_terminal_lane_once(
+    tmp_path: Path,
+) -> None:
+    adapter = _adapter(
+        "codex-local",
+        "codex",
+        model="gpt-primary",
+        model_fallbacks=["gpt-fallback"],
+    )
+    orchestrator = ReviewOrchestrator({"codex-local": adapter})
+
+    with (
+        patch("shutil.which", return_value="/usr/bin/codex"),
+        patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=1, stdout="", stderr="429 capacity"),
+        ),
+        patch("review_dispatcher.report_vendor_limit_result") as report,
+    ):
+        results = orchestrator.dispatch_and_wait(
+            review_type="plan",
+            dispatch_mode="review",
+            prompt="Review this packet",
+            cwd=tmp_path,
+        )
+
+    assert results[0].error_class == ErrorClass.CAPACITY
+    assert report.call_count == 2
+    intermediate, terminal = [call.args[0] for call in report.call_args_list]
+    assert intermediate.capacity_scope == "model"
+    assert intermediate.capacity_model == "gpt-primary"
+    assert terminal is results[0]
+    assert terminal.capacity_scope is None
+
+
+def test_single_model_exhaustion_is_reported_only_by_collector(
+    tmp_path: Path,
+) -> None:
+    adapter = _adapter("codex-local", "codex", model="gpt-primary")
+    orchestrator = ReviewOrchestrator({"codex-local": adapter})
+
+    with (
+        patch("shutil.which", return_value="/usr/bin/codex"),
+        patch("review_dispatcher._derived_tier_fallbacks", return_value=[]),
+        patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=1, stdout="", stderr="429 capacity"),
+        ),
+        patch("review_dispatcher.report_vendor_limit_result") as report,
+    ):
+        results = orchestrator.dispatch_and_wait(
+            review_type="plan",
+            dispatch_mode="review",
+            prompt="Review this packet",
+            cwd=tmp_path,
+        )
+
+    assert results[0].error_class == ErrorClass.CAPACITY
+    report.assert_called_once_with(results[0])

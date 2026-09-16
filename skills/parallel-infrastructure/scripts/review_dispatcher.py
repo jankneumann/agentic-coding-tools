@@ -805,7 +805,8 @@ class CliVendorAdapter:
         last_error_class = ErrorClass.UNKNOWN
         dispatch_start = time.monotonic()
 
-        for model in models_to_try:
+        for model_index, model in enumerate(models_to_try):
+            has_fallback = model_index < len(models_to_try) - 1
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
@@ -860,7 +861,7 @@ class CliVendorAdapter:
                     if ingested.error_class == ErrorClass.CAPACITY:
                         last_error = ingested.error or ""
                         last_error_class = ErrorClass.CAPACITY
-                        if capacity_callback is not None:
+                        if has_fallback and capacity_callback is not None:
                             _notify_capacity(capacity_callback, ReviewResult(
                                 vendor=self.vendor,
                                 success=False,
@@ -920,7 +921,7 @@ class CliVendorAdapter:
 
                 if last_error_class == ErrorClass.CAPACITY:
                     # Report this model before fallback; final success must not erase it.
-                    if capacity_callback is not None:
+                    if has_fallback and capacity_callback is not None:
                         _notify_capacity(capacity_callback, ReviewResult(
                             vendor=self.vendor,
                             success=False,
@@ -1254,12 +1255,16 @@ class CliVendorAdapter:
         mode: str,
         prompt: str,
         cwd: Path,
+        capacity_callback: Callable[[ReviewResult], Any] | None = None,
     ) -> ReviewResult:
         """Submit an async dispatch and return immediately with task_id.
 
         The caller must subsequently call ``poll_for_result()`` to wait
         for completion.
         """
+        capacity_callback = capacity_callback or getattr(
+            self, "_capacity_callback", None
+        )
         mode_config = self.cli_config.dispatch_modes[mode]
         if not mode_config.async_dispatch or not mode_config.poll:
             return ReviewResult(
@@ -1278,7 +1283,8 @@ class CliVendorAdapter:
 
         models_attempted: list[str] = []
 
-        for model in models_to_try:
+        for model_index, model in enumerate(models_to_try):
+            has_fallback = model_index < len(models_to_try) - 1
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
@@ -1338,9 +1344,21 @@ class CliVendorAdapter:
                         error_class=ErrorClass.AUTH,
                     )
                 if error_class == ErrorClass.CAPACITY:
+                    if has_fallback and capacity_callback is not None:
+                        _notify_capacity(capacity_callback, ReviewResult(
+                            vendor=self.vendor,
+                            success=False,
+                            agent_id=self.agent_id,
+                            error=result.stderr[:500] or "capacity_exhausted",
+                            error_class=ErrorClass.CAPACITY,
+                            capacity_scope="model",
+                            capacity_model=model_name,
+                        ))
                     logger.info(
-                        "%s async model %s capacity exhausted, trying fallback",
-                        self.vendor, model_name,
+                        "%s async model %s capacity exhausted%s",
+                        self.vendor,
+                        model_name,
+                        ", trying fallback" if has_fallback else "",
                     )
                     continue
                 # Non-retryable error
@@ -1532,8 +1550,12 @@ class SdkVendorAdapter:
         cwd: Path,
         timeout_seconds: int = 300,
         api_key: str | None = None,
+        capacity_callback: Callable[[ReviewResult], Any] | None = None,
     ) -> ReviewResult:
         """Dispatch a review via vendor SDK with model fallback."""
+        capacity_callback = capacity_callback or getattr(
+            self, "_capacity_callback", None
+        )
         if not api_key:
             return ReviewResult(
                 vendor=self.vendor,
@@ -1546,7 +1568,8 @@ class SdkVendorAdapter:
         last_error = ""
         dispatch_start = time.monotonic()
 
-        for model in models_to_try:
+        for model_index, model in enumerate(models_to_try):
+            has_fallback = model_index < len(models_to_try) - 1
             models_attempted.append(model)
             try:
                 findings = self._call_sdk(
@@ -1582,9 +1605,21 @@ class SdkVendorAdapter:
                     raw_stdout=raw_stdout,
                 )
             except _SdkCapacityError:
+                if has_fallback and capacity_callback is not None:
+                    _notify_capacity(capacity_callback, ReviewResult(
+                        vendor=self.vendor,
+                        success=False,
+                        agent_id=self.agent_id,
+                        error="capacity_exhausted",
+                        error_class=ErrorClass.CAPACITY,
+                        capacity_scope="model",
+                        capacity_model=model,
+                    ))
                 logger.info(
-                    "%s SDK model %s capacity exhausted, trying fallback",
-                    self.vendor, model,
+                    "%s SDK model %s capacity exhausted%s",
+                    self.vendor,
+                    model,
+                    ", trying fallback" if has_fallback else "",
                 )
                 continue
             except _SdkAuthError as exc:
