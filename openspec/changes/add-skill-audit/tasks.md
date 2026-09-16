@@ -70,14 +70,14 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json`, `skills/skill-audit/scripts/findings.py`
   **Size**: S
 
-- [ ] 2.3 Write `skills/tests/skill-audit/test_classifier.py` with a `FixedStub` and `FailingStub` model backend and fixture SKILL.md files (`all_shaped.md`, `mixed.md`, `teaching_with_repo_token.md`): all-shaped yields zero model calls and zero `unclassified`; mixed yields exactly one call carrying every undecided section; failing stub labels the batch `unclassified` and logs one warning; teaching that names `docs/decisions/` is `keep` with the token in `evidence.repo_specific_tokens`; two runs produce byte-identical ledgers
+- [x] 2.3 Write `skills/tests/skill-audit/test_classifier.py` with a `FixedStub` and `FailingStub` model backend and fixture SKILL.md files (`all_shaped.md`, `mixed.md`, `teaching_with_repo_token.md`): all-shaped yields zero model calls and zero `unclassified`; mixed yields exactly one call carrying every undecided section; failing stub labels the batch `unclassified` and logs one warning; teaching that names `docs/decisions/` is `keep` with the token in `evidence.repo_specific_tokens`; two runs produce byte-identical ledgers
   **Spec scenarios**: skill-workflow "Shaped sections are classified without a model call", "Undecidable prose is batched into one model call", "Invalid model output never becomes a label", "Teaching that cites repo specifics is kept", "Classification is deterministic"
   **Design decisions**: D1, D2, D10
   **Dependencies**: None
   **Files**: `skills/tests/skill-audit/test_classifier.py`, `skills/tests/skill-audit/fixtures/skills/**`
   **Size**: M
 
-- [ ] 2.4 Implement `skills/skill-audit/scripts/classifier.py`: markdown section parser (headings, fenced blocks, tables, ordered lists, paragraphs), the D2 rule table as named rules, `ModelBackend` protocol with `resolve_analyst()` via `coordination_bridge.try_resolve_archetype_for_phase` (omit model on failure), single batched call with strict `{section_id: label}` schema, `unclassified` on invalid output, finding generation for `teaching_inferable`, `procedure_without_probe`, `constraint_without_reason`, `contract_unpinned`, `missing_deviation_protocol`; write `references/layers.md` from the same rule table
+- [x] 2.4 Implement `skills/skill-audit/scripts/classifier.py`: markdown section parser (headings, fenced blocks, tables, ordered lists, paragraphs), the D2 rule table as named rules, `ModelBackend` protocol with `resolve_analyst()` via `coordination_bridge.try_resolve_archetype_for_phase` (omit model on failure), single batched call with strict `{section_id: label}` schema, `unclassified` on invalid output, finding generation for `teaching_inferable`, `procedure_without_probe`, `constraint_without_reason`, `contract_unpinned`, `missing_deviation_protocol`; write `references/layers.md` from the same rule table
   **Spec scenarios**: as 2.3
   **Design decisions**: D1, D2
   **Dependencies**: 2.2, 2.3
