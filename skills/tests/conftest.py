@@ -17,9 +17,19 @@ import pytest
 _TESTS_ROOT = Path(__file__).resolve().parent
 _SKILLS_ROOT = _TESTS_ROOT.parent
 _ACTIVE_SUITE: str | None = None
+_SUITE_MODULES: dict[str, dict[str, object]] = {}
 _SCRIPT_DEPENDENCIES = {
     "archive-roadmap": ("roadmap-runtime",),
     "autopilot-roadmap": ("roadmap-runtime",),
+    "candidate-work": ("plan-roadmap", "roadmap-runtime"),
+    "context-engineering": (
+        "project-context-refresh",
+        "project-context-runtime",
+    ),
+    "merge-pull-requests": (
+        "project-context-refresh",
+        "project-context-runtime",
+    ),
     "plan-roadmap": (
         "autopilot-roadmap",
         "refine-roadmap",
@@ -61,6 +71,13 @@ def _activate_suite(path: Path) -> None:
     if suite is None or suite == _ACTIVE_SUITE:
         return
 
+    if _ACTIVE_SUITE is not None:
+        _SUITE_MODULES[_ACTIVE_SUITE] = {
+            name: module
+            for name, module in sys.modules.items()
+            if "." not in name and _is_flat_skill_module(module)
+        }
+
     for name, module in tuple(sys.modules.items()):
         if "." not in name and _is_flat_skill_module(module):
             sys.modules.pop(name, None)
@@ -75,9 +92,15 @@ def _activate_suite(path: Path) -> None:
             sys.path.remove(scripts_path)
         sys.path.insert(0, scripts_path)
 
+    sys.modules.update(_SUITE_MODULES.get(suite, {}))
     _ACTIVE_SUITE = suite
 
 
 def pytest_collectstart(collector: pytest.Collector) -> None:
     if isinstance(collector, pytest.Module):
         _activate_suite(Path(str(collector.path)))
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Reactivate the coherent flat-module graph collected for this suite."""
+    _activate_suite(Path(str(item.path)))
