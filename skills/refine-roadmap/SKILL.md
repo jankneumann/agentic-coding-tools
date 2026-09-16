@@ -148,7 +148,7 @@ The preview is read-only. It reports:
 - before/after execution waves;
 - dependency edges added and removed;
 - `priority_changes`: `[item_id, before, after]` for every pre-existing item whose priority moved;
-- `warnings`, such as a tiered reorder that coordinated dispatch will not honor;
+- `warnings`: non-fatal effects to show before approving, empty unless stated otherwise;
 - schema, item-id, change-id, dependency, DAG, and cross-roadmap errors;
 - collisions with active or archived OpenSpec change IDs.
 
