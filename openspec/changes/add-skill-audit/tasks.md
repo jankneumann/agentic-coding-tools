@@ -63,7 +63,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `skills/tests/skill-audit/test_findings_schema.py`, `skills/tests/skill-audit/fixtures/ledgers/*.json`
   **Size**: S
 
-- [ ] 2.2 Copy the schema to `skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json` and add `skills/skill-audit/scripts/findings.py` with a `Finding` dataclass, a `Ledger` builder, the contract-delete guard that raises before write, and `write_ledger()`
+- [x] 2.2 Copy the schema to `skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json` and add `skills/skill-audit/scripts/findings.py` with a `Finding` dataclass, a `Ledger` builder, the contract-delete guard that raises before write, and `write_ledger()`
   **Spec scenarios**: as 2.1
   **Design decisions**: D5
   **Dependencies**: 2.1

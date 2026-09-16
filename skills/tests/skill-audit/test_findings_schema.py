@@ -83,3 +83,56 @@ def test_unclassified_layer_is_representable(validator):
         }
     )
     assert _errors(validator, ledger) == []
+
+
+# --- findings.py guard (task 2.2) -------------------------------------------
+
+
+def _freshness() -> dict:
+    return {"archetypes_sha256": "0" * 64, "reviewed_dates": [], "evidence_window_days": 30}
+
+
+def test_guard_raises_before_write(tmp_path):
+    from findings import ContractDeleteError, Finding, build_ledger, write_ledger
+
+    bad = Finding(kind="contract_unpinned", layer="contract", section_id="SKILL.md#00", remediation="delete")
+    with pytest.raises(ContractDeleteError):
+        build_ledger(
+            skill="quick-task", convention="rightsizing", generated_at="2026-09-16T00:00:00+00:00",
+            freshness=_freshness(), layers=[], dispatch_profile=[],
+            evidence={"status": "unavailable", "reason": "x", "tier_rows": []}, findings=[bad],
+        )
+    # A hand-assembled ledger dict cannot bypass the guard either.
+    ledger = _load("contract_delete.json")
+    target = tmp_path / "ledger.json"
+    with pytest.raises(ContractDeleteError):
+        write_ledger(ledger, target)
+    assert not target.exists()
+
+
+def test_write_ledger_is_schema_valid_and_deterministic(tmp_path, validator):
+    from findings import Finding, build_ledger, write_ledger
+
+    def make():
+        return build_ledger(
+            skill="quick-task", convention="rightsizing", generated_at="2026-09-16T00:00:00+00:00",
+            freshness=_freshness(), layers=[], dispatch_profile=[],
+            evidence={"status": "unavailable", "reason": "unauthorized", "tier_rows": []},
+            findings=[Finding(kind="teaching_inferable", layer="teaching", section_id="SKILL.md#01",
+                              remediation="move_to_reference", rationale="generic")],
+        )
+
+    a = write_ledger(make(), tmp_path / "a.json").read_bytes()
+    b = write_ledger(make(), tmp_path / "b.json").read_bytes()
+    assert a == b
+    assert _errors(validator, json.loads(a)) == []
+    assert json.loads(a)["findings"][0]["id"] == "F001"
+
+
+def test_finding_rejects_unknown_vocabulary():
+    from findings import Finding
+
+    with pytest.raises(ValueError):
+        Finding(kind="vibes_bad", layer="teaching", section_id="x", remediation="keep")
+    with pytest.raises(ValueError):
+        Finding(kind="teaching_inferable", layer="teaching", section_id="x", remediation="nuke")
