@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
@@ -10,6 +12,7 @@ from uuid import UUID
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from src.coordination_api import (
     create_coordination_api,
@@ -151,6 +154,46 @@ def test_local_trust_boundary_returns_403_and_failed_audit(
     assert call["operation"] == "resolve_archetype_for_phase"
     assert call["success"] is False
     assert call["result"]["refusal"] == "local_provider_trust_boundary"
+
+
+@pytest.mark.asyncio
+async def test_phase_resolution_does_not_block_api_event_loop(
+    _api_config: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The sync resolver may self-call this API, so the event loop must stay free."""
+    from src.agents_config import ResolvedArchetype
+
+    loop_progressed = threading.Event()
+    saw_progress_during_resolution = False
+
+    def _resolve(*_args: Any, **_kwargs: Any) -> ResolvedArchetype:
+        nonlocal saw_progress_during_resolution
+        saw_progress_during_resolution = loop_progressed.wait(timeout=0.2)
+        return ResolvedArchetype(
+            model="qwen/qwen3-coder",
+            system_prompt="Implement the task.",
+            archetype="implementer",
+            reasons=["adaptive routing selected"],
+            provider="openrouter",
+            write_capable=True,
+        )
+
+    monkeypatch.setattr("src.agents_config.resolve_archetype_for_phase", _resolve)
+    monkeypatch.setattr("src.audit._audit_service", AsyncMock())
+    app = create_coordination_api()
+
+    asyncio.get_running_loop().call_later(0.01, loop_progressed.set)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as async_client:
+        response = await async_client.post(
+            "/archetypes/resolve_for_phase",
+            headers=_auth_headers(),
+            json={"phase": "IMPLEMENT", "signals": {}},
+        )
+
+    assert response.status_code == 200
+    assert saw_progress_during_resolution is True
 
 
 # =============================================================================

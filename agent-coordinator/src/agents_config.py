@@ -1784,7 +1784,7 @@ def reset_agents_config() -> None:
 def get_dispatch_configs(
     agents: list[AgentEntry] | None = None,
 ) -> dict[str, Any]:
-    """Return dispatch configs for agents with a ``cli`` or ``sdk`` section.
+    """Return configs for agents with a dispatch transport or routable endpoint.
 
     Shared serialization logic used by both MCP and HTTP endpoints.
     Returns a dict with ``agents`` key containing a list of agent
@@ -1795,7 +1795,10 @@ def get_dispatch_configs(
 
     agents_out: list[dict[str, Any]] = []
     for entry in agents:
-        if entry.cli is None and entry.sdk is None:
+        routable_endpoint = (
+            entry.endpoint_kind in {"openrouter", "local"} and entry.base_url
+        )
+        if entry.cli is None and entry.sdk is None and not routable_endpoint:
             continue
         sdk_out: dict[str, Any] | None = None
         if entry.sdk:
@@ -1838,6 +1841,8 @@ def get_dispatch_configs(
             "type": entry.type,
             "transport": entry.transport,
             "openbao_role_id": entry.openbao_role_id,
+            "endpoint_kind": entry.endpoint_kind,
+            "base_url": entry.base_url,
             "cli": cli_out,
             "sdk": sdk_out,
         })

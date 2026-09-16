@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from jsonschema import ValidationError
 
-from src.agents_config import load_agents_config
+from src.agents_config import AgentEntry, get_dispatch_configs, load_agents_config
 
 
 def _write_agent(path: Path, *, endpoint_kind: str, base_url: str | None = None) -> None:
@@ -54,3 +54,31 @@ def test_registry_rejects_unknown_endpoint_kind(tmp_path: Path) -> None:
     with pytest.raises(ValidationError):
         load_agents_config(path, secrets_path=tmp_path / "none")
 
+
+def test_dispatch_config_includes_endpoint_only_agent() -> None:
+    agent = AgentEntry(
+        name="local-openai",
+        type="local",
+        profile="local_openai",
+        trust_level=1,
+        transport="http",
+        capabilities=["discover"],
+        description="OpenAI-compatible local endpoint",
+        endpoint_kind="local",
+        base_url="http://127.0.0.1:11434/v1",
+    )
+
+    assert get_dispatch_configs([agent]) == {
+        "agents": [
+            {
+                "agent_id": "local-openai",
+                "type": "local",
+                "transport": "http",
+                "openbao_role_id": None,
+                "endpoint_kind": "local",
+                "base_url": "http://127.0.0.1:11434/v1",
+                "cli": None,
+                "sdk": None,
+            }
+        ]
+    }

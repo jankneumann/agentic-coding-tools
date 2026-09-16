@@ -11,6 +11,7 @@ This ensures:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import time
@@ -2479,7 +2480,8 @@ def create_coordination_api() -> FastAPI:
                 )
 
         try:
-            resolved = _resolve(
+            resolved = await asyncio.to_thread(
+                _resolve,
                 request.phase,
                 request.signals,
                 provider=request.provider,
