@@ -6,12 +6,12 @@ Canonical traceability for dispatch-governance item dg-01, stacked on finalized 
 
 | Req | Requirement | Contract | Design | Planned tests | Planned implementation | Status |
 |---|---|---|---|---|---|---|
-| vendor-registry.1 | Typed configured lane registry and filters | `contracts/openapi/v1.yaml#/components/schemas/VendorLane` | D1-D2 | `test_agent_endpoints.py`, `test_vendor_registry.py` | `agents_config.py`, `vendor_registry.py` | planned |
-| vendor-registry.2 | Catalog-owned prices and local health | `CatalogModelPrice`, no-price SQL invariant | D3, D8 | `test_vendor_registry.py`, contract parity | `vendor_registry.py` | planned |
-| vendor-registry.3 | Fresh probes with first-run persistence | `vendor_probe_state`, availability event | D4 | `test_watchdog.py`, `test_watchdog_vendor.py` | `watchdog.py`, `vendor_health.py` | planned |
-| vendor-registry.4 | Bounded, authorized, observable limits | POST contract, `vendor_rate_limits` | D5-D6, D10 | `test_vendor_registry_api.py`, `test_vendor_registry.py` | `coordination_api.py`, `vendor_registry.py` | planned |
-| vendor-registry.5 | Native bridge and exact dispatcher attribution | POST contract | D6-D7 | bridge, review-dispatch, provider-dispatch tests | bridge and dispatcher collectors | planned |
-| vendor-registry.6 | Lane-aware capability/location policy | GET filters | D8-D9 | roadmap policy/orchestrator tests | `orchestrator.py`, `policy.py` | planned |
+| vendor-registry.1 | Typed configured lane registry and filters | `contracts/openapi/v1.yaml#/components/schemas/VendorLane` | D1-D2 | `test_agent_endpoints.py`, `test_vendor_registry.py` | `agents_config.py`, `vendor_registry.py` | implemented |
+| vendor-registry.2 | Catalog-owned prices and local health | `CatalogModelPrice`, no-price SQL invariant | D3, D8 | `test_vendor_registry.py`, contract parity | `vendor_registry.py` | implemented |
+| vendor-registry.3 | Fresh probes with first-run persistence | `vendor_probe_state`, availability event | D4 | `test_watchdog.py`, `test_watchdog_vendor.py` | `watchdog.py`, `vendor_health.py` | implemented |
+| vendor-registry.4 | Bounded, authorized, observable limits | POST contract, `vendor_rate_limits` | D5-D6, D10 | `test_vendor_registry_api.py`, `test_vendor_registry.py` | `coordination_api.py`, `vendor_registry.py` | implemented |
+| vendor-registry.5 | Native bridge and exact dispatcher attribution | POST contract | D6-D7 | bridge, review-dispatch, provider-dispatch tests | bridge and dispatcher collectors | implemented |
+| vendor-registry.6 | Lane-aware capability/location policy | GET filters | D8-D9 | roadmap policy/orchestrator tests | `orchestrator.py`, `policy.py` | implemented |
 
 ## Dependency Boundary
 
@@ -29,6 +29,6 @@ and executable package gates.
 
 ## Coverage Summary
 
-- Canonical requirements: 6 planned, 0 implemented.
+- Canonical requirements: 6 implemented, 0 deferred.
 - Contract invariant: runtime-state tables contain no price columns.
-- Implementation starts only after revised multi-vendor plan convergence.
+- Final implementation review converged at semantic quorum 2/2 with 0 blocking and 0 disagreement findings.
