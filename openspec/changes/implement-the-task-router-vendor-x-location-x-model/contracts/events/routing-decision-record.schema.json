@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/routing-decision-record-v1.schema.json",
+  "title": "Sanitized authoritative routing_decisions record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision_id", "request", "selected", "alternatives", "excluded",
+    "exploration", "fallback", "policy_version", "budget_state"
+  ],
+  "properties": {
+    "decision_id": {"type": "string", "format": "uuid"},
+    "request": {"$ref": "#/$defs/persistedRequest"},
+    "selected": {"type": "object"},
+    "alternatives": {"type": "array", "maxItems": 64, "items": {"type": "object"}},
+    "excluded": {"type": "array", "maxItems": 256, "items": {"type": "object"}},
+    "exploration": {"type": "boolean"},
+    "fallback": {"const": false},
+    "policy_version": {"const": "linear-utility-v1"},
+    "budget_state": {"type": "object"}
+  },
+  "$defs": {
+    "persistedRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_signals", "allow_exploration"],
+      "properties": {
+        "task_signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["archetype"],
+          "properties": {
+            "archetype": {"type": "string", "minLength": 1, "maxLength": 128},
+            "phase": {"type": ["string", "null"], "maxLength": 128},
+            "task_type": {"type": ["string", "null"], "maxLength": 128},
+            "complexity": {"enum": ["low", "medium", "high", null]},
+            "modality": {"enum": ["interactive", "programmatic"]}
+          }
+        },
+        "routing_profile": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "expected_duration_seconds": {"type": ["integer", "null"], "minimum": 0, "maximum": 31536000},
+                "scope": {"enum": ["read-only", "bounded-write", "broad-write"]},
+                "interactivity": {"enum": ["interactive", "headless"]},
+                "secret_need": {"enum": ["none", "brokered", "direct"]},
+                "parallelism": {"type": "integer", "minimum": 1, "maximum": 1024},
+                "repo_shape": {"enum": ["single-package", "monorepo", "unknown"]},
+                "roadmap_policy": {
+                  "anyOf": [
+                    {"$ref": "#/$defs/persistedRoadmapPolicy"},
+                    {"type": "null"}
+                  ]
+                },
+                "required_location": {"enum": ["local", "cloud", "unknown", null]},
+                "required_isolation": {"enum": ["none", "worktree", "sandbox", null]},
+                "required_dispatch_mode": {"enum": ["review", "alternative", "quick", "sdk", null]}
+              }
+            },
+            {"type": "null"}
+          ]
+        },
+        "objective_profile": {
+          "enum": ["quality-first", "balanced", "cost-first", "resilience", null]
+        },
+        "weight_overrides": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "w_quality": {"type": ["number", "null"]},
+            "w_cost": {"type": ["number", "null"]},
+            "w_latency": {"type": ["number", "null"]}
+          }
+        },
+        "allow_exploration": {"type": "boolean"}
+      }
+    },
+    "persistedRoadmapPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed_agent_ids": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 128}
+        },
+        "excluded_agent_ids": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 128}
+        },
+        "allowed_vendor_types": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 64}
+        },
+        "excluded_vendor_types": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 64}
+        },
+        "allowed_locations": {
+          "type": "array",
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"enum": ["local", "cloud", "unknown"]}
+        }
+      }
+    }
+  }
+}

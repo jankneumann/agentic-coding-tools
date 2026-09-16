@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/routing-policy-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "policy_version", "defaults", "rules", "fallback"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "policy_version": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dispatch_mode", "phase_dispatch_modes"],
+      "properties": {
+        "dispatch_mode": {"$ref": "#/$defs/dispatchMode"},
+        "phase_dispatch_modes": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/dispatchMode"}
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/rule"}
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["location_order", "isolation_order", "dispatch_mode_order"],
+      "properties": {
+        "location_order": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/location"}
+        },
+        "isolation_order": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/isolation"}
+        },
+        "dispatch_mode_order": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/dispatchMode"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "location": {"type": "string", "enum": ["local", "cloud", "unknown"]},
+    "isolation": {"type": "string", "enum": ["none", "worktree", "sandbox"]},
+    "dispatchMode": {"type": "string", "enum": ["review", "alternative", "quick", "sdk"]},
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "when", "constrain"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$"},
+        "when": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "phase": {"type": "string"},
+            "archetype": {"type": "string"},
+            "scope": {"type": "string", "enum": ["read-only", "bounded-write", "broad-write"]},
+            "interactivity": {"type": "string", "enum": ["interactive", "headless"]},
+            "secret_need": {"type": "string", "enum": ["none", "brokered", "direct"]},
+            "min_duration_seconds": {"type": "integer", "minimum": 0},
+            "max_duration_seconds": {"type": "integer", "minimum": 0},
+            "min_parallelism": {"type": "integer", "minimum": 1},
+            "max_parallelism": {"type": "integer", "minimum": 1},
+            "repo_shape": {"type": "string", "enum": ["single-package", "monorepo", "unknown"]}
+          }
+        },
+        "constrain": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "location": {"$ref": "#/$defs/location"},
+            "isolation": {"$ref": "#/$defs/isolation"},
+            "dispatch_mode": {"$ref": "#/$defs/dispatchMode"}
+          }
+        }
+      }
+    }
+  }
+}
