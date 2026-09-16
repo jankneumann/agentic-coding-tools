@@ -10,7 +10,7 @@ is one of the names in the second column.
 | `contract` | `fenced_command` | Any fenced block except prose fences (`markdown`, `md`, `mermaid`, `diff`) | Verbatim commands, schemas, prompts another agent runs or injects |
 | `contract` | `contract_table` | A table whose header row names exit codes, schemas, paths, flags, files, options, arguments, fields, env variables, endpoints or commands | Same |
 | `contract` | `skill_base_dir` | A paragraph containing a `<skill-base-dir>` invocation | Same |
-| `constraint` | `constraint` | A paragraph with a prohibition (`never`, `must not`, `SHALL NOT`, `do not`, `don't`, `cannot`) **and** a reason (`because`, `so that`, `otherwise`, or a parenthetical of 12+ characters) | Operator intent; a strong model given the reason generalises, given only the rule it argues |
+| `constraint` | `constraint` | A paragraph with a prohibition (`never`, `must not`, `SHALL NOT`, `do not`, `don't`) **and** a reason (`because`, `so that`, `otherwise`, or a parenthetical of 12+ characters) | Operator intent; a strong model given the reason generalises, given only the rule it argues |
 | `constraint` | `prohibition_without_reason` | A paragraph with a prohibition and no reason clause | Still operator intent; it is labelled `constraint` and produces a `constraint_without_reason` finding (`add_reason`) |
 | `procedure` | `procedure` | An ordered list where at least half of the items begin with an imperative verb from the classifier's verb list | The lever that varies by tier |
 | `teaching` | — (model only) | Undecided prose the model labels `teaching` | Generic competence a frontier model already holds |
@@ -25,7 +25,9 @@ then `procedure`. A section with numbered steps *and* a fenced command is
 
 A section is the frontmatter block, the text before the first heading
 (`preamble`), or one heading with its body up to the next heading of any level.
-`SKILL.md` and every `.md` file directly under `references/` are parsed; deeper
+A heading with no body (an H1 title, an umbrella heading over sub-headings) is
+structure, not prose, and gets no label. `SKILL.md` and every `.md` file
+directly under `references/` are parsed; deeper
 files are not (the rightsizing convention forbids them).
 
 Section ids are `<file>#<NN>-<heading-slug>`, numbered in document order, so a

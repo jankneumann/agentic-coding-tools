@@ -49,7 +49,7 @@ CONTRACT_TABLE_KEYWORDS = (
     "exit", "code", "schema", "path", "flag", "file", "option", "argument",
     "field", "env", "variable", "endpoint", "command",
 )
-PROHIBITION_RE = re.compile(r"\b(never|must not|shall not|do not|don't|cannot)\b", re.IGNORECASE)
+PROHIBITION_RE = re.compile(r"\b(never|must not|shall not|do not|don't)\b", re.IGNORECASE)
 REASON_RE = re.compile(r"\b(because|so that|otherwise)\b", re.IGNORECASE)
 PARENTHETICAL_RE = re.compile(r"\([^()]{12,}\)")
 IMPERATIVE_VERBS = frozenset(
@@ -145,7 +145,7 @@ class LayerLabel:
 
 def _slug(text: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-    return slug[:40] or "section"
+    return slug[:40].rstrip("-") or "section"
 
 
 def parse_blocks(lines: list[str]) -> list[Block]:
@@ -258,6 +258,11 @@ def parse_sections(text: str, file: str) -> list[Section]:
         if heading == "preamble" and not content.strip():
             continue
         body_lines = lines[1:] if level else lines
+        blocks = parse_blocks(body_lines)
+        if not blocks:
+            # A heading with no body (an H1 title, a "## Steps" umbrella over
+            # sub-headings) is structure, not prose; there is nothing to label.
+            continue
         sections.append(
             Section(
                 section_id=f"{file}#{index:02d}-{_slug(heading)}",
@@ -265,7 +270,7 @@ def parse_sections(text: str, file: str) -> list[Section]:
                 heading=heading,
                 level=level,
                 raw=content,
-                blocks=parse_blocks(body_lines),
+                blocks=blocks,
             )
         )
         index += 1
