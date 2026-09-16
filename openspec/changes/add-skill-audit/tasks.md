@@ -21,14 +21,14 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `agent-coordinator/tests/test_phase_archetype_resolution.py`, `agent-coordinator/tests/test_report_status_phase_archetype.py`
   **Size**: S
 
-- [ ] 1.3 Add `procedure_mode` (enum `verbatim|guided|goal-directed`, optional) to the archetype entry in `archetypes.schema.json`; bump `agent-coordinator/archetypes.yaml` to `schema_version: 4`; set `runner: procedure_mode: verbatim` and `architect: procedure_mode: goal-directed` with a two-line comment each citing D3
+- [x] 1.3 Add `procedure_mode` (enum `verbatim|guided|goal-directed`, optional) to the archetype entry in `archetypes.schema.json`; bump `agent-coordinator/archetypes.yaml` to `schema_version: 4`; set `runner: procedure_mode: verbatim` and `architect: procedure_mode: goal-directed` with a two-line comment each citing D3
   **Spec scenarios**: as 1.1
   **Design decisions**: D3
   **Dependencies**: 1.1
   **Files**: `skills/autopilot/install_assets/openspec/schemas/archetypes.schema.json`, `agent-coordinator/archetypes.yaml`
   **Size**: XS
 
-- [ ] 1.4 In `agent-coordinator/src/agents_config.py`: add `procedure_mode: str = "guided"` to `ArchetypeConfig`; parse and validate it in `load_archetypes_config` (structured error on unknown value); define `PROCEDURE_MODE_SENTENCES` as module constants; append the sentence in `resolve_archetype_for_phase` after a blank line for non-`guided` modes; add `procedure_mode` to `ResolvedArchetype` and to the `resolve_archetype_for_phase_endpoint` response model in `coordination_api.py`
+- [x] 1.4 In `agent-coordinator/src/agents_config.py`: add `procedure_mode: str = "guided"` to `ArchetypeConfig`; parse and validate it in `load_archetypes_config` (structured error on unknown value); define `PROCEDURE_MODE_SENTENCES` as module constants; append the sentence in `resolve_archetype_for_phase` after a blank line for non-`guided` modes; add `procedure_mode` to `ResolvedArchetype` and to the `resolve_archetype_for_phase_endpoint` response model in `coordination_api.py`
   **Spec scenarios**: as 1.2
   **Design decisions**: D3
   **Dependencies**: 1.2, 1.3
