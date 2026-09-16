@@ -63,11 +63,18 @@ class ScopeEvidence:
 
 @dataclass(frozen=True, slots=True)
 class ReadyDispatchItem:
-    """Minimal scheduler input, independent of the roadmap orchestrator."""
+    """Minimal scheduler input, independent of the roadmap orchestrator.
+
+    ``position`` is the item's index in its roadmap's ``items`` list. It is
+    declared rather than inferred from the order these are passed in, so a
+    caller that filters or re-sorts ready items cannot silently change dispatch
+    order.
+    """
 
     item_id: str
     change_id: str | None
     priority: int
+    position: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,8 +361,8 @@ def select_safe_ready_batch(
     *,
     forced_serial_item_ids: Sequence[str] = (),
 ) -> DispatchBatch:
-    """Select the priority/item-id ordered maximal pairwise-safe ready batch."""
-    ordered = sorted(ready_items, key=lambda item: (item.priority, item.item_id))
+    """Select the priority/list-position ordered maximal pairwise-safe ready batch."""
+    ordered = sorted(ready_items, key=lambda item: (item.priority, item.position))
     candidates: list[SelectedDispatchItem] = []
     failures: list[SchedulingFailure] = []
     for item in ordered:

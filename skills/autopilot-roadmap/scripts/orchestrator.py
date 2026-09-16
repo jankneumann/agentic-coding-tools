@@ -259,10 +259,13 @@ def prepare_delegated_batch(
         )
         if item.item_id not in unresolved_items
     ]
+    positions = {item.item_id: index for index, item in enumerate(roadmap.items)}
     plan = select_safe_ready_batch(
         repo_root,
         [
-            ReadyDispatchItem(item.item_id, item.change_id, item.priority)
+            ReadyDispatchItem(
+                item.item_id, item.change_id, item.priority, positions[item.item_id]
+            )
             for item in ready
         ],
         forced_serial_item_ids=checkpoint.serial_indeterminate_items,

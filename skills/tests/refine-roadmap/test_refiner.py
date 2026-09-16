@@ -525,14 +525,14 @@ def test_strict_sequence_split_still_renumbers_and_reports_every_shift(repo_root
     assert preview.priority_changes == [["ri-02", 2, 4], ["ri-03", 3, 5]]
 
 
-def test_tiered_reorder_warns_when_coordinated_dispatch_ignores_list_order(repo_root: Path):
-    """Codex review on #554: ties inside a tier are broken two ways.
+def test_tiered_reorder_takes_effect_in_both_dispatch_modes(repo_root: Path):
+    """#555: list position is the tie-break everywhere, so the move is real.
 
-    Sequential readiness (readiness.py) sorts stably, so list order wins;
-    coordinated batches (dispatch_scheduler.select_safe_ready_batch) sort by
-    (priority, item_id), as roadmap-orchestration "Scope-Safe Ready Batches"
-    specifies. Moving ri-04 before same-tier ri-02 changes sequential order only,
-    so the preview must say so instead of implying the move took effect.
+    Until #555, coordinated batches broke ties by item_id while sequential
+    readiness used list order, so moving ri-04 ahead of same-tier ri-02 changed
+    only sequential dispatch and the preview had to warn about it. Both paths
+    now order by (priority, list position), so the move needs no caveat and the
+    candidate list order is the whole statement of it.
     """
     preview = preview_refinement(
         _tiered_roadmap(repo_root),
@@ -541,34 +541,9 @@ def test_tiered_reorder_warns_when_coordinated_dispatch_ignores_list_order(repo_
     )
 
     assert preview.errors == []
-    assert len(preview.warnings) == 1
-    warning = preview.warnings[0]
-    assert "ri-04" in warning and "ri-02" in warning and "coordinated" in warning
-    assert "ri-05" not in warning
-    assert preview.to_dict()["warnings"] == preview.warnings
-
-
-def test_tiered_reorder_consistent_with_item_id_order_has_no_warning(repo_root: Path):
-    preview = preview_refinement(
-        _tiered_roadmap(repo_root),
-        _request({"op": "reorder", "item_id": "ri-05", "after": "ri-02"}),
-        repo_root,
-    )
-
-    assert preview.errors == []
     assert preview.warnings == []
-
-
-def test_strict_sequence_reorder_has_no_tie_warning(repo_root: Path):
-    roadmap_path = _write_roadmap(repo_root, [
-        _item("ri-01", priority=1),
-        _item("ri-02", priority=2),
-        _item("ri-03", priority=3),
-    ])
-    preview = preview_refinement(
-        roadmap_path,
-        _request({"op": "reorder", "item_id": "ri-03", "before": "ri-01"}),
-        repo_root,
-    )
-
-    assert preview.warnings == []
+    assert preview.to_dict()["warnings"] == []
+    assert [item["item_id"] for item in preview.candidate["items"]] == [
+        "ri-01", "ri-04", "ri-02", "ri-03", "ri-05",
+    ]
+    assert preview.priority_changes == [["ri-04", 3, 2]]

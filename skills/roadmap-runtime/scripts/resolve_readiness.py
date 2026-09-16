@@ -128,9 +128,14 @@ def _canonical_roadmap(workspace: _Workspace) -> dict[str, Any]:
     return {
         "path": relative,
         "roadmap_id": roadmap.roadmap_id,
+        # Serialized in item-id order so YAML key order cannot move the digest,
+        # but each entry carries its list position: position breaks priority
+        # ties, so a pure reorder is a readiness-relevant input change and has
+        # to move the fingerprint.
         "items": [
             {
                 "item_id": item.item_id,
+                "position": position,
                 "status": str(item.status.value),
                 "priority": item.priority,
                 "effort": str(item.effort.value),
@@ -140,7 +145,9 @@ def _canonical_roadmap(workspace: _Workspace) -> dict[str, Any]:
                 "change_id": item.change_id,
                 "title": item.title,
             }
-            for item in sorted(roadmap.items, key=lambda item: item.item_id)
+            for position, item in sorted(
+                enumerate(roadmap.items), key=lambda entry: entry[1].item_id
+            )
         ],
     }
 
@@ -373,25 +380,39 @@ def resolve_readiness(repo_root: Path) -> dict[str, Any]:
             for item_id in workspace.effective.completed_items
         )
 
-    ready: list[dict[str, Any]] = []
+    # Rank is carried by array order, so ``position`` stays out of the rows and
+    # the frozen readiness-result contract is unchanged.
+    ranked: list[tuple[int, str, int, dict[str, Any]]] = []
     for workspace in workspaces:
         if workspace.roadmap is None or workspace.effective is None or workspace.hard_invalid:
             continue
+        positions = {
+            item.item_id: index for index, item in enumerate(workspace.roadmap.items)
+        }
         for item in _get_ready_items(
             workspace.roadmap, workspace.effective, external_completed
         ):
-            ready.append(
-                {
-                    "roadmap_id": workspace.roadmap.roadmap_id,
-                    "item_id": item.item_id,
-                    "priority": item.priority,
-                    "effort": item.effort.value,
-                    "change_id": item.change_id,
-                    "title": item.title,
-                }
+            row = {
+                "roadmap_id": workspace.roadmap.roadmap_id,
+                "item_id": item.item_id,
+                "priority": item.priority,
+                "effort": item.effort.value,
+                "change_id": item.change_id,
+                "title": item.title,
+            }
+            ranked.append(
+                (
+                    item.priority,
+                    workspace.roadmap.roadmap_id,
+                    positions[item.item_id],
+                    row,
+                )
             )
 
-    ready.sort(key=lambda row: (row["priority"], row["roadmap_id"], row["item_id"]))
+    # Priority, then roadmap id as the cross-workspace separator, then roadmap
+    # list position — the same tie-break sequential and coordinated dispatch use.
+    ranked.sort(key=lambda entry: entry[:3])
+    ready: list[dict[str, Any]] = [entry[3] for entry in ranked]
     diagnostics.sort(
         key=lambda row: (row["roadmap_id"], row["code"], row.get("detail", ""))
     )
