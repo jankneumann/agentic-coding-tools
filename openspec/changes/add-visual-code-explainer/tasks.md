@@ -5,39 +5,39 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
 
 ## Phase 1 — `codebase-atlas --tree` export (package `wp-atlas-tree`)
 
-- [ ] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering (name then id), callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `3` with sorted candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent` with sorted languages and one-decimal shape, every printed node matches a fixture node by `(name, file)` (tree format emits name/file/kind, not ids), a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, default hops/direction, hops>4 clamp with stderr note, `--no-coverage` omits footer, unreadable `--graph` exits `1`, exact-id-before-name resolution precedence, unique-name resolve, `--direction both` labelled sections, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
+- [x] 1.1 Write `skills/tests/codebase-atlas/test_atlas_tree.py` against the `tiny_graph` fixture: callees tree ordering (name then id), callers with `--hops 1` and `(+n more)` suffix, `(cycle)` printed once, basename target roots at the module, unknown target exits `2`, ambiguous name exits `3` with sorted candidates on stderr, byte-identical output across two runs, footer percentages equal `Coverage.percent` with sorted languages and one-decimal shape, every printed node matches a fixture node by `(name, file)` (tree format emits name/file/kind, not ids), a mixed-edge fixture (a copy of `tiny_graph` plus one `import` edge) proving import edges never appear as callers or callees, default hops/direction, hops>4 clamp with stderr note, `--no-coverage` omits footer, unreadable `--graph` exits `1`, exact-id-before-name resolution precedence, unique-name resolve, `--direction both` labelled sections, and a `≤ 2 s` timing test on the committed graph (skipped when absent)
   **Spec scenarios**: codebase-analysis "Callees tree for a symbol", "Callers tree with hop cap", "Non-call edges are excluded", "Cycle is printed once", "File target gives the aggregated module view", "Unknown target exits 2", "Ambiguous target exits 3", "Deterministic output", "Coverage footer matches the page banner", "Default hops and direction", "Hops above four are clamped", "No-coverage suppresses the footer", "Input or IO error exits 1", "Coverage footer shape", "Target resolution precedence", "Unique name resolves", "Direction both labels sections"
   **Design decisions**: D3 (format), D4 (resolution), D7 (fixture-only nodes), D8 (module name)
   **Dependencies**: None
   **Size**: M
 
-- [ ] 1.2 Implement `skills/codebase-atlas/scripts/atlas_tree.py` — `resolve_target()`, `walk()` over `call`-typed `symbolEdges`, `format_tree()`, `footer()` — stdlib only, children sorted by name then id, hop clamp at 4 with stderr note
+- [x] 1.2 Implement `skills/codebase-atlas/scripts/atlas_tree.py` — `resolve_target()`, `walk()` over `call`-typed `symbolEdges`, `format_tree()`, `footer()` — stdlib only, children sorted by name then id, hop clamp at 4 with stderr note
   **Spec scenarios**: as 1.1
   **Design decisions**: D3, D4, D8
   **Dependencies**: 1.1
   **Size**: M
 
-- [ ] 1.3 Wire `--tree`, `--hops`, `--direction` into `build_atlas.py` `parse_args()` and dispatch in `main()` after `build_view_model()` and before the render path, honouring `--no-coverage` and returning `0/1/2/3`
+- [x] 1.3 Wire `--tree`, `--hops`, `--direction` into `build_atlas.py` `parse_args()` and dispatch in `main()` after `build_view_model()` and before the render path, honouring `--no-coverage` and returning `0/1/2/3`
   **Spec scenarios**: codebase-analysis "Unknown target exits 2", "Ambiguous target exits 3", "Coverage footer matches the page banner"
   **Design decisions**: D3, D8
   **Dependencies**: 1.2
   **Size**: S
 
-- [ ] Checkpoint: run `skills/tests/codebase-atlas`, review diff, verify scope stays inside `skills/codebase-atlas/**` + `skills/tests/codebase-atlas/**`
+- [x] Checkpoint: run `skills/tests/codebase-atlas`, review diff, verify scope stays inside `skills/codebase-atlas/**` + `skills/tests/codebase-atlas/**`
 
-- [ ] 1.4 Add the `--tree` / `--hops` / `--direction` rows to the flag table in `skills/codebase-atlas/SKILL.md` with a two-line usage example (keep the file under 150 lines)
+- [x] 1.4 Add the `--tree` / `--hops` / `--direction` rows to the flag table in `skills/codebase-atlas/SKILL.md` with a two-line usage example (keep the file under 150 lines)
   **Spec scenarios**: codebase-analysis "Callees tree for a symbol"
   **Design decisions**: D3
   **Dependencies**: 1.3
   **Size**: XS
 
-- [ ] 1.5 Extend the flag tuple in `skills/tests/codebase-atlas/test_skill_md.py` with `--tree`, `--hops`, `--direction` so the SKILL.md ↔ CLI check covers them
+- [x] 1.5 Extend the flag tuple in `skills/tests/codebase-atlas/test_skill_md.py` with `--tree`, `--hops`, `--direction` so the SKILL.md ↔ CLI check covers them
   **Spec scenarios**: (test coverage of 1.4)
   **Design decisions**: —
   **Dependencies**: 1.4
   **Size**: XS
 
-- [ ] Checkpoint: run `skills/tests/codebase-atlas`, confirm the SKILL.md flag table and CLI agree, review the cumulative package diff
+- [x] Checkpoint: run `skills/tests/codebase-atlas`, confirm the SKILL.md flag table and CLI agree, review the cumulative package diff
 
 ## Phase 2 — `explain-code` skill (package `wp-skill`, parallel with Phase 1)
 

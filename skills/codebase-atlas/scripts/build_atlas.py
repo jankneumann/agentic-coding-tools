@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from atlas_model import AtlasInputError, build_view_model, load_graph  # noqa: E402
 from atlas_render import render_page  # noqa: E402
+from atlas_tree import DEFAULT_HOPS, render_tree  # noqa: E402
 
 DEFAULT_GRAPH = Path("docs/architecture-analysis/architecture.graph.json")
 DEFAULT_OUTPUT = Path("docs/architecture-analysis/atlas/index.html")
@@ -67,6 +68,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--no-coverage", action="store_true",
         help="Skip the on-disk coverage scan (faster; drops the coverage banner).",
     )
+    parser.add_argument(
+        "--tree", metavar="TARGET", default=None,
+        help="Print an indented call tree for TARGET (symbol id, unique name, or file) instead of HTML.",
+    )
+    parser.add_argument(
+        "--hops", type=int, default=DEFAULT_HOPS,
+        help=f"Hop depth for --tree (default {DEFAULT_HOPS}, max 4).",
+    )
+    parser.add_argument(
+        "--direction", choices=("in", "out", "both"), default="out",
+        help="Edge direction for --tree: callees (out), callers (in), or both (default out).",
+    )
     return parser.parse_args(argv)
 
 
@@ -83,6 +96,18 @@ def main(argv: list[str] | None = None) -> int:
     except AtlasInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+
+    if args.tree is not None:
+        code, text = render_tree(
+            payload,
+            args.tree,
+            hops=args.hops,
+            direction=args.direction,
+            include_footer=not args.no_coverage,
+        )
+        if text:
+            sys.stdout.write(text)
+        return code
 
     if args.json_only:
         json.dump(payload, sys.stdout, indent=2, sort_keys=True)
