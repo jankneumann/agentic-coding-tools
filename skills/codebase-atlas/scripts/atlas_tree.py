@@ -302,7 +302,12 @@ def format_tree(
 
 
 def footer(view: dict[str, Any]) -> str:
-    """Coverage footer matching the page banner percentages."""
+    """Coverage footer matching the page banner percentages.
+
+    Always ``graph @ <sha7> · <list> covered`` so the D5 disclosure mapping
+    (copy after ``· `` / before trailing `` covered``) stays well-defined even
+    when the coverage list is empty.
+    """
     sha = str((view.get("meta") or {}).get("gitSha") or "")
     sha7 = sha[:7]
     cov = view.get("coverage") or []
@@ -310,15 +315,19 @@ def footer(view: dict[str, Any]) -> str:
         f"{c['language']} {c['percent']}%"
         for c in sorted(cov, key=lambda x: x["language"])
     ]
-    if parts:
-        return f"graph @ {sha7} · {' / '.join(parts)} covered"
-    return f"graph @ {sha7} · covered"
+    return f"graph @ {sha7} · {' / '.join(parts)} covered"
 
 
 def clamp_hops(hops: int) -> tuple[int, bool]:
-    """Return (effective_hops, was_clamped)."""
+    """Return (effective_hops, was_clamped).
+
+    Values above ``MAX_HOPS`` clamp to the max (design D3). Negative values
+    floor at 0 so a bad CLI int cannot invert the depth check.
+    """
     if hops > MAX_HOPS:
         return MAX_HOPS, True
+    if hops < 0:
+        return 0, True
     return hops, False
 
 
@@ -338,7 +347,7 @@ def render_tree(
     err = err_file if err_file is not None else sys.stderr
     hops, clamped = clamp_hops(hops)
     if clamped:
-        print(f"note: --hops clamped to {MAX_HOPS}", file=err)
+        print(f"note: --hops clamped to {hops}", file=err)
 
     resolved = resolve_target(view, target)
     if isinstance(resolved, ResolveNotFound):

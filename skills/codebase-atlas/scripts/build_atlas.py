@@ -8,8 +8,8 @@ Usage::
     python build_atlas.py --output /tmp/a.html  # write elsewhere
     python build_atlas.py --json-only           # emit the view-model, skip rendering
 
-Exit codes follow the convention the other architecture producers use:
-``0`` success or fresh, ``1`` input/IO error, ``2`` drift detected in check mode.
+Exit codes: ``0`` success or fresh, ``1`` input/IO error, ``2`` drift in
+``--check`` mode or ``--tree`` target not found, ``3`` ``--tree`` ambiguous target.
 """
 
 from __future__ import annotations

@@ -224,6 +224,16 @@ class TestCoverageFooter:
         assert code == 0
         assert "graph @" not in text
 
+    def test_empty_coverage_list_keeps_disclosure_shape(self, tiny_graph: dict, tmp_path: Path) -> None:
+        view = _view(tiny_graph, tmp_path, measure=False)
+        line = footer(view)
+        assert line.startswith("graph @ abc123d · ")
+        assert line.endswith(" covered")
+        # D5 mapping: after '· ' / before trailing ' covered' yields the list (possibly empty)
+        mid = line.split("· ", 1)[1]
+        assert mid.endswith(" covered")
+        assert mid[: -len(" covered")] == ""
+
 
 class TestPrintedNodesMatchFixture:
     def test_every_printed_node_matches_fixture(self, tiny_graph: dict, tmp_path: Path) -> None:
@@ -250,6 +260,16 @@ class TestDefaultsAndClamp:
         assert code == 0
         assert str(MAX_HOPS) in err.getvalue()
         assert "clamped" in err.getvalue().lower()
+
+    def test_negative_hops_floored(self, tiny_graph: dict, tmp_path: Path) -> None:
+        view = _view(tiny_graph, tmp_path, measure=False)
+        err = io.StringIO()
+        code, text = render_tree(view, "handler", hops=-3, include_footer=False, err_file=err)
+        assert code == 0
+        assert "clamped" in err.getvalue().lower()
+        body = _tree_lines(text)
+        assert len(body) == 1
+        assert "(+" in body[0]
 
 
 class TestIOErrorExit1:
