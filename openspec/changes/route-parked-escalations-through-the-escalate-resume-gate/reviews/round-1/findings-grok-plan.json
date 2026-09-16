@@ -1,0 +1,155 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: The ADDED scenario requires \u201cthe bounded apply result\u201d to report escalation resolutions, and contracts/README.md says \u201cthe observable Python return value adds a bounded escalation_resolutions list while preserving existing keys.\u201d Design D1/D4 and tasks 2.1\u20132.3 intentionally keep ExecutionAdapter.apply\u2019s return shape unchanged and put resolutions on a separate route_parked_escalations method. That contradiction invites folding routing into apply (or mutating apply\u2019s return), which collapses the apply/route retry boundary and can replay dispatch_fn after an already-acknowledged apply.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Rewrite the scenario and contracts note so escalation_resolutions (or equivalent) is solely the return of route_parked_escalations; add an explicit SHALL that apply MUST NOT invoke gate routing and MUST retain its current keys (batch_id, completed/failed/parked_item_ids, gate_decisions).",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 12
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: Design D5\u2019s central invariant\u2014if gate routing fails after durable parking, the host retries only route_parked_escalations and never re-invokes apply/dispatch_fn\u2014has no ADDED WHEN/THEN scenario. Spec coverage stops at happy-path routing, notify, auto resume, prior-record, and exclusions, so the failure/retry contract that justifies splitting the operations is not executable or enforceable.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "resolution": "Add a scenario: AFTER apply has parked a policy_pause and released its lease, WHEN route_parked_escalations raises, THEN the attempt remains parked with effects_applied intact, a subsequent apply of the same batch is refused or is not attempted by the host protocol, and recovery is only by re-calling route_parked_escalations (prior-record prevents duplicate notify/audit).",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 25,
+        "end": 27
+      }
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Tasks 1.1\u20131.4 and the design Test Strategy prove post-persist ordering, auto/notify paths, prior-record reuse, and exclusions, but never require a RED assertion that dispatch_fn call count stays at 1 when routing fails after a successful apply. Without that guard, an implementer can \u201cfix\u201d routing by retrying apply and still satisfy the listed tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add an explicit failing test (and Test Strategy item) that applies a policy_pause once, forces route_parked_escalations to raise, asserts dispatch_fn was called exactly once, and shows a second route_parked_escalations recovers without a second apply.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 29,
+        "end": 35
+      }
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Nit: Partial-batch behavior for route_parked_escalations is unspecified. If a batch has multiple policy_pause attempts and resolve_parked succeeds (including resume) for the first then raises on the second, retry correctly skips the no-longer-parked first attempt, but the plan never states whether the method is best-effort per attempt, must fail before any resume, or must return partial escalation_resolutions collected before the error. Implementers will guess, and hosts cannot report degradations deterministically.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Specify fail-closed-per-attempt semantics: process matched attempts in stable order, persist each resolve_parked side effect immediately, on error re-raise after recording which dispatch_ids already resolved, and document that retries resume from still-parked policy_pause rows only.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 27
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Idempotent handling of an already-proceeded decision is incomplete for the new method. Existing gate_router tests show a reused proceed still calls adapter.resume while the attempt remains parked; after a successful resume the attempt is prepared, so a retried route_parked_escalations scan omits it and returns no resolution for that dispatch_id. The ADDED \u201cRepeated reconciliation\u201d scenario only covers blocked prior-record reuse, not the already-resumed case the host must observe after a crash between resume and returning the bounded list.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Add a scenario/test: after auto proceed+resume, a second route_parked_escalations for the same batch neither re-notifies nor resumes again, and either reports the prior proceed from the gate ledger or documents that absence from the parked scan means already-routed.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+      "line_range": {
+        "start": 27,
+        "end": 31
+      }
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Notify-with-timeout acceptance requires the \u201csupervisor mirror and rehydrated handoff\u201d to carry the escalate_resume pending gate, and task 3.1 tells authors to retain gates in \u201cthe cycle\u2019s supervisor handoff.\u201d Execute today does not write a coordinator supervisor handoff; gate_router._project writes only the tracked mirror, and rehydrate prefers the newer of handoff vs mirror. The plan never states whether execute must emit a handoff after routing or whether mirror projection alone satisfies rehydration\u2014leaving a false requirement to add handoff writes or an untested durability gap.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "resolution": "Clarify that resolve_parked\u2019s mirror projection is the execute-time durability path, that the next rehydrate MUST surface the pending gate/deadline from that mirror when no newer handoff exists, and only require an execute handoff write if that is an intentional new obligation.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+      "line_range": {
+        "start": 14,
+        "end": 19
+      }
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Optional: Design does not require route_parked_escalations to run under ExecutionAdapter\u2019s @_serialized_transition advisory lock, unlike apply/resume/reconcile. Concurrent reconcile/resume against the same workspace during a multi-attempt route scan could observe torn checkpoint state even though individual resume calls are locked.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "optional",
+      "resolution": "Prefer decorating route_parked_escalations with @_serialized_transition (or document why per-attempt resume locking is sufficient and the scan is read-only until resolve_parked).",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 15
+      }
+    },
+    {
+      "id": 8,
+      "type": "performance",
+      "criticality": "low",
+      "description": "FYI: Because route_parked_escalations delegates to gate_router.resolve_parked \u2192 ApprovalGate.evaluate, a notify_with_timeout posture synchronously files, notifies, and polls until timeout T inside the execute host\u2014potentially once per exhausted dispatch in the batch. This matches existing gate-check/resolve_parked behavior and is acceptable if intentional, but the plan never calls out the blocking cost on the supervise execute path.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "fyi",
+      "resolution": "Document in design/SKILL.md that immediate escalation routing inherits the synchronous notify poll window, and that multiple policy_pause attempts serialize those waits.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 13,
+        "end": 15
+      }
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Post-persist separation is sound: apply remains the exact-result/apply_delegated_batch transaction that parks policy_pause and releases the lease; routing is a mandatory host-invoked follow-on through the existing gate_router.resolve_parked seam with prior-record reuse, authorized resume CAS, and exclusion of ordinary pending_gate, failed, and quarantined attempts.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 27
+      }
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Feasibility checks against the current code hold: apply_delegated_batch\u2019s _terminal_attempt sets lease.state=released before apply returns; resolve_parked already maps policy_pause\u2192escalate_resume, projects blocked pending_gates with requested_at+T deadlines, and reuses proceed/blocked subject keys; ExecutionAdapter.resume already enforces gate-decision approval_ref for policy_pause. The plan composes these seams rather than inventing a second gate path.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/proposal.md",
+      "line_range": {
+        "start": 17,
+        "end": 19
+      }
+    }
+  ]
+}

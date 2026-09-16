@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-16 — route-parked-escalations-through-the-escalate-resume-gate
+
+### Phase: Validation 3
+
+**Use behavioral suites as skill-runtime architecture evidence** — The preserved service graph predates the branch and excludes skills, so its zero findings are qualified rather than overstated; 9 direct regressions, 620 focused tests, and the 6319-test full suite are the authoritative evidence.
+
+- Status: `active`
+- Source: [openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/session-log.md](/openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/session-log.md) (D1)
+
+---
+
 ## 2026-09-11 — 2026-09-13-add-supervisor-candidate-work-digest
 
 ### Phase: Implementation

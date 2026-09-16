@@ -486,6 +486,8 @@ Keep an outcome-only parent session and no transcript in the supervisor record o
 A `pending_gate` or `policy_pause` result is a parked nonfailure: retain its bounded next action, leave the roadmap item incomplete, and do not failure-block dependents.
 Validate exact identity, generation, worktree, branch, and realpath before application. For every successful or parked result, require the canonical `openspec/changes/<change-id>/loop-state.json` from that verified worktree, the current worktree commit, and the file SHA-256 digest; reject stale, alternate-path, or semantically inconsistent loop state.
 Pass the collected set to the orchestrator through an in-memory result lookup so it invokes the synchronous `dispatch_fn` exactly once per returned generation.
+The submitted result IDs must equal exactly the current batch members whose `application_journal.state` is not `effects_applied`; omit already-applied peers, and reject missing current members or historical peers before any callback.
+After every batch member reaches `effects_applied`, call `ExecutionAdapter.route_parked_escalations`. If routing fails after that complete-apply boundary, retry this route-only method and never replay delegated apply or its callback.
 
 ### Reconcile and resume
 
@@ -517,6 +519,16 @@ through `check_filed` rather than re-notifying. On `proceed` it calls
 while preserving the same dispatch ID, attempt, launch token, worktree, and branch,
 then repeats the normal child lifecycle. On `blocked` it returns the same pending-gate
 entry shape `gate-check` prints, so the digest renders it without a special case.
+
+For every policy pause, manual and automatic resolution use exactly the allowlisted
+`dispatch_id`, `change_id`, `item_id`, `lease_generation`, `verb`, and fixed
+`reason: supervised phase retry budget exhausted` fields. New decisions carry a
+positive generation; an explicit `gate-answer --lease-generation` must match the
+current parked generation, while dispatch-only answers select the newest blocked
+current generation and legacy generationless records are bound at most once.
+The checkpoint `gate_decisions` ledger is authoritative. The supervisor mirror is
+a derived post-commit projection: projection failure never rolls authority back,
+and `gate-log`/rehydration repair it idempotently from the ledger.
 
 ---
 

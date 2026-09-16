@@ -7,9 +7,7 @@ selects a provider or starts a model client.
 
 from __future__ import annotations
 
-import contextlib
 import copy
-import fcntl
 import functools
 import hashlib
 import json
@@ -18,7 +16,7 @@ import os
 import re
 import sys
 import tempfile
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -31,13 +29,15 @@ for _directory in (_SCRIPTS_ROOT, _SKILLS_ROOT, _RUNTIME_SCRIPTS, _ORCHESTRATOR_
     if str(_directory) not in sys.path:
         sys.path.insert(0, str(_directory))
 
-from checkpoint import CheckpointManager  # type: ignore[import-untyped]  # noqa: E402
+from checkpoint import CheckpointManager, workspace_state_lock  # type: ignore[import-untyped]  # noqa: E402
 from models import (  # type: ignore[import-untyped]  # noqa: E402
     Checkpoint,
     load_roadmap,
     validate_delegated_dispatch_attempt,
 )
 from orchestrator import (  # type: ignore[import-untyped]  # noqa: E402
+    _batch_attempts,
+    _has_current_effects_applied,
     apply_delegated_batch,
     prepare_delegated_batch,
 )
@@ -113,29 +113,13 @@ def _contains(root: Path, candidate: Path) -> bool:
     return True
 
 
-@contextlib.contextmanager
-def _state_lock(workspace: Path) -> Iterator[None]:
-    """Serialize checkpoint read-modify-write transitions across host tasks."""
-    identity = hashlib.sha256(str(workspace.resolve()).encode()).hexdigest()
-    lock_dir = Path(tempfile.gettempdir()) / "supervised-dispatch-state-locks"
-    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    lock_path = lock_dir / f"{identity}.lock"
-    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
-    try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
-        yield
-    finally:
-        with contextlib.suppress(OSError):
-            fcntl.flock(descriptor, fcntl.LOCK_UN)
-        os.close(descriptor)
-
 
 def _serialized_transition(method: Callable[..., Any]) -> Callable[..., Any]:
     """Run one workspace state transition under the shared advisory lock."""
 
     @functools.wraps(method)
     def wrapped(self: Any, workspace: Path, *args: Any, **kwargs: Any) -> Any:
-        with _state_lock(workspace):
+        with workspace_state_lock(workspace):
             return method(self, workspace, *args, **kwargs)
 
     return wrapped
@@ -748,7 +732,7 @@ class ExecutionAdapter:
         owner_nonce: str,
     ) -> dict[str, Any]:
         """Revalidate ownership and durable go immediately before host entry."""
-        with _state_lock(workspace):
+        with workspace_state_lock(workspace):
             manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
             lease = attempt.get("lease", {})
             gate = attempt.get("launch_gate", {})
@@ -884,29 +868,63 @@ class ExecutionAdapter:
             Gate.ESCALATE_RESUME if kind == "policy_pause" else Gate(attempt["parked"]["gate"])
         )
         gate_router.require_approval_ref(
-            checkpoint, approval_ref, gate=expected_gate, dispatch_id=dispatch_id
+            checkpoint, approval_ref, gate=expected_gate, dispatch_id=dispatch_id,
+            lease_generation=attempt["lease_generation"] if kind == "policy_pause" else None,
         )
+        request = self._resume_attempt(checkpoint, attempt, approval_ref=approval_ref, kind=kind)
+        manager.save(checkpoint)
+        return request
+
+    def _resume_attempt(
+        self,
+        checkpoint: Checkpoint,
+        attempt: dict[str, Any],
+        *,
+        approval_ref: str,
+        kind: str,
+    ) -> dict[str, Any]:
+        """Mutate one already-authorized parked attempt without I/O or saving."""
         _remove_owned_marker(attempt)
         attempt["status"] = "prepared"
         attempt["lease_generation"] += 1
         attempt["continuation"] = {"kind": kind, "approval_ref": approval_ref}
         for field in (
-            "lease",
-            "launch_evidence",
-            "launch_gate",
-            "parked",
-            "quarantine",
-            "outcome",
-            "resolved_at",
-            "handoff_id",
-            "application_journal",
+            "lease", "launch_evidence", "launch_gate", "parked", "quarantine",
+            "outcome", "resolved_at", "handoff_id", "application_journal",
         ):
             attempt.pop(field, None)
         validate_delegated_dispatch_attempt(attempt)
-        manager.save(checkpoint)
         return _request(checkpoint, attempt)
 
     @_serialized_transition
+    def resume_with_gate_decision(
+        self,
+        workspace: Path,
+        *,
+        dispatch_id: str,
+        approval_ref: str,
+        kind: str,
+        record: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Atomically append a fresh escalate decision and resume its parked generation."""
+        manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
+        if (
+            attempt.get("status") != "parked"
+            or attempt.get("parked", {}).get("kind") != kind
+            or record.get("gate") != Gate.ESCALATE_RESUME.value
+            or record.get("outcome") != "proceed"
+            or record.get("dispatch_id") != dispatch_id
+            or record.get("lease_generation") != attempt.get("lease_generation")
+            or approval_ref != f"gate-decision:{record.get('decision_id')}"
+        ):
+            raise ExecutionStateError("stale or mismatched escalation decision")
+        if any(existing.get("decision_id") == record.get("decision_id") for existing in checkpoint.gate_decisions):
+            raise ExecutionStateError("escalation decision was already committed")
+        request = self._resume_attempt(checkpoint, attempt, approval_ref=approval_ref, kind=kind)
+        checkpoint.gate_decisions.append(dict(record))
+        manager.save(checkpoint)
+        return request
+
     def apply(
         self,
         workspace: Path,
@@ -948,16 +966,107 @@ class ExecutionAdapter:
             if self.result_file_observer is not None:
                 self.result_file_observer(temporary_path)
             bounded_results = json.loads(temporary_path.read_text())
-            return apply_delegated_batch(
-                workspace,
-                batch_id,
-                bounded_results,
-                dispatch_fn,
-                repo_root=repo_root,
+            with workspace_state_lock(workspace):
+                applied = apply_delegated_batch(
+                    workspace,
+                    batch_id,
+                    bounded_results,
+                    dispatch_fn,
+                    repo_root=repo_root,
+                )
+            applied["escalation_route"] = self.route_parked_escalations(
+                workspace, batch_id=batch_id, repo_root=repo_root
             )
+            return applied
         finally:
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
+
+    def route_parked_escalations(
+        self,
+        workspace: Path,
+        *,
+        batch_id: str,
+        repo_root: Path,
+        evaluator: Any = None,
+    ) -> list[dict[str, Any]]:
+        """Return bounded resolutions for a fully-applied or already-routed batch."""
+        manager = CheckpointManager(workspace)
+        checkpoint = manager.load()
+        batch = _batch_attempts(checkpoint, batch_id)
+
+        def prepared_policy_pause(attempt: Mapping[str, Any]) -> bool:
+            return (
+                attempt.get("status") == "prepared"
+                and attempt.get("continuation", {}).get("kind") == "policy_pause"
+            )
+
+        if not all(
+            _has_current_effects_applied(attempt) or prepared_policy_pause(attempt)
+            for attempt in batch
+        ):
+            raise ExecutionStateError("delegated batch is not fully effects-applied")
+
+        resolutions: list[dict[str, Any]] = []
+        for candidate in sorted(batch, key=lambda attempt: str(attempt["dispatch_id"])):
+            if prepared_policy_pause(candidate):
+                resumed_generation = candidate["lease_generation"]
+                approval_ref = candidate["continuation"].get("approval_ref", "")
+                decision_id = approval_ref.removeprefix("gate-decision:")
+                record = next(
+                    (
+                        item
+                        for item in checkpoint.gate_decisions
+                        if item.get("decision_id") == decision_id
+                        and item.get("gate") == Gate.ESCALATE_RESUME.value
+                        and item.get("outcome") == "proceed"
+                        and item.get("dispatch_id") == candidate["dispatch_id"]
+                    ),
+                    None,
+                )
+                if record is None:
+                    raise ExecutionStateError(
+                        "prepared policy-pause continuation has no durable proceed decision"
+                    )
+                decided_generation = record.get("lease_generation")
+                if decided_generation is None:
+                    decided_generation = resumed_generation - 1
+                resolutions.append(
+                    {
+                        "dispatch_id": candidate["dispatch_id"],
+                        "outcome": "already_routed",
+                        "decided_lease_generation": decided_generation,
+                        "resumed_lease_generation": resumed_generation,
+                    }
+                )
+                continue
+            if (
+                candidate.get("status") != "parked"
+                or candidate.get("parked", {}).get("kind") != "policy_pause"
+            ):
+                continue
+            resolution = gate_router.resolve_parked(
+                candidate,
+                workspace=workspace,
+                repo_root=repo_root,
+                adapter=self,
+                evaluator=evaluator,
+            )
+            entry: dict[str, Any] = {
+                "dispatch_id": candidate["dispatch_id"],
+                "outcome": resolution.outcome,
+                "decided_lease_generation": resolution.routed.record.get(
+                    "lease_generation", candidate["lease_generation"]
+                ),
+            }
+            if resolution.outcome == "proceed":
+                entry["resumed_lease_generation"] = resolution.resume_result[
+                    "lease_generation"
+                ]
+            else:
+                entry["pending_gate"] = dict(resolution.pending_gate_entry or {})
+            resolutions.append(entry)
+        return resolutions
 
     def _validate_exact_evidence(
         self,

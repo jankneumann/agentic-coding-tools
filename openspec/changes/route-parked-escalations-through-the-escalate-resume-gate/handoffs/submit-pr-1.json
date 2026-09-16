@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-16T14:10:36.580359+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "autopilot-runner",
+    "session_id": null,
+    "summary": "Opened PR #557 after 21 lifecycle iterations. Multi-vendor validation review converged through documented recovery with two independent zero-finding reviews; all validation gates pass.",
+    "completed_work": [
+      "Pushed commit 770be3f2 to openspec/recover-ri-06-escalation-routing.",
+      "Opened https://github.com/jankneumann/agentic-coding-tools/pull/557 with the full evidence trail.",
+      "Attempted curated artifact opening; the local code CLI was unavailable, so the gate proceeded with the committed and linked evidence."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Submit ri-06 for merge",
+        "rationale": "The implementation, traceability evidence, full test suite, strict OpenSpec validation, and final vendor-panel consensus are all green.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Record the operator standing merge authorization and transition autopilot to DONE.",
+      "Use cleanup-feature as the sole merge executor after this autopilot run."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/loop-state.json",
+        "description": "Complete 21-iteration lifecycle and gate history"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md",
+        "description": "Passing validation report"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/validation-convergence-final/.review-cache/round-1/consensus-implementation.json",
+        "description": "Final two-reviewer zero-finding consensus"
+      }
+    ]
+  }
+}

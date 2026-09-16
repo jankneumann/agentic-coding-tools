@@ -1,0 +1,47 @@
+{
+  "review_type": "implementation",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "`_newest_blocked_escalate_record` treats every generationless record for a dispatch as matching any requested generation. Consequently, an explicit generation can select a generationless record, and an old legacy record can be reused after the dispatch parks at a later generation. This violates both the requirement that explicit generation select only that blocked generation and the requirement that later generations require a new decision.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The manual `escalate_resume` path rebuilds `ctx` with only five fields and omits the fixed `reason: supervised phase retry budget exhausted`. Manual and automatic resolution therefore do not use the identical six-field allowlisted context required by the specification.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "`_current_parked_policy_pause_attempt` returns the first matching parked attempt in persisted list order rather than selecting or validating the newest lease generation. With more than one matching historical/current parked entry, dispatch-only answers can bind to an older generation, while an explicit current generation can be rejected before `_newest_blocked_escalate_record` is consulted.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Task 3.1 is marked complete, but the packet contains no implementation or tests for deriving the exact current unapplied delegated-batch cohort, rejecting missing or historical results before callbacks, or retaining terminal-persisted but unapplied members. The supplied production changes address only escalation routing, so completion of the delegated batch-apply requirement is not evidenced.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    }
+  ]
+}

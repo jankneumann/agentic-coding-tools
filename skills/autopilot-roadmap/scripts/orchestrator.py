@@ -560,6 +560,18 @@ def _bound_application_journal(
     return journal
 
 
+def _has_current_effects_applied(attempt: Mapping[str, Any]) -> bool:
+    """Whether this attempt's current generation has completed all effects."""
+    journal = attempt.get("application_journal")
+    result = journal.get("result") if isinstance(journal, dict) else None
+    return (
+        isinstance(journal, dict)
+        and journal.get("state") == "effects_applied"
+        and isinstance(result, dict)
+        and result.get("lease_generation") == attempt.get("lease_generation")
+    )
+
+
 def _batch_attempts(checkpoint: Any, batch_id: str) -> list[dict[str, Any]]:
     if not isinstance(batch_id, str) or _BATCH_ID.fullmatch(batch_id) is None:
         raise ValueError(f"invalid delegated batch id: {batch_id}")
@@ -646,12 +658,13 @@ def apply_delegated_batch(
 ) -> dict[str, Any]:
     """Validate and apply one exact persisted batch through ``dispatch_fn`` once."""
     roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
-    attempts = _batch_attempts(checkpoint, batch_id)
-    if all(
-        attempt["status"] in _TERMINAL_ATTEMPT_STATUSES
-        and attempt.get("application_journal", {}).get("state") == "effects_applied"
-        for attempt in attempts
-    ):
+    batch_attempts = _batch_attempts(checkpoint, batch_id)
+    attempts = [
+        attempt
+        for attempt in batch_attempts
+        if _has_current_effects_applied(attempt) is False
+    ]
+    if not attempts:
         raise ValueError(f"delegated batch already applied: {batch_id}")
 
     validated = [_validate_dispatch_result(result) for result in results]
@@ -659,7 +672,17 @@ def apply_delegated_batch(
     if len(dispatch_ids) != len(set(dispatch_ids)):
         raise ValueError("duplicate dispatch result")
     expected_ids = {attempt["dispatch_id"] for attempt in attempts}
-    if set(dispatch_ids) != expected_ids:
+    received_ids = set(dispatch_ids)
+    applied_ids = {
+        attempt["dispatch_id"]
+        for attempt in batch_attempts
+        if _has_current_effects_applied(attempt)
+    }
+    if received_ids & applied_ids:
+        raise ValueError("historical dispatch result for already-applied peer")
+    if expected_ids - received_ids:
+        raise ValueError("result membership mismatch: missing current dispatch result")
+    if received_ids != expected_ids:
         raise ValueError("result membership mismatch for delegated batch")
     result_by_id = {result["dispatch_id"]: result for result in validated}
     for attempt in attempts:
