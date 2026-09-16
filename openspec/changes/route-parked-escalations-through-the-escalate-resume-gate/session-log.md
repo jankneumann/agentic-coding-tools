@@ -151,3 +151,36 @@ Round 3 used a bounded two-vendor roster (Claude Code and Codex). The synthesize
 ### Context
 Recovered ri-06 planning closes the historical stale checkpoint and multi-member resume blockers before implementation.
 
+---
+
+## Phase: Validation (2026-09-16)
+
+**Agent**: autopilot-phase-validator | **Session**: ri06-validate-20260916
+
+### Decisions
+1. **Record container phases as not applicable** — The canonical surface classifier reports deployable=false, so deploy, smoke, security, and E2E could never apply and are not recorded as skipped.
+2. **Halt requirement verification on task drift** — tasks.md has 13 unchecked entries while the branch has 15 implementation commits; validate-feature section 7.0 makes this a critical spec-compliance failure.
+3. **Terminate the non-hermetic full suite** — The suite had already emitted multiple failures/errors and remained blocked for over eight minutes in a live Antigravity reviewer subprocess.
+
+### Completed Work
+- Ruff passed on roadmap-runtime, supervise, autopilot-roadmap, and focused tests
+- Strict change and repository-wide OpenSpec validation passed (90/90 items)
+- Work-package schema, dependency DAG, and lock validation passed
+- Architecture freshness, baseline diff, scoped flows, and structural lint completed
+- Validation report, architecture impact, and schema-valid findings were written
+
+### Next Steps
+- Reconcile the 13 unchecked tasks with implementation reality
+- Produce the canonical wp-authority-recovery result artifact
+- Fix the order-dependent cycle_state import-isolation regression
+- Declare or rationalize the inferred apis context impact
+- Run /iterate-on-implementation route-parked-escalations-through-the-escalate-resume-gate, then re-run /validate-feature route-parked-escalations-through-the-escalate-resume-gate
+
+### Relevant Files
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md` — Phase results and overall failure
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-findings.json` — Schema-valid machine-readable findings
+- `openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/architecture-impact.md` — Architecture diagnostics
+
+### Context
+Validation failed at commit 3848e95d. Deploy, smoke, security, and E2E were not applicable to the declared non-deployable surface; spec/task drift, missing package evidence, an order-dependent focused regression, and blocking context drift prevent advancement.
+
