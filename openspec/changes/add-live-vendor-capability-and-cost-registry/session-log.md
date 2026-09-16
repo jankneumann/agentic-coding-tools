@@ -32,3 +32,64 @@
 ### Context
 Reconciled stale ri-04 scaffold to dispatch-governance dg-01 on exact dg-00 head. Three bounded vendor-panel rounds drove typed lane/provider/policy/catalog identity, explicit location, catalog-only pricing, durable bounded availability, principal-authorized ingestion, exact dispatcher reporting, and executable package gates. Final consensus met quorum with zero deterministic blockers; later advisory corrections were revalidated.
 
+---
+
+## Phase: Implementation (2026-09-16)
+
+**Agent**: codex | **Session**: dg-01-autopilot-roadmap
+
+### Decisions
+1. **Preserve catalog ownership of price data** — The registry projects and quotes dg-00 catalog rows instead of creating a second cost store.
+2. **Persist WAIT without redispatch spin** — A WAIT policy checkpoints a sanitized pause and resumes the same phase only after the reset boundary.
+3. **Report capacity at exact collection seams** — Intermediate model callbacks and one terminal lane report preserve exact-once attribution without duplicate final callbacks.
+
+### Completed Work
+- Implemented explicit lane/provider/policy/catalog identity and typed location in AgentEntry and agents.yaml
+- Implemented durable probe and bounded rate-limit state, authenticated API routes, audit lifecycle, compaction, and request quotes
+- Implemented bridge helpers, exact dispatcher attribution, registry-driven roadmap policy, fail-closed fallback, WAIT persistence, and pause sanitization
+- Passed package-level TDD gates and converged final vendor review at semantic quorum 2/2 with zero blocking findings
+
+### Next Steps
+- Run canonical final validation, submit the stacked PR, and reconcile dispatch-governance dg-01 only after CI.
+
+### Relevant Files
+- `agent-coordinator/src/vendor_registry.py` — registry aggregation, quote, availability, ingestion, and audit core
+- `agent-coordinator/src/coordination_api.py` — authenticated registry HTTP surface
+- `agent-coordinator/src/watchdog.py` — probe persistence and compaction producer
+- `skills/autopilot-roadmap/scripts/policy.py` — capability-filtered lane policy
+- `openspec/changes/add-live-vendor-capability-and-cost-registry/reviews/implementation-round-5/consensus-implementation.json` — final review consensus
+
+### Context
+Implemented dg-01 as a registry projection over explicit AgentEntry lane identity and the dg-00 catalog, with authenticated live-state ingestion, watchdog persistence, dispatcher reporting, and registry-driven roadmap policy. Five bounded review rounds converged after targeted TDD remediation.
+
+---
+
+## Phase: Validation (2026-09-16)
+
+**Agent**: codex | **Session**: dg-01-autopilot-roadmap
+
+### Decisions
+1. **Correct the skills-wide gate working directory** — The skills pytest configuration is rooted at skills; running the same configured suite there avoids unrelated sibling-project collection and passed 4,873 tests.
+2. **Stop the line on strict typing** — Three dg-01 mypy defects were fixed narrowly and the complete affected validation matrix was rerun at the pushed remediation head.
+
+### Capability Gaps Observed
+- **tooling**: The installed .agents/audit-choices mirror resolves its schema path incorrectly; canonical skills/audit-choices succeeds and issue #559 tracks the shared fix. (skill: audit-choices, severity: low)
+
+### Completed Work
+- Passed coordinator regression: 2,659 passed, 11 skipped, 132 deselected
+- Passed required PostgreSQL gate: 33 passed, 0 skipped; contract parity: 19 passed
+- Passed affected skills: 501; configured skills-root suite: 4,873 passed, 15 skipped
+- Passed strict mypy across 83 files, Ruff across both trees, strict OpenSpec 93/93, DAG/scope/lock validation, and diff hygiene
+- Produced validation-report.md and updated task/traceability evidence
+
+### Next Steps
+- Create or update the stacked PR against openspec/add-adaptive-model-router, verify CI, then mark dispatch-governance dg-01 complete.
+
+### Relevant Files
+- `openspec/changes/add-live-vendor-capability-and-cost-registry/validation-report.md` — canonical gate and acceptance evidence
+- `openspec/changes/add-live-vendor-capability-and-cost-registry/tasks.md` — phase completion checklist
+- `openspec/changes/add-live-vendor-capability-and-cost-registry/change-context.md` — implemented requirement traceability
+
+### Context
+Validated dg-01 at e5684e8c: coordinator 2,659; required PostgreSQL 33 with zero skips; skills-root 4,873; affected skills 501; contract 19; strict mypy and Ruff green; OpenSpec 93/93; DAG/scope valid. Ready for stacked PR submission.
+

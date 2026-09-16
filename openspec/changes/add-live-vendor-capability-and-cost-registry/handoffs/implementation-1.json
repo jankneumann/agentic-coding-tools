@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-16T22:15:38.504907+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": "dg-01-autopilot-roadmap",
+    "summary": "Implemented dg-01 as a registry projection over explicit AgentEntry lane identity and the dg-00 catalog, with authenticated live-state ingestion, watchdog persistence, dispatcher reporting, and registry-driven roadmap policy. Five bounded review rounds converged after targeted TDD remediation.",
+    "completed_work": [
+      "Implemented explicit lane/provider/policy/catalog identity and typed location in AgentEntry and agents.yaml",
+      "Implemented durable probe and bounded rate-limit state, authenticated API routes, audit lifecycle, compaction, and request quotes",
+      "Implemented bridge helpers, exact dispatcher attribution, registry-driven roadmap policy, fail-closed fallback, WAIT persistence, and pause sanitization",
+      "Passed package-level TDD gates and converged final vendor review at semantic quorum 2/2 with zero blocking findings"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Preserve catalog ownership of price data",
+        "rationale": "The registry projects and quotes dg-00 catalog rows instead of creating a second cost store.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Persist WAIT without redispatch spin",
+        "rationale": "A WAIT policy checkpoints a sanitized pause and resumes the same phase only after the reset boundary.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Report capacity at exact collection seams",
+        "rationale": "Intermediate model callbacks and one terminal lane report preserve exact-once attribution without duplicate final callbacks.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run canonical final validation, submit the stacked PR, and reconcile dispatch-governance dg-01 only after CI."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/vendor_registry.py",
+        "description": "registry aggregation, quote, availability, ingestion, and audit core"
+      },
+      {
+        "path": "agent-coordinator/src/coordination_api.py",
+        "description": "authenticated registry HTTP surface"
+      },
+      {
+        "path": "agent-coordinator/src/watchdog.py",
+        "description": "probe persistence and compaction producer"
+      },
+      {
+        "path": "skills/autopilot-roadmap/scripts/policy.py",
+        "description": "capability-filtered lane policy"
+      },
+      {
+        "path": "openspec/changes/add-live-vendor-capability-and-cost-registry/reviews/implementation-round-5/consensus-implementation.json",
+        "description": "final review consensus"
+      }
+    ]
+  }
+}
