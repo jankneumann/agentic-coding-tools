@@ -243,6 +243,25 @@ class TestBlockPosture:
         assert entry["decision_id"] == routed.record["decision_id"]
         assert entry["deadline"]
 
+    def test_pending_gate_names_the_change_list_order_will_dispatch(
+        self, repo: Path
+    ) -> None:
+        """#555: the mirror must name the change the next dispatch actually picks.
+
+        ri-09 is listed first at the same priority as ri-02, so list order and
+        item-id order disagree. The pending entry follows the dispatch tie-break
+        (priority, then roadmap list position), not item id.
+        """
+        workspace = _write_roadmap(repo, "alpha", [
+            _item("ri-09", change_id="listed-first"),
+            _item("ri-02", change_id="lower-item-id"),
+        ])
+        service = make_service(posture_with(Gate.ROADMAP_APPROVAL, GateDisposition(Disposition.BLOCK)))
+
+        gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service)
+
+        assert read_mirror(repo)["pending_gates"][0]["change_id"] == "listed-first"
+
     def test_console_answer_originates_a_roadmap_approval_record_and_mirrors_standing_decision(
         self, repo: Path, workspace: Path
     ) -> None:

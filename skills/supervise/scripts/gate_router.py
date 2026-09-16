@@ -201,8 +201,14 @@ def _resolve_pending_change_id(
     if gate is not Gate.ROADMAP_APPROVAL:
         return record.get("change_id")
     external_done = completed_external_refs(repo_root)
+    # Same tie-break dispatch uses: priority, then roadmap list position. The
+    # mirror entry has to name the change the next dispatch will actually pick,
+    # so ordering here by item_id would project the wrong change_id whenever a
+    # tier's list order contradicts its item ids. ``ready_items`` preserves
+    # roadmap order, so position comes from the roadmap itself.
+    positions = {item.item_id: index for index, item in enumerate(roadmap.items)}
     ready = roadmap.ready_items(external_done, include_in_progress=True)
-    ready = sorted(ready, key=lambda i: (i.priority, i.item_id))
+    ready = sorted(ready, key=lambda i: (i.priority, positions[i.item_id]))
     for item in ready:
         if item.change_id:
             return item.change_id

@@ -7,3 +7,4 @@
 - [x] Remove `refine-roadmap`'s tie-order preview warning and its tests.
 - [x] Cover the unified order with tests at all three sites, including a roadmap whose list order contradicts `item_id` order.
 - [x] Carry list position in the resolver's canonical fingerprint projection so a pure reorder is not invisible to staleness comparison.
+- [x] Order the supervisor's pending-gate `change_id` chooser (`supervise/scripts/gate_router.py`) by the same rule, so the mirror names the change dispatch will pick.
