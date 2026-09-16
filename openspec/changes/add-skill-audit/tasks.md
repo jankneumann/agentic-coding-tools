@@ -188,4 +188,12 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `docs/reports/skill-audit/*.md`, `docs/reports/skill-audit/*-findings.json`, `openspec/changes/add-skill-audit/session-log.md`
   **Size**: S
 
-- [ ] Checkpoint: confirm every spec scenario is cited by at least one test task above; confirm no task title contains " and " joining two outcomes; run `openspec validate add-skill-audit --strict`
+- [x] Checkpoint: confirm every spec scenario is cited by at least one test task above; confirm no task title contains " and " joining two outcomes; run `openspec validate add-skill-audit --strict`
+
+  Result: 36 spec scenarios; 28 cited by a task above. The 8 uncited are the
+  pre-existing provider-resolution scenarios that the MODIFIED `Archetype
+  Definition Schema` requirement must restate verbatim; they are unchanged by this
+  change and stay covered by `agent-coordinator/tests/test_agents_config.py`
+  (42 passed on a targeted run). `openspec validate --strict` passes. Task titles
+  containing " and " join file or fixture names inside one outcome, never two
+  completion criteria (audited in design.md under "Task decomposition notes").

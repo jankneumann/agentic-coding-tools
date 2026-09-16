@@ -45,3 +45,53 @@
 ### Context
 Planned add-skill-audit: a recurring, evidence-joined audit of SKILL.md files by layer (contract / constraint / procedure / teaching) with a roster-driven dispatch profile, a memory-to-tier evidence join, a stamped report, and candidate-work stubs, plus an optional procedure_mode field on archetypes injected at coordinator resolution. Coordinated tier (all capabilities present); planning ran in the cloud checkout because the designated branch was already checked out there. Gate 1 approved Approach 1; Gate 2 pending.
 
+---
+
+## Phase: Implementation (2026-09-16)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Ran local-parallel tier, not coordinated, and said so** `architectural: skill-workflow` — check_coordinator reports CAN_LOCK true but the lock endpoint rejects this session's API key, as try_recall did at plan time. The coordinated protocol is built on lock claims, so running it would have meant reporting a coordinated run that never claimed a lock.
+2. **Renamed skills/skill-audit/scripts/findings.py to audit_findings.py** `architectural: skill-audit` — playwright-validator already owns the flat module name `findings`. Once tests entered testpaths, whole-suite collection resolved `from findings import Finding` to that module and broke all six skill-audit test modules. Measured 36 pre-existing collection errors at base, 42 with the collision, 36 after the rename. The filename was mandated by my own tasks.md 2.2, so the mandate was the defect.
+3. **Reconciled openspec/schemas/archetypes.schema.json from the skill-owned copy** `architectural: agent-archetypes` — install.sh flagged divergence and assumes the openspec/ copy is newer; here the direction inverted because task 1.3 edited the skill-owned source. The stale copy provably rejected the shipped roster with '4 is not one of [1, 2, 3]'.
+4. **Corrected suggested_change_id to update-rightsize-<skill>-<kind>-<section-slug>** `architectural: skill-audit` — candidate-work.schema.json admits only an add|update|remove|refactor prefix, and one kind firing in two sections would collide on a duplicate id. The spec text I wrote at plan time was unimplementable; the spec was corrected to match the working implementation.
+5. **Corrected the proposal's injection point from compose_prompt to resolve_archetype_for_phase** `architectural: agent-archetypes` — compose_prompt composes with a task prompt and is used by other callers such as audit_triage; injecting there would change behaviour beyond phase resolution. Design D3 was right and the Impact prose had drifted from it.
+6. **Committed the first six audits with 58 sections left unclassified** `architectural: skill-audit` — No model backend is configured here, so the teaching-layer question is reported open rather than guessed. Guessing would defeat the audit's purpose.
+
+### Alternatives Considered
+- Load the findings module by path with importlib to dodge the collision: rejected because Rule 0: a rename is the simplest thing that works and removes the collision rather than working around it.
+- Fix the pre-existing models/runner module collisions while in the area: rejected because Rule 0.5 scope discipline: 36 pre-existing collection errors are outside this change's write scope; recorded as follow-ups instead.
+- Make the skill-audit-freshness CI job blocking: rejected because Design D6: staleness means the roster moved, which is a prompt to re-audit, not a defect in the change under review; a blocking gate would fail unrelated PRs on any archetypes.yaml edit.
+
+### Trade-offs
+- Accepted Reports committed with empty tier tables over waiting for coordinator memory access because The layer findings are useful now and the evidence join is proven by test; the reports state `evidence: unavailable (unauthorized)` rather than implying no failures exist.
+- Accepted contract_unpinned dominates at 78 of 91 findings over tuning the rule before shipping because It is a true statement about the corpus: most fenced commands have no test citing them. Tuning against six skills would be fitting noise.
+
+### Open Questions
+- [ ] Should reviewer also be goal-directed, given premium tier and bounded review? Deliberately left guided until audit evidence says otherwise.
+- [ ] No phase in phase_mapping routes to `analyst`, so try_resolve_archetype_for_phase can never resolve the analyst model for the classifier; the model is omitted and the harness default applies. Worth a follow-up.
+- [ ] 36 pre-existing flat module-name collisions (`models`, `runner`) break whole-suite collection of skills/tests; CI hides this by running per-directory. Out of scope here.
+- [ ] add-atomic-harness also modifies the Archetype Definition Schema requirement; whichever lands second rebases the requirement text.
+- [ ] The dispatch profile is empty for all six audited skills: none is in dispatch-map.md and none carries archetype tokens. The tier dimension is therefore untested against real lifecycle skills.
+
+### Completed Work
+- wp-procedure-mode: procedure_mode on archetypes at schema v4, injected once in resolve_archetype_for_phase; 208 coordinator tests and 142 skills tests pass
+- wp-skill-audit: 8 scripts, 3 references, SKILL.md at 102 lines, 86 tests, all deterministic and LLM-free
+- wp-integration: manifest and testpaths registration, non-blocking freshness CI job, skills guide and reports README, mirrors regenerated, six audit reports committed
+- All 23 tasks and 8 checkpoints checked; openspec validate --strict passes
+
+### Next Steps
+- validate-feature should check the spec and evidence phases first; the tier-failure path is the least exercised surface because no coordinator evidence was reachable.
+- Re-run the six audits with SKILL_AUDIT_MODEL_CMD set to fill the 58 unclassified sections and answer the teaching-layer question.
+
+### Relevant Files
+- `skills/skill-audit/SKILL.md` — the new skill, 102 lines
+- `skills/skill-audit/scripts/classifier.py` — deterministic pre-pass plus one batched model call
+- `agent-coordinator/src/agents_config.py` — PROCEDURE_MODE_SENTENCES and the single injection point
+- `docs/reports/skill-audit/` — first six audit reports, ledgers, and candidate-work stubs
+- `openspec/changes/add-skill-audit/change-context.md` — traceability matrix, Files Changed still pending validation
+
+### Context
+Implemented add-skill-audit across three work packages: the optional procedure_mode field on archetypes (schema v4, injected once at resolve_archetype_for_phase), the new read-only skill-audit skill with 86 tests, and integration wiring. Ran local-parallel tier rather than coordinated because the coordinator rejects this session's key for lock and memory operations. Two defects found and fixed at integration that neither package could see alone: a flat module-name collision and a stale schema copy.
+

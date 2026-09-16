@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Reconciled openspec/schemas/archetypes.schema.json from the skill-owned copy** — install.sh flagged divergence and assumes the openspec/ copy is newer; here the direction inverted because task 1.3 edited the skill-owned source. The stale copy provably rejected the shipped roster with '4 is not one of [1, 2, 3]'.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D3)
+
+---
+
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Corrected the proposal's injection point from compose_prompt to resolve_archetype_for_phase** — compose_prompt composes with a task prompt and is used by other callers such as audit_triage; injecting there would change behaviour beyond phase resolution. Design D3 was right and the Impact prose had drifted from it.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D5)
+
+---
+
 ## 2026-09-15 — add-skill-audit
 
 ### Phase: Plan
