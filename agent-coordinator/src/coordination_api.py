@@ -15,6 +15,7 @@ import asyncio
 import os
 import sys
 import time
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -25,7 +26,7 @@ from fastapi.exception_handlers import (
 )
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
 from .approval import get_approval_service
 from .axi_output import list_envelope, probe_truncation
@@ -48,6 +49,11 @@ from .port_allocator import get_port_allocator
 from .trust_resolution import (  # noqa: F401
     TrustResolutionError,
     resolve_trust_level,
+)
+from .vendor_registry import (
+    ObservationConflictError,
+    UnknownVendorLaneError,
+    VendorRegistryService,
 )
 
 _CODE_SEARCH_PROBLEMS = {
@@ -118,6 +124,69 @@ class _ProjectionProblemError(Exception):
         self.reason = reason
         self.status = status
         super().__init__(reason)
+
+
+class VendorRateLimitObservationRequest(BaseModel):
+    """A transient rate-limit observation reported by an authenticated lane."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_id: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=1, max_length=2000)
+    reset_at: datetime | None = None
+    retry_after_seconds: StrictInt | None = Field(default=None, ge=1, le=604800)
+    scope: Literal["lane", "model"] = "lane"
+    model: str | None = Field(default=None, min_length=1, max_length=200)
+    metadata: dict[str, Any] = Field(default_factory=dict, max_length=20)
+
+    @model_validator(mode="after")
+    def validate_reset_and_scope(self) -> VendorRateLimitObservationRequest:
+        if self.reset_at is not None and self.retry_after_seconds is not None:
+            raise ValueError("exactly one reset form may be supplied")
+        if self.scope == "model" and not (self.model and self.model.strip()):
+            raise ValueError("model scope requires a concrete model")
+        return self
+
+
+_vendor_registry: VendorRegistryService | None = None
+
+
+def get_vendor_registry() -> VendorRegistryService:
+    """Return the process-local registry service."""
+    global _vendor_registry
+    if _vendor_registry is None:
+        _vendor_registry = VendorRegistryService()
+    return _vendor_registry
+
+
+def _vendor_problem(status: int, problem_type: str, title: str, detail: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status,
+        content={
+            "type": problem_type,
+            "title": title,
+            "status": status,
+            "detail": detail,
+        },
+        media_type="application/problem+json",
+    )
+
+
+async def start_notification_runtime(notifier: Any, watchdog: Any, channels: str) -> None:
+    """Start optional notifications and the always-on watchdog independently."""
+    import logging
+
+    if channels.strip():
+        try:
+            await notifier.start_digest_loop()
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                "Notifier digest loop startup failed.", exc_info=True
+            )
+    try:
+        await watchdog.start()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("Watchdog startup failed.", exc_info=True)
 
 
 def _projection_mutation_payload(result: Any) -> dict[str, Any]:
@@ -751,29 +820,14 @@ def create_coordination_api() -> FastAPI:
                 exc_info=True,
             )
 
-        # Start notifier digest loop and watchdog (only when channels configured)
+        # Notifications are optional; registry freshness requires watchdog always-on.
         from .notifications.notifier import get_notifier
         from .watchdog import get_watchdog
 
         notifier = get_notifier()
         watchdog = get_watchdog()
         notification_channels = os.environ.get("NOTIFICATION_CHANNELS", "")
-
-        if notification_channels.strip():
-            try:
-                await notifier.start_digest_loop()
-            except Exception:  # noqa: BLE001
-                logging.getLogger(__name__).warning(
-                    "Notifier digest loop startup failed.",
-                    exc_info=True,
-                )
-            try:
-                await watchdog.start()
-            except Exception:  # noqa: BLE001
-                logging.getLogger(__name__).warning(
-                    "Watchdog startup failed.",
-                    exc_info=True,
-                )
+        await start_notification_runtime(notifier, watchdog, notification_channels)
 
         # Start merge-train sweeper (R1/R2 — task 5.9). Disable via
         # MERGE_TRAIN_SWEEP_DISABLED=1 for tests or manual operation.
@@ -896,6 +950,15 @@ def create_coordination_api() -> FastAPI:
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
+        if request.url.path.startswith("/vendors/") and request.url.path.endswith(
+            "/rate-limit-observations"
+        ):
+            return _vendor_problem(
+                400,
+                "urn:vendor-registry:invalid-observation",
+                "Invalid rate-limit observation",
+                "invalid_rate_limit_observation",
+            )
         if request.url.path == "/search/code":
             return JSONResponse(
                 status_code=422,
@@ -1507,6 +1570,120 @@ def create_coordination_api() -> FastAPI:
             logger.exception("comment_issue failed")
             return {"success": False, "reason": f"{type(e).__name__}: {e}"}
         return {"success": True, "comment": comment.to_dict()}
+
+    # --------------------------------------------------------------------- #
+    # VENDOR REGISTRY
+    # --------------------------------------------------------------------- #
+
+    @app.get("/vendors")
+    async def list_vendors(
+        capability: str | None = None,
+        archetype: str | None = None,
+        dispatch_mode: str | None = None,
+        location: Literal["local", "cloud", "unknown"] | None = None,
+        available_only: bool = False,
+        _principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Response:
+        try:
+            vendors = await get_vendor_registry().list_vendors(
+                capability=capability,
+                archetype=archetype,
+                dispatch_mode=dispatch_mode,
+                location=location,
+                available_only=available_only,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Vendor registry list failed")
+            return _vendor_problem(
+                503,
+                "urn:vendor-registry:unavailable",
+                "Vendor registry unavailable",
+                "vendor_registry_unavailable",
+            )
+        return JSONResponse(content={"vendors": vendors})
+
+    @app.get("/vendors/{agent_id}/availability")
+    async def get_vendor_availability(
+        agent_id: str,
+        _principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Response:
+        try:
+            availability = await get_vendor_registry().get_availability(agent_id)
+        except UnknownVendorLaneError:
+            return _vendor_problem(
+                404,
+                "urn:vendor-registry:unknown-lane",
+                "Unknown vendor lane",
+                "unknown_vendor_lane",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Vendor registry availability failed")
+            return _vendor_problem(
+                503,
+                "urn:vendor-registry:unavailable",
+                "Vendor registry unavailable",
+                "vendor_registry_unavailable",
+            )
+        return JSONResponse(content=availability)
+
+    @app.post("/vendors/{agent_id}/rate-limit-observations", status_code=202)
+    async def report_vendor_rate_limit(
+        agent_id: str,
+        request: VendorRateLimitObservationRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Response:
+        source_agent_id, source_agent_type = resolve_identity(principal, None, None)
+        if source_agent_id != agent_id:
+            await authorize_operation(
+                agent_id=source_agent_id,
+                agent_type=source_agent_type,
+                operation="report_vendor_rate_limit",
+                resource=agent_id,
+                context={"target_agent_id": agent_id},
+            )
+        try:
+            result = await get_vendor_registry().record_rate_limit(
+                agent_id,
+                observation_id=request.observation_id,
+                reason=request.reason,
+                source_agent_id=source_agent_id,
+                reset_at=request.reset_at,
+                retry_after_seconds=request.retry_after_seconds,
+                scope=request.scope,
+                model=request.model,
+                metadata=request.metadata,
+                received_at=datetime.now(UTC),
+            )
+        except UnknownVendorLaneError:
+            return _vendor_problem(
+                404,
+                "urn:vendor-registry:unknown-lane",
+                "Unknown vendor lane",
+                "unknown_vendor_lane",
+            )
+        except ObservationConflictError:
+            return _vendor_problem(
+                409,
+                "urn:vendor-registry:observation-conflict",
+                "Observation replay conflict",
+                "observation_conflict",
+            )
+        except ValueError as exc:
+            return _vendor_problem(
+                400,
+                "urn:vendor-registry:invalid-observation",
+                "Invalid rate-limit observation",
+                str(exc),
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Vendor rate-limit observation failed")
+            return _vendor_problem(
+                503,
+                "urn:vendor-registry:unavailable",
+                "Vendor registry unavailable",
+                "vendor_registry_unavailable",
+            )
+        return JSONResponse(status_code=202, content=result)
 
     # --------------------------------------------------------------------- #
     # GUARDRAILS

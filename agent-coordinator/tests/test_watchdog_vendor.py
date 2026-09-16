@@ -162,3 +162,121 @@ class TestVendorHealthCheck:
             if "vendor.recovered" in str(c.args[1].get("p_payload", ""))
         ]
         assert len(recovered_events) == 1
+
+
+
+def _snapshot_report():
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        vendors=[
+            SimpleNamespace(
+                agent_id="codex-local",
+                healthy=True,
+                cli_command="codex",
+                error=None,
+            ),
+            SimpleNamespace(
+                agent_id="grok-remote",
+                healthy=False,
+                cli_command="",
+                error="no_probe_method",
+            ),
+        ]
+    )
+
+
+@pytest.mark.asyncio
+async def test_first_poll_persists_every_lane_without_transition_events() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime(2026, 9, 16, 12, 0, tzinfo=UTC)
+    registry = AsyncMock()
+    service = WatchdogService(
+        db=AsyncMock(),
+        time_fn=lambda: 301.0,
+        now_fn=lambda: now,
+        vendor_health_fn=_snapshot_report,
+        vendor_registry=registry,
+        routing_jobs={},
+    )
+    service._emit_event = AsyncMock()
+
+    await service._check_vendor_health()
+
+    assert registry.persist_probe.await_count == 2
+    first = registry.persist_probe.await_args_list[0].kwargs
+    second = registry.persist_probe.await_args_list[1].kwargs
+    assert first["status"] == "available"
+    assert first["stale_after"] == now + timedelta(
+        seconds=2 * service._vendor_health_interval
+    )
+    assert second["status"] == "unknown"
+    assert second["reason"] == "no_probe_method"
+    service._emit_event.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_snapshot_failure_does_not_suppress_other_writes_or_transition() -> None:
+    from datetime import UTC, datetime
+
+    registry = AsyncMock()
+    registry.persist_probe.side_effect = [RuntimeError("db down"), None]
+    service = WatchdogService(
+        db=AsyncMock(),
+        time_fn=lambda: 301.0,
+        now_fn=lambda: datetime(2026, 9, 16, 12, 0, tzinfo=UTC),
+        vendor_health_fn=_snapshot_report,
+        vendor_registry=registry,
+        routing_jobs={},
+    )
+    service._previous_vendor_state = {
+        "codex-local": False,
+        "grok-remote": False,
+    }
+    service._emit_event = AsyncMock()
+
+    await service._check_vendor_health()
+
+    assert registry.persist_probe.await_count == 2
+    service._emit_event.assert_awaited_once()
+    assert service._emit_event.await_args.kwargs["event_type"] == "vendor.recovered"
+
+
+@pytest.mark.asyncio
+async def test_run_once_compacts_expired_vendor_limits() -> None:
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    registry = AsyncMock()
+    service = WatchdogService(
+        db=AsyncMock(),
+        time_fn=lambda: 301.0,
+        now_fn=lambda: datetime(2026, 9, 16, 12, 0, tzinfo=UTC),
+        vendor_health_fn=lambda: SimpleNamespace(vendors=[]),
+        vendor_registry=registry,
+        routing_jobs={},
+    )
+    service._check_stale_agents = AsyncMock()
+    service._check_aging_approvals = AsyncMock()
+    service._check_expiring_locks = AsyncMock()
+    service._cleanup_expired_tokens = AsyncMock()
+    service._check_event_bus_health = AsyncMock()
+    service._run_routing_jobs = AsyncMock()
+
+    await service.run_once()
+
+    registry.compact_rate_limits.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_watchdog_starts_without_notification_channels() -> None:
+    from src.coordination_api import start_notification_runtime
+
+    notifier = AsyncMock()
+    watchdog = AsyncMock()
+
+    await start_notification_runtime(notifier, watchdog, "")
+
+    notifier.start_digest_loop.assert_not_awaited()
+    watchdog.start.assert_awaited_once_with()
