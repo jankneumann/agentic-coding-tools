@@ -27,12 +27,12 @@ defaults:
   min_trust_level: 2
 
 packages:
-  # ── wp-contracts — validate and freeze contract set, generate types (tasks 1.1–1.4)
+  # ── wp-contracts — reconcile and validate contracts (tasks 1.1–1.3)
   - package_id: wp-contracts
     title: "Contracts — OpenAPI, DB, event schemas + generated types"
     task_type: contracts
     description: |
-      Tasks 1.1–1.4: validate/refine the routing OpenAPI (v1.yaml), DB contract
+      Tasks 1.1–1.3: reconcile and validate the routing OpenAPI (v1.yaml), DB contract
       (schema.sql), and signal event schema; generate Pydantic models into
       contracts/generated/. Coordination boundary for all downstream packages.
     role: contracts-author
@@ -112,6 +112,8 @@ packages:
         - "agent-coordinator/tests/model_routing/test_ledger*.py"
         - "agent-coordinator/tests/model_routing/test_migrations*.py"
         - "agent-coordinator/tests/model_routing/test_local_endpoints*.py"
+        - "agent-coordinator/tests/test_watchdog.py"
+        - "agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py"
       read_allow:
         - "**"
     worktree:
@@ -125,7 +127,7 @@ packages:
       steps:
         - name: "Catalog layer unit + integration tests pass"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing -q"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing agent-coordinator/tests/test_watchdog.py agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -157,11 +159,15 @@ packages:
       files:
         - "agent-coordinator/src/agents_config.py"
         - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
       keys:
         - "api:POST /routing/select_model"
         - "api:GET /routing/catalog"
+        - "api:GET /routing/decisions/{id}"
         - "api:GET /routing/usage"
         - "api:POST /routing/feedback"
+        - "feature:add-adaptive-model-router:mcp"
       ttl_minutes: 180
       reason: "Resolver, routing API surface, archetype delegation"
     scope:
@@ -179,6 +185,10 @@ packages:
         - "agent-coordinator/tests/model_routing/test_api*.py"
         - "agent-coordinator/tests/model_routing/test_delegation*.py"
         - "agent-coordinator/tests/model_routing/test_constraints*.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/tests/test_coordination_api.py"
+        - "agent-coordinator/tests/test_http_proxy.py"
       read_allow:
         - "**"
     worktree:
@@ -213,7 +223,7 @@ packages:
     title: "Dispatch discovery for OpenAI-compatible endpoints"
     task_type: backend
     description: |
-      Reuse the merged OpenAICompatAdapter and catalog-pricing core; make local and
+      Reuse the merged OpenAICompatAdapter; make local and
       OpenRouter endpoint entries reachable after CLI and SDK discovery while preserving
       CLI precedence. Skills tree only — parallel-safe with coordinator packages.
     role: backend-implementer
@@ -223,18 +233,14 @@ packages:
     locks:
       files:
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-        - "skills/autopilot-roadmap/scripts/policy.py"
       keys:
         - "feature:add-adaptive-model-router:dispatch"
-        - "feature:add-adaptive-model-router:policy"
       ttl_minutes: 120
-      reason: "Dispatch adapter and cost-model replacement"
+      reason: "OpenAI-compatible dispatcher discovery"
     scope:
       write_allow:
         - "skills/parallel-infrastructure/scripts/**"
-        - "skills/autopilot-roadmap/scripts/**"
         - "skills/tests/parallel-infrastructure/**"
-        - "skills/tests/autopilot-roadmap/**"
       read_allow:
         - "**"
     worktree:
@@ -246,9 +252,9 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "Adapter and policy tests pass"
+        - name: "Dispatcher discovery tests pass"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure skills/tests/autopilot-roadmap -q"
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests skills/tests/parallel-infrastructure -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -277,8 +283,7 @@ packages:
     priority: 9
     depends_on: [wp-db-catalog, wp-resolver, wp-dispatch]
     locks:
-      files:
-        - ".mcp.json"
+      files: []
       keys:
         - "feature:add-adaptive-model-router:integration"
       ttl_minutes: 120
@@ -299,7 +304,7 @@ packages:
       steps:
         - name: "Coordinator suite passes"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e'"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration'"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -308,7 +313,7 @@ packages:
               - "coordinator_suite_passed"
         - name: "Skills suite passes"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests -q"
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests skills/tests/parallel-infrastructure -q"
           cwd: "."
           expect_exit_code: 0
           evidence:

@@ -12,7 +12,7 @@
   public rankings as the primary prior source, which Databricks showed misleads on private
   codebases — and (b) extend the gen-eval calibration suite (task 5.6) beyond local models.
 - **Why deferred**: Requires accumulated completed-change corpus and the routing posterior
-  infrastructure from this change to be in place first; independent of the 8-package DAG.
+  infrastructure from this change to be in place first; independent of the original full proposal's 8-package DAG (`work-packages-full-proposal.yaml`).
 - **Migration target**: follow-up proposal `add-internal-routing-benchmark` (not yet created);
   re-evaluate after this change's validate phase.
 - **Scope context**: read-only mining of `openspec/changes/archive/**`, coordinator episodic
@@ -28,7 +28,8 @@
 
 ## DT-3 — Roadmap exploration dispatch enforcement (task 4.6)
 
-- **Origin**: task 4.6; task 4.5 tests and the fail-closed policy gate are already landed.
+- **Origin**: task 4.6; tasks 4.3–4.5 are already landed on `main` via PR #237.
+- **Baseline note**: The catalog pricing/cost core, its tests, and the fail-closed policy gate are existing substrate, not omitted migration work.
 - **What**: Thread the exploration gate through every roadmap dispatch caller.
 - **Why deferred**: Outside dg-00 wiring acceptance and overlaps later dispatch-governance orchestration work.
 - **Migration target**: dedicated roadmap-orchestration follow-up.
