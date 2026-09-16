@@ -67,3 +67,17 @@
 - **What**: Move concrete model IDs and fallback lists out of `agents.yaml` and into an exact harness/dispatch/tier route table.
 - **Why deferred**: Not a dg-00 acceptance outcome and conflicts with the current static fallback contract. Keeping the current static mapping intact is required to prove `ROUTING_ADAPTIVE=off` equality.
 - **Migration target**: a dedicated post-dg-00 configuration-ownership change. The catalog/Candidate seams remain extensible for ri-18 billing metadata without adding that metadata here.
+
+## DT-9 — Full-spec residual reconciliation
+
+- **Origin**: preserved original requirements in `deferred-specs/` after dg-00 scope convergence.
+- **What**: Reconcile disappeared OpenRouter models to unavailable, propagate stale-catalog state into decision provenance, and schedule feedback/ToS/canary jobs when their implementations land.
+- **Why deferred**: These are explicit obligations of the original full proposal, not any of the four dg-00 roadmap outcomes.
+- **Migration target**: the follow-up changes that reactivate the corresponding preserved requirements.
+
+## Preservation map
+
+- `tasks-full-proposal.md`: exact pre-convergence task record.
+- `work-packages-full-proposal.yaml`: exact pre-convergence machine DAG.
+- `change-context-full-proposal.md`: pre-convergence full traceability matrix.
+- `deferred-specs/`: exact pre-convergence normative delta specs.

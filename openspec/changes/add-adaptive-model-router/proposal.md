@@ -27,8 +27,18 @@ no manual model picks, (b) local models absorb a meaningful share of economy-tie
 
 ### dg-00 recovery boundary (2026-09-16)
 
-The current roadmap item and PR deliver only the four dg-00 wiring outcomes: five HTTP paths plus the MCP selection tool, additive catalog storage with storage-only reads, default-off adaptive delegation with exact static fallback, and dispatcher discovery for `OpenAICompatAdapter`. The remaining original vision is explicitly preserved in `deferred-tasks.md`; this tranche does not migrate central model ownership from PR 417 and does not add ri-18 billing metadata to `CandidateInput`.
+The current roadmap item and PR deliver the four dg-00 wiring outcomes: five HTTP paths plus the
+MCP selection tool; additive catalog storage with storage-only reads; default-off adaptive
+delegation with exact static fallback; and dispatcher discovery for `OpenAICompatAdapter`. The
+supporting tranche also schedules the implemented catalog refresher, local health probe, and
+ledger rollup independently. The remaining original vision is preserved in `deferred-tasks.md`
+and `deferred-specs/`; this tranche does not migrate central model ownership from PR 417 and
+does not add ri-18 billing metadata to `CandidateInput`.
 
+### Full proposal vision (preserved, deferred outside dg-00)
+
+The bullets below record the original vision. They are not delivery claims for this PR except
+where the bounded paragraph above names an implemented substrate component.
 
 - **New capability `model-routing`** owning the model catalog, scoring, and selection contract.
 - **Model catalog + signal ledger in coordinator Postgres** (new migrations): per
