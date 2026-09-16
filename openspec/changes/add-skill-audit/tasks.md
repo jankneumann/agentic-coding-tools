@@ -14,7 +14,7 @@ Phases 1 and 2 share no write paths and run in parallel; Phase 3 depends on both
   **Files**: `agent-coordinator/tests/test_archetypes_yaml.py`, `agent-coordinator/tests/test_agents_config.py`
   **Size**: S
 
-- [ ] 1.2 Extend `agent-coordinator/tests/test_phase_archetype_resolution.py`: `INIT` resolves with `system_prompt` ending in the `verbatim` constant and `procedure_mode == "verbatim"`; `PLAN` ends with the `goal-directed` constant containing `skill-procedure-deviation`; `IMPLEMENT` returns the implementer prompt byte-for-byte with `procedure_mode == "guided"`; escalation on `loc_estimate` keeps the implementer's mode; the `/archetypes/resolve_for_phase` response carries `procedure_mode`
+- [x] 1.2 Extend `agent-coordinator/tests/test_phase_archetype_resolution.py`: `INIT` resolves with `system_prompt` ending in the `verbatim` constant and `procedure_mode == "verbatim"`; `PLAN` ends with the `goal-directed` constant containing `skill-procedure-deviation`; `IMPLEMENT` returns the implementer prompt byte-for-byte with `procedure_mode == "guided"`; escalation on `loc_estimate` keeps the implementer's mode; the `/archetypes/resolve_for_phase` response carries `procedure_mode`
   **Spec scenarios**: agent-archetypes "Verbatim archetype gets the verbatim sentence", "Goal-directed archetype names the deviation ledger", "Guided archetype is unchanged", "Escalation preserves the mode"
   **Design decisions**: D3
   **Dependencies**: None
