@@ -91,6 +91,7 @@ COPY agent-coordinator/evaluation/ /app/evaluation/
 COPY agent-coordinator/database/ /app/database/
 COPY agent-coordinator/agents.yaml /app/agents.yaml
 COPY agent-coordinator/teams.yaml /app/teams.yaml
+COPY agent-coordinator/routing.yaml /app/routing.yaml
 # archetypes.yaml is read at runtime by src/agents_config.py:load_archetypes_config
 # (`Path(__file__).parent.parent / "archetypes.yaml"`). It powers per-phase
 # archetype resolution at POST /archetypes/resolve_for_phase. Without this

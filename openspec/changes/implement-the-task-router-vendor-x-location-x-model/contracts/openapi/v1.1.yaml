@@ -220,6 +220,31 @@ components:
     SelectModelResponse:
       type: object
       required: [decision_id, selected, alternatives, assignment, provenance]
+      allOf:
+        - if:
+            required: [fallback]
+            properties:
+              fallback: {const: true}
+          then:
+            properties:
+              provenance:
+                type: object
+                properties:
+                  source: {const: local-static}
+                  persisted: {const: false}
+                  durable_audit: {const: false}
+                  catalog_key: {type: "null"}
+        - if:
+            properties:
+              provenance:
+                type: object
+                required: [source]
+                properties:
+                  source: {const: local-static}
+          then:
+            required: [fallback]
+            properties:
+              fallback: {const: true}
       properties:
         decision_id: {type: string, format: uuid}
         selected: {$ref: '#/components/schemas/Candidate'}
