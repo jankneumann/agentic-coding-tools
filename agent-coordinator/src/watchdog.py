@@ -162,12 +162,30 @@ class WatchdogService:
                 "available": sum(result.available for result in results),
             }
 
+        async def sync_configured_catalog() -> dict[str, Any]:
+            from .model_routing.catalog import CatalogService
+            from .model_routing.configured_catalog import ConfiguredCatalogSync
+
+            result = await ConfiguredCatalogSync(catalog=CatalogService(self.db)).sync()
+            return {
+                "inserted": result.inserted,
+                "existing": result.existing,
+                "skipped": result.skipped,
+            }
+
         async def rollup_ledger() -> dict[str, Any]:
             from .model_routing.ledger import LedgerService
 
             return await LedgerService(self.db).rollup_current_month()
 
         return {
+            "configured_catalog_sync": (
+                sync_configured_catalog,
+                _positive_int_env(
+                    "ROUTING_CATALOG_REFRESH_INTERVAL_SECONDS",
+                    _DEFAULT_CATALOG_REFRESH_INTERVAL,
+                ),
+            ),
             "catalog_refresh": (
                 refresh_catalog,
                 _positive_int_env(

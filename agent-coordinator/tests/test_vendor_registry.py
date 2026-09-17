@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 import src.coordination_api as api_module
-from src.agents_config import AgentEntry, CliConfig, ModeConfig
+from src.agents_config import AgentEntry, CliConfig, ModeConfig, SdkConfig
 from src.vendor_registry import ObservationConflictError, VendorRegistryService
 
 NOW = datetime(2026, 9, 16, 12, 0, tzinfo=UTC)
@@ -22,6 +22,7 @@ def _agent(
     endpoint_kind: str = "vendor-cli",
     model: str = "gpt-5.6",
     model_fallbacks: list[str] | None = None,
+    catalog_vendor: str | None = "codex",
 ) -> AgentEntry:
     return AgentEntry(
         name=name,
@@ -33,7 +34,7 @@ def _agent(
         description="test",
         location=location,
         policy_vendor="codex",
-        catalog_vendor=None,
+        catalog_vendor=catalog_vendor,
         endpoint_kind=endpoint_kind,
         cli=CliConfig(
             command="codex",
@@ -61,7 +62,52 @@ def test_agent_entry_exposes_typed_lane_identity() -> None:
 
     assert agent.location == "local"
     assert agent.policy_vendor == "codex"
-    assert agent.catalog_vendor is None
+    assert agent.catalog_vendor == "codex"
+
+
+@pytest.mark.asyncio
+async def test_projection_with_missing_identity_fails_closed_without_fuzzy_match() -> None:
+    service = VendorRegistryService(
+        _db(
+            {
+                "model_catalog": [
+                    {
+                        "vendor": "codex",
+                        "model": "gpt-5.6",
+                        "endpoint_kind": "vendor-cli",
+                        "base_url": None,
+                        "available": True,
+                    }
+                ]
+            }
+        ),
+        agents=[_agent(catalog_vendor=None)],
+        provider_model_map={},
+        now_fn=lambda: NOW,
+        audit=None,
+    )
+
+    lane = (await service.list_vendors())[0]
+
+    assert lane["cost"]["models"] == []
+    assert lane["cost"]["known"] is False
+
+
+def test_vendor_sdk_models_come_only_from_lane_sdk_configuration() -> None:
+    agent = _agent(endpoint_kind="vendor-sdk")
+    agent.sdk = SdkConfig(
+        package="openai",
+        method="responses.create",
+        model="sdk-primary",
+        model_fallbacks=["sdk-fallback"],
+    )
+    service = VendorRegistryService(
+        _db(),
+        agents=[agent],
+        provider_model_map={"providers": {"codex": {"premium": "cli-tier"}}},
+    )
+
+    assert service._agent_models(agent) == ["sdk-fallback", "sdk-primary"]
 
 
 def test_coordination_api_registry_factory_wires_durable_audit(
@@ -227,7 +273,12 @@ async def test_local_catalog_gate_fails_closed_despite_successful_probe() -> Non
         "observed_at": (NOW - timedelta(seconds=5)).isoformat(),
         "stale_after": (NOW + timedelta(minutes=1)).isoformat(),
     }
-    agent = _agent("local-model", endpoint_kind="local", model="qwen3-coder")
+    agent = _agent(
+        "local-model",
+        endpoint_kind="local",
+        model="qwen3-coder",
+        catalog_vendor="local",
+    )
     service = VendorRegistryService(
         _db(
             {

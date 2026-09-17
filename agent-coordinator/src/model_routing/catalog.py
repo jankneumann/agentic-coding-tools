@@ -138,7 +138,7 @@ class CatalogService:
 
     async def list_candidates(self, task_type: str) -> list[CandidateInput]:
         candidates: list[CandidateInput] = []
-        for row in await self.list_entries(include_unavailable=False):
+        for row in await self.list_entries(include_unavailable=True):
             post_rows = await self.db.query(
                 "model_posteriors",
                 f"catalog_id=eq.{encode_filter_value(row['id'])}"
@@ -159,6 +159,7 @@ class CatalogService:
                     vendor=str(row["vendor"]),
                     model=str(row["model"]),
                     endpoint_kind=str(row["endpoint_kind"]),
+                    base_url=row.get("base_url"),
                     benchmark_prior=float(priors.get(task_type, priors.get("default", 0.0))),
                     prompt_usd_per_mtok=_optional_float(row.get("prompt_usd_per_mtok")),
                     completion_usd_per_mtok=_optional_float(row.get("completion_usd_per_mtok")),
@@ -193,6 +194,28 @@ class CatalogService:
             f"decision_id=eq.{encode_filter_value(decision_id)}&limit=1",
         )
         return rows[0] if rows else None
+
+    async def record_decision_and_audit(self, decision: dict[str, Any]) -> dict[str, Any]:
+        """Atomically persist the authoritative decision and its link-only audit event."""
+        selected = decision["selected"]
+        assignment = selected["assignment"]
+        provenance = selected["provenance"]
+        audit_link = {
+            "decision_id": decision["decision_id"],
+            "selected_agent_id": assignment["agent_id"],
+            "selected_model": selected["model"],
+            "routing_policy_version": provenance["policy_version"],
+            "routing_policy_checksum": provenance["policy_checksum"],
+            "source": provenance["source"],
+            "success": True,
+        }
+        result = await self.db.rpc(
+            "record_routing_decision_with_audit",
+            {"p_decision": decision, "p_audit_link": audit_link},
+        )
+        if isinstance(result, list):
+            result = result[0] if result else {}
+        return dict(result) if isinstance(result, Mapping) else {}
 
     def _with_derived_staleness(self, row: dict[str, Any]) -> dict[str, Any]:
         result = dict(row)

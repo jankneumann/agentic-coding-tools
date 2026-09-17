@@ -100,6 +100,27 @@ async def test_list_candidates_maps_catalog_and_task_posterior() -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_candidates_retains_unavailable_rows_and_exact_base_url() -> None:
+    catalog_row = {
+        "id": 12,
+        "vendor": "codex",
+        "model": "gpt-5.6-terra",
+        "endpoint_kind": "vendor-cli",
+        "base_url": "https://example.test/v1",
+        "available": False,
+        "benchmark_priors": {},
+    }
+    db = _db()
+    db.query = AsyncMock(side_effect=[[catalog_row], []])
+
+    candidates = await CatalogService(db).list_candidates("implementer/high")
+
+    assert candidates[0].available is False
+    assert candidates[0].base_url == "https://example.test/v1"
+    assert "available=eq.true" not in db.query.await_args_list[0].args[1]
+
+
+@pytest.mark.asyncio
 async def test_decision_round_trip_uses_routing_decisions_storage() -> None:
     db = _db()
     db.insert = AsyncMock(side_effect=lambda _table, data: {"decision_id": "d-1", **data})
