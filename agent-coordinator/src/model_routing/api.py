@@ -7,16 +7,22 @@ import os
 import random
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
-from typing import Any, Literal, Protocol
+from typing import Annotated, Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .exploration import ExplorationBudget, choose
-from .resolver import OBJECTIVE_PROFILES, Weights, score_and_rank
+from .resolver import (
+    OBJECTIVE_PROFILES,
+    ExcludedAssignmentInput,
+    Weights,
+    build_feasible_assignments,
+    score_and_rank,
+)
 
 EndpointKind = Literal["vendor-cli", "vendor-sdk", "openrouter", "local"]
 ObjectiveProfile = Literal["quality-first", "balanced", "cost-first", "resilience"]
@@ -47,13 +53,91 @@ class TaskSignals(BaseModel):
     modality: Literal["interactive", "programmatic"] = "programmatic"
 
 
+class RoadmapRoutingPolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    allowed_agent_ids: list[Annotated[str, Field(max_length=128)]] = Field(
+        default_factory=list, max_length=64
+    )
+    excluded_agent_ids: list[Annotated[str, Field(max_length=128)]] = Field(
+        default_factory=list, max_length=64
+    )
+    allowed_vendor_types: list[Annotated[str, Field(max_length=64)]] = Field(
+        default_factory=list, max_length=32
+    )
+    excluded_vendor_types: list[Annotated[str, Field(max_length=64)]] = Field(
+        default_factory=list, max_length=32
+    )
+    allowed_locations: list[Literal["local", "cloud", "unknown"]] = Field(
+        default_factory=list, max_length=3
+    )
+
+    @model_validator(mode="after")
+    def validate_unique_lists(self) -> RoadmapRoutingPolicy:
+        for field_name in (
+            "allowed_agent_ids",
+            "excluded_agent_ids",
+            "allowed_vendor_types",
+            "excluded_vendor_types",
+            "allowed_locations",
+        ):
+            values = getattr(self, field_name)
+            if len(values) != len(set(values)):
+                raise ValueError(f"{field_name} entries must be unique")
+        return self
+
+
+class TaskRoutingProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_duration_seconds: int | None = Field(default=None, ge=0)
+    scope: Literal["read-only", "bounded-write", "broad-write"] = "read-only"
+    interactivity: Literal["interactive", "headless"] = "headless"
+    secret_need: Literal["none", "brokered", "direct"] = "none"
+    parallelism: int = Field(default=1, ge=1)
+    repo_shape: Literal["single-package", "monorepo", "unknown"] = "unknown"
+    roadmap_policy: RoadmapRoutingPolicy | None = None
+    required_location: Literal["local", "cloud", "unknown"] | None = None
+    required_isolation: Literal["none", "worktree", "sandbox"] | None = None
+    required_dispatch_mode: Literal["review", "alternative", "quick", "sdk"] | None = None
+
+
 class SelectModelRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     task_signals: TaskSignals
+    routing_profile: TaskRoutingProfile | None = None
     objective_profile: ObjectiveProfile | None = None
     weight_overrides: WeightOverrides | None = None
     allow_exploration: bool = True
+
+
+class RoutingAssignmentResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: str
+    vendor_type: str
+    policy_vendor: str
+    catalog_vendor: str
+    location: Literal["local", "cloud", "unknown"]
+    isolation: Literal["none", "worktree", "sandbox"]
+    dispatch_mode: Literal["review", "alternative", "quick", "sdk"]
+    model: str
+    endpoint_kind: str
+    base_url: str | None = None
+
+
+class RoutingProvenanceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["coordinator", "local-static"]
+    policy_version: str
+    policy_checksum: str = Field(pattern=r"^[a-f0-9]{64}$")
+    matched_rule_ids: list[str] = Field(max_length=32)
+    rationale: list[str] = Field(max_length=32)
+    persisted: bool
+    durable_audit: bool
+    catalog_key: tuple[str, str, str, str | None] | None
 
 
 class CandidateResponse(BaseModel):
@@ -62,6 +146,7 @@ class CandidateResponse(BaseModel):
     vendor: str
     model: str
     endpoint_kind: EndpointKind
+    base_url: str | None = None
     score: float
     quality: float | None = None
     norm_cost: float | None = None
@@ -69,11 +154,17 @@ class CandidateResponse(BaseModel):
     posterior_sample_size: int | float | None = None
     stale_catalog: bool = False
     cost_source: Literal["posterior", "prior"] | None = None
+    assignment: RoutingAssignmentResponse
 
 
 class ExcludedCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: str | None = None
     vendor: str
     model: str
+    endpoint_kind: str
+    base_url: str | None = None
     reason: str
 
 
@@ -84,6 +175,8 @@ class SelectModelResponse(BaseModel):
     exploration: bool = False
     fallback: bool = False
     excluded: list[ExcludedCandidate] = Field(default_factory=list)
+    assignment: RoutingAssignmentResponse
+    provenance: RoutingProvenanceResponse
 
 
 class UsageByModelResponse(BaseModel):
@@ -145,6 +238,10 @@ class _Catalog(Protocol):
 
     async def record_decision(self, decision: dict[str, Any]) -> dict[str, Any]: ...
 
+    async def record_decision_and_audit(
+        self, decision: dict[str, Any]
+    ) -> dict[str, Any]: ...
+
     async def get_decision(self, decision_id: str) -> dict[str, Any] | None: ...
 
 
@@ -168,6 +265,7 @@ def _candidate_payload(candidate: Any) -> dict[str, Any]:
         "vendor": raw["vendor"],
         "model": raw["model"],
         "endpoint_kind": raw["endpoint_kind"],
+        "base_url": raw.get("base_url"),
         "score": raw["score"],
         "quality": raw["quality"],
         "norm_cost": raw["norm_cost"],
@@ -175,6 +273,33 @@ def _candidate_payload(candidate: Any) -> dict[str, Any]:
         "posterior_sample_size": raw["posterior_sample_size"],
         "stale_catalog": bool(raw.get("stale_catalog", False)),
         "cost_source": raw["cost_source"],
+        **({"assignment": raw["assignment"]} if raw.get("assignment") is not None else {}),
+    }
+
+
+def _excluded_payload(item: ExcludedAssignmentInput) -> dict[str, Any]:
+    return asdict(item)
+
+
+def _sanitized_request(request: SelectModelRequest) -> dict[str, Any]:
+    signals = request.task_signals.model_dump(
+        mode="json",
+        include={"archetype", "phase", "task_type", "complexity", "modality"},
+    )
+    return {
+        "task_signals": signals,
+        "routing_profile": (
+            request.routing_profile.model_dump(mode="json")
+            if request.routing_profile is not None
+            else None
+        ),
+        "objective_profile": request.objective_profile,
+        "weight_overrides": (
+            request.weight_overrides.model_dump(mode="json")
+            if request.weight_overrides is not None
+            else None
+        ),
+        "allow_exploration": request.allow_exploration,
     }
 
 
@@ -221,10 +346,15 @@ class RoutingService:
         catalog: _Catalog | None = None,
         ledger: _Ledger | None = None,
         *,
+        registry: Any | None = None,
+        policy: Any | None = None,
         rng: random.Random | None = None,
     ) -> None:
         self._catalog = catalog
         self._ledger = ledger
+        self._registry = registry
+        self._policy = policy
+        self._assignment_enabled = registry is not None or policy is not None or catalog is None
         self._rng = rng
 
     @property
@@ -242,6 +372,22 @@ class RoutingService:
 
             self._ledger = get_routing_ledger()
         return self._ledger
+
+    @property
+    def registry(self) -> Any:
+        if self._registry is None:
+            from ..vendor_registry import VendorRegistryService
+
+            self._registry = VendorRegistryService(audit=None)
+        return self._registry
+
+    @property
+    def policy(self) -> Any:
+        if self._policy is None:
+            from .routing_policy import load_routing_policy
+
+            self._policy = load_routing_policy()
+        return self._policy
 
     async def _current_exploration_budget(
         self,
@@ -276,6 +422,76 @@ class RoutingService:
 
     async def select_model(self, request: SelectModelRequest) -> dict[str, Any]:
         candidates = await self.catalog.list_candidates(_task_type(request.task_signals))
+        assignment_excluded: list[ExcludedAssignmentInput] = []
+        evaluation: Any | None = None
+        if self._assignment_enabled:
+            try:
+                lanes = await self.registry.list_vendors(available_only=False)
+                if not isinstance(lanes, list):
+                    raise TypeError("registry result is not a list")
+            except Exception as exc:
+                raise RoutingUnavailableError("routing-registry-unavailable") from exc
+            profile = (
+                request.routing_profile.model_dump(mode="python")
+                if request.routing_profile is not None
+                else TaskRoutingProfile().model_dump(mode="python")
+            )
+            profile.update(
+                {
+                    "phase": request.task_signals.phase,
+                    "archetype": request.task_signals.archetype,
+                }
+            )
+            evaluation = self.policy.evaluate(profile)
+            explicit = request.routing_profile
+            required_location: str | None = (
+                explicit.required_location if explicit is not None else None
+            )
+            if (
+                required_location is not None
+                and evaluation.location is not None
+                and required_location != evaluation.location
+            ):
+                required_location = "__constraint-conflict__"
+            elif required_location is None:
+                required_location = evaluation.location
+            required_isolation: str | None = (
+                explicit.required_isolation if explicit is not None else None
+            )
+            if (
+                required_isolation is not None
+                and evaluation.isolation is not None
+                and required_isolation != evaluation.isolation
+            ):
+                required_isolation = "__constraint-conflict__"
+            elif required_isolation is None:
+                required_isolation = evaluation.isolation
+            explicit_dispatch = (
+                explicit.required_dispatch_mode if explicit is not None else None
+            )
+            rule_dispatch = getattr(evaluation, "rule_dispatch_mode", None)
+            if (
+                explicit_dispatch is not None
+                and rule_dispatch is not None
+                and explicit_dispatch != rule_dispatch
+            ):
+                dispatch_mode = "__constraint-conflict__"
+            else:
+                dispatch_mode = explicit_dispatch or evaluation.dispatch_mode
+            roadmap = (
+                explicit.roadmap_policy.model_dump(mode="python")
+                if explicit is not None and explicit.roadmap_policy is not None
+                else None
+            )
+            candidates, assignment_excluded = build_feasible_assignments(
+                lanes,
+                candidates,
+                archetype=request.task_signals.archetype,
+                dispatch_mode=dispatch_mode,
+                required_location=required_location,
+                required_isolation=required_isolation,
+                roadmap_policy=roadmap,
+            )
         ranked, excluded = score_and_rank(
             candidates,
             profile=request.objective_profile or "balanced",
@@ -314,26 +530,75 @@ class RoutingService:
         alternatives = [
             _candidate_payload(candidate) for candidate in ranked if candidate != selection.selected
         ]
+        excluded_payloads = [_excluded_payload(item) for item in assignment_excluded]
+        excluded_payloads.extend(
+            _excluded_payload(
+                ExcludedAssignmentInput(
+                    agent_id=(
+                        candidate.assignment.agent_id
+                        if candidate.assignment is not None
+                        else None
+                    ),
+                    vendor=candidate.vendor,
+                    model=candidate.model,
+                    endpoint_kind=candidate.endpoint_kind,
+                    base_url=candidate.base_url,
+                    reason=reason,
+                )
+            )
+            for candidate, reason in excluded
+        )
         payload: dict[str, Any] = {
             "decision_id": str(uuid4()),
             "selected": selected,
             "alternatives": alternatives,
             "exploration": selection.exploration,
             "fallback": False,
-            "excluded": [
-                {"vendor": candidate.vendor, "model": candidate.model, "reason": reason}
-                for candidate, reason in excluded
-            ],
+            "excluded": excluded_payloads,
         }
-        await self.catalog.record_decision(
-            {
+        if self._assignment_enabled:
+            assignment = selected["assignment"]
+            assert isinstance(assignment, dict)
+            assert evaluation is not None
+            provenance = {
+                "source": "coordinator",
+                "policy_version": self.policy.version,
+                "policy_checksum": self.policy.checksum,
+                "matched_rule_ids": list(evaluation.matched_rule_ids),
+                "rationale": list(evaluation.rationale),
+                "persisted": True,
+                "durable_audit": True,
+                "catalog_key": [
+                    assignment["catalog_vendor"],
+                    assignment["model"],
+                    assignment["endpoint_kind"],
+                    assignment["base_url"],
+                ],
+            }
+            payload["assignment"] = assignment
+            payload["provenance"] = provenance
+            durable_payload = {
                 **payload,
+                "selected": {**selected, "provenance": provenance},
                 "created_at": datetime.now(UTC).isoformat(),
-                "request": request.model_dump(mode="json"),
+                "request": _sanitized_request(request),
                 "policy_version": "linear-utility-v1",
                 "budget_state": budget_state,
             }
-        )
+            try:
+                await self.catalog.record_decision_and_audit(durable_payload)
+            except Exception as exc:
+                raise RoutingUnavailableError("routing-durability-unavailable") from exc
+        else:
+            await self.catalog.record_decision(
+                {
+                    **payload,
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "request": request.model_dump(mode="json"),
+                    "policy_version": "linear-utility-v1",
+                    "budget_state": budget_state,
+                }
+            )
         return payload
 
     async def list_catalog(

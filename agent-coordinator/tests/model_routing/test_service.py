@@ -1,12 +1,31 @@
 """Service-level coverage for catalog-to-resolver routing orchestration."""
 
 import random
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic import ValidationError
 
-from src.model_routing.api import RoutingService, SelectModelRequest
+from src.model_routing.api import RoutingService, RoutingUnavailableError, SelectModelRequest
 from src.model_routing.resolver import CandidateInput
+
+
+@pytest.mark.parametrize(
+    "roadmap_policy",
+    [
+        {"allowed_agent_ids": ["codex-local", "codex-local"]},
+        {"allowed_vendor_types": ["v" * 65]},
+        {"paths": ["secrets/**"]},
+    ],
+)
+def test_request_rejects_unbounded_or_unknown_roadmap_policy(
+    roadmap_policy: dict[str, list[str]],
+) -> None:
+    with pytest.raises(ValidationError):
+        SelectModelRequest(
+            task_signals={"archetype": "implementer"},
+            routing_profile={"roadmap_policy": roadmap_policy},
+        )
 
 
 @pytest.mark.asyncio
@@ -179,3 +198,140 @@ async def test_service_propagates_stale_catalog_to_response_and_decision() -> No
 
     assert result["selected"]["stale_catalog"] is True
     assert catalog.record_decision.await_args.args[0]["selected"]["stale_catalog"] is True
+
+
+@pytest.mark.asyncio
+async def test_service_routes_only_exact_registry_pair_and_returns_assignment() -> None:
+    catalog = AsyncMock()
+    catalog.list_candidates.return_value = [
+        CandidateInput(
+            vendor="codex",
+            model="gpt-5.6-terra",
+            endpoint_kind="vendor-cli",
+            benchmark_prior=0.8,
+        )
+    ]
+    catalog.record_decision_and_audit.return_value = {}
+    registry = AsyncMock()
+    registry.list_vendors.return_value = [
+        {
+            "agent_id": "codex-local",
+            "vendor_type": "codex",
+            "policy_vendor": "codex",
+            "catalog_vendor": "codex",
+            "location": "local",
+            "isolation": "worktree",
+            "archetypes": ["implementer"],
+            "dispatch_modes": ["quick"],
+            "dispatchable": True,
+            "availability": {"available": True, "rate_limits": []},
+            "cost": {
+                "models": [
+                    {
+                        "catalog_vendor": "codex",
+                        "model": "gpt-5.6-terra",
+                        "endpoint_kind": "vendor-cli",
+                        "base_url": None,
+                        "available": True,
+                    }
+                ]
+            },
+        }
+    ]
+    policy = MagicMock()
+    policy.version = "dg04-v1"
+    policy.checksum = "a" * 64
+    policy.evaluate.return_value = MagicMock(
+        location=None,
+        isolation=None,
+        dispatch_mode="quick",
+        matched_rule_ids=(),
+        rationale=("default:dispatch_mode=quick",),
+    )
+    ledger = AsyncMock()
+    service = RoutingService(
+        catalog=catalog,
+        ledger=ledger,
+        registry=registry,
+        policy=policy,
+    )
+
+    result = await service.select_model(
+        SelectModelRequest(
+            task_signals={"archetype": "implementer"},
+            allow_exploration=False,
+        )
+    )
+
+    assert result["assignment"] == result["selected"]["assignment"]
+    assert result["assignment"]["agent_id"] == "codex-local"
+    assert result["provenance"]["policy_version"] == "dg04-v1"
+    registry.list_vendors.assert_awaited_once_with(available_only=False)
+    catalog.list_candidates.assert_awaited_once()
+    catalog.record_decision.assert_not_awaited()
+    catalog.record_decision_and_audit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_explicit_dispatch_conflict_with_policy_rule_has_no_feasible_assignment() -> None:
+    catalog = AsyncMock()
+    catalog.list_candidates.return_value = [
+        CandidateInput(
+            vendor="codex",
+            model="gpt-5.6-terra",
+            endpoint_kind="vendor-cli",
+        )
+    ]
+    registry = AsyncMock()
+    registry.list_vendors.return_value = [
+        {
+            "agent_id": "codex-local",
+            "vendor_type": "codex",
+            "policy_vendor": "codex",
+            "location": "local",
+            "isolation": "worktree",
+            "archetypes": ["implementer"],
+            "dispatch_modes": ["quick", "review"],
+            "dispatchable": True,
+            "availability": {"available": True},
+            "cost": {
+                "models": [
+                    {
+                        "catalog_vendor": "codex",
+                        "model": "gpt-5.6-terra",
+                        "endpoint_kind": "vendor-cli",
+                        "base_url": None,
+                        "available": True,
+                    }
+                ]
+            },
+        }
+    ]
+    policy = MagicMock(version="dg04-v1", checksum="a" * 64)
+    policy.evaluate.return_value = MagicMock(
+        location=None,
+        isolation=None,
+        dispatch_mode="review",
+        rule_dispatch_mode="review",
+        matched_rule_ids=("review-rule",),
+        rationale=("rule:review-rule:dispatch_mode=review",),
+    )
+    service = RoutingService(
+        catalog=catalog,
+        ledger=AsyncMock(),
+        registry=registry,
+        policy=policy,
+    )
+
+    with pytest.raises(
+        RoutingUnavailableError, match="no feasible model-routing candidate"
+    ):
+        await service.select_model(
+            SelectModelRequest(
+                task_signals={"archetype": "implementer"},
+                routing_profile={"required_dispatch_mode": "quick"},
+                allow_exploration=False,
+            )
+        )
+
+    catalog.record_decision_and_audit.assert_not_awaited()

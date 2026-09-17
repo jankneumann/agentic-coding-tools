@@ -17,8 +17,10 @@ from src.model_routing.resolver import (
     OBJECTIVE_PROFILES,
     CandidateInput,
     Posterior,
+    RoutingAssignment,
     Weights,
     blend_quality,
+    build_feasible_assignments,
     effective_cost,
     feasibility_reason,
     score_and_rank,
@@ -191,3 +193,115 @@ def test_empty_candidate_set_returns_none():
 def test_all_profiles_have_weights():
     for name in ("quality-first", "balanced", "cost-first", "resilience"):
         assert isinstance(OBJECTIVE_PROFILES[name], Weights)
+
+
+def _lane(
+    agent_id: str,
+    *,
+    location: str = "local",
+    available: bool = True,
+    dispatch_modes: list[str] | None = None,
+) -> dict:
+    return {
+        "agent_id": agent_id,
+        "vendor_type": "codex",
+        "policy_vendor": "codex",
+        "catalog_vendor": "codex",
+        "location": location,
+        "isolation": "worktree",
+        "archetypes": ["implementer"],
+        "dispatch_modes": dispatch_modes or ["quick"],
+        "dispatchable": True,
+        "availability": {"available": available, "rate_limits": []},
+        "cost": {
+            "models": [
+                {
+                    "catalog_vendor": "codex",
+                    "model": "gpt-5.6-terra",
+                    "endpoint_kind": "vendor-cli",
+                    "base_url": None,
+                    "available": True,
+                }
+            ]
+        },
+    }
+
+
+def test_exact_lane_catalog_association_rejects_near_matches() -> None:
+    candidates = [
+        CandidateInput(
+            vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli"
+        ),
+        CandidateInput(
+            vendor="publisher-codex",
+            model="gpt-5.6-terra-preview",
+            endpoint_kind="vendor-cli",
+        ),
+    ]
+
+    feasible, excluded = build_feasible_assignments(
+        [_lane("codex-local")],
+        candidates,
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    assert len(feasible) == 1
+    assert feasible[0].assignment == RoutingAssignment(
+        agent_id="codex-local",
+        vendor_type="codex",
+        policy_vendor="codex",
+        catalog_vendor="codex",
+        location="local",
+        isolation="worktree",
+        dispatch_mode="quick",
+        model="gpt-5.6-terra",
+        endpoint_kind="vendor-cli",
+        base_url=None,
+    )
+    assert [(item.vendor, item.model, item.reason) for item in excluded] == [
+        ("publisher-codex", "gpt-5.6-terra-preview", "catalog:no-configured-lane")
+    ]
+
+
+def test_lane_feasibility_excludes_unavailable_before_utility_scoring() -> None:
+    candidate = CandidateInput(
+        vendor="codex",
+        model="gpt-5.6-terra",
+        endpoint_kind="vendor-cli",
+        benchmark_prior=1.0,
+    )
+
+    feasible, excluded = build_feasible_assignments(
+        [_lane("codex-local", available=False)],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+    ranked, scorer_excluded = score_and_rank(feasible)
+
+    assert ranked == []
+    assert scorer_excluded == []
+    assert [item.reason for item in excluded] == ["lane:unavailable"]
+
+
+def test_equal_utility_is_stable_by_agent_id_then_catalog_identity() -> None:
+    candidate = CandidateInput(
+        vendor="codex",
+        model="gpt-5.6-terra",
+        endpoint_kind="vendor-cli",
+        benchmark_prior=0.8,
+    )
+    feasible, _ = build_feasible_assignments(
+        [_lane("z-lane"), _lane("a-lane")],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    ranked, _ = score_and_rank(feasible)
+
+    assert [item.assignment.agent_id for item in ranked if item.assignment] == [
+        "a-lane",
+        "z-lane",
+    ]
