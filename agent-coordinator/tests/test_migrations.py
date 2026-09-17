@@ -364,3 +364,22 @@ async def test_ensure_schema_skips_missing_dsn() -> None:
         result = await ensure_schema()
 
     assert result == []
+
+
+def test_migration_042_defines_atomic_routing_decision_audit_rpc() -> None:
+    sql = (
+        _COORDINATOR_ROOT / "database/migrations/042_atomic_routing_audit.sql"
+    ).read_text()
+
+    assert "CREATE OR REPLACE FUNCTION record_routing_decision_with_audit(" in sql
+    assert "INSERT INTO routing_decisions" in sql
+    assert "INSERT INTO audit_log" in sql
+    assert "'routing_decision'" in sql
+    assert "p_audit_link" in sql
+    assert "SECURITY INVOKER" in sql
+    assert "SET search_path = public, pg_temp" in sql
+    assert (
+        "REVOKE ALL ON FUNCTION record_routing_decision_with_audit(JSONB, JSONB) FROM PUBLIC"
+        in sql
+    )
+    assert "GRANT EXECUTE ON FUNCTION record_routing_decision_with_audit(JSONB, JSONB)" in sql

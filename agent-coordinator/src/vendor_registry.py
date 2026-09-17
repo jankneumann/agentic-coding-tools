@@ -328,14 +328,17 @@ class VendorRegistryService:
         }
         projections: list[dict[str, Any]] = []
         for model in self._agent_models(agent):
-            matches = [
-                row
-                for row in rows
-                if str(row.get("model") or "") == model
-                and (agent.endpoint_kind is None or row.get("endpoint_kind") == agent.endpoint_kind)
-                and (agent.base_url is None or row.get("base_url") == agent.base_url)
-                and (agent.catalog_vendor is None or row.get("vendor") == agent.catalog_vendor)
-            ]
+            if agent.catalog_vendor is None or agent.endpoint_kind is None:
+                matches: list[dict[str, Any]] = []
+            else:
+                matches = [
+                    row
+                    for row in rows
+                    if str(row.get("model") or "") == model
+                    and row.get("endpoint_kind") == agent.endpoint_kind
+                    and row.get("base_url") == agent.base_url
+                    and row.get("vendor") == agent.catalog_vendor
+                ]
             if len(matches) != 1:
                 all_models_matched = False
                 miss_reason = "ambiguous" if matches else "missing"
@@ -379,17 +382,21 @@ class VendorRegistryService:
         return {"source": "model_catalog", "known": known, "models": projections}
 
     def _agent_models(self, agent: AgentEntry) -> list[str]:
+        if agent.endpoint_kind == "vendor-sdk":
+            if agent.sdk is None:
+                return []
+            return sorted({agent.sdk.model, *agent.sdk.model_fallbacks})
         models: set[str] = set()
         if agent.cli is not None:
             models.update(model for model in [agent.cli.model, *agent.cli.model_fallbacks] if model)
-        if agent.sdk is not None:
+        if agent.sdk is not None and agent.endpoint_kind != "vendor-cli":
             models.update([agent.sdk.model, *agent.sdk.model_fallbacks])
         raw_map = self._provider_model_map
         if raw_map is None:
             raw_map = get_provider_model_map()
         providers = raw_map.get("providers", raw_map) if isinstance(raw_map, Mapping) else {}
         provider = providers.get(agent.type, {}) if isinstance(providers, Mapping) else {}
-        if isinstance(provider, Mapping):
+        if isinstance(provider, Mapping) and agent.endpoint_kind != "vendor-sdk":
             for value in provider.values():
                 if isinstance(value, str):
                     models.add(value)

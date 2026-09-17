@@ -58,7 +58,8 @@ agents:
     type: claude_code
     location: local
     policy_vendor: claude
-    catalog_vendor: null
+    catalog_vendor: claude_code
+    endpoint_kind: vendor-cli
     profile: claude_code_local
     trust_level: 3
     transport: mcp
@@ -105,7 +106,8 @@ agents:
     type: claude_code
     location: cloud
     policy_vendor: claude
-    catalog_vendor: null
+    catalog_vendor: claude_code
+    endpoint_kind: vendor-sdk
     profile: claude_code_remote
     trust_level: 2
     transport: http
@@ -158,7 +160,8 @@ agents:
     type: codex
     location: local
     policy_vendor: codex
-    catalog_vendor: null
+    catalog_vendor: codex
+    endpoint_kind: vendor-cli
     profile: codex_local
     trust_level: 3
     transport: mcp
@@ -190,7 +193,8 @@ agents:
     type: codex
     location: cloud
     policy_vendor: codex
-    catalog_vendor: null
+    catalog_vendor: codex
+    endpoint_kind: vendor-sdk
     profile: codex_remote
     trust_level: 2
     transport: http
@@ -256,7 +260,8 @@ agents:
     type: antigravity
     location: local
     policy_vendor: antigravity
-    catalog_vendor: null
+    catalog_vendor: antigravity
+    endpoint_kind: vendor-cli
     profile: antigravity_local
     trust_level: 3
     transport: mcp
@@ -310,7 +315,8 @@ agents:
     type: grok
     location: local
     policy_vendor: grok
-    catalog_vendor: null
+    catalog_vendor: grok
+    endpoint_kind: vendor-cli
     profile: grok_local
     trust_level: 3
     transport: mcp
@@ -363,7 +369,8 @@ agents:
     type: grok
     location: cloud
     policy_vendor: grok
-    catalog_vendor: null
+    catalog_vendor: grok
+    endpoint_kind: vendor-sdk
     profile: grok_remote
     trust_level: 2
     transport: http
@@ -393,7 +400,8 @@ agents:
     type: pi
     location: local
     policy_vendor: pi
-    catalog_vendor: null
+    catalog_vendor: openrouter
+    endpoint_kind: openrouter
     profile: pi_local
     trust_level: 3
     transport: mcp
@@ -443,7 +451,8 @@ agents:
     type: ocr
     location: local
     policy_vendor: ocr
-    catalog_vendor: null
+    catalog_vendor: ocr
+    endpoint_kind: vendor-cli
     profile: ocr_local
     trust_level: 1
     transport: mcp
