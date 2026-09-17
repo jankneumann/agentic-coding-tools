@@ -56,6 +56,7 @@ def test_invalid_routing_interval_env_falls_back_to_defaults(monkeypatch):
     service = WatchdogService(db=_make_mock_db())
 
     assert service._routing_jobs["catalog_refresh"][1] == 6 * 60 * 60
+    assert service._routing_jobs["configured_catalog_sync"][1] == 6 * 60 * 60
     assert service._routing_jobs["local_endpoint_probe"][1] == 5 * 60
     assert service._routing_jobs["ledger_rollup"][1] == 5 * 60
 
