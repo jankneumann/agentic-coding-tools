@@ -1,0 +1,36 @@
+schema_version: 1
+policy_version: dg04-v1
+
+defaults:
+  dispatch_mode: quick
+  phase_dispatch_modes:
+    PLAN_REVIEW: review
+    IMPL_REVIEW: review
+    VAL_REVIEW: review
+    GATEKEEPER: review
+
+# Rules are evaluated in order. The first matching rule that mentions a
+# dimension owns that dimension; later rules may still constrain other ones.
+rules:
+  - id: direct-secrets-local
+    when:
+      secret_need: direct
+    constrain:
+      location: local
+  - id: interactive-local
+    when:
+      interactivity: interactive
+    constrain:
+      location: local
+  - id: read-only-review
+    when:
+      scope: read-only
+    constrain:
+      dispatch_mode: review
+
+# This order is a deterministic local-fallback tie breaker, not an isolation
+# strength or enforcement policy.
+fallback:
+  location_order: [local, cloud, unknown]
+  isolation_order: [worktree, sandbox, none]
+  dispatch_mode_order: [review, alternative, quick, sdk]
