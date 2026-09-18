@@ -449,15 +449,24 @@ items:
   change_id: route-review-convergence-on-per-finding-dispositions
   acceptance_outcomes:
   - max_rounds remains a hard ceiling that no judged answer can extend, asserted by
-    a test where the round Noul stays high.
-  - A replay over recorded ledger trends shows fewer fix dispatches than the stall
-    rule for the same terminal blocking count, with both counts recorded.
-  - defer_to_followup and reject_out_of_scope go through the existing park_item and
-    reject_out_of_scope_fix paths, with no new ledger mutation surface.
-  - needs_human parks the item as a disagreement rather than dispatching a fix, covered
-    by a test.
-  - With the helper returning None the stall rule trend[-1] >= trend[-stall_window]
-    still governs, proven by existing convergence tests passing unchanged.
+    a test where the round Noul stays high across every round of a max_rounds-length
+    run.
+  - A replay over a fixture-constructed ledger trend sequence (recorded per-round
+    blocking counts and dispositions) shows fewer fix dispatches than the old stall
+    rule for the same terminal blocking count, with both counts recorded in the replay
+    output; comparing against genuine multi-round production trends is deferred until
+    autopilot persists real trend history from normal runs.
+  - defer_to_followup and reject_out_of_scope both route through the existing park_item(ledger,
+    item, reason=...) call -- the same function needs_human already uses for disagreement
+    -- distinguished only by the reason string passed in, so no new ledger mutation
+    surface is introduced; covered by a test asserting all three dispositions produce
+    a "parked" item via that one function.
+  - needs_human parks the item via park_item(..., reason="disagreement") rather than
+    dispatching a fix, covered by a test.
+  - With the helper returning None, every blocking item defaults to fix_now and the
+    stall rule trend[-1] >= trend[-stall_window] still governs exactly as before,
+    proven by the existing convergence tests in skills/autopilot/scripts/tests/test_convergence_loop.py
+    and skills/tests/autopilot/test_convergence_loop.py passing unchanged.
 - item_id: ri-15
   title: Screen fact-check grounds with a first-stage judged pass
   status: approved
@@ -723,7 +732,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T20:11:54.948223+00:00'
+updated_at: '2026-09-18T20:34:21.661390+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -868,3 +877,33 @@ refinements:
   operations:
   - reorder:ri-08
   - edit:ri-08
+- timestamp: '2026-09-18T20:34:21.661390+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'Grounded ri-14 against the real convergence_loop.converge and review_ledger.py
+    before implementation (same discipline as ri-04/ri-05/ri-06/ri-07). Two corrections:
+    (1) the scaffolded "reject_out_of_scope go through the existing ... reject_out_of_scope_fix"
+    path names the wrong function -- the real reject_out_of_scope_fix(files_modified,
+    allowed) is a POST-fix scope check that raises ScopeViolation when an already-applied
+    diff strayed outside the cited paths; it takes no ledger item and cannot "reject"
+    a finding before a fix is ever attempted. The one existing mechanism generic enough
+    to shelve a finding pre-fix is park_item(ledger, item, reason=...), already used
+    for needs_human/disagreement -- reject_out_of_scope and defer_to_followup reuse
+    the same function with a distinct reason string, so all three "do not fix this
+    round" dispositions share one existing code path and genuinely add no new ledger
+    mutation surface, which the scaffolded text asserted but pointed at the wrong
+    function to prove it. (2) "recorded ledger trends" to replay against do not exist:
+    converge()''s round-by-round `trend` list is a local variable that is never persisted
+    anywhere in the codebase, and the only real ledger.json on disk (add-visual-code-explainer''s)
+    is a single end-state snapshot from an unrelated feature, not a multi-round trend
+    sequence -- the same "no real production data yet" gap ri-04''s kappa, ri-06''s
+    disagreement rate, and ri-07''s sprint measurement each hit. The disposition mechanism
+    and its replay-comparison harness ship and are tested against a fixture- constructed
+    ledger trend sequence; comparing against genuine multi-round production trends
+    is deferred until autopilot actually persists trend history from real runs (itself
+    a small addition this item can make since the data already exists in-memory, but
+    the *production-scale replay measurement* is what''s deferred, consistent with
+    how the prior items'' deferred measurements were handled).'
+  base_sha256: 06682d01a21b85580cfa8415ec2196758a83754325a41a5f0e6c789d16b863e5
+  operations:
+  - edit:ri-14
