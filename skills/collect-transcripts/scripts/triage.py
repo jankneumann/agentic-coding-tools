@@ -32,6 +32,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from normalize import ContentType, EventRole, NormalizedEvent  # noqa: E402
+from sanitize_events import sanitize_event_stream  # noqa: E402
 
 # Per system_one_decisions.testing's documented stubbing rule: import the
 # module, never a pre-bound name, so a monkeypatched `decide` attribute is
@@ -182,6 +183,31 @@ def _classify_struggle(
 
 _STRUGGLE_LEVELS = ("none", "low", "medium", "high")
 
+DEFAULT_DEEP_ANALYSIS_PROBABILITY_FLOOR = 0.5
+_TRIAGE_JUDGMENT_CONFIG_PATH = _SCRIPTS_DIR / "triage-judgment.json"
+
+
+def load_deep_analysis_floor(config_path: Path | None = None) -> float:
+    """Read the optional sidecar JSON, falling back to the module default.
+
+    Mirrors gatekeeper_shadow.load_shadow_thresholds: a malformed or
+    missing sidecar degrades to the default rather than raising -- a
+    threshold-config error must never become a triage exception.
+    """
+    path = config_path or _TRIAGE_JUDGMENT_CONFIG_PATH
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return DEFAULT_DEEP_ANALYSIS_PROBABILITY_FLOOR
+    if not isinstance(raw, dict):
+        return DEFAULT_DEEP_ANALYSIS_PROBABILITY_FLOOR
+    try:
+        return float(
+            raw.get("deep_analysis_floor", DEFAULT_DEEP_ANALYSIS_PROBABILITY_FLOOR)
+        )
+    except (TypeError, ValueError):
+        return DEFAULT_DEEP_ANALYSIS_PROBABILITY_FLOOR
+
 _STRUGGLE_LEVEL_CRITERIA = {
     "none": "No struggle signals -- the session proceeded cleanly.",
     "low": "Minor friction -- a retry or a single easily-resolved error.",
@@ -233,12 +259,18 @@ def _classify_session(
     transcript: str,
     *,
     session_id: str,
+    dry_run: bool = True,
 ) -> dict[str, Any]:
     """Ask one calibrated judgment for this session's classification.
 
     Returns ``{}`` on any unavailability (module missing, ``decide()``
     returns no usable answer) -- never raises, never guesses. Callers read
     individual fields with ``.get(name, default)``.
+
+    ``dry_run`` (default ``True``, matching the CLI's own default) is
+    threaded straight into ``decide()``'s own ``dry_run`` short-circuit:
+    the CLI's documented "no API calls in dry-run mode" promise must hold
+    for this call exactly as it does for every other one in this repo.
     """
     if system_one_decisions is None:
         return {}
@@ -268,7 +300,7 @@ def _classify_session(
     }
 
     answers = system_one_decisions.decide(
-        state, questions, site="collect-transcripts.triage",
+        state, questions, site="collect-transcripts.triage", dry_run=dry_run,
     )
     if not answers:
         return {}
@@ -285,7 +317,7 @@ def _classify_session(
     if deep_analysis_answer is not None:
         p = _answer_field(deep_analysis_answer, "noul")
         if isinstance(p, (int, float)):
-            result["flagged_for_deep_analysis"] = bool(p >= 0.5)
+            result["flagged_for_deep_analysis"] = bool(p >= load_deep_analysis_floor())
 
     redirected_answer = answers.get("user_redirected") if hasattr(answers, "get") else None
     if redirected_answer is not None:
@@ -311,6 +343,7 @@ def triage_session(
     *,
     session_id: str = "",
     threshold: float = 5.0,
+    dry_run: bool = True,
 ) -> TriageScore:
     """Score a single session's events for struggle signals.
 
@@ -322,6 +355,10 @@ def triage_session(
         Session identifier (if not extractable from events).
     threshold:
         Composite score threshold for flagging deep analysis.
+    dry_run:
+        Forwarded to the judged classification call's own ``dry_run``
+        short-circuit (default ``True``, matching the CLI's own default:
+        no API calls unless explicitly disabled).
 
     Returns
     -------
@@ -345,6 +382,13 @@ def triage_session(
     )
     flagged_for_deep_analysis = composite_score >= threshold
 
+    # Sanitize before any text leaves the process (capability spec:
+    # "Sanitization precedes any LLM analysis"). Only the compacted text
+    # sent to the judgment is sanitized -- the counters above already ran
+    # against the raw events and are unaffected by redaction either way
+    # (tool_name/is_error/type are never touched by the sanitizer).
+    sanitized_events, _redactions = sanitize_event_stream(events)
+
     # D1/D4: ask the judgment; unavailable/partial answers leave the
     # deterministic values above untouched field by field.
     judged = _classify_session(
@@ -354,8 +398,9 @@ def triage_session(
             "scope_violation_count": scope_violation_count,
             "user_correction_count": user_correction_count,
         },
-        _compact_transcript(events),
+        _compact_transcript(sanitized_events),
         session_id=session_id,
+        dry_run=dry_run,
     )
     struggle_level = judged.get("struggle_level", struggle_level)
     flagged_for_deep_analysis = judged.get(
@@ -382,6 +427,7 @@ def triage_sessions(
     sessions: dict[str, list[NormalizedEvent]],
     *,
     threshold: float = 5.0,
+    dry_run: bool = True,
 ) -> list[TriageScore]:
     """Score multiple sessions.
 
@@ -391,13 +437,15 @@ def triage_sessions(
         Mapping of session_id -> events.
     threshold:
         Composite score threshold for flagging.
+    dry_run:
+        Forwarded to each session's judged classification call.
 
     Returns
     -------
     List of TriageScore, one per session.
     """
     return [
-        triage_session(events, session_id=sid, threshold=threshold)
+        triage_session(events, session_id=sid, threshold=threshold, dry_run=dry_run)
         for sid, events in sessions.items()
     ]
 
@@ -510,7 +558,7 @@ def main() -> int:
         print("No sessions found to triage.", file=sys.stderr)
         return 0
 
-    scores = triage_sessions(sessions, threshold=args.threshold)
+    scores = triage_sessions(sessions, threshold=args.threshold, dry_run=args.dry_run)
 
     if args.json:
         print(json.dumps([s.to_dict() for s in scores], indent=2))
