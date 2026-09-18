@@ -92,14 +92,27 @@ def load_shadow_thresholds(config_path: Path | None = None) -> ShadowThresholds:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return ShadowThresholds()
+    if not isinstance(raw, dict):
+        return ShadowThresholds()
+
+    def _field(name: str, default: float) -> float:
+        # A malformed sidecar (wrong shape, non-numeric value) must degrade
+        # to the default for that field, never raise -- shadow configuration
+        # errors can never become a GATEKEEPER phase exception (design's own
+        # safety property: shadow judgment cannot affect acting behavior).
+        try:
+            return float(raw.get(name, default))
+        except (TypeError, ValueError):
+            return default
+
     return ShadowThresholds(
-        risk_escalate=float(raw.get("risk_escalate", DEFAULT_RISK_ESCALATE_LEVEL)),
-        risk_review=float(raw.get("risk_review", DEFAULT_RISK_REVIEW_LEVEL)),
-        verifiability_escalate=float(
-            raw.get("verifiability_escalate", DEFAULT_VERIFIABILITY_ESCALATE_LEVEL)
+        risk_escalate=_field("risk_escalate", DEFAULT_RISK_ESCALATE_LEVEL),
+        risk_review=_field("risk_review", DEFAULT_RISK_REVIEW_LEVEL),
+        verifiability_escalate=_field(
+            "verifiability_escalate", DEFAULT_VERIFIABILITY_ESCALATE_LEVEL
         ),
-        verifiability_review=float(
-            raw.get("verifiability_review", DEFAULT_VERIFIABILITY_REVIEW_LEVEL)
+        verifiability_review=_field(
+            "verifiability_review", DEFAULT_VERIFIABILITY_REVIEW_LEVEL
         ),
     )
 
@@ -132,6 +145,32 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _shadow_entry_dict(
+    *,
+    phase: str,
+    acting_outcome: str | None,
+    judged_outcome: str,
+    judgment: dict[str, Any],
+) -> dict[str, Any]:
+    """The shared shadow envelope shape (design D4).
+
+    `ri-07`'s own shadow record (a different phase transition point) may
+    build its own entry with this same envelope and its own `phase`/
+    `judgment` payload. `phase` here is a synthetic marker (e.g.
+    `"GATEKEEPER_SHADOW"`), never the real phase name, so every existing
+    `phase_history` consumer -- which filters by an exact `phase` match --
+    stays inert to it.
+    """
+    return {
+        "phase": phase,
+        "at": _now_iso(),
+        "kind": "shadow",
+        "acting_outcome": acting_outcome,
+        "judged_outcome": judged_outcome,
+        "judgment": judgment,
+    }
+
+
 def record_shadow_judgment(
     state: "LoopState",
     *,
@@ -142,22 +181,17 @@ def record_shadow_judgment(
 ) -> None:
     """Append one shadow entry to `state.phase_history` (design D4).
 
-    Shared envelope shape: `ri-07`'s own shadow record (a different phase
-    transition point) may reuse this helper with its own `phase` and
-    `judgment` payload. `phase` here is a synthetic marker (e.g.
-    `"GATEKEEPER_SHADOW"`), never the real phase name, so every existing
-    `phase_history` consumer -- which filters by an exact `phase` match --
-    stays inert to it.
+    A thin `LoopState`-mutating wrapper over `_shadow_entry_dict`, for
+    callers that hold a `LoopState` (the Python-level `_phase_gatekeeper`
+    path, and any `ri-07` reuse of the same envelope).
     """
     state.phase_history.append(
-        {
-            "phase": phase,
-            "at": _now_iso(),
-            "kind": "shadow",
-            "acting_outcome": acting_outcome,
-            "judged_outcome": judged_outcome,
-            "judgment": judgment,
-        }
+        _shadow_entry_dict(
+            phase=phase,
+            acting_outcome=acting_outcome,
+            judged_outcome=judged_outcome,
+            judgment=judgment,
+        )
     )
 
 
@@ -220,23 +254,33 @@ def _choice_snapshot(answer: Any) -> dict[str, Any]:
     }
 
 
-def shadow_gatekeeper_judgment(
-    state: "LoopState",
+def build_shadow_entry(
+    gate_signals: dict[str, Any],
     change_dir: Path | None,
     *,
     acting_verdict: str | None,
-) -> None:
-    """The GATEKEEPER shadow step (design D1). Strictly additive.
+) -> dict[str, Any] | None:
+    """The GATEKEEPER shadow step (design D1), as a pure function.
 
-    No-ops -- appends nothing -- when `change_dir` is `None`, the helper
-    module is unavailable, `decide()` returns `None` (any of its four
-    unavailability branches), or the returned answer set is missing an
-    expected field. Never raises; never influences `acting_verdict`.
+    Returns the shadow `phase_history` entry, or `None` when `change_dir` is
+    `None`, the helper module is unavailable, `decide()` returns `None` (any
+    of its four unavailability branches), or the returned answer set is
+    missing an expected field. Never raises; never influences
+    `acting_verdict`.
+
+    Deliberately independent of `LoopState` so both the Python-level
+    `_phase_gatekeeper` path (via `shadow_gatekeeper_judgment` below) and the
+    real host-driven `phase_agent.apply_phase_outcome` path -- which works
+    with a plain state dict, not a `LoopState` -- can call it identically.
+    Codex review, PR #591: the host-driven GATEKEEPER dispatch protocol
+    (`skills/autopilot/SKILL.md` Step 1.5: `build-dispatch` / `apply-outcome`)
+    never calls `_phase_gatekeeper` at all, so the shadow judgment must not
+    live only there.
     """
     if change_dir is None or system_one_decisions is None:
-        return
+        return None
 
-    state_payload: dict[str, Any] = {"gate_signals": dict(state.gate_signals)}
+    state_payload: dict[str, Any] = {"gate_signals": dict(gate_signals)}
     proposal_text = _read_text_if_exists(change_dir / "proposal.md")
     if proposal_text is not None:
         state_payload["proposal"] = proposal_text
@@ -275,7 +319,7 @@ def shadow_gatekeeper_judgment(
         state_payload, questions, site="autopilot.gatekeeper_shadow"
     )
     if not answers:
-        return
+        return None
 
     try:
         verifiability_answer = answers["verifiability"]
@@ -284,15 +328,14 @@ def shadow_gatekeeper_judgment(
         risk_score = float(_answer_field(risk_answer, "score"))
         verifiability_score = float(_answer_field(verifiability_answer, "score"))
     except (KeyError, TypeError, ValueError):
-        return
+        return None
 
     thresholds = load_shadow_thresholds()
     candidate_verdict = compute_candidate_verdict(
         risk_score, verifiability_score, thresholds
     )
 
-    record_shadow_judgment(
-        state,
+    return _shadow_entry_dict(
         phase=_SHADOW_PHASE,
         acting_outcome=acting_verdict,
         judged_outcome=candidate_verdict,
@@ -302,3 +345,21 @@ def shadow_gatekeeper_judgment(
             "choice_cross_check": _choice_snapshot(verdict_answer),
         },
     )
+
+
+def shadow_gatekeeper_judgment(
+    state: "LoopState",
+    change_dir: Path | None,
+    *,
+    acting_verdict: str | None,
+) -> None:
+    """`LoopState`-mutating wrapper over `build_shadow_entry` (design D1).
+
+    Used by the Python-level `_phase_gatekeeper` path. Appends nothing when
+    `build_shadow_entry` returns `None`.
+    """
+    entry = build_shadow_entry(
+        dict(state.gate_signals), change_dir, acting_verdict=acting_verdict
+    )
+    if entry is not None:
+        state.phase_history.append(entry)

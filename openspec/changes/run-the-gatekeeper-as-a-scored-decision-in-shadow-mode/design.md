@@ -97,8 +97,54 @@ That helper:
 
 `_phase_gatekeeper`'s existing control flow (the `gates.evaluate(Gate.GATEKEEPER_ESCALATION, ...)`
 branch, `enter_escalate`, `record_degraded`) is untouched — the shadow call is
-inserted as one line before the final `return outcome`, reading `state` and
-`change_dir` and writing only a new `phase_history` entry.
+inserted as one line, reading `state` and `change_dir` and writing only a new
+`phase_history` entry.
+
+**Revised after Codex review (PR #591, P1 and P2):**
+
+- **P1 (real gap) — the shadow call must not live only in `_phase_gatekeeper`.**
+  Codex read `skills/autopilot/SKILL.md`'s own Step 1.5 and found that the
+  real, host-driven GATEKEEPER dispatch protocol never calls
+  `_run_phase`/`_phase_gatekeeper` at all: it shells out to `runner.py
+  build-dispatch` (to build the sub-agent prompt), dispatches the sub-agent
+  itself via the harness's own `Agent(...)` call, then records the result
+  with `runner.py apply-outcome` → `phase_agent.apply_phase_outcome`. That
+  function works on a raw state *dict*, not a `LoopState`, and until this
+  fix never built a shadow record at all — so every real autopilot run
+  would have produced zero `"GATEKEEPER_SHADOW"` entries, leaving `ri-08`'s
+  disagreement report with no production data. The fix: `build_shadow_entry`
+  is a pure function (`gate_signals: dict, change_dir, *, acting_verdict) ->
+  dict | None`) with no `LoopState` dependency at all;
+  `shadow_gatekeeper_judgment` (the `_phase_gatekeeper` path) is now a thin
+  wrapper over it, and `apply_phase_outcome` calls the same pure function
+  directly on its own raw-dict state, appending the result to the same
+  `history` list it already builds — before the same `_save_state` call,
+  and only on the non-replay path (a retried `apply-outcome` call for the
+  same `handoff_id` returns early before reaching the shadow block, so a
+  replay costs no extra `decide()` call and produces no duplicate entry).
+  `runner.py`'s `_cmd_apply_outcome` now passes `change_dir=_change_dir(args.change_id)`.
+- **P2 (real bug) — the escalation gate's BLOCKED early return skipped the
+  shadow call.** The first cut placed the shadow call immediately before
+  `return outcome`, at the very end of `_phase_gatekeeper`. But the
+  `escalate` branch can itself return early, via `gates.park(...)`, when the
+  `Gate.GATEKEEPER_ESCALATION` approval gate is BLOCKED (the default when no
+  `TRUST_POSTURE.md` exists) — that early return skipped the shadow call
+  entirely for every escalated-and-parked run, exactly the runs a
+  disagreement report most needs data from. Fixed by moving the shadow call
+  to immediately after `state.gate_verdict = outcome` is set, strictly
+  before the `proceed_with_review`/`escalate` branching that can return
+  early. Regression test:
+  `test_shadow_entry_recorded_even_when_escalation_gate_parks`.
+- **P2 (real bug) — a malformed sidecar could turn a shadow-config typo into
+  a real GATEKEEPER phase exception.** `load_shadow_thresholds` originally
+  called `raw.get(...)` and `float(...)` unguarded; a syntactically valid
+  sidecar with the wrong shape (`[]`) or a non-numeric field
+  (`{"risk_escalate": "high"}`) raised `AttributeError`/`ValueError`
+  uncaught, which `_phase_gatekeeper` does not isolate — violating the
+  design's own safety property that shadow configuration can never affect
+  acting behavior. Fixed by validating `isinstance(raw, dict)` and wrapping
+  each field's `float(...)` coercion so any failure degrades to that
+  field's default rather than raising.
 
 ### D2 — Question shape
 
