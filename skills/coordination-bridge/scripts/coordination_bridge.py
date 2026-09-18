@@ -481,10 +481,23 @@ def _normalize_operation_response(
             state=state,
         )
     if status_code in (401, 403):
+        # 401 and 403 mean different things and want different fixes: a
+        # rejected credential versus a valid credential doing something it may
+        # not. Collapsing both into "unauthorized" is why a 403 reading "API
+        # key is not permitted to act as requested agent_id" reached operators
+        # as "coordinator lock skipped (unauthorized)" and went undiagnosed for
+        # days. Carry the server's own explanation through.
+        detail = None
+        data = response.get("data")
+        if isinstance(data, dict):
+            raw_detail = data.get("detail")
+            if isinstance(raw_detail, str) and raw_detail:
+                detail = raw_detail[:200]
         return _skipped_operation(
             operation=operation,
-            reason="unauthorized",
+            reason="unauthorized" if status_code == 401 else "forbidden",
             state=state,
+            extra={"status_code": status_code, **({"detail": detail} if detail else {})},
         )
     if 200 <= status_code < 300:
         payload = response.get("data")
@@ -614,6 +627,34 @@ def _execute_multi_endpoint_operation(
     )
 
 
+def _lock_identity(
+    agent_id: str, agent_type: str, api_key: str | None
+) -> dict[str, Any]:
+    """Return the identity fields a lock request should carry.
+
+    ``resolve_identity`` on the coordinator uses the identity its API key is
+    bound to, and 403s when the request names a *different* one. Callers cannot
+    know the bound name, so any value they invent is refused: the merge
+    sync-point sent ``agent_id="merge-pull-requests-sync-point"`` and every
+    acquisition failed with "API key is not permitted to act as requested
+    agent_id", reported to operators only as "coordinator lock skipped
+    (unauthorized)".
+
+    ``try_handoff_write`` already solved this by dropping the fields for a bound
+    key; locks never got the same treatment. They are sent empty rather than
+    omitted because ``LockAcquireRequest`` still declares them required, so
+    omitting them returns 422 against a coordinator that has not yet picked up
+    the matching model change -- and an empty string is falsy, so the resolver
+    falls back to the bound identity either way.
+
+    On the genuinely unauthenticated path the caller's identity is all the
+    server has, so it is passed through unchanged.
+    """
+    if _resolve_api_key(api_key) is None:
+        return {"agent_id": agent_id, "agent_type": agent_type}
+    return {"agent_id": "", "agent_type": ""}
+
+
 def try_lock(
     *,
     file_path: str,
@@ -633,8 +674,7 @@ def try_lock(
         path="/locks/acquire",
         payload={
             "file_path": file_path,
-            "agent_id": agent_id,
-            "agent_type": agent_type,
+            **_lock_identity(agent_id, agent_type, api_key),
             "session_id": session_id,
             "reason": reason,
             "ttl_minutes": ttl_minutes,
@@ -659,7 +699,9 @@ def try_unlock(
         path="/locks/release",
         payload={
             "file_path": file_path,
-            "agent_id": agent_id,
+            # Same binding rule as acquire: a release naming an identity the key
+            # is not bound to is refused, stranding the lock until its TTL.
+            "agent_id": _lock_identity(agent_id, "", api_key)["agent_id"],
         },
         http_url=http_url,
         api_key=api_key,
