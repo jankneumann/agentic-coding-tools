@@ -121,6 +121,23 @@ what makes the call-count test ("fast-path pairs issue no call") meaningful:
 a file with zero eligible pairs never triggers a call, and a file with five
 eligible pairs triggers exactly one.
 
+**Implementation note (scope actually shipped):** `_match_all`'s existing
+loop structure resolves one other-vendor's candidates per primary finding
+at a time (`for f in findings: for other_vendor in vendors: ...`), so the
+call this item ships batches every judgeable candidate a *given primary*
+has against a *given other vendor* — one call per (primary, other_vendor)
+pair, not a single call spanning every primary on a file across the whole
+run. In the realistic case (one primary judged against several same-file
+candidates from one other vendor — the shape both the call-count test and
+the fixture-replay test use) this is exactly one call, matching the
+acceptance outcome. A file with multiple *primaries* needing judgment
+against the same other vendor still costs one call per primary; unifying
+that further into a single run-wide per-file call was assessed as
+materially higher risk to the existing greedy algorithm's match priority
+(see `_match_all`'s own docstring) for a batching win with no acceptance
+outcome or test currently requiring it, so it was left as a documented,
+smaller-scope non-goal rather than spec text quietly overclaiming it.
+
 ### D3 — Unavailability and the Jaccard fallback
 
 When `system_one_decisions` isn't installed, or `decide()` returns `None`
