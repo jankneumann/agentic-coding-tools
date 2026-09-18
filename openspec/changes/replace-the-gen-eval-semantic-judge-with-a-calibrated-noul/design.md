@@ -51,12 +51,17 @@ Internally:
 1. `judge=False` still returns `skip` immediately (unchanged).
 2. Build `state = {"criteria": criteria_text, "actual_output": actual_output}`
    (the same `criteria_text` fallback the old prompt used) and
-   `questions = {"satisfies": typesafe_sdk.Noul(instructions="The actual output satisfies the criteria")}`.
-   Confirmed by reading the installed `typesafe_sdk._core.question_types.Noul`
-   directly: it is a pydantic model taking `instructions` (and optional
-   `criteria` for describing the yes/no outcomes, unused here) as keyword
-   fields — there is no positional constructor, so the proposal's
-   `Noul("...")` shorthand is written as `Noul(instructions="...")`.
+   `questions = {"satisfies": {"type": "noul", "instructions": "The actual output satisfies the criteria"}}`
+   — a **plain dict**, not an imported `typesafe_sdk.Noul(...)` instance.
+   Confirmed by reading the installed SDK directly: `typesafe_sdk._core.questions.normalize_questions`
+   accepts either a real `Noul`/`Choice`/`Score` object *or* a dict with a
+   non-empty string `"type"` key (the `NoulModel`/`ChoiceModel`/`ScoreModel`
+   TypedDict wire form) — so a caller never needs to import the vendor SDK's
+   question classes at all. This also keeps `semantic_judge.py` compliant
+   with `packages/system-one-decisions/tests/test_no_sdk_import_outside_package.py`,
+   a repo-wide (`git ls-files`-scanned) guard from `ri-02` asserting
+   `typesafe_sdk` is imported nowhere outside `packages/system-one-decisions/` —
+   gen-eval must reach `decide()` without ever importing the SDK it wraps.
 3. Call `system_one_decisions.decide(state, questions, site="gen_eval.semantic_judge")`.
 4. If `decide()` returns `None` — either because `system_one_decisions` isn't
    importable at all (optional `decisions` extra not installed) or because
@@ -87,15 +92,21 @@ existing unit tests (`TestParseVerdict`) untouched — it's reused verbatim as
 a text-parsing helper, just no longer the source of the pass/fail decision
 inside `evaluate_semantic`.
 
-### D2 — Guard the optional `system_one_decisions` import the same way `_core.py` guards `typesafe_sdk`
+### D2 — Guard the optional `system_one_decisions` import, and call it through the module object
 
 `gen-eval`'s `decisions` extra (already declared in `pyproject.toml` from
-earlier roadmap scaffolding) makes `system_one_decisions` optional. Import it
-lazily inside `evaluate_semantic` (or at module load inside a `try/except
-ImportError`, matching `_core.py`'s own `_get_client` pattern) so that
-`gen-eval` installed without `[decisions]` still imports `semantic_judge`
-successfully and every evaluation simply skips — the same degrade-gracefully
-convention every other optional extra in this repository follows.
+earlier roadmap scaffolding) makes `system_one_decisions` optional. At module
+load, `try: import system_one_decisions except ImportError:
+system_one_decisions = None` — the same degrade-gracefully shape every other
+optional extra in this repository follows. `evaluate_semantic` checks `if
+system_one_decisions is None` and calls `system_one_decisions.decide(...)`
+through the module object, never `from system_one_decisions import decide`.
+This is required, not stylistic: `system_one_decisions.testing.stub_decide`
+(`ri-03`) patches the `decide` attribute on the `system_one_decisions` module
+object itself, and its own docstring calls out exactly this gotcha — a
+pre-bound `from x import y` reference keeps pointing at the original
+function after the patch is applied. Binding to a local name at import time
+would silently make every test in Phase 1 stub nothing.
 
 ### D3 — Existing tests are adapted with `system_one_decisions.testing.stub_decide`, not left as pure backend mocks
 
