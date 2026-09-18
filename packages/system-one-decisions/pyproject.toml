@@ -22,6 +22,13 @@ dev = [
 live = [
     "typesafe-sdk>=0.7,<1",
 ]
+test-adapter = [
+    # A drop-in TypeSafeClient replacement backed by an LLM, used only for
+    # behavioural CI substitute tests (design D3) -- never live, never
+    # calibrated. Double-gated at test-run time (ANTHROPIC_API_KEY and
+    # SYSTEM_ONE_ADAPTER_TESTS=1 both required).
+    "system-one-adapter[anthropic]>=0.2,<1",
+]
 
 [build-system]
 requires = ["hatchling"]

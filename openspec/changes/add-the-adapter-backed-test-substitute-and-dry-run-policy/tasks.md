@@ -6,7 +6,7 @@
 
 ### Phase 1 — `decide()`'s `dry_run` flag
 
-- [ ] 1.1 Write `tests/test_decide_dry_run.py`: `decide(..., dry_run=True)`
+- [x] 1.1 Write `tests/test_decide_dry_run.py`: `decide(..., dry_run=True)`
   returns `None` and never calls `_get_client` (a client double that raises
   `AssertionError` if constructed, same pattern `ri-02`'s budget-exceeded
   test uses); `decide(..., dry_run=False)` and `decide(...)` (omitted) both
@@ -17,42 +17,44 @@
   Omitting-dry_run-preserves-existing-behavior
   **Design decisions**: D1
   **Dependencies**: None
-- [ ] 1.2 Add `dry_run: bool = False` to `decide()`'s signature in
+- [x] 1.2 Add `dry_run: bool = False` to `decide()`'s signature in
   `_core.py`; check it first, before the lazy `typesafe_sdk` import.
   **Dependencies**: 1.1
-- [ ] Checkpoint: run `packages/system-one-decisions/tests/test_decide_dry_run.py`
+- [x] Checkpoint: run `packages/system-one-decisions/tests/test_decide_dry_run.py`
   plus the full existing suite (`test_decide_live.py`, `test_decide_event_sink.py`),
   confirm green — `ri-02`'s tests must pass unchanged since `dry_run` defaults
   to `False`.
 
 ### Phase 2 — `system_one_decisions.testing` stubs
 
-- [ ] 2.1 Write `tests/test_testing_stubs.py`: `stub_decide_intent(monkeypatch,
-  returns=None)` patches `decide_intent` such that a caller invoking its own
-  fallback-routing logic against the patched function gets the same
-  degraded-fallback result `ri-01`'s always-fallback contract already
-  guarantees; `stub_decide(monkeypatch, returns={...})` patches `decide`
-  to return the given value.
-  **Spec scenarios**: system-one-decisions.A-stubbed-decide_intent-still-runs-the-callers-fallback-rule
+- [x] 2.1 Write `tests/test_testing_stubs.py`: `stub_decide(monkeypatch,
+  returns=None)` patches `decide` so that a caller's own code built directly
+  on `decide()` runs its fallback branch when it checks for `None` (the
+  only function of the two that can genuinely return `None` — design D2);
+  `stub_decide_intent(monkeypatch, returns=<a Decision>)` patches
+  `decide_intent` to return that exact `Decision` deterministically,
+  without depending on `decide_intent`'s own always-fallback contract.
+  **Spec scenarios**: system-one-decisions.A-stubbed-decide()-lets-the-callers-own-fallback-rule-run-when-it-returns-None,
+  system-one-decisions.A-stubbed-decide_intent()-returns-the-caller-configured-Decision
   **Design decisions**: D2
   **Dependencies**: None (parallel to Phase 1)
-- [ ] 2.2 Implement `system_one_decisions/testing.py`: `stub_decide`,
+- [x] 2.2 Implement `system_one_decisions/testing.py`: `stub_decide`,
   `stub_decide_intent`, both thin `monkeypatch.setattr` wrappers over the
   package's own `decide`/`decide_intent` names, exported with no new
   dependency (uses only `pytest`'s `MonkeyPatch` type for the signature,
   already a `dev`-extra dependency).
   **Dependencies**: 2.1
-- [ ] Checkpoint: run `test_testing_stubs.py`, confirm green; confirm
+- [x] Checkpoint: run `test_testing_stubs.py`, confirm green; confirm
   `system_one_decisions.testing` imports with zero extras installed (no
   `typesafe_sdk`, no `system_one_adapter` needed for stubbing).
 
 ### Phase 3 — Adapter-backed behavioural tests (double opt-in, `uncalibrated` naming)
 
-- [ ] 3.1 Add `[project.optional-dependencies] test-adapter =
+- [x] 3.1 Add `[project.optional-dependencies] test-adapter =
   ["system-one-adapter[anthropic]>=0.2,<1"]` to
   `packages/system-one-decisions/pyproject.toml`. Run `uv lock`.
   **Dependencies**: None (parallel to Phases 1-2)
-- [ ] 3.2 Write `tests/test_decide_adapter_uncalibrated.py`: a
+- [x] 3.2 Write `tests/test_decide_adapter_uncalibrated.py`: a
   `pytest.mark.skipif` gate requiring both `ANTHROPIC_API_KEY` and
   `SYSTEM_ONE_ADAPTER_TESTS=1`; when both are set, constructs a real
   `system_one_adapter.SystemOneAdapterClient(structured_outputs=True,
@@ -65,13 +67,13 @@
   Every-adapter-backed-test-name-signals-uncalibrated-probabilities
   **Design decisions**: D3, D4
   **Dependencies**: 3.1, 1.2
-- [ ] 3.3 Write `tests/test_adapter_test_naming_guard.py`: an AST-based
+- [x] 3.3 Write `tests/test_adapter_test_naming_guard.py`: an AST-based
   guard (same pattern as `ri-02`'s `test_no_sdk_import_outside_package.py`)
   asserting every test function in this package's `tests/` that imports
   `system_one_adapter` has `uncalibrated` in its name.
   **Spec scenarios**: system-one-decisions.Every-adapter-backed-test-name-signals-uncalibrated-probabilities
   **Dependencies**: 3.2
-- [ ] Checkpoint: run the full `packages/system-one-decisions/tests/` suite
+- [x] Checkpoint: run the full `packages/system-one-decisions/tests/` suite
   with `SYSTEM_ONE_ADAPTER_TESTS` unset, confirm the adapter test skips
   (not errors) and everything else stays green; confirm `ruff`/`mypy` clean.
   No `ANTHROPIC_API_KEY` exists in this environment, so the adapter test's

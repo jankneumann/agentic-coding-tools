@@ -46,6 +46,16 @@ packages:
     scope:
       write_allow:
         - "packages/system-one-decisions/**"
+        # Corrected during implementation, same class of correction as
+        # ri-01's and ri-02's: the new test-adapter extra changed
+        # system-one-decisions' package metadata, staling the consumers
+        # that embed its metadata in their own committed lockfile. Also
+        # caught skills/uv.lock was already stale from ri-02's dev/live
+        # extras (skills' own CI job never verifies it with --locked, so
+        # it never surfaced as a failure) -- fixed here rather than left.
+        - "packages/gen-eval/uv.lock"
+        - "skills/uv.lock"
+        - "agent-coordinator/uv.lock"
       read_allow:
         - "**"
       deny: []

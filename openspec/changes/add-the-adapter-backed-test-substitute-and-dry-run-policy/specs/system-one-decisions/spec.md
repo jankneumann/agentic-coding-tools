@@ -22,16 +22,22 @@ item, unchanged.
 
 ### Requirement: `system_one_decisions.testing` provides reusable stubs for `decide`/`decide_intent`
 The package SHALL export `system_one_decisions.testing.stub_decide` and
-`stub_decide_intent`, each accepting a pytest `monkeypatch` fixture and a
-`returns` value, patching the target's `decide`/`decide_intent` for the
-duration of a test.
+`stub_decide_intent`, each accepting a pytest `monkeypatch` fixture and an
+optional `returns` value, patching `decide`/`decide_intent` for the duration
+of a test.
 
-#### Scenario: A stubbed decide_intent still runs the caller's fallback rule
-WHEN a caller uses `stub_decide_intent(monkeypatch, returns=None)` and then
-invokes its own fallback-routing logic exactly as it would with a real
-unavailable `decide_intent`
-THEN the caller's fallback rule SHALL run and produce the same result as an
-unpatched call under `ri-01`'s always-fallback contract.
+#### Scenario: A stubbed decide() lets the caller's own fallback rule run when it returns None
+WHEN a caller uses `stub_decide(monkeypatch, returns=None)` and then calls
+code built directly on `decide()` that checks for a `None` result and runs
+its own fallback in that case
+THEN the caller's fallback rule SHALL run, proving the stub requires no real
+client, key, or network access.
+
+#### Scenario: A stubbed decide_intent() returns the caller-configured Decision
+WHEN a caller uses `stub_decide_intent(monkeypatch, returns=<a specific
+Decision>)` and then calls `decide_intent(...)`
+THEN it SHALL return exactly that configured `Decision`, deterministically,
+without depending on `decide_intent`'s own always-fallback contract.
 
 ### Requirement: Adapter-backed behavioural tests are double-gated and named `uncalibrated`
 Behavioural tests that exercise `decide()` against a real
