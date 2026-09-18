@@ -73,6 +73,12 @@ from review_ledger import (  # noqa: E402
 from review_packet import build_review_packet  # noqa: E402
 import fact_check as fact_check_module  # noqa: E402
 
+from convergence_disposition import (  # noqa: E402
+    DEFAULT_DISPOSITION,
+    PARK_REASON_BY_DISPOSITION,
+    classify_round,
+)
+
 # Module-level aliases so tests can monkeypatch the checkpoint helpers via
 # ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
 # the dependency direction explicit (autopilot → parallel-infrastructure).
@@ -1091,10 +1097,43 @@ def converge(
                 )))
             return stall_result
 
-        # 2k. Dispatch scoped fixes for current blocking items only (D7).
+        # 2j.5. Per-finding disposition (design D1-D4): classify each
+        # blocking item as fix_now / defer_to_followup / reject_out_of_scope
+        # / needs_human. Only fix_now items are dispatched below; the other
+        # three park via the existing park_item(..., reason=...) call --
+        # no new ledger mutation surface. Unavailable/empty classification
+        # defaults every item to fix_now, reproducing today's unconditional
+        # dispatch bit for bit. `blocking` itself is left untouched so the
+        # stall rule and escalation summaries above/below are unaffected.
+        dispositions = classify_round(
+            blocking,
+            trend=trend,
+            last_fix_diff=last_fix_diff,
+            change_id=change_id,
+        )
+        dispatch_items: list[dict[str, Any]] = []
+        for item in blocking:
+            item_id = item.get("id")
+            disposition = (
+                dispositions.get(int(item_id), DEFAULT_DISPOSITION)
+                if item_id is not None
+                else DEFAULT_DISPOSITION
+            )
+            if disposition == DEFAULT_DISPOSITION:
+                dispatch_items.append(item)
+                continue
+            park_item(
+                ledger,
+                item,
+                reason=PARK_REASON_BY_DISPOSITION.get(
+                    disposition, "disagreement",
+                ),
+            )
+
+        # 2k. Dispatch scoped fixes for current fix_now items only (D7).
         payloads = [
             scoped_fix_payload(item, artifacts_dir=artifacts_dir)
-            for item in blocking
+            for item in dispatch_items
         ]
         by_id = {
             int(p["id"]): p for p in payloads if p.get("id") is not None
@@ -1104,7 +1143,7 @@ def converge(
             if payload and payload.get("spec_file"):
                 item["spec_file"] = payload["spec_file"]
         save_ledger(ledger, artifacts_dir)
-        if fix_callback is not None:
+        if fix_callback is not None and payloads:
             logger.info(
                 "Dispatching fixes for %d blocking findings", len(payloads),
             )
@@ -1122,7 +1161,7 @@ def converge(
             if changed:
                 reject_out_of_scope_fix(changed, allowed)
             last_fix_diff = _last_fix_diff(worktree_path, pre_rev)
-            mark_addressed(ledger, [int(item["id"]) for item in blocking])
+            mark_addressed(ledger, [int(item["id"]) for item in dispatch_items])
             save_ledger(ledger, artifacts_dir)
 
             # 2l. Post-fix validation (optional)
