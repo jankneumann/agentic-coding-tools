@@ -239,10 +239,10 @@ In convergence_loop.converge, ask a round-level Noul("another fix round is likel
 Keep the four event-stream counters in triage.py as facts but replace the weighted sum and its 5/10 buckets with Choice(struggle_level, {none, low, medium, high}) plus Nouls for human redirection, out-of-scope work and whether the session warrants deep analysis, over a compacted transcript from normalize.py plus the counters.
 
 **Acceptance outcomes**:
-- [ ] flagged_for_deep_analysis is set from the corresponding Noul with a config-held threshold; the weighted sum and its 5/10 buckets remain as the fallback and are exercised by a test.
-- [ ] State sent for triage contains only assistant/user/tool-result text from normalize.py's compact event form, with a test asserting tool payloads are excluded and the state stays under the token budget.
-- [ ] The four counters are still computed deterministically and appear unchanged in the triage output schema.
-- [ ] Existing collect-transcripts triage tests pass with the helper stubbed to None.
+- [ ] flagged_for_deep_analysis is set from the corresponding Noul with a config-held threshold; the weighted sum and its 5/10 buckets remain as the fallback when the helper is unavailable, and are exercised by a test.
+- [ ] A new compaction helper -- not an existing one, normalize.py has none today -- filters a session's NormalizedEvents down to only user/assistant/tool-result text content (excluding tool_use's tool_input payload dict), and that filtered state is what is sent for triage; a test asserts tool payloads are excluded and the state stays under the token budget.
+- [ ] The four counters (_count_retries, _count_tool_errors, _count_scope_violations, _count_user_corrections) are still computed deterministically by the same pure functions and appear unchanged in the triage output schema.
+- [ ] Existing collect-transcripts triage tests in skills/collect-transcripts/tests/test_triage.py pass unchanged with the helper stubbed to None (module unavailable), since none of them depend on system_one_decisions and TYPESAFE_API_KEY is unset in CI.
 
 ### ri-10: Judge implementation strategy selection in autopilot
 
