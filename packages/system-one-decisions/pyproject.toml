@@ -1,0 +1,23 @@
+[project]
+name = "system-one-decisions"
+version = "0.1.0"
+description = "Shared seam for calibrated System One (TypeSafe Jev) decisions, fallback-only until the live client lands."
+requires-python = ">=3.12"
+
+# No required dependencies in this item — the whole point is that every
+# consumer (skills venv, gen-eval, the coordinator image) can install this
+# package without pulling in a vendor SDK. A "live" extra pulling
+# typesafe-sdk is added by a later roadmap item that wires the real client.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/system_one_decisions"]
