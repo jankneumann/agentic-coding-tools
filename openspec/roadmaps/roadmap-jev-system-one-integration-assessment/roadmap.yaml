@@ -87,10 +87,11 @@ items:
   effort: S
   depends_on:
   - ri-02
-  description: 'Stand up the testing convention for every later site: unit tests stub
-    decide/decide_intent, behavioural wiring tests use system-one-adapter (Anthropic
-    provider, llm_answer_mode="probabilities") with test names marking its probabilities
-    uncalibrated, and --dry-run paths make no API call.'
+  description: 'Stand up the testing convention for every later site: system_one_decisions.testing
+    exports reusable stub helpers for decide/decide_intent, behavioural wiring tests
+    use system-one-adapter (Anthropic provider, llm_answer_mode="probabilities") with
+    test names marking its probabilities uncalibrated, and decide()''s own dry_run
+    parameter guarantees --dry-run paths make no API call.'
   rationale: The proposal's integration seam requires a CI substitute because the
     repo's convention is no network in dry-run and CI. Landing the substitute and
     the naming rule once keeps every Group A/B/C item from re-inventing it and prevents
@@ -98,13 +99,16 @@ items:
     in test output.
   change_id: add-the-adapter-backed-test-substitute-and-dry-run-policy
   acceptance_outcomes:
-  - A reusable pytest fixture stubs decide/decide_intent and is exercised by at least
-    one test that asserts the caller's fallback rule still runs when the stub returns
-    None.
-  - Adapter-backed behavioural tests are skipped by default, run only when the adapter
-    env is present, and every such test name contains "uncalibrated".
-  - A test asserts that running any system_one-consuming script with --dry-run performs
-    zero client constructions.
+  - system_one_decisions.testing exports reusable stub helpers (stub_decide, stub_decide_intent)
+    for decide/decide_intent, exercised by at least one test that asserts the caller's
+    fallback rule still runs when the stub returns None.
+  - Adapter-backed behavioural tests are skipped unless both ANTHROPIC_API_KEY and
+    SYSTEM_ONE_ADAPTER_TESTS=1 are set, and every such test name contains "uncalibrated".
+  - decide() accepts an explicit dry_run parameter (default False, preserving existing
+    behavior) that guarantees zero client construction when True, verified by a test
+    asserting the client-construction seam is never reached -- the enforcement point
+    a future call-site migration's own --dry-run flag threads into, since no system_one-consuming
+    script exists yet to test end-to-end.
   learning_refs:
   - ri-02
 - item_id: ri-04
@@ -687,7 +691,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T13:24:22.917294+00:00'
+updated_at: '2026-09-18T13:39:51.805856+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -718,3 +722,21 @@ refinements:
   base_sha256: 82e77022a5d0858f7178da0b12dc935251acc8e4248878d4b6c61a2ad953724d
   operations:
   - edit:ri-02
+- timestamp: '2026-09-18T13:39:51.805856+00:00'
+  actor: claude-code
+  source: codex-review-pr-587
+  rationale: 'Codex review on PR #587 (marking ri-03 completed) correctly flagged
+    that ri-03''s canonical description and acceptance outcomes still described a
+    "reusable pytest fixture" and "a test asserting any system_one-consuming script
+    with --dry-run performs zero client constructions" -- but ri-03''s own /iterate-on-plan
+    pass (plan-findings.md #1 and #3 of add-the-adapter-backed-test-substitute-and-dry-run-policy)
+    had already reframed both before any code was written: the reusable stubs are
+    plain functions in system_one_decisions.testing (not a pytest @fixture), and no
+    system_one-consuming script exists yet to test end-to-end (call-site migration
+    doesn''t start until ri-09), so the dry-run guarantee was placed on decide() itself
+    via its own dry_run parameter. Fixing before this completion transition merges,
+    per Codex''s suggestion, rather than repeating the two-PR drift that happened
+    with ri-02''s contract.'
+  base_sha256: f14b34d0348094349542c7802b86f30185d4b5e0f59624b6e01b1bcf0269c395
+  operations:
+  - edit:ri-03
