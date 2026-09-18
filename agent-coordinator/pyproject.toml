@@ -92,7 +92,7 @@ dev = [
     "PyJWT[crypto]>=2.13.0",
     "ruff>=0.16.6",
     "mypy>=2.1.0",
-    "types-PyYAML>=6.0",
+    "types-PyYAML>=6.0.12.20260906",
     "cedarpy>=4.8.7",
 ]
 
