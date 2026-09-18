@@ -6,8 +6,10 @@
 
 ### Phase 1 — Threshold config file and loader (no SDK dependency yet)
 
-- [ ] 1.1 Create `packages/system-one-decisions/config/thresholds.yaml`
-  (`schema_version: 1`, `defaults: {act_floor: 0.6, approve_floor: 0.9}`).
+- [ ] 1.1 Create `packages/system-one-decisions/src/system_one_decisions/config/thresholds.json`
+  (`schema_version: 1`, `defaults: {act_floor: 0.6, approve_floor: 0.9}`) —
+  inside the importable package, not the package root, so `importlib.resources`
+  can find it in a built wheel (design D3).
   **Design decisions**: D3
   **Dependencies**: None
 - [ ] 1.2 Write `tests/test_config_loader.py`: loading resolves

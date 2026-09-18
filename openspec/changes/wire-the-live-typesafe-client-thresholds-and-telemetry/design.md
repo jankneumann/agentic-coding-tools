@@ -115,18 +115,38 @@ same rule `packages/context-eval` already enforces (`corpus/manifest.yaml` +
 `test_thresholds_are_not_readable_from_the_scoring_modules`), just misnamed in
 the original assessment doc's paraphrase.
 
-Add `packages/system-one-decisions/config/thresholds.yaml`:
+Add `packages/system-one-decisions/src/system_one_decisions/config/thresholds.json`
+(inside the importable package, not at the package root — `context-eval`'s
+`corpus/` can live outside `src/` because it's a checkout-only tool; this
+package is installed as a real wheel into three consumer venvs including a
+Docker image built via `uv sync --no-install-project`, so its data file must
+be resolvable through `importlib.resources` regardless of whether the install
+is editable or a built wheel):
 
-```yaml
-schema_version: 1
-defaults:
-  act_floor: 0.6
-  approve_floor: 0.9
+```json
+{
+  "schema_version": 1,
+  "defaults": {
+    "act_floor": 0.6,
+    "approve_floor": 0.9
+  }
+}
 ```
 
-and a small loader (`_config.py`) that reads it once (module-level, lazy on
-first access, cached) and exposes `DEFAULT_ACT_FLOOR: float` and
-`DEFAULT_APPROVE_FLOOR: float`. `_route()`'s and `decide_intent()`'s existing
+JSON, not YAML: `ri-01`'s still-active spec requirement ("Package exports and
+dependency-free import") requires `packages/system-one-decisions` to declare
+no required dependencies, and parsing YAML would require adding `pyyaml` as
+one. `json` is stdlib, so the config file moved from `.yaml` to `.json`
+without adding a dependency.
+
+`[tool.hatch.build.targets.wheel]` needs `packages = ["src/system_one_decisions"]`
+unchanged (hatchling includes non-`.py` files under an included package
+directory by default) — verified as part of task 1.3's checkpoint by
+inspecting the built wheel's file listing. A small loader (`_config.py`) reads
+it once via `importlib.resources.files("system_one_decisions") / "config" /
+"thresholds.json"` (never a filesystem path relative to `__file__`, which
+would break under a zipped wheel), caches on first access, and exposes
+`DEFAULT_ACT_FLOOR: float` and `DEFAULT_APPROVE_FLOOR: float`. `_route()`'s and `decide_intent()`'s existing
 `act_floor: float = 0.6` / `approve_floor: float = 0.9` keyword defaults become
 `act_floor: float = DEFAULT_ACT_FLOOR` / `approve_floor: float =
 DEFAULT_APPROVE_FLOOR` — callers that already pass explicit values (none exist
