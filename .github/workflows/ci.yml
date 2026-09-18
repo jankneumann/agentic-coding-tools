@@ -230,13 +230,27 @@ jobs:
         run: |
           set +e
           out="$(agent-coordinator/.venv/bin/python skills/skill-audit/scripts/skill_audit.py --all --check-freshness 2>&1)"
-          status=$?
           printf '%s\n' "$out"
-          if [ "$status" -ne 0 ]; then
+          # Two different facts, reported separately. A skill whose report's
+          # roster hash no longer matches archetypes.yaml has genuinely drifted
+          # and is worth re-auditing. A skill with no report at all has simply
+          # never been audited, which is the steady state for most of the
+          # corpus and is not drift.
+          drifted=$(printf '%s\n' "$out" | grep 'STALE' | grep -vc 'no report under' || true)
+          never=$(printf '%s\n' "$out" | grep -c 'no report under' || true)
+          if [ "${drifted:-0}" -gt 0 ]; then
             printf '::warning title=skill-audit freshness::%s\n' \
-              "One or more skill audits are stale against the current archetypes.yaml. Re-run /skill-audit <skill> to refresh."
+              "$drifted skill audit(s) drifted against the current archetypes.yaml. Re-run /skill-audit <skill> to refresh."
           fi
-          exit "$status"
+          if [ "${never:-0}" -gt 0 ]; then
+            printf '::notice title=skill-audit coverage::%s\n' \
+              "$never skill(s) have never been audited. Run /skill-audit <skill> to add coverage."
+          fi
+          # Always green. Per design D6 this job reports; it never gates. The
+          # underlying command exits 1 whenever any skill lacks a report, which
+          # is true for most of the corpus and would pin this check red forever,
+          # drowning the drift signal it exists to carry.
+          exit 0
 
   validate-specs:
     runs-on: ubuntu-latest
