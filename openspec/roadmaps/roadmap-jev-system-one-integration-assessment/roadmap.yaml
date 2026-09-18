@@ -327,7 +327,7 @@ items:
     tests -- including both vendor-count boundary tests above -- pass unchanged.
 - item_id: ri-11
   title: Judge multi-vendor review eligibility for pull requests
-  status: approved
+  status: completed
   priority: 3
   effort: M
   depends_on:
@@ -353,7 +353,7 @@ items:
     the risk score and its probability.
 - item_id: ri-12
   title: Judge decision-tag backfill in explore-feature
-  status: approved
+  status: completed
   priority: 4
   effort: S
   depends_on:
@@ -440,8 +440,8 @@ items:
     and skills/tests/autopilot/test_convergence_loop.py passing unchanged.
 - item_id: ri-15
   title: Screen fact-check grounds with a first-stage judged pass
-  status: approved
-  priority: 3
+  status: completed
+  priority: 2
   effort: L
   depends_on:
   - ri-05
@@ -464,10 +464,12 @@ items:
     where a protected subject is never sent.
   - Ground-A refutations from stage one reproduce the existing prompt's labels on
     a recorded fact-check batch, with the agreement rate recorded.
+  learning_refs:
+  - ri-12
 - item_id: ri-16
   title: Add a judged first stage to coordinator audit triage
-  status: approved
-  priority: 3
+  status: completed
+  priority: 2
   effort: M
   depends_on:
   - ri-05
@@ -489,6 +491,8 @@ items:
   - Stage-two findings are seeded with the stage-one failure_type and severity and
     still pass validate_finding unchanged.
   - The hot-path ring buffer write path is unmodified and its latency test is unchanged.
+  learning_refs:
+  - ri-12
 - item_id: ri-17
   title: Score supervise rubric stubs in one batched call
   status: approved
@@ -748,7 +752,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T23:24:21.183317+00:00'
+updated_at: '2026-09-18T23:53:11.947588+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
