@@ -5,8 +5,8 @@
 ## Status
 
 - [x] Planning
-- [ ] Implementation
-- [ ] Testing
+- [x] Implementation
+- [x] Testing
 - [ ] Review
 - [ ] Done
 
@@ -81,31 +81,38 @@
 
 ### Phase 4 — Consumer wiring (declare, do not migrate call sites)
 
-- [ ] 4.1 Add `system-one-decisions` as a path dependency in
+- [x] 4.1 Add `system-one-decisions` as a path dependency in
   `skills/pyproject.toml`; run `uv sync` in `skills/` and confirm `python -c
   "import system_one_decisions"` succeeds inside `skills/.venv`.
   **Spec scenarios**: system-one-decisions.The-package-is-importable-from-every-declared-consumer
   (skills-venv scenario)
   **Dependencies**: 3.4
-- [ ] 4.2 Add an optional `decisions` extra to `packages/gen-eval/pyproject.toml`
+- [x] 4.2 Add an optional `decisions` extra to `packages/gen-eval/pyproject.toml`
   depending on `system-one-decisions`; confirm a standalone `uv pip install
   packages/gen-eval[decisions]` into an empty venv makes the import succeed.
   **Spec scenarios**: system-one-decisions.The-package-is-importable-from-every-declared-consumer
   (gen-eval scenario)
   **Dependencies**: 3.4
-- [ ] 4.3 Add a path dependency on `system-one-decisions` in
+- [x] 4.3 Add a path dependency on `system-one-decisions` in
   `agent-coordinator/pyproject.toml` and a `COPY packages/system-one-decisions/`
   line in `agent-coordinator/Dockerfile` beside the existing `gen-eval` and
   `code-search` copies.
   **Spec scenarios**: system-one-decisions.The-package-is-importable-from-every-declared-consumer
   (coordinator scenario)
   **Dependencies**: 3.4
-- [ ] Checkpoint: run `pytest packages/system-one-decisions/`, confirm green;
-  run `docker-smoke-import`'s local equivalent if available, otherwise flag for
-  CI verification; confirm the diff touches only
-  `packages/system-one-decisions/**`, `skills/pyproject.toml`,
-  `packages/gen-eval/pyproject.toml`, `agent-coordinator/pyproject.toml`, and
-  `agent-coordinator/Dockerfile`.
+- [x] Checkpoint: run `pytest packages/system-one-decisions/`, confirm green
+  (19 passed). `docker` CLI is present but no daemon is running in this
+  environment — ran the coordinator's exact Dockerfile sync command
+  (`uv sync --locked --all-extras --no-dev --no-install-project` in
+  `agent-coordinator/`) instead, confirmed `system-one-decisions` resolves
+  and `import system_one_decisions` succeeds in that venv; flagged the full
+  container build for `docker-smoke-import` CI verification. Added
+  `system_one_decisions` to that job's import-assertion list so it actually
+  covers the claim. Diff touches `packages/system-one-decisions/**`,
+  `skills/{pyproject.toml,uv.lock}`, `packages/gen-eval/pyproject.toml`,
+  `agent-coordinator/{pyproject.toml,uv.lock,Dockerfile}`, and
+  `.github/workflows/ci.yml` — work-packages.yaml's `write_allow` corrected
+  to match (the CI/lockfile need was not foreseen at plan time).
 
 ## Non-goals (out of scope for this item)
 

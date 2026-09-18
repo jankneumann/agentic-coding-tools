@@ -521,6 +521,9 @@ jobs:
               'src.http_proxy',
               'src.config',
               'gen_eval.mcp_service',
+              # system_one_decisions — shared seam for calibrated System One
+              # (TypeSafe Jev) decisions, fallback-only for now.
+              'system_one_decisions',
           ]
 
           failures = []

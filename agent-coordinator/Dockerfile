@@ -36,6 +36,9 @@ COPY packages/gen-eval/ /packages/gen-eval/
 # The coordinator declares code-search-pkg as a non-editable sibling path
 # dependency. Copy it into the builder so uv installs its wheel into .venv.
 COPY packages/code-search/ /packages/code-search/
+# Shared seam for calibrated System One (TypeSafe Jev) decisions — another
+# non-editable sibling path dependency, same reason as gen-eval/code-search.
+COPY packages/system-one-decisions/ /packages/system-one-decisions/
 
 WORKDIR /app
 
