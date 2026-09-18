@@ -1,6 +1,7 @@
 # Roadmap: roadmap-jev-system-one-integration-assessment
 
-> Source: `docs/proposals/jev-system-one-integration-assessment.md` | Status: **planning** | Items: 24
+> Source: `docs/proposals/jev-system-one-integration-assessment.md` | Status: **approved** | Items: 24
+
 
 <!-- GENERATED: begin phase-table -->
 ## Phase Table
@@ -10,7 +11,7 @@
 | 1 | Add the shared system_one decision helper, fallback-only | M | completed | - |
 | 1 | Wire the live TypeSafe client, thresholds and telemetry | M | completed | ri-01 |
 | 1 | Add the adapter-backed test substitute and dry-run policy | S | completed | ri-02 |
-| 1 | Replace the gen-eval semantic judge with a calibrated Noul | M | approved | ri-03 |
+| 1 | Replace the gen-eval semantic judge with a calibrated Noul | M | completed | ri-03 |
 | 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | approved | ri-03, ri-04 |
 | 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | approved | ri-05 |
 | 1 | Adjudicate phase outcomes in shadow mode | L | approved | ri-06 |
@@ -147,7 +148,7 @@ Stand up the testing convention for every later site: system_one_decisions.testi
 
 ### ri-04: Replace the gen-eval semantic judge with a calibrated Noul
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: replace-the-gen-eval-semantic-judge-with-a-calibrated-noul
