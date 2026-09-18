@@ -82,7 +82,7 @@ items:
     act_floor/approve_floor defaults resolve from a package-owned packages/system-one-decisions/src/system_one_decisions/config/thresholds.json.
 - item_id: ri-03
   title: Add the adapter-backed test substitute and dry-run policy
-  status: approved
+  status: completed
   priority: 1
   effort: S
   depends_on:
@@ -687,7 +687,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T13:15:50.755918+00:00'
+updated_at: '2026-09-18T13:24:22.917294+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
