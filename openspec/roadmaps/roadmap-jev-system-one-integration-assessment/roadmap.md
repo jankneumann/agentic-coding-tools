@@ -2,7 +2,6 @@
 
 > Source: `docs/proposals/jev-system-one-integration-assessment.md` | Status: **approved** | Items: 24
 
-
 <!-- GENERATED: begin phase-table -->
 ## Phase Table
 
@@ -173,11 +172,11 @@ Rewrite gen_eval.semantic_judge.evaluate_semantic to call system_one_decisions.d
 Add a judged path to consensus_synthesizer.match_score: for candidate pairs sharing axis and file, ask one Noul("Findings A and B describe the same underlying defect") per pair, batched as N questions over one shared per-file state, keeping the line-overlap and snippet bands as fast paths and the Jaccard bands as the fallback. A match established only by the judged path records match_basis "judged", and _consensus_evidence_class returns "judgment" for any consensus finding whose match basis is judged regardless of its contributors' classes, so a probabilistic match can never raise the blocking count; its output feeds adjudication and disagreement routing. Move MATCH_THRESHOLD into config.
 
 **Acceptance outcomes**:
-- [ ] Replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json pairs the two real defects across vendors and routes them to adjudication rather than leaving them unconfirmed.
+- [ ] Reconstructing the two real per-vendor findings for the footer/percent-format defect from fixtures/pr484-consensus.json (antigravity id 1, pi id 14) and replaying them through match_score's judged path scores them as a match (today 0.0), moving that pair from unconfirmed to confirmed or disagreement. The fixture's other named real defect (pi id 12, "nodes that export returns") has no antigravity counterpart anywhere in the fixture's 23 entries and is correctly left unconfirmed -- a genuine single-vendor finding, which is what add-orchestrator-adjudication-review-gate's own adjudication path (a different roadmap item) exists to handle, not cross-vendor matching.
 - [ ] A consensus finding whose match basis is judged carries evidence_class "judgment" even when both contributing findings are deterministic, and blocking_count is unchanged by judged matches, asserted by a unit test on two deterministic scanner findings.
-- [ ] Routing precision on the seeded-defect set from measure-validator-recall-seeded-defects does not drop relative to the recorded band-only baseline, with both numbers in the change artifacts.
+- [ ] Routing-precision regression measurement against measure-validator-recall-seeded-defects's 40-defect set is deferred -- that change is an unimplemented scaffold on a different, blocked roadmap (skill-rightsizing) with no manifest, harness, or recorded band-only baseline to compare against. Tracked as a follow-up once that harness exists (same precedent as ri-04's deferred kappa measurement).
 - [ ] Pairs resolved by the line-overlap or identical-snippet fast paths issue no call, asserted by a call-count test.
-- [ ] MATCH_THRESHOLD is read from config by both consensus_synthesizer.py and review_ledger.py; no threshold float literal remains in the scoring path.
+- [ ] MATCH_THRESHOLD is read from config (review-rules.json, alongside the existing coverage_quorum_threshold) by both consensus_synthesizer.py and review_ledger.py; no threshold float literal remains in the scoring path.
 
 ### ri-06: Run the GATEKEEPER as a scored decision in shadow mode
 

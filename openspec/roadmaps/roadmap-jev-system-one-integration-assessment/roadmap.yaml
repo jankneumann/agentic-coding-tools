@@ -166,29 +166,34 @@ items:
     whose match basis is judged regardless of its contributors'' classes, so a probabilistic
     match can never raise the blocking count; its output feeds adjudication and disagreement
     routing. Move MATCH_THRESHOLD into config.'
-  rationale: 'Pilot step 2 and the highest-value Group A site. The hand-tuned Jaccard
-    bands produced match_score 0.0 on all 23 findings of PR #484 including two real
-    defects phrased differently by two vendors. A calibrated same-defect probability
-    is also the signal rescope-review-convergence-disagreement-routing needs to tell
-    genuine disagreement from re-phrasing. Because _consensus_evidence_class today
-    makes a consensus finding deterministic when any contributor is deterministic,
-    the judged path must be kept out of the blocking count explicitly or it would
-    let a probability block a merge.'
+  rationale: 'Pilot step 2: cross-vendor finding matching is exactly the kind of paraphrase-tolerant
+    judgment a calibrated Noul is suited for, where token-overlap heuristics systematically
+    fail. The seeded-defect precision regression check is deferred (see this refinement''s
+    own rationale) since the harness it depends on does not exist yet.'
   change_id: judge-cross-vendor-finding-matching-in-consensus-synthesizer
   acceptance_outcomes:
-  - Replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json
-    pairs the two real defects across vendors and routes them to adjudication rather
-    than leaving them unconfirmed.
+  - Reconstructing the two real per-vendor findings for the footer/percent-format
+    defect from fixtures/pr484-consensus.json (antigravity id 1, pi id 14) and replaying
+    them through match_score's judged path scores them as a match (today 0.0), moving
+    that pair from unconfirmed to confirmed or disagreement. The fixture's other named
+    real defect (pi id 12, "nodes that export returns") has no antigravity counterpart
+    anywhere in the fixture's 23 entries and is correctly left unconfirmed -- a genuine
+    single-vendor finding, which is what add-orchestrator-adjudication-review-gate's
+    own adjudication path (a different roadmap item) exists to handle, not cross-vendor
+    matching.
   - A consensus finding whose match basis is judged carries evidence_class "judgment"
     even when both contributing findings are deterministic, and blocking_count is
     unchanged by judged matches, asserted by a unit test on two deterministic scanner
     findings.
-  - Routing precision on the seeded-defect set from measure-validator-recall-seeded-defects
-    does not drop relative to the recorded band-only baseline, with both numbers in
-    the change artifacts.
+  - Routing-precision regression measurement against measure-validator-recall-seeded-defects's
+    40-defect set is deferred -- that change is an unimplemented scaffold on a different,
+    blocked roadmap (skill-rightsizing) with no manifest, harness, or recorded band-only
+    baseline to compare against. Tracked as a follow-up once that harness exists (same
+    precedent as ri-04's deferred kappa measurement).
   - Pairs resolved by the line-overlap or identical-snippet fast paths issue no call,
     asserted by a call-count test.
-  - MATCH_THRESHOLD is read from config by both consensus_synthesizer.py and review_ledger.py;
+  - MATCH_THRESHOLD is read from config (review-rules.json, alongside the existing
+    coverage_quorum_threshold) by both consensus_synthesizer.py and review_ledger.py;
     no threshold float literal remains in the scoring path.
 - item_id: ri-06
   title: Run the GATEKEEPER as a scored decision in shadow mode
@@ -703,7 +708,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T17:44:25.772019+00:00'
+updated_at: '2026-09-18T18:10:35.117440+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -777,3 +782,34 @@ refinements:
   base_sha256: 2abaa8be54d9c852b3196ed0170fb44eb99794b705f3d666206e200054556d0f
   operations:
   - edit:ri-04
+- timestamp: '2026-09-18T18:10:35.117440+00:00'
+  actor: claude-code
+  source: fixture-and-baseline-grounding-before-implementation
+  rationale: 'Grounding ri-05''s scaffolded acceptance outcomes against the real fixture
+    and the real sibling change before writing any code (the same discipline applied
+    to ri-04) found two problems.
+
+    First, openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json
+    is a post-synthesis consensus-report fixture, not raw per-vendor findings, and
+    its 23 entries do not support the scaffolded claim that both named real defects
+    are cross-vendor pairs. Reading every entry''s full description: the "integer
+    footer percent" defect genuinely IS a cross-vendor pair scored 0.0 today -- antigravity''s
+    id 1 ("Critical: Spec contract mismatch between build_atlas.py --tree footer format
+    and explain-code grounding disclosure line") and pi''s id 14 ("Multi-language
+    disclosure footer format unspecified: ... Design shows ''python 14% / sql 37%
+    covered'' with slashes but spec uses ellipsis... format mismatch"). But the "nodes
+    that export returns" defect (pi''s id 12) has no antigravity counterpart anywhere
+    in the 23 entries -- it is a genuine single-vendor finding with nothing to pair
+    against. That is precisely the case add-orchestrator-adjudication-review-gate''s
+    own adjudication path (a different roadmap item entirely) exists to handle; cross-vendor
+    matching cannot manufacture a second vendor''s opinion where none was recorded.
+
+    Second, the seeded-defect-set acceptance outcome depends on measure-validator-recall-seeded-defects,
+    which -- like calibrate-llm-judge-against-human-labels before it -- is an unimplemented
+    scaffold on the skill-rightsizing roadmap with no manifest, no harness, and no
+    recorded band-only baseline to compare against. Deferred per the same precedent
+    established for ri-04 (source: user-request-do-1-defer-kappa): implement the judged-matching
+    feature now, defer the precision-regression measurement until that harness exists.'
+  base_sha256: 22d419f4c6b2a2f9754eeedb402b56ef9c536e5667f32af2a2b56d6ea647d406
+  operations:
+  - edit:ri-05
