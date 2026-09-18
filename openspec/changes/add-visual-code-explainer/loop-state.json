@@ -1,0 +1,207 @@
+{
+  "schema_version": 5,
+  "change_id": "add-visual-code-explainer",
+  "current_phase": "DONE",
+  "iteration": 0,
+  "total_iterations": 10,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {
+    "wp-atlas-tree": "grok",
+    "wp-integration": "grok",
+    "wp-skill": "grok"
+  },
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-b7e2a91c",
+    "plan-iterate-d83ed9de",
+    "plan-review-cb1eda0e",
+    "implement-6f47d347",
+    "impl-iterate-1662359d",
+    "impl-review-a7f67be3",
+    "validate-ab5a1187",
+    "submit-pr-558a1c0d"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-16T11:26:14.163385+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-16T13:32:04.828863+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-09-16T14:23:46.775843+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-16T14:46:34.432732+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-16T15:12:17.906186+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-16T15:38:59.680416+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-16T15:45:30.753559+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-16T22:13:53.753779+00:00",
+      "outcome": "created",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "last_handoff_id": "submit-pr-558a1c0d",
+  "started_at": "2026-09-16T11:23:32.314434+00:00",
+  "phase_started_at": "2026-09-16T22:13:53.828608+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": null,
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 2,
+    "total_loc_estimate": 850
+  },
+  "gate_verdict": null,
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-16T11:26:28.379241+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "Operator replied approve after AskUserQuestion declined",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Operator replied approve after AskUserQuestion declined",
+      "recorded_at": "2026-09-16T13:04:13.827571+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "pr_creation",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-16T15:45:35.018208+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "pr_creation",
+      "note": "Operator replied approve; PR #558 already open \u2014 reuse, do not recreate",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator replied approve; PR #558 already open \u2014 reuse, do not recreate",
+      "recorded_at": "2026-09-16T22:13:41.790964+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "DONE",
+      "recorded_at": "2026-09-16T22:13:57.596666+00:00"
+    }
+  ],
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "add-visual-code-explainer",
+    "gate": "merge",
+    "phase": "DONE",
+    "requested_at": "2026-09-16T22:13:57.597226+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/558",
+      "branch": "openspec/add-visual-code-explainer",
+      "change_id": "add-visual-code-explainer"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    }
+  },
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "report_path": "openspec/changes/add-visual-code-explainer/validation-report.md",
+      "checked_at": "2026-09-16T22:13:53.821639+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-09-16T15:45:30.753559+00:00",
+      "report_mtime": "2026-09-16T15:44:44.020833+00:00",
+      "required_sections": [
+        "Spec Compliance"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass"
+      }
+    }
+  }
+}

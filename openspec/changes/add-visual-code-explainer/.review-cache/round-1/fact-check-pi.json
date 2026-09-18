@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "vendor": "pi",
+  "round": 1,
+  "status": "ran",
+  "skip_reason": null,
+  "model": null,
+  "tokens": 0,
+  "decisions": [
+    {
+      "finding_id": "1",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "2",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "3",
+      "verdict": "kept"
+    }
+  ]
+}

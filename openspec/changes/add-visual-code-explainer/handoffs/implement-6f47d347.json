@@ -1,0 +1,50 @@
+{
+  "handoff_id": "implement-6f47d347",
+  "change_id": "add-visual-code-explainer",
+  "phase": "Implementation",
+  "outcome": "complete",
+  "agent_type": "grok",
+  "created_at": "2026-09-16T14:44:18.382051+00:00",
+  "feature_branch": "openspec/add-visual-code-explainer",
+  "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/558",
+  "summary": "Implemented atlas --tree export and explain-code skill via managed package worktrees (workflow dispatch unavailable from autopilot subagent). Merged packages, regenerated mirrors, verified suite, opened PR #558. Task 2.8 harness-absent.",
+  "tier": "coordinated-inline-fallback",
+  "tier_note": "Coordinator available; workflow tool cannot launch from subagent \u2014 packages implemented inline in wp-atlas-tree and wp-skill worktrees.",
+  "packages": {
+    "wp-atlas-tree": {
+      "status": "complete",
+      "branch": "openspec/add-visual-code-explainer--wp-atlas-tree"
+    },
+    "wp-skill": {
+      "status": "complete",
+      "branch": "openspec/add-visual-code-explainer--wp-skill",
+      "notes": "install.sh --check deferred to integration for mirrors; harness absent for 2.8"
+    },
+    "wp-integration": {
+      "status": "complete",
+      "branch": "openspec/add-visual-code-explainer--wp-integration"
+    }
+  },
+  "verification": {
+    "pytest_atlas_explain_install_sh": "pass",
+    "openspec_validate_strict": "pass",
+    "install_sh_check": "pass",
+    "tree_determinism_cmp": "pass"
+  },
+  "context_checkpoints": {
+    "wp-atlas-tree": "unmigrated (no context_impact block; checkpoint CLI missing referencing dep)",
+    "wp-skill": "unmigrated (no context_impact block)"
+  },
+  "next_steps": [
+    "validate-feature --phase spec,evidence",
+    "PR review / cleanup-feature after approval"
+  ],
+  "relevant_files": [
+    "skills/codebase-atlas/scripts/atlas_tree.py",
+    "skills/codebase-atlas/scripts/build_atlas.py",
+    "skills/explain-code/SKILL.md",
+    "skills/explain-code/references/grounding.md",
+    "skills/tests/codebase-atlas/test_atlas_tree.py",
+    "skills/tests/explain-code/test_behaviour.py"
+  ]
+}
