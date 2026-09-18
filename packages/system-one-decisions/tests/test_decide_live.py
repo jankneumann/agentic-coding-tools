@@ -104,3 +104,35 @@ def test_successful_call_returns_the_real_answers_dict(
     result = decide({"doc": "hi"}, {"category": "..."}, site="test-site")
     assert result is response.answers
     assert result["category"].choice == "billing"
+
+
+def test_boundary_char_count_that_floor_division_would_miss_is_still_over_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """128,001 chars is 32,000.25 tokens at the 4-chars/token heuristic --
+    floor division rounds that down to exactly 32,000, which does not exceed
+    the budget and lets the call through. Ceiling division (the repo's own
+    convention in token_budget_check.py) reports 32,001 and correctly blocks
+    it. state alone is `{"doc": "x"*128001-ish}`; json.dumps adds quoting
+    overhead, so pad precisely via the state dict's own serialized length."""
+    monkeypatch.setenv("TYPESAFE_API_KEY", "sk-test-key")
+
+    def _client_should_not_be_constructed(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("client constructed despite exceeding the token budget")
+
+    monkeypatch.setattr(
+        "system_one_decisions._core._get_client", _client_should_not_be_constructed
+    )
+
+    import json
+
+    # Binary-search-free: build a string whose json.dumps length is exactly
+    # 128_001 chars (32_000.25 tokens -- strictly over budget).
+    target_json_len = 128_001
+    overhead = len(json.dumps({"doc": ""}))
+    payload = "x" * (target_json_len - overhead)
+    state = {"doc": payload}
+    assert len(json.dumps(state)) == target_json_len
+
+    result = decide(state, {}, site="test-site")
+    assert result is None

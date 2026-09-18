@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import functools
 import json
+import math
 import os
 import time
 from collections.abc import Callable
@@ -65,10 +66,16 @@ def _get_client() -> typesafe_sdk.TypeSafeClient:
 
 def _estimate_tokens(state: dict[str, Any], questions: dict[str, Any]) -> int:
     """Cheap token estimate over `state` plus the single longest serialized
-    question, using the repo's ~4-chars/token heuristic (design D1)."""
+    question, using the repo's ~4-chars/token heuristic (design D1).
+
+    Ceiling division, matching `token_budget_check.py::_estimate_tokens`'s
+    `math.ceil(len(text) / 4)` exactly: floor division would round a
+    fractional token count down, letting a payload just over the budget
+    (e.g. 128,001 chars = 32,000.25 tokens) through unblocked.
+    """
     state_chars = len(json.dumps(state, default=str))
     longest_question_chars = max((len(repr(q)) for q in questions.values()), default=0)
-    return (state_chars + longest_question_chars) // _CHARS_PER_TOKEN
+    return math.ceil((state_chars + longest_question_chars) / _CHARS_PER_TOKEN)
 
 
 def decide(
