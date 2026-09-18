@@ -5,11 +5,11 @@
 
 ## Context
 
-Add typesafe-sdk to skills/pyproject.toml under a new optional extra "decisions", have system_one.py build the live client from TYPESAFE_API_KEY behind a token-budget guard, and record site, latency, usage.input_tokens and the answered probabilities to the existing Langfuse hook. Establish the per-site threshold convention: thresholds live in architecture.config.yaml or the skill's own config beside the rule they replace, never as literals in a scoring module.
+Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions, have the package build the live client from TYPESAFE_API_KEY behind a token-budget guard, and record site, latency, usage.input_tokens and the answered probabilities to the existing Langfuse hook. Establish the per-site threshold convention: thresholds live in architecture.config.yaml or the skill's own config beside the rule they replace, never as literals in a scoring module.
 
 ## Why this item exists
 
-Turns the fallback-only seam into a working integration while honouring the integration-seam constraints: SDK imported in exactly one module, PyPI-only cloud harness network policy respected via an optional extra, no threshold literals in scoring modules per the context_eval convention, and every judgment-derived value carrying its probability.
+Turns the fallback-only seam into a working integration while honouring the integration-seam constraints: SDK imported in exactly one package, PyPI-only cloud harness network policy respected via an optional extra so the fallback-only install never needs it, no threshold literals in scoring modules per the context_eval convention, and every judgment-derived value carrying its probability.
 
 ## Depends on
 

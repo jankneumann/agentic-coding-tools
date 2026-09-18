@@ -49,8 +49,10 @@ judge sits between state and switch.
 
 ## The primitive: a decision step
 
-One shared helper, proposed in the companion assessment as `skills/shared/system_one.py`, with
-one loop-oriented entry point:
+One shared helper, proposed in the companion assessment as the installable package
+`packages/system-one-decisions` (a package rather than a `skills/shared/` module because the
+skills venv, gen-eval, and the coordinator image each install their own dependencies), with one
+loop-oriented entry point:
 
 ```python
 @dataclass(frozen=True)

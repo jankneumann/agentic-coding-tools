@@ -14,29 +14,29 @@ The system SHALL ensure that changes with declared frontmatter or a prefix in th
 WHEN `narrow-deployable-surface-fallout-with-a-high-floor-judgment` is implemented
 THEN Changes with declared frontmatter or a prefix in the proven-non-deployable set never reach a decision call, asserted by a call-count test.
 
-### Requirement: A probability below the configured floor still yields deployable (fail...
+### Requirement: A probability of altering a running service above the configured ceiling...
 
-The system SHALL ensure that a probability below the configured floor still yields deployable (fail closed), covered by a parametrised test around the floor.
+The system SHALL ensure that a probability of altering a running service above the configured ceiling still yields deployable (fail closed), covered by a parametrised test around the ceiling including a high-probability case that must remain deployable.
 
-#### Scenario: A probability below the configured floor still yields deployable (fail...
+#### Scenario: A probability of altering a running service above the configured ceiling...
 
 WHEN `narrow-deployable-surface-fallout-with-a-high-floor-judgment` is implemented
-THEN A probability below the configured floor still yields deployable (fail closed), covered by a parametrised test around the floor.
+THEN A probability of altering a running service above the configured ceiling still yields deployable (fail closed), covered by a parametrised test around the ceiling including a high-probability case that must remain deployable.
 
 ### Requirement: Every judged classification writes DEGRADED-style provenance ("derived by...
 
-The system SHALL ensure that every judged classification writes DEGRADED-style provenance ("derived by system_one, p=0.93") into the validation report via record_degraded-equivalent plumbing, asserted on a report fixture.
+The system SHALL ensure that every judged classification writes DEGRADED-style provenance ("derived by system_one, p(alters service)=0.04") into the validation report via record_degraded-equivalent plumbing, asserted on a report fixture.
 
 #### Scenario: Every judged classification writes DEGRADED-style provenance ("derived by...
 
 WHEN `narrow-deployable-surface-fallout-with-a-high-floor-judgment` is implemented
-THEN Every judged classification writes DEGRADED-style provenance ("derived by system_one, p=0.93") into the validation report via record_degraded-equivalent plumbing, asserted on a report fixture.
+THEN Every judged classification writes DEGRADED-style provenance ("derived by system_one, p(alters service)=0.04") into the validation report via record_degraded-equivalent plumbing, asserted on a report fixture.
 
 ### Requirement: A replay over recorded unknown-bucket changes shows no change previously...
 
-The system SHALL ensure that a replay over recorded unknown-bucket changes shows no change previously classified deployable being downgraded without the floor being met.
+The system SHALL ensure that a replay over recorded unknown-bucket changes shows no change previously classified deployable being downgraded unless its probability of altering a service is at or below the ceiling.
 
 #### Scenario: A replay over recorded unknown-bucket changes shows no change previously...
 
 WHEN `narrow-deployable-surface-fallout-with-a-high-floor-judgment` is implemented
-THEN A replay over recorded unknown-bucket changes shows no change previously classified deployable being downgraded without the floor being met.
+THEN A replay over recorded unknown-bucket changes shows no change previously classified deployable being downgraded unless its probability of altering a service is at or below the ceiling.

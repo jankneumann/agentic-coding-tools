@@ -2,7 +2,6 @@
 
 > Source: `docs/proposals/jev-system-one-integration-assessment.md` | Status: **planning** | Items: 24
 
-
 <!-- GENERATED: begin phase-table -->
 ## Phase Table
 
@@ -105,13 +104,14 @@ graph TD
 - **Effort**: M
 - **Change ID**: add-the-shared-system-one-decision-helper-fallback-only
 
-Create skills/shared/system_one.py with the frozen Decision dataclass and both entry points, decide(state, questions, *, site) and decide_intent(state, intents, *, fallback, human_intent, act_floor, irreversible, approve_floor, site), implemented with no network call at all: every decision comes from the caller's existing rule via fallback and is recorded to the caller's event log with degraded=True and evidence_class "judgment".
+Create the installable package packages/system-one-decisions (importable as system_one_decisions) with the frozen Decision dataclass and both entry points, decide(state, questions, *, site) and decide_intent(state, intents, *, fallback, human_intent, act_floor, irreversible, approve_floor, site), implemented with no network call at all: every decision comes from the caller's existing rule via fallback and is recorded to the caller's event log with degraded=True and evidence_class "judgment". Declare it from every consuming runtime: a path dependency in skills/pyproject.toml, an optional "decisions" extra in packages/gen-eval/pyproject.toml, and a path dependency in agent-coordinator/pyproject.toml plus a COPY line in the coordinator Dockerfile beside the existing gen-eval and code-search copies.
 
 **Acceptance outcomes**:
-- [ ] skills/shared/system_one.py exports Decision(intent, p, distribution, degraded, evidence_class="judgment"), decide and decide_intent, and imports no vendor SDK.
+- [ ] packages/system-one-decisions exports Decision(intent, p, distribution, degraded, evidence_class="judgment"), decide and decide_intent, has no required dependencies, and imports no vendor SDK.
+- [ ] The package is importable from the skills venv, from a standalone `uv pip install packages/gen-eval[decisions]`, and inside the coordinator Docker image (docker-smoke-import covers `import system_one_decisions`).
 - [ ] With no TYPESAFE_API_KEY set, decide_intent returns fallback(state) with degraded=True and never raises, proven by a unit test for each of the four documented checks (unavailable, act_floor, irreversible/approve_floor, normal return).
 - [ ] A decide_intent call appends one event carrying intent, distribution and degraded to the caller's event log, asserted against a loop-state.json phase_history fixture.
-- [ ] Unit tests in skills/shared/tests cover act_floor routing to human_intent and needs_approval flagging for intents in the irreversible set.
+- [ ] Unit tests in packages/system-one-decisions/tests cover act_floor routing to human_intent and needs_approval flagging for intents in the irreversible set.
 
 ### ri-02: Wire the live TypeSafe client, thresholds and telemetry
 
@@ -121,14 +121,14 @@ Create skills/shared/system_one.py with the frozen Decision dataclass and both e
 - **Change ID**: wire-the-live-typesafe-client-thresholds-and-telemetry
 - **Depends on**: `ri-01`
 
-Add typesafe-sdk to skills/pyproject.toml under a new optional extra "decisions", have system_one.py build the live client from TYPESAFE_API_KEY behind a token-budget guard, and record site, latency, usage.input_tokens and the answered probabilities to the existing Langfuse hook. Establish the per-site threshold convention: thresholds live in architecture.config.yaml or the skill's own config beside the rule they replace, never as literals in a scoring module.
+Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions, have the package build the live client from TYPESAFE_API_KEY behind a token-budget guard, and record site, latency, usage.input_tokens and the answered probabilities to the existing Langfuse hook. Establish the per-site threshold convention: thresholds live in architecture.config.yaml or the skill's own config beside the rule they replace, never as literals in a scoring module.
 
 **Acceptance outcomes**:
-- [ ] skills/pyproject.toml declares a "decisions" extra containing typesafe-sdk; the default install and every existing import path still succeed without it.
-- [ ] typesafe_sdk is imported in skills/shared/system_one.py and nowhere else, enforced by a grep-style guard test.
+- [ ] packages/system-one-decisions declares a "live" extra containing typesafe-sdk; the default install of the package and of every consumer still succeeds without it.
+- [ ] typesafe_sdk is imported inside packages/system-one-decisions and nowhere else in the repository, enforced by a grep-style guard test.
 - [ ] decide returns None (never raises) when the key is absent, the network fails, or serialized state plus the longest question exceeds the 32K-token budget, with one test per branch.
 - [ ] Each completed call emits one Langfuse record carrying site, latency_ms, usage.input_tokens and the per-label probabilities.
-- [ ] A guard test asserts no float threshold literal is introduced into system_one.py; defaults resolve from architecture.config.yaml.
+- [ ] A guard test asserts no float threshold literal is introduced into the package; defaults resolve from architecture.config.yaml.
 
 ### ri-04: Replace the gen-eval semantic judge with a calibrated Noul
 
@@ -154,14 +154,14 @@ Rewrite gen_eval.semantic_judge.evaluate_semantic to ask one Noul("The actual ou
 - **Change ID**: judge-cross-vendor-finding-matching-in-consensus-synthesizer
 - **Depends on**: `ri-03`, `ri-04`
 
-Add a judged path to consensus_synthesizer.match_score: for candidate pairs sharing axis and file, ask one Noul("Findings A and B describe the same underlying defect") per pair, batched as N questions over one shared per-file state, keeping the line-overlap and snippet bands as fast paths and the Jaccard bands as the fallback. Move MATCH_THRESHOLD into config.
+Add a judged path to consensus_synthesizer.match_score: for candidate pairs sharing axis and file, ask one Noul("Findings A and B describe the same underlying defect") per pair, batched as N questions over one shared per-file state, keeping the line-overlap and snippet bands as fast paths and the Jaccard bands as the fallback. A match established only by the judged path records match_basis "judged", and _consensus_evidence_class returns "judgment" for any consensus finding whose match basis is judged regardless of its contributors' classes, so a probabilistic match can never raise the blocking count; its output feeds adjudication and disagreement routing. Move MATCH_THRESHOLD into config.
 
 **Acceptance outcomes**:
-- [ ] Replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json matches the two real
+- [ ] Replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json pairs the two real defects across vendors and routes them to adjudication rather than leaving them unconfirmed.
+- [ ] A consensus finding whose match basis is judged carries evidence_class "judgment" even when both contributing findings are deterministic, and blocking_count is unchanged by judged matches, asserted by a unit test on two deterministic scanner findings.
 - [ ] Routing precision on the seeded-defect set from measure-validator-recall-seeded-defects does not drop relative to the recorded band-only baseline, with both numbers in the change artifacts.
 - [ ] Pairs resolved by the line-overlap or identical-snippet fast paths issue no call, asserted by a call-count test.
 - [ ] MATCH_THRESHOLD is read from config by both consensus_synthesizer.py and review_ledger.py; no threshold float literal remains in the scoring path.
-- [ ] Every judged match in the consensus output carries evidence_class "judgment" and its probability.
 
 ### ri-06: Run the GATEKEEPER as a scored decision in shadow mode
 
@@ -460,13 +460,13 @@ In execute_plan's delegate_comments, classify each unresolved review thread with
 - **Change ID**: narrow-deployable-surface-fallout-with-a-high-floor-judgment
 - **Depends on**: `ri-05`
 
-For the unknown bucket only in gate_logic.classify_deployable_surface, ask Noul("This change alters the behaviour of a running service") and accept non-deployable only above a high config-held floor (about 0.9), otherwise keep failing closed to deployable. Declared frontmatter and the proven-non-deployable prefix set stay authoritative.
+For the unknown bucket only in gate_logic.classify_deployable_surface, ask Noul("This change alters the behaviour of a running service") and accept non-deployable only when that probability is at or below a low config-held ceiling (about 0.1); any higher probability keeps failing closed to deployable. Declared frontmatter and the proven-non-deployable prefix set stay authoritative.
 
 **Acceptance outcomes**:
 - [ ] Changes with declared frontmatter or a prefix in the proven-non-deployable set never reach a decision call, asserted by a call-count test.
-- [ ] A probability below the configured floor still yields deployable (fail closed), covered by a parametrised test around the floor.
-- [ ] Every judged classification writes DEGRADED-style provenance ("derived by system_one, p=0.93") into the validation report via record_degraded-equivalent plumbing, asserted on a report fixture.
-- [ ] A replay over recorded unknown-bucket changes shows no change previously classified deployable being downgraded without the floor being met.
+- [ ] A probability of altering a running service above the configured ceiling still yields deployable (fail closed), covered by a parametrised test around the ceiling including a high-probability case that must remain deployable.
+- [ ] Every judged classification writes DEGRADED-style provenance ("derived by system_one, p(alters service)=0.04") into the validation report via record_degraded-equivalent plumbing, asserted on a report fixture.
+- [ ] A replay over recorded unknown-bucket changes shows no change previously classified deployable being downgraded unless its probability of altering a service is at or below the ceiling.
 
 ### ri-24: Classify human reply intent behind the approval floor
 

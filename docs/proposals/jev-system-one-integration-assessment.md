@@ -95,11 +95,22 @@ prefilters), one `Noul("Findings A and B describe the same underlying defect")` 
 findings as state. Batch all pairs for one file into one call as N questions over shared state.
 Keep the line-overlap and snippet bands as fast paths that skip the call.
 
+**Keep judged matches out of the blocking count.** `_consensus_evidence_class` makes a consensus
+finding deterministic when *any* contributor is deterministic, so a judged match between two
+scanner findings would be blockable on a probability, which breaks the invariant in the fit test.
+A match established only by the judged path therefore records `match_basis: judged`, and the
+synthesizer returns `judgment` for any consensus finding whose match basis is judged, whatever
+its contributors' classes. The blocking count can rise only through the deterministic bands.
+What the judged match buys is *routing*: `unconfirmed` singletons that Jev pairs across vendors
+go to adjudication (`add-orchestrator-adjudication-review-gate`) or the disagreement queue,
+which is where the two #484 defects should have gone.
+
 **Why it matters beyond dedup**: `rescope-review-convergence-disagreement-routing` wants to route
 *contested* findings to a human. A calibrated "same defect" probability is exactly the signal that
 distinguishes "two vendors disagree" from "two vendors phrased one thing differently."
 
-**Risk**: low. Output already feeds a threshold; the fallback is the existing bands.
+**Risk**: low once the blocking rule above holds. Output already feeds a threshold; the fallback
+is the existing bands.
 
 ### A2. Transcript struggle triage — `collect_transcripts.triage`
 
@@ -181,12 +192,15 @@ unsure. Fail-closed is correct; the cost is running Docker-dependent phases on c
 need them.
 
 **Replace with (narrowly)**: only for the `unknown` bucket, `Noul("This change alters the
-behaviour of a running service")` over the file list and diff stat, accepted as *non-deployable*
-only above a high threshold (say 0.9), otherwise still fail closed. Declared frontmatter and the
+behaviour of a running service")` over the file list and diff stat. The change is accepted as
+*non-deployable* only when that probability is at or below a low, config-held ceiling (about
+0.1); anything higher stays fail-closed as deployable, so a confident "yes, this touches a
+service" can never skip the container phases. Declared frontmatter and the
 proven-non-deployable prefix set stay authoritative.
 
-**Risk**: this is a gate input. Record `DEGRADED`-style provenance ("derived by system_one, p=0.93")
-in the report so a reviewer can see it, mirroring how `autopilot.record_degraded` works.
+**Risk**: this is a gate input. Record `DEGRADED`-style provenance ("derived by system_one,
+p(alters service)=0.04") in the report so a reviewer can see it, mirroring how
+`autopilot.record_degraded` works.
 
 ## Group B — LLM prompts whose job is a typed decision
 
@@ -318,20 +332,28 @@ The repo dispatches to vendors as CLIs (`agents.yaml` `cli:` blocks) or OpenAI-c
 (`openai_compat_adapter.py`, `provider_dispatch._dispatch_local`). Jev is neither: it is a
 different call shape, not another chat model. Do not model it as a vendor or an archetype tier.
 
-Recommended shape, mirroring how `skills/shared/github_classifier.py` is the portable home for
-shared logic:
+Recommended shape: a small installable package, not a file under `skills/shared/`. Three
+runtimes consume the seam (the skills venv, `packages/gen-eval` for B2, and the coordinator for
+B4 and the audit path), and they do not share a dependency set: gen-eval is independently
+installable, and the coordinator image copies exactly one file out of `skills/shared/`
+(`github_classifier.py`). A module in `skills/shared/` would be unreachable from two of the
+three.
 
-- `skills/shared/system_one.py` — two entry points. `decide(state, questions, *, site)` for
-  Groups A and B, and `decide_intent(state, intents, *, fallback, human_intent, act_floor,
-  irreversible, approve_floor, site)` for Group C, which wraps one `Choice` in the
-  confidence-routing rules above and appends the decision to the caller's event log. Both: read
-  `TYPESAFE_API_KEY`; returns `None` (never raises) when the key is absent, the network is
-  unavailable, or state exceeds the token budget, so every caller's existing rule remains the
-  fallback; records `site`, latency, `usage.input_tokens`, and the answered probabilities to the
-  existing Langfuse hook; and is the only place `typesafe_sdk` is imported.
-- `skills/pyproject.toml` — add `typesafe-sdk` under a new optional extra `decisions`, alongside
-  `sdk`, so the cloud harness's PyPI-only network policy is respected and nothing new is required
-  at import time.
+- `packages/system-one-decisions/` (importable as `system_one_decisions`) — two entry points.
+  `decide(state, questions, *, site)` for Groups A and B, and `decide_intent(state, intents, *,
+  fallback, human_intent, act_floor, irreversible, approve_floor, site)` for Group C, which wraps
+  one `Choice` in the confidence-routing rules above and appends the decision to the caller's
+  event log. Both: read `TYPESAFE_API_KEY`; return `None` (never raise) when the key is absent,
+  the network is unavailable, or state exceeds the token budget, so every caller's existing rule
+  remains the fallback; record `site`, latency, `usage.input_tokens`, and the answered
+  probabilities to the existing Langfuse hook; and are the only place `typesafe_sdk` is imported.
+  The package has no required dependencies; a `live` extra pulls `typesafe-sdk`, so the
+  fallback-only helper installs everywhere the cloud harness's PyPI-only policy allows.
+- **Each consumer declares it**, the way `packages/gen-eval` and `packages/code-search` are
+  already wired: a path dependency in `skills/pyproject.toml`; an optional `decisions` extra in
+  `packages/gen-eval/pyproject.toml`; a path dependency in `agent-coordinator/pyproject.toml`
+  plus the matching `COPY packages/system-one-decisions/` line in the coordinator Dockerfile
+  beside the existing gen-eval and code-search copies.
 - **Dry-run / CI** — the repo's convention is `--dry-run` with no API calls. Use
   `system-one-adapter` (Anthropic provider, `llm_answer_mode="probabilities"`) only for
   *behavioural* tests of the wiring; mark its probabilities uncalibrated in test names. Unit tests
@@ -350,9 +372,10 @@ shared logic:
 
 ## Pilot order and acceptance
 
-0. **The helper, fallback-only** — land `skills/shared/system_one.py` with the `fallback` path
-   and the event-log write but no network call. Every existing rule decision in Group C becomes
-   a recorded, replayable event before any model is consulted.
+0. **The helper, fallback-only** — land `packages/system-one-decisions` with the `fallback` path
+   and the event-log write but no network call, declared by all three consuming runtimes. Every
+   existing rule decision in Group C becomes a recorded, replayable event before any model is
+   consulted.
 1. **B2 semantic judge** — smallest surface, already has `skip` semantics, and the
    `calibrate-llm-judge-against-human-labels` change is about to produce a 40-item human-labelled
    set. Score Jev's `noul` against those labels with Cohen's kappa exactly as that change scores the

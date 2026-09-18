@@ -5,23 +5,23 @@
 
 ## ADDED Requirements
 
-### Requirement: skills/pyproject.toml declares a "decisions" extra containing typesafe-sdk;...
+### Requirement: packages/system-one-decisions declares a "live" extra containing...
 
-The system SHALL ensure that skills/pyproject.toml declares a "decisions" extra containing typesafe-sdk; the default install and every existing import path still succeed without it.
+The system SHALL ensure that packages/system-one-decisions declares a "live" extra containing typesafe-sdk; the default install of the package and of every consumer still succeeds without it.
 
-#### Scenario: skills/pyproject.toml declares a "decisions" extra containing typesafe-sdk;...
-
-WHEN `wire-the-live-typesafe-client-thresholds-and-telemetry` is implemented
-THEN skills/pyproject.toml declares a "decisions" extra containing typesafe-sdk; the default install and every existing import path still succeed without it.
-
-### Requirement: typesafe_sdk is imported in skills/shared/system_one.py and nowhere else,...
-
-The system SHALL ensure that typesafe_sdk is imported in skills/shared/system_one.py and nowhere else, enforced by a grep-style guard test.
-
-#### Scenario: typesafe_sdk is imported in skills/shared/system_one.py and nowhere else,...
+#### Scenario: packages/system-one-decisions declares a "live" extra containing...
 
 WHEN `wire-the-live-typesafe-client-thresholds-and-telemetry` is implemented
-THEN typesafe_sdk is imported in skills/shared/system_one.py and nowhere else, enforced by a grep-style guard test.
+THEN packages/system-one-decisions declares a "live" extra containing typesafe-sdk; the default install of the package and of every consumer still succeeds without it.
+
+### Requirement: typesafe_sdk is imported inside packages/system-one-decisions and nowhere...
+
+The system SHALL ensure that typesafe_sdk is imported inside packages/system-one-decisions and nowhere else in the repository, enforced by a grep-style guard test.
+
+#### Scenario: typesafe_sdk is imported inside packages/system-one-decisions and nowhere...
+
+WHEN `wire-the-live-typesafe-client-thresholds-and-telemetry` is implemented
+THEN typesafe_sdk is imported inside packages/system-one-decisions and nowhere else in the repository, enforced by a grep-style guard test.
 
 ### Requirement: decide returns None (never raises) when the key is absent, the network...
 
@@ -41,11 +41,11 @@ The system SHALL ensure that each completed call emits one Langfuse record carry
 WHEN `wire-the-live-typesafe-client-thresholds-and-telemetry` is implemented
 THEN Each completed call emits one Langfuse record carrying site, latency_ms, usage.input_tokens and the per-label probabilities.
 
-### Requirement: A guard test asserts no float threshold literal is introduced into...
+### Requirement: A guard test asserts no float threshold literal is introduced into the...
 
-The system SHALL ensure that a guard test asserts no float threshold literal is introduced into system_one.py; defaults resolve from architecture.config.yaml.
+The system SHALL ensure that a guard test asserts no float threshold literal is introduced into the package; defaults resolve from architecture.config.yaml.
 
-#### Scenario: A guard test asserts no float threshold literal is introduced into...
+#### Scenario: A guard test asserts no float threshold literal is introduced into the...
 
 WHEN `wire-the-live-typesafe-client-thresholds-and-telemetry` is implemented
-THEN A guard test asserts no float threshold literal is introduced into system_one.py; defaults resolve from architecture.config.yaml.
+THEN A guard test asserts no float threshold literal is introduced into the package; defaults resolve from architecture.config.yaml.
