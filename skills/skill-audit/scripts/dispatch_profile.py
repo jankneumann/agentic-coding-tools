@@ -37,6 +37,17 @@ def _split(cell: str) -> list[str]:
     return [part.strip() for part in cell.split(",") if part.strip()]
 
 
+# agent-archetypes "Local Provider Archetype Trust Boundary": the `local`
+# provider is permitted only for archetypes whose output is cheap to discard or
+# verified downstream. Resolution for these three must never return `local`.
+LOCAL_PROVIDER = "local"
+LOCAL_FORBIDDEN_ARCHETYPES = frozenset({"architect", "reviewer", "gatekeeper"})
+
+# Best-to-worst. An omitted tier degrades rightwards, mirroring the
+# coordinator's graceful-degradation rule.
+TIER_PREFERENCE = ("frontier", "premium", "standard", "economy")
+
+
 def load_dispatch_map(path: Path | None = None) -> dict[str, dict[str, list[str]]]:
     """Parse the skill → {phases, direct} table from ``references/dispatch-map.md``."""
     text = (path or DISPATCH_MAP_PATH).read_text(encoding="utf-8")
@@ -114,10 +125,29 @@ def build_dispatch_profile(
         for provider, provider_map in aliases.items():
             if not isinstance(provider_map, dict):
                 continue
+            if provider == LOCAL_PROVIDER and archetype in LOCAL_FORBIDDEN_ARCHETYPES:
+                # agent-archetypes "Local Provider Archetype Trust Boundary":
+                # resolution for these archetypes MUST NOT return provider
+                # `local`. Stated here rather than left to the tier failing to
+                # resolve, so a roster that later defines every local tier does
+                # not silently start reporting a dispatch the coordinator
+                # refuses.
+                continue
             model, thinking = resolve_tier_for_provider(provider, tier, path=roster_path)
+            degraded = "frontier" if tier == "frontier" and "frontier" not in provider_map else None
+            if model is None:
+                # The shared helper only falls back frontier -> premium, but the
+                # coordinator degrades any omitted tier to the provider's best
+                # defined one. Mirror that, or the profile under-reports which
+                # tiers run the skill (the `local` roster defines only standard
+                # and economy, so every premium archetype would vanish).
+                for candidate in TIER_PREFERENCE[TIER_PREFERENCE.index(tier) + 1 :] if tier in TIER_PREFERENCE else []:
+                    model, thinking = resolve_tier_for_provider(provider, candidate, path=roster_path)
+                    if model is not None:
+                        degraded = tier
+                        break
             if model is None:
                 continue
-            degraded = "frontier" if tier == "frontier" and "frontier" not in provider_map else None
             rows.append(
                 {
                     "archetype": archetype,

@@ -85,3 +85,81 @@ def test_non_lifecycle_skill_reads_its_own_dispatch_tokens():
     rows = build_dispatch_profile("some-skill", text, roster_path=ROSTER)
     assert {r["archetype"] for r in rows} == {"analyst", "implementer"}
     assert build_dispatch_profile("quiet-skill", "no dispatch here", roster_path=ROSTER) == []
+
+
+# --- Codex review PR #552 thread 3: local provider resolution ------------------
+# Two facts the profile must state correctly, which it previously got right only
+# by accident (an unresolvable tier fell through `model is None: continue`).
+
+
+def test_local_is_excluded_from_trust_boundary_archetypes(tmp_path):
+    """`local` never appears for architect/reviewer/gatekeeper.
+
+    agent-archetypes "Local Provider Archetype Trust Boundary": resolution for
+    those archetypes MUST NOT return provider `local`. This must hold even when
+    the roster defines every tier for `local`, so the exclusion cannot depend on
+    the tier failing to resolve.
+    """
+    roster = tmp_path / "archetypes.yaml"
+    roster.write_text(
+        "schema_version: 4\n"
+        "model_aliases:\n"
+        "  local:\n"
+        "    frontier: local-frontier\n"
+        "    premium: local-premium\n"
+        "    standard: local-standard\n"
+        "    economy: local-economy\n"
+        "archetypes:\n"
+        "  architect:\n"
+        "    model: frontier\n"
+        "    system_prompt: a\n"
+        "    write_capable: true\n"
+        "  runner:\n"
+        "    model: economy\n"
+        "    system_prompt: r\n"
+        "    write_capable: true\n"
+        "phase_mapping:\n"
+        "  PLAN: {archetype: architect}\n"
+        "  INIT: {archetype: runner}\n",
+        encoding="utf-8",
+    )
+    rows = build_dispatch_profile(
+        "autopilot", "", roster_path=roster, dispatch_map={"autopilot": {"phases": ["*"], "direct": []}}
+    )
+    local_architect = [r for r in rows if r["provider"] == "local" and r["archetype"] == "architect"]
+    assert local_architect == [], "trust boundary: local must not run architect"
+    local_runner = [r for r in rows if r["provider"] == "local" and r["archetype"] == "runner"]
+    assert local_runner, "runner is permitted on local and must still be listed"
+
+
+def test_permitted_archetype_degrades_to_best_defined_tier(tmp_path):
+    """A permitted archetype whose tier `local` omits degrades, it does not vanish.
+
+    agent-archetypes: "Tiers omitted by the local roster SHALL resolve through
+    the existing graceful-degradation rule (an omitted tier resolves to the
+    provider's best defined tier)." Dropping the row would under-report which
+    tiers actually run the skill.
+    """
+    roster = tmp_path / "archetypes.yaml"
+    roster.write_text(
+        "schema_version: 4\n"
+        "model_aliases:\n"
+        "  local:\n"
+        "    standard: local-standard\n"
+        "    economy: local-economy\n"
+        "archetypes:\n"
+        "  validator:\n"
+        "    model: premium\n"
+        "    system_prompt: v\n"
+        "    write_capable: true\n"
+        "phase_mapping:\n"
+        "  VALIDATE: {archetype: validator}\n",
+        encoding="utf-8",
+    )
+    rows = build_dispatch_profile(
+        "autopilot", "", roster_path=roster, dispatch_map={"autopilot": {"phases": ["*"], "direct": []}}
+    )
+    local = [r for r in rows if r["provider"] == "local"]
+    assert len(local) == 1, f"expected one degraded local row, got {local}"
+    assert local[0]["model"] == "local-standard"
+    assert local[0]["degraded_from"] == "premium"
