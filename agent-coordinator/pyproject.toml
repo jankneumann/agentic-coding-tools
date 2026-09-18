@@ -64,12 +64,12 @@ analysis = [
     "psycopg2-binary>=2.9.0",
 ]
 observability = [
-    "opentelemetry-api>=1.41.1",
+    "opentelemetry-api>=1.44.0",
     "opentelemetry-sdk>=1.44.0",
     "opentelemetry-exporter-otlp>=1.44.0",
     "opentelemetry-exporter-prometheus>=0.65b0",
-    "prometheus-client>=0.25.0",
-    "langfuse>=4.14.1,<5.0",
+    "prometheus-client>=0.26.0",
+    "langfuse>=4.15.1,<5.0",
 ]
 test = [
     "pytest>=9.1.1",
@@ -77,9 +77,9 @@ test = [
     "pytest-playwright>=0.9.0",
     "respx>=0.23.1",
     "PyJWT[crypto]>=2.13.0",
-    "ruff>=0.16.5",
+    "ruff>=0.16.6",
     "mypy>=2.1.0",
-    "hypothesis>=6.165.2",
+    "hypothesis>=6.167.1",
 ]
 dev = [
     "pytest>=9.1.1",
@@ -87,7 +87,7 @@ dev = [
     "pytest-playwright>=0.9.0",
     "respx>=0.23.1",
     "PyJWT[crypto]>=2.13.0",
-    "ruff>=0.16.5",
+    "ruff>=0.16.6",
     "mypy>=2.1.0",
     "types-PyYAML>=6.0",
     "cedarpy>=4.8.7",

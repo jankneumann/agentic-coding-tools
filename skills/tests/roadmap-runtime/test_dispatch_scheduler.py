@@ -287,8 +287,12 @@ def test_indeterminate_scope_is_a_schema_valid_singleton(
     plan = select_safe_ready_batch(
         repo_root,
         [
-            ReadyDispatchItem(item_id="ri-02", change_id="disjoint-beta", priority=2),
-            ReadyDispatchItem(item_id="ri-01", change_id=change_id, priority=1),
+            ReadyDispatchItem(
+                item_id="ri-02", change_id="disjoint-beta", priority=2, position=1
+            ),
+            ReadyDispatchItem(
+                item_id="ri-01", change_id=change_id, priority=1, position=0
+            ),
         ],
     )
 
@@ -325,13 +329,20 @@ def test_indeterminate_scope_is_a_schema_valid_singleton(
     assert list(validator.iter_errors(request)) == []
 
 
-def test_batch_is_deterministic_priority_item_id_maximal_and_preserves_evidence() -> None:
+def test_batch_is_deterministic_priority_position_maximal_and_preserves_evidence() -> None:
+    """Declared list position, not argument order, fixes the batch order."""
     plan = select_safe_ready_batch(
         _FIXTURE_ROOT,
         [
-            ReadyDispatchItem(item_id="ri-03", change_id="overlaps-beta", priority=2),
-            ReadyDispatchItem(item_id="ri-02", change_id="disjoint-alpha", priority=2),
-            ReadyDispatchItem(item_id="ri-01", change_id="disjoint-beta", priority=1),
+            ReadyDispatchItem(
+                item_id="ri-03", change_id="overlaps-beta", priority=2, position=2
+            ),
+            ReadyDispatchItem(
+                item_id="ri-02", change_id="disjoint-alpha", priority=2, position=1
+            ),
+            ReadyDispatchItem(
+                item_id="ri-01", change_id="disjoint-beta", priority=1, position=0
+            ),
         ],
     )
 
@@ -353,7 +364,7 @@ def test_batch_is_deterministic_priority_item_id_maximal_and_preserves_evidence(
 def test_missing_or_invalid_change_id_is_not_dispatched(change_id: str | None) -> None:
     plan = select_safe_ready_batch(
         _FIXTURE_ROOT,
-        [ReadyDispatchItem(item_id="ri-01", change_id=change_id, priority=1)],
+        [ReadyDispatchItem(item_id="ri-01", change_id=change_id, priority=1, position=0)],
     )
 
     assert plan.items == ()
@@ -361,3 +372,27 @@ def test_missing_or_invalid_change_id_is_not_dispatched(change_id: str | None) -
     assert [(failure.item_id, failure.reason) for failure in plan.failures] == [
         ("ri-01", "invalid_change_id")
     ]
+
+
+def test_list_position_outranks_item_id_inside_a_priority_tier() -> None:
+    """ri-02 precedes ri-01 in the roadmap, so it is the one that dispatches.
+
+    Both items name the same change, so their write scopes overlap and only the
+    first in order is admitted. Under the previous ``(priority, item_id)`` rule
+    that was ri-01, which made a within-tier ``refine-roadmap reorder`` a no-op
+    in coordinated mode while sequential dispatch honored it (#555).
+    """
+    plan = select_safe_ready_batch(
+        _FIXTURE_ROOT,
+        [
+            ReadyDispatchItem(
+                item_id="ri-01", change_id="overlaps-beta", priority=2, position=1
+            ),
+            ReadyDispatchItem(
+                item_id="ri-02", change_id="overlaps-beta", priority=2, position=0
+            ),
+        ],
+    )
+
+    assert [item.item_id for item in plan.items] == ["ri-02"]
+    assert plan.deferred_item_ids == ("ri-01",)

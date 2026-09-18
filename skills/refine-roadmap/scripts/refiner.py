@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -70,6 +70,13 @@ class RefinementPreview:
     schedule_after: list[list[str]]
     dependency_edges_added: list[tuple[str, str]]
     dependency_edges_removed: list[tuple[str, str]]
+    priority_changes: list[list[Any]] = dataclass_field(default_factory=list)
+    #: Non-fatal effects an operator must see before approving. Empty today:
+    #: its only producer warned that a tiered reorder moved sequential dispatch
+    #: order but not coordinated, which stopped being true once both paths
+    #: adopted roadmap list position (#555). The channel stays because the
+    #: approval rule in SKILL.md is written against it.
+    warnings: list[str] = dataclass_field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -83,6 +90,8 @@ class RefinementPreview:
             "schedule_after": self.schedule_after,
             "dependency_edges_added": [list(edge) for edge in self.dependency_edges_added],
             "dependency_edges_removed": [list(edge) for edge in self.dependency_edges_removed],
+            "priority_changes": self.priority_changes,
+            "warnings": self.warnings,
             "candidate": self.candidate,
         }
 
@@ -222,6 +231,17 @@ def _renumber_priorities(items: list[dict[str, Any]]) -> None:
         item["priority"] = priority
 
 
+def _is_priority_sequence(items: list[dict[str, Any]]) -> bool:
+    """True when priorities are exactly 1..N in list order.
+
+    Only such a roadmap uses priority as a position, so only it may be
+    renumbered after a structural edit. Elsewhere priority is a tier shared by
+    several items (readiness sorts stably by it, so list order only breaks ties
+    within a tier), and renumbering would erase every tier in the roadmap (#553).
+    """
+    return [item.get("priority") for item in items] == list(range(1, len(items) + 1))
+
+
 def _replace_local_dependency(
     items: list[dict[str, Any]],
     old_id: str,
@@ -310,9 +330,11 @@ def _apply_split(
     if strategy not in {"parallel", "chain"}:
         raise RefinementValidationError("split strategy must be 'parallel' or 'chain'.")
 
+    sequential = _is_priority_sequence(items)
     part_items: list[dict[str, Any]] = []
     existing_ids = set(_item_map(candidate))
     for raw in raw_parts:
+        explicit_priority = isinstance(raw, dict) and "priority" in raw
         part = _normalize_new_item(
             raw,
             candidate,
@@ -323,6 +345,8 @@ def _apply_split(
         existing_ids.add(part["item_id"])
         if original.get("learning_refs") and "learning_refs" not in part:
             part["learning_refs"] = list(original["learning_refs"])
+        if not sequential and not explicit_priority:
+            part["priority"] = original.get("priority", part["priority"])
         part_items.append(part)
 
     upstream = list(original.get("depends_on") or [])
@@ -343,7 +367,8 @@ def _apply_split(
     original["superseded_by"] = [f"{candidate['roadmap_id']}:{part_id}" for part_id in successors]
     downstream = successors if strategy == "parallel" else successors[-1:]
     _replace_local_dependency(items, item_id, downstream, [])
-    _renumber_priorities(items)
+    if sequential:
+        _renumber_priorities(items)
     return f"split:{item_id}->{','.join(successors)}"
 
 
@@ -355,10 +380,17 @@ def _apply_reorder(candidate: dict[str, Any], operation: dict[str, Any]) -> str:
         raise RefinementValidationError(f"reorder target {item_id!r} does not exist.")
     if not operation.get("before") and not operation.get("after"):
         raise RefinementValidationError("reorder requires before or after.")
+    sequential = _is_priority_sequence(items)
     items.remove(item)
     index = _insertion_index(items, operation)
     items.insert(index, item)
-    _renumber_priorities(items)
+    if sequential:
+        _renumber_priorities(items)
+    else:
+        # Tiered roadmap: the move only takes effect if the item joins its
+        # anchor's tier, where list order breaks the tie. No other item changes.
+        anchor = _item_map(candidate)[operation.get("before") or operation.get("after")]
+        item["priority"] = anchor["priority"]
     return f"reorder:{item_id}"
 
 
@@ -573,7 +605,26 @@ def preview_refinement(
         schedule_after=_schedule_waves(candidate, repo_root),
         dependency_edges_added=sorted(after_edges - before_edges),
         dependency_edges_removed=sorted(before_edges - after_edges),
+        priority_changes=_priority_changes(original, candidate),
+        warnings=[],
     )
+
+
+def _priority_changes(
+    original: dict[str, Any], candidate: dict[str, Any]
+) -> list[list[Any]]:
+    """``[item_id, before, after]`` for every pre-existing item whose priority moved.
+
+    Surfaced in the preview so approving a structural edit also approves its
+    effect on execution order; new items are listed in ``new_item_ids``.
+    """
+    before = {item["item_id"]: item.get("priority") for item in original.get("items") or []}
+    changes = [
+        [item["item_id"], before[item["item_id"]], item.get("priority")]
+        for item in candidate.get("items") or []
+        if item["item_id"] in before and before[item["item_id"]] != item.get("priority")
+    ]
+    return sorted(changes, key=lambda change: change[0])
 
 
 def _atomic_write(path: Path, data: bytes) -> None:

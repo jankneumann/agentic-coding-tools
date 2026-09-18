@@ -65,6 +65,13 @@ _SKILLS_DIR = Path(__file__).resolve().parents[2]
 for _extra in (
     _SKILLS_DIR / "project-context-runtime" / "scripts",
     _SKILLS_DIR / "shared",
+    # The coordinator lock (layer 2 of the convergence guard) imports
+    # ``coordination_bridge`` by flat name. Without this entry that import
+    # raises ModuleNotFoundError, the guard degrades to layers 1 and 3, and
+    # Step 11.6 runs unlocked while reporting only a warning -- which is how
+    # every convergence pass between 2026-09-14 and 2026-09-16 ran. Matches
+    # how autopilot.py and semantic_context.py reach the same module.
+    _SKILLS_DIR / "coordination-bridge" / "scripts",
 ):
     if _extra.is_dir() and str(_extra) not in sys.path:
         sys.path.insert(0, str(_extra))

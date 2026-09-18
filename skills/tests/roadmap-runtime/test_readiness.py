@@ -388,3 +388,82 @@ class TestRepositoryReadiness:
         data["items"][1]["depends_on"] = ["ri-01", "ri-03"]
         path.write_text(yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
         assert resolve_readiness(repo)["source_fingerprint"] == before
+
+
+class TestPriorityTieBreak:
+    """Ties inside a priority tier break on roadmap list position, not item id.
+
+    `item_id` is an identifier, not an intended ordering, and list position is
+    the only thing `refine-roadmap reorder` can change without rewriting every
+    item's priority. Each roadmap below lists `ri-09` before `ri-02` at the same
+    priority, so the two orderings disagree and the assertions are meaningful.
+    """
+
+    def test_sequential_readiness_follows_list_order(self) -> None:
+        roadmap = Roadmap(
+            schema_version=1,
+            roadmap_id="alpha",
+            source_proposal="docs/proposals/alpha.md",
+            status="approved",
+            items=[
+                RoadmapItem(
+                    item_id=item_id,
+                    title=f"Item {item_id}",
+                    status=ItemStatus.APPROVED,
+                    priority=1,
+                    effort=Effort.M,
+                    acceptance_outcomes=["done"],
+                )
+                for item_id in ("ri-09", "ri-02")
+            ],
+        )
+        checkpoint = Checkpoint(
+            schema_version=1,
+            roadmap_id="alpha",
+            current_item_id="ri-09",
+            phase=CheckpointPhase.PLANNING,
+            created_at="2026-01-01T00:00:00+00:00",
+        )
+
+        ready = _get_ready_items(roadmap, checkpoint)
+
+        assert [item.item_id for item in ready] == ["ri-09", "ri-02"]
+
+    def test_resolver_ranks_by_position_within_a_roadmap(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        _write_roadmap(repo, "alpha", [_item("ri-09"), _item("ri-02")])
+
+        result = resolve_readiness(repo)
+
+        assert [row["item_id"] for row in result["ready"]] == ["ri-09", "ri-02"]
+        Draft202012Validator(json.loads(CONTRACT.read_text())).validate(result)
+
+    def test_resolver_still_separates_roadmaps_before_position(
+        self, tmp_path: Path
+    ) -> None:
+        """Roadmap id stays the cross-workspace separator between priority and position."""
+        repo = _repo(tmp_path)
+        _write_roadmap(repo, "zeta", [_item("ri-09"), _item("ri-02")])
+        _write_roadmap(repo, "alpha", [_item("ri-07")])
+
+        result = resolve_readiness(repo)
+
+        assert [(row["roadmap_id"], row["item_id"]) for row in result["ready"]] == [
+            ("alpha", "ri-07"),
+            ("zeta", "ri-09"),
+            ("zeta", "ri-02"),
+        ]
+
+    def test_reordering_items_moves_the_source_fingerprint(self, tmp_path: Path) -> None:
+        """Position now decides readiness order, so a pure reorder is a real input change."""
+        repo = _repo(tmp_path)
+        path = _write_roadmap(repo, "alpha", [_item("ri-09"), _item("ri-02")])
+        before = resolve_readiness(repo)["source_fingerprint"]
+
+        data = yaml.safe_load(path.read_text())
+        data["items"].reverse()
+        path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        after = resolve_readiness(repo)
+        assert after["source_fingerprint"] != before
+        assert [row["item_id"] for row in after["ready"]] == ["ri-02", "ri-09"]

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+import pytest
 from jsonschema import Draft202012Validator, validate
 
 from openspec_paths import change_dir, repo_root_from
@@ -160,3 +161,59 @@ def test_criticality_filled_from_severity() -> None:
     coerced, notes = coerce_findings_payload(payload)
     assert coerced["findings"][0]["criticality"] == "low"
     assert any("criticality" in n for n in notes)
+
+
+def _severity_payload(severity: str, criticality: str = "high") -> dict:
+    return {
+        "review_type": "pr",
+        "target": "PR #1",
+        "reviewer_vendor": "vendor",
+        "findings": [
+            {
+                "id": 1,
+                "type": "correctness",
+                "criticality": criticality,
+                "severity": severity,
+                "description": "d",
+                "disposition": "fix",
+                "axis": "correctness",
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("high", "critical"), ("medium", "nit"), ("low", "optional")],
+)
+def test_criticality_word_in_severity_field_is_coerced(raw: str, expected: str) -> None:
+    """A vendor writing ``severity: high`` must not lose its whole review.
+
+    #484 (2026-09-14): one vendor's five findings used ``high``/``medium`` as
+    severities, the payload failed validation, and every finding from that
+    vendor was discarded before consensus. The contracted
+    ``severity_from_criticality`` table already knows these words.
+    """
+    from review_findings_schema import coerce_findings_payload, validate_findings_payload
+
+    coerced, notes = coerce_findings_payload(_severity_payload(raw))
+    assert coerced["findings"][0]["severity"] == expected
+    assert f"severity:{raw}->{expected}" in notes
+    assert not [e for e in validate_findings_payload(coerced) if "severity" in e]
+
+
+def test_legal_severity_is_left_alone() -> None:
+    from review_findings_schema import coerce_findings_payload
+
+    coerced, notes = coerce_findings_payload(_severity_payload("critical", "critical"))
+    assert coerced["findings"][0]["severity"] == "critical"
+    assert not [n for n in notes if n.startswith("severity:")]
+
+
+def test_unknown_severity_still_fails_closed() -> None:
+    from review_findings_schema import coerce_findings_payload, validate_findings_payload
+
+    coerced, notes = coerce_findings_payload(_severity_payload("blocker"))
+    assert coerced["findings"][0]["severity"] == "blocker"
+    assert not [n for n in notes if n.startswith("severity:")]
+    assert any("severity" in e for e in validate_findings_payload(coerced))
