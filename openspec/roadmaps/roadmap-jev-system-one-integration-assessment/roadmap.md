@@ -7,30 +7,30 @@
 
 | Priority | Item | Effort | Status | Dependencies |
 |----------|------|--------|--------|--------------|
-| 1 | Add the shared system_one decision helper, fallback-only | M | candidate | - |
-| 1 | Wire the live TypeSafe client, thresholds and telemetry | M | candidate | ri-01 |
-| 1 | Replace the gen-eval semantic judge with a calibrated Noul | M | candidate | ri-03 |
-| 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | candidate | ri-03, ri-04 |
-| 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | candidate | ri-05 |
-| 1 | Adjudicate phase outcomes in shadow mode | L | candidate | ri-06 |
-| 2 | Add the adapter-backed test substitute and dry-run policy | S | candidate | ri-02 |
-| 2 | Promote shadow judgments to acting decisions | M | candidate | ri-06, ri-07 |
-| 2 | Route review convergence on per-finding dispositions | L | candidate | ri-05 |
-| 3 | Judge transcript struggle triage in collect-transcripts | M | candidate | ri-05 |
-| 3 | Judge implementation strategy selection in autopilot | S | candidate | ri-05 |
-| 3 | Judge multi-vendor review eligibility for pull requests | M | candidate | ri-05 |
-| 3 | Screen fact-check grounds with a first-stage judged pass | L | candidate | ri-05 |
-| 3 | Add a judged first stage to coordinator audit triage | M | candidate | ri-05 |
-| 4 | Judge decision-tag backfill in explore-feature | S | candidate | ri-05 |
-| 4 | Judge fix-tier classification in fix-scrub | S | candidate | ri-05 |
-| 4 | Score supervise rubric stubs in one batched call | M | candidate | ri-05 |
-| 4 | Extract the task routing profile as typed fields | M | candidate | ri-05 |
-| 4 | Route recoverable escalation actions on confidence | M | candidate | ri-05 |
-| 4 | Decide roadmap item failure handling on confidence | M | candidate | ri-05 |
-| 4 | Classify retries by sameness and transience | M | candidate | ri-05, ri-20 |
-| 5 | Triage merge review threads by required response | M | candidate | ri-05, ri-11 |
-| 6 | Narrow deployable-surface fallout with a high-floor judgment | M | candidate | ri-05 |
-| 6 | Classify human reply intent behind the approval floor | M | candidate | ri-08 |
+| 1 | Add the shared system_one decision helper, fallback-only | M | approved | - |
+| 1 | Wire the live TypeSafe client, thresholds and telemetry | M | approved | ri-01 |
+| 1 | Replace the gen-eval semantic judge with a calibrated Noul | M | approved | ri-03 |
+| 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | approved | ri-03, ri-04 |
+| 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | approved | ri-05 |
+| 1 | Adjudicate phase outcomes in shadow mode | L | approved | ri-06 |
+| 2 | Add the adapter-backed test substitute and dry-run policy | S | approved | ri-02 |
+| 2 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
+| 2 | Route review convergence on per-finding dispositions | L | approved | ri-05 |
+| 3 | Judge transcript struggle triage in collect-transcripts | M | approved | ri-05 |
+| 3 | Judge implementation strategy selection in autopilot | S | approved | ri-05 |
+| 3 | Judge multi-vendor review eligibility for pull requests | M | approved | ri-05 |
+| 3 | Screen fact-check grounds with a first-stage judged pass | L | approved | ri-05 |
+| 3 | Add a judged first stage to coordinator audit triage | M | approved | ri-05 |
+| 4 | Judge decision-tag backfill in explore-feature | S | approved | ri-05 |
+| 4 | Judge fix-tier classification in fix-scrub | S | approved | ri-05 |
+| 4 | Score supervise rubric stubs in one batched call | M | approved | ri-05 |
+| 4 | Extract the task routing profile as typed fields | M | approved | ri-05 |
+| 4 | Route recoverable escalation actions on confidence | M | approved | ri-05 |
+| 4 | Decide roadmap item failure handling on confidence | M | approved | ri-05 |
+| 4 | Classify retries by sameness and transience | M | approved | ri-05, ri-20 |
+| 5 | Triage merge review threads by required response | M | approved | ri-05, ri-11 |
+| 6 | Narrow deployable-surface fallout with a high-floor judgment | M | approved | ri-05 |
+| 6 | Classify human reply intent behind the approval floor | M | approved | ri-08 |
 <!-- GENERATED: end phase-table -->
 
 
@@ -99,7 +99,7 @@ graph TD
 
 ### ri-01: Add the shared system_one decision helper, fallback-only
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: add-the-shared-system-one-decision-helper-fallback-only
@@ -115,7 +115,7 @@ Create the installable package packages/system-one-decisions (importable as syst
 
 ### ri-02: Wire the live TypeSafe client, thresholds and telemetry
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: wire-the-live-typesafe-client-thresholds-and-telemetry
@@ -132,7 +132,7 @@ Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions,
 
 ### ri-04: Replace the gen-eval semantic judge with a calibrated Noul
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: replace-the-gen-eval-semantic-judge-with-a-calibrated-noul
@@ -148,7 +148,7 @@ Rewrite gen_eval.semantic_judge.evaluate_semantic to ask one Noul("The actual ou
 
 ### ri-05: Judge cross-vendor finding matching in consensus_synthesizer
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: L
 - **Change ID**: judge-cross-vendor-finding-matching-in-consensus-synthesizer
@@ -165,7 +165,7 @@ Add a judged path to consensus_synthesizer.match_score: for candidate pairs shar
 
 ### ri-06: Run the GATEKEEPER as a scored decision in shadow mode
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: L
 - **Change ID**: run-the-gatekeeper-as-a-scored-decision-in-shadow-mode
@@ -182,7 +182,7 @@ Add shadow-mode recording to the autopilot loop and use it for _phase_gatekeeper
 
 ### ri-07: Adjudicate phase outcomes in shadow mode
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: L
 - **Change ID**: adjudicate-phase-outcomes-in-shadow-mode
@@ -198,7 +198,7 @@ Insert a decision step between a phase sub-agent's return and apply_phase_outcom
 
 ### ri-03: Add the adapter-backed test substitute and dry-run policy
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 2
 - **Effort**: S
 - **Change ID**: add-the-adapter-backed-test-substitute-and-dry-run-policy
@@ -213,7 +213,7 @@ Stand up the testing convention for every later site: unit tests stub decide/dec
 
 ### ri-08: Promote shadow judgments to acting decisions
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 2
 - **Effort**: M
 - **Change ID**: promote-shadow-judgments-to-acting-decisions
@@ -230,7 +230,7 @@ Using the shadow-period measurements, flip both sites to act: the gate outcome i
 
 ### ri-14: Route review convergence on per-finding dispositions
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 2
 - **Effort**: L
 - **Change ID**: route-review-convergence-on-per-finding-dispositions
@@ -247,7 +247,7 @@ In convergence_loop.converge, ask a round-level Noul("another fix round is likel
 
 ### ri-09: Judge transcript struggle triage in collect-transcripts
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 3
 - **Effort**: M
 - **Change ID**: judge-transcript-struggle-triage-in-collect-transcripts
@@ -263,7 +263,7 @@ Keep the four event-stream counters in triage.py as facts but replace the weight
 
 ### ri-10: Judge implementation strategy selection in autopilot
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 3
 - **Effort**: S
 - **Change ID**: judge-implementation-strategy-selection-in-autopilot
@@ -279,7 +279,7 @@ Replace the four-criterion weighted sum in implementation_strategy_selector with
 
 ### ri-11: Judge multi-vendor review eligibility for pull requests
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 3
 - **Effort**: M
 - **Change ID**: judge-multi-vendor-review-eligibility-for-pull-requests
@@ -295,7 +295,7 @@ Replace the under-50-lines / under-3-files skip in vendor_review.check_review_el
 
 ### ri-15: Screen fact-check grounds with a first-stage judged pass
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 3
 - **Effort**: L
 - **Change ID**: screen-fact-check-grounds-with-a-first-stage-judged-pass
@@ -311,7 +311,7 @@ Split fact_check.run into two stages: stage one asks one Noul per finding for Gr
 
 ### ri-16: Add a judged first stage to coordinator audit triage
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 3
 - **Effort**: M
 - **Change ID**: add-a-judged-first-stage-to-coordinator-audit-triage
@@ -327,7 +327,7 @@ In audit_triage.drain_and_classify, ask per session batch Noul("This session sho
 
 ### ri-12: Judge decision-tag backfill in explore-feature
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 4
 - **Effort**: S
 - **Change ID**: judge-decision-tag-backfill-in-explore-feature
@@ -343,7 +343,7 @@ Replace the seven keyword lists in backfill_decision_tags with Choice(capability
 
 ### ri-13: Judge fix-tier classification in fix-scrub
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 4
 - **Effort**: S
 - **Change ID**: judge-fix-tier-classification-in-fix-scrub
@@ -358,7 +358,7 @@ Replace the two string tests in fix_scrub.classify with Noul("An agent could act
 
 ### ri-17: Score supervise rubric stubs in one batched call
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 4
 - **Effort**: M
 - **Change ID**: score-supervise-rubric-stubs-in-one-batched-call
@@ -374,7 +374,7 @@ Replace the analyst-archetype rubric dispatch with up to 100 Score questions ove
 
 ### ri-18: Extract the task routing profile as typed fields
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 4
 - **Effort**: M
 - **Change ID**: extract-the-task-routing-profile-as-typed-fields
@@ -390,7 +390,7 @@ Produce the task router's routing profile from a task description with Score(dur
 
 ### ri-19: Route recoverable escalation actions on confidence
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 4
 - **Effort**: M
 - **Change ID**: route-recoverable-escalation-actions-on-confidence
@@ -406,7 +406,7 @@ In EscalationHandler.handle, ask Choice(action, the EscalationAction values) ove
 
 ### ri-20: Decide roadmap item failure handling on confidence
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 4
 - **Effort**: M
 - **Change ID**: decide-roadmap-item-failure-handling-on-confidence
@@ -422,7 +422,7 @@ Replace the replan boolean derived from _normalize_outcome in orchestrator._hand
 
 ### ri-22: Classify retries by sameness and transience
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 4
 - **Effort**: M
 - **Change ID**: classify-retries-by-sameness-and-transience
@@ -438,7 +438,7 @@ In phase_fixer and the roadmap dispatcher, replace the consecutive-failure count
 
 ### ri-21: Triage merge review threads by required response
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 5
 - **Effort**: M
 - **Change ID**: triage-merge-review-threads-by-required-response
@@ -454,7 +454,7 @@ In execute_plan's delegate_comments, classify each unresolved review thread with
 
 ### ri-23: Narrow deployable-surface fallout with a high-floor judgment
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 6
 - **Effort**: M
 - **Change ID**: narrow-deployable-surface-fallout-with-a-high-floor-judgment
@@ -470,7 +470,7 @@ For the unknown bucket only in gate_logic.classify_deployable_surface, ask Noul(
 
 ### ri-24: Classify human reply intent behind the approval floor
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 6
 - **Effort**: M
 - **Change ID**: classify-human-reply-intent-behind-the-approval-floor

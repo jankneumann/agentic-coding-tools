@@ -1,14 +1,14 @@
 schema_version: 1
 roadmap_id: roadmap-jev-system-one-integration-assessment
 source_proposal: docs/proposals/jev-system-one-integration-assessment.md
-status: planning
+status: approved
 policy:
   default_action: wait_if_budget_exceeded
   max_switch_attempts_per_item: 2
 items:
 - item_id: ri-01
   title: Add the shared system_one decision helper, fallback-only
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -46,7 +46,7 @@ items:
     and needs_approval flagging for intents in the irreversible set.
 - item_id: ri-02
   title: Wire the live TypeSafe client, thresholds and telemetry
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -78,7 +78,7 @@ items:
     defaults resolve from architecture.config.yaml.
 - item_id: ri-03
   title: Add the adapter-backed test substitute and dry-run policy
-  status: candidate
+  status: approved
   priority: 2
   effort: S
   depends_on:
@@ -103,7 +103,7 @@ items:
     zero client constructions.
 - item_id: ri-04
   title: Replace the gen-eval semantic judge with a calibrated Noul
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -129,7 +129,7 @@ items:
     asserted by a test counting LLM invocations on an all-pass batch (zero).
 - item_id: ri-05
   title: Judge cross-vendor finding matching in consensus_synthesizer
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -170,7 +170,7 @@ items:
     no threshold float literal remains in the scoring path.
 - item_id: ri-06
   title: Run the GATEKEEPER as a scored decision in shadow mode
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -201,7 +201,7 @@ items:
     tests passing unmodified.
 - item_id: ri-07
   title: Adjudicate phase outcomes in shadow mode
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -228,7 +228,7 @@ items:
     leaves the existing behaviour unchanged, covered by a test.
 - item_id: ri-08
   title: Promote shadow judgments to acting decisions
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on:
@@ -261,7 +261,7 @@ items:
     floor tests.
 - item_id: ri-09
   title: Judge transcript struggle triage in collect-transcripts
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -288,7 +288,7 @@ items:
   - Existing collect-transcripts triage tests pass with the helper stubbed to None.
 - item_id: ri-10
   title: Judge implementation strategy selection in autopilot
-  status: candidate
+  status: approved
   priority: 3
   effort: S
   depends_on:
@@ -314,7 +314,7 @@ items:
     tests pass unchanged.
 - item_id: ri-11
   title: Judge multi-vendor review eligibility for pull requests
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -340,7 +340,7 @@ items:
     the risk score and its probability.
 - item_id: ri-12
   title: Judge decision-tag backfill in explore-feature
-  status: candidate
+  status: approved
   priority: 4
   effort: S
   depends_on:
@@ -366,7 +366,7 @@ items:
     for agent review; no file is written by the script itself.
 - item_id: ri-13
   title: Judge fix-tier classification in fix-scrub
-  status: candidate
+  status: approved
   priority: 4
   effort: S
   depends_on:
@@ -389,7 +389,7 @@ items:
     tests pass with the helper stubbed to None.
 - item_id: ri-14
   title: Route review convergence on per-finding dispositions
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on:
@@ -418,7 +418,7 @@ items:
     still governs, proven by existing convergence tests passing unchanged.
 - item_id: ri-15
   title: Screen fact-check grounds with a first-stage judged pass
-  status: candidate
+  status: approved
   priority: 3
   effort: L
   depends_on:
@@ -444,7 +444,7 @@ items:
     a recorded fact-check batch, with the agreement rate recorded.
 - item_id: ri-16
   title: Add a judged first stage to coordinator audit triage
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -469,7 +469,7 @@ items:
   - The hot-path ring buffer write path is unmodified and its latency test is unchanged.
 - item_id: ri-17
   title: Score supervise rubric stubs in one batched call
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -496,7 +496,7 @@ items:
     recorded agreement rate, cited in the change artifacts.
 - item_id: ri-18
   title: Extract the task routing profile as typed fields
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -523,7 +523,7 @@ items:
     and scope agreement recorded.
 - item_id: ri-19
   title: Route recoverable escalation actions on confidence
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -548,7 +548,7 @@ items:
     flag in the escalation record.
 - item_id: ri-20
   title: Decide roadmap item failure handling on confidence
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -573,7 +573,7 @@ items:
     current orchestrator failure tests pass unchanged.
 - item_id: ri-21
   title: Triage merge review threads by required response
-  status: candidate
+  status: approved
   priority: 5
   effort: M
   depends_on:
@@ -600,7 +600,7 @@ items:
     today, proven by existing execute_plan tests.
 - item_id: ri-22
   title: Classify retries by sameness and transience
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -627,7 +627,7 @@ items:
     phase_fixer retry tests pass unchanged.
 - item_id: ri-23
   title: Narrow deployable-surface fallout with a high-floor judgment
-  status: candidate
+  status: approved
   priority: 6
   effort: M
   depends_on:
@@ -656,7 +656,7 @@ items:
     or below the ceiling.
 - item_id: ri-24
   title: Classify human reply intent behind the approval floor
-  status: candidate
+  status: approved
   priority: 6
   effort: M
   depends_on:
@@ -681,4 +681,4 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T07:05:50.460114+00:00'
+updated_at: '2026-09-18T11:30:59.705544+00:00'
