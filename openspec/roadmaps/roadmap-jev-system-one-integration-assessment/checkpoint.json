@@ -1,16 +1,17 @@
 {
   "schema_version": 1,
   "roadmap_id": "roadmap-jev-system-one-integration-assessment",
-  "current_item_id": "ri-06",
+  "current_item_id": "ri-07",
   "phase": "planning",
   "created_at": "2026-09-18T11:31:45.988509+00:00",
-  "updated_at": "2026-09-18T18:25:18.075482+00:00",
+  "updated_at": "2026-09-18T19:03:37.420042+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
     "ri-03",
     "ri-04",
-    "ri-05"
+    "ri-05",
+    "ri-06"
   ],
   "gate_decisions": [
     {

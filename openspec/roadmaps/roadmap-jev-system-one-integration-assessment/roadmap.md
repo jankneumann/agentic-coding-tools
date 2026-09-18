@@ -13,7 +13,7 @@
 | 1 | Add the adapter-backed test substitute and dry-run policy | S | completed | ri-02 |
 | 1 | Replace the gen-eval semantic judge with a calibrated Noul | M | completed | ri-03 |
 | 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | completed | ri-03, ri-04 |
-| 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | approved | ri-05 |
+| 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | completed | ri-05 |
 | 1 | Adjudicate phase outcomes in shadow mode | L | approved | ri-06 |
 | 2 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
 | 2 | Route review convergence on per-finding dispositions | L | approved | ri-05 |
@@ -181,7 +181,7 @@ Add a judged path to consensus_synthesizer.match_score: for candidate pairs shar
 
 ### ri-06: Run the GATEKEEPER as a scored decision in shadow mode
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 1
 - **Effort**: L
 - **Change ID**: run-the-gatekeeper-as-a-scored-decision-in-shadow-mode

@@ -197,7 +197,7 @@ items:
     no threshold float literal remains in the scoring path.
 - item_id: ri-06
   title: Run the GATEKEEPER as a scored decision in shadow mode
-  status: approved
+  status: completed
   priority: 1
   effort: L
   depends_on:
@@ -708,7 +708,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T18:25:18.076909+00:00'
+updated_at: '2026-09-18T19:03:37.381869+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code

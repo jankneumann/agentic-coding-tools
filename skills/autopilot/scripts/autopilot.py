@@ -53,6 +53,13 @@ try:
 except ImportError:
     apply_phase_fixes = None  # type: ignore[assignment]
 
+try:
+    from gatekeeper_shadow import (  # type: ignore[import-untyped]
+        shadow_gatekeeper_judgment,
+    )
+except ImportError:
+    shadow_gatekeeper_judgment = None  # type: ignore[assignment]
+
 # The trust-posture gate contract (ri-04) and the interviewer that executes it
 # (ri-05) live under skills/shared/. They are imported eagerly and unguarded:
 # a gate the loop cannot evaluate must be a loud import error, never a silently
@@ -1252,7 +1259,7 @@ def _run_phase(
         return _phase_init(state, change_dir, assess_complexity_fn)
 
     if phase == "GATEKEEPER":
-        return _phase_gatekeeper(state, gatekeeper_fn, gates)
+        return _phase_gatekeeper(state, gatekeeper_fn, gates, change_dir=change_dir)
 
     if phase == "PLAN":
         return _phase_plan(state, change_dir, plan_fn, gates)
@@ -1493,6 +1500,8 @@ def _phase_gatekeeper(
     state: LoopState,
     gatekeeper_fn: Callable[[LoopState], str] | None,
     gates: _GateSession | None = None,
+    *,
+    change_dir: Path | None = None,
 ) -> str | None:
     """Judge whether the change is verifiable and low-risk enough to automate.
 
@@ -1500,6 +1509,12 @@ def _phase_gatekeeper(
     returns ``proceed`` / ``proceed_with_review`` / ``escalate``. When no judge
     is wired (headless CI, coordinator down, unit tests) the gate falls back to
     a permissive signal-only verdict rather than blocking.
+
+    When ``change_dir`` is known, a second, calibrated shadow judgment (design
+    `run-the-gatekeeper-as-a-scored-decision-in-shadow-mode`, D1) runs
+    alongside this decision and records its own candidate verdict to
+    ``state.phase_history`` for later disagreement measurement. It never
+    influences the value this function returns.
     """
     gates = gates or _fallback_gate_session(state)
     state.phase_started_at = _now_iso()
@@ -1553,6 +1568,10 @@ def _phase_gatekeeper(
             state,
             "GATEKEEPER judged the change unverifiable or too risky for autonomous execution",
         )
+
+    if shadow_gatekeeper_judgment is not None:
+        shadow_gatekeeper_judgment(state, change_dir, acting_verdict=outcome)
+
     return outcome
 
 
