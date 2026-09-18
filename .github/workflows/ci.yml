@@ -156,6 +156,7 @@ jobs:
             tests/autopilot \
             tests/autopilot-roadmap \
             tests/candidate-work \
+            tests/collect-transcripts \
             tests/coordinator-task-status-renderer \
             tests/docs \
             tests/githooks \
