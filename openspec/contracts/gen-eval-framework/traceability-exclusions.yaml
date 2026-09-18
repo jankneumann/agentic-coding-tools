@@ -16,6 +16,13 @@ exclusions:
       Node and browser-binary dependencies stay out of the gen-eval Python
       runtime. The gen-eval CLI dispatches to it; it exposes no flag of its
       own for the browser-driving behaviour.
+  - requirement: gen-eval-framework.calibrated-noul-based-semantic-judgment
+    reason: >-
+      Served by the framework engine (`semantic_judge.evaluate_semantic`) as
+      an internal confidence source for the existing semantic-evaluation
+      path; the CLI contract exposes no flag surface for it — it is
+      exercised whenever a scenario's `SemanticBlock.judge` is set, not
+      configured by any flag.
   - requirement: gen-eval-framework.canonical-module-name-gen-eval
     reason: >-
       A rule about the package's importable top-level module name (`gen_eval`).
