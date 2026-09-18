@@ -45,6 +45,11 @@ cloud clone is stale and divergent (85 commits not on `origin/main`), so the
 default base cannot resolve a merge base. This is clone state, not a defect in
 the change.
 
+`change-context.md` is filled through Phase 3: Files Changed populated for all
+nine rows, Evidence `pass 8ee790a` for all nine, Coverage Summary updated. It was
+left at Phase 1 when this report was first written, which is a gap in the earlier
+run of this phase, not a new finding.
+
 Per-requirement verification, all against the live system at this commit:
 
 | Req ID | How verified | Evidence |
