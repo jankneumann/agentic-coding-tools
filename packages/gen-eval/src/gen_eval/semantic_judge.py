@@ -16,6 +16,7 @@ verdicts. When the decision helper is unavailable, produces ``skip`` not
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from types import ModuleType
@@ -86,7 +87,12 @@ async def evaluate_semantic(
     questions = {
         "satisfies": {"type": "noul", "instructions": "The actual output satisfies the criteria"}
     }
-    answers = system_one_decisions.decide(state, questions, site="gen_eval.semantic_judge")
+    # decide() makes a synchronous network call when the live extra is
+    # configured; run it off the event loop so a live judgment doesn't block
+    # every other scenario the orchestrator is evaluating concurrently.
+    answers = await asyncio.to_thread(
+        system_one_decisions.decide, state, questions, site="gen_eval.semantic_judge"
+    )
 
     if answers is None:
         logger.warning("decide() unavailable for semantic eval on step '%s'", step_id)
