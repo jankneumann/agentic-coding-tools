@@ -265,7 +265,7 @@ items:
     marker; covered by a test.
 - item_id: ri-09
   title: Judge transcript struggle triage in collect-transcripts
-  status: approved
+  status: completed
   priority: 3
   effort: M
   depends_on:
@@ -739,7 +739,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T21:08:20.100353+00:00'
+updated_at: '2026-09-18T21:13:51.840862+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code

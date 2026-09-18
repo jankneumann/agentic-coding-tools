@@ -224,6 +224,144 @@ class TestStruggleClassification:
         assert score == 11.5
 
 
+class TestCompactTranscript:
+    """_compact_transcript excludes tool payloads and respects the budget."""
+
+    def test_includes_user_assistant_and_tool_result_text(self) -> None:
+        from triage import _compact_transcript
+
+        events = [
+            _make_user_event("Please fix the bug", seq=0),
+            _make_assistant_event("Looking into it.", tool_name="Read", seq=1),
+            _make_tool_result(text="file contents here", seq=2),
+        ]
+        text = _compact_transcript(events)
+        assert "Please fix the bug" in text
+        assert "Looking into it." in text
+        assert "file contents here" in text
+
+    def test_excludes_tool_use_payload(self) -> None:
+        from triage import _compact_transcript
+
+        events = [_make_assistant_event("Looking into it.", tool_name="Bash", seq=0)]
+        text = _compact_transcript(events)
+        assert "Bash" not in text  # tool_name never appears -- it's the payload
+        assert "Looking into it." in text
+
+    def test_truncates_to_char_budget(self) -> None:
+        from triage import _compact_transcript
+
+        events = [_make_user_event("x" * 100, seq=0)]
+        text = _compact_transcript(events, max_chars=20)
+        assert len(text) <= 20 + len("...(truncated)\n")
+        assert "...(truncated)" in text
+
+    def test_empty_events_yields_empty_text(self) -> None:
+        from triage import _compact_transcript
+
+        assert _compact_transcript([]) == ""
+
+
+class TestClassifySession:
+    """_classify_session degrades to {} on every unavailability branch."""
+
+    def test_no_module_returns_empty(self, monkeypatch) -> None:
+        import triage
+
+        monkeypatch.setattr(triage, "system_one_decisions", None)
+        result = triage._classify_session({}, "", session_id="s1")
+        assert result == {}
+
+    def test_decide_returns_none(self, monkeypatch) -> None:
+        import triage
+        from unittest.mock import MagicMock
+
+        fake_module = MagicMock()
+        fake_module.decide.return_value = None
+        monkeypatch.setattr(triage, "system_one_decisions", fake_module)
+        result = triage._classify_session({}, "", session_id="s1")
+        assert result == {}
+
+    def test_available_answers_are_read(self, monkeypatch) -> None:
+        import triage
+        from unittest.mock import MagicMock
+
+        fake_module = MagicMock()
+        fake_module.decide.return_value = {
+            "struggle_level": {"choice": "high"},
+            "deep_analysis": {"noul": 0.9},
+            "user_redirected": {"noul": 0.8},
+            "out_of_scope": {"noul": 0.1},
+        }
+        monkeypatch.setattr(triage, "system_one_decisions", fake_module)
+        result = triage._classify_session({}, "", session_id="s1")
+        assert result == {
+            "struggle_level": "high",
+            "flagged_for_deep_analysis": True,
+            "redirected_by_user": True,
+            "out_of_scope_work": False,
+        }
+
+    def test_unknown_choice_is_dropped(self, monkeypatch) -> None:
+        import triage
+        from unittest.mock import MagicMock
+
+        fake_module = MagicMock()
+        fake_module.decide.return_value = {
+            "struggle_level": {"choice": "catastrophic"},
+        }
+        monkeypatch.setattr(triage, "system_one_decisions", fake_module)
+        result = triage._classify_session({}, "", session_id="s1")
+        assert "struggle_level" not in result
+
+
+class TestTriageSessionJudgedOverride:
+    """triage_session() uses the judgment when available, falling back
+    otherwise (D4) -- degradation is exercised via monkeypatched
+    _classify_session directly, matching D4's "unaffected below" contract."""
+
+    def test_judged_answer_overrides_deterministic_defaults(self, monkeypatch) -> None:
+        import triage
+
+        monkeypatch.setattr(
+            triage,
+            "_classify_session",
+            lambda counters, transcript, *, session_id: {
+                "struggle_level": "high",
+                "flagged_for_deep_analysis": True,
+                "redirected_by_user": True,
+                "out_of_scope_work": False,
+            },
+        )
+        events = [_make_user_event("Hi", seq=0)]
+        score = triage.triage_session(events, session_id="s1", threshold=100.0)
+        # threshold=100.0 would leave the deterministic rule unflagged --
+        # the judged override must win.
+        assert score.struggle_level == "high"
+        assert score.flagged_for_deep_analysis is True
+        assert score.redirected_by_user is True
+        assert score.out_of_scope_work is False
+
+    def test_unavailable_judgment_leaves_deterministic_behavior_unchanged(
+        self, monkeypatch,
+    ) -> None:
+        import triage
+
+        monkeypatch.setattr(
+            triage,
+            "_classify_session",
+            lambda counters, transcript, *, session_id: {},
+        )
+        events = [
+            _make_assistant_event(tool_name="Read", seq=0),
+            _make_tool_result(is_error=True, seq=1),
+        ]
+        score = triage.triage_session(events, session_id="s1", threshold=1.0)
+        assert score.flagged_for_deep_analysis
+        assert score.redirected_by_user is None
+        assert score.out_of_scope_work is None
+
+
 class TestTriageSession:
     """Test full session triage."""
 

@@ -15,7 +15,7 @@
 | 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | completed | ri-05 |
 | 1 | Adjudicate phase outcomes in shadow mode | L | completed | ri-06 |
 | 2 | Route review convergence on per-finding dispositions | L | completed | ri-05 |
-| 3 | Judge transcript struggle triage in collect-transcripts | M | approved | ri-05 |
+| 3 | Judge transcript struggle triage in collect-transcripts | M | completed | ri-05 |
 | 3 | Judge implementation strategy selection in autopilot | S | approved | ri-05 |
 | 3 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
 | 3 | Judge multi-vendor review eligibility for pull requests | M | approved | ri-05 |
@@ -230,7 +230,7 @@ In convergence_loop.converge, ask a round-level Noul("another fix round is likel
 
 ### ri-09: Judge transcript struggle triage in collect-transcripts
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 3
 - **Effort**: M
 - **Change ID**: judge-transcript-struggle-triage-in-collect-transcripts
