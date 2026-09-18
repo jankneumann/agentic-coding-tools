@@ -67,6 +67,13 @@ try:
 except ImportError:
     gatekeeper_shadow = None  # type: ignore[assignment]
 
+# Phase-outcome shadow adjudication (roadmap ri-07). Same guard shape as
+# gatekeeper_shadow above -- strictly observational.
+try:
+    import phase_outcome_shadow  # type: ignore[import-not-found]
+except ImportError:
+    phase_outcome_shadow = None  # type: ignore[assignment]
+
 # ---------------------------------------------------------------------------
 # Per-phase runtime config
 # ---------------------------------------------------------------------------
@@ -1304,6 +1311,26 @@ def apply_phase_outcome(
         )
         if shadow_entry is not None:
             history.append(shadow_entry)
+    elif phase_outcome_shadow is not None and change_dir is not None:
+        # Every other phase transition (roadmap ri-07) -- GATEKEEPER already
+        # has its own dedicated shadow judgment above (ri-06).
+        expected_outcomes = _expected_outcomes_for_phase(phase)
+        handoff_record = phase_outcome_shadow.read_local_handoff(
+            change_dir, phase, handoff_id
+        )
+        worktree_path = Path.cwd().resolve() / ".git-worktrees" / change_id
+        diff_stat = phase_outcome_shadow.git_diff_stat(worktree_path)
+        output_tail = phase_outcome_shadow.test_output_tail(change_dir)
+        outcome_entry = phase_outcome_shadow.build_outcome_adjudication_entry(
+            phase=phase,
+            claimed_outcome=outcome,
+            expected_outcomes=expected_outcomes,
+            handoff_record=handoff_record,
+            diff_stat=diff_stat,
+            test_output_tail=output_tail,
+        )
+        if outcome_entry is not None:
+            history.append(outcome_entry)
 
     state["phase_history"] = history
 

@@ -14,7 +14,7 @@
 | 1 | Replace the gen-eval semantic judge with a calibrated Noul | M | completed | ri-03 |
 | 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | completed | ri-03, ri-04 |
 | 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | completed | ri-05 |
-| 1 | Adjudicate phase outcomes in shadow mode | L | approved | ri-06 |
+| 1 | Adjudicate phase outcomes in shadow mode | L | completed | ri-06 |
 | 2 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
 | 2 | Route review convergence on per-finding dispositions | L | approved | ri-05 |
 | 3 | Judge transcript struggle triage in collect-transcripts | M | approved | ri-05 |
@@ -198,7 +198,7 @@ Add shadow-mode recording to the autopilot loop and use it for _phase_gatekeeper
 
 ### ri-07: Adjudicate phase outcomes in shadow mode
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 1
 - **Effort**: L
 - **Change ID**: adjudicate-phase-outcomes-in-shadow-mode
@@ -207,10 +207,10 @@ Add shadow-mode recording to the autopilot loop and use it for _phase_gatekeeper
 Insert a decision step between a phase sub-agent's return and apply_phase_outcome that asks Choice(outcome, the phase's allowed outcomes) and Noul("the evidence supports the claimed outcome") over the handoff record, expected_outcomes, worktree diff stat, test-output tail and the claimed outcome, recording judged versus claimed without changing the reducer.
 
 **Acceptance outcomes**:
-- [ ] Each phase transition appends a record with claimed outcome, judged outcome, the outcome distribution and the evidence Noul to loop-state.json phase_history.
-- [ ] transition(state, outcome) still runs on the claimed outcome for the whole shadow period, proven by a replay test showing identical phase sequences.
-- [ ] The disagreement report attributes each disagreement to the side the next review round vindicated, over at least one sprint of recorded autopilot runs.
-- [ ] A degraded decision (helper returns None) is recorded via record_degraded and leaves the existing behaviour unchanged, covered by a test.
+- [ ] Each phase transition where a handoff record is available appends a record with claimed outcome, judged outcome, the outcome distribution and the evidence Noul to loop-state.json phase_history; expected_outcomes and the Choice question's criteria come from phase_agent._expected_outcomes_for_phase(phase), the same source build-dispatch already uses.
+- [ ] transition(state, outcome) still runs on the claimed outcome for the whole shadow period, proven by a replay test showing identical phase sequences even when the judged outcome disagrees.
+- [ ] A disagreement-attribution mechanism records which side (claimed or judged) the next review round's findings vindicated, and is exercised by a fixture-constructed shadow period with at least one disagreement of each kind; attributing disagreements over a real sprint of recorded autopilot runs is deferred until that much production shadow data exists.
+- [ ] The adjudication helper being unavailable (module missing, decide() returns None, or no handoff record and no other signal to adjudicate) records nothing and leaves the claimed outcome and transition() unaffected, mirroring ri-06's own shadow-judgment degradation precedent rather than GATEKEEPER's unrelated record_degraded acting-decision marker; covered by a test.
 
 ### ri-08: Promote shadow judgments to acting decisions
 

@@ -470,11 +470,19 @@ class TestApplyPhaseOutcomeShadowWiring:
         assert len(shadow_entries) == 1
         decide.assert_called_once()
 
-    def test_non_gatekeeper_phase_records_no_shadow_entry(
+    def test_non_gatekeeper_phase_records_no_gatekeeper_shadow_entry(
         self, monkeypatch, tmp_path: Path
     ) -> None:
+        """GATEKEEPER's own shadow logic never fires for another phase.
+
+        Since ri-07, a non-GATEKEEPER phase gets its OWN adjudication
+        (phase_outcome_shadow, tested in test_phase_outcome_shadow.py) --
+        this test only asserts the GATEKEEPER-specific path stays inert,
+        so it stubs decide() to return the GATEKEEPER-shaped answer set,
+        which ri-07's differently-keyed question set cannot use either.
+        """
         monkeypatch.chdir(tmp_path)
-        decide = _spy_decide(
+        _spy_decide(
             monkeypatch, returns=_answers(verifiability=3.0, risk=0.0, verdict="proceed")
         )
         change_dir = self._seed_state(tmp_path, "gk-3")
@@ -493,7 +501,6 @@ class TestApplyPhaseOutcomeShadowWiring:
 
         saved = json.loads(state_path.read_text())
         assert all(e.get("phase") != "GATEKEEPER_SHADOW" for e in saved["phase_history"])
-        decide.assert_not_called()
 
     def test_no_change_dir_records_no_shadow_entry(
         self, monkeypatch, tmp_path: Path

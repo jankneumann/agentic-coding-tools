@@ -228,7 +228,7 @@ items:
     tests passing unmodified.
 - item_id: ri-07
   title: Adjudicate phase outcomes in shadow mode
-  status: approved
+  status: completed
   priority: 1
   effort: L
   depends_on:
@@ -245,14 +245,24 @@ items:
     is allowed to act on the judgment.
   change_id: adjudicate-phase-outcomes-in-shadow-mode
   acceptance_outcomes:
-  - Each phase transition appends a record with claimed outcome, judged outcome, the
-    outcome distribution and the evidence Noul to loop-state.json phase_history.
+  - Each phase transition where a handoff record is available appends a record with
+    claimed outcome, judged outcome, the outcome distribution and the evidence Noul
+    to loop-state.json phase_history; expected_outcomes and the Choice question's
+    criteria come from phase_agent._expected_outcomes_for_phase(phase), the same source
+    build-dispatch already uses.
   - transition(state, outcome) still runs on the claimed outcome for the whole shadow
-    period, proven by a replay test showing identical phase sequences.
-  - The disagreement report attributes each disagreement to the side the next review
-    round vindicated, over at least one sprint of recorded autopilot runs.
-  - A degraded decision (helper returns None) is recorded via record_degraded and
-    leaves the existing behaviour unchanged, covered by a test.
+    period, proven by a replay test showing identical phase sequences even when the
+    judged outcome disagrees.
+  - A disagreement-attribution mechanism records which side (claimed or judged) the
+    next review round's findings vindicated, and is exercised by a fixture-constructed
+    shadow period with at least one disagreement of each kind; attributing disagreements
+    over a real sprint of recorded autopilot runs is deferred until that much production
+    shadow data exists.
+  - The adjudication helper being unavailable (module missing, decide() returns None,
+    or no handoff record and no other signal to adjudicate) records nothing and leaves
+    the claimed outcome and transition() unaffected, mirroring ri-06's own shadow-judgment
+    degradation precedent rather than GATEKEEPER's unrelated record_degraded acting-decision
+    marker; covered by a test.
 - item_id: ri-08
   title: Promote shadow judgments to acting decisions
   status: approved
@@ -708,7 +718,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T19:03:37.381869+00:00'
+updated_at: '2026-09-18T19:47:25.122068+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -813,3 +823,24 @@ refinements:
   base_sha256: 22d419f4c6b2a2f9754eeedb402b56ef9c536e5667f32af2a2b56d6ea647d406
   operations:
   - edit:ri-05
+- timestamp: '2026-09-18T19:38:51.516154+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'Grounded ri-07 against the real code before implementation (same discipline
+    as ri-04/ri-05/ri-06). Two corrections: (1) the coordinator''s try_handoff_read()
+    only supports "latest handoff for this agent/session", not a lookup by a specific
+    handoff_id, so "the handoff record" degrades to the local-fallback JSON file when
+    present rather than a coordinator round-trip; degradation must not use record_degraded,
+    which is GATEKEEPER''s own acting-decision-unavailability marker (a different,
+    unrelated mechanism) -- the shadow judgment''s own "record nothing on unavailability"
+    precedent (established in ri-06) is the correct one. (2) "over at least one sprint
+    of recorded autopilot runs" cannot be delivered by this item alone -- this repo
+    has no real production shadow period yet, exactly the same grounding gap ri-04''s
+    kappa measurement and ri-06''s disagreement-rate had. The attribution *mechanism*
+    (which side a later review round vindicated) ships and is tested against a fixture-constructed
+    shadow period; the real-data measurement itself is deferred to whenever a sprint
+    of shadow data actually exists, consistent with how ri-04/ri-06''s own deferred
+    measurements were handled.'
+  base_sha256: 992fc51f6f4d8b2f9e9d53c32ae09fd52f208553eea73a1c6a3e2810b13b773a
+  operations:
+  - edit:ri-07
