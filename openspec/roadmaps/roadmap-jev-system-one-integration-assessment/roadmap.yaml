@@ -53,10 +53,12 @@ items:
   - ri-01
   description: 'Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions,
     have the package build the live client from TYPESAFE_API_KEY behind a token-budget
-    guard, and record site, latency, usage.input_tokens and the answered probabilities
-    to the existing Langfuse hook. Establish the per-site threshold convention: thresholds
-    live in architecture.config.yaml or the skill''s own config beside the rule they
-    replace, never as literals in a scoring module.'
+    guard, and give decide() an optional caller-supplied event_sink (mirroring decide_intent()''s
+    existing one) that receives site, latency, usage.input_tokens and the answered
+    probabilities on every completed call -- whether that reaches Langfuse is left
+    to the caller. Establish the per-site threshold convention: thresholds live in
+    a package-owned data file (packages/system-one-decisions/src/system_one_decisions/config/thresholds.json),
+    loaded by the package itself, never as literals in a scoring module.'
   rationale: 'Turns the fallback-only seam into a working integration while honouring
     the integration-seam constraints: SDK imported in exactly one package, PyPI-only
     cloud harness network policy respected via an optional extra so the fallback-only
@@ -69,13 +71,15 @@ items:
     it.
   - typesafe_sdk is imported inside packages/system-one-decisions and nowhere else
     in the repository, enforced by a grep-style guard test.
-  - decide returns None (never raises) when the key is absent, the network fails,
-    or serialized state plus the longest question exceeds the 32K-token budget, with
-    one test per branch.
-  - Each completed call emits one Langfuse record carrying site, latency_ms, usage.input_tokens
-    and the per-label probabilities.
+  - decide returns None (never raises) when the live extra isn't installed, the key
+    is absent, the network fails, or serialized state plus the longest question exceeds
+    the 32K-token budget, with one test per branch (four branches).
+  - Each completed call passes site, latency_ms, usage.input_tokens and the per-label
+    probabilities to decide()'s optional event_sink, exactly once; whether a caller
+    forwards that to Langfuse is that caller's own decision, made when it migrates
+    a call site.
   - A guard test asserts no float threshold literal is introduced into the package;
-    defaults resolve from architecture.config.yaml.
+    act_floor/approve_floor defaults resolve from a package-owned packages/system-one-decisions/src/system_one_decisions/config/thresholds.json.
 - item_id: ri-03
   title: Add the adapter-backed test substitute and dry-run policy
   status: approved
@@ -683,4 +687,21 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T12:53:00.975269+00:00'
+updated_at: '2026-09-18T13:11:30.873550+00:00'
+refinements:
+- timestamp: '2026-09-18T13:11:30.873550+00:00'
+  actor: claude-code
+  source: codex-review-pr-584
+  rationale: 'Codex review on PR #584 correctly flagged that ri-02''s canonical description
+    and acceptance outcomes still named architecture.config.yaml and "the existing
+    Langfuse hook" -- both were corrected during ri-02''s own /iterate-on-plan (plan-findings.md
+    #1 and #2 of wire-the-live-typesafe-client-thresholds-and-telemetry) before any
+    code was written, but the canonical roadmap item''s text was never updated to
+    match what actually shipped (an event_sink parameter and a package-owned JSON
+    config file). Reconciling now so the telemetry and threshold-config requirements
+    don''t silently disappear from the roadmap''s own record of what ri-02 delivers,
+    and so a reader of roadmap.yaml alone sees the real contract without needing to
+    cross-reference the change''s plan-findings.md.'
+  base_sha256: 508c25b30c9d0b5b4ef81d791da50efb7785932ce8474a54948d69c8d3517d73
+  operations:
+  - edit:ri-02
