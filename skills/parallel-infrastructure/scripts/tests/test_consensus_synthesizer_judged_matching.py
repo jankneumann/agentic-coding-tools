@@ -188,6 +188,85 @@ class TestJudgedMatchAll:
         assert report.blocking_count == 0
         assert report.advisory_count == 1
 
+    def test_multiple_primaries_on_one_file_share_a_single_call(self, monkeypatch) -> None:
+        """Two primaries, each needing judgment against a same-file, same-
+        axis candidate, still cost exactly one decide() call for the file
+        -- not one call per primary (Codex review, PR #590 P2)."""
+        decide = _spy_decide(
+            monkeypatch, returns=_noul_answers(pair_0=0.9, pair_1=0.85),
+        )
+
+        # Different axes on the two pairs so only (a1, b1) and (a2, b2) are
+        # judgment-eligible -- cross-pairs (a1, b2) / (a2, b1) are filtered
+        # out by the axis gate before reaching _judge_pairs, giving exactly
+        # the 2 pairs this test's stub answers for.
+        a1 = _finding(
+            id=1, vendor="antigravity", file_path="foo.py", axis="correctness",
+            description="Alpha issue one",
+        )
+        b1 = _finding(
+            id=1, vendor="pi", file_path="foo.py", axis="correctness",
+            description="Bravo issue one paraphrase",
+        )
+        a2 = _finding(
+            id=2, vendor="antigravity", file_path="foo.py", axis="security",
+            description="Charlie issue two",
+        )
+        b2 = _finding(
+            id=2, vendor="pi", file_path="foo.py", axis="security",
+            description="Delta issue two paraphrase",
+        )
+
+        synth = ConsensusSynthesizer()
+        report = synth.synthesize(
+            "implementation", "target",
+            [VendorResult(vendor="antigravity", findings=[a1, a2]),
+             VendorResult(vendor="pi", findings=[b1, b2])],
+        )
+        decide.assert_called_once()
+        assert report.confirmed_count == 2
+        assert all(cf.evidence_class == JUDGMENT for cf in report.consensus_findings)
+
+    def test_evidence_class_is_order_independent_across_three_vendors(self, monkeypatch) -> None:
+        """A primary matched via judgment against one vendor and via a
+        fast path against another must still carry evidence_class
+        "judgment" -- regardless of which vendor's match is recorded last
+        (Codex review, PR #590 P1)."""
+        decide = _spy_decide(monkeypatch, returns=_noul_answers(pair_0=0.9))
+
+        judged_peer = _finding(
+            id=1, vendor="pi", file_path="foo.py",
+            description="Multi-language disclosure footer format unspecified causing mismatch",
+            disposition="fix",
+        )
+        fast_path_peer = _finding(
+            id=1, vendor="codex", file_path="foo.py",
+            line_start=10, line_end=15, disposition="fix",
+            description="Off-by-one in loop bound",
+        )
+        # A second, unrelated finding on the primary's own file/axis so the
+        # fast-path candidate above actually has an overlapping-lines match
+        # against the primary too (both must describe the primary's own
+        # location for the fast path to fire against it specifically).
+        primary_with_location = _finding(
+            id=1, vendor="antigravity", file_path="foo.py",
+            line_start=10, line_end=15, disposition="fix",
+            description="Critical: contract mismatch between footer format and disclosure line",
+        )
+
+        synth = ConsensusSynthesizer()
+        report = synth.synthesize(
+            "implementation", "target",
+            [VendorResult(vendor="antigravity", findings=[primary_with_location]),
+             VendorResult(vendor="pi", findings=[judged_peer]),
+             VendorResult(vendor="codex", findings=[fast_path_peer])],
+        )
+        assert len(report.consensus_findings) == 1
+        cf = report.consensus_findings[0]
+        assert len(cf.matched_findings) == 2
+        assert cf.evidence_class == JUDGMENT
+        decide.assert_called_once()
+
     def test_unavailable_decide_falls_back_to_jaccard(self, monkeypatch) -> None:
         """decide() returning None for same-file/axis pairs falls back to
         the existing Jaccard bands -- unchanged, non-judged behavior."""
