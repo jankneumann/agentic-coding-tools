@@ -793,3 +793,111 @@ def test_spec_gap_payload_includes_derived_spec_file(tmp_path: Path) -> None:
     assert str(spec) in payload["allowed_paths"]
     ledger = load_or_create(ctx["artifacts_dir"], "test-change")
     assert ledger["items"][0]["spec_file"] == str(spec)
+
+
+def test_mixed_disposition_dispatches_only_fix_now(tmp_path: Path) -> None:
+    """Only fix_now items are dispatched; other dispositions park via the
+    existing park_item(..., reason=...) call (design D1-D4)."""
+    fix_now_finding = _make_consensus_finding(1, status="confirmed", criticality="high")
+    parked_finding = _make_consensus_finding(2, status="confirmed", criticality="high")
+
+    results_per_round = [[
+        _make_review_result("vendor_a", success=True, findings=[
+            {"id": 1, "type": "bug", "criticality": "high",
+             "description": "Test finding 1", "disposition": "fix"},
+            {"id": 2, "type": "bug", "criticality": "high",
+             "description": "Test finding 2", "disposition": "fix"},
+        ]),
+        _make_review_result("vendor_b", success=True, findings=[
+            {"id": 1, "type": "bug", "criticality": "high",
+             "description": "Test finding 1", "disposition": "fix"},
+            {"id": 2, "type": "bug", "criticality": "high",
+             "description": "Test finding 2", "disposition": "fix"},
+        ]),
+    ], [
+        _make_review_result("vendor_a", success=True, findings=[]),
+        _make_review_result("vendor_b", success=True, findings=[]),
+    ]]
+    reports_per_round = [
+        _make_consensus_report(findings=[fix_now_finding, parked_finding]),
+        _make_consensus_report(findings=[]),
+    ]
+
+    ctx = _setup_converge(results_per_round, reports_per_round, tmp_path)
+    fix_cb = MagicMock()
+
+    def _fake_classify(blocking, **_kwargs):
+        ids = sorted(int(item["id"]) for item in blocking)
+        assert ids == [1, 2]
+        return {1: "fix_now", 2: "needs_human"}
+
+    with patch(
+        "convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"],
+    ), patch(
+        "convergence_loop.classify_round", side_effect=_fake_classify,
+    ):
+        result = converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            max_rounds=3,
+            fix_callback=fix_cb,
+        )
+
+    assert result.converged is True
+    fix_cb.assert_called_once()
+    dispatched = fix_cb.call_args[0][0]
+    assert len(dispatched) == 1
+    assert int(dispatched[0]["id"]) == 1
+
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    by_id = {int(item["id"]): item for item in ledger["items"]}
+    assert by_id[2]["status"] == "parked"
+    assert by_id[2]["parked_reason"] == "disagreement"
+
+
+def test_all_parked_skips_fix_callback(tmp_path: Path) -> None:
+    finding = _make_consensus_finding(1, status="confirmed", criticality="high")
+
+    results_per_round = [[
+        _make_review_result("vendor_a", success=True, findings=[
+            {"id": 1, "type": "bug", "criticality": "high",
+             "description": "Test finding 1", "disposition": "fix"},
+        ]),
+        _make_review_result("vendor_b", success=True, findings=[
+            {"id": 1, "type": "bug", "criticality": "high",
+             "description": "Test finding 1", "disposition": "fix"},
+        ]),
+    ]]
+    reports_per_round = [_make_consensus_report(findings=[finding])]
+
+    ctx = _setup_converge(results_per_round, reports_per_round, tmp_path)
+    fix_cb = MagicMock()
+
+    with patch(
+        "convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"],
+    ), patch(
+        "convergence_loop.classify_round",
+        return_value={1: "defer_to_followup"},
+    ):
+        result = converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            max_rounds=1,
+            fix_callback=fix_cb,
+        )
+
+    fix_cb.assert_not_called()
+    # All blockers parked -> the ledger has nothing left blocking, so this
+    # must resolve as converged rather than a stale max_rounds escalation
+    # over items that are no longer actually blocking (Codex P1).
+    assert result.converged is True
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    by_id = {int(item["id"]): item for item in ledger["items"]}
+    assert by_id[1]["status"] == "parked"
+    assert by_id[1]["parked_reason"] == "deferred_to_followup"

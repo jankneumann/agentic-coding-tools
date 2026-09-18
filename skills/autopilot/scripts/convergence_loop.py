@@ -1103,8 +1103,8 @@ def converge(
         # three park via the existing park_item(..., reason=...) call --
         # no new ledger mutation surface. Unavailable/empty classification
         # defaults every item to fix_now, reproducing today's unconditional
-        # dispatch bit for bit. `blocking` itself is left untouched so the
-        # stall rule and escalation summaries above/below are unaffected.
+        # dispatch bit for bit. The stall check above already ran against
+        # the pre-disposition `blocking`, so this is safe to happen after it.
         dispositions = classify_round(
             blocking,
             trend=trend,
@@ -1112,6 +1112,7 @@ def converge(
             change_id=change_id,
         )
         dispatch_items: list[dict[str, Any]] = []
+        any_parked = False
         for item in blocking:
             item_id = item.get("id")
             disposition = (
@@ -1129,6 +1130,49 @@ def converge(
                     disposition, "disagreement",
                 ),
             )
+            any_parked = True
+
+        # Re-derive the ledger's true blocking set after parking: a
+        # last-round park can retire every remaining blocker, and `blocking`
+        # otherwise stays stale for the "Max rounds exhausted" fallback below
+        # (Codex P1) -- it would report reason="max_rounds" with parked,
+        # no-longer-blocking items as escalate_findings even though nothing
+        # is left open. Cheap and a no-op when nothing was parked; the next
+        # round's own step 2g recomputes it again regardless.
+        if any_parked:
+            blocking = ledger_blocking_items(
+                ledger, blocking_criticalities=blocking_criticalities,
+            )
+            if not blocking:
+                # Disposition parked every remaining blocker this round --
+                # mirror step 2i's own "no blocking -> converged" return
+                # rather than falling through to "Max rounds exhausted"
+                # below with a stale, no-longer-blocking escalation. Persist
+                # the parking before returning -- this exits before the
+                # save_ledger() call step 2k would otherwise reach.
+                save_ledger(ledger, artifacts_dir)
+                logger.info(
+                    "Converged in round %d after disposition parked all "
+                    "remaining blockers", round_num,
+                )
+                if memory_callback:
+                    memory_callback(json.dumps(_build_convergence_metrics(
+                        rounds_completed=round_num,
+                        findings_per_round=trend,
+                        convergence_status="converged",
+                        total_time_seconds=time.monotonic() - start_time,
+                        consensus_dict=consensus_dict,
+                        escalation_count=0,
+                    )))
+                return ConvergenceResult(
+                    converged=True,
+                    rounds=round_num,
+                    reason=None,
+                    consensus=consensus_dict,
+                    escalate_findings=parked_items(ledger) or None,
+                    validation_errors=all_validation_errors or None,
+                    checkpoint_dir=latest_checkpoint_dir,
+                )
 
         # 2k. Dispatch scoped fixes for current fix_now items only (D7).
         payloads = [
