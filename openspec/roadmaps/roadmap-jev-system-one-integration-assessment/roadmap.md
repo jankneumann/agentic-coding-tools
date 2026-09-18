@@ -138,12 +138,12 @@ Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions,
 - **Change ID**: add-the-adapter-backed-test-substitute-and-dry-run-policy
 - **Depends on**: `ri-02`
 
-Stand up the testing convention for every later site: unit tests stub decide/decide_intent, behavioural wiring tests use system-one-adapter (Anthropic provider, llm_answer_mode="probabilities") with test names marking its probabilities uncalibrated, and --dry-run paths make no API call.
+Stand up the testing convention for every later site: system_one_decisions.testing exports reusable stub helpers for decide/decide_intent, behavioural wiring tests use system-one-adapter (Anthropic provider, llm_answer_mode="probabilities") with test names marking its probabilities uncalibrated, and decide()'s own dry_run parameter guarantees --dry-run paths make no API call.
 
 **Acceptance outcomes**:
-- [ ] A reusable pytest fixture stubs decide/decide_intent and is exercised by at least one test that asserts the caller's fallback rule still runs when the stub returns None.
-- [ ] Adapter-backed behavioural tests are skipped by default, run only when the adapter env is present, and every such test name contains "uncalibrated".
-- [ ] A test asserts that running any system_one-consuming script with --dry-run performs zero client constructions.
+- [ ] system_one_decisions.testing exports reusable stub helpers (stub_decide, stub_decide_intent) for decide/decide_intent, exercised by at least one test that asserts the caller's fallback rule still runs when the stub returns None.
+- [ ] Adapter-backed behavioural tests are skipped unless both ANTHROPIC_API_KEY and SYSTEM_ONE_ADAPTER_TESTS=1 are set, and every such test name contains "uncalibrated".
+- [ ] decide() accepts an explicit dry_run parameter (default False, preserving existing behavior) that guarantees zero client construction when True, verified by a test asserting the client-construction seam is never reached -- the enforcement point a future call-site migration's own --dry-run flag threads into, since no system_one-consuming script exists yet to test end-to-end.
 
 ### ri-04: Replace the gen-eval semantic judge with a calibrated Noul
 
