@@ -7,12 +7,21 @@
 
 ### Requirement: Replaying...
 
-The system SHALL ensure that replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json matches the two real.
+The system SHALL ensure that replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json pairs the two real defects across vendors and routes them to adjudication rather than leaving them unconfirmed.
 
 #### Scenario: Replaying...
 
 WHEN `judge-cross-vendor-finding-matching-in-consensus-synthesizer` is implemented
-THEN Replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json matches the two real.
+THEN Replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json pairs the two real defects across vendors and routes them to adjudication rather than leaving them unconfirmed.
+
+### Requirement: A consensus finding whose match basis is judged carries evidence_class...
+
+The system SHALL ensure that a consensus finding whose match basis is judged carries evidence_class "judgment" even when both contributing findings are deterministic, and blocking_count is unchanged by judged matches, asserted by a unit test on two deterministic scanner findings.
+
+#### Scenario: A consensus finding whose match basis is judged carries evidence_class...
+
+WHEN `judge-cross-vendor-finding-matching-in-consensus-synthesizer` is implemented
+THEN A consensus finding whose match basis is judged carries evidence_class "judgment" even when both contributing findings are deterministic, and blocking_count is unchanged by judged matches, asserted by a unit test on two deterministic scanner findings.
 
 ### Requirement: Routing precision on the seeded-defect set from...
 
@@ -40,12 +49,3 @@ The system SHALL ensure that mATCH_THRESHOLD is read from config by both consens
 
 WHEN `judge-cross-vendor-finding-matching-in-consensus-synthesizer` is implemented
 THEN MATCH_THRESHOLD is read from config by both consensus_synthesizer.py and review_ledger.py; no threshold float literal remains in the scoring path.
-
-### Requirement: Every judged match in the consensus output carries evidence_class "judgment"...
-
-The system SHALL ensure that every judged match in the consensus output carries evidence_class "judgment" and its probability.
-
-#### Scenario: Every judged match in the consensus output carries evidence_class "judgment"...
-
-WHEN `judge-cross-vendor-finding-matching-in-consensus-synthesizer` is implemented
-THEN Every judged match in the consensus output carries evidence_class "judgment" and its probability.

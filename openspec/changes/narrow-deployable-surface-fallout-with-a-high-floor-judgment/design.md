@@ -5,11 +5,11 @@
 
 ## Context
 
-For the unknown bucket only in gate_logic.classify_deployable_surface, ask Noul("This change alters the behaviour of a running service") and accept non-deployable only above a high config-held floor (about 0.9), otherwise keep failing closed to deployable. Declared frontmatter and the proven-non-deployable prefix set stay authoritative.
+For the unknown bucket only in gate_logic.classify_deployable_surface, ask Noul("This change alters the behaviour of a running service") and accept non-deployable only when that probability is at or below a low config-held ceiling (about 0.1); any higher probability keeps failing closed to deployable. Declared frontmatter and the proven-non-deployable prefix set stay authoritative.
 
 ## Why this item exists
 
-Pilot step 7. This is a gate input, so it goes last and asymmetrically: the judgment may only skip container phases for changes it is very confident about, never add risk. The cost being removed is Docker-dependent smoke, security and E2E phases on changes that do not need them.
+Pilot step 7. This is a gate input, so it goes last and asymmetrically: the judgment may only skip container phases for changes it is very confident do not touch a running service, never add risk. The cost being removed is Docker-dependent smoke, security and E2E phases on changes that do not need them.
 
 ## Depends on
 

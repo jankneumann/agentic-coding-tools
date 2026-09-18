@@ -5,11 +5,11 @@
 
 ## Context
 
-Create skills/shared/system_one.py with the frozen Decision dataclass and both entry points, decide(state, questions, *, site) and decide_intent(state, intents, *, fallback, human_intent, act_floor, irreversible, approve_floor, site), implemented with no network call at all: every decision comes from the caller's existing rule via fallback and is recorded to the caller's event log with degraded=True and evidence_class "judgment".
+Create the installable package packages/system-one-decisions (importable as system_one_decisions) with the frozen Decision dataclass and both entry points, decide(state, questions, *, site) and decide_intent(state, intents, *, fallback, human_intent, act_floor, irreversible, approve_floor, site), implemented with no network call at all: every decision comes from the caller's existing rule via fallback and is recorded to the caller's event log with degraded=True and evidence_class "judgment". Declare it from every consuming runtime: a path dependency in skills/pyproject.toml, an optional "decisions" extra in packages/gen-eval/pyproject.toml, and a path dependency in agent-coordinator/pyproject.toml plus a COPY line in the coordinator Dockerfile beside the existing gen-eval and code-search copies.
 
 ## Why this item exists
 
-Pilot step 0 of the proposal. Landing the helper fallback-only turns every existing rule decision in Group C into a recorded, replayable event before any model is consulted, and gives every later item a single seam to switch on. It is the shared infrastructure all other items depend on, and it mirrors skills/shared/github_classifier.py as the portable home for cross-skill logic.
+Pilot step 0 of the proposal. Landing the helper fallback-only turns every existing rule decision in Group C into a recorded, replayable event before any model is consulted, and gives every later item a single seam to switch on. A package boundary rather than a skills/shared module is required because the three consumers (skills venv, gen-eval, coordinator image) do not share a dependency set: gen-eval is independently installable and the coordinator Dockerfile copies only skills/shared/github_classifier.py.
 
 ## Depends on
 

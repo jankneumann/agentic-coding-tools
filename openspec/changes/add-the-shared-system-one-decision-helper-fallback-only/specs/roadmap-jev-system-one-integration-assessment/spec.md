@@ -5,14 +5,23 @@
 
 ## ADDED Requirements
 
-### Requirement: skills/shared/system_one.py exports Decision(intent, p, distribution,...
+### Requirement: packages/system-one-decisions exports Decision(intent, p, distribution,...
 
-The system SHALL ensure that skills/shared/system_one.py exports Decision(intent, p, distribution, degraded, evidence_class="judgment"), decide and decide_intent, and imports no vendor SDK.
+The system SHALL ensure that packages/system-one-decisions exports Decision(intent, p, distribution, degraded, evidence_class="judgment"), decide and decide_intent, has no required dependencies, and imports no vendor SDK.
 
-#### Scenario: skills/shared/system_one.py exports Decision(intent, p, distribution,...
+#### Scenario: packages/system-one-decisions exports Decision(intent, p, distribution,...
 
 WHEN `add-the-shared-system-one-decision-helper-fallback-only` is implemented
-THEN skills/shared/system_one.py exports Decision(intent, p, distribution, degraded, evidence_class="judgment"), decide and decide_intent, and imports no vendor SDK.
+THEN packages/system-one-decisions exports Decision(intent, p, distribution, degraded, evidence_class="judgment"), decide and decide_intent, has no required dependencies, and imports no vendor SDK.
+
+### Requirement: The package is importable from the skills venv, from a standalone `uv pip...
+
+The system SHALL ensure that the package is importable from the skills venv, from a standalone `uv pip install packages/gen-eval[decisions]`, and inside the coordinator Docker image (docker-smoke-import covers `import system_one_decisions`).
+
+#### Scenario: The package is importable from the skills venv, from a standalone `uv pip...
+
+WHEN `add-the-shared-system-one-decision-helper-fallback-only` is implemented
+THEN The package is importable from the skills venv, from a standalone `uv pip install packages/gen-eval[decisions]`, and inside the coordinator Docker image (docker-smoke-import covers `import system_one_decisions`).
 
 ### Requirement: With no TYPESAFE_API_KEY set, decide_intent returns fallback(state) with...
 
@@ -32,11 +41,11 @@ The system SHALL ensure that a decide_intent call appends one event carrying int
 WHEN `add-the-shared-system-one-decision-helper-fallback-only` is implemented
 THEN A decide_intent call appends one event carrying intent, distribution and degraded to the caller's event log, asserted against a loop-state.json phase_history fixture.
 
-### Requirement: Unit tests in skills/shared/tests cover act_floor routing to human_intent...
+### Requirement: Unit tests in packages/system-one-decisions/tests cover act_floor routing to...
 
-The system SHALL ensure that unit tests in skills/shared/tests cover act_floor routing to human_intent and needs_approval flagging for intents in the irreversible set.
+The system SHALL ensure that unit tests in packages/system-one-decisions/tests cover act_floor routing to human_intent and needs_approval flagging for intents in the irreversible set.
 
-#### Scenario: Unit tests in skills/shared/tests cover act_floor routing to human_intent...
+#### Scenario: Unit tests in packages/system-one-decisions/tests cover act_floor routing to...
 
 WHEN `add-the-shared-system-one-decision-helper-fallback-only` is implemented
-THEN Unit tests in skills/shared/tests cover act_floor routing to human_intent and needs_approval flagging for intents in the irreversible set.
+THEN Unit tests in packages/system-one-decisions/tests cover act_floor routing to human_intent and needs_approval flagging for intents in the irreversible set.
