@@ -16,8 +16,7 @@
 | 1 | Adjudicate phase outcomes in shadow mode | L | completed | ri-06 |
 | 2 | Route review convergence on per-finding dispositions | L | completed | ri-05 |
 | 3 | Judge transcript struggle triage in collect-transcripts | M | completed | ri-05 |
-| 3 | Judge implementation strategy selection in autopilot | S | approved | ri-05 |
-| 3 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
+| 3 | Judge implementation strategy selection in autopilot | S | completed | ri-05 |
 | 3 | Judge multi-vendor review eligibility for pull requests | M | approved | ri-05 |
 | 3 | Screen fact-check grounds with a first-stage judged pass | L | approved | ri-05 |
 | 3 | Add a judged first stage to coordinator audit triage | M | approved | ri-05 |
@@ -30,6 +29,7 @@
 | 4 | Classify retries by sameness and transience | M | approved | ri-05, ri-20 |
 | 5 | Triage merge review threads by required response | M | approved | ri-05, ri-11 |
 | 6 | Narrow deployable-surface fallout with a high-floor judgment | M | approved | ri-05 |
+| 6 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
 | 6 | Classify human reply intent behind the approval floor | M | approved | ri-08 |
 <!-- GENERATED: end phase-table -->
 
@@ -48,7 +48,6 @@ graph TD
     ri-07["Adjudicate phase outcomes in shadow mode"]
     ri-09["Judge transcript struggle triage in coll"]
     ri-10["Judge implementation strategy selection "]
-    ri-08["Promote shadow judgments to acting decis"]
     ri-11["Judge multi-vendor review eligibility fo"]
     ri-12["Judge decision-tag backfill in explore-f"]
     ri-13["Judge fix-tier classification in fix-scr"]
@@ -62,6 +61,7 @@ graph TD
     ri-21["Triage merge review threads by required "]
     ri-22["Classify retries by sameness and transie"]
     ri-23["Narrow deployable-surface fallout with a"]
+    ri-08["Promote shadow judgments to acting decis"]
     ri-24["Classify human reply intent behind the a"]
     ri-01 --> ri-02
     ri-02 --> ri-03
@@ -72,8 +72,6 @@ graph TD
     ri-06 --> ri-07
     ri-05 --> ri-09
     ri-05 --> ri-10
-    ri-06 --> ri-08
-    ri-07 --> ri-08
     ri-05 --> ri-11
     ri-05 --> ri-12
     ri-05 --> ri-13
@@ -89,6 +87,8 @@ graph TD
     ri-05 --> ri-22
     ri-20 --> ri-22
     ri-05 --> ri-23
+    ri-06 --> ri-08
+    ri-07 --> ri-08
     ri-08 --> ri-24
 ```
 <!-- GENERATED: end dependency-dag -->
@@ -246,7 +246,7 @@ Keep the four event-stream counters in triage.py as facts but replace the weight
 
 ### ri-10: Judge implementation strategy selection in autopilot
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 3
 - **Effort**: S
 - **Change ID**: judge-implementation-strategy-selection-in-autopilot
@@ -256,26 +256,9 @@ Replace the four-criterion weighted sum in implementation_strategy_selector with
 
 **Acceptance outcomes**:
 - [ ] design_path is read and its matching design.md section forms part of the state, covered by a test using a package fixture.
-- [ ] Confidence below the config-held floor yields lead_review, asserted by a stubbed-decision test.
-- [ ] The vendor-count gate still forces lead_review when fewer than three vendors are available, regardless of the judged label.
-- [ ] The existing weighted-sum selector remains reachable as the fallback and its current tests pass unchanged.
-
-### ri-08: Promote shadow judgments to acting decisions
-
-- **Status**: approved
-- **Priority**: 3
-- **Effort**: M
-- **Change ID**: promote-shadow-judgments-to-acting-decisions
-- **Depends on**: `ri-06`, `ri-07`
-
-Using the shadow-period measurements, flip both sites to act: the gate outcome is computed from the calibrated scores with operator-set thresholds, and phase-outcome adjudication applies the switch rule (agreement above act_floor proceeds; disagreement lets the judged label win above approve_floor, otherwise escalate with both labels in the evidence). Retire the premium-tier gatekeeper dispatch.
-
-**Acceptance outcomes**:
-- [ ] Promotion is gated on the recorded shadow disagreement rate and vindication split, both cited in the change's rationale with the thresholds chosen from them.
-- [ ] A test asserts that claimed/judged disagreement below approve_floor transitions to escalate with both labels present in the escalation evidence.
-- [ ] The premium-tier GATEKEEPER archetype dispatch is removed from the autopilot run path and complexity_gate.default_gate_verdict remains the headless fallback, covered by a headless-run test.
-- [ ] Per-run judged-call cost for a reference autopilot run is recorded and is under one cent.
-- [ ] Every promoted decision reaching a report carries evidence_class "judgment" and its probability; no deterministic gate is bypassed, asserted by the scope-safety floor tests.
+- [ ] Confidence below the config-held floor yields lead_review (via the existing weighted-sum fallback), asserted by a stubbed-decision test.
+- [ ] Vendor availability is included in the judged call's state as context rather than a new hard pre-judgment gate; the existing weighted-sum fallback's own treatment of vendor count (one additive term among four, no hard floor) is left completely unmodified, since two existing tests (test_fewer_than_3_vendors_reduces_score, test_boundary_score_2_selects_alternatives) deliberately assert "alternatives" is reachable with only 2 vendors when the sum still clears the threshold.
+- [ ] The existing weighted-sum selector remains reachable as the fallback and its current tests -- including both vendor-count boundary tests above -- pass unchanged.
 
 ### ri-11: Judge multi-vendor review eligibility for pull requests
 
@@ -467,6 +450,23 @@ For the unknown bucket only in gate_logic.classify_deployable_surface, ask Noul(
 - [ ] A probability of altering a running service above the configured ceiling still yields deployable (fail closed), covered by a parametrised test around the ceiling including a high-probability case that must remain deployable.
 - [ ] Every judged classification writes DEGRADED-style provenance ("derived by system_one, p(alters service)=0.04") into the validation report via record_degraded-equivalent plumbing, asserted on a report fixture.
 - [ ] A replay over recorded unknown-bucket changes shows no change previously classified deployable being downgraded unless its probability of altering a service is at or below the ceiling.
+
+### ri-08: Promote shadow judgments to acting decisions
+
+- **Status**: approved
+- **Priority**: 6
+- **Effort**: M
+- **Change ID**: promote-shadow-judgments-to-acting-decisions
+- **Depends on**: `ri-06`, `ri-07`
+
+Using the shadow-period measurements, flip both sites to act: the gate outcome is computed from the calibrated scores with operator-set thresholds, and phase-outcome adjudication applies the switch rule (agreement above act_floor proceeds; disagreement lets the judged label win above approve_floor, otherwise escalate with both labels in the evidence). Retire the premium-tier gatekeeper dispatch.
+
+**Acceptance outcomes**:
+- [ ] Promotion is gated on the recorded shadow disagreement rate and vindication split, both cited in the change's rationale with the thresholds chosen from them.
+- [ ] A test asserts that claimed/judged disagreement below approve_floor transitions to escalate with both labels present in the escalation evidence.
+- [ ] The premium-tier GATEKEEPER archetype dispatch is removed from the autopilot run path and complexity_gate.default_gate_verdict remains the headless fallback, covered by a headless-run test.
+- [ ] Per-run judged-call cost for a reference autopilot run is recorded and is under one cent.
+- [ ] Every promoted decision reaching a report carries evidence_class "judgment" and its probability; no deterministic gate is bypassed, asserted by the scope-safety floor tests.
 
 ### ri-24: Classify human reply intent behind the approval floor
 
