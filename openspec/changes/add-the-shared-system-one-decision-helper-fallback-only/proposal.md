@@ -13,6 +13,64 @@ Create the installable package packages/system-one-decisions (importable as syst
 
 - None
 
+## Impact
+
+- **New capability**: `system-one-decisions` (spec delta at
+  `specs/system-one-decisions/spec.md`).
+- **New package**: `packages/system-one-decisions/`.
+- **Touched, not migrated**: `skills/pyproject.toml`, `packages/gen-eval/pyproject.toml`,
+  `agent-coordinator/pyproject.toml`, `agent-coordinator/Dockerfile` — each gains a
+  dependency declaration only. No existing call site is migrated to use the helper
+  in this item; that is each later Group A/B/C roadmap item's own job.
+
+## Approaches Considered
+
+### Approach A — `skills/shared/` module (rejected; superseded assessment text)
+
+**Description**: Add `skills/shared/system_one.py`, mirroring
+`skills/shared/github_classifier.py`.
+**Pros**: Simplest possible location; no new package to publish.
+**Cons**: Unreachable from two of the three consumers — the coordinator
+Dockerfile copies exactly one file out of `skills/shared/`
+(`github_classifier.py`), and `packages/gen-eval` is independently installable
+with its own dependency set. A reviewer on the parent proposal (PR #565) flagged
+this and the assessment document was corrected to Approach B before this item was
+scaffolded.
+**Effort**: XS.
+
+### Approach B — Installable package under `packages/` (Recommended)
+
+**Description**: `packages/system-one-decisions/`, declared as a path dependency
+from each of the three consuming runtimes (skills venv, gen-eval's optional
+extra, coordinator path dependency + Dockerfile `COPY`), mirroring how
+`packages/gen-eval` and `packages/code-search` are already wired into the
+coordinator image.
+**Pros**: Reachable from every consumer by construction; matches an existing,
+proven pattern in this repo; keeps the SDK import (added in ri-02) confined to
+one module regardless of which runtime loads it.
+**Cons**: One more `pyproject.toml` to maintain; requires touching four files
+outside the new package to wire it in.
+**Effort**: M.
+
+### Approach C — Vendor `system_one_decisions` logic into each consumer separately
+
+**Description**: Duplicate the `Decision` dataclass and routing logic into
+`skills/shared/`, `packages/gen-eval/src/gen_eval/`, and
+`agent-coordinator/src/`, each independently.
+**Pros**: No new package boundary to design.
+**Cons**: Three copies of confidence-routing logic that must be kept in sync by
+hand — exactly the kind of drift this repo's own conventions (e.g.
+`finding-coercion.json` being a single shared file rather than three copies)
+exist to avoid. Rejected outright.
+**Effort**: L (three implementations, plus the ongoing cost of keeping them
+identical).
+
+### Selected Approach
+
+**Approach B**, for the reason given in its Cons/Pros: it is the only approach
+reachable from all three consumers without duplicating logic, and it follows an
+existing, working pattern in this repository rather than inventing a new one.
+
 ## Acceptance Outcomes
 
 - packages/system-one-decisions exports Decision(intent, p, distribution, degraded, evidence_class="judgment"), decide and decide_intent, has no required dependencies, and imports no vendor SDK.
