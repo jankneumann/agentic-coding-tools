@@ -242,14 +242,15 @@ class TestSanitizationBeforeJudgment:
             return {}
 
         monkeypatch.setattr(triage, "_classify_session", _fake_classify)
+        # Low-entropy but pattern-matching ("sk-" + 20+ alphanumeric chars,
+        # session-log's openai-key rule) -- a random-looking fixture here
+        # previously tripped the repo's gitleaks secret-scan CI check.
+        fake_key = "sk-" + "0" * 25
         events = [
-            _make_user_event(
-                "here is my key: sk-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGH",
-                seq=0,
-            ),
+            _make_user_event(f"here is my key: {fake_key}", seq=0),
         ]
         triage.triage_session(events, session_id="s1")
-        assert "sk-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGH" not in captured["transcript"]
+        assert fake_key not in captured["transcript"]
 
 
 class TestTriageSessionJudgedOverride:
