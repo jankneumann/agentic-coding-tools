@@ -119,10 +119,20 @@ so the schema is a second line, not the first.
 
 The report stamp carries `sha256(archetypes.yaml)`, the list of `reviewed`
 dates, the evidence window, and `generated_at`. `--check-freshness` compares
-the newest report's hash to the file and exits `1` on mismatch. CI adds a
-job `skill-audit-freshness` with `continue-on-error: true` that runs
-`--check-freshness --all` and annotates; it never blocks merges because
-staleness is a prompt to re-audit, not a defect in the change under review.
+the newest report's hash to the file and exits `1` on mismatch **or when no
+report exists**. CI adds a job `skill-audit-freshness` that runs the `--all`
+form. It never blocks merges, because staleness is a prompt to re-audit, not a
+defect in the change under review.
+
+That exit code is right for the CLI and wrong for a check run. Most of the
+corpus has never been audited, so the command exits `1` on nearly every commit,
+which would pin the check red forever and bury the drift signal it exists to
+carry. The CI step therefore separates the two facts and always exits `0`: a
+report whose roster hash no longer matches raises a **warning** annotation
+(genuine drift), while skills with no report at all raise a **notice**
+annotation (coverage, not drift). `continue-on-error: true` stays as defence in
+depth. This is what "annotates" always meant here; the first implementation
+conflated the two facts and went red on PR #552.
 
 ### D7 — Convention selection defaults to rightsizing; the skill's own tests pass in both states
 
