@@ -263,39 +263,6 @@ items:
     the claimed outcome and transition() unaffected, mirroring ri-06's own shadow-judgment
     degradation precedent rather than GATEKEEPER's unrelated record_degraded acting-decision
     marker; covered by a test.
-- item_id: ri-08
-  title: Promote shadow judgments to acting decisions
-  status: approved
-  priority: 2
-  effort: M
-  depends_on:
-  - ri-06
-  - ri-07
-  description: 'Using the shadow-period measurements, flip both sites to act: the
-    gate outcome is computed from the calibrated scores with operator-set thresholds,
-    and phase-outcome adjudication applies the switch rule (agreement above act_floor
-    proceeds; disagreement lets the judged label win above approve_floor, otherwise
-    escalate with both labels in the evidence). Retire the premium-tier gatekeeper
-    dispatch.'
-  rationale: 'This is the item that realises the proposal''s two headline returns:
-    the largest per-run cost saving (a premium-tier read-only judge replaced by a
-    sub-cent call) and the largest correctness gain (a fixer''s self-report no longer
-    trusted). Keeping it separate from the shadow items makes the flip an explicit,
-    evidence-gated decision rather than a side effect.'
-  change_id: promote-shadow-judgments-to-acting-decisions
-  acceptance_outcomes:
-  - Promotion is gated on the recorded shadow disagreement rate and vindication split,
-    both cited in the change's rationale with the thresholds chosen from them.
-  - A test asserts that claimed/judged disagreement below approve_floor transitions
-    to escalate with both labels present in the escalation evidence.
-  - The premium-tier GATEKEEPER archetype dispatch is removed from the autopilot run
-    path and complexity_gate.default_gate_verdict remains the headless fallback, covered
-    by a headless-run test.
-  - Per-run judged-call cost for a reference autopilot run is recorded and is under
-    one cent.
-  - Every promoted decision reaching a report carries evidence_class "judgment" and
-    its probability; no deterministic gate is bypassed, asserted by the scope-safety
-    floor tests.
 - item_id: ri-09
   title: Judge transcript struggle triage in collect-transcripts
   status: approved
@@ -349,6 +316,44 @@ items:
     available, regardless of the judged label.
   - The existing weighted-sum selector remains reachable as the fallback and its current
     tests pass unchanged.
+- item_id: ri-08
+  title: Promote shadow judgments to acting decisions
+  status: approved
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-06
+  - ri-07
+  description: 'Using the shadow-period measurements, flip both sites to act: the
+    gate outcome is computed from the calibrated scores with operator-set thresholds,
+    and phase-outcome adjudication applies the switch rule (agreement above act_floor
+    proceeds; disagreement lets the judged label win above approve_floor, otherwise
+    escalate with both labels in the evidence). Retire the premium-tier gatekeeper
+    dispatch.'
+  rationale: 'This is the item that realises the proposal''s two headline returns:
+    the largest per-run cost saving (a premium-tier read-only judge replaced by a
+    sub-cent call) and the largest correctness gain (a fixer''s self-report no longer
+    trusted). Keeping it separate from the shadow items makes the flip an explicit,
+    evidence-gated decision rather than a side effect. DEFERRED (2026-09-18, confirmed
+    with the user): ri-06/ri-07 just merged, so no real production shadow-period disagreement/vindication
+    data exists yet to choose act_floor/ approve_floor from, as this item''s own acceptance
+    outcomes require. Reordered after ri-10 rather than blocked so it resurfaces naturally
+    once genuine shadow data accumulates from normal autopilot usage -- revisit then,
+    not before.'
+  change_id: promote-shadow-judgments-to-acting-decisions
+  acceptance_outcomes:
+  - Promotion is gated on the recorded shadow disagreement rate and vindication split,
+    both cited in the change's rationale with the thresholds chosen from them.
+  - A test asserts that claimed/judged disagreement below approve_floor transitions
+    to escalate with both labels present in the escalation evidence.
+  - The premium-tier GATEKEEPER archetype dispatch is removed from the autopilot run
+    path and complexity_gate.default_gate_verdict remains the headless fallback, covered
+    by a headless-run test.
+  - Per-run judged-call cost for a reference autopilot run is recorded and is under
+    one cent.
+  - Every promoted decision reaching a report carries evidence_class "judgment" and
+    its probability; no deterministic gate is bypassed, asserted by the scope-safety
+    floor tests.
 - item_id: ri-11
   title: Judge multi-vendor review eligibility for pull requests
   status: approved
@@ -718,7 +723,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T19:47:25.122068+00:00'
+updated_at: '2026-09-18T20:11:54.948223+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -844,3 +849,22 @@ refinements:
   base_sha256: 992fc51f6f4d8b2f9e9d53c32ae09fd52f208553eea73a1c6a3e2810b13b773a
   operations:
   - edit:ri-07
+- timestamp: '2026-09-18T20:11:54.948223+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'ri-08 promotes shadow judgments to acting decisions -- retiring the
+    premium-tier GATEKEEPER dispatch and flipping phase-outcome adjudication to act
+    on judged labels -- with act_floor/approve_floor thresholds its own acceptance
+    outcomes require to be "chosen from" a recorded shadow disagreement rate and vindication
+    split. ri-06 and ri-07 (which land the shadow-recording machinery ri-08 depends
+    on) only just merged, so there is no real production shadow-period data yet --
+    not a peripheral measurement this item can defer while shipping an additive mechanism
+    (the ri-04/ri-06/ri-07 pattern), but the literal precondition for the behavior-changing
+    promotion this item''s whole purpose is. Confirmed with the user (AskUserQuestion)
+    rather than deferred unilaterally, since this is a materially higher-stakes call
+    than the prior shadow-only items: defer ri-08 in place (status untouched, fully
+    resumable once real data exists) and continue the roadmap with ri-09 onward.'
+  base_sha256: 8ba1dc66de77af4257851404c63c1197fd41b52908923ce753afd98f9c08ee21
+  operations:
+  - reorder:ri-08
+  - edit:ri-08
