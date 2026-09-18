@@ -9,7 +9,7 @@
 |----------|------|--------|--------|--------------|
 | 1 | Add the shared system_one decision helper, fallback-only | M | completed | - |
 | 1 | Wire the live TypeSafe client, thresholds and telemetry | M | completed | ri-01 |
-| 1 | Add the adapter-backed test substitute and dry-run policy | S | approved | ri-02 |
+| 1 | Add the adapter-backed test substitute and dry-run policy | S | completed | ri-02 |
 | 1 | Replace the gen-eval semantic judge with a calibrated Noul | M | approved | ri-03 |
 | 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | approved | ri-03, ri-04 |
 | 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | approved | ri-05 |
@@ -132,7 +132,7 @@ Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions,
 
 ### ri-03: Add the adapter-backed test substitute and dry-run policy
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 1
 - **Effort**: S
 - **Change ID**: add-the-adapter-backed-test-substitute-and-dry-run-policy
