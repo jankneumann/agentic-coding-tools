@@ -21,6 +21,45 @@ class ProbeResult:
     error: str | None = None
 
 
+
+def _drop_superseded_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Skip placeholder rows an endpoint has already moved past.
+
+    When a local endpoint reports a model id other than its configured
+    placeholder, ``_probe`` registers the reported model and marks the
+    placeholder unavailable, deliberately keeping it so its learned posterior
+    history survives. ``list_entries`` includes unavailable rows by default, so
+    probing all of them adds one permanent request per cycle for every model id
+    the endpoint has ever reported -- fan-out that grows without bound.
+
+    Probe the available rows for an endpoint. When an endpoint has none, probe
+    its rows anyway: that is a fully-down endpoint, and dropping it here would
+    leave it no way back. Input order is preserved.
+    """
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        key = (str(row.get("vendor") or ""), str(row.get("base_url") or ""))
+        grouped.setdefault(key, []).append(row)
+
+    superseded: set[tuple[str, str, str]] = set()
+    for (vendor, base_url), group in grouped.items():
+        if not any(row.get("available") for row in group):
+            continue
+        for row in group:
+            if not row.get("available"):
+                superseded.add((vendor, base_url, str(row.get("model") or "")))
+
+    return [
+        row
+        for row in rows
+        if (
+            str(row.get("vendor") or ""),
+            str(row.get("base_url") or ""),
+            str(row.get("model") or ""),
+        )
+        not in superseded
+    ]
+
 class LocalEndpointService:
     def __init__(
         self,
@@ -100,7 +139,9 @@ class LocalEndpointService:
         return await self.register_many(configs)
 
     async def probe_all(self) -> list[ProbeResult]:
-        rows = await self._catalog.list_entries(endpoint_kind="local")
+        rows = _drop_superseded_rows(
+            await self._catalog.list_entries(endpoint_kind="local")
+        )
         results: list[ProbeResult] = []
         for row in rows:
             try:

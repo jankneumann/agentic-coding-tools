@@ -19,6 +19,10 @@ OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 class RefreshResult:
     updated: int
     refreshed_at: datetime
+    #: Rows that were available but absent from this response. Counted rather
+    #: than merely logged so a refresh that silently retires half the catalog
+    #: is visible to the caller.
+    retired: int = 0
 
 
 class OpenRouterRefresher:
@@ -56,7 +60,38 @@ class OpenRouterRefresher:
         ]
         for entry in entries:
             await self._catalog.upsert(entry)
-        return RefreshResult(updated=len(entries), refreshed_at=refreshed_at)
+        retired = await self._retire_missing(entries)
+        return RefreshResult(
+            updated=len(entries), refreshed_at=refreshed_at, retired=retired
+        )
+
+    async def _retire_missing(self, entries: list[dict[str, Any]]) -> int:
+        """Mark still-available OpenRouter rows absent from this response unavailable.
+
+        `list_candidates()` filters only on `available`, and deliberately keeps
+        stale rows routable, so a model OpenRouter has retired would otherwise
+        keep winning routing decisions forever and fail at dispatch.
+
+        Only the success path reaches here: every failure mode above raises, so
+        a vendor outage can never retire the catalog. Already-unavailable rows
+        are skipped rather than rewritten.
+        """
+        seen = {(entry["vendor"], entry["model"]) for entry in entries}
+        retired = 0
+        rows = await self._catalog.list_entries(
+            endpoint_kind="openrouter", include_unavailable=False
+        )
+        for row in rows:
+            vendor, model = row.get("vendor"), row.get("model")
+            if not isinstance(vendor, str) or not isinstance(model, str):
+                continue
+            if (vendor, model) in seen:
+                continue
+            await self._catalog.set_availability(
+                vendor, model, "openrouter", available=False
+            )
+            retired += 1
+        return retired
 
     @staticmethod
     def _entry(item: Any, refreshed_at: datetime) -> dict[str, Any] | None:

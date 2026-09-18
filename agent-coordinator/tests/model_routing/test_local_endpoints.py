@@ -212,3 +212,53 @@ async def test_config_sync_keeps_discovered_model_for_known_endpoint(
 
     assert count == 0
     catalog.upsert.assert_not_awaited()
+
+
+def test_superseded_rows_are_not_probed_again() -> None:
+    """Probe cost per endpoint must stay flat as reported model ids change.
+
+    `_probe` keeps a superseded placeholder row (marked unavailable) so its
+    learned posterior history survives, and `list_entries` includes unavailable
+    rows by default. Probing all of them adds one permanent request per cycle
+    for every model id the endpoint has ever reported.
+    """
+    from src.model_routing.local_endpoints import _drop_superseded_rows
+
+    rows = [
+        {"vendor": "local", "base_url": "http://a", "model": "placeholder", "available": False},
+        {"vendor": "local", "base_url": "http://a", "model": "reported-v2", "available": True},
+        {"vendor": "local", "base_url": "http://a", "model": "reported-v1", "available": False},
+    ]
+
+    kept = _drop_superseded_rows(rows)
+
+    assert [row["model"] for row in kept] == ["reported-v2"]
+
+
+def test_a_fully_unavailable_endpoint_is_still_probed() -> None:
+    """Dropping every row of a down endpoint would leave it no way back."""
+    from src.model_routing.local_endpoints import _drop_superseded_rows
+
+    rows = [
+        {"vendor": "local", "base_url": "http://a", "model": "placeholder", "available": False},
+        {"vendor": "local", "base_url": "http://a", "model": "reported", "available": False},
+    ]
+
+    kept = _drop_superseded_rows(rows)
+
+    assert [row["model"] for row in kept] == ["placeholder", "reported"]
+
+
+def test_endpoints_are_scoped_independently_and_order_is_preserved() -> None:
+    from src.model_routing.local_endpoints import _drop_superseded_rows
+
+    rows = [
+        {"vendor": "local", "base_url": "http://a", "model": "a-old", "available": False},
+        {"vendor": "local", "base_url": "http://b", "model": "b-down", "available": False},
+        {"vendor": "local", "base_url": "http://a", "model": "a-live", "available": True},
+    ]
+
+    kept = _drop_superseded_rows(rows)
+
+    # b has no live row, so it survives; a's superseded row is dropped.
+    assert [row["model"] for row in kept] == ["b-down", "a-live"]

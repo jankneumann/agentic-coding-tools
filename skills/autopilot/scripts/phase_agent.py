@@ -365,6 +365,14 @@ def _build_options(
         options["model"] = resolved["model"]
         options["system_prompt"] = resolved["system_prompt"]
         state_dict["_resolved_archetype"] = resolved["archetype"]
+        # The coordinator rewrites `provider` to the vendor that actually owns
+        # the selected model, because adaptive routing ranks the whole catalog
+        # and may cross vendors. Taking `model` without `provider` produces a
+        # pair no adapter can dispatch -- provider="codex" with
+        # model="qwen/qwen3-coder". Optional passthrough, like write_capable:
+        # older coordinators omit it, and then the static provider stands.
+        if resolved.get("provider"):
+            state_dict["_resolved_provider"] = resolved["provider"]
         # write_capable is an optional passthrough from the coordinator (older
         # coordinators may omit it); surface it for build-dispatch metadata.
         if "write_capable" in resolved:
@@ -1007,6 +1015,10 @@ def build_phase_dispatch_kwargs(
     isolation = options.get("isolation")
     archetype = state_dict.get("_resolved_archetype")
     write_capable = state_dict.get("_resolved_write_capable")
+    # Dispatch to the vendor that owns the model adaptive routing picked, not
+    # the statically configured one. _build_options records this only when the
+    # coordinator supplied it, so the static provider remains the fallback.
+    dispatch_provider = state_dict.get("_resolved_provider") or selected_provider
 
     if isinstance(system_prompt, str) and system_prompt:
         folded_prompt = f"{system_prompt}{_PROMPT_SEPARATOR}{phase_prompt}"
@@ -1027,7 +1039,7 @@ def build_phase_dispatch_kwargs(
         "schema_version": 1,
         "change_id": change_id,
         "phase": phase,
-        "provider": selected_provider,
+        "provider": dispatch_provider,
         "prompt": folded_prompt,
         "model": model,
         "system_prompt": system_prompt,

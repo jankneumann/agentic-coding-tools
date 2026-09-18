@@ -88,3 +88,62 @@ async def test_refresh_failure_keeps_existing_catalog_rows() -> None:
 
     catalog.upsert.assert_not_awaited()
     catalog.set_availability.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_successful_refresh_retires_models_the_vendor_dropped() -> None:
+    """A model OpenRouter has retired must stop winning routing decisions.
+
+    `list_candidates()` filters only on `available` and deliberately keeps stale
+    rows routable, so a row that survives a successful refresh untouched stays
+    eligible forever and fails at dispatch.
+    """
+    catalog = AsyncMock()
+    catalog.list_entries.return_value = [
+        {"vendor": "vendor", "model": "vendor/kept", "endpoint_kind": "openrouter"},
+        {"vendor": "vendor", "model": "vendor/dropped", "endpoint_kind": "openrouter"},
+    ]
+    client = AsyncMock()
+    client.get.return_value = _response({"data": [{"id": "vendor/kept"}]})
+    refresher = OpenRouterRefresher(catalog, api_key="secret", client=client)
+
+    result = await refresher.refresh()
+
+    assert result.updated == 1
+    assert result.retired == 1
+    catalog.set_availability.assert_awaited_once_with(
+        "vendor", "vendor/dropped", "openrouter", available=False
+    )
+    # Only rows that are still available are candidates for retirement.
+    assert catalog.list_entries.await_args.kwargs["include_unavailable"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_failed_refresh_never_retires_anything() -> None:
+    """A vendor outage must not empty the catalog."""
+    catalog = AsyncMock()
+    catalog.list_entries.return_value = [
+        {"vendor": "vendor", "model": "vendor/kept", "endpoint_kind": "openrouter"},
+    ]
+    client = AsyncMock()
+    client.get.return_value = _response({"error": "upstream"}, status=503)
+    refresher = OpenRouterRefresher(catalog, api_key="secret", client=client)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await refresher.refresh()
+
+    catalog.set_availability.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_refresh_leaves_other_endpoint_kinds_alone() -> None:
+    """Retirement is scoped to OpenRouter; local rows are probed, not refreshed."""
+    catalog = AsyncMock()
+    catalog.list_entries.return_value = []
+    client = AsyncMock()
+    client.get.return_value = _response({"data": [{"id": "vendor/kept"}]})
+    refresher = OpenRouterRefresher(catalog, api_key="secret", client=client)
+
+    await refresher.refresh()
+
+    assert catalog.list_entries.await_args.kwargs["endpoint_kind"] == "openrouter"

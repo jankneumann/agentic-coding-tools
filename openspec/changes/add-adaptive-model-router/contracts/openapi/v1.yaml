@@ -31,7 +31,7 @@ paths:
         '503':
           $ref: '#/components/responses/RoutingUnavailable'
         '422':
-          $ref: '#/components/responses/Problem'
+          $ref: '#/components/responses/ValidationError'
   /routing/catalog:
     get:
       operationId: listCatalog
@@ -123,6 +123,15 @@ components:
               title: {type: string}
               status: {type: integer}
               detail: {type: string}
+    ValidationError:
+      # FastAPI's default RequestValidationError handler returns `detail` as an
+      # array of validation-error objects, not the string the Problem/HTTPError
+      # schemas declare. Generated clients validating against those would reject
+      # or fail to deserialize an ordinary 422.
+      description: Request body failed validation
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/HTTPValidationError'}
     Unauthorized:
       description: Missing or invalid coordinator API key
       content:
@@ -139,6 +148,28 @@ components:
       required: [detail]
       properties:
         detail: {type: string}
+    ValidationErrorItem:
+      type: object
+      required: [type, loc, msg]
+      properties:
+        type: {type: string}
+        loc:
+          type: array
+          items:
+            oneOf:
+              - {type: string}
+              - {type: integer}
+        msg: {type: string}
+        input: {}
+        ctx: {type: object}
+        url: {type: string}
+    HTTPValidationError:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: array
+          items: {$ref: '#/components/schemas/ValidationErrorItem'}
     EndpointKind:
       type: string
       enum: [vendor-cli, vendor-sdk, openrouter, local]
