@@ -282,14 +282,19 @@ items:
   change_id: judge-transcript-struggle-triage-in-collect-transcripts
   acceptance_outcomes:
   - flagged_for_deep_analysis is set from the corresponding Noul with a config-held
-    threshold; the weighted sum and its 5/10 buckets remain as the fallback and are
-    exercised by a test.
-  - State sent for triage contains only assistant/user/tool-result text from normalize.py's
-    compact event form, with a test asserting tool payloads are excluded and the state
-    stays under the token budget.
-  - The four counters are still computed deterministically and appear unchanged in
-    the triage output schema.
-  - Existing collect-transcripts triage tests pass with the helper stubbed to None.
+    threshold; the weighted sum and its 5/10 buckets remain as the fallback when the
+    helper is unavailable, and are exercised by a test.
+  - A new compaction helper -- not an existing one, normalize.py has none today --
+    filters a session's NormalizedEvents down to only user/assistant/tool-result text
+    content (excluding tool_use's tool_input payload dict), and that filtered state
+    is what is sent for triage; a test asserts tool payloads are excluded and the
+    state stays under the token budget.
+  - The four counters (_count_retries, _count_tool_errors, _count_scope_violations,
+    _count_user_corrections) are still computed deterministically by the same pure
+    functions and appear unchanged in the triage output schema.
+  - Existing collect-transcripts triage tests in skills/collect-transcripts/tests/test_triage.py
+    pass unchanged with the helper stubbed to None (module unavailable), since none
+    of them depend on system_one_decisions and TYPESAFE_API_KEY is unset in CI.
 - item_id: ri-10
   title: Judge implementation strategy selection in autopilot
   status: approved
@@ -734,7 +739,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T20:45:25.582468+00:00'
+updated_at: '2026-09-18T21:08:20.100353+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -929,3 +934,25 @@ refinements:
   base_sha256: 6659a0aad74698d8043a3ad8a4716d027d51a10c6744efa889978cd1b60ef2d8
   operations:
   - edit:ri-08
+- timestamp: '2026-09-18T21:08:20.100353+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'Grounded ri-09 against the real skills/collect-transcripts/scripts/triage.py
+    and normalize.py before implementation (same discipline as ri-04 through ri-14).
+    One correction: the scaffolded acceptance outcome says the compacted transcript
+    sent to triage comes "from normalize.py''s compact event form" as if that already
+    exists. It does not -- normalize.py defines NormalizedEvent/ ContentBlock/EventRole/ContentType
+    with no compaction helper anywhere in the module. Building that helper (filtering
+    to user/assistant/tool-result TEXT content, excluding tool_use''s tool_input payload
+    dict) is this item''s own work, not a reuse of existing machinery. Everything
+    else in the scaffolded outcomes checks out: the four counters (_count_retries/_count_tool_errors/
+    _count_scope_violations/_count_user_corrections) are untouched pure functions;
+    _classify_struggle''s weighted-sum + 5/10 bucket rule is exactly the fallback
+    shape needed (D4-style: unavailable helper -> today''s exact arithmetic, unchanged);
+    and the existing skills/collect-transcripts/tests/ test_triage.py suite calls
+    triage_session()/threshold directly with no system_one_decisions dependency, so
+    it will naturally exercise (and keep passing against) that fallback path since
+    TYPESAFE_API_KEY is unset in CI.'
+  base_sha256: 489811ec6a73144c1860474033765be42c01ae47b8dda54d310d119ba18a7282
+  operations:
+  - edit:ri-09
