@@ -44,75 +44,84 @@
 
 ### Phase 2 — `live` extra and lazy client construction
 
-- [ ] 2.1 Add `[project.optional-dependencies] live = ["typesafe-sdk>=0.7,<1"]`
-  to `packages/system-one-decisions/pyproject.toml`. Run `uv lock` in
-  `packages/system-one-decisions/`.
+- [x] 2.1 Add `[project.optional-dependencies] live = ["typesafe-sdk>=0.7,<1"]`
+  to `packages/system-one-decisions/pyproject.toml` (also added to `dev`,
+  since the test suite constructs real SDK types — design D5). Ran `uv lock`
+  in `packages/system-one-decisions/`.
   **Spec scenarios**: system-one-decisions.Fallback-only-install-succeeds-without-the-live-extra
   **Dependencies**: None (parallel to Phase 1)
-- [ ] 2.2 Write `tests/test_no_sdk_import_outside_package.py`: a grep-style
-  guard scanning every `.py` file in the repository (excluding
-  `packages/system-one-decisions/`) for `typesafe_sdk` import statements;
-  asserts none found. Include the repo's own `.git-worktrees/` and
-  `.venv`/`node_modules` directories in the exclusion list (generated/vendor
-  content, not source).
+- [x] 2.2 Write `tests/test_no_sdk_import_outside_package.py`: an AST-based
+  guard over `git ls-files '*.py'` (not a hand-maintained exclusion list —
+  scoping to git-tracked files excludes `.venv`/`node_modules`/
+  `.git-worktrees` for free, and survives new vendor directories appearing)
+  asserting no file outside `packages/system-one-decisions/` imports
+  `typesafe_sdk`.
   **Spec scenarios**: system-one-decisions.No-other-package-or-skill-imports-the-vendor-SDK
   **Dependencies**: 2.1
-- [ ] 2.3 Write `tests/test_decide_live.py` covering, in order: extra not
-  installed (skip this specific case if `typesafe_sdk` happens to be
-  importable in the test environment, since it's genuinely present there —
-  assert the *logic path* instead by monkeypatching `sys.modules["typesafe_sdk"]
-  = None` to force the `ImportError` branch deterministically); key absent
-  (`monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)`); token budget
-  exceeded (a synthetic `state` whose serialized form exceeds 32,000
-  estimated tokens); network/API failure (a monkeypatched client whose
-  `system_one()` raises `typesafe_sdk.TypeSafeAPIConnectionError` and, in a
-  second case, `typesafe_sdk.TypeSafeAuthenticationError`) — one test per
-  branch, each asserting `decide(...)` returns `None` without raising.
+- [x] 2.3 Write `tests/test_decide_live.py` covering, in order: extra not
+  installed (`monkeypatch.setitem(sys.modules, "typesafe_sdk", None)` to
+  force the `ImportError` branch deterministically, since `typesafe_sdk` is
+  genuinely importable in this dev/test environment via the `dev` extra);
+  key absent (`monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)`); token
+  budget exceeded (a synthetic 200K-char `state`, asserted via a client
+  double that raises `AssertionError` if constructed, proving no network
+  attempt); network/API failure, parametrized over
+  `typesafe_sdk.TypeSafeAPIConnectionError` and
+  `typesafe_sdk.TypeSafeAuthenticationError` (constructed with its real
+  `status`/`body`/`headers` signature) raised from a monkeypatched client's
+  `system_one()` — plus one success-path test proving `decide()` returns the
+  real `response.answers` dict unchanged.
   **Spec scenarios**: system-one-decisions.decide()-returns-None,-never-raises,-on-any-of-four-unavailability-branches
   (all four scenarios)
   **Design decisions**: D1, D4
   **Dependencies**: 2.2
-- [ ] 2.4 Implement `decide()`'s real body in `_core.py` per design D1/D4:
+- [x] 2.4 Implemented `decide()`'s real body in `_core.py` per design D1/D4:
   lazy `import typesafe_sdk` inside the function, the four ordered checks,
   `_get_client()` with `functools.lru_cache(maxsize=1)`, `client.system_one(
-  state=state, questions=questions)`, returning `response.answers` on success.
-  Use the ~4-chars/token heuristic (same formula as
+  state=state, questions=questions)`, returning `response.answers` on
+  success. Token estimate uses the ~4-chars/token heuristic (same formula as
   `skills/autopilot/scripts/token_budget_check.py::_estimate_tokens`,
-  reimplemented locally — no cross-package import, to keep
-  `packages/system-one-decisions` dependency-free of `skills/`) over
+  reimplemented locally, no cross-package import) over
   `json.dumps(state, default=str)` plus the longest question's `repr()`.
   **Dependencies**: 2.3
-- [ ] Checkpoint: run `packages/system-one-decisions/tests/test_decide_live.py`
-  and `test_no_sdk_import_outside_package.py`, confirm green. Confirm
-  `uv sync` (no extras) in a scratch venv still succeeds and `import
-  system_one_decisions` still raises nothing, proving the live extra is truly
-  optional.
+- [x] Checkpoint: `test_decide_live.py` and `test_no_sdk_import_outside_package.py`
+  green. Confirmed a fresh scratch-venv `pip install` with zero extras still
+  succeeds and `decide(...)` returns `None` (no `TYPESAFE_API_KEY` in that
+  venv, extra not installed) without raising — the live extra is truly
+  optional. Also caught and fixed a real test-isolation bug in `ri-01`'s own
+  `test_no_vendor_sdk_imported_at_load_time`: it asserted against this
+  process's `sys.modules`, which sibling test files in this phase now
+  legitimately populate with `typesafe_sdk` (design D5) — rewrote it to run
+  in a subprocess, the only way to check what the assertion actually means.
 
 ### Phase 3 — `event_sink` telemetry on `decide()`
 
-- [ ] 3.1 Write `tests/test_decide_event_sink.py`: a completed call against a
+- [x] 3.1 Write `tests/test_decide_event_sink.py`: a completed call against a
   monkeypatched client (returning a real `SystemOneResponse` built from real
   `Usage`/`ChoiceAnswer`/`NoulAnswer` instances) invokes a supplied
   `event_sink` exactly once with `site`, `latency_ms`, `usage_input_tokens`,
-  `probabilities` matching the mocked response; each of the four
-  unavailability branches from Phase 2 invokes `event_sink` zero times;
-  omitting `event_sink` on a completed call is safe.
+  `probabilities` matching the mocked response (including the `{"noul": ...}`
+  shape for a `NoulAnswer`); each of the four unavailability branches from
+  Phase 2, parametrized, invokes `event_sink` zero times; omitting
+  `event_sink` on a completed call is safe.
   **Spec scenarios**: system-one-decisions.decide()-accepts-an-optional-event_sink,-invoked-once-per-completed-call
   (all three scenarios)
   **Design decisions**: D2
   **Dependencies**: 2.4
-- [ ] 3.2 Add the `event_sink: Callable[[dict[str, Any]], None] | None = None`
-  parameter to `decide()`'s signature; measure latency with
-  `time.monotonic()` around the `client.system_one(...)` call; build the
-  record dict per D2 (handling both `ChoiceAnswer`/`ScoreAnswer`'s
-  `probabilities` and `NoulAnswer`'s scalar `noul` field); invoke
-  `event_sink` once on success only.
+- [x] 3.2 Added the `event_sink: Callable[[dict[str, Any]], None] | None = None`
+  parameter to `decide()`'s signature; latency measured with
+  `time.monotonic()` around the `client.system_one(...)` call; record dict
+  built per D2, handling both `ChoiceAnswer`/`ScoreAnswer`'s `probabilities`
+  and `NoulAnswer`'s scalar `noul` field via `hasattr`; `event_sink` invoked
+  once on success only. (Implemented together with 2.4 in the same edit,
+  since both live in `decide()`'s single control-flow body — tested
+  separately per the task split above.)
   **Dependencies**: 3.1
-- [ ] Checkpoint: run the full `packages/system-one-decisions/tests/` suite,
-  confirm green; review the cumulative diff against `design.md`'s D1-D5;
-  confirm `decide_intent()`'s behavior is byte-for-byte unchanged from `ri-01`
-  (same tests, same assertions) — this item does not touch its acquisition
-  step.
+- [x] Checkpoint: full `packages/system-one-decisions/tests/` suite green
+  (36 passed); `ruff check` and `mypy` both clean. Cumulative diff reviewed
+  against `design.md`'s D1-D5. `decide_intent()`'s own tests
+  (`test_decide_intent.py`, `test_route.py`) pass byte-for-byte unchanged —
+  this item does not touch its acquisition step.
 
 ## Non-goals (out of scope for this item)
 
