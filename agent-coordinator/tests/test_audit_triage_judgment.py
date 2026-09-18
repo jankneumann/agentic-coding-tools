@@ -41,7 +41,9 @@ _SAMPLE_ENTRY: dict[str, Any] = {
 }
 
 
-def _noul_choice_score(module: MagicMock, noul: float, failure_type: str | None, score: float) -> None:
+def _noul_choice_score(
+    module: MagicMock, noul: float, failure_type: str | None, score: float,
+) -> None:
     module.decide.return_value = {
         "capability_gap": {"noul": noul},
         "failure_type": {"choice": failure_type},
