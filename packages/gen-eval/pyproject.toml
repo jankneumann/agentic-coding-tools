@@ -24,6 +24,14 @@ mcp = ["fastmcp>=2.0"]
 sdk = ["anthropic>=0.94", "openai>=1.50"]
 db = ["asyncpg>=0.29"]
 all = ["gen-eval[mcp,sdk,db]"]
+# Shared seam for calibrated System One (TypeSafe Jev) decisions
+# (add-the-shared-system-one-decision-helper-fallback-only). Separate from
+# ``all``: it is a pilot integration point for one gen-eval item
+# (ri-04, the semantic judge), not a general framework capability yet.
+decisions = ["system-one-decisions"]
+
+[tool.uv.sources]
+system-one-decisions = { path = "../system-one-decisions" }
 
 # Console-script entry point (D2). ``gen-eval`` becomes a thin convenience
 # over ``python -m gen_eval`` once the __main__.py lands under wp-framework-move.
