@@ -121,13 +121,13 @@ Create the installable package packages/system-one-decisions (importable as syst
 - **Change ID**: wire-the-live-typesafe-client-thresholds-and-telemetry
 - **Depends on**: `ri-01`
 
-Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions, have the package build the live client from TYPESAFE_API_KEY behind a token-budget guard, and give decide() an optional caller-supplied event_sink (mirroring decide_intent()'s existing one) that receives site, latency, usage.input_tokens and the answered probabilities on every completed call -- whether that reaches Langfuse is left to the caller. Establish the per-site threshold convention: thresholds live in a package-owned data file (packages/system-one-decisions/src/system_one_decisions/config/thresholds.json), loaded by the package itself, never as literals in a scoring module.
+Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions, have the package build the live client from TYPESAFE_API_KEY behind a token-budget guard, and give decide() an optional caller-supplied event_sink (mirroring decide_intent()'s existing one) that receives site, latency, usage_input_tokens and the answered probabilities on every completed call -- whether that reaches Langfuse is left to the caller. Establish the per-site threshold convention: thresholds live in a package-owned data file (packages/system-one-decisions/src/system_one_decisions/config/thresholds.json), loaded by the package itself, never as literals in a scoring module.
 
 **Acceptance outcomes**:
 - [ ] packages/system-one-decisions declares a "live" extra containing typesafe-sdk; the default install of the package and of every consumer still succeeds without it.
 - [ ] typesafe_sdk is imported inside packages/system-one-decisions and nowhere else in the repository, enforced by a grep-style guard test.
 - [ ] decide returns None (never raises) when the live extra isn't installed, the key is absent, the network fails, or serialized state plus the longest question exceeds the 32K-token budget, with one test per branch (four branches).
-- [ ] Each completed call passes site, latency_ms, usage.input_tokens and the per-label probabilities to decide()'s optional event_sink, exactly once; whether a caller forwards that to Langfuse is that caller's own decision, made when it migrates a call site.
+- [ ] Each completed call passes site, latency_ms, usage_input_tokens and the per-label probabilities to decide()'s optional event_sink, exactly once; whether a caller forwards that to Langfuse is that caller's own decision, made when it migrates a call site.
 - [ ] A guard test asserts no float threshold literal is introduced into the package; act_floor/approve_floor defaults resolve from a package-owned packages/system-one-decisions/src/system_one_decisions/config/thresholds.json.
 
 ### ri-03: Add the adapter-backed test substitute and dry-run policy
