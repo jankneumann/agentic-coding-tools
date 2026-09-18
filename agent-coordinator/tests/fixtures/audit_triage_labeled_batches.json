@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "description": "Small labeled set of synthetic audit-log batches for the ri-16 recall-rate check. label=true means the batch would have been flagged by the existing (recall-oriented) v1 prompt as a capability gap; label=false means an ordinary, clean session. Recorded 2026-09-18 alongside the judged first-stage screen.",
+  "cases": [
+    {
+      "id": "case-1",
+      "label": true,
+      "note": "Repeated failed acquire_lock for the same file -- lock contention, no backoff.",
+      "entries": [
+        {"operation": "acquire_lock", "parameters": {"file_path": "src/foo.py"}, "result": {"success": false}, "success": false, "error_message": "Lock held by agent-beta", "duration_ms": 12},
+        {"operation": "acquire_lock", "parameters": {"file_path": "src/foo.py"}, "result": {"success": false}, "success": false, "error_message": "Lock held by agent-beta", "duration_ms": 15},
+        {"operation": "acquire_lock", "parameters": {"file_path": "src/foo.py"}, "result": {"success": false}, "success": false, "error_message": "Lock held by agent-beta", "duration_ms": 14}
+      ]
+    },
+    {
+      "id": "case-2",
+      "label": true,
+      "note": "Guardrail violation followed by a profile denial -- the agent's profile doesn't support the attempted operation.",
+      "entries": [
+        {"operation": "guardrail_violation", "parameters": {"operation_text": "rm -rf /"}, "result": {"blocked": true}, "success": false, "error_message": "destructive command blocked", "duration_ms": 3},
+        {"operation": "profile_denial", "parameters": {"operation": "force_push"}, "result": {"allowed": false}, "success": false, "error_message": "trust level insufficient", "duration_ms": 2}
+      ]
+    },
+    {
+      "id": "case-3",
+      "label": false,
+      "note": "Ordinary successful task claim and completion.",
+      "entries": [
+        {"operation": "claim_task", "parameters": {"task_types": ["implement"]}, "result": {"task_id": "task-1"}, "success": true, "error_message": null, "duration_ms": 40},
+        {"operation": "complete_task", "parameters": {"task_id": "task-1"}, "result": {"success": true}, "success": true, "error_message": null, "duration_ms": 3200}
+      ]
+    },
+    {
+      "id": "case-4",
+      "label": false,
+      "note": "A single successful lock acquire and release, no contention.",
+      "entries": [
+        {"operation": "acquire_lock", "parameters": {"file_path": "src/bar.py"}, "result": {"success": true}, "success": true, "error_message": null, "duration_ms": 8},
+        {"operation": "release_lock", "parameters": {"file_path": "src/bar.py"}, "result": {"success": true}, "success": true, "error_message": null, "duration_ms": 5}
+      ]
+    },
+    {
+      "id": "case-5",
+      "label": true,
+      "note": "Multiple failed complete_task calls for the same task type -- can't meet quality gates.",
+      "entries": [
+        {"operation": "complete_task", "parameters": {"task_id": "task-2"}, "result": {"success": false}, "success": false, "error_message": "tests failed", "duration_ms": 5000},
+        {"operation": "complete_task", "parameters": {"task_id": "task-2"}, "result": {"success": false}, "success": false, "error_message": "tests failed", "duration_ms": 4800}
+      ]
+    }
+  ]
+}
