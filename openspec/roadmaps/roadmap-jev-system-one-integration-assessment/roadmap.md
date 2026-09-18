@@ -2,7 +2,6 @@
 
 > Source: `docs/proposals/jev-system-one-integration-assessment.md` | Status: **approved** | Items: 24
 
-
 <!-- GENERATED: begin phase-table -->
 ## Phase Table
 
@@ -223,11 +222,11 @@ Insert a decision step between a phase sub-agent's return and apply_phase_outcom
 In convergence_loop.converge, ask a round-level Noul("another fix round is likely to reduce blocking findings") and, per blocking finding, Choice(disposition, {fix_now, defer_to_followup, reject_out_of_scope, needs_human}) over the ledger trend, the last fix diff and each item's mark_addressed / reject_out_of_scope_fix history. Route fix_now to fix_callback, defer and reject through the existing ledger calls, and park needs_human.
 
 **Acceptance outcomes**:
-- [ ] max_rounds remains a hard ceiling that no judged answer can extend, asserted by a test where the round Noul stays high.
-- [ ] A replay over recorded ledger trends shows fewer fix dispatches than the stall rule for the same terminal blocking count, with both counts recorded.
-- [ ] defer_to_followup and reject_out_of_scope go through the existing park_item and reject_out_of_scope_fix paths, with no new ledger mutation surface.
-- [ ] needs_human parks the item as a disagreement rather than dispatching a fix, covered by a test.
-- [ ] With the helper returning None the stall rule trend[-1] >= trend[-stall_window] still governs, proven by existing convergence tests passing unchanged.
+- [ ] max_rounds remains a hard ceiling that no judged answer can extend, asserted by a test where the round Noul stays high across every round of a max_rounds-length run.
+- [ ] A replay over a fixture-constructed ledger trend sequence (recorded per-round blocking counts and dispositions) shows fewer fix dispatches than the old stall rule for the same terminal blocking count, with both counts recorded in the replay output; comparing against genuine multi-round production trends is deferred until autopilot persists real trend history from normal runs.
+- [ ] defer_to_followup and reject_out_of_scope both route through the existing park_item(ledger, item, reason=...) call -- the same function needs_human already uses for disagreement -- distinguished only by the reason string passed in, so no new ledger mutation surface is introduced; covered by a test asserting all three dispositions produce a "parked" item via that one function.
+- [ ] needs_human parks the item via park_item(..., reason="disagreement") rather than dispatching a fix, covered by a test.
+- [ ] With the helper returning None, every blocking item defaults to fix_now and the stall rule trend[-1] >= trend[-stall_window] still governs exactly as before, proven by the existing convergence tests in skills/autopilot/scripts/tests/test_convergence_loop.py and skills/tests/autopilot/test_convergence_loop.py passing unchanged.
 
 ### ri-09: Judge transcript struggle triage in collect-transcripts
 
