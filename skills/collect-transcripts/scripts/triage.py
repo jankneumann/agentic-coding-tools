@@ -24,6 +24,7 @@ import json
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -31,6 +32,15 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from normalize import ContentType, EventRole, NormalizedEvent  # noqa: E402
+
+# Per system_one_decisions.testing's documented stubbing rule: import the
+# module, never a pre-bound name, so a monkeypatched `decide` attribute is
+# what this code actually calls.
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +60,10 @@ class TriageScore:
     struggle_level: str = "none"  # none | low | medium | high
     composite_score: float = 0.0
     flagged_for_deep_analysis: bool = False
+    # Judged fields (D1): None when the judgment is unavailable, never
+    # guessed from the deterministic counters.
+    redirected_by_user: bool | None = None
+    out_of_scope_work: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -163,6 +177,132 @@ def _classify_struggle(
 
 
 # ---------------------------------------------------------------------------
+# Judged classification (D1-D4)
+# ---------------------------------------------------------------------------
+
+_STRUGGLE_LEVELS = ("none", "low", "medium", "high")
+
+_STRUGGLE_LEVEL_CRITERIA = {
+    "none": "No struggle signals -- the session proceeded cleanly.",
+    "low": "Minor friction -- a retry or a single easily-resolved error.",
+    "medium": "Moderate struggle -- repeated errors or a real correction.",
+    "high": "Significant struggle -- the agent was clearly stuck or lost.",
+}
+
+_COMPACT_CONTENT_TYPES = (ContentType.TEXT, ContentType.THINKING, ContentType.TOOL_RESULT)
+_COMPACT_ROLES = (EventRole.USER, EventRole.ASSISTANT, EventRole.TOOL)
+
+
+def _compact_transcript(
+    events: list[NormalizedEvent],
+    *,
+    max_chars: int = 8000,
+) -> str:
+    """Reduce a session's events to text a struggle judgment can read.
+
+    Keeps only user/assistant/tool-result text content -- never a
+    ``tool_use`` block's ``tool_input`` payload dict (that's the "tool
+    payload" this helper must exclude). Truncates to *max_chars* from the
+    end: the most recent turns are likeliest to explain a struggle.
+    """
+    lines: list[str] = []
+    for event in events:
+        if event.role not in _COMPACT_ROLES:
+            continue
+        for block in event.content:
+            if block.type not in _COMPACT_CONTENT_TYPES:
+                continue
+            if not block.text:
+                continue
+            lines.append(f"[{event.role.value}] {block.text}")
+    text = "\n".join(lines)
+    if len(text) > max_chars:
+        text = "...(truncated)\n" + text[-max_chars:]
+    return text
+
+
+def _answer_field(answer: Any, name: str, default: Any = None) -> Any:
+    """Read a field off a real SDK answer object or a plain dict/mapping."""
+    if isinstance(answer, dict):
+        return answer.get(name, default)
+    return getattr(answer, name, default)
+
+
+def _classify_session(
+    counters: dict[str, int],
+    transcript: str,
+    *,
+    session_id: str,
+) -> dict[str, Any]:
+    """Ask one calibrated judgment for this session's classification.
+
+    Returns ``{}`` on any unavailability (module missing, ``decide()``
+    returns no usable answer) -- never raises, never guesses. Callers read
+    individual fields with ``.get(name, default)``.
+    """
+    if system_one_decisions is None:
+        return {}
+
+    state = {"counters": dict(counters), "transcript": transcript}
+    questions = {
+        "struggle_level": {
+            "type": "choice",
+            "instructions": (
+                "Given the signal counts and transcript excerpt, how much "
+                "did the agent struggle in this session?"
+            ),
+            "criteria": _STRUGGLE_LEVEL_CRITERIA,
+        },
+        "deep_analysis": {
+            "type": "noul",
+            "instructions": "Does this session warrant deep analysis?",
+        },
+        "user_redirected": {
+            "type": "noul",
+            "instructions": "Did the user have to redirect the agent?",
+        },
+        "out_of_scope": {
+            "type": "noul",
+            "instructions": "Did the agent do out-of-scope work?",
+        },
+    }
+
+    answers = system_one_decisions.decide(
+        state, questions, site="collect-transcripts.triage",
+    )
+    if not answers:
+        return {}
+
+    result: dict[str, Any] = {}
+
+    struggle_answer = answers.get("struggle_level") if hasattr(answers, "get") else None
+    if struggle_answer is not None:
+        level = _answer_field(struggle_answer, "choice")
+        if level in _STRUGGLE_LEVELS:
+            result["struggle_level"] = level
+
+    deep_analysis_answer = answers.get("deep_analysis") if hasattr(answers, "get") else None
+    if deep_analysis_answer is not None:
+        p = _answer_field(deep_analysis_answer, "noul")
+        if isinstance(p, (int, float)):
+            result["flagged_for_deep_analysis"] = bool(p >= 0.5)
+
+    redirected_answer = answers.get("user_redirected") if hasattr(answers, "get") else None
+    if redirected_answer is not None:
+        p = _answer_field(redirected_answer, "noul")
+        if isinstance(p, (int, float)):
+            result["redirected_by_user"] = bool(p >= 0.5)
+
+    out_of_scope_answer = answers.get("out_of_scope") if hasattr(answers, "get") else None
+    if out_of_scope_answer is not None:
+        p = _answer_field(out_of_scope_answer, "noul")
+        if isinstance(p, (int, float)):
+            result["out_of_scope_work"] = bool(p >= 0.5)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Triage engine
 # ---------------------------------------------------------------------------
 
@@ -203,6 +343,24 @@ def triage_session(
     struggle_level, composite_score = _classify_struggle(
         retry_count, tool_error_count, scope_violation_count, user_correction_count
     )
+    flagged_for_deep_analysis = composite_score >= threshold
+
+    # D1/D4: ask the judgment; unavailable/partial answers leave the
+    # deterministic values above untouched field by field.
+    judged = _classify_session(
+        {
+            "retry_count": retry_count,
+            "tool_error_count": tool_error_count,
+            "scope_violation_count": scope_violation_count,
+            "user_correction_count": user_correction_count,
+        },
+        _compact_transcript(events),
+        session_id=session_id,
+    )
+    struggle_level = judged.get("struggle_level", struggle_level)
+    flagged_for_deep_analysis = judged.get(
+        "flagged_for_deep_analysis", flagged_for_deep_analysis
+    )
 
     return TriageScore(
         session_id=session_id,
@@ -214,7 +372,9 @@ def triage_session(
         user_correction_count=user_correction_count,
         struggle_level=struggle_level,
         composite_score=composite_score,
-        flagged_for_deep_analysis=composite_score >= threshold,
+        flagged_for_deep_analysis=flagged_for_deep_analysis,
+        redirected_by_user=judged.get("redirected_by_user"),
+        out_of_scope_work=judged.get("out_of_scope_work"),
     )
 
 

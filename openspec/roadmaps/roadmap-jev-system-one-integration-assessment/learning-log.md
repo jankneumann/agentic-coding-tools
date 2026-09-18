@@ -10,3 +10,4 @@
 | ri-06 | implementation | One line before `return outcome` calls gatekeeper_shadow.shadow_gatekeeper_judgm |
 | ri-07 | implementation | Applied ri-06's own Codex-caught lesson proactively: build_outcome_adjudication_ |
 | ri-14 | implementation | The scaffolded acceptance outcome named reject_out_of_scope_fix as the existing  |
+| ri-09 | implementation | The scaffolded acceptance outcome claimed normalize.py already had a 'compact ev |
