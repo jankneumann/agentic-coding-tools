@@ -115,6 +115,26 @@ records nothing. No shadow entry is better than a fabricated one — the same
 principle `ri-05`'s Jaccard fallback and `ri-06`'s unavailability branches
 already established.
 
+**Revised after Codex review (PR #592, both P2):**
+
+- `_read_local_handoff`'s glob prefix originally lowercased the raw phase
+  constant (`"IMPLEMENT"` → `"implement"`). Codex read the real handoff
+  writer (`handoff_builder._phase_name_for`, which maps `"IMPLEMENT"` to
+  the human-readable `"Implementation"` before `PhaseRecord._phase_slug()`
+  lowercases it) and found the actual files are named
+  `"implementation-<n>.json"`, `"validation-<n>.json"`, etc. — the naive
+  slug never matched any real local-fallback file for IMPLEMENT,
+  IMPL_REVIEW, VALIDATE, VAL_REVIEW, PLAN_ITERATE, or IMPL_ITERATE. Fixed
+  by importing `handoff_builder._BASE_PHASE_NAMES`/`_ITERATION_PHASES`
+  directly and deriving the glob prefix from the same mapping the writer
+  uses (`_handoff_slug_prefix`), rather than duplicating it.
+- `_expected_outcomes_for_phase("VAL_REVIEW")` was missing `"max_iter"`,
+  even though `autopilot.TRANSITIONS["VAL_REVIEW"]` has always allowed it
+  — a pre-existing bug in a dict this item is the first to treat as an
+  exhaustive Choice criteria set. A real `max_iter` claim had no matching
+  criterion, forcing an artificial disagreement. Fixed directly in
+  `_expected_outcomes_for_phase`.
+
 ### D4 — Shared shadow-record envelope, reused from `ri-06`
 
 `gatekeeper_shadow.record_shadow_judgment`'s envelope

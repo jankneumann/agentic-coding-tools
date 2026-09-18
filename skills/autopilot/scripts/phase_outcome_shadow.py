@@ -40,7 +40,36 @@ from gatekeeper_shadow import (  # noqa: E402
     _shadow_entry_dict,
 )
 
+# Reuse the SAME phase-name mapping the real handoff writer uses (Codex
+# review, PR #592, P2): PhaseRecord._phase_slug() lowercases+hyphenates
+# handoff_builder._phase_name_for()'s human-readable name -- "IMPLEMENT"
+# writes "implementation-<n>.json", not "implement-<n>.json". Deriving the
+# glob prefix from a naive lowercase of the raw phase constant silently
+# missed every local-fallback file for IMPLEMENT/IMPL_REVIEW/VALIDATE/
+# VAL_REVIEW/PLAN_ITERATE/IMPL_ITERATE.
+try:
+    from handoff_builder import _BASE_PHASE_NAMES, _ITERATION_PHASES
+except ImportError:
+    _BASE_PHASE_NAMES = {}
+    _ITERATION_PHASES = {}
+
 _SHADOW_PHASE = "PHASE_OUTCOME_SHADOW"
+
+
+def _handoff_slug_prefix(phase: str) -> str:
+    """The glob prefix a local-fallback handoff file for *phase* starts with.
+
+    Iteration phases (PLAN_ITERATE, IMPL_ITERATE) embed the iteration count
+    in their human-readable name (e.g. "Plan Iteration 3"), which this
+    function doesn't have access to -- it returns just the fixed prefix
+    ("plan-iteration"), matched against the filesystem with a wildcard
+    glob, so the exact iteration number doesn't need to be known here.
+    """
+    if phase in _ITERATION_PHASES:
+        name = _ITERATION_PHASES[phase]
+    else:
+        name = _BASE_PHASE_NAMES.get(phase, phase)
+    return name.lower().replace(" ", "-")
 
 
 def git_diff_stat(worktree_path: Path) -> str | None:
@@ -96,12 +125,14 @@ def read_local_handoff(
     sub-agent's own coordinator write failed. `handoff_id` is accepted for
     a future exact match but not required today; absence of a match (no
     handoffs directory, no file for this phase's slug, or a parse failure)
-    degrades to `None`.
+    degrades to `None`. The slug prefix mirrors the real writer's naming
+    (`_handoff_slug_prefix`), not a naive lowercase of the raw phase
+    constant.
     """
     handoffs_dir = change_dir / "handoffs"
     if not handoffs_dir.is_dir():
         return None
-    phase_slug = phase.lower().replace(" ", "-").replace("_", "-")
+    phase_slug = _handoff_slug_prefix(phase)
     candidates = sorted(handoffs_dir.glob(f"{phase_slug}-*.json"))
     if not candidates:
         return None
