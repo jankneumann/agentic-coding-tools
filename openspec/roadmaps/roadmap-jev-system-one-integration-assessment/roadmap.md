@@ -15,10 +15,10 @@
 | 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | completed | ri-03, ri-04 |
 | 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | completed | ri-05 |
 | 1 | Adjudicate phase outcomes in shadow mode | L | completed | ri-06 |
-| 2 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
 | 2 | Route review convergence on per-finding dispositions | L | approved | ri-05 |
 | 3 | Judge transcript struggle triage in collect-transcripts | M | approved | ri-05 |
 | 3 | Judge implementation strategy selection in autopilot | S | approved | ri-05 |
+| 3 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
 | 3 | Judge multi-vendor review eligibility for pull requests | M | approved | ri-05 |
 | 3 | Screen fact-check grounds with a first-stage judged pass | L | approved | ri-05 |
 | 3 | Add a judged first stage to coordinator audit triage | M | approved | ri-05 |
@@ -47,9 +47,9 @@ graph TD
     ri-05["Judge cross-vendor finding matching in c"]
     ri-06["Run the GATEKEEPER as a scored decision "]
     ri-07["Adjudicate phase outcomes in shadow mode"]
-    ri-08["Promote shadow judgments to acting decis"]
     ri-09["Judge transcript struggle triage in coll"]
     ri-10["Judge implementation strategy selection "]
+    ri-08["Promote shadow judgments to acting decis"]
     ri-11["Judge multi-vendor review eligibility fo"]
     ri-12["Judge decision-tag backfill in explore-f"]
     ri-13["Judge fix-tier classification in fix-scr"]
@@ -71,10 +71,10 @@ graph TD
     ri-04 --> ri-05
     ri-05 --> ri-06
     ri-06 --> ri-07
-    ri-06 --> ri-08
-    ri-07 --> ri-08
     ri-05 --> ri-09
     ri-05 --> ri-10
+    ri-06 --> ri-08
+    ri-07 --> ri-08
     ri-05 --> ri-11
     ri-05 --> ri-12
     ri-05 --> ri-13
@@ -212,23 +212,6 @@ Insert a decision step between a phase sub-agent's return and apply_phase_outcom
 - [ ] A disagreement-attribution mechanism records which side (claimed or judged) the next review round's findings vindicated, and is exercised by a fixture-constructed shadow period with at least one disagreement of each kind; attributing disagreements over a real sprint of recorded autopilot runs is deferred until that much production shadow data exists.
 - [ ] The adjudication helper being unavailable (module missing, decide() returns None, or no handoff record and no other signal to adjudicate) records nothing and leaves the claimed outcome and transition() unaffected, mirroring ri-06's own shadow-judgment degradation precedent rather than GATEKEEPER's unrelated record_degraded acting-decision marker; covered by a test.
 
-### ri-08: Promote shadow judgments to acting decisions
-
-- **Status**: approved
-- **Priority**: 2
-- **Effort**: M
-- **Change ID**: promote-shadow-judgments-to-acting-decisions
-- **Depends on**: `ri-06`, `ri-07`
-
-Using the shadow-period measurements, flip both sites to act: the gate outcome is computed from the calibrated scores with operator-set thresholds, and phase-outcome adjudication applies the switch rule (agreement above act_floor proceeds; disagreement lets the judged label win above approve_floor, otherwise escalate with both labels in the evidence). Retire the premium-tier gatekeeper dispatch.
-
-**Acceptance outcomes**:
-- [ ] Promotion is gated on the recorded shadow disagreement rate and vindication split, both cited in the change's rationale with the thresholds chosen from them.
-- [ ] A test asserts that claimed/judged disagreement below approve_floor transitions to escalate with both labels present in the escalation evidence.
-- [ ] The premium-tier GATEKEEPER archetype dispatch is removed from the autopilot run path and complexity_gate.default_gate_verdict remains the headless fallback, covered by a headless-run test.
-- [ ] Per-run judged-call cost for a reference autopilot run is recorded and is under one cent.
-- [ ] Every promoted decision reaching a report carries evidence_class "judgment" and its probability; no deterministic gate is bypassed, asserted by the scope-safety floor tests.
-
 ### ri-14: Route review convergence on per-finding dispositions
 
 - **Status**: approved
@@ -277,6 +260,23 @@ Replace the four-criterion weighted sum in implementation_strategy_selector with
 - [ ] Confidence below the config-held floor yields lead_review, asserted by a stubbed-decision test.
 - [ ] The vendor-count gate still forces lead_review when fewer than three vendors are available, regardless of the judged label.
 - [ ] The existing weighted-sum selector remains reachable as the fallback and its current tests pass unchanged.
+
+### ri-08: Promote shadow judgments to acting decisions
+
+- **Status**: approved
+- **Priority**: 3
+- **Effort**: M
+- **Change ID**: promote-shadow-judgments-to-acting-decisions
+- **Depends on**: `ri-06`, `ri-07`
+
+Using the shadow-period measurements, flip both sites to act: the gate outcome is computed from the calibrated scores with operator-set thresholds, and phase-outcome adjudication applies the switch rule (agreement above act_floor proceeds; disagreement lets the judged label win above approve_floor, otherwise escalate with both labels in the evidence). Retire the premium-tier gatekeeper dispatch.
+
+**Acceptance outcomes**:
+- [ ] Promotion is gated on the recorded shadow disagreement rate and vindication split, both cited in the change's rationale with the thresholds chosen from them.
+- [ ] A test asserts that claimed/judged disagreement below approve_floor transitions to escalate with both labels present in the escalation evidence.
+- [ ] The premium-tier GATEKEEPER archetype dispatch is removed from the autopilot run path and complexity_gate.default_gate_verdict remains the headless fallback, covered by a headless-run test.
+- [ ] Per-run judged-call cost for a reference autopilot run is recorded and is under one cent.
+- [ ] Every promoted decision reaching a report carries evidence_class "judgment" and its probability; no deterministic gate is bypassed, asserted by the scope-safety floor tests.
 
 ### ri-11: Judge multi-vendor review eligibility for pull requests
 
