@@ -1540,6 +1540,16 @@ def _phase_gatekeeper(
         )
 
     state.gate_verdict = outcome
+
+    # Shadow judgment runs immediately once the acting verdict is fixed, and
+    # strictly before any branch below that can return early (the escalation
+    # approval gate parking BLOCKED). Every GATEKEEPER run gets a shadow
+    # record regardless of which exit path the acting verdict takes -- a
+    # Codex review finding on PR #591 caught the escalate-and-park path
+    # skipping it when the call lived after this block.
+    if shadow_gatekeeper_judgment is not None:
+        shadow_gatekeeper_judgment(state, change_dir, acting_verdict=outcome)
+
     if outcome == "proceed_with_review":
         state.val_review_enabled = True
     elif outcome == "escalate":
@@ -1568,9 +1578,6 @@ def _phase_gatekeeper(
             state,
             "GATEKEEPER judged the change unverifiable or too risky for autonomous execution",
         )
-
-    if shadow_gatekeeper_judgment is not None:
-        shadow_gatekeeper_judgment(state, change_dir, acting_verdict=outcome)
 
     return outcome
 

@@ -105,6 +105,43 @@
   tests, `ruff check` clean, confirmed `test_host_assisted_invariant.py`
   still passes with the new reporting script present.
 
+### Phase 4 — Codex-review revision (PR #591)
+
+- [x] 4.1 Extracted `build_shadow_entry(gate_signals, change_dir, *,
+  acting_verdict) -> dict | None` as a pure function with no `LoopState`
+  dependency; `shadow_gatekeeper_judgment` is now a thin wrapper over it.
+  **Design decisions**: D1
+  **Dependencies**: None
+- [x] 4.2 Wired `phase_agent.apply_phase_outcome` to call
+  `build_shadow_entry` and append the result to its own raw-dict
+  `phase_history` on the non-replay path, when `phase == "GATEKEEPER"`; new
+  `change_dir` parameter threaded from `runner.py`'s `_cmd_apply_outcome`
+  (P1 -- the real host-driven GATEKEEPER dispatch protocol never calls
+  `_phase_gatekeeper` at all).
+  **Design decisions**: D1
+  **Dependencies**: 4.1
+- [x] 4.3 Moved the shadow call in `_phase_gatekeeper` from immediately
+  before `return outcome` to immediately after `state.gate_verdict =
+  outcome`, so the escalation approval gate's BLOCKED early return
+  (`gates.park(...)`) can no longer skip it (P2).
+  **Design decisions**: D1
+  **Dependencies**: None
+- [x] 4.4 `load_shadow_thresholds` now validates `isinstance(raw, dict)` and
+  wraps each field's `float(...)` coercion so a malformed sidecar degrades
+  to defaults instead of raising into a real GATEKEEPER phase exception
+  (P2).
+  **Design decisions**: D3
+  **Dependencies**: None
+- [x] 4.5 Regression tests: `test_shadow_entry_recorded_even_when_escalation_gate_parks`,
+  `TestLoadShadowThresholdsMalformedSidecar` (3 tests), and
+  `TestApplyPhaseOutcomeShadowWiring` (4 tests, including a replay test
+  proving no duplicate entry and no extra `decide()` call).
+  **Dependencies**: 4.1, 4.2, 4.3, 4.4
+- [x] Checkpoint: ran the full `skills/autopilot` + `skills/tests/autopilot`
+  suite (643 passed, same 2 pre-existing unrelated failures), `ruff check`
+  clean, both invariant tests (`test_host_assisted_invariant.py`,
+  `test_no_sdk_import_outside_package.py`) still pass.
+
 ## Non-goals (out of scope for this item)
 
 - Promoting the shadow verdict to the acting decision (`ri-08`).

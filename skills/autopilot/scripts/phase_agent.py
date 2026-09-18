@@ -57,6 +57,16 @@ if str(_BRIDGE_SCRIPTS) not in sys.path:
 import coordination_bridge  # type: ignore[import-not-found]  # noqa: E402
 from phase_record import PhaseRecord  # noqa: E402
 
+# GATEKEEPER shadow judgment (roadmap ri-06). Guarded: apply_phase_outcome
+# must keep working even if this sibling module is unavailable for some
+# reason -- the shadow record is strictly observational.
+if str(_THIS_DIR) not in sys.path:
+    sys.path.insert(0, str(_THIS_DIR))
+try:
+    import gatekeeper_shadow  # type: ignore[import-not-found]
+except ImportError:
+    gatekeeper_shadow = None  # type: ignore[assignment]
+
 # ---------------------------------------------------------------------------
 # Per-phase runtime config
 # ---------------------------------------------------------------------------
@@ -1116,8 +1126,20 @@ def apply_phase_outcome(
     handoff_id: str,
     *,
     allow_phase_mismatch: bool = False,
+    change_dir: Path | None = None,
 ) -> None:
     """Update loop-state.json after a phase sub-agent returns (D4).
+
+    ``change_dir`` (roadmap ri-06): on the non-replay path, when *phase* is
+    ``"GATEKEEPER"``, also builds and appends a ``"GATEKEEPER_SHADOW"``
+    ``phase_history`` entry via ``gatekeeper_shadow.build_shadow_entry`` --
+    the real host-driven GATEKEEPER dispatch protocol
+    (``skills/autopilot/SKILL.md`` Step 1.5: ``build-dispatch`` /
+    ``apply-outcome``) never calls the Python-level ``_phase_gatekeeper``, so
+    this is the only place a production run can record shadow data (Codex
+    review, PR #591, P1). Replay-safe: the shadow judgment is skipped
+    entirely on the replay path above, so a retried ``apply-outcome`` call
+    never doubles the ``decide()`` call count or the shadow record.
 
     **No-transition contract (design D1 Layer A / Task 3):** this function
     updates ONLY the fields it owns — ``last_handoff_id``, ``handoff_ids``
@@ -1272,6 +1294,17 @@ def apply_phase_outcome(
         "outcome": outcome,
         "at": _now_iso(),
     })
+
+    if phase == "GATEKEEPER" and gatekeeper_shadow is not None:
+        gate_signals = state.get("gate_signals")
+        shadow_entry = gatekeeper_shadow.build_shadow_entry(
+            gate_signals if isinstance(gate_signals, dict) else {},
+            change_dir,
+            acting_verdict=outcome,
+        )
+        if shadow_entry is not None:
+            history.append(shadow_entry)
+
     state["phase_history"] = history
 
     _save_state(state_path, state)
