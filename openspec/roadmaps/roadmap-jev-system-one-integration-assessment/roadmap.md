@@ -14,7 +14,7 @@
 | 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | completed | ri-03, ri-04 |
 | 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | completed | ri-05 |
 | 1 | Adjudicate phase outcomes in shadow mode | L | completed | ri-06 |
-| 2 | Route review convergence on per-finding dispositions | L | approved | ri-05 |
+| 2 | Route review convergence on per-finding dispositions | L | completed | ri-05 |
 | 3 | Judge transcript struggle triage in collect-transcripts | M | approved | ri-05 |
 | 3 | Judge implementation strategy selection in autopilot | S | approved | ri-05 |
 | 3 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
@@ -213,7 +213,7 @@ Insert a decision step between a phase sub-agent's return and apply_phase_outcom
 
 ### ri-14: Route review convergence on per-finding dispositions
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 2
 - **Effort**: L
 - **Change ID**: route-review-convergence-on-per-finding-dispositions

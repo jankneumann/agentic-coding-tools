@@ -354,6 +354,8 @@ items:
   - Every promoted decision reaching a report carries evidence_class "judgment" and
     its probability; no deterministic gate is bypassed, asserted by the scope-safety
     floor tests.
+  learning_refs:
+  - ri-06
 - item_id: ri-11
   title: Judge multi-vendor review eligibility for pull requests
   status: approved
@@ -431,7 +433,7 @@ items:
     tests pass with the helper stubbed to None.
 - item_id: ri-14
   title: Route review convergence on per-finding dispositions
-  status: approved
+  status: completed
   priority: 2
   effort: L
   depends_on:
@@ -732,7 +734,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T20:34:21.661390+00:00'
+updated_at: '2026-09-18T20:45:25.582468+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -907,3 +909,23 @@ refinements:
   base_sha256: 06682d01a21b85580cfa8415ec2196758a83754325a41a5f0e6c789d16b863e5
   operations:
   - edit:ri-14
+- timestamp: '2026-09-18T20:45:25.582468+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: Completing ri-14's bookkeeping ran replan() for the first time since
+    ri-06 completed (the manual grounding-driven bookkeeping for ri-06/ri-07/the ri-08
+    deferral never called it). replan() is a deterministic recommendation- text scanner
+    with no awareness of the user's confirmed decision -- it found ri-06's learning-entry
+    recommendation ("ri-08's promotion decision should read the real disagreement
+    rate ... once a real shadow period has run") mentions ri-08, and boosted ri-08's
+    priority 3 -> 2, which puts ri-08 back at the very top of the ready queue (ahead
+    of ri-09/ri-10/ri-11), silently undoing the deferral the user explicitly confirmed
+    via AskUserQuestion on 2026-09-18. The recommendation text is not new evidence
+    -- it is itself restating the exact precondition (real shadow-period data) the
+    deferral is waiting on -- so honoring the boost would be self-contradictory. Reverting
+    the priority back to 3 preserves the user's still-standing decision; the learning_refs
+    backlink replan() added is left in place since it is accurate context, not the
+    problem.
+  base_sha256: 6659a0aad74698d8043a3ad8a4716d027d51a10c6744efa889978cd1b60ef2d8
+  operations:
+  - edit:ri-08
