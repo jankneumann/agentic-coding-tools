@@ -118,25 +118,37 @@ items:
   effort: M
   depends_on:
   - ri-03
-  description: Rewrite gen_eval.semantic_judge.evaluate_semantic to ask one Noul("The
-    actual output satisfies the criteria") over {criteria, actual_output}, using noul
-    as the confidence that min_confidence already thresholds, and call the existing
-    LLM prompt only on failures that need a human-readable reasoning string.
+  description: 'Rewrite gen_eval.semantic_judge.evaluate_semantic to call system_one_decisions.decide(state={criteria,
+    actual_output}, questions={"satisfies": Noul(...)}, site="gen_eval.semantic_judge"),
+    gate pass/fail on the returned noul against the existing min_confidence threshold,
+    return the module''s existing skip result when decide() returns None (unavailable
+    extra, missing key, over budget, or any live-call error) or when system_one_decisions
+    itself isn''t installed, and invoke the existing LLM backend prompt only to produce
+    human-readable reasoning prose for items that fail the threshold. Cohen''s-kappa
+    validation against a human-labelled set is out of scope for this item (see rationale)
+    and is tracked as a follow-up once a real labelled or mined benchmark corpus exists.'
   rationale: 'Pilot step 1: the smallest surface in the proposal, already carrying
-    skip semantics when the backend is unavailable. It is also the site where the
-    active calibrate-llm-judge-against-human-labels change supplies a 40-item human-labelled
-    set, so this item is where the kappa bar is first paid rather than assumed.'
+    skip semantics when the backend is unavailable. The kappa-calibration bar originally
+    planned for this item is deferred per user decision (see this refinement''s own
+    rationale) since the human-labelled set it depends on does not yet exist; a mined-benchmark
+    follow-up is the intended real replacement.'
   change_id: replace-the-gen-eval-semantic-judge-with-a-calibrated-noul
   acceptance_outcomes:
-  - evaluate_semantic scores the 40-item human-labelled set from calibrate-llm-judge-against-human-labels
-    and reaches Cohen's kappa >= 0.7 on the judged dimension; the measured kappa is
-    recorded in the change's artifacts.
-  - min_confidence gates on noul with no signature change, and existing semantic_judge
-    tests pass unmodified.
-  - When the decision helper returns None the module still returns its existing skip
-    result, covered by a test.
-  - Reasoning prose is produced by an LLM only for items that fail the threshold,
-    asserted by a test counting LLM invocations on an all-pass batch (zero).
+  - evaluate_semantic calls system_one_decisions.decide() with one Noul question over
+    state={criteria, actual_output} and site="gen_eval.semantic_judge"; Cohen's-kappa
+    measurement against a human-labelled set is deferred, not an acceptance bar for
+    this item.
+  - min_confidence gates on the returned noul value with no signature change to evaluate_semantic;
+    its test suite is adapted using system_one_decisions.testing.stub_decide to stub
+    decide()'s return value for the pass/fail path (replacing the old backend-JSON-driven
+    mocks), and continues to cover a high-confidence pass, a below-threshold fail,
+    and an unavailable-backend skip.
+  - When decide() returns None -- whether from one of its own unavailability branches,
+    or because system_one_decisions is not installed at all -- evaluate_semantic returns
+    its existing skip result, covered by a test for each path.
+  - Reasoning prose is produced by the existing LLM backend prompt only for items
+    whose noul confidence fails the min_confidence threshold, asserted by a test counting
+    backend.run() invocations on an all-pass batch (zero).
 - item_id: ri-05
   title: Judge cross-vendor finding matching in consensus_synthesizer
   status: approved
@@ -691,7 +703,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T13:39:51.805856+00:00'
+updated_at: '2026-09-18T17:30:17.174683+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -740,3 +752,28 @@ refinements:
   base_sha256: f14b34d0348094349542c7802b86f30185d4b5e0f59624b6e01b1bcf0269c395
   operations:
   - edit:ri-03
+- timestamp: '2026-09-18T17:30:17.174683+00:00'
+  actor: claude-code
+  source: user-request-do-1-defer-kappa
+  rationale: 'Escalated to the user: ri-04''s first acceptance outcome required scoring
+    a "40-item human-labelled set from calibrate-llm-judge-against-human-labels" and
+    reporting Cohen''s kappa >= 0.7, but that dataset does not exist -- calibrate-llm-judge-against-human-labels
+    is an unimplemented scaffold belonging to a different roadmap (skill-rightsizing),
+    itself blocked on that roadmap''s own ri-05, and no real cross-roadmap external_depends_on
+    edge was ever declared to gate on it. The user chose to implement ri-04''s Noul-based
+    rewrite now and defer the kappa measurement (tracked separately once a real labelled/benchmark
+    corpus exists), rather than fabricate a dataset or silently drop the calibration
+    requirement.
+
+    Separately, reading the real current gen_eval.semantic_judge.py and its test suite
+    (packages/gen-eval/tests/test_semantic_eval.py) before writing any code showed
+    the second acceptance outcome''s "existing semantic_judge tests pass unmodified"
+    is not achievable as worded: evaluate_semantic''s current tests drive pass/fail/confidence
+    entirely from the mocked backend.run() JSON response, but the rewrite makes system_one_decisions''s
+    noul (via decide()) the source of confidence and gates pass/fail on it -- the
+    backend is now called only to obtain reasoning prose on failures. The outcome
+    is corrected to describe adapting those tests with system_one_decisions.testing.stub_decide
+    (built in ri-03 for exactly this purpose) rather than claiming they are untouched.'
+  base_sha256: 2abaa8be54d9c852b3196ed0170fb44eb99794b705f3d666206e200054556d0f
+  operations:
+  - edit:ri-04
