@@ -41,12 +41,17 @@
   **Dependencies**: None
 - [x] 2.3 Implemented `_judge_pairs`.
   **Dependencies**: 2.2
-- [x] 2.4 Rewired `ConsensusSynthesizer._match_all`: fast path first (no call);
-  same-file+axis fast-path misses batched per (primary, other_vendor)
-  comparison through `_judge_pairs` when available (see design.md's noted
-  narrow priority-ordering difference from the pre-judgment algorithm);
-  Jaccard fallback for judged-ineligible or judged-unavailable pairs. Set
-  `FindingMatch.basis = "judged"` for judged-path matches.
+- [x] 2.4 Rewired `ConsensusSynthesizer._match_all` around a merge model
+  (every finding starts as its own live primary; matches merge the loser
+  into the winner): fast path first (no call); every same-file, same-axis
+  pair still live is judged in exactly one `decide()` call *per file*,
+  spanning every primary and vendor on that file at once; Jaccard fallback
+  for judged-ineligible or judged-unavailable pairs. `FindingMatch` gained
+  `judged_vendors: set[str]` so evidence-class derivation cannot depend on
+  vendor iteration order. Revised from a first cut that batched only per
+  (primary, other_vendor) and used a single overwritable `basis` field,
+  after Codex review on PR #590 caught both as real defects (see design.md's
+  "Revised after Codex review" note).
   **Design decisions**: D1, D2, D3
   **Dependencies**: 2.1, 2.3
 - [x] 2.5 `_consensus_evidence_class`: `match.basis == "judged"` returns

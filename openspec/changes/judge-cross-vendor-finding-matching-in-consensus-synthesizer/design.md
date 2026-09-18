@@ -121,22 +121,30 @@ what makes the call-count test ("fast-path pairs issue no call") meaningful:
 a file with zero eligible pairs never triggers a call, and a file with five
 eligible pairs triggers exactly one.
 
-**Implementation note (scope actually shipped):** `_match_all`'s existing
-loop structure resolves one other-vendor's candidates per primary finding
-at a time (`for f in findings: for other_vendor in vendors: ...`), so the
-call this item ships batches every judgeable candidate a *given primary*
-has against a *given other vendor* — one call per (primary, other_vendor)
-pair, not a single call spanning every primary on a file across the whole
-run. In the realistic case (one primary judged against several same-file
-candidates from one other vendor — the shape both the call-count test and
-the fixture-replay test use) this is exactly one call, matching the
-acceptance outcome. A file with multiple *primaries* needing judgment
-against the same other vendor still costs one call per primary; unifying
-that further into a single run-wide per-file call was assessed as
-materially higher risk to the existing greedy algorithm's match priority
-(see `_match_all`'s own docstring) for a batching win with no acceptance
-outcome or test currently requiring it, so it was left as a documented,
-smaller-scope non-goal rather than spec text quietly overclaiming it.
+**Revised after Codex review (PR #590, P1 and P2):** the first shipped cut
+of `_match_all` kept the pre-judgment algorithm's per-(primary,
+other-vendor) loop and inserted judgment inline, batching only within one
+such comparison. Codex caught two real defects in that shape: (1) a shared,
+overwritable `FindingMatch.basis` field meant a primary matched via
+judgment against one vendor and via a fast path against another could lose
+its judged provenance depending on which vendor's loop iteration ran last
+— `_consensus_evidence_class` must not depend on vendor iteration order;
+(2) multiple primaries needing judgment on the same file still cost one
+`decide()` call *per primary*, not one call for the file, contradicting the
+acceptance outcome directly.
+
+`_match_all` was rewritten around a merge model instead: every finding
+starts as its own live primary (`by_primary`); each pass scores every
+still-live, cross-vendor pair with an unfilled slot, then merges
+strongest-first (`merge`), which also reparents whatever the losing
+primary had already matched. `FindingMatch` gained `judged_vendors: set[str]`
+so `_consensus_evidence_class` can check "was *any* contributing vendor's
+match judged" rather than reading a single last-written `basis` string.
+Pass 2's file-batching is now a genuine one-`decide()`-call-per-file
+operation spanning every live primary and vendor on that file at once —
+see `_match_all`'s own docstring for the pass structure. Regression tests:
+`test_multiple_primaries_on_one_file_share_a_single_call` and
+`test_evidence_class_is_order_independent_across_three_vendors`.
 
 ### D3 — Unavailability and the Jaccard fallback
 
