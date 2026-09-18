@@ -2414,8 +2414,12 @@ version = "0.1.0"
 source = { directory = "../packages/system-one-decisions" }
 
 [package.metadata]
-requires-dist = [{ name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" }]
-provides-extras = ["dev"]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "typesafe-sdk", marker = "extra == 'dev'", specifier = ">=0.7,<1" },
+    { name = "typesafe-sdk", marker = "extra == 'live'", specifier = ">=0.7,<1" },
+]
+provides-extras = ["dev", "live"]
 
 [[package]]
 name = "text-unidecode"
