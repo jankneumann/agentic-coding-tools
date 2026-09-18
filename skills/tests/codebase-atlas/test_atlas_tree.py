@@ -29,6 +29,10 @@ def _view(tiny_graph: dict, tmp_path: Path, *, measure: bool = True) -> dict:
         if f and f != "(unfiled)":
             p = tmp_path / f
             if not p.exists():
+                # Parents matter: every fixture path was flat, so a nested
+                # module could not be expressed here at all — which is part of
+                # why basename resolution against `a/b.py` went untested.
+                p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text("# stub\n", encoding="utf-8")
     return build_view_model(tiny_graph, tmp_path, measure=measure)
 
@@ -158,6 +162,45 @@ class TestFileTargetModuleView:
         # hop 1 = module symbols
         names = [LINE_RE.match(ln).group("name") for ln in body[1:]]  # type: ignore[union-attr]
         assert names == ["_helper", "handler"]
+
+    def test_basename_resolves_a_nested_module_path(
+        self, tiny_graph: dict, tmp_path: Path
+    ) -> None:
+        """`--tree webhook.py` must find `notifications/webhook.py`.
+
+        The spec resolves a target as "module file path or basename". The
+        basename arm compared each module's whole `file` value to the target
+        basename, which only ever matched modules at the repository root, so a
+        nested module exited 2 while its full path succeeded.
+        """
+        graph = copy.deepcopy(tiny_graph)
+        for node in graph["nodes"]:
+            if node.get("file") == "api.py":
+                node["file"] = "notifications/api.py"
+        view = _view(graph, tmp_path, measure=False)
+
+        code, text = render_tree(
+            view, "api.py", hops=1, direction="out", include_footer=False
+        )
+
+        assert code == 0, text
+        # Name stays the module's own name; the nested path shows in the locator.
+        assert _tree_lines(text)[0].startswith("api.py  (notifications/api.py:1)  [module]")
+
+    def test_full_nested_path_still_resolves(
+        self, tiny_graph: dict, tmp_path: Path
+    ) -> None:
+        graph = copy.deepcopy(tiny_graph)
+        for node in graph["nodes"]:
+            if node.get("file") == "api.py":
+                node["file"] = "notifications/api.py"
+        view = _view(graph, tmp_path, measure=False)
+
+        code, _ = render_tree(
+            view, "notifications/api.py", hops=1, direction="out", include_footer=False
+        )
+
+        assert code == 0
 
 
 class TestExitCodes:

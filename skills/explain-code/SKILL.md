@@ -59,7 +59,7 @@ Whole-repository questions → name `/codebase-atlas` and stop (no `Grounding:` 
 
 - A sketching reply with no final `Grounding:` line.
 - A call tree that invents symbols not returned by `--tree` after a fresh check.
-- The skill invoked `--ensure` or opened/wrote a file.
+- The skill invoked `--ensure`, created or modified a file, or opened one for the user.
 
 ## Verification
 

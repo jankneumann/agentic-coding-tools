@@ -67,9 +67,16 @@ def resolve_target(view: dict[str, Any], target: str) -> ResolveResult:
 
     modules = view.get("modules") or []
     basename = target.rsplit("/", 1)[-1]
+    # Compare basename against each module's *basename*, not its whole path.
+    # Comparing `m["file"] == basename` only ever matched modules stored at the
+    # repository root, so `--tree webhook.py` missed `notifications/webhook.py`
+    # and exited 2, against the documented "module file path or basename"
+    # resolution contract.
     module_hits = [
         m for m in modules
-        if m.get("file") == target or m.get("file") == basename or m.get("key") == target
+        if m.get("file") == target
+        or str(m.get("file") or "").rsplit("/", 1)[-1] == basename
+        or m.get("key") == target
     ]
     # Prefer exact file path match over basename when both could apply.
     exact = [m for m in module_hits if m.get("file") == target or m.get("key") == target]
