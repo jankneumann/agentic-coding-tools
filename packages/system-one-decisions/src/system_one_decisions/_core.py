@@ -84,6 +84,7 @@ def decide(
     *,
     site: str,
     event_sink: Callable[[dict[str, Any]], None] | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any] | None:
     """Call the live TypeSafe API, or return `None` on any of four ordered
     unavailability branches (design D1) — never raises:
@@ -94,11 +95,20 @@ def decide(
        exceeds the 32K-token budget.
     4. `client.system_one(...)` raises any `typesafe_sdk.TypeSafeError`.
 
+    `dry_run=True` (default `False`) short-circuits before any of the above:
+    it returns `None` without importing `typesafe_sdk`, checking the key, or
+    estimating tokens (design D1 of
+    `add-the-adapter-backed-test-substitute-and-dry-run-policy`). A future
+    caller threads its own `--dry-run` CLI flag into this parameter.
+
     On success, returns `response.answers` unchanged (the real SDK answer
     dict — no repackaging), and invokes `event_sink` exactly once with the
     call's telemetry (design D2). `event_sink` is never invoked on any
     unavailability branch — there is nothing to report yet.
     """
+    if dry_run:
+        return None
+
     try:
         import typesafe_sdk
     except ImportError:

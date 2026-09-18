@@ -2416,10 +2416,11 @@ source = { directory = "../packages/system-one-decisions" }
 [package.metadata]
 requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "system-one-adapter", extras = ["anthropic"], marker = "extra == 'test-adapter'", specifier = ">=0.2,<1" },
     { name = "typesafe-sdk", marker = "extra == 'dev'", specifier = ">=0.7,<1" },
     { name = "typesafe-sdk", marker = "extra == 'live'", specifier = ">=0.7,<1" },
 ]
-provides-extras = ["dev", "live"]
+provides-extras = ["dev", "live", "test-adapter"]
 
 [[package]]
 name = "text-unidecode"
