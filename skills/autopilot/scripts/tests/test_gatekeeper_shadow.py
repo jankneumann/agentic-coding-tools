@@ -34,6 +34,10 @@ import system_one_decisions  # noqa: E402
 
 import phase_agent  # noqa: E402
 from autopilot import LoopState, _phase_gatekeeper  # noqa: E402
+# Aliased: this file's own tests use `change_dir` as a local variable name
+# (an OpenSpec change's directory) for the shadow judgment's own parameter.
+from openspec_paths import change_dir as _openspec_change_dir  # noqa: E402
+from openspec_paths import repo_root_from  # noqa: E402
 from gatekeeper_shadow import (  # noqa: E402
     ShadowThresholds,
     compute_candidate_verdict,
@@ -41,8 +45,6 @@ from gatekeeper_shadow import (  # noqa: E402
     shadow_gatekeeper_judgment,
 )
 from gatekeeper_shadow_report import collect_shadow_entries, disagreement_report  # noqa: E402
-
-_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def _spy_decide(monkeypatch, *, returns) -> MagicMock:
@@ -306,8 +308,8 @@ class TestGatekeeperShadowFixtureReplay:
 
     def test_no_risk_signal_fixture_stays_proceed(self, monkeypatch, tmp_path: Path) -> None:
         loop_state_path = (
-            _REPO_ROOT
-            / "openspec/changes/add-visual-code-explainer/loop-state.json"
+            _openspec_change_dir(repo_root_from(__file__, 4), "add-visual-code-explainer")
+            / "loop-state.json"
         )
         recorded = json.loads(loop_state_path.read_text(encoding="utf-8"))
         gate_signals = recorded["gate_signals"]
@@ -331,8 +333,9 @@ class TestGatekeeperShadowFixtureReplay:
         self, monkeypatch, tmp_path: Path
     ) -> None:
         loop_state_path = (
-            _REPO_ROOT
-            / "openspec/changes/archive/2026-09-13-fix-audit-choices-range-ledger-path"
+            _openspec_change_dir(
+                repo_root_from(__file__, 4), "fix-audit-choices-range-ledger-path"
+            )
             / "loop-state.json"
         )
         recorded = json.loads(loop_state_path.read_text(encoding="utf-8"))
