@@ -46,7 +46,7 @@ items:
     and needs_approval flagging for intents in the irreversible set.
 - item_id: ri-02
   title: Wire the live TypeSafe client, thresholds and telemetry
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on:
@@ -79,7 +79,7 @@ items:
 - item_id: ri-03
   title: Add the adapter-backed test substitute and dry-run policy
   status: approved
-  priority: 2
+  priority: 1
   effort: S
   depends_on:
   - ri-02
@@ -101,6 +101,8 @@ items:
     env is present, and every such test name contains "uncalibrated".
   - A test asserts that running any system_one-consuming script with --dry-run performs
     zero client constructions.
+  learning_refs:
+  - ri-02
 - item_id: ri-04
   title: Replace the gen-eval semantic judge with a calibrated Noul
   status: approved
@@ -681,4 +683,4 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T12:14:15.069555+00:00'
+updated_at: '2026-09-18T12:53:00.975269+00:00'
