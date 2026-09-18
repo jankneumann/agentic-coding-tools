@@ -245,6 +245,42 @@ class TestRunWithGroundScreen:
         )
         assert outcome.decisions[0].verdict == "removed"
 
+    def test_partial_per_finding_answer_falls_back_to_stage_two(self, monkeypatch) -> None:
+        """A malformed/missing answer for ONE finding in an otherwise
+        answered batch must not be silently treated as a confident
+        below-floor screen -- it was never actually screened, so it falls
+        back to stage two exactly like whole-screen unavailability."""
+        fake_module = MagicMock()
+        fake_module.decide.return_value = {
+            # f-1: only ground_a answered, ground_b missing entirely.
+            "ground_a_f-1": {"noul": 0.1},
+            # f-2: fully and confidently screened out.
+            "ground_a_f-2": {"noul": 0.1},
+            "ground_b_f-2": {"noul": 0.1},
+        }
+        monkeypatch.setattr(fact_check, "system_one_decisions", fake_module)
+
+        sent_finding_ids = []
+
+        def caller(_s: str, _u: str) -> str:
+            sent_finding_ids.append("called")
+            return json.dumps({
+                "tool": "report_incorrect_comments",
+                "items": [{"finding_id": "f-1", "ground": fact_check.GROUND_B, "evidence_line": "+used_variable = compute()"}],
+            })
+
+        findings = [_finding(id="f-1"), _finding(id="f-2", file_path="src/bar.py")]
+        outcome = fact_check.run(
+            vendor="codex", round_num=1, findings=findings,
+            packet_diff="+used_variable = compute()", caller=caller,
+        )
+        assert sent_finding_ids == ["called"], (
+            "f-1's incomplete screen answer must still reach stage two"
+        )
+        decisions = {d.finding_id: d for d in outcome.decisions}
+        assert decisions["f-1"].verdict == "removed"
+        assert decisions["f-2"].verdict == "kept"
+
     def test_stage_two_failure_discards_stage_one_removal_too(self, monkeypatch) -> None:
         """D3: "removes nothing" on any call failure is a whole-run
         guarantee -- a stage-two failure must not let a tentative stage-one

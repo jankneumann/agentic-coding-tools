@@ -399,14 +399,24 @@ def run(
             entry = screen.get(fid, {})
             ground_a = entry.get("ground_a")
             ground_b = entry.get("ground_b")
-            if isinstance(ground_a, (int, float)) and ground_a >= floor:
+            has_a = isinstance(ground_a, (int, float))
+            has_b = isinstance(ground_b, (int, float))
+            if has_a and ground_a >= floor:
                 stage_one_decisions[fid] = Decision(
                     finding_id=fid, verdict="removed", ground=GROUND_A,
                 )
-            elif isinstance(ground_b, (int, float)) and ground_b >= floor:
+            elif has_b and ground_b >= floor:
                 stage_two_screenable.append(f)
-            else:
+            elif has_a and has_b:
+                # Both grounds answered and both confidently below the
+                # floor -- only then is skipping stage two justified.
                 stage_one_decisions[fid] = Decision(finding_id=fid, verdict="kept")
+            else:
+                # A partial or malformed per-finding answer (one or both
+                # grounds missing/non-numeric) is treated as unavailable
+                # for THIS finding -- fail safe to stage two rather than
+                # silently keep a finding that was never actually screened.
+                stage_two_screenable.append(f)
         stage_two_findings = protected_findings + stage_two_screenable
 
     to_remove: dict[str, dict[str, Any]] = {}
