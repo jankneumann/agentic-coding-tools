@@ -780,7 +780,7 @@ requires-dist = [
     { name = "openai", marker = "extra == 'sdk'", specifier = ">=1.50" },
     { name = "pydantic", specifier = ">=2.13" },
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "system-one-decisions", marker = "extra == 'decisions'", directory = "../packages/system-one-decisions" },
+    { name = "system-one-decisions", extras = ["live"], marker = "extra == 'decisions'", directory = "../packages/system-one-decisions" },
 ]
 provides-extras = ["mcp", "sdk", "db", "all", "decisions"]
 
