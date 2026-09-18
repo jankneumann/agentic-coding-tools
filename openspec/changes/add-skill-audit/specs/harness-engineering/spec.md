@@ -25,6 +25,21 @@ dropped for lack of a tier. Deduplication SHALL reuse the
 `(capability_gap, affected_skill, session_id)` key and SHALL preserve the set
 of sources per finding.
 
+**Identity fields this join depends on are not yet on the memory contract.**
+`POST /memory/query` serializes `id`, `event_type`, `summary`, `details`,
+`outcome`, `lessons`, `tags`, `relevance_score` and `created_at`; it carries
+neither `agent_id` nor `agent_type`, and `EpisodicMemory` has no `session_id`
+at all. Until that contract exposes them, step (2) can never match a discovery
+session, provider resolution falls to `unknown`, and distinct-session counting
+degrades to the same constant `"unknown"` that
+`analyze_failures.parse_session_log_gaps` already defaults to. The consequence
+SHALL be reported, not hidden: a row whose `attributed_by` is `unknown` means
+the tier could not be determined, and a `tier_concentrated_failure` finding
+SHALL NOT be emitted from rows whose distinct-session count rests on that
+constant. This is a pre-existing gap shared with the `/improve-harness`
+consumer, not one this change introduces; exposing those fields is a
+coordinator API change and belongs to its own proposal.
+
 The join output SHALL be a table with one row per
 `(affected_skill, archetype, provider, model, thinking)` and columns for
 count, distinct sessions, max severity, sources, and the fraction of rows

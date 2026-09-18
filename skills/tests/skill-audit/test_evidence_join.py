@@ -229,3 +229,48 @@ def test_available_with_no_entries_has_empty_table():
     result = collect_evidence("plan-feature", window_days=30, bridge=ok_bridge(), repo_root=None, roster_path=ROSTER, now=NOW)
     assert result.status == "available" and result.tier_rows == []
     assert result.to_ledger()["multi_source_fraction"] == 0.0
+
+
+# --- Codex review PR #552 thread 1: memory rows carry no identity fields ------
+
+
+def test_no_concentration_finding_when_entries_carry_no_session_id():
+    """A tier cannot look "concentrated" on the strength of missing identities.
+
+    `POST /memory/query` serializes no `session_id` (and no `agent_id` or
+    `agent_type`), so every production row collapses to the single literal
+    "unknown" session. The concentration rule needs >= 3 *distinct* sessions, so
+    it must not fire here no matter how many entries pile onto one tier —
+    otherwise absent data would read as evidence.
+    """
+    # Distinct gaps, so the (capability_gap, affected_skill, session_id) dedup
+    # key does not collapse them first — without session_id it otherwise folds
+    # every identical gap into a single row, which is its own consequence of
+    # the missing identity fields.
+    entries = [
+        {
+            "tags": [
+                f"capability_gap:gap-{i}",
+                "affected_skill:demo",
+                "severity:high",
+                "source:self-reported",
+            ],
+            "created_at": "2026-09-01T00:00:00+00:00",
+            "change_id": "no-such-change",
+        }
+        for i in range(9)
+    ]
+    result = collect_evidence(
+        "demo",
+        window_days=3650,
+        entries=entries,
+        sessions=[],
+        loop_states={},
+        roster_path=ROSTER,
+        now=NOW,
+    )
+    assert result.total == 9
+    assert [f for f in result.findings if f.kind == "tier_concentrated_failure"] == []
+    assert result.tier_rows, "entries are still reported, never dropped"
+    assert all(r["sessions"] == 1 for r in result.tier_rows)
+    assert all(r["attributed_by"] == "unknown" for r in result.tier_rows)
