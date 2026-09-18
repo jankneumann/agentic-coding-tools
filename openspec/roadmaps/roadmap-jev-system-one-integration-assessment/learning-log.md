@@ -8,3 +8,4 @@
 | ri-04 | implementation | The real typesafe_sdk.normalize_questions() accepts a plain {"type": "noul", ... |
 | ri-05 | implementation | Batching needs visibility across a whole file's candidate pairs, which a pairwis |
 | ri-06 | implementation | One line before `return outcome` calls gatekeeper_shadow.shadow_gatekeeper_judgm |
+| ri-07 | implementation | Applied ri-06's own Codex-caught lesson proactively: build_outcome_adjudication_ |
