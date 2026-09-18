@@ -13,7 +13,14 @@
       "id": "1d8eb383-2f08-449b-a0d8-6dc9464ddd85",
       "rationale": "direct autopilot-roadmap invocation: supervisor roadmap",
       "scope": "roadmap-supervisor-orchestration"
+    },
+    {
+      "decided_at": "2026-09-18T11:31:45.995122+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "fa4278cf-0e86-4d2b-ba0f-0640e2c0e740",
+      "rationale": "direct invocation: user asked to approve items and start autopilot-roadmap on ri-01, continuing through the roadmap",
+      "scope": "roadmap-jev-system-one-integration-assessment"
     }
   ],
-  "written_at": "2026-09-10T11:50:20.973467Z"
+  "written_at": "2026-09-18T11:31:45.951577Z"
 }
