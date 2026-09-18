@@ -14,6 +14,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._config import DEFAULT_ACT_FLOOR, DEFAULT_APPROVE_FLOOR
+
 
 @dataclass(frozen=True)
 class Decision:
@@ -49,9 +51,9 @@ def _route(
     intents: dict[str, str],
     *,
     human_intent: str,
-    act_floor: float,
+    act_floor: float = DEFAULT_ACT_FLOOR,
     irreversible: frozenset[str],
-    approve_floor: float,
+    approve_floor: float = DEFAULT_APPROVE_FLOOR,
 ) -> Decision:
     """Pure, synchronous confidence-routing over an already-obtained distribution.
 
@@ -93,9 +95,9 @@ def decide_intent(
     *,
     fallback: Callable[[dict[str, Any]], str],
     human_intent: str,
-    act_floor: float = 0.6,
+    act_floor: float = DEFAULT_ACT_FLOOR,
     irreversible: frozenset[str] = frozenset(),
-    approve_floor: float = 0.9,
+    approve_floor: float = DEFAULT_APPROVE_FLOOR,
     site: str,
     event_sink: Callable[[dict[str, Any]], None] | None = None,
 ) -> Decision:

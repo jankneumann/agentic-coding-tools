@@ -6,40 +6,41 @@
 
 ### Phase 1 — Threshold config file and loader (no SDK dependency yet)
 
-- [ ] 1.1 Create `packages/system-one-decisions/src/system_one_decisions/config/thresholds.json`
+- [x] 1.1 Create `packages/system-one-decisions/src/system_one_decisions/config/thresholds.json`
   (`schema_version: 1`, `defaults: {act_floor: 0.6, approve_floor: 0.9}`) —
   inside the importable package, not the package root, so `importlib.resources`
   can find it in a built wheel (design D3).
   **Design decisions**: D3
   **Dependencies**: None
-- [ ] 1.2 Write `tests/test_config_loader.py`: loading resolves
+- [x] 1.2 Write `tests/test_config_loader.py`: loading resolves
   `DEFAULT_ACT_FLOOR == 0.6` and `DEFAULT_APPROVE_FLOOR == 0.9` from the file;
   a missing file raises a clear error rather than silently defaulting (fail
   loud on a packaging mistake, not silently on a data mistake).
   **Spec scenarios**: system-one-decisions.Defaults-load-from-the-config-file
   **Dependencies**: 1.1
-- [ ] 1.3 Implement `_config.py`: `load_thresholds()` (cached, reads the
-  packaged YAML via `importlib.resources`, not a relative filesystem path, so
+- [x] 1.3 Implement `_config.py`: `load_thresholds()` (cached, reads the
+  packaged JSON via `importlib.resources`, not a relative filesystem path, so
   it works from an installed wheel) and module-level `DEFAULT_ACT_FLOOR`,
   `DEFAULT_APPROVE_FLOOR` constants.
   **Dependencies**: 1.2
-- [ ] 1.4 Update `_core.py`: `_route()`'s and `decide_intent()`'s
+- [x] 1.4 Update `_core.py`: `_route()`'s and `decide_intent()`'s
   `act_floor: float = 0.6` / `approve_floor: float = 0.9` become
   `act_floor: float = DEFAULT_ACT_FLOOR` / `approve_floor: float =
   DEFAULT_APPROVE_FLOOR`, importing both from `_config`.
   **Dependencies**: 1.3
-- [ ] 1.5 Write `tests/test_no_threshold_literals.py`: greps
-  `src/system_one_decisions/*.py` (excluding `_config.py`) for a bare float
-  literal used in an `act_floor`/`approve_floor` position; asserts none found.
+- [x] 1.5 Write `tests/test_no_threshold_literals.py`: an AST-based guard
+  (stronger than a plain grep — walks `_core.py`'s function defs and checks
+  each `act_floor`/`approve_floor` keyword-only parameter's default node
+  isn't a bare `ast.Constant`) asserting no bare float literal used in an
+  `act_floor`/`approve_floor` position.
   **Spec scenarios**: system-one-decisions.No-threshold-literal-in-scoring-logic
   **Design decisions**: D3
   **Dependencies**: 1.4
-- [ ] Checkpoint: run `pytest packages/system-one-decisions/tests/
-  test_config_loader.py packages/system-one-decisions/tests/
-  test_no_threshold_literals.py packages/system-one-decisions/tests/test_route.py
-  packages/system-one-decisions/tests/test_decide_intent.py`, confirm green —
-  `ri-01`'s existing route/decide_intent tests must still pass unchanged since
-  their literal `0.6`/`0.9` defaults become named constants of the same value.
+- [x] Checkpoint: ran `uv run pytest tests/` inside
+  `packages/system-one-decisions/` (23 passed) — `ri-01`'s existing
+  route/decide_intent tests pass unchanged since their literal `0.6`/`0.9`
+  defaults became named constants of the same value. `ruff check` (only the
+  one issue in this item's own new test file, fixed) and `mypy` both clean.
 
 ### Phase 2 — `live` extra and lazy client construction
 
