@@ -162,12 +162,18 @@ def screen_session(
         return None
 
     failure_type_answer = answers.get("failure_type") if hasattr(answers, "get") else None
-    failure_type = _answer_field(failure_type_answer, "choice") if failure_type_answer is not None else None
+    failure_type = (
+        _answer_field(failure_type_answer, "choice")
+        if failure_type_answer is not None else None
+    )
     if failure_type not in _VALID_FAILURE_TYPES:
         failure_type = None
 
     severity_answer = answers.get("severity") if hasattr(answers, "get") else None
-    severity_score = _answer_field(severity_answer, "score") if severity_answer is not None else None
+    severity_score = (
+        _answer_field(severity_answer, "score")
+        if severity_answer is not None else None
+    )
     severity = None
     if isinstance(severity_score, (int, float)):
         index = round(severity_score)
