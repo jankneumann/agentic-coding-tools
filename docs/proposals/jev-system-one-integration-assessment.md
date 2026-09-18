@@ -14,12 +14,13 @@ state** (a diff, a proposal, a transcript, a PR), and where the consumer is code
 because it already separates `deterministic` from `judgment` evidence and already treats model
 verdicts as advisory inputs to gates computed in code.
 
-Twelve call sites clear that bar. They fall into two groups the user asked about:
+Twenty call sites clear that bar. They fall into three groups:
 
 | Group | Count | What changes |
 |---|---|---|
 | **A. Brittle rule → calibrated judgment** | 7 | A keyword list, Jaccard band, path prefix or weighted sum becomes a `Choice`/`Noul`/`Score` question; the code keeps the threshold and the fallback. |
 | **B. LLM prompt → typed decision** | 5 | A prompt that asks a frontier or economy model to return a tiny JSON object is replaced (fully or as a first stage) by one `system_one` call. |
+| **C. Loop switch → confidence-routed decision step** | 8 | The label an orchestrator loop switches on (a phase outcome, a fix disposition, an escalation action) stops being the actor's self-report or a fixed table and becomes a judged `Choice` whose probability decides whether code acts, asks for approval, or escalates. Design in the companion note [`jev-twelve-factor-decision-loops.md`](jev-twelve-factor-decision-loops.md). |
 
 Nine further sites were considered and should be **left alone**; the reasons are listed, because
 in this repo the reasons matter as much as the picks.
@@ -267,6 +268,36 @@ digest render the `Score` legend level instead; (2) keep an LLM justification pa
 stubs only; (3) leave as is. The digest is deterministic and host-assisted by design
 (`digest.py` docstring), so this is a contract change, not a code-architecture change.
 
+## Group C — orchestrator loops whose switch should route on confidence
+
+Groups A and B replace a *value*. Group C changes *who decides the next step* in the repo's
+12-factor loops. The autopilot already has the shape those factors prescribe: an explicit
+transition table, sub-agents that return only `(outcome, handoff_id)`, `ESCALATE` as a phase,
+`loop-state.json` as the reducer's state. What it lacks is a calibrated judge between state and
+switch: outcome labels are either the actor grading itself (`complete`, `fixed`, `proceed`) or a
+fixed table (`EscalationHandler`, the stall rule). The companion note defines one primitive,
+`decide_intent(state, intents, fallback, ...)`, that returns a label plus its distribution and
+lets the code route by probability: below an act floor → the human intent; an irreversible
+intent below an approval floor → pause between selection and invocation; service unavailable →
+the existing rule, marked degraded. Every decision is appended to the loop's event log with its
+distribution, which makes it replayable and gives the calibration measurement for free.
+
+| # | Loop decision point | Today | Jev question(s) | Floor kept in code |
+|---|---|---|---|---|
+| C1 | Phase outcome, `autopilot.apply_phase_outcome` | Sub-agent's self-reported outcome string | `Choice(outcome, phase's allowed outcomes)` + `Noul("evidence supports the claimed outcome")` over handoff, diff stat, test tail | Disagreement below approval floor → `escalate` with both labels |
+| C2 | Convergence continue/stop, `convergence_loop.converge` | `trend[-1] >= trend[-stall_window]`, `max_rounds` | Per finding `Choice(disposition, {fix_now, defer, reject_out_of_scope, needs_human})`; per round `Noul("another round will reduce blocking findings")` | `max_rounds` ceiling; `needs_human` parks a disagreement |
+| C3 | Escalation action, `EscalationHandler.handle` | One prescribed action per type | `Choice(action, EscalationAction values)` over summary, impact, attempt history | `REQUIRE_HUMAN` mandatory where the table says so; Jev chooses only among recoverable actions |
+| C4 | Roadmap item failure, `orchestrator._handle_failure` | `replan` boolean from `_normalize_outcome` | `Choice(next, {retry_same_vendor, retry_other_vendor, skip_item, request_replan, escalate})` | `request_replan` still passes the `REPLAN_REQUIRED` gate |
+| C5 | Merge thread triage, `execute_plan` `delegate_comments` | Any unresolved thread → delegate | Per thread `Choice({needs_code_change, needs_reply_only, already_addressed, outdated})` over thread text and current file diff | Fact-based gates (staleness, security, live state) stay deterministic |
+| C6 | Task routing profile, `implement-the-task-router-vendor-x-location-x-model` | Nothing or an LLM produces the profile | `Score(duration)`, `Noul(interactive)`, `Noul(needs_secret)`, `Choice(scope)` | Routing rules stay deterministic in `routing.yaml`; Jev only fills the typed inputs |
+| C7 | Human reply intent, `relay.parse_reply` | First-word keyword | `Choice({approve, deny, resolved, skip, guidance})` | Sender allowlist; `approve` requires `p ≥ 0.97`; else `guidance`. Security review item. |
+| C8 | Retry classification, `phase_fixer` and roadmap dispatch | Consecutive-failure count | `Noul("same failure as the previous attempt")`, `Noul("transient; retry unchanged likely to succeed")`, `Choice(failure_type, D4 enum)` | Retry ceiling unchanged; same-and-not-transient stops early |
+
+Boundaries that hold for every row: Jev picks a label, never parameters, so any branch that
+needs free-form arguments is a branch whose action is an LLM; it never drives a coding
+sub-agent's inner Read/Edit/Bash loop; it routes toward gates and never around one; and every
+row keeps its current rule as `fallback`.
+
 ## Considered and left alone
 
 | Site | Why not |
@@ -290,8 +321,10 @@ different call shape, not another chat model. Do not model it as a vendor or an 
 Recommended shape, mirroring how `skills/shared/github_classifier.py` is the portable home for
 shared logic:
 
-- `skills/shared/system_one.py` — one function,
-  `decide(state, questions, *, site: str) -> SystemOneResponse | None`, that: reads
+- `skills/shared/system_one.py` — two entry points. `decide(state, questions, *, site)` for
+  Groups A and B, and `decide_intent(state, intents, *, fallback, human_intent, act_floor,
+  irreversible, approve_floor, site)` for Group C, which wraps one `Choice` in the
+  confidence-routing rules above and appends the decision to the caller's event log. Both: read
   `TYPESAFE_API_KEY`; returns `None` (never raises) when the key is absent, the network is
   unavailable, or state exceeds the token budget, so every caller's existing rule remains the
   fallback; records `site`, latency, `usage.input_tokens`, and the answered probabilities to the
@@ -317,6 +350,9 @@ shared logic:
 
 ## Pilot order and acceptance
 
+0. **The helper, fallback-only** — land `skills/shared/system_one.py` with the `fallback` path
+   and the event-log write but no network call. Every existing rule decision in Group C becomes
+   a recorded, replayable event before any model is consulted.
 1. **B2 semantic judge** — smallest surface, already has `skip` semantics, and the
    `calibrate-llm-judge-against-human-labels` change is about to produce a 40-item human-labelled
    set. Score Jev's `noul` against those labels with Cohen's kappa exactly as that change scores the
@@ -324,16 +360,20 @@ shared logic:
 2. **A1 finding matching** — replay the seeded-defect set from `measure-validator-recall-seeded-defects`
    and the `pr484-consensus.json` fixture; acceptance is that the two real #484 defects match across
    vendors and routing precision on seeded defects does not drop.
-3. **B1 GATEKEEPER** — run Jev in shadow beside the premium judge for a sprint of autopilot runs,
-   log both verdicts, then flip when disagreement is below the operator's tolerance. This is the
-   largest cost saving per run.
-4. **A2, A3, A4, A5, A6** — each is a one-file change with an existing fallback; land as
-   independent small changes.
-5. **B3, B4, B5** — two-stage rewrites; B5 needs the schema decision first.
-6. **A7** — last, because it is a gate input.
+3. **B1 GATEKEEPER and C1 phase outcome** — both in shadow mode beside the current decider for a
+   sprint of autopilot runs: log the judged label next to the claimed or table-derived one, act
+   on neither, measure the disagreement rate and which side the next review round vindicated.
+   B1 is the largest cost saving per run; C1 is the largest correctness gain.
+4. **A2, A3, A4, A5, A6, C2** — each is a one-file change with an existing fallback; land as
+   independent small changes. C2 removes the most wasted fix dispatches.
+5. **B3, B4, B5, C6** — two-stage rewrites; B5 needs the schema decision first; C6 waits for
+   the task router to land so the router never needs an LLM.
+6. **C3, C4, C5, C8** — loop decision points behind existing gates, as independent changes.
+7. **A7 and C7** — last: A7 is a gate input, C7 is an authorization channel.
 
-Rough cost at current prices: a full autopilot run's Jev calls (B1 + A1 + A3 + B3 stage 1) total
-well under one cent; the premium-tier GATEKEEPER call they replace costs more than that alone.
+Rough cost at current prices: a full autopilot run's Jev calls (B1 + A1 + A3 + B3 stage 1 + C1
++ C2 across a few rounds) total well under one cent; the premium-tier GATEKEEPER call they
+replace costs more than that alone.
 
 ## Sources
 
