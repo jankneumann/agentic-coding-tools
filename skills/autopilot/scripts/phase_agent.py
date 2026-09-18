@@ -1056,7 +1056,15 @@ def build_phase_dispatch_kwargs(
 
 
 def _expected_outcomes_for_phase(phase: str) -> list[str]:
-    """Return allowed outcomes for a phase dispatch payload."""
+    """Return allowed outcomes for a phase dispatch payload.
+
+    VAL_REVIEW's ``max_iter`` was missing here even though
+    ``autopilot.TRANSITIONS["VAL_REVIEW"]`` has always allowed it (a
+    pre-existing bug found by Codex review while adjudicating this exact
+    dict, PR #592) -- a real max_iter claim had no matching Choice
+    criterion, forcing an artificial disagreement in the phase-outcome
+    shadow judgment (roadmap ri-07).
+    """
     return {
         "GATEKEEPER": ["proceed", "proceed_with_review", "escalate"],
         "PLAN_ITERATE": ["complete", "failed"],
@@ -1065,7 +1073,7 @@ def _expected_outcomes_for_phase(phase: str) -> list[str]:
         "IMPL_ITERATE": ["complete", "failed"],
         "IMPL_REVIEW": ["converged", "not_converged", "max_iter"],
         "VALIDATE": ["passed", "failed"],
-        "VAL_REVIEW": ["converged", "not_converged"],
+        "VAL_REVIEW": ["converged", "not_converged", "max_iter"],
     }.get(phase, ["complete", "failed"])
 
 

@@ -113,18 +113,54 @@ class TestReadLocalHandoff:
         assert read_local_handoff(tmp_path, "IMPLEMENT", "h1") is None
 
     def test_matching_file_is_read(self, tmp_path: Path) -> None:
+        """The real writer names this "implementation-<n>.json" for
+        IMPLEMENT (PhaseRecord._phase_slug() of handoff_builder's
+        "Implementation" name, not a naive lowercase of "IMPLEMENT") --
+        Codex regression, PR #592 P2."""
         handoffs = tmp_path / "handoffs"
         handoffs.mkdir()
-        (handoffs / "implement-1.json").write_text(json.dumps({"payload": {"summary": "did work"}}))
+        (handoffs / "implementation-1.json").write_text(json.dumps({"payload": {"summary": "did work"}}))
 
         record = read_local_handoff(tmp_path, "IMPLEMENT", "h1")
 
         assert record == {"payload": {"summary": "did work"}}
 
+    def test_matching_file_is_read_for_validate(self, tmp_path: Path) -> None:
+        handoffs = tmp_path / "handoffs"
+        handoffs.mkdir()
+        (handoffs / "validation-1.json").write_text(json.dumps({"payload": {"summary": "ran tests"}}))
+
+        record = read_local_handoff(tmp_path, "VALIDATE", "h1")
+
+        assert record == {"payload": {"summary": "ran tests"}}
+
+    def test_matching_file_is_read_for_iteration_phase(self, tmp_path: Path) -> None:
+        """PLAN_ITERATE's real handoff name embeds the iteration count
+        ("Plan Iteration 3" -> "plan-iteration-3-<n>.json"); the slug
+        prefix alone (without a known iteration number) still matches via
+        the glob's own wildcard suffix."""
+        handoffs = tmp_path / "handoffs"
+        handoffs.mkdir()
+        (handoffs / "plan-iteration-3-1.json").write_text(json.dumps({"payload": {"summary": "refined"}}))
+
+        record = read_local_handoff(tmp_path, "PLAN_ITERATE", "h1")
+
+        assert record == {"payload": {"summary": "refined"}}
+
+    def test_old_naive_slug_no_longer_used(self, tmp_path: Path) -> None:
+        """A file under the OLD, incorrect "implement-*" slug is not found --
+        confirms the fix actually changed the glob prefix, not just added a
+        second match."""
+        handoffs = tmp_path / "handoffs"
+        handoffs.mkdir()
+        (handoffs / "implement-1.json").write_text(json.dumps({"payload": {}}))
+
+        assert read_local_handoff(tmp_path, "IMPLEMENT", "h1") is None
+
     def test_malformed_json_returns_none(self, tmp_path: Path) -> None:
         handoffs = tmp_path / "handoffs"
         handoffs.mkdir()
-        (handoffs / "implement-1.json").write_text("{not json")
+        (handoffs / "implementation-1.json").write_text("{not json")
 
         assert read_local_handoff(tmp_path, "IMPLEMENT", "h1") is None
 
