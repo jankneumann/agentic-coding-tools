@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "defaults": {
+    "act_floor": 0.6,
+    "approve_floor": 0.9
+  }
+}

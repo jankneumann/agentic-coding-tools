@@ -32,7 +32,7 @@ packages:
       four ordered unavailability branches, all returning None/never raising),
       add an optional event_sink to decide() mirroring decide_intent()'s
       existing one, and move _route()/decide_intent()'s act_floor/approve_floor
-      defaults out of literals into a package-owned thresholds.yaml + loader.
+      defaults out of literals into a package-owned thresholds.json + loader.
       decide_intent()'s acquisition step is unchanged (still always fallback).
       Single-package scope, no internal parallelism to decompose.
     role: implementer

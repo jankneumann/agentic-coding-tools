@@ -78,7 +78,7 @@ THEN it SHALL return the answer dict without raising.
 
 ### Requirement: Threshold defaults resolve from a package-owned data file, never a literal
 `_route()`'s and `decide_intent()`'s `act_floor`/`approve_floor` defaults SHALL
-resolve from `packages/system-one-decisions/config/thresholds.yaml` rather than
+resolve from `packages/system-one-decisions/src/system_one_decisions/config/thresholds.json` rather than
 from a literal in `_core.py`. A guard test SHALL assert that no bare float
 literal used as a threshold value appears anywhere in
 `packages/system-one-decisions/src/` outside the config loader module.
@@ -86,7 +86,7 @@ literal used as a threshold value appears anywhere in
 #### Scenario: Defaults load from the config file
 WHEN `packages/system-one-decisions` is imported and `decide_intent()` is
 called without explicit `act_floor`/`approve_floor`
-THEN the values used SHALL equal `thresholds.yaml`'s `defaults.act_floor` and
+THEN the values used SHALL equal `thresholds.json`'s `defaults.act_floor` and
 `defaults.approve_floor`.
 
 #### Scenario: No threshold literal in scoring logic
