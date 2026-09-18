@@ -178,7 +178,12 @@ def _answer_field(answer: Any, name: str, default: Any = None) -> Any:
     return getattr(answer, name, default)
 
 
-def _classify_pr_risk(pr_number: int, origin: str, pr_size: dict) -> dict[str, Any] | None:
+def _classify_pr_risk(
+    pr_number: int,
+    origin: str,
+    pr_size: dict,
+    dry_run: bool = False,
+) -> dict[str, Any] | None:
     """Ask one calibrated judgment for whether this PR warrants review.
 
     State is title, body, file list and diff stat — never the diff itself
@@ -187,7 +192,9 @@ def _classify_pr_risk(pr_number: int, origin: str, pr_size: dict) -> dict[str, A
     usable answer) — never raises. Callers fall back to the existing
     size-threshold rule. The deterministic draft/origin skips already ran
     before this is ever called, so a call-count test can assert this
-    function is never reached for those PRs.
+    function is never reached for those PRs. `dry_run` threads through to
+    `decide()` unchanged, per its documented contract, so `--dry-run`
+    reports eligibility without making a live external call.
     """
     if system_one_decisions is None:
         return None
@@ -225,6 +232,7 @@ def _classify_pr_risk(pr_number: int, origin: str, pr_size: dict) -> dict[str, A
 
     answers = system_one_decisions.decide(
         state, questions, site="merge-pull-requests.vendor_review",
+        dry_run=dry_run,
     )
     if not answers:
         return None
@@ -254,8 +262,13 @@ def check_review_eligibility(
     pr_size: dict,
     existing_reviews: list[dict] | None = None,
     is_draft: bool = False,
+    dry_run: bool = False,
 ) -> dict:
     """Determine whether a PR warrants multi-vendor review.
+
+    `dry_run` threads through to the judged eligibility call so `--dry-run`
+    never makes a live external call, matching `dispatch_vendor_reviews`'s
+    own `dry_run` contract.
 
     Returns:
         {"eligible": bool, "reason": str, "details": dict}
@@ -281,7 +294,7 @@ def check_review_eligibility(
     changed_lines = pr_size.get("changed_lines", 0)
     changed_files = pr_size.get("changed_files", 0)
 
-    judged = _classify_pr_risk(pr_number, origin, pr_size)
+    judged = _classify_pr_risk(pr_number, origin, pr_size, dry_run=dry_run)
     if judged is not None:
         evidence = {
             "evidence_class": "judgment",
@@ -755,6 +768,7 @@ def main() -> int:
         pr_size=pr_size,
         existing_reviews=existing_reviews,
         is_draft=args.is_draft,
+        dry_run=args.dry_run,
     )
 
     result = {

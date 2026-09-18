@@ -122,6 +122,20 @@ class TestClassifyPrRisk:
         assert "diff" not in state
         assert questions["risk"]["criteria"] == list(vr._RISK_LEVELS)
 
+    def test_dry_run_default_is_threaded_into_decide(self, monkeypatch) -> None:
+        fake_module = MagicMock()
+        fake_module.decide.return_value = None
+        monkeypatch.setattr(vr, "system_one_decisions", fake_module)
+        vr._classify_pr_risk(1, "openspec", _pr_size())
+        assert fake_module.decide.call_args.kwargs["dry_run"] is False
+
+    def test_dry_run_true_is_threaded_into_decide(self, monkeypatch) -> None:
+        fake_module = MagicMock()
+        fake_module.decide.return_value = None
+        monkeypatch.setattr(vr, "system_one_decisions", fake_module)
+        vr._classify_pr_risk(1, "openspec", _pr_size(), dry_run=True)
+        assert fake_module.decide.call_args.kwargs["dry_run"] is True
+
 
 class TestCheckReviewEligibilityJudgedOverride:
     def test_draft_pr_never_calls_decide(self, monkeypatch) -> None:
@@ -177,6 +191,13 @@ class TestCheckReviewEligibilityJudgedOverride:
         assert result["eligible"] is False
         assert result["reason"] == "low_risk_judged"
         assert result["details"]["evidence_class"] == "judgment"
+
+    def test_dry_run_reaches_the_judgment_call(self, monkeypatch) -> None:
+        fake_module = MagicMock()
+        fake_module.decide.return_value = None
+        monkeypatch.setattr(vr, "system_one_decisions", fake_module)
+        vr.check_review_eligibility(1, "openspec", _pr_size(), dry_run=True)
+        assert fake_module.decide.call_args.kwargs["dry_run"] is True
 
     def test_unavailable_judgment_falls_back_to_small_pr_rule(self, monkeypatch) -> None:
         fake_module = MagicMock()
