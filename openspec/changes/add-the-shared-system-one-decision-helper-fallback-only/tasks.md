@@ -2,14 +2,6 @@
 
 > Change ID: `add-the-shared-system-one-decision-helper-fallback-only`
 
-## Status
-
-- [x] Planning
-- [x] Implementation
-- [x] Testing
-- [ ] Review
-- [ ] Done
-
 ## Tasks
 
 ### Phase 1 — Package scaffold

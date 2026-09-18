@@ -29,3 +29,23 @@
 ### Context
 Refined plan-roadmap's generic scaffold into a concrete, testable design: split decide_intent's routing logic (_route, pure) from acquisition (always-fallback in this item), specified the caller-supplied event_sink contract, wrote real TDD tasks with checkpoints, concrete WHEN/THEN scenarios per requirement, a contracts/README.md stub, and a schema-valid coordinated-tier work-packages.yaml with a real verification step.
 
+---
+
+## Phase: Validation (2026-09-18)
+
+**Agent**: implement-feature | **Session**: N/A
+
+### Decisions
+1. **Removed tasks.md's plan-roadmap scaffold Status checklist** — No real change in this repo carries that section; it permanently trips the drift gate since Review/Done cannot be checked at implementation time. Confirmed by grepping other active changes.
+
+### Completed Work
+- spec
+- evidence
+
+### Next Steps
+- Create the PR
+- docker-smoke-import CI must verify the full container build (no docker daemon in this environment)
+
+### Context
+Ran spec+evidence phases only, per implement-feature Step 6.5. Removed the plan-roadmap scaffold's generic Status section from tasks.md, which conflicted with the task-checkbox drift gate on every roadmap item it scaffolds; traceability gate and per-requirement verification (19 tests) both pass. Deploy/Smoke/Security/E2E deferred to merge time.
+
