@@ -54,7 +54,7 @@ items:
   description: 'Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions,
     have the package build the live client from TYPESAFE_API_KEY behind a token-budget
     guard, and give decide() an optional caller-supplied event_sink (mirroring decide_intent()''s
-    existing one) that receives site, latency, usage.input_tokens and the answered
+    existing one) that receives site, latency, usage_input_tokens and the answered
     probabilities on every completed call -- whether that reaches Langfuse is left
     to the caller. Establish the per-site threshold convention: thresholds live in
     a package-owned data file (packages/system-one-decisions/src/system_one_decisions/config/thresholds.json),
@@ -74,7 +74,7 @@ items:
   - decide returns None (never raises) when the live extra isn't installed, the key
     is absent, the network fails, or serialized state plus the longest question exceeds
     the 32K-token budget, with one test per branch (four branches).
-  - Each completed call passes site, latency_ms, usage.input_tokens and the per-label
+  - Each completed call passes site, latency_ms, usage_input_tokens and the per-label
     probabilities to decide()'s optional event_sink, exactly once; whether a caller
     forwards that to Langfuse is that caller's own decision, made when it migrates
     a call site.
@@ -687,7 +687,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T13:11:30.873550+00:00'
+updated_at: '2026-09-18T13:15:50.755918+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code
@@ -703,5 +703,18 @@ refinements:
     and so a reader of roadmap.yaml alone sees the real contract without needing to
     cross-reference the change''s plan-findings.md.'
   base_sha256: 508c25b30c9d0b5b4ef81d791da50efb7785932ce8474a54948d69c8d3517d73
+  operations:
+  - edit:ri-02
+- timestamp: '2026-09-18T13:15:50.755918+00:00'
+  actor: claude-code
+  source: codex-review-pr-586
+  rationale: A second Codex review, this time on the PR reconciling ri-02's own contract
+    (#586, not yet merged), caught that my reconciliation text wrote "usage.input_tokens"
+    (a nested-looking dotted field) when decide()'s actual event_sink record uses
+    the flat key usage_input_tokens (confirmed directly against packages/system-one-decisions/src/system_one_decisions/_core.py
+    and specs/system-one-decisions/spec.md of wire-the-live-typesafe-client-thresholds-and-telemetry).
+    Fixing before this reconciliation itself merges, so a future caller wiring an
+    event_sink against this canonical description doesn't reach for the wrong key.
+  base_sha256: 82e77022a5d0858f7178da0b12dc935251acc8e4248878d4b6c61a2ad953724d
   operations:
   - edit:ri-02
