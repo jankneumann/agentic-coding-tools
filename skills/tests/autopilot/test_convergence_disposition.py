@@ -6,7 +6,9 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-_SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent)
+_SCRIPTS_DIR = str(
+    Path(__file__).resolve().parents[2] / "autopilot" / "scripts"
+)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
@@ -57,8 +59,8 @@ class TestClassifyRoundAvailable:
         fake_module = MagicMock()
         fake_module.decide.return_value = {
             "continue": {"noul": 0.8},
-            "disposition_1": {"choice": "fix_now"},
-            "disposition_2": {"choice": "needs_human"},
+            "disposition_1": {"choice": "fix_now", "confidence": 0.9},
+            "disposition_2": {"choice": "needs_human", "confidence": 0.9},
         }
         monkeypatch.setattr(cd, "system_one_decisions", fake_module)
 
@@ -80,7 +82,7 @@ class TestClassifyRoundAvailable:
         fake_module = MagicMock()
         fake_module.decide.return_value = {
             "continue": {"noul": 0.8},
-            "disposition_1": {"choice": "not_a_real_disposition"},
+            "disposition_1": {"choice": "not_a_real_disposition", "confidence": 0.9},
         }
         monkeypatch.setattr(cd, "system_one_decisions", fake_module)
 
@@ -93,7 +95,7 @@ class TestClassifyRoundAvailable:
         fake_module = MagicMock()
         fake_module.decide.return_value = {
             "continue": {"noul": 0.8},
-            "disposition_1": {"choice": "reject_out_of_scope"},
+            "disposition_1": {"choice": "reject_out_of_scope", "confidence": 0.9},
             # no "disposition_2" key at all
         }
         monkeypatch.setattr(cd, "system_one_decisions", fake_module)
@@ -105,6 +107,67 @@ class TestClassifyRoundAvailable:
             change_id="c",
         )
         assert result == {1: "reject_out_of_scope"}
+
+
+class TestConfidenceFloor:
+    """A low-confidence disposition answer must never park a real blocker
+    (Codex P1): the item is left out of the result, so the caller's
+    DEFAULT_DISPOSITION fallback (fix_now) applies instead."""
+
+    def test_low_probability_choice_is_not_acted_on(self, monkeypatch) -> None:
+        fake_module = MagicMock()
+        fake_module.decide.return_value = {
+            "continue": {"noul": 0.8},
+            "disposition_1": {
+                "choice": "reject_out_of_scope",
+                "probabilities": {
+                    "fix_now": 0.3,
+                    "defer_to_followup": 0.25,
+                    "reject_out_of_scope": 0.26,
+                    "needs_human": 0.19,
+                },
+            },
+        }
+        monkeypatch.setattr(cd, "system_one_decisions", fake_module)
+
+        result = cd.classify_round(
+            [_blocking_item(1)], trend=[1], last_fix_diff="", change_id="c",
+        )
+        assert result == {}
+
+    def test_high_probability_choice_is_acted_on(self, monkeypatch) -> None:
+        fake_module = MagicMock()
+        fake_module.decide.return_value = {
+            "continue": {"noul": 0.8},
+            "disposition_1": {
+                "choice": "needs_human",
+                "probabilities": {
+                    "fix_now": 0.05,
+                    "defer_to_followup": 0.05,
+                    "reject_out_of_scope": 0.05,
+                    "needs_human": 0.85,
+                },
+            },
+        }
+        monkeypatch.setattr(cd, "system_one_decisions", fake_module)
+
+        result = cd.classify_round(
+            [_blocking_item(1)], trend=[1], last_fix_diff="", change_id="c",
+        )
+        assert result == {1: "needs_human"}
+
+    def test_missing_confidence_signal_is_not_acted_on(self, monkeypatch) -> None:
+        fake_module = MagicMock()
+        fake_module.decide.return_value = {
+            "continue": {"noul": 0.8},
+            "disposition_1": {"choice": "needs_human"},
+        }
+        monkeypatch.setattr(cd, "system_one_decisions", fake_module)
+
+        result = cd.classify_round(
+            [_blocking_item(1)], trend=[1], last_fix_diff="", change_id="c",
+        )
+        assert result == {}
 
 
 class TestParkReasonMapping:

@@ -43,6 +43,13 @@ from gatekeeper_shadow import _answer_field  # noqa: E402
 
 DEFAULT_DISPOSITION = "fix_now"
 
+# A disposition answer below this top-choice probability is not acted on --
+# the item is left out of the result dict entirely, so the caller's
+# .get(item_id, DEFAULT_DISPOSITION) falls back to fix_now. A near-uniform
+# answer must never silently park a real blocker; parked items are never
+# reopened by compact()/merge_findings (Codex P1).
+DISPOSITION_CONFIDENCE_FLOOR = 0.5
+
 _DISPOSITIONS = (
     "fix_now",
     "defer_to_followup",
@@ -79,6 +86,28 @@ PARK_REASON_BY_DISPOSITION = {
 
 def _disposition_question_name(item_id: int) -> str:
     return f"{_DISPOSITION_QUESTION_PREFIX}{item_id}"
+
+
+def _top_probability(answer: Any, choice: str) -> float | None:
+    """The chosen label's probability, or ``None`` when it can't be read.
+
+    Prefers ``answer.probabilities[choice]`` (the calibrated distribution);
+    falls back to ``answer.confidence`` when no per-label probability is
+    available. Never raises.
+    """
+    probabilities = _answer_field(answer, "probabilities", {})
+    if isinstance(probabilities, dict) and choice in probabilities:
+        try:
+            return float(probabilities[choice])
+        except (TypeError, ValueError):
+            return None
+    confidence = _answer_field(answer, "confidence")
+    if confidence is None:
+        return None
+    try:
+        return float(confidence)
+    except (TypeError, ValueError):
+        return None
 
 
 def classify_round(
@@ -159,8 +188,15 @@ def classify_round(
         if answer is None:
             continue
         choice = _answer_field(answer, "choice")
-        if choice in _DISPOSITIONS:
-            result[int(item_id)] = choice
+        if choice not in _DISPOSITIONS:
+            continue
+        top_p = _top_probability(answer, choice)
+        if top_p is None or top_p < DISPOSITION_CONFIDENCE_FLOOR:
+            # Below the confidence floor (or unmeasurable): do not act on
+            # an uncertain label. Leaving the item out of `result` makes the
+            # caller's DEFAULT_DISPOSITION fallback apply.
+            continue
+        result[int(item_id)] = choice
     return result
 
 
