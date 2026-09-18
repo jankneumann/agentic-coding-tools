@@ -682,3 +682,113 @@ def test_try_issue_create_unauthorized_returns_skipped(monkeypatch) -> None:
 
     assert result["status"] == "skipped"
     assert result["reason"] == "unauthorized"
+
+
+def test_try_lock_omits_caller_identity_when_the_api_key_is_bound(monkeypatch) -> None:
+    """A bound key may only act as itself; any invented name is a 403.
+
+    The merge sync-point sent agent_id="merge-pull-requests-sync-point" and
+    every acquisition was refused with "API key is not permitted to act as
+    requested agent_id". `try_handoff_write` already dropped identity for a
+    bound key; locks never did.
+    """
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+    )
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **kwargs: (
+            captured.append(kwargs)
+            or {"status_code": 200, "data": {"success": True}, "error": None}
+        ),
+    )
+
+    coordination_bridge.try_lock(
+        file_path="sync-point:main-convergence",
+        agent_id="merge-pull-requests-sync-point",
+        agent_type="merge-pull-requests",
+        api_key="bound-key-xyz",
+    )
+
+    payload = captured[0]["payload"]
+    assert payload["agent_id"] == ""
+    assert payload["agent_type"] == ""
+    # The fields are present, not omitted: LockAcquireRequest still declares
+    # them required on coordinators that predate the matching model change.
+    assert "agent_id" in payload and "agent_type" in payload
+
+
+def test_try_unlock_omits_caller_identity_when_the_api_key_is_bound(monkeypatch) -> None:
+    """A release naming the wrong identity strands the lock until its TTL."""
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+    )
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **kwargs: (
+            captured.append(kwargs)
+            or {"status_code": 200, "data": {"success": True}, "error": None}
+        ),
+    )
+
+    coordination_bridge.try_unlock(
+        file_path="sync-point:main-convergence",
+        agent_id="merge-pull-requests-sync-point",
+        api_key="bound-key-xyz",
+    )
+
+    assert captured[0]["payload"]["agent_id"] == ""
+
+
+def test_try_lock_keeps_caller_identity_without_an_api_key(monkeypatch) -> None:
+    """Unauthenticated: the caller's identity is all the server has."""
+    captured: list[dict[str, Any]] = []
+    monkeypatch.delenv("COORDINATION_API_KEY", raising=False)
+    monkeypatch.delenv("COORDINATOR_API_KEY", raising=False)
+    monkeypatch.setattr(
+        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+    )
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **kwargs: (
+            captured.append(kwargs)
+            or {"status_code": 200, "data": {"success": True}, "error": None}
+        ),
+    )
+
+    coordination_bridge.try_lock(
+        file_path="f", agent_id="local-agent", agent_type="claude_code"
+    )
+
+    payload = captured[0]["payload"]
+    assert payload["agent_id"] == "local-agent"
+    assert payload["agent_type"] == "claude_code"
+
+
+def test_a_forbidden_response_is_distinguished_from_a_rejected_key(monkeypatch) -> None:
+    """403 and 401 want different fixes, so they must not share one reason."""
+    monkeypatch.setattr(
+        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+    )
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {
+            "status_code": 403,
+            "data": {"detail": "API key is not permitted to act as requested agent_id"},
+            "error": "forbidden",
+        },
+    )
+
+    result = coordination_bridge.try_lock(
+        file_path="f", agent_id="a", agent_type="t", api_key="k"
+    )
+
+    assert result["reason"] == "forbidden"
+    assert result["status_code"] == 403
+    assert "not permitted to act as requested agent_id" in result["detail"]
