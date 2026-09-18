@@ -7,13 +7,13 @@
 
 | Priority | Item | Effort | Status | Dependencies |
 |----------|------|--------|--------|--------------|
-| 1 | Add the shared system_one decision helper, fallback-only | M | approved | - |
-| 1 | Wire the live TypeSafe client, thresholds and telemetry | M | approved | ri-01 |
+| 1 | Add the shared system_one decision helper, fallback-only | M | completed | - |
+| 1 | Wire the live TypeSafe client, thresholds and telemetry | M | completed | ri-01 |
+| 1 | Add the adapter-backed test substitute and dry-run policy | S | approved | ri-02 |
 | 1 | Replace the gen-eval semantic judge with a calibrated Noul | M | approved | ri-03 |
 | 1 | Judge cross-vendor finding matching in consensus_synthesizer | L | approved | ri-03, ri-04 |
 | 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | approved | ri-05 |
 | 1 | Adjudicate phase outcomes in shadow mode | L | approved | ri-06 |
-| 2 | Add the adapter-backed test substitute and dry-run policy | S | approved | ri-02 |
 | 2 | Promote shadow judgments to acting decisions | M | approved | ri-06, ri-07 |
 | 2 | Route review convergence on per-finding dispositions | L | approved | ri-05 |
 | 3 | Judge transcript struggle triage in collect-transcripts | M | approved | ri-05 |
@@ -99,7 +99,7 @@ graph TD
 
 ### ri-01: Add the shared system_one decision helper, fallback-only
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: add-the-shared-system-one-decision-helper-fallback-only
@@ -115,20 +115,35 @@ Create the installable package packages/system-one-decisions (importable as syst
 
 ### ri-02: Wire the live TypeSafe client, thresholds and telemetry
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: wire-the-live-typesafe-client-thresholds-and-telemetry
 - **Depends on**: `ri-01`
 
-Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions, have the package build the live client from TYPESAFE_API_KEY behind a token-budget guard, and record site, latency, usage.input_tokens and the answered probabilities to the existing Langfuse hook. Establish the per-site threshold convention: thresholds live in architecture.config.yaml or the skill's own config beside the rule they replace, never as literals in a scoring module.
+Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions, have the package build the live client from TYPESAFE_API_KEY behind a token-budget guard, and give decide() an optional caller-supplied event_sink (mirroring decide_intent()'s existing one) that receives site, latency, usage.input_tokens and the answered probabilities on every completed call -- whether that reaches Langfuse is left to the caller. Establish the per-site threshold convention: thresholds live in a package-owned data file (packages/system-one-decisions/src/system_one_decisions/config/thresholds.json), loaded by the package itself, never as literals in a scoring module.
 
 **Acceptance outcomes**:
 - [ ] packages/system-one-decisions declares a "live" extra containing typesafe-sdk; the default install of the package and of every consumer still succeeds without it.
 - [ ] typesafe_sdk is imported inside packages/system-one-decisions and nowhere else in the repository, enforced by a grep-style guard test.
-- [ ] decide returns None (never raises) when the key is absent, the network fails, or serialized state plus the longest question exceeds the 32K-token budget, with one test per branch.
-- [ ] Each completed call emits one Langfuse record carrying site, latency_ms, usage.input_tokens and the per-label probabilities.
-- [ ] A guard test asserts no float threshold literal is introduced into the package; defaults resolve from architecture.config.yaml.
+- [ ] decide returns None (never raises) when the live extra isn't installed, the key is absent, the network fails, or serialized state plus the longest question exceeds the 32K-token budget, with one test per branch (four branches).
+- [ ] Each completed call passes site, latency_ms, usage.input_tokens and the per-label probabilities to decide()'s optional event_sink, exactly once; whether a caller forwards that to Langfuse is that caller's own decision, made when it migrates a call site.
+- [ ] A guard test asserts no float threshold literal is introduced into the package; act_floor/approve_floor defaults resolve from a package-owned packages/system-one-decisions/src/system_one_decisions/config/thresholds.json.
+
+### ri-03: Add the adapter-backed test substitute and dry-run policy
+
+- **Status**: approved
+- **Priority**: 1
+- **Effort**: S
+- **Change ID**: add-the-adapter-backed-test-substitute-and-dry-run-policy
+- **Depends on**: `ri-02`
+
+Stand up the testing convention for every later site: unit tests stub decide/decide_intent, behavioural wiring tests use system-one-adapter (Anthropic provider, llm_answer_mode="probabilities") with test names marking its probabilities uncalibrated, and --dry-run paths make no API call.
+
+**Acceptance outcomes**:
+- [ ] A reusable pytest fixture stubs decide/decide_intent and is exercised by at least one test that asserts the caller's fallback rule still runs when the stub returns None.
+- [ ] Adapter-backed behavioural tests are skipped by default, run only when the adapter env is present, and every such test name contains "uncalibrated".
+- [ ] A test asserts that running any system_one-consuming script with --dry-run performs zero client constructions.
 
 ### ri-04: Replace the gen-eval semantic judge with a calibrated Noul
 
@@ -195,21 +210,6 @@ Insert a decision step between a phase sub-agent's return and apply_phase_outcom
 - [ ] transition(state, outcome) still runs on the claimed outcome for the whole shadow period, proven by a replay test showing identical phase sequences.
 - [ ] The disagreement report attributes each disagreement to the side the next review round vindicated, over at least one sprint of recorded autopilot runs.
 - [ ] A degraded decision (helper returns None) is recorded via record_degraded and leaves the existing behaviour unchanged, covered by a test.
-
-### ri-03: Add the adapter-backed test substitute and dry-run policy
-
-- **Status**: approved
-- **Priority**: 2
-- **Effort**: S
-- **Change ID**: add-the-adapter-backed-test-substitute-and-dry-run-policy
-- **Depends on**: `ri-02`
-
-Stand up the testing convention for every later site: unit tests stub decide/decide_intent, behavioural wiring tests use system-one-adapter (Anthropic provider, llm_answer_mode="probabilities") with test names marking its probabilities uncalibrated, and --dry-run paths make no API call.
-
-**Acceptance outcomes**:
-- [ ] A reusable pytest fixture stubs decide/decide_intent and is exercised by at least one test that asserts the caller's fallback rule still runs when the stub returns None.
-- [ ] Adapter-backed behavioural tests are skipped by default, run only when the adapter env is present, and every such test name contains "uncalibrated".
-- [ ] A test asserts that running any system_one-consuming script with --dry-run performs zero client constructions.
 
 ### ri-08: Promote shadow judgments to acting decisions
 
