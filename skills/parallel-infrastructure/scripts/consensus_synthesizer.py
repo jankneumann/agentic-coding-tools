@@ -26,7 +26,14 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import ModuleType
 from typing import Any
+
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
 
 logger = logging.getLogger(__name__)
 
@@ -332,21 +339,20 @@ def _normalize_snippet(code: str) -> str:
     return "\n".join(lines)
 
 
-def match_score(a: Finding, b: Finding) -> tuple[float, str]:
-    """Compute match score and basis between two findings.
+def _fast_path_score(a: Finding, b: Finding) -> tuple[float, str]:
+    """Location and snippet bands only -- no Jaccard, no judgment.
 
-    Score bands are calibrated so each is reachable at the default 0.6
-    threshold with realistic inputs — independent LLMs never produce
-    verbatim-identical descriptions, so every band must clear the
-    threshold on paraphrased agreement.
+    Split out from ``match_score`` (design D1 of
+    ``judge-cross-vendor-finding-matching-in-consensus-synthesizer``) so
+    ``_match_all`` can determine, for every candidate pair, whether it is
+    resolved without ever needing an LLM call: a pair scored here is never
+    routed to ``_judge_pairs``. Axis mismatch is checked first since it
+    gates every band, fast or not.
 
     Returns:
         (score, basis) where score is 0.0-1.0 and basis describes
-        the matching criteria used.
+        the matching criteria used, or (0.0, "") when neither band fires.
     """
-    # Axis is part of the cross-vendor matching key: an observability
-    # finding and a correctness finding on the same lines are two distinct
-    # signals, and merging them would silently drop one.
     if _canonical_axis(a.axis) != _canonical_axis(b.axis):
         return 0.0, ""
 
@@ -373,6 +379,37 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         if _normalize_snippet(a.existing_code) == _normalize_snippet(b.existing_code):
             return 0.9, "snippet"
 
+    return 0.0, ""
+
+
+def match_score(a: Finding, b: Finding) -> tuple[float, str]:
+    """Compute match score and basis between two findings.
+
+    Score bands are calibrated so each is reachable at the default 0.6
+    threshold with realistic inputs — independent LLMs never produce
+    verbatim-identical descriptions, so every band must clear the
+    threshold on paraphrased agreement.
+
+    This is the deterministic scorer only -- fast paths (location, snippet)
+    plus Jaccard token-overlap. It never calls a judged path; that is
+    orchestrated separately by ``ConsensusSynthesizer._match_all`` via
+    ``_judge_pairs``, so this function's behavior (and every existing
+    caller's, including ``review_ledger.py``'s dedup matching) is unchanged
+    by that feature.
+
+    Returns:
+        (score, basis) where score is 0.0-1.0 and basis describes
+        the matching criteria used.
+    """
+    fast_score, fast_basis = _fast_path_score(a, b)
+    if fast_score > 0.0:
+        return fast_score, fast_basis
+
+    if _canonical_axis(a.axis) != _canonical_axis(b.axis):
+        return 0.0, ""
+
+    same_type = _types_compatible(a.type, b.type)
+    same_file = _paths_match(a.file_path, b.file_path)
     desc_sim = _jaccard(_tokenize(a.description), _tokenize(b.description))
 
     if same_file and same_type and desc_sim >= 0.25:
@@ -385,6 +422,60 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         return min(0.3 + desc_sim * 0.6, 0.75), "type+description"
 
     return 0.0, ""
+
+
+def _judge_pairs(
+    file_path: str, pairs: list[tuple[Finding, Finding]],
+) -> dict[int, float]:
+    """Judge every same-file, same-axis candidate pair unresolved by the
+    fast paths, in one batched ``decide()`` call (design D1/D2).
+
+    Builds one shared per-file state and one ``Noul`` question per pair, so
+    a file with N judgeable pairs costs exactly one call regardless of N.
+    Returns a ``{pair_index: noul_confidence}`` map covering only the pairs
+    that got an answer; a missing index means ``decide()`` was unavailable
+    (or answered nothing for that index), and the caller falls back to
+    ``match_score``'s Jaccard bands for it (design D3).
+
+    Called only from ``ConsensusSynthesizer._match_all``. ``match_score``
+    and ``review_ledger.py``'s dedup matching are unaffected.
+    """
+    if not pairs or system_one_decisions is None:
+        return {}
+
+    state = {
+        "file_path": file_path,
+        "pairs": {
+            f"pair_{i}": {
+                "a": {"vendor": a.vendor, "description": a.description},
+                "b": {"vendor": b.vendor, "description": b.description},
+            }
+            for i, (a, b) in enumerate(pairs)
+        },
+    }
+    questions = {
+        f"pair_{i}": {
+            "type": "noul",
+            "instructions": (
+                f"In state.pairs.pair_{i}, findings a and b describe the "
+                "same underlying defect."
+            ),
+        }
+        for i in range(len(pairs))
+    }
+
+    answers = system_one_decisions.decide(
+        state, questions, site="parallel-infrastructure.consensus_match",
+    )
+    if answers is None:
+        return {}
+
+    result: dict[int, float] = {}
+    for i in range(len(pairs)):
+        answer = answers.get(f"pair_{i}")
+        if answer is not None:
+            result[i] = max(0.0, min(1.0, float(answer.noul)))
+    return result
 
 
 def _higher_criticality(a: str, b: str) -> str:
@@ -424,7 +515,25 @@ def _agreed_axis(findings: list[Finding]) -> str:
 # Synthesizer
 # ---------------------------------------------------------------------------
 
-MATCH_THRESHOLD = 0.6
+
+def _default_match_threshold() -> float:
+    """Return the cross-vendor match-score threshold, sourced from the
+    review-rules sidecar when available, else its documented default.
+
+    Same shape as ``_coverage_quorum_threshold`` below, and for the same
+    reason: this module's CLI has no natural ``cwd`` to resolve a project
+    override against, so it uses the embedded default rather than the full
+    ``review_rules.load_config`` resolution chain.
+    """
+    try:
+        import review_rules
+
+        return review_rules.DEFAULT_MATCH_THRESHOLD
+    except Exception:  # noqa: BLE001 — degrade to the documented default
+        return 0.6
+
+
+MATCH_THRESHOLD = _default_match_threshold()
 
 
 class ConsensusSynthesizer:
@@ -507,7 +616,24 @@ class ConsensusSynthesizer:
         )
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
-        """Match findings across vendors using greedy best-match."""
+        """Match findings across vendors using greedy best-match.
+
+        For each (primary, other_vendor) comparison: fast paths first, with
+        no `decide()` call at all. Only when no candidate clears the
+        threshold via a fast path does judgment run -- one batched call
+        judging every unused, same-file, same-axis candidate from that
+        vendor together (design D1/D2). Jaccard is the fallback: it runs
+        only when judgment was unavailable, no candidate was eligible for
+        it (no shared file), or none of its answers cleared the threshold
+        (design D3).
+
+        Note: unlike the pre-judgment algorithm, a fast-path hit is taken
+        immediately rather than compared against what a Jaccard-only
+        candidate might have scored higher for a *different* unused
+        candidate from the same vendor -- both bands are still tried when
+        fast-path finds nothing, so total coverage is unchanged; only that
+        one narrow same-vendor, multi-candidate tie-break case can differ.
+        """
         used: set[tuple[str, int]] = set()
         matches: list[FindingMatch] = []
 
@@ -531,18 +657,47 @@ class ConsensusSynthesizer:
             for other_vendor in vendors:
                 if other_vendor == f.vendor:
                     continue
+
+                unused_candidates = [
+                    c for c in by_vendor[other_vendor] if (c.vendor, c.id) not in used
+                ]
+
                 best_score = 0.0
                 best_match: Finding | None = None
                 best_basis = ""
-                for candidate in by_vendor[other_vendor]:
-                    ckey = (candidate.vendor, candidate.id)
-                    if ckey in used:
-                        continue
-                    s, basis = match_score(f, candidate)
+                for candidate in unused_candidates:
+                    s, basis = _fast_path_score(f, candidate)
                     if s > best_score:
                         best_score = s
                         best_match = candidate
                         best_basis = basis
+
+                if not (best_match and best_score >= self.match_threshold):
+                    judgeable = [
+                        c for c in unused_candidates
+                        if f.file_path and c.file_path
+                        and _canonical_axis(f.axis) == _canonical_axis(c.axis)
+                        and _paths_match(f.file_path, c.file_path)
+                    ]
+                    if judgeable and f.file_path:
+                        judged = _judge_pairs(
+                            _normalize_path(f.file_path),
+                            [(f, c) for c in judgeable],
+                        )
+                        for i, candidate in enumerate(judgeable):
+                            s = judged.get(i)
+                            if s is not None and s > best_score:
+                                best_score = s
+                                best_match = candidate
+                                best_basis = "judged"
+
+                if not (best_match and best_score >= self.match_threshold):
+                    for candidate in unused_candidates:
+                        s, basis = match_score(f, candidate)
+                        if s > best_score:
+                            best_score = s
+                            best_match = candidate
+                            best_basis = basis
 
                 if best_match and best_score >= self.match_threshold:
                     match.matched.append(best_match)
@@ -556,14 +711,24 @@ class ConsensusSynthesizer:
 
     @staticmethod
     def _consensus_evidence_class(match: "FindingMatch") -> str:
-        """JUDGMENT only when every contributing finding was judgment-class.
+        """JUDGMENT when the match itself was judged, or when every
+        contributing finding was judgment-class.
 
-        One deterministic corroboration is enough to make the consensus finding
-        blockable. The reproducible observation is what carries it; a model
-        agreeing with a failing test does not make the test less real, and the
-        reverse — letting one judgment voice demote a reproducible finding out of
-        the blocking count — would be a way to talk a gate out of firing.
+        A match established only by the judged path (`match.basis ==
+        "judged"`) is always JUDGMENT, unconditionally -- a probabilistic
+        cross-vendor pairing can never promote a consensus finding into
+        the blocking count, regardless of how confident the contributing
+        findings' own evidence classes are.
+
+        Otherwise: one deterministic corroboration is enough to make the
+        consensus finding blockable. The reproducible observation is what
+        carries it; a model agreeing with a failing test does not make the
+        test less real, and the reverse — letting one judgment voice demote
+        a reproducible finding out of the blocking count — would be a way
+        to talk a gate out of firing.
         """
+        if match.basis == "judged":
+            return JUDGMENT
         contributing = [match.primary, *match.matched]
         return (
             JUDGMENT
