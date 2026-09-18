@@ -41,23 +41,27 @@ that gates them, and the analysis that motivated this change is fresh.
   worked example adapted from humanlayer (with attribution) and the form's
   "smallest view" rule. **HTML output is explicitly out of scope for v1** — the
   skill emits text and Mermaid only, inline in the reply.
-- **Grounding step.** Before sketching, the skill checks graph freshness with
-  the existing read-only `run_architecture.py --check` (exit `0` is fresh;
-  anything else is treated as stale) and, when fresh,
-  obtains callers/callees from the new atlas `--tree` export and builds the call
-  tree from that data. When the graph is stale, absent, or does not cover the
-  files in question, the skill reads source directly and **labels the sketch
-  unverified**. It never refuses and never triggers a refresh on its own.
-- **Coverage disclosure line.** Every answer ends with one line stating the
-  grounding source (`graph @ <sha>`, or `source read, unverified`) and, for
-  grounded sketches, the per-language coverage percentage the atlas already
-  computes. The line is not optional and not collapsible.
+- **Grounding step.** Before sketching a call tree, the skill checks graph
+  freshness with the existing read-only `run_architecture.py --check` (exit `0`
+  alone is fresh; missing script/graph → `graph absent`; spawn failure →
+  `graph check failed`; any non-zero `--check` exit → `graph stale`) and, when
+  fresh, obtains callers/callees from the new atlas `--tree` export. When the
+  graph is unusable or the symbol is outside coverage, the skill reads source
+  directly and **labels the sketch unverified**. Ambiguous `--tree` exit `3`
+  asks instead of guessing. It never refuses and never triggers a refresh on
+  its own.
+- **Coverage disclosure line.** Every **sketching** reply ends with one
+  `Grounding:` line (`graph @ <sha>; … covered`, or
+  `source read, unverified (<reason>)`). Ambiguous-symbol clarifications and
+  whole-repository redirects are explicit exceptions and carry no disclosure
+  line. The line is otherwise not optional and not collapsible.
 - **`codebase-atlas` gains `--tree <symbol-or-file> [--hops N] [--direction in|out|both]`.**
   A stdlib-only text export in `build_atlas.py` that BFS-walks the `call` edges of
   the existing `symbolEdges` adjacency from `build_view_model()` and prints an indented tree
   with file path and line per node, hop-capped at 4 to match the page's slider.
   Output is byte-stable for a fixed graph. Exit codes follow the existing
-  contract (`0` ok, `1` input error, `2` symbol not found).
+  contract (`0` ok, `1` input error, `2` symbol not found) plus `3` for an
+  ambiguous name, which the skill resolves by asking rather than guessing.
 - **Frontmatter written for the post-`rewrite-skill-frontmatter` world.** The new
   `SKILL.md` carries `name, description, category, tags, user_invocable, related`
   with a description that states capability and trigger condition in third
@@ -72,14 +76,20 @@ that gates them, and the analysis that motivated this change is fresh.
   `"tests/explain-code"`. Runtime mirrors regenerate via `skills/install.sh`.
 - **Tests.** `skills/tests/explain-code/test_skill_md.py` (frontmatter parses,
   explicit key presence, references resolve, related resolve, tail block
-  present) plus **three behavioural scenarios** in the replay-harness shape that
-  `invert-skill-test-suite-to-behavioural` prescribes: (1) a grounded question
-  yields a call tree whose nodes all exist in the fixture graph and a
-  `graph @` disclosure; (2) a stale graph yields a source-read sketch with an
-  `unverified` disclosure; (3) a whole-repo question is redirected to
-  `/codebase-atlas` rather than answered with a giant tree.
-  `skills/tests/codebase-atlas/` gains `test_atlas_tree.py` and the flag tuple
-  in `test_skill_md.py` gains `--tree`.
+  present) plus **three deterministic behavioural checks** in
+  `test_behaviour.py` that encode the behaviours
+  `invert-skill-test-suite-to-behavioural` wants without blocking on that
+  change (0/10 tasks today): (1) grounding reference contains both D5
+  disclosure forms, the closed ungrounded reason tokens, the
+  footer→disclosure mapping, and the clarification/redirect disclosure
+  exemptions; (2) `SKILL.md` redirects whole-repo questions to
+  `/codebase-atlas`; (3) `SKILL.md` forbids `--ensure` / the analysis
+  pipeline. The "grounded call tree invents no symbols" assertion lives in
+  `tests/codebase-atlas/test_atlas_tree.py` (every printed node matches a
+  fixture node by `(name, file)`). Optional trajectory-harness fixtures are
+  task 2.8 when the harness is present. `skills/tests/codebase-atlas/` gains
+  `test_atlas_tree.py` and the flag tuple in `test_skill_md.py` gains
+  `--tree`.
 
 ### Explicitly deferred to a follow-up change
 
@@ -100,7 +110,7 @@ Chosen at discovery to keep this change to one capability:
 
 | Attribute | Metric | Target | Verified by (phase) |
 |-----------|--------|--------|---------------------|
-| Coverage honesty | Answers carrying a disclosure line | 100% of behavioural-scenario replies, grounded and ungrounded | Behavioural scenarios in CI (skill test suite) |
+| Coverage honesty | Sketching replies carrying a disclosure line | 100% of sketching behavioural-scenario replies (clarification/redirect scenarios exempt) | Behavioural scenarios in CI (skill test suite) |
 | Determinism | `--tree` output for a fixed graph and args | Byte-identical across two runs; sorted children | `tests/codebase-atlas/test_atlas_tree.py` |
 | Operability | `--tree` wall time on the committed graph (1,903 nodes / 1,199 edges) | ≤ 2 s, stdlib only, zero network | `test_atlas_tree.py` timing assertion on the committed graph |
 | Context cost | `SKILL.md` line count; reference depth | `SKILL.md` ≤ 150 lines (hard cap 500 per `apply-progressive-disclosure-oversized-skills`); references one level deep; TOC if > 100 lines | `test_skill_md.py` |
@@ -171,8 +181,9 @@ disclosure line makes that visible rather than hiding it.
 **Approach 1 selected at Gate 1** (2026-09-04) with no modifications to the
 approach itself. One refinement was made while designing it: the graph
 freshness check reuses the existing `refresh-architecture` read-only contract
-(`run_architecture.py --check`, exit `0` fresh / `2` drift / `1` error) instead
-of re-implementing a provenance comparison in prose. This adds
+(`run_architecture.py --check`, exit `0` fresh / any non-zero ungrounded;
+the script returns `1` when provenance is not fresh) instead of
+re-implementing a provenance comparison in prose. This adds
 `refresh-architecture` to the skill's declared cross-skill dependencies; see
 `design.md` D2.
 
@@ -198,7 +209,7 @@ affected.
 - New: `skills/explain-code/SKILL.md`, `skills/explain-code/references/*.md`,
   `skills/tests/explain-code/`.
 - Modified: `skills/codebase-atlas/scripts/build_atlas.py` (new flag and a
-  `tree.py` helper module — no bare-named `models`/`utils` modules, per
+  `atlas_tree.py` helper module — no bare-named `models`/`utils` modules, per
   `collect-uncollected-skill-tests`), `skills/codebase-atlas/SKILL.md` (flag
   table row only), `skills/tests/codebase-atlas/test_skill_md.py`,
   `skills/install-manifest.json`, `skills/pyproject.toml`,

@@ -1,0 +1,21 @@
+{
+  "agent_name": "autopilot-submit-pr",
+  "summary": "PR creation gate approved; reused existing PR #558 and refreshed evidence-trail body.",
+  "completed_work": [
+    "Recorded pr_creation approval",
+    "Updated PR #558 body with autopilot evidence trail"
+  ],
+  "in_progress": [],
+  "decisions": [
+    "Reuse PR #558 rather than creating a duplicate"
+  ],
+  "next_steps": [
+    "Run merge authorization gate",
+    "On approve: report DONE; merge via /cleanup-feature"
+  ],
+  "relevant_files": [
+    "openspec/changes/add-visual-code-explainer/loop-state.json",
+    "openspec/changes/add-visual-code-explainer/validation-report.md"
+  ],
+  "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/558"
+}

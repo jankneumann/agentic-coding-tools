@@ -29,6 +29,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [agent-identity](./agent-identity.md)
 - [architecture-refresh](./architecture-refresh.md)
 - [code-search](./code-search.md)
+- [codebase-analysis](./codebase-analysis.md)
 - [configuration](./configuration.md)
 - [coordination-bridge](./coordination-bridge.md)
 - [coordinator-kanban-viz](./coordinator-kanban-viz.md)

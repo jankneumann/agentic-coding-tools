@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "vendor": "antigravity",
+  "round": 1,
+  "status": "skipped",
+  "skip_reason": "RuntimeError: fact-check caller exited 2: Error: unexpected argument \"You are a fact-checker for code review findings.\\n\\nAdapted from the REVIEW_FILTER_TASK prompt in `alibaba/open-code-review`\\n(internal/config/template/prompts/review_filter_task_system.md,\\nApache-2.0, read 2026-09-14).\\n\\nThese findings come from a reviewer that could i",
+  "model": null,
+  "tokens": 0,
+  "decisions": []
+}

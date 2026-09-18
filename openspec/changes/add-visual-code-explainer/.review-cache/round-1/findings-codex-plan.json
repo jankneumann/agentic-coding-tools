@@ -1,0 +1,47 @@
+{
+  "review_type": "plan",
+  "target": "add-visual-code-explainer",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The Atlas Symbol Tree Export requires module targets to resolve from either a full file path or a basename, but the only module-resolution scenario and task 1.1 cover a basename. The ordered resolution contract is also not exercised where a unique symbol name collides with a module path or basename. Add scenarios and tests for full-path resolution and the unique-name-before-module precedence.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The Atlas Symbol Tree Export says traversal SHALL use only the Python standard library and make no network requests, but no WHEN/THEN scenario or task verifies either constraint. This violates the rule that every SHALL/MUST be scenario-covered and leaves the security and operability boundary unenforced.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The grounding requirement maps failure to spawn or run run_architecture.py --check to `graph check failed`, but no scenario has that WHEN condition. The stale/absent scenario covers non-zero exits and missing files, while the tool-failure scenario covers only build_atlas.py --tree after a successful check. Task 2.2 merely checks that the reason token exists, so an implementation could misclassify a check spawn failure and still pass. Add a dedicated check-spawn-failure scenario and behavioral assertion.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The atlas requirement says every node line SHALL contain name, file, line, and kind, but the format scenario validates only the root line. Task 1.1 checks all printed nodes only by `(name, file)`, so incorrect line numbers or kinds on descendants would pass. Extend the scenario and test to validate every emitted node against all four fixture fields.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

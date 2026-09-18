@@ -98,6 +98,7 @@ testpaths = [
     "tests/bug-scrub",
     "tests/tech-debt-analysis",
     "tests/cleanup-feature",
+    "tests/explain-code",
     "tests/explore-feature",
     "tests/parallel-infrastructure",
     "tests/project-context-runtime",

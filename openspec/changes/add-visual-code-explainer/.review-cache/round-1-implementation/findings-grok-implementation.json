@@ -1,0 +1,219 @@
+{
+  "review_type": "implementation",
+  "target": "add-visual-code-explainer",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "FYI: Ledger item 37 is resolved \u2014 `design.md` now defines D8 (atlas_tree.py module layout) and D9 (refusal list), matching task/WP references.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi",
+      "resolution": "Retire ledger item 37; no further design.md change needed for D8/D9.",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "line_range": {
+        "start": 174,
+        "end": 189
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "FYI: Ledger items 38 and 45 are resolved \u2014 task 2.5 Spec scenarios now include skill-workflow \"Tree tool failure after fresh check\", and `references/grounding.md` documents `--tree` spawn/unexpected-exit \u2192 `graph check failed`.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "resolution": "Retire ledger items 38 and 45.",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "line_range": {
+        "start": 70,
+        "end": 71
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "FYI: Ledger item 46 is resolved \u2014 task 2.6 Spec scenarios now list \"Manifest declares portable distribution and atlas dependencies\" and \"Sibling skill paths use skill-base-dir form\".",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "resolution": "Retire ledger item 46.",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "line_range": {
+        "start": 78,
+        "end": 79
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: Ledger item 13 is `status: retired` with `parked_reason: disagreement` in `.review-ledger/ledger.json`, yet `reviews/parked-disagreements.json` still tracks ledger_id 13 as an active parked disagreement. The process records disagree on whether the item is closed or still parked (the open-item claim of `retired_reason: plan-review-adjudication-round-4` is not present on the ledger record).",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Either keep 13 parked and set ledger status to a non-retired parked state, or resolve/remove it from `parked-disagreements.json` and retire consistently; do not leave both \"retired\" and \"actively parked\".",
+      "file_path": "openspec/changes/add-visual-code-explainer/reviews/parked-disagreements.json",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Atlas Symbol Tree Export SHALL resolve module targets by full file path or basename, but the only module scenario (\"File target gives the aggregated module view\") and task 1.1 / `test_basename_roots_at_module` cover basename only. There is also no scenario for unique-symbol-name-before-module when a unique name collides with a module path/basename. Same gap as parked item 13 and open items 40/50/51/52.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Add codebase-analysis scenarios + task 1.1 tests for (1) full module file-path resolution distinct from basename and (2) unique name winning over module path/basename; keep basename scenario.",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "line_range": {
+        "start": 31,
+        "end": 35
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Atlas Symbol Tree Export SHALL use only the Python standard library and make no network requests, but no WHEN/THEN scenario or task 1.x acceptance check verifies either constraint.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "Add a scenario and a deterministic test (e.g. parse `atlas_tree.py` imports / forbid non-stdlib modules) asserting stdlib-only and no network client usage; wire it into task 1.1 or 1.2.",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "line_range": {
+        "start": 5,
+        "end": 5
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: D5 / skill-workflow map `--check` spawn/OSError to `graph check failed`, but no scenario WHEN covers that path. \"Stale or absent graph falls back to source\" WHEN is only non-zero `--check` or missing script/graph (\u2192 `graph stale` / `graph absent`), yet its THEN still allows `graph check failed`. \"Tree tool failure after fresh check\" covers only `--tree` after a successful check. `test_behaviour.py` only asserts the reason token exists.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "Add a dedicated \"Check tool spawn failure\" scenario (WHEN `--check` cannot be spawned/OSError \u2192 THEN `graph check failed`); remove `graph check failed` from the stale/absent THEN; extend task 2.2 to assert the check-spawn mapping text in grounding.md.",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 43,
+        "end": 48
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: Atlas requirement says every node line SHALL be `<name>  (<file>:<line>)  [<kind>]`, but \"Callees tree for a symbol\" validates that shape only for the root line, and task 1.1 / `TestPrintedNodesMatchFixture` checks descendants only by `(name, file)` \u2014 wrong line or kind on children would still pass.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Extend the callees (or a dedicated format) scenario and `test_atlas_tree.py` so every emitted node is checked against fixture name, file, line, and kind.",
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 11
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: In `proposal.md` What Changes, the Frontmatter bullet lists six keys (`name, description, category, tags, user_invocable, related`) but then says the skill test asserts the \"four surviving keys\". Spec, tasks 2.1, D6, and `test_skill_md.py` all require explicit assertions for all six.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Change \"four surviving keys\" to \"six surviving keys\" (or \"all six declared keys\") in proposal.md.",
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md",
+      "line_range": {
+        "start": 66,
+        "end": 71
+      },
+      "evidence_class": "judgment",
+      "existing_code": "four surviving keys explicitly instead of calling the shared",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: In `session-log.md` Plan Review, `### Next Steps` still sits between round-1 and round-2 decisions and tells the reader to IMPLEMENT if converged, while rounds 3\u20134 adjudications (converge-result cleanup, task 1.1 scenario extension, `--tree` \u2192 `graph check failed`, non-call-tree source read, proposal disclosure alignment; `plan_revision` \u2192 6) live only in `plan-findings.md`.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Move/update Plan Review Next Steps after the final adjudication decisions; append round 3\u20134 decisions into the session-log Plan Review section so it matches plan-findings.md.",
+      "file_path": "openspec/changes/add-visual-code-explainer/session-log.md",
+      "line_range": {
+        "start": 66,
+        "end": 78
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: Plan Review decision 2 in `session-log.md` understates `graph check failed` as \"spawn failure or `--tree` exit 1\", while D5 and the skill-workflow requirement also map any `--tree` exit other than `0`/`2`/`3` (after a fresh `--check`) to that reason.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Amend decision 2 to match the closed table: `--check` spawn/OSError; or after fresh `--check`, `--tree` spawn failure, exit `1`, or any exit other than `0`/`2`/`3`.",
+      "file_path": "openspec/changes/add-visual-code-explainer/session-log.md",
+      "line_range": {
+        "start": 68,
+        "end": 68
+      },
+      "evidence_class": "judgment",
+      "existing_code": "`graph check failed` (spawn failure or `--tree` exit 1)",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 12,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Optional: Open item 52 claims design.md says task 1.1 covers file-path resolution; current design.md D4 only states path-or-basename resolution and task 1.1 text says \"basename target\". The missing full-path scenario is real (finding 5); the design-attribution half of item 52 is not accurate.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "resolution": "Treat item 52 as duplicate of the path-resolution gap (finding 5); do not require a design.md claim that does not exist.",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "line_range": {
+        "start": 75,
+        "end": 79
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Grounding reference, exit-3 ask-don't-guess, sketching-only disclosure exemptions, and footer\u2192disclosure substring mapping are consistent across D5, skill-workflow, grounding.md, and the deterministic behaviour tests.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "skills/explain-code/references/grounding.md",
+      "evidence_class": "judgment"
+    }
+  ]
+}

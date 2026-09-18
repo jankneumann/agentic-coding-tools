@@ -186,6 +186,38 @@ def _delegation_commands(node: dict[str, Any], branch: str) -> list[str]:
     return [f'/quick-task "Address unresolved review comments on PR #{pr_number}"']
 
 
+def _review_evidence(review: dict[str, Any]) -> dict[str, Any]:
+    """Compact, operator-readable record of the vendor review a result acted on.
+
+    The full verdict is persisted in ``state["vendor_verdict"]``; this copy rides
+    on the result so a merge through an eligible review is visible without
+    opening the plan file (PR #484 merged with 23 unconfirmed findings while the
+    result said only ``merged``). Vendor errors are clipped: a billing error can
+    carry a whole JSON body.
+    """
+    consensus = review.get("consensus")
+    summary = consensus.get("summary") if isinstance(consensus, dict) else None
+    vendors = []
+    for vendor in review.get("vendors") or []:
+        if not isinstance(vendor, dict):
+            continue
+        error = vendor.get("error")
+        vendors.append({
+            "vendor": vendor.get("vendor"),
+            "success": vendor.get("success"),
+            "findings_count": vendor.get("findings_count"),
+            "error": str(error)[:200] if error else None,
+        })
+    return {
+        "eligible": (review.get("eligibility") or {}).get("eligible"),
+        "skipped": bool(review.get("skipped")),
+        "error": review.get("error"),
+        "vendors": vendors,
+        "summary": summary,
+        "workspace_guard": review.get("workspace_guard"),
+    }
+
+
 def _iterate_consensus_current(node: dict[str, Any], live: dict[str, Any]) -> bool:
     path = node["state"].get("iterate_consensus_path")
     if not path:
@@ -482,6 +514,7 @@ def execute_node(
                 "outcome": "pending",
                 "pr": pr_number,
                 "reason": vendor_reason,
+                "vendor_review": _review_evidence(review),
             }
     state["vendor_verdict"] = review
 
@@ -515,6 +548,7 @@ def execute_node(
         "downstream_revalidation": downstream,
         "compact_requested": True,
         "merge": result,
+        "vendor_review": _review_evidence(review),
     }
 
 

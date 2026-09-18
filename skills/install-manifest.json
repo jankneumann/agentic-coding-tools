@@ -61,6 +61,10 @@
       "parallel-infrastructure",
       "session-log"
     ],
+    "explain-code": [
+      "codebase-atlas",
+      "refresh-architecture"
+    ],
     "explore-feature": [
       "coordination-bridge",
       "refresh-architecture",
@@ -265,6 +269,9 @@
       "distribution": "portable"
     },
     "expedite": {
+      "distribution": "portable"
+    },
+    "explain-code": {
       "distribution": "portable"
     },
     "explore-feature": {

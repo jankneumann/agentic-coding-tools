@@ -16,6 +16,83 @@
 
 ---
 
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Implementation
+
+**Inline package implementation after workflow blocked** — workflow tool cannot launch from a subagent; used managed package worktrees instead of silent main-checkout work
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D1)
+
+---
+
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Implementation Review
+
+**Slim review packet under MAX_ARG_STRLEN** — Excluded ledger/handoffs/session-log/docs noise and capped BUDGET_CHARS=100000 so argv vendors (codex/pi/agy) can dispatch; stdin vendors already worked.
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D1)
+
+---
+
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Validation
+
+**Mark container phases not applicable** — gate_logic --describe-surface deployable=false; issue #432 requires not applicable not skipped.
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D1)
+
+---
+
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Implementation Review
+
+**Recover pi findings via string-id coercion** — pi emitted valid findings with string ids; schema rejected them as auth_required. Coerced ids and enriched evidence_class=judgment to restore quorum with grok.
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D2)
+
+---
+
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Validation
+
+**Skip Gen-Eval and Evidence work-queue audit** — Only unrelated agent-coordinator descriptor exists; no work-queue-result artifacts from sequential implement.
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D2)
+
+---
+
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Implementation
+
+**Task 2.8 harness-absent** — No trajectory-scenario harness in checkout; deterministic behavioural tests cover the three behaviours
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D3)
+
+---
+
+## 2026-09-16 — add-visual-code-explainer
+
+### Phase: Implementation Review
+
+**Advisory judgment does not block IMPL_REVIEW** — Recovered consensus: 24 advisory / 0 blocking. Medium unconfirmed judgment findings (spec scenario gaps, proposal wording) stay advisory unless confirmed high/critical or deterministic.
+
+- Status: `active`
+- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D3)
+
+---
+
 ## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Plan
