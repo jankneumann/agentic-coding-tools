@@ -15,12 +15,12 @@
 | 1 | Run the GATEKEEPER as a scored decision in shadow mode | L | completed | ri-05 |
 | 1 | Adjudicate phase outcomes in shadow mode | L | completed | ri-06 |
 | 2 | Route review convergence on per-finding dispositions | L | completed | ri-05 |
+| 2 | Screen fact-check grounds with a first-stage judged pass | L | completed | ri-05 |
+| 2 | Add a judged first stage to coordinator audit triage | M | completed | ri-05 |
 | 3 | Judge transcript struggle triage in collect-transcripts | M | completed | ri-05 |
 | 3 | Judge implementation strategy selection in autopilot | S | completed | ri-05 |
-| 3 | Judge multi-vendor review eligibility for pull requests | M | approved | ri-05 |
-| 3 | Screen fact-check grounds with a first-stage judged pass | L | approved | ri-05 |
-| 3 | Add a judged first stage to coordinator audit triage | M | approved | ri-05 |
-| 4 | Judge decision-tag backfill in explore-feature | S | approved | ri-05 |
+| 3 | Judge multi-vendor review eligibility for pull requests | M | completed | ri-05 |
+| 4 | Judge decision-tag backfill in explore-feature | S | completed | ri-05 |
 | 4 | Judge fix-tier classification in fix-scrub | S | approved | ri-05 |
 | 4 | Score supervise rubric stubs in one batched call | M | approved | ri-05 |
 | 4 | Extract the task routing profile as typed fields | M | approved | ri-05 |
@@ -228,6 +228,38 @@ In convergence_loop.converge, ask a round-level Noul("another fix round is likel
 - [ ] needs_human parks the item via park_item(..., reason="disagreement") rather than dispatching a fix, covered by a test.
 - [ ] With the helper returning None, every blocking item defaults to fix_now and the stall rule trend[-1] >= trend[-stall_window] still governs exactly as before, proven by the existing convergence tests in skills/autopilot/scripts/tests/test_convergence_loop.py and skills/tests/autopilot/test_convergence_loop.py passing unchanged.
 
+### ri-15: Screen fact-check grounds with a first-stage judged pass
+
+- **Status**: completed
+- **Priority**: 2
+- **Effort**: L
+- **Change ID**: screen-fact-check-grounds-with-a-first-stage-judged-pass
+- **Depends on**: `ri-05`
+
+Split fact_check.run into two stages: stage one asks one Noul per finding for Ground A ("the code the finding describes is not in the subject file's diff") and one Noul("a line in this diff directly contradicts the finding's central claim") as a Ground-B screen; stage two runs the existing economy-tier LLM prompt only for findings whose Ground-B probability crosses a config-held threshold.
+
+**Acceptance outcomes**:
+- [ ] A batch whose findings all screen below the Ground-B threshold makes zero stage-two LLM calls, asserted by a call-count test.
+- [ ] Ground-B verdicts still require a quoted diff line validated by _evidence_line_in_subject_diff; no finding is refuted on the screen alone, covered by a test.
+- [ ] Protected-subject vetoes are applied in code before any call, asserted by a fixture where a protected subject is never sent.
+- [ ] Ground-A refutations from stage one reproduce the existing prompt's labels on a recorded fact-check batch, with the agreement rate recorded.
+
+### ri-16: Add a judged first stage to coordinator audit triage
+
+- **Status**: completed
+- **Priority**: 2
+- **Effort**: M
+- **Change ID**: add-a-judged-first-stage-to-coordinator-audit-triage
+- **Depends on**: `ri-05`
+
+In audit_triage.drain_and_classify, ask per session batch Noul("This session shows a capability gap in the harness"), Choice(failure_type, the six enum values plus none) and Score(severity, [low, medium, high, critical]); run the current LLM prompt only for sessions above the recall-oriented threshold, seeded with the stage-one labels so its output is constrained.
+
+**Acceptance outcomes**:
+- [ ] The recall-oriented threshold lives in config and a replay over recorded audit batches shows recall no lower than the current prompt's, with both numbers recorded.
+- [ ] Sessions below the threshold produce no LLM call, asserted by a call-count test over a clean-session fixture.
+- [ ] Stage-two findings are seeded with the stage-one failure_type and severity and still pass validate_finding unchanged.
+- [ ] The hot-path ring buffer write path is unmodified and its latency test is unchanged.
+
 ### ri-09: Judge transcript struggle triage in collect-transcripts
 
 - **Status**: completed
@@ -262,7 +294,7 @@ Replace the four-criterion weighted sum in implementation_strategy_selector with
 
 ### ri-11: Judge multi-vendor review eligibility for pull requests
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 3
 - **Effort**: M
 - **Change ID**: judge-multi-vendor-review-eligibility-for-pull-requests
@@ -276,41 +308,9 @@ Replace the under-50-lines / under-3-files skip in vendor_review.check_review_el
 - [ ] SMALL_PR_MAX_CHANGED_LINES and SMALL_PR_MAX_FILES move to config and remain the fallback when the helper returns None.
 - [ ] The eligibility record in the merge report carries evidence_class "judgment", the risk score and its probability.
 
-### ri-15: Screen fact-check grounds with a first-stage judged pass
-
-- **Status**: approved
-- **Priority**: 3
-- **Effort**: L
-- **Change ID**: screen-fact-check-grounds-with-a-first-stage-judged-pass
-- **Depends on**: `ri-05`
-
-Split fact_check.run into two stages: stage one asks one Noul per finding for Ground A ("the code the finding describes is not in the subject file's diff") and one Noul("a line in this diff directly contradicts the finding's central claim") as a Ground-B screen; stage two runs the existing economy-tier LLM prompt only for findings whose Ground-B probability crosses a config-held threshold.
-
-**Acceptance outcomes**:
-- [ ] A batch whose findings all screen below the Ground-B threshold makes zero stage-two LLM calls, asserted by a call-count test.
-- [ ] Ground-B verdicts still require a quoted diff line validated by _evidence_line_in_subject_diff; no finding is refuted on the screen alone, covered by a test.
-- [ ] Protected-subject vetoes are applied in code before any call, asserted by a fixture where a protected subject is never sent.
-- [ ] Ground-A refutations from stage one reproduce the existing prompt's labels on a recorded fact-check batch, with the agreement rate recorded.
-
-### ri-16: Add a judged first stage to coordinator audit triage
-
-- **Status**: approved
-- **Priority**: 3
-- **Effort**: M
-- **Change ID**: add-a-judged-first-stage-to-coordinator-audit-triage
-- **Depends on**: `ri-05`
-
-In audit_triage.drain_and_classify, ask per session batch Noul("This session shows a capability gap in the harness"), Choice(failure_type, the six enum values plus none) and Score(severity, [low, medium, high, critical]); run the current LLM prompt only for sessions above the recall-oriented threshold, seeded with the stage-one labels so its output is constrained.
-
-**Acceptance outcomes**:
-- [ ] The recall-oriented threshold lives in config and a replay over recorded audit batches shows recall no lower than the current prompt's, with both numbers recorded.
-- [ ] Sessions below the threshold produce no LLM call, asserted by a call-count test over a clean-session fixture.
-- [ ] Stage-two findings are seeded with the stage-one failure_type and severity and still pass validate_finding unchanged.
-- [ ] The hot-path ring buffer write path is unmodified and its latency test is unchanged.
-
 ### ri-12: Judge decision-tag backfill in explore-feature
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 4
 - **Effort**: S
 - **Change ID**: judge-decision-tag-backfill-in-explore-feature

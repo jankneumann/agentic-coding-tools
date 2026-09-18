@@ -15,3 +15,4 @@
 | ri-11 | implementation | is_draft and SKIP_ORIGINS (dependabot/renovate/Jules) run first and return befor |
 | ri-15 | implementation | The scaffolded acceptance outcome read 'a protected subject is never sent' liter |
 | ri-16 | implementation | Unlike ri-15's fact-check screen (which batches many findings' questions into on |
+| ri-12 | implementation | The roadmap item's own wording -- batched as many questions over one session-log |

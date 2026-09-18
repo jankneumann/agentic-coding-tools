@@ -16,9 +16,19 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Per system_one_decisions.testing's documented stubbing rule: import the
+# module, never a pre-bound name, so a monkeypatched `decide` attribute is
+# what this code actually calls.
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
 
 
 # ── Default keyword map ─────────────────────────────────────────────
@@ -190,6 +200,82 @@ def classify_decision(
     ]
 
 
+def _answer_field(answer: Any, name: str, default: Any = None) -> Any:
+    """Read a field off a real SDK answer object or a plain dict/mapping."""
+    if isinstance(answer, dict):
+        return answer.get(name, default)
+    return getattr(answer, name, default)
+
+
+def _classify_phase_decisions(
+    decisions: list[tuple[int, str, str]],
+    keyword_map: dict[str, list[str]],
+    dry_run: bool = False,
+) -> dict[int, tuple[str | None, float, dict[str, float]]] | None:
+    """Ask one batched judgment routing every decision in *decisions* to a
+    capability, in a single `decide()` call for the whole phase.
+
+    One `Choice(capability, keyword_map's tags + "none")` question per
+    decision, keyed by its `decision_index`. Returns `None` on whole-batch
+    unavailability (module missing, `decide()` returns no usable answer) --
+    callers fall back to `classify_decision`'s keyword heuristic for every
+    decision in the phase, exactly as before this function existed. A
+    single decision's answer that is missing or names an unrecognized
+    capability is simply absent from the returned dict -- callers fall
+    back to the keyword heuristic for that one decision only, without
+    discarding the rest of a batch that answered successfully.
+    """
+    if system_one_decisions is None:
+        return None
+    if not decisions:
+        return None
+
+    capabilities = sorted(keyword_map)
+    questions: dict[str, Any] = {}
+    for idx, _title, _rationale in decisions:
+        questions[f"capability_{idx}"] = {
+            "type": "choice",
+            "instructions": (
+                "Which capability does this architectural decision belong "
+                "to, if any?"
+            ),
+            "criteria": {cap: None for cap in capabilities} | {
+                "none": "This decision doesn't clearly belong to any listed capability.",
+            },
+        }
+    state: dict[str, Any] = {
+        "decisions": [
+            {"index": idx, "title": title, "rationale": rationale}
+            for idx, title, rationale in decisions
+        ],
+    }
+
+    answers = system_one_decisions.decide(
+        state, questions, site="explore-feature.backfill_decision_tags",
+        dry_run=dry_run,
+    )
+    if not answers:
+        return None
+
+    valid_choices = set(capabilities) | {"none"}
+    result: dict[int, tuple[str | None, float, dict[str, float]]] = {}
+    for idx, _title, _rationale in decisions:
+        answer = answers.get(f"capability_{idx}") if hasattr(answers, "get") else None
+        if answer is None:
+            continue
+        choice = _answer_field(answer, "choice")
+        if choice not in valid_choices:
+            continue
+        confidence = _answer_field(answer, "confidence")
+        if not isinstance(confidence, (int, float)):
+            continue
+        probabilities = _answer_field(answer, "probabilities", {})
+        if not isinstance(probabilities, dict):
+            probabilities = {}
+        result[idx] = (choice if choice != "none" else None, confidence, probabilities)
+    return result
+
+
 def _confidence_bucket(conf: float) -> str:
     if conf >= 0.8:
         return "high"
@@ -246,39 +332,67 @@ def propose_tags_for_archive(
     archive_root: Path,
     keyword_map: dict[str, list[str]] | None = None,
     output_path: Path | None = None,
+    dry_run: bool = False,
 ) -> ClassificationReport:
     """Walk `archive_root` for session-logs, extract untagged Decisions, classify,
     and emit a JSON proposals report at `output_path`.
 
     No markdown files are modified — this is the "propose" half of the
     propose-review-edit backfill flow.
+
+    Classification is judged first, one batched call per session-log phase
+    (`_classify_phase_decisions`): a decision the judgment resolves uses
+    its `Choice` answer; one it doesn't (whole-phase or single-decision
+    unavailability) falls back to `classify_decision`'s keyword heuristic,
+    exactly as this function behaved before the judgment existed.
     """
     keyword_map = keyword_map or DEFAULT_KEYWORD_MAP
 
     proposals: list[ClassificationProposal] = []
     for session_log in sorted(archive_root.rglob("session-log.md")):
         change_id = session_log.parent.name
-        for phase_name, phase_date, dec_index, title, rationale in _extract_untagged_decisions(session_log):
-            ranked = classify_decision(title, rationale, keyword_map)
-            if ranked:
-                proposed_cap, confidence = ranked[0]
-                alternatives = ranked[1:]
-            else:
-                proposed_cap, confidence, alternatives = None, 0.0, []
 
-            proposals.append(
-                ClassificationProposal(
-                    change_id=change_id,
-                    phase_name=phase_name,
-                    phase_date=phase_date,
-                    decision_index=dec_index,
-                    title=title,
-                    rationale=rationale,
-                    proposed_capability=proposed_cap,
-                    confidence=confidence,
-                    alternatives=list(alternatives),
-                )
+        by_phase: dict[tuple[str, date], list[tuple[int, str, str]]] = {}
+        for phase_name, phase_date, dec_index, title, rationale in _extract_untagged_decisions(session_log):
+            by_phase.setdefault((phase_name, phase_date), []).append(
+                (dec_index, title, rationale)
             )
+
+        for (phase_name, phase_date), phase_decisions in by_phase.items():
+            judged = _classify_phase_decisions(phase_decisions, keyword_map, dry_run=dry_run)
+
+            for dec_index, title, rationale in phase_decisions:
+                judged_entry = judged.get(dec_index) if judged is not None else None
+                if judged_entry is not None:
+                    proposed_cap, confidence, probabilities = judged_entry
+                    alternatives = sorted(
+                        (
+                            (cap, p) for cap, p in probabilities.items()
+                            if cap not in (proposed_cap, "none")
+                        ),
+                        key=lambda kv: -kv[1],
+                    )[:2]
+                else:
+                    ranked = classify_decision(title, rationale, keyword_map)
+                    if ranked:
+                        proposed_cap, confidence = ranked[0]
+                        alternatives = ranked[1:]
+                    else:
+                        proposed_cap, confidence, alternatives = None, 0.0, []
+
+                proposals.append(
+                    ClassificationProposal(
+                        change_id=change_id,
+                        phase_name=phase_name,
+                        phase_date=phase_date,
+                        decision_index=dec_index,
+                        title=title,
+                        rationale=rationale,
+                        proposed_capability=proposed_cap,
+                        confidence=confidence,
+                        alternatives=list(alternatives),
+                    )
+                )
 
     # Deterministic ordering: by (change_id, phase_date, decision_index)
     proposals.sort(key=lambda p: (p.change_id, p.phase_date, p.decision_index))
