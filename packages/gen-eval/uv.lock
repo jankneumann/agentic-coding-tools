@@ -489,6 +489,9 @@ all = [
 db = [
     { name = "asyncpg" },
 ]
+decisions = [
+    { name = "system-one-decisions" },
+]
 mcp = [
     { name = "fastmcp" },
 ]
@@ -518,8 +521,9 @@ requires-dist = [
     { name = "openai", marker = "extra == 'sdk'", specifier = ">=1.50" },
     { name = "pydantic", specifier = ">=2.13" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "system-one-decisions", marker = "extra == 'decisions'", directory = "../system-one-decisions" },
 ]
-provides-extras = ["mcp", "sdk", "db", "all"]
+provides-extras = ["mcp", "sdk", "db", "all", "decisions"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1652,6 +1656,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/c5/bf/616a066c2760f6c2b
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9f/85/492183764d5d01d4514be3730fdb8e228a80605783099551c51627578b5d/starlette-1.2.0-py3-none-any.whl", hash = "sha256:36e0c76ac59157e75dc4b3bdeafba97fb04eaf1878045f15dbef666a6f092ed7", size = 73213, upload-time = "2026-05-28T11:42:48.801Z" },
 ]
+
+[[package]]
+name = "system-one-decisions"
+version = "0.1.0"
+source = { directory = "../system-one-decisions" }
+
+[package.metadata]
+requires-dist = [{ name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" }]
+provides-extras = ["dev"]
 
 [[package]]
 name = "tqdm"
