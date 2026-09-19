@@ -289,19 +289,28 @@ def _confidence_bucket(conf: float) -> str:
 
 def _extract_untagged_decisions(
     session_log: Path,
-) -> list[tuple[str, date, int, str, str]]:
+) -> list[tuple[str, date, int, int, str, str]]:
     """Extract untagged Decision bullets from one session-log.
 
-    Returns list of `(phase_name, phase_date, decision_index, title, rationale)`.
-    Tagged decisions (those carrying `` `architectural:` ``) are excluded —
-    the untagged-only regex handles this naturally.
+    Returns list of `(phase_name, phase_date, block_index, decision_index,
+    title, rationale)`. Tagged decisions (those carrying `` `architectural:` ``)
+    are excluded — the untagged-only regex handles this naturally.
+
+    `block_index` is the 0-based position of the `## Phase:` block itself
+    among all blocks in the file, distinct from `phase_name`/`phase_date`.
+    A session-log can (and does, e.g. multi-round plan review) repeat the same
+    phase name and date across several separate `## Phase:` blocks — callers
+    MUST batch per `block_index`, not per `(phase_name, phase_date)`, or
+    same-numbered decisions from unrelated blocks collide on one
+    `decision_index` key and only one block's answer gets applied to all of
+    them.
     """
     content = session_log.read_text()
     phase_matches = list(_PHASE_RE.finditer(content))
     if not phase_matches:
         return []
 
-    results: list[tuple[str, date, int, str, str]] = []
+    results: list[tuple[str, date, int, int, str, str]] = []
     for i, pm in enumerate(phase_matches):
         phase_name = pm.group("name").strip()
         try:
@@ -323,7 +332,7 @@ def _extract_untagged_decisions(
             bullet = int(m.group("index"))
             title = m.group("title").strip()
             rationale = m.group("rationale").strip()
-            results.append((phase_name, phase_date, bullet, title, rationale))
+            results.append((phase_name, phase_date, i, bullet, title, rationale))
 
     return results
 
@@ -352,13 +361,19 @@ def propose_tags_for_archive(
     for session_log in sorted(archive_root.rglob("session-log.md")):
         change_id = session_log.parent.name
 
-        by_phase: dict[tuple[str, date], list[tuple[int, str, str]]] = {}
-        for phase_name, phase_date, dec_index, title, rationale in _extract_untagged_decisions(session_log):
-            by_phase.setdefault((phase_name, phase_date), []).append(
+        # Keyed by (phase_name, phase_date, block_index) -- block_index is
+        # required because a session-log can repeat the same phase name and
+        # date across several distinct `## Phase:` blocks (e.g. multi-round
+        # plan review). Keying on name+date alone would merge those blocks'
+        # decisions into one batch, colliding same-numbered decisions from
+        # unrelated blocks onto a single `decision_index` question.
+        by_phase: dict[tuple[str, date, int], list[tuple[int, str, str]]] = {}
+        for phase_name, phase_date, block_index, dec_index, title, rationale in _extract_untagged_decisions(session_log):
+            by_phase.setdefault((phase_name, phase_date, block_index), []).append(
                 (dec_index, title, rationale)
             )
 
-        for (phase_name, phase_date), phase_decisions in by_phase.items():
+        for (phase_name, phase_date, _block_index), phase_decisions in by_phase.items():
             judged = _classify_phase_decisions(phase_decisions, keyword_map, dry_run=dry_run)
 
             for dec_index, title, rationale in phase_decisions:
