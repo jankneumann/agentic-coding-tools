@@ -154,6 +154,10 @@ def score_batch(
             return None
         state["candidates"][key] = {
             "title": stub.get("title"),
+            "description": stub.get("description"),
+            "rationale": stub.get("rationale"),
+            "effort": stub.get("effort"),
+            "depends_on": stub.get("depends_on"),
             "signals": candidate.get("signals"),
             "evidence": candidate.get("evidence"),
         }
@@ -183,7 +187,14 @@ def score_batch(
             # `criteria[i]` describes schema score i+1; ScoreAnswer.score is a
             # 0-indexed, possibly-fractional position ("probability-weighted
             # average of the rubric levels"), so +1 then clamp into [1, 5].
-            row[factor] = {"score": max(1, min(5, round(raw_score) + 1))}
+            factor_row: dict[str, Any] = {
+                "score": max(1, min(5, round(raw_score) + 1)),
+                "evidence_class": "judgment",
+            }
+            confidence = _answer_field(answer, "confidence")
+            if isinstance(confidence, (int, float)):
+                factor_row["probability"] = max(0.0, min(1.0, float(confidence)))
+            row[factor] = factor_row
         scores.append(row)
 
     document = {

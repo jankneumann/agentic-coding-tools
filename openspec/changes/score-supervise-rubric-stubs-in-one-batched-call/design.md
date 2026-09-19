@@ -123,6 +123,24 @@ oversized-payload rejection from the live API still degrades gracefully into thi
 existing all-or-nothing fallback (D3) -- only the pre-check's precision is imperfect, not
 this item's correctness.
 
+### D10 (post-review fixes): full stub content in the scoring state, and Jev provenance in the digest
+
+Two Codex findings on this PR, both confirmed against real code before fixing:
+
+- **P1**: the scoring state sent only each stub's `title`, omitting `description`,
+  `rationale`, `effort`, and `depends_on` -- the fields that actually say what the work is,
+  why it matters, its size, and its prerequisites. Without them the judgment could not
+  meaningfully assess `value`, `readiness`, `scope_fit`, or `risk`. Fixed by including the
+  full bounded stub payload in `state["candidates"][key]`.
+- **P2**: no `evidence_class`/probability reached `digest.json`, violating the parent
+  proposal's explicit provenance rule ("Every Jev-derived value that reaches a report
+  carries `evidence_class: judgment` and the probability"). Fixed by adding optional
+  `evidence_class`/`probability` fields to `rubric-score.schema.json`'s `factor` (populated
+  only by `rubric_score.py`, since the analyst sub-agent's output is not a Jev-derived
+  value) and a new optional `scoring_provenance` field on `supervise-digest.schema.json`'s
+  `rankedStub`, populated by `rank_candidates` only for factors that carry it -- a factor
+  scored by the sub-agent has no entry there.
+
 ## Non-goals
 
 - Changing `_is_ruff_fixable`-style deterministic logic -- not applicable here, but for

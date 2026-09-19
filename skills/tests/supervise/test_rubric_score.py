@@ -27,8 +27,11 @@ _FINGERPRINT = "a" * 64
 _AS_OF = "2026-09-19T00:00:00Z"
 
 
-def _score_answer(score: float) -> dict:
-    return {"score": score}
+def _score_answer(score: float, confidence: float | None = None) -> dict:
+    answer = {"score": score}
+    if confidence is not None:
+        answer["confidence"] = confidence
+    return answer
 
 
 def _manifest(stub_keys: list[str]) -> dict:
@@ -40,7 +43,13 @@ def _manifest(stub_keys: list[str]) -> dict:
         "candidates": [
             {
                 "stub_key": key,
-                "stub": {"title": f"Stub {key}"},
+                "stub": {
+                    "title": f"Stub {key}",
+                    "description": f"Description of {key}",
+                    "rationale": f"Rationale for {key}",
+                    "effort": "S",
+                    "depends_on": [],
+                },
                 "signals": {"staleness_days": 1},
                 "evidence": [],
             }
@@ -86,6 +95,22 @@ class TestScoreBatch:
                 assert len(questions[f"{key}__{factor}"]["criteria"]) == 5
         assert set(state["candidates"]) == set(keys)
 
+    def test_state_carries_full_stub_content_not_just_title(self, monkeypatch) -> None:
+        """Codex P1 (PR #602): description, rationale, effort, and depends_on
+        say what the work is, why it matters, its size, and its
+        prerequisites -- without them the judgment cannot meaningfully
+        assess value, readiness, scope_fit, or risk."""
+        fake_module = MagicMock()
+        fake_module.decide.return_value = None
+        monkeypatch.setattr(rs, "system_one_decisions", fake_module)
+        rs.score_batch(REPO_ROOT, _manifest(["change:add-foo"]))
+        state, _questions = fake_module.decide.call_args[0]
+        candidate_state = state["candidates"]["change:add-foo"]
+        assert candidate_state["description"] == "Description of change:add-foo"
+        assert candidate_state["rationale"] == "Rationale for change:add-foo"
+        assert candidate_state["effort"] == "S"
+        assert candidate_state["depends_on"] == []
+
     def test_twenty_stubs_five_factors_is_one_hundred_questions(self, monkeypatch) -> None:
         fake_module = MagicMock()
         fake_module.decide.return_value = None
@@ -121,6 +146,35 @@ class TestScoreBatch:
         # Live judgment never populates justification -- rank_candidates
         # substitutes a legend label for it (see test_digest.py coverage).
         assert "justification" not in result["scores"][0]["relevance"]
+
+    def test_successful_batch_carries_evidence_class_and_probability(self, monkeypatch) -> None:
+        """Codex P2 (PR #602): every Jev-derived value that reaches a report
+        must carry evidence_class: judgment and its probability
+        (docs/proposals/jev-system-one-integration-assessment.md)."""
+        fake_module = MagicMock()
+        answers = {}
+        for factor in rs._FACTORS:
+            answers[f"change:add-foo__{factor}"] = _score_answer(3.0, confidence=0.82)
+        fake_module.decide.return_value = answers
+        monkeypatch.setattr(rs, "system_one_decisions", fake_module)
+        result = rs.score_batch(REPO_ROOT, _manifest(["change:add-foo"]))
+        assert result is not None
+        for factor in rs._FACTORS:
+            factor_row = result["scores"][0][factor]
+            assert factor_row["evidence_class"] == "judgment"
+            assert factor_row["probability"] == pytest.approx(0.82)
+
+    def test_missing_confidence_omits_probability_but_keeps_evidence_class(
+        self, monkeypatch,
+    ) -> None:
+        fake_module = MagicMock()
+        fake_module.decide.return_value = _answers_for(["change:add-foo"], 3.0)
+        monkeypatch.setattr(rs, "system_one_decisions", fake_module)
+        result = rs.score_batch(REPO_ROOT, _manifest(["change:add-foo"]))
+        assert result is not None
+        factor_row = result["scores"][0]["relevance"]
+        assert factor_row["evidence_class"] == "judgment"
+        assert "probability" not in factor_row
 
     def test_decide_returns_none_yields_none(self, monkeypatch) -> None:
         fake_module = MagicMock()
