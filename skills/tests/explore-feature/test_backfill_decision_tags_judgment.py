@@ -237,6 +237,59 @@ class TestProposeTagsForArchiveJudgedOverride:
         assert p.proposed_capability is None
         assert report.no_match == 1
 
+    def test_repeated_phase_name_and_date_are_batched_as_separate_blocks(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        """Codex P1 (PR #600): a session-log can repeat the same `## Phase:`
+        name and date across multiple distinct blocks (e.g. multi-round plan
+        review). Grouping by (phase_name, phase_date) alone would merge their
+        decisions -- both blocks' "1." collide on one `decision_index` key,
+        so a single answer gets silently applied to two unrelated decisions.
+        Each block MUST get its own batched call and its own answer.
+        """
+        fake_module = MagicMock()
+        fake_module.decide.side_effect = [
+            {"capability_1": _choice_answer("software-factory-tooling", 0.9)},
+            {"capability_1": _choice_answer("agent-coordinator", 0.85)},
+        ]
+        monkeypatch.setattr(bdt, "system_one_decisions", fake_module)
+
+        archive = tmp_path / "archive"
+        _write_session_log(
+            archive / "2026-09-11-repeated-phase",
+            """
+            # Session Log
+
+            ## Phase: Plan Review (2026-09-11)
+
+            ### Decisions
+            1. **Return the proposal to PLAN_FIX** — worktree pin missing
+
+            ## Phase: Plan Review (2026-09-11)
+
+            ### Decisions
+            1. **Return revision 3 to PLAN_FIX** — coordinator lock contract gap
+            """,
+        )
+
+        report = bdt.propose_tags_for_archive(
+            archive_root=archive, keyword_map=KEYWORD_MAP,
+            output_path=tmp_path / "proposals.json",
+        )
+
+        assert fake_module.decide.call_count == 2, (
+            "each repeated-name-and-date block must get its own batched call"
+        )
+        by_title = {p.title: p for p in report.proposals}
+        assert (
+            by_title["Return the proposal to PLAN_FIX"].proposed_capability
+            == "software-factory-tooling"
+        )
+        assert (
+            by_title["Return revision 3 to PLAN_FIX"].proposed_capability
+            == "agent-coordinator"
+        )
+
     def test_unavailable_judgment_falls_back_to_keyword_map_unchanged(self, monkeypatch, tmp_path: Path) -> None:
         fake_module = MagicMock()
         fake_module.decide.return_value = None
