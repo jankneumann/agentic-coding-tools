@@ -379,7 +379,7 @@ items:
     for agent review; no file is written by the script itself.
 - item_id: ri-13
   title: Judge fix-tier classification in fix-scrub
-  status: approved
+  status: completed
   priority: 4
   effort: S
   depends_on:
@@ -752,7 +752,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T23:53:11.947588+00:00'
+updated_at: '2026-09-19T00:21:42.782133+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code

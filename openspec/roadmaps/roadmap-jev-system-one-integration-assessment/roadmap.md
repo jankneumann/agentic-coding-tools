@@ -21,7 +21,7 @@
 | 3 | Judge implementation strategy selection in autopilot | S | completed | ri-05 |
 | 3 | Judge multi-vendor review eligibility for pull requests | M | completed | ri-05 |
 | 4 | Judge decision-tag backfill in explore-feature | S | completed | ri-05 |
-| 4 | Judge fix-tier classification in fix-scrub | S | approved | ri-05 |
+| 4 | Judge fix-tier classification in fix-scrub | S | completed | ri-05 |
 | 4 | Score supervise rubric stubs in one batched call | M | approved | ri-05 |
 | 4 | Extract the task routing profile as typed fields | M | approved | ri-05 |
 | 4 | Route recoverable escalation actions on confidence | M | approved | ri-05 |
@@ -326,7 +326,7 @@ Replace the seven keyword lists in backfill_decision_tags with Choice(capability
 
 ### ri-13: Judge fix-tier classification in fix-scrub
 
-- **Status**: approved
+- **Status**: completed
 - **Priority**: 4
 - **Effort**: S
 - **Change ID**: judge-fix-tier-classification-in-fix-scrub
