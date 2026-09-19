@@ -570,6 +570,19 @@ class TestWorkflowContract:
             "Dispatch exactly one host sub-agent"
         )
 
+    def test_batched_rubric_scorer_is_tried_before_the_analyst_archetype_fallback(self) -> None:
+        """ri-17: the sub-agent analyst-archetype dispatch remains the
+        fallback -- tried only when the batched judged scorer reports
+        unavailable -- not the primary scoring path."""
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        rank = self._section(text, "### 4. Rank", "### 5. Digest, then stop")
+
+        assert "rubric_score.py" in rank
+        assert "score-batch" in rank
+        assert rank.index("rubric_score.py") < rank.index("Dispatch exactly one host sub-agent")
+        assert "only when `rubric_score.py` exited nonzero" in rank
+        assert "analyst archetype" in rank
+
 
 # --------------------------------------------------------------------------- #
 # CLI surface

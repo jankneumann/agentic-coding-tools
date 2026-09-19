@@ -17,3 +17,4 @@
 | ri-16 | implementation | Unlike ri-15's fact-check screen (which batches many findings' questions into on |
 | ri-12 | implementation | The roadmap item's own wording -- batched as many questions over one session-log |
 | ri-13 | implementation | classify_finding operates on one finding with no visibility into the batch, so _ |
+| ri-17 | implementation | Grounding found digest.py explicitly host-assisted (never calls a model) and an  |

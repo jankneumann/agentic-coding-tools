@@ -495,7 +495,7 @@ items:
   - ri-12
 - item_id: ri-17
   title: Score supervise rubric stubs in one batched call
-  status: approved
+  status: completed
   priority: 4
   effort: M
   depends_on:
@@ -752,7 +752,7 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-19T00:21:42.782133+00:00'
+updated_at: '2026-09-19T01:10:07.714949+00:00'
 refinements:
 - timestamp: '2026-09-18T13:11:30.873550+00:00'
   actor: claude-code

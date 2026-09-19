@@ -13,7 +13,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from openspec_paths import change_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CHANGE_SCHEMA_DIR = change_dir(REPO_ROOT, "add-supervisor-candidate-work-digest") / "contracts/schemas"
+CHANGE_SCHEMA_DIR = change_dir(REPO_ROOT, "score-supervise-rubric-stubs-in-one-batched-call") / "contracts/schemas"
 RUNTIME_SCHEMA_DIR = REPO_ROOT / "openspec/schemas"
 FIXTURE_DIR = Path(__file__).parent / "fixtures/digest"
 RECORD_FIXTURE_DIR = Path(__file__).parent / "fixtures/supervisor-record"
@@ -95,15 +95,26 @@ def test_rubric_rejects_noncanonical_stub_keys(rubric_schema: dict, rubric_docum
 
 
 @pytest.mark.parametrize("factor", sorted(FACTORS))
-def test_rubric_rejects_a_missing_factor_or_justification(rubric_schema: dict, rubric_document: dict, factor: str) -> None:
+def test_rubric_rejects_a_missing_factor_or_score(rubric_schema: dict, rubric_document: dict, factor: str) -> None:
     missing_factor = copy.deepcopy(rubric_document)
     del missing_factor["scores"][0][factor]
     with pytest.raises(jsonschema.ValidationError):
         _validator(rubric_schema).validate(missing_factor)
+    missing_score = copy.deepcopy(rubric_document)
+    del missing_score["scores"][0][factor]["score"]
+    with pytest.raises(jsonschema.ValidationError):
+        _validator(rubric_schema).validate(missing_score)
+
+
+@pytest.mark.parametrize("factor", sorted(FACTORS))
+def test_rubric_accepts_a_missing_justification(rubric_schema: dict, rubric_document: dict, factor: str) -> None:
+    """`justification` is optional (ri-17): a live Score judgment has no free-text
+    field to populate it with, and rank_candidates substitutes a legend-derived
+    label when it is absent -- the rubric-score document itself must still
+    validate without it."""
     missing_justification = copy.deepcopy(rubric_document)
     del missing_justification["scores"][0][factor]["justification"]
-    with pytest.raises(jsonschema.ValidationError):
-        _validator(rubric_schema).validate(missing_justification)
+    _validator(rubric_schema).validate(missing_justification)
 
 
 @pytest.mark.parametrize(("mutation", "defect"), [
