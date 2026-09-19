@@ -505,6 +505,26 @@ def test_rank_uses_formula_policy_buckets_and_stable_key_tie_break(repo: Path) -
     assert digest["state_updated_at"] == manifest["as_of"]
 
 
+def test_rank_renders_score_legend_when_justification_is_absent(repo: Path) -> None:
+    """ri-17: `justification` is optional (a live Score judgment has no
+    free-text field to populate it with). rank_candidates substitutes a
+    legend-derived label for the factor's own score instead of leaving the
+    digest's `justifications` entry empty -- the digest snapshot the roadmap
+    item's acceptance outcome asks for."""
+    stubs = [_stub(0)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
+    manifest = _manifest(stubs)
+    scores = _scores(manifest, values={"risk": 5})
+    del scores["scores"][0]["risk"]["justification"]
+
+    digest = rank_candidates(repo, manifest, scores, record=_record([]), fresh_keys=[])
+
+    justification = digest["ranked"][0]["justifications"]["risk"]
+    assert justification == "Score legend: safest, minimal blast radius."
+    # Every other factor's real justification is untouched.
+    assert digest["ranked"][0]["justifications"]["relevance"] == "relevance evidence"
+
+
 def test_rank_assigns_candidate_sections_writes_singleton_caches_and_syncs_mirror(
     repo: Path,
 ) -> None:
