@@ -788,6 +788,25 @@ def rank_candidates(
             or _FACTOR_LEVEL_LABELS[factor][factors[factor] - 1]
             for factor in factors
         }
+        # ri-17: propagate Jev provenance (evidence_class + probability) for
+        # any factor a calibrated Score judgment produced, per the roadmap's
+        # own provenance rule (docs/proposals/jev-system-one-integration-
+        # assessment.md: "Every Jev-derived value that reaches a report
+        # carries evidence_class: judgment and the probability"). A factor
+        # scored by the analyst sub-agent carries neither field and is
+        # simply absent here.
+        scoring_provenance = {
+            factor: {
+                "evidence_class": score_row[factor]["evidence_class"],
+                **(
+                    {"probability": score_row[factor]["probability"]}
+                    if "probability" in score_row[factor]
+                    else {}
+                ),
+            }
+            for factor in factors
+            if "evidence_class" in score_row[factor]
+        }
         staleness = signals.get("staleness_days")
         penalty = min(staleness // 30, 5) if isinstance(staleness, int) else 0
         total = (
@@ -808,21 +827,22 @@ def rank_candidates(
             else None,
             "deferred_until": prior.get(key, {}).get("until"),
         }
-        ranked.append(
-            {
-                "stub_key": key,
-                "rank": 0,
-                "score": total,
-                "decision": decision,
-                "suggested_change_id": stub.get("suggested_change_id"),
-                "title": stub["title"],
-                "effort": stub["effort"],
-                "factors": factors,
-                "justifications": justifications,
-                "signals": output_signals,
-                "provenance": provenance,
-            }
-        )
+        ranked_item = {
+            "stub_key": key,
+            "rank": 0,
+            "score": total,
+            "decision": decision,
+            "suggested_change_id": stub.get("suggested_change_id"),
+            "title": stub["title"],
+            "effort": stub["effort"],
+            "factors": factors,
+            "justifications": justifications,
+            "signals": output_signals,
+            "provenance": provenance,
+        }
+        if scoring_provenance:
+            ranked_item["scoring_provenance"] = scoring_provenance
+        ranked.append(ranked_item)
         for marker in candidate.get("degraded") or []:
             if isinstance(marker, str):
                 degraded.add(marker)

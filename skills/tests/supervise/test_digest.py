@@ -525,6 +525,41 @@ def test_rank_renders_score_legend_when_justification_is_absent(repo: Path) -> N
     assert digest["ranked"][0]["justifications"]["relevance"] == "relevance evidence"
 
 
+def test_rank_propagates_evidence_class_and_probability_for_judged_factors(
+    repo: Path,
+) -> None:
+    """Codex P2 (PR #602): a factor a calibrated Score judgment produced
+    carries evidence_class/probability into the digest's scoring_provenance;
+    a factor the analyst sub-agent produced (plain justification, no
+    evidence_class) has no entry there."""
+    stubs = [_stub(0)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
+    manifest = _manifest(stubs)
+    scores = _scores(manifest, values={"risk": 5})
+    scores["scores"][0]["risk"] = {
+        "score": 5, "evidence_class": "judgment", "probability": 0.77,
+    }
+
+    digest = rank_candidates(repo, manifest, scores, record=_record([]), fresh_keys=[])
+
+    provenance = digest["ranked"][0]["scoring_provenance"]
+    assert provenance == {"risk": {"evidence_class": "judgment", "probability": 0.77}}
+    assert "relevance" not in provenance
+
+
+def test_rank_omits_scoring_provenance_entirely_when_no_factor_is_judged(
+    repo: Path,
+) -> None:
+    stubs = [_stub(0)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
+    manifest = _manifest(stubs)
+    scores = _scores(manifest)
+
+    digest = rank_candidates(repo, manifest, scores, record=_record([]), fresh_keys=[])
+
+    assert "scoring_provenance" not in digest["ranked"][0]
+
+
 def test_rank_assigns_candidate_sections_writes_singleton_caches_and_syncs_mirror(
     repo: Path,
 ) -> None:

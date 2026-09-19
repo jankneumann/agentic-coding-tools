@@ -13,7 +13,18 @@
       "required": ["score"],
       "properties": {
         "score": {"type": "integer", "minimum": 1, "maximum": 5},
-        "justification": {"type": "string", "minLength": 1, "maxLength": 200}
+        "justification": {"type": "string", "minLength": 1, "maxLength": 200},
+        "evidence_class": {
+          "type": "string",
+          "enum": ["judgment"],
+          "description": "Present only when a calibrated Jev Score primitive (not the analyst sub-agent) produced this factor's score."
+        },
+        "probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "The judgment's own confidence in this factor's score; present iff evidence_class is set."
+        }
       }
     },
     "stubScore": {
