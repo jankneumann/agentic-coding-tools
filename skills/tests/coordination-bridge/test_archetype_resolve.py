@@ -202,3 +202,43 @@ def test_resolve_never_raises_on_unexpected_response_shape(
         lambda **_: {"status_code": 200, "data": None, "error": None},
     )
     assert coordination_bridge.try_resolve_archetype_for_phase("PLAN", {}) is None
+
+
+# ---------------------------------------------------------------------------
+# procedure_mode passthrough (OpenSpec change add-skill-audit, D3)
+#
+# Spec: openspec/changes/add-skill-audit/specs/agent-archetypes/spec.md —
+#       "Bridge tolerates an older coordinator". The bridge forwards
+#       `procedure_mode` when the coordinator sends it and never requires it.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_passes_procedure_mode_through_intact(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A newer coordinator's `procedure_mode` reaches the caller unchanged, and
+    the system_prompt (which already carries any injected sentence) is not
+    touched by the bridge."""
+    response = dict(_VALID_RESPONSE, procedure_mode="goal-directed")
+    _stub_http(monkeypatch, {"status_code": 200, "data": response, "error": None})
+
+    result = coordination_bridge.try_resolve_archetype_for_phase("PLAN", {})
+
+    assert result is not None
+    assert result == response
+    assert result["procedure_mode"] == "goal-directed"
+    assert result["system_prompt"] == _VALID_RESPONSE["system_prompt"]
+
+
+def test_resolve_without_procedure_mode_is_returned_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An older coordinator omits `procedure_mode`: the response is still
+    accepted, returned as-is, and the caller sees no such key (treat as guided)."""
+    assert "procedure_mode" not in _VALID_RESPONSE, "fixture guard"
+    _stub_http(monkeypatch, {"status_code": 200, "data": dict(_VALID_RESPONSE), "error": None})
+
+    result = coordination_bridge.try_resolve_archetype_for_phase("PLAN", {})
+
+    assert result is not None
+    assert result == _VALID_RESPONSE
+    assert "procedure_mode" not in result
+    assert result.get("procedure_mode", "guided") == "guided"

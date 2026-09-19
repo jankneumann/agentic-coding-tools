@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "skill": "quick-task",
+  "generated_at": "2026-09-16T00:00:00+00:00",
+  "convention": "rightsizing",
+  "freshness": {
+    "archetypes_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "reviewed_dates": ["2026-08-16"],
+    "evidence_window_days": 30
+  },
+  "layers": [
+    {
+      "section_id": "SKILL.md#00-frontmatter",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "decided_by": "pre-pass",
+      "rule": "frontmatter"
+    },
+    {
+      "section_id": "SKILL.md#01-why",
+      "file": "SKILL.md",
+      "heading": "Why",
+      "layer": "teaching",
+      "decided_by": "model"
+    }
+  ],
+  "dispatch_profile": [
+    {
+      "archetype": "implementer",
+      "tier": "standard",
+      "provider": "claude_code",
+      "model": "sonnet",
+      "thinking": null,
+      "procedure_mode": null,
+      "degraded_from": null,
+      "phases": ["IMPLEMENT"]
+    }
+  ],
+  "evidence": {
+    "status": "unavailable",
+    "reason": "unauthorized",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "id": "F001",
+      "kind": "teaching_inferable",
+      "layer": "teaching",
+      "section_id": "SKILL.md#01-why",
+      "remediation": "move_to_reference",
+      "rationale": "Generic competence a frontier model already holds.",
+      "evidence": {"repo_specific_tokens": []}
+    }
+  ]
+}

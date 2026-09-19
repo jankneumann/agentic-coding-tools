@@ -133,6 +133,7 @@ testpaths = [
     # `testpaths` and passes identically whether or not this line exists.
     "tests/setup-coordinator",
     "tests/codebase-atlas",
+    "tests/skill-audit",
     "tests/state-artifacts",
     "expedite/scripts/tests",
     # The CI-coverage guard itself. It used to sit loose in skills/tests, which

@@ -74,9 +74,6 @@
     "fix-scrub": [
       "worktree"
     ],
-    "improve-harness": [
-      "shared"
-    ],
     "implement-feature": [
       "coordination-bridge",
       "coordinator-task-status-renderer",
@@ -84,6 +81,9 @@
       "project-context-refresh",
       "validate-feature",
       "worktree"
+    ],
+    "improve-harness": [
+      "shared"
     ],
     "iterate-on-implementation": [
       "audit-choices",
@@ -156,6 +156,11 @@
       "coordination-bridge",
       "parallel-infrastructure",
       "project-context-runtime"
+    ],
+    "skill-audit": [
+      "shared",
+      "coordination-bridge",
+      "improve-harness"
     ],
     "supervise": [
       "plan-roadmap",
@@ -381,6 +386,9 @@
       ]
     },
     "simplify": {
+      "distribution": "portable"
+    },
+    "skill-audit": {
       "distribution": "portable"
     },
     "source-driven-development": {
