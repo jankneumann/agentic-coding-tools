@@ -5,17 +5,33 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 # Add fix-scrub scripts to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fix_models import ClassifiedFinding, Finding, severity_rank  # noqa: E402
 
+# Per system_one_decisions.testing's documented stubbing rule: import the
+# module, never a pre-bound name, so a monkeypatched `decide` attribute is
+# what this code actually calls.
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
+
 # Ruff rules known to support --fix
 _RUFF_FIXABLE_PREFIXES = {
     "F", "E", "W", "I", "UP", "B", "SIM", "RUF",
     "D", "C4", "PT", "RSE", "RET", "TCH", "TID",
 }
+
+# noul >= this maps to True ("an agent could act without asking a human" /
+# "this finding includes a concrete fix"). No acceptance outcome calls for a
+# tunable floor here (design D4), unlike ri-16's recall-oriented threshold.
+DEFAULT_FIX_TIER_NOUL_THRESHOLD = 0.5
 
 
 def _is_ruff_fixable(finding: Finding) -> bool:
@@ -47,8 +63,86 @@ def _deferred_has_proposed_fix(finding: Finding) -> bool:
     return "proposed fix" in detail_lower or "resolution" in detail_lower
 
 
-def classify_finding(finding: Finding) -> ClassifiedFinding:
-    """Classify a single finding into a fixability tier."""
+def _answer_field(answer: Any, name: str, default: Any = None) -> Any:
+    """Read a field off a real SDK answer object or a plain dict/mapping."""
+    if isinstance(answer, dict):
+        return answer.get(name, default)
+    return getattr(answer, name, default)
+
+
+def _judge_fix_tier_gates(
+    findings: list[Finding], dry_run: bool = False,
+) -> dict[int, bool]:
+    """Judge every `markers`/`deferred:*` finding's content gate in one
+    batched `decide()` call for the whole *findings* list.
+
+    Returns `{finding_index: is_actionable}` covering only findings that got
+    a usable answer -- a missing index means the answer was absent or
+    malformed for that finding (or the whole batch was unavailable), and the
+    caller falls back to the original heuristic for it, exactly as
+    `classify_finding` behaved before this function existed. `ruff`, `mypy`,
+    `architecture`, `security`, and unknown sources are never judged and
+    never trigger a `decide()` call.
+    """
+    if system_one_decisions is None:
+        return {}
+
+    judgeable = {
+        i: f
+        for i, f in enumerate(findings)
+        if f.source == "markers" or f.source.startswith("deferred:")
+    }
+    if not judgeable:
+        return {}
+
+    state = {
+        "findings": {
+            f"finding_{i}": {"source": f.source, "detail": f.detail}
+            for i, f in judgeable.items()
+        },
+    }
+    questions: dict[str, Any] = {}
+    for i, f in judgeable.items():
+        if f.source == "markers":
+            instructions = (
+                f"In state.findings.finding_{i}, could an agent act on this "
+                "marker without asking a human?"
+            )
+        else:
+            instructions = (
+                f"In state.findings.finding_{i}, does this finding include a "
+                "concrete, applicable fix?"
+            )
+        questions[f"finding_{i}"] = {"type": "noul", "instructions": instructions}
+
+    answers = system_one_decisions.decide(
+        state, questions, site="fix-scrub.classify", dry_run=dry_run,
+    )
+    if not answers:
+        return {}
+
+    result: dict[int, bool] = {}
+    for i in judgeable:
+        answer = answers.get(f"finding_{i}") if hasattr(answers, "get") else None
+        if answer is None:
+            continue
+        noul = _answer_field(answer, "noul")
+        if not isinstance(noul, (int, float)):
+            continue
+        result[i] = noul >= DEFAULT_FIX_TIER_NOUL_THRESHOLD
+    return result
+
+
+def classify_finding(
+    finding: Finding, judged_hint: bool | None = None,
+) -> ClassifiedFinding:
+    """Classify a single finding into a fixability tier.
+
+    `judged_hint` overrides the marker/deferred content heuristic when not
+    `None` (a judged answer for this finding was available). Every
+    pre-existing call site passes no `judged_hint`, so the default `None`
+    keeps this function's behavior identical to before judgment existed.
+    """
     source = finding.source
     category = finding.category
 
@@ -69,7 +163,11 @@ def classify_finding(finding: Finding) -> ClassifiedFinding:
         )
 
     # Agent tier: markers with sufficient context
-    if source == "markers" and _marker_has_sufficient_context(finding):
+    has_context = (
+        judged_hint if judged_hint is not None
+        else _marker_has_sufficient_context(finding)
+    )
+    if source == "markers" and has_context:
         return ClassifiedFinding(
             finding=finding,
             tier="agent",
@@ -77,7 +175,11 @@ def classify_finding(finding: Finding) -> ClassifiedFinding:
         )
 
     # Agent tier: deferred with proposed fix
-    if source.startswith("deferred:") and _deferred_has_proposed_fix(finding):
+    has_fix = (
+        judged_hint if judged_hint is not None
+        else _deferred_has_proposed_fix(finding)
+    )
+    if source.startswith("deferred:") and has_fix:
         return ClassifiedFinding(
             finding=finding,
             tier="agent",
@@ -121,19 +223,25 @@ def classify_finding(finding: Finding) -> ClassifiedFinding:
 def classify(
     findings: list[Finding],
     severity_filter: str = "medium",
+    dry_run: bool = False,
 ) -> list[ClassifiedFinding]:
     """Classify all findings into fixability tiers.
 
     Args:
         findings: List of findings from bug-scrub report.
         severity_filter: Minimum severity to include.
+        dry_run: Forwarded to the judged classification's `decide()` call
+            (see `_judge_fix_tier_gates`). Unrelated to fix-scrub's CLI
+            `--dry-run` flag, which controls whether fixes are applied and
+            is never wired here (design D6).
 
     Returns:
         List of classified findings.
     """
     min_rank = severity_rank(severity_filter)
-    classified: list[ClassifiedFinding] = []
-    for f in findings:
-        if severity_rank(f.severity) >= min_rank:
-            classified.append(classify_finding(f))
-    return classified
+    eligible = [f for f in findings if severity_rank(f.severity) >= min_rank]
+    judged = _judge_fix_tier_gates(eligible, dry_run=dry_run)
+    return [
+        classify_finding(f, judged_hint=judged.get(i))
+        for i, f in enumerate(eligible)
+    ]
