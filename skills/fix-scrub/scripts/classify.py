@@ -95,9 +95,16 @@ def _judge_fix_tier_gates(
     if not judgeable:
         return {}
 
+    # Include `title` alongside `detail`: collect_deferred.py's open-tasks
+    # collector puts the actual checkbox text in `title` and a generic
+    # "Open task in change <id>" placeholder in `detail` (the two other
+    # deferred collectors and the markers collector put real content in both
+    # fields, or in `detail` alone). Sending `detail` only would make the
+    # judge blind to open-tasks findings' actual content -- unable to give a
+    # meaningful answer rather than degrading to the fallback.
     state = {
         "findings": {
-            f"finding_{i}": {"source": f.source, "detail": f.detail}
+            f"finding_{i}": {"source": f.source, "title": f.title, "detail": f.detail}
             for i, f in judgeable.items()
         },
     }
