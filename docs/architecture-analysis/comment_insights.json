@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-18T02:39:57+00:00",
+  "generated_at": "2026-09-19T02:54:45+00:00",
   "summary": {
-    "total_comments": 2610,
+    "total_comments": 2643,
     "total_with_markers": 21,
     "marker_totals": {
       "NOTE": 4,
@@ -11,8 +11,8 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1953,
-    "documented_nodes": 281,
+    "total_graph_nodes": 1956,
+    "documented_nodes": 282,
     "documentation_coverage": 0.144
   },
   "marker_hotspots": [
@@ -163,7 +163,7 @@
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 281,
+      "total_comments": 304,
       "with_markers": 2,
       "languages": [
         "python"
@@ -195,7 +195,7 @@
     },
     {
       "file": "audit_triage.py",
-      "total_comments": 9,
+      "total_comments": 15,
       "with_markers": 0,
       "languages": [
         "python"
@@ -235,7 +235,7 @@
     },
     {
       "file": "coordination_api.py",
-      "total_comments": 232,
+      "total_comments": 236,
       "with_markers": 2,
       "languages": [
         "python"

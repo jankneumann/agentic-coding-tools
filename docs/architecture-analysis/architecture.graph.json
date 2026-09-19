@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-09-18T02:39:57+00:00",
-      "git_sha": "6e09ff2d50b07bdadbdc0258542a4702cccf3bd1",
+      "generated_at": "2026-09-19T02:54:45+00:00",
+      "git_sha": "8890ba60f30f01765b8ced7e984df183d99c9f19",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -1020,8 +1020,8 @@
       "name": "PollConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 507,
-        "end": 521
+        "start": 541,
+        "end": 555
       },
       "tags": [],
       "signatures": {}
@@ -1033,8 +1033,8 @@
       "name": "ModeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 525,
-        "end": 530
+        "start": 559,
+        "end": 564
       },
       "tags": [],
       "signatures": {}
@@ -1046,8 +1046,8 @@
       "name": "CliConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 534,
-        "end": 554
+        "start": 568,
+        "end": 588
       },
       "tags": [],
       "signatures": {}
@@ -1059,8 +1059,8 @@
       "name": "SdkConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 558,
-        "end": 571
+        "start": 592,
+        "end": 605
       },
       "tags": [],
       "signatures": {}
@@ -1072,8 +1072,8 @@
       "name": "AgentEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 575,
-        "end": 590
+        "start": 609,
+        "end": 624
       },
       "tags": [],
       "signatures": {}
@@ -1085,8 +1085,8 @@
       "name": "EscalationConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 598,
-        "end": 608
+        "start": 632,
+        "end": 642
       },
       "tags": [],
       "signatures": {}
@@ -1098,8 +1098,8 @@
       "name": "ArchetypeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 612,
-        "end": 623
+        "start": 646,
+        "end": 659
       },
       "tags": [],
       "signatures": {}
@@ -1111,8 +1111,8 @@
       "name": "PhaseMappingEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 627,
-        "end": 637
+        "start": 663,
+        "end": 673
       },
       "tags": [],
       "signatures": {}
@@ -1124,8 +1124,8 @@
       "name": "ModelSpec",
       "file": "agents_config.py",
       "span": {
-        "start": 641,
-        "end": 651
+        "start": 677,
+        "end": 687
       },
       "tags": [],
       "signatures": {}
@@ -1137,8 +1137,8 @@
       "name": "ResolvedArchetype",
       "file": "agents_config.py",
       "span": {
-        "start": 655,
-        "end": 668
+        "start": 691,
+        "end": 707
       },
       "tags": [],
       "signatures": {}
@@ -1150,8 +1150,8 @@
       "name": "ProviderModelMappingError",
       "file": "agents_config.py",
       "span": {
-        "start": 671,
-        "end": 688
+        "start": 710,
+        "end": 727
       },
       "tags": [],
       "signatures": {}
@@ -1163,8 +1163,8 @@
       "name": "LocalRosterConfigError",
       "file": "agents_config.py",
       "span": {
-        "start": 691,
-        "end": 709
+        "start": 730,
+        "end": 748
       },
       "tags": [],
       "signatures": {}
@@ -1176,8 +1176,8 @@
       "name": "LocalProviderTrustBoundaryError",
       "file": "agents_config.py",
       "span": {
-        "start": 712,
-        "end": 730
+        "start": 751,
+        "end": 769
       },
       "tags": [],
       "signatures": {}
@@ -1189,8 +1189,8 @@
       "name": "DuplicateApiKeyError",
       "file": "agents_config.py",
       "span": {
-        "start": 943,
-        "end": 958
+        "start": 982,
+        "end": 997
       },
       "tags": [],
       "signatures": {}
@@ -1202,8 +1202,8 @@
       "name": "ProfileSyncError",
       "file": "agents_config.py",
       "span": {
-        "start": 1092,
-        "end": 1098
+        "start": 1131,
+        "end": 1137
       },
       "tags": [],
       "signatures": {}
@@ -1215,8 +1215,8 @@
       "name": "ProfileSyncResult",
       "file": "agents_config.py",
       "span": {
-        "start": 1102,
-        "end": 1128
+        "start": 1141,
+        "end": 1167
       },
       "tags": [],
       "signatures": {}
@@ -1306,8 +1306,8 @@
       "name": "AuditTriageConfig",
       "file": "audit_triage.py",
       "span": {
-        "start": 52,
-        "end": 64
+        "start": 191,
+        "end": 203
       },
       "tags": [],
       "signatures": {}
@@ -1319,8 +1319,8 @@
       "name": "AuditTriageBuffer",
       "file": "audit_triage.py",
       "span": {
-        "start": 67,
-        "end": 103
+        "start": 206,
+        "end": 242
       },
       "tags": [],
       "signatures": {}
@@ -4348,8 +4348,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 674,
-        "end": 688
+        "start": 713,
+        "end": 727
       },
       "tags": [
         "dunder"
@@ -4363,8 +4363,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 700,
-        "end": 709
+        "start": 739,
+        "end": 748
       },
       "tags": [
         "dunder"
@@ -4378,8 +4378,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 720,
-        "end": 730
+        "start": 759,
+        "end": 769
       },
       "tags": [
         "dunder"
@@ -4393,8 +4393,8 @@
       "name": "_default_agents_path",
       "file": "agents_config.py",
       "span": {
-        "start": 737,
-        "end": 738
+        "start": 776,
+        "end": 777
       },
       "tags": [
         "private"
@@ -4408,8 +4408,8 @@
       "name": "_default_secrets_path",
       "file": "agents_config.py",
       "span": {
-        "start": 741,
-        "end": 742
+        "start": 780,
+        "end": 781
       },
       "tags": [
         "private"
@@ -4423,8 +4423,8 @@
       "name": "load_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 745,
-        "end": 885
+        "start": 784,
+        "end": 924
       },
       "tags": [
         "db_access"
@@ -4438,8 +4438,8 @@
       "name": "_parse_mode",
       "file": "agents_config.py",
       "span": {
-        "start": 817,
-        "end": 839
+        "start": 856,
+        "end": 878
       },
       "tags": [
         "private",
@@ -4454,8 +4454,8 @@
       "name": "_resolve_api_key_from_openbao",
       "file": "agents_config.py",
       "span": {
-        "start": 892,
-        "end": 940
+        "start": 931,
+        "end": 979
       },
       "tags": [
         "private",
@@ -4470,8 +4470,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 951,
-        "end": 958
+        "start": 990,
+        "end": 997
       },
       "tags": [
         "dunder"
@@ -4485,8 +4485,8 @@
       "name": "get_api_key_identities",
       "file": "agents_config.py",
       "span": {
-        "start": 961,
-        "end": 1009
+        "start": 1000,
+        "end": 1048
       },
       "tags": [
         "db_access"
@@ -4500,8 +4500,8 @@
       "name": "mutations",
       "file": "agents_config.py",
       "span": {
-        "start": 1119,
-        "end": 1128
+        "start": 1158,
+        "end": 1167
       },
       "tags": [
         "property"
@@ -4515,8 +4515,8 @@
       "name": "derive_allowed_operations",
       "file": "agents_config.py",
       "span": {
-        "start": 1131,
-        "end": 1160
+        "start": 1170,
+        "end": 1199
       },
       "tags": [
         "db_access"
@@ -4530,8 +4530,8 @@
       "name": "_is_unique_violation",
       "file": "agents_config.py",
       "span": {
-        "start": 1172,
-        "end": 1188
+        "start": 1211,
+        "end": 1227
       },
       "tags": [
         "private"
@@ -4545,8 +4545,8 @@
       "name": "_registry_sync_timestamp",
       "file": "agents_config.py",
       "span": {
-        "start": 1191,
-        "end": 1204
+        "start": 1230,
+        "end": 1243
       },
       "tags": [
         "private"
@@ -4560,8 +4560,8 @@
       "name": "_desired_profile_row",
       "file": "agents_config.py",
       "span": {
-        "start": 1207,
-        "end": 1217
+        "start": 1246,
+        "end": 1256
       },
       "tags": [
         "private"
@@ -4575,8 +4575,8 @@
       "name": "_profile_drift",
       "file": "agents_config.py",
       "span": {
-        "start": 1220,
-        "end": 1235
+        "start": 1259,
+        "end": 1274
       },
       "tags": [
         "private",
@@ -4591,8 +4591,8 @@
       "name": "_emit_sync_audit",
       "file": "agents_config.py",
       "span": {
-        "start": 1238,
-        "end": 1280
+        "start": 1277,
+        "end": 1319
       },
       "tags": [
         "async",
@@ -4607,8 +4607,8 @@
       "name": "_sync_assignments",
       "file": "agents_config.py",
       "span": {
-        "start": 1283,
-        "end": 1466
+        "start": 1322,
+        "end": 1505
       },
       "tags": [
         "async",
@@ -4624,8 +4624,8 @@
       "name": "sync_profiles",
       "file": "agents_config.py",
       "span": {
-        "start": 1469,
-        "end": 1695
+        "start": 1508,
+        "end": 1734
       },
       "tags": [
         "async",
@@ -4640,8 +4640,8 @@
       "name": "get_mcp_env",
       "file": "agents_config.py",
       "span": {
-        "start": 1702,
-        "end": 1730
+        "start": 1741,
+        "end": 1769
       },
       "tags": [
         "db_access"
@@ -4655,8 +4655,8 @@
       "name": "get_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1740,
-        "end": 1753
+        "start": 1779,
+        "end": 1792
       },
       "tags": [],
       "signatures": {}
@@ -4668,8 +4668,8 @@
       "name": "get_agent_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1756,
-        "end": 1761
+        "start": 1795,
+        "end": 1800
       },
       "tags": [],
       "signatures": {}
@@ -4681,8 +4681,8 @@
       "name": "reset_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1764,
-        "end": 1767
+        "start": 1803,
+        "end": 1806
       },
       "tags": [],
       "signatures": {}
@@ -4694,8 +4694,8 @@
       "name": "get_dispatch_configs",
       "file": "agents_config.py",
       "span": {
-        "start": 1774,
-        "end": 1835
+        "start": 1813,
+        "end": 1874
       },
       "tags": [],
       "signatures": {}
@@ -4707,8 +4707,8 @@
       "name": "get_agent_isolation",
       "file": "agents_config.py",
       "span": {
-        "start": 1842,
-        "end": 1851
+        "start": 1881,
+        "end": 1890
       },
       "tags": [],
       "signatures": {}
@@ -4720,8 +4720,8 @@
       "name": "_default_archetypes_path",
       "file": "agents_config.py",
       "span": {
-        "start": 1858,
-        "end": 1859
+        "start": 1897,
+        "end": 1898
       },
       "tags": [
         "private"
@@ -4735,8 +4735,8 @@
       "name": "_as_positive_number",
       "file": "agents_config.py",
       "span": {
-        "start": 1862,
-        "end": 1866
+        "start": 1901,
+        "end": 1905
       },
       "tags": [
         "private"
@@ -4750,8 +4750,8 @@
       "name": "_validate_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 1869,
-        "end": 1988
+        "start": 1908,
+        "end": 2027
       },
       "tags": [
         "private",
@@ -4766,8 +4766,8 @@
       "name": "load_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1991,
-        "end": 2081
+        "start": 2030,
+        "end": 2130
       },
       "tags": [
         "db_access"
@@ -4781,8 +4781,8 @@
       "name": "get_archetype",
       "file": "agents_config.py",
       "span": {
-        "start": 2089,
-        "end": 2100
+        "start": 2138,
+        "end": 2149
       },
       "tags": [
         "db_access"
@@ -4796,8 +4796,8 @@
       "name": "get_phase_mapping",
       "file": "agents_config.py",
       "span": {
-        "start": 2103,
-        "end": 2112
+        "start": 2152,
+        "end": 2161
       },
       "tags": [],
       "signatures": {}
@@ -4809,8 +4809,8 @@
       "name": "reset_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 2115,
-        "end": 2120
+        "start": 2164,
+        "end": 2169
       },
       "tags": [],
       "signatures": {}
@@ -4822,8 +4822,8 @@
       "name": "_served_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 2123,
-        "end": 2149
+        "start": 2172,
+        "end": 2198
       },
       "tags": [
         "private",
@@ -4838,8 +4838,8 @@
       "name": "_with_served_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 2152,
-        "end": 2163
+        "start": 2201,
+        "end": 2212
       },
       "tags": [
         "private"
@@ -4853,8 +4853,8 @@
       "name": "_normalize_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 2166,
-        "end": 2193
+        "start": 2215,
+        "end": 2242
       },
       "tags": [
         "private",
@@ -4869,8 +4869,8 @@
       "name": "get_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 2196,
-        "end": 2224
+        "start": 2245,
+        "end": 2273
       },
       "tags": [],
       "signatures": {}
@@ -4882,8 +4882,8 @@
       "name": "_tier_entry_to_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2227,
-        "end": 2239
+        "start": 2276,
+        "end": 2288
       },
       "tags": [
         "private",
@@ -4898,8 +4898,8 @@
       "name": "_best_defined_tier",
       "file": "agents_config.py",
       "span": {
-        "start": 2242,
-        "end": 2248
+        "start": 2291,
+        "end": 2297
       },
       "tags": [
         "private",
@@ -4914,8 +4914,8 @@
       "name": "resolve_provider_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2251,
-        "end": 2329
+        "start": 2300,
+        "end": 2378
       },
       "tags": [
         "db_access"
@@ -4929,8 +4929,8 @@
       "name": "resolve_provider_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2332,
-        "end": 2345
+        "start": 2381,
+        "end": 2394
       },
       "tags": [],
       "signatures": {}
@@ -4942,8 +4942,8 @@
       "name": "compose_prompt",
       "file": "agents_config.py",
       "span": {
-        "start": 2352,
-        "end": 2361
+        "start": 2401,
+        "end": 2410
       },
       "tags": [],
       "signatures": {}
@@ -4955,8 +4955,8 @@
       "name": "_unique_dir_prefixes",
       "file": "agents_config.py",
       "span": {
-        "start": 2368,
-        "end": 2384
+        "start": 2417,
+        "end": 2433
       },
       "tags": [
         "private",
@@ -4971,8 +4971,8 @@
       "name": "resolve_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2387,
-        "end": 2423
+        "start": 2436,
+        "end": 2472
       },
       "tags": [],
       "signatures": {}
@@ -4984,8 +4984,8 @@
       "name": "_resolve_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2426,
-        "end": 2488
+        "start": 2475,
+        "end": 2537
       },
       "tags": [
         "private",
@@ -5000,8 +5000,8 @@
       "name": "_finalize",
       "file": "agents_config.py",
       "span": {
-        "start": 2435,
-        "end": 2451
+        "start": 2484,
+        "end": 2500
       },
       "tags": [
         "private"
@@ -5015,10 +5015,12 @@
       "name": "resolve_archetype_for_phase",
       "file": "agents_config.py",
       "span": {
-        "start": 2496,
-        "end": 2602
+        "start": 2545,
+        "end": 2665
       },
-      "tags": [],
+      "tags": [
+        "db_access"
+      ],
       "signatures": {}
     },
     {
@@ -5388,14 +5390,60 @@
       "signatures": {}
     },
     {
+      "id": "py:audit_triage.load_capability_gap_recall_floor",
+      "kind": "function",
+      "language": "python",
+      "name": "load_capability_gap_recall_floor",
+      "file": "audit_triage.py",
+      "span": {
+        "start": 70,
+        "end": 89
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:audit_triage._answer_field",
+      "kind": "function",
+      "language": "python",
+      "name": "_answer_field",
+      "file": "audit_triage.py",
+      "span": {
+        "start": 92,
+        "end": 96
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:audit_triage.screen_session",
+      "kind": "function",
+      "language": "python",
+      "name": "screen_session",
+      "file": "audit_triage.py",
+      "span": {
+        "start": 99,
+        "end": 187
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:audit_triage.AuditTriageBuffer.__init__",
       "kind": "function",
       "language": "python",
       "name": "__init__",
       "file": "audit_triage.py",
       "span": {
-        "start": 75,
-        "end": 77
+        "start": 214,
+        "end": 216
       },
       "tags": [
         "dunder"
@@ -5409,8 +5457,8 @@
       "name": "push",
       "file": "audit_triage.py",
       "span": {
-        "start": 79,
-        "end": 89
+        "start": 218,
+        "end": 228
       },
       "tags": [],
       "signatures": {}
@@ -5422,8 +5470,8 @@
       "name": "drain_all",
       "file": "audit_triage.py",
       "span": {
-        "start": 91,
-        "end": 103
+        "start": 230,
+        "end": 242
       },
       "tags": [],
       "signatures": {}
@@ -5435,8 +5483,8 @@
       "name": "validate_finding",
       "file": "audit_triage.py",
       "span": {
-        "start": 106,
-        "end": 120
+        "start": 245,
+        "end": 259
       },
       "tags": [],
       "signatures": {}
@@ -5448,8 +5496,8 @@
       "name": "load_prompt",
       "file": "audit_triage.py",
       "span": {
-        "start": 123,
-        "end": 137
+        "start": 262,
+        "end": 276
       },
       "tags": [],
       "signatures": {}
@@ -5461,8 +5509,8 @@
       "name": "drain_and_classify",
       "file": "audit_triage.py",
       "span": {
-        "start": 140,
-        "end": 249
+        "start": 279,
+        "end": 432
       },
       "tags": [
         "async",
@@ -5477,8 +5525,8 @@
       "name": "get_triage_buffer",
       "file": "audit_triage.py",
       "span": {
-        "start": 259,
-        "end": 264
+        "start": 442,
+        "end": 447
       },
       "tags": [],
       "signatures": {}
@@ -5490,8 +5538,8 @@
       "name": "reset_triage_buffer",
       "file": "audit_triage.py",
       "span": {
-        "start": 267,
-        "end": 270
+        "start": 450,
+        "end": 453
       },
       "tags": [],
       "signatures": {}
@@ -7471,7 +7519,7 @@
       "file": "coordination_api.py",
       "span": {
         "start": 678,
-        "end": 3708
+        "end": 3713
       },
       "tags": [
         "db_access"
@@ -8370,7 +8418,7 @@
       "file": "coordination_api.py",
       "span": {
         "start": 2438,
-        "end": 2539
+        "end": 2544
       },
       "tags": [
         "async",
@@ -8403,8 +8451,8 @@
       "name": "report_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 2546,
-        "end": 2632
+        "start": 2551,
+        "end": 2637
       },
       "tags": [
         "async",
@@ -8420,8 +8468,8 @@
       "name": "test_notification",
       "file": "coordination_api.py",
       "span": {
-        "start": 2639,
-        "end": 2673
+        "start": 2644,
+        "end": 2678
       },
       "tags": [
         "async",
@@ -8437,8 +8485,8 @@
       "name": "notifications_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 2676,
-        "end": 2686
+        "start": 2681,
+        "end": 2691
       },
       "tags": [
         "async",
@@ -8453,8 +8501,8 @@
       "name": "discovery_register",
       "file": "coordination_api.py",
       "span": {
-        "start": 2693,
-        "end": 2719
+        "start": 2698,
+        "end": 2724
       },
       "tags": [
         "async",
@@ -8469,8 +8517,8 @@
       "name": "discovery_agents",
       "file": "coordination_api.py",
       "span": {
-        "start": 2722,
-        "end": 2751
+        "start": 2727,
+        "end": 2756
       },
       "tags": [
         "async",
@@ -8485,8 +8533,8 @@
       "name": "discovery_heartbeat",
       "file": "coordination_api.py",
       "span": {
-        "start": 2754,
-        "end": 2776
+        "start": 2759,
+        "end": 2781
       },
       "tags": [
         "async",
@@ -8501,8 +8549,8 @@
       "name": "discovery_cleanup",
       "file": "coordination_api.py",
       "span": {
-        "start": 2779,
-        "end": 2809
+        "start": 2784,
+        "end": 2814
       },
       "tags": [
         "async",
@@ -8517,8 +8565,8 @@
       "name": "gen_eval_list_scenarios",
       "file": "coordination_api.py",
       "span": {
-        "start": 2816,
-        "end": 2841
+        "start": 2821,
+        "end": 2846
       },
       "tags": [
         "async",
@@ -8533,8 +8581,8 @@
       "name": "gen_eval_validate",
       "file": "coordination_api.py",
       "span": {
-        "start": 2844,
-        "end": 2865
+        "start": 2849,
+        "end": 2870
       },
       "tags": [
         "async",
@@ -8549,8 +8597,8 @@
       "name": "gen_eval_create",
       "file": "coordination_api.py",
       "span": {
-        "start": 2868,
-        "end": 2890
+        "start": 2873,
+        "end": 2895
       },
       "tags": [
         "async",
@@ -8565,8 +8613,8 @@
       "name": "gen_eval_run",
       "file": "coordination_api.py",
       "span": {
-        "start": 2893,
-        "end": 2916
+        "start": 2898,
+        "end": 2921
       },
       "tags": [
         "async",
@@ -8581,8 +8629,8 @@
       "name": "search_issues",
       "file": "coordination_api.py",
       "span": {
-        "start": 2923,
-        "end": 2936
+        "start": 2928,
+        "end": 2941
       },
       "tags": [
         "async",
@@ -8598,8 +8646,8 @@
       "name": "ready_issues",
       "file": "coordination_api.py",
       "span": {
-        "start": 2939,
-        "end": 2955
+        "start": 2944,
+        "end": 2960
       },
       "tags": [
         "async",
@@ -8615,8 +8663,8 @@
       "name": "request_permission_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2965,
-        "end": 2995
+        "start": 2970,
+        "end": 3000
       },
       "tags": [
         "async",
@@ -8631,8 +8679,8 @@
       "name": "request_approval_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3002,
-        "end": 3034
+        "start": 3007,
+        "end": 3039
       },
       "tags": [
         "async",
@@ -8647,8 +8695,8 @@
       "name": "check_approval_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3037,
-        "end": 3062
+        "start": 3042,
+        "end": 3067
       },
       "tags": [
         "async",
@@ -8663,8 +8711,8 @@
       "name": "_database_health",
       "file": "coordination_api.py",
       "span": {
-        "start": 3068,
-        "end": 3089
+        "start": 3073,
+        "end": 3094
       },
       "tags": [
         "async",
@@ -8679,8 +8727,8 @@
       "name": "help_overview",
       "file": "coordination_api.py",
       "span": {
-        "start": 3096,
-        "end": 3103
+        "start": 3101,
+        "end": 3108
       },
       "tags": [
         "async",
@@ -8695,8 +8743,8 @@
       "name": "help_topic",
       "file": "coordination_api.py",
       "span": {
-        "start": 3106,
-        "end": 3126
+        "start": 3111,
+        "end": 3131
       },
       "tags": [
         "async",
@@ -8711,8 +8759,8 @@
       "name": "get_sync_points_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 3133,
-        "end": 3143
+        "start": 3138,
+        "end": 3148
       },
       "tags": [
         "async",
@@ -8727,8 +8775,8 @@
       "name": "get_active_worktrees",
       "file": "coordination_api.py",
       "span": {
-        "start": 3146,
-        "end": 3155
+        "start": 3151,
+        "end": 3160
       },
       "tags": [
         "async",
@@ -8743,8 +8791,8 @@
       "name": "mint_events_token",
       "file": "coordination_api.py",
       "span": {
-        "start": 3158,
-        "end": 3188
+        "start": 3163,
+        "end": 3193
       },
       "tags": [
         "async",
@@ -8760,8 +8808,8 @@
       "name": "stream_work_events",
       "file": "coordination_api.py",
       "span": {
-        "start": 3191,
-        "end": 3237
+        "start": 3196,
+        "end": 3242
       },
       "tags": [
         "async",
@@ -8776,8 +8824,8 @@
       "name": "patch_issue_labels",
       "file": "coordination_api.py",
       "span": {
-        "start": 3240,
-        "end": 3292
+        "start": 3245,
+        "end": 3297
       },
       "tags": [
         "async",
@@ -8793,8 +8841,8 @@
       "name": "force_release_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 3295,
-        "end": 3329
+        "start": 3300,
+        "end": 3334
       },
       "tags": [
         "async",
@@ -8810,8 +8858,8 @@
       "name": "kick_agent",
       "file": "coordination_api.py",
       "span": {
-        "start": 3332,
-        "end": 3452
+        "start": 3337,
+        "end": 3457
       },
       "tags": [
         "async",
@@ -8827,8 +8875,8 @@
       "name": "put_saved_view",
       "file": "coordination_api.py",
       "span": {
-        "start": 3455,
-        "end": 3489
+        "start": 3460,
+        "end": 3494
       },
       "tags": [
         "async",
@@ -8844,8 +8892,8 @@
       "name": "post_kanban_audit",
       "file": "coordination_api.py",
       "span": {
-        "start": 3492,
-        "end": 3525
+        "start": 3497,
+        "end": 3530
       },
       "tags": [
         "async",
@@ -8861,8 +8909,8 @@
       "name": "live",
       "file": "coordination_api.py",
       "span": {
-        "start": 3528,
-        "end": 3530
+        "start": 3533,
+        "end": 3535
       },
       "tags": [
         "async",
@@ -8877,8 +8925,8 @@
       "name": "ready",
       "file": "coordination_api.py",
       "span": {
-        "start": 3533,
-        "end": 3542
+        "start": 3538,
+        "end": 3547
       },
       "tags": [
         "async",
@@ -8893,8 +8941,8 @@
       "name": "health",
       "file": "coordination_api.py",
       "span": {
-        "start": 3545,
-        "end": 3549
+        "start": 3550,
+        "end": 3554
       },
       "tags": [
         "async",
@@ -8909,8 +8957,8 @@
       "name": "github_prs",
       "file": "coordination_api.py",
       "span": {
-        "start": 3556,
-        "end": 3593
+        "start": 3561,
+        "end": 3598
       },
       "tags": [
         "async",
@@ -8925,8 +8973,8 @@
       "name": "openspec_proposals",
       "file": "coordination_api.py",
       "span": {
-        "start": 3596,
-        "end": 3637
+        "start": 3601,
+        "end": 3642
       },
       "tags": [
         "async",
@@ -8941,8 +8989,8 @@
       "name": "code_search_status_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3641,
-        "end": 3659
+        "start": 3646,
+        "end": 3664
       },
       "tags": [
         "async",
@@ -8957,8 +9005,8 @@
       "name": "verify_code_search_principal",
       "file": "coordination_api.py",
       "span": {
-        "start": 3661,
-        "end": 3675
+        "start": 3666,
+        "end": 3680
       },
       "tags": [
         "async",
@@ -8973,8 +9021,8 @@
       "name": "search_code_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3678,
-        "end": 3706
+        "start": 3683,
+        "end": 3711
       },
       "tags": [
         "async",
@@ -8989,8 +9037,8 @@
       "name": "main",
       "file": "coordination_api.py",
       "span": {
-        "start": 3716,
-        "end": 3745
+        "start": 3721,
+        "end": 3750
       },
       "tags": [],
       "signatures": {}
@@ -28731,6 +28779,27 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:get_triage_buffer"
+    },
+    {
+      "from": "py:audit_triage.screen_session",
+      "to": "py:audit_triage._answer_field",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_answer_field"
+    },
+    {
+      "from": "py:audit_triage.drain_and_classify",
+      "to": "py:audit_triage.load_capability_gap_recall_floor",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:load_capability_gap_recall_floor"
+    },
+    {
+      "from": "py:audit_triage.drain_and_classify",
+      "to": "py:audit_triage.screen_session",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:screen_session"
     },
     {
       "from": "py:audit_triage.drain_and_classify",
