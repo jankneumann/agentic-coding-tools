@@ -76,6 +76,26 @@ class TestJudgeFixTierGates:
         assert questions["finding_1"]["type"] == "noul"
         assert questions["finding_2"]["type"] == "noul"
 
+    def test_payload_includes_title_for_open_tasks_findings(self, monkeypatch) -> None:
+        """Codex P1 (PR #601): collect_deferred.py's open-tasks collector puts
+        the actual checkbox text in `title` and a generic "Open task in
+        change <id>" placeholder in `detail`. A payload with `detail` alone
+        leaves the judge blind to what the finding actually is."""
+        fake_module = MagicMock()
+        fake_module.decide.return_value = None
+        monkeypatch.setattr(cl, "system_one_decisions", fake_module)
+        finding = _make_finding(
+            source="deferred:open-tasks",
+            title="Wire the retry budget into the vendor dispatcher",
+            detail="Open task in change add-retry-budget",
+        )
+        cl._judge_fix_tier_gates([finding])
+        state, _questions = fake_module.decide.call_args[0]
+        assert (
+            state["findings"]["finding_0"]["title"]
+            == "Wire the retry budget into the vendor dispatcher"
+        )
+
     def test_confident_true_answer_maps_above_threshold(self, monkeypatch) -> None:
         fake_module = MagicMock()
         fake_module.decide.return_value = {"finding_0": _noul_answer(0.9)}
