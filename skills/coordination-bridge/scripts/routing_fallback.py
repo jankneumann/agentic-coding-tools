@@ -222,6 +222,18 @@ def load_routing_policy_document(repo_root: Path | None = None) -> tuple[dict[st
                 f"routing.yaml at {path} has an invalid defaults.phase_dispatch_modes entry: "
                 f"{phase!r}={mode!r}"
             )
+    # Mirror routing_policy.load_routing_policy's cross-check against the
+    # authored phase roster: a phase this coordinator was never configured
+    # for (a typo like IMPL_REVEIW) must fail loud here exactly as it would
+    # against the coordinator's own strict loader (Codex review on PR #605).
+    archetypes_path = (repo_root / "agent-coordinator" / "archetypes.yaml") if repo_root else None
+    configured_phases = set(_archetype_roster().phase_mapping(archetypes_path))
+    unknown_phases = set(phase_dispatch_modes) - configured_phases
+    if unknown_phases:
+        raise ValueError(
+            f"routing.yaml at {path} has an unconfigured phase dispatch default: "
+            f"{sorted(unknown_phases)[0]!r}"
+        )
 
     rules = document.get("rules")
     if not isinstance(rules, list):
@@ -437,6 +449,17 @@ def local_static_route(
     if dispatch_mode is None:
         dispatch_mode = evaluation["dispatch_mode"]
 
+    # Same allow/exclude roadmap-policy filters resolver.py's
+    # _lane_exclusion_reason applies server-side -- an outage must not route
+    # onto a lane/vendor/location the caller explicitly prohibited (Codex
+    # review on PR #605).
+    roadmap_policy = profile.get("roadmap_policy") or {}
+    allowed_agents = set(roadmap_policy.get("allowed_agent_ids") or [])
+    excluded_agents = set(roadmap_policy.get("excluded_agent_ids") or [])
+    allowed_vendor_types = set(roadmap_policy.get("allowed_vendor_types") or [])
+    excluded_vendor_types = set(roadmap_policy.get("excluded_vendor_types") or [])
+    allowed_locations_policy = set(roadmap_policy.get("allowed_locations") or [])
+
     agents_raw = yaml.safe_load(_agents_yaml_path(repo_root).read_bytes())
     if not isinstance(agents_raw, dict) or not isinstance(agents_raw.get("agents"), dict):
         raise ValueError(f"agents.yaml at {_agents_yaml_path(repo_root)} has no 'agents' mapping")
@@ -460,6 +483,16 @@ def local_static_route(
         if required_location is not None and location != required_location:
             continue
         if required_isolation is not None and isolation != required_isolation:
+            continue
+        if allowed_locations_policy and location not in allowed_locations_policy:
+            continue
+        if allowed_agents and agent_id not in allowed_agents:
+            continue
+        if agent_id in excluded_agents:
+            continue
+        if allowed_vendor_types and static_provider not in allowed_vendor_types:
+            continue
+        if static_provider in excluded_vendor_types:
             continue
         lane_modes = _lane_dispatch_modes(entry)
         if dispatch_mode not in lane_modes:

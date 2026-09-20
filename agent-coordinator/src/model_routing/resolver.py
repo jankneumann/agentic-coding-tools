@@ -154,7 +154,24 @@ def build_feasible_assignments(
     excluded: list[ExcludedAssignmentInput] = []
     policy = roadmap_policy or {}
     for lane in lanes:
-        for projection in _lane_models(lane):
+        lane_agent_id = str(lane.get("agent_id") or "")
+        projections = _lane_models(lane)
+        if not projections:
+            # A configured lane with no declared models at all has no unique
+            # exact catalog projection -- excluded, not silently dropped
+            # (spec scenario "Missing exact projection is excluded").
+            excluded.append(
+                ExcludedAssignmentInput(
+                    agent_id=lane_agent_id,
+                    vendor=str(lane.get("catalog_vendor") or ""),
+                    model="",
+                    endpoint_kind="",
+                    base_url=None,
+                    reason="registry:no-catalog-projection",
+                )
+            )
+            continue
+        for projection in projections:
             key = (
                 str(projection.get("catalog_vendor") or ""),
                 str(projection.get("model") or ""),
@@ -163,6 +180,19 @@ def build_feasible_assignments(
             )
             candidate = by_key.get(key)
             if candidate is None:
+                # The registry/lane declares this exact model but the catalog
+                # snapshot has no row for it -- excluded, not silently dropped
+                # (spec scenario "Missing exact projection is excluded").
+                excluded.append(
+                    ExcludedAssignmentInput(
+                        agent_id=lane_agent_id,
+                        vendor=key[0],
+                        model=key[1],
+                        endpoint_kind=key[2],
+                        base_url=key[3],
+                        reason="registry:no-catalog-projection",
+                    )
+                )
                 continue
             matched_keys.add(key)
             assignment = RoutingAssignment(

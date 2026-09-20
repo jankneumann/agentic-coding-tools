@@ -84,10 +84,11 @@ def test_coordinator_success_returns_data_without_local_fallback(
     assert called["local"] is False
 
 
-def test_coordinator_failure_falls_back_to_local_static(
+def test_coordinator_unreachable_falls_back_to_local_static(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    _stub_http(monkeypatch, {"status_code": 503, "data": None, "error": "HTTP 503"})
+    """Genuine transport failure (status_code=None) -- e.g. connection refused."""
+    _stub_http(monkeypatch, {"status_code": None, "data": None, "error": "Connection refused"})
     recorded: dict[str, Any] = {}
 
     def fake_local(task_signals: Any, **kwargs: Any) -> dict[str, Any]:
@@ -107,13 +108,40 @@ def test_coordinator_failure_falls_back_to_local_static(
     assert result == _LOCAL_RESPONSE
     assert recorded["static_provider"] == "claude_code"
     assert recorded["static_model"] == "claude-sonnet-4-6"
-    assert any("coordinator call failed" in r.message for r in caplog.records)
+    assert any("coordinator unreachable" in r.message for r in caplog.records)
+
+
+@pytest.mark.parametrize("status", [422, 503, 500])
+def test_coordinator_authoritative_error_does_not_fall_back_to_local(
+    monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    """A concrete HTTP error is the coordinator's real answer, not a reason to
+    route locally: masking a validation 422 or a semantic 503 "no feasible
+    candidate" with a fabricated local assignment would defeat the typed
+    validation boundary and contradict a "no candidate" verdict.
+
+    Codex review on PR #605.
+    """
+    _stub_http(monkeypatch, {"status_code": status, "data": {"detail": "rejected"}, "error": f"HTTP {status}"})
+    called = {"local": False}
+    monkeypatch.setattr(
+        routing_fallback,
+        "local_static_route",
+        lambda *a, **k: called.update(local=True) or {},
+    )
+
+    result = coordination_bridge.try_select_model_for_task(
+        {"archetype": "implementer"}, static_provider="claude_code", static_model="claude-sonnet-4-6"
+    )
+
+    assert result is None
+    assert called["local"] is False
 
 
 def test_missing_static_provider_model_returns_none_without_local_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _stub_http(monkeypatch, {"status_code": 503, "data": None, "error": "HTTP 503"})
+    _stub_http(monkeypatch, {"status_code": None, "data": None, "error": "Connection refused"})
     called = {"local": False}
     monkeypatch.setattr(
         routing_fallback,
@@ -139,7 +167,7 @@ def test_missing_http_url_still_attempts_local_fallback(monkeypatch: pytest.Monk
 
 
 def test_local_fallback_error_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_http(monkeypatch, {"status_code": 503, "data": None, "error": "HTTP 503"})
+    _stub_http(monkeypatch, {"status_code": None, "data": None, "error": "Connection refused"})
 
     def raise_fallback(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise routing_fallback.LocalRoutingFallbackError("no exact lane")
@@ -165,7 +193,7 @@ def test_malformed_coordinator_response_falls_back_to_local(monkeypatch: pytest.
 
 
 def test_never_raises_when_local_config_is_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_http(monkeypatch, {"status_code": 503, "data": None, "error": "HTTP 503"})
+    _stub_http(monkeypatch, {"status_code": None, "data": None, "error": "Connection refused"})
 
     def raise_value_error(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise ValueError("routing.yaml at ... is missing policy_version")

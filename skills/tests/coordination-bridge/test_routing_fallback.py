@@ -84,7 +84,12 @@ _ARCHETYPES_YAML = {
             "standard": "claude-sonnet-4-6",
             "premium": {"model": "claude-opus-5", "thinking": "high"},
         }
-    }
+    },
+    # Must cover every key routing.yaml's defaults.phase_dispatch_modes uses
+    # (here just IMPL_REVIEW) -- load_routing_policy_document cross-checks
+    # phase_dispatch_modes against this roster the same way the coordinator's
+    # strict loader does.
+    "phase_mapping": {"IMPL_REVIEW": {}},
 }
 
 
@@ -173,6 +178,47 @@ def test_no_matching_vendor_type_raises_bounded_error(checkout: Path) -> None:
         _route(checkout, static_provider="codex")
 
 
+def test_roadmap_policy_allowed_locations_excludes_prohibited_lane(checkout: Path) -> None:
+    """Codex review on PR #605: an outage must not route onto a location the
+    caller's roadmap policy prohibits, even though claude-local (location=local)
+    would otherwise win by fallback.location_order."""
+    result = _route(
+        checkout,
+        routing_profile={"roadmap_policy": {"allowed_locations": ["cloud"]}},
+    )
+
+    assert result["selected"]["assignment"]["agent_id"] == "claude-remote"
+    assert result["selected"]["assignment"]["location"] == "cloud"
+    assert result["alternatives"] == []
+
+
+def test_roadmap_policy_excluded_agent_ids_excludes_prohibited_lane(checkout: Path) -> None:
+    result = _route(
+        checkout,
+        routing_profile={"roadmap_policy": {"excluded_agent_ids": ["claude-local"]}},
+    )
+
+    assert result["selected"]["assignment"]["agent_id"] == "claude-remote"
+
+
+def test_roadmap_policy_excluded_vendor_types_yields_no_candidates(checkout: Path) -> None:
+    with pytest.raises(routing_fallback.LocalRoutingFallbackError):
+        _route(
+            checkout,
+            routing_profile={"roadmap_policy": {"excluded_vendor_types": ["claude_code"]}},
+        )
+
+
+def test_roadmap_policy_allowed_agent_ids_yields_no_candidates_when_unmatched(
+    checkout: Path,
+) -> None:
+    with pytest.raises(routing_fallback.LocalRoutingFallbackError):
+        _route(
+            checkout,
+            routing_profile={"roadmap_policy": {"allowed_agent_ids": ["some-other-agent"]}},
+        )
+
+
 def test_sdk_only_lane_is_selectable_via_sdk_dispatch_mode(tmp_path: Path) -> None:
     coordinator_dir = tmp_path / "agent-coordinator"
     coordinator_dir.mkdir()
@@ -191,7 +237,9 @@ def test_sdk_only_lane_is_selectable_via_sdk_dispatch_mode(tmp_path: Path) -> No
         }
     }
     (coordinator_dir / "agents.yaml").write_text(yaml.safe_dump(agents))
-    (coordinator_dir / "archetypes.yaml").write_text(yaml.safe_dump({"model_aliases": {}}))
+    (coordinator_dir / "archetypes.yaml").write_text(
+        yaml.safe_dump({"model_aliases": {}, "phase_mapping": {"IMPL_REVIEW": {}}})
+    )
 
     result = routing_fallback.local_static_route(
         {"archetype": "implementer"},
@@ -225,6 +273,7 @@ def _write_routing_yaml(tmp_path: Path, document: dict[str, Any]) -> Path:
     coordinator_dir.mkdir(exist_ok=True)
     (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(document))
     (coordinator_dir / "agents.yaml").write_text(yaml.safe_dump(_AGENTS_YAML))
+    (coordinator_dir / "archetypes.yaml").write_text(yaml.safe_dump(_ARCHETYPES_YAML))
     return tmp_path
 
 
@@ -302,6 +351,22 @@ def test_invalid_phase_dispatch_mode_value_fails_loud(tmp_path: Path) -> None:
     root = _write_routing_yaml(tmp_path, document)
 
     with pytest.raises(ValueError, match="phase_dispatch_modes"):
+        routing_fallback.load_routing_policy_document(root)
+
+
+def test_unconfigured_phase_dispatch_default_fails_loud(tmp_path: Path) -> None:
+    """Codex review on PR #605: a typo'd phase key (IMPL_REVEIW) must fail
+    loud here exactly as it would against the coordinator's strict loader,
+    which cross-checks phase_dispatch_modes against the authored phase
+    roster (get_phase_mapping) -- not merely check the dispatch-mode value."""
+    document = dict(_ROUTING_YAML)
+    document["defaults"] = {
+        "dispatch_mode": "quick",
+        "phase_dispatch_modes": {"IMPL_REVEIW": "review"},
+    }
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="unconfigured phase dispatch default"):
         routing_fallback.load_routing_policy_document(root)
 
 
