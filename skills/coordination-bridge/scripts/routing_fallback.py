@@ -30,6 +30,9 @@ import yaml
 
 _CONSTRAINT_CONFLICT = "__constraint-conflict__"
 
+# Matches contracts/openapi/v1.1.yaml's SelectModelResponse.alternatives.maxItems.
+_ALTERNATIVES_MAX = 64
+
 _LOCATION_VALUES = frozenset({"local", "cloud", "unknown"})
 _ISOLATION_VALUES = frozenset({"none", "worktree", "sandbox"})
 _DISPATCH_MODE_VALUES = frozenset({"review", "alternative", "quick", "sdk"})
@@ -614,7 +617,11 @@ def local_static_route(
     return {
         "decision_id": str(uuid.uuid4()),
         "selected": selected,
-        "alternatives": candidates[1:],
+        # Match contracts/openapi/v1.1.yaml's SelectModelResponse.alternatives
+        # maxItems -- a checkout configuring many exact lanes for one
+        # provider/model must not emit a contract-invalid response during an
+        # outage (Codex review on PR #605, round 6).
+        "alternatives": candidates[1:][:_ALTERNATIVES_MAX],
         "exploration": False,
         "fallback": True,
         "excluded": [],

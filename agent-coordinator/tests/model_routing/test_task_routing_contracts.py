@@ -239,6 +239,9 @@ def test_persistence_contract_is_bounded_and_strips_no_fields_implicitly() -> No
         "fallback": False,
         "policy_version": "linear-utility-v1",
         "budget_state": {},
+        "assignment": {},
+        "provenance": {},
+        "created_at": "2026-09-16T12:00:00+00:00",
     }
     validator.validate(record)
 

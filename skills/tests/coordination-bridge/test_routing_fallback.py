@@ -178,6 +178,42 @@ def test_no_matching_vendor_type_raises_bounded_error(checkout: Path) -> None:
         _route(checkout, static_provider="codex")
 
 
+def test_alternatives_are_bounded_to_the_response_contract_limit(tmp_path: Path) -> None:
+    """Codex review on PR #605 (round 6): contracts/openapi/v1.1.yaml caps
+    SelectModelResponse.alternatives at 64 items. A checkout configuring more
+    than 65 exact lanes for the caller's provider/model must not emit a
+    contract-invalid response during an outage."""
+    coordinator_dir = tmp_path / "agent-coordinator"
+    coordinator_dir.mkdir()
+    (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(_ROUTING_YAML))
+    agents = {
+        f"claude-local-{i}": {
+            "type": "claude_code",
+            "location": "local",
+            "policy_vendor": "claude",
+            "catalog_vendor": "claude_code",
+            "endpoint_kind": "vendor-cli",
+            "isolation": "worktree",
+            "cli": {
+                "model": "claude-sonnet-4-6",
+                "dispatch_modes": {"review": {}, "alternative": {}, "quick": {}},
+            },
+        }
+        for i in range(70)
+    }
+    (coordinator_dir / "agents.yaml").write_text(yaml.safe_dump({"agents": agents}))
+    (coordinator_dir / "archetypes.yaml").write_text(yaml.safe_dump(_ARCHETYPES_YAML))
+
+    result = routing_fallback.local_static_route(
+        {"archetype": "implementer", "phase": "IMPLEMENT"},
+        static_provider="claude_code",
+        static_model="claude-sonnet-4-6",
+        repo_root=tmp_path,
+    )
+
+    assert len(result["alternatives"]) == 64
+
+
 def test_malformed_agents_yaml_entry_fails_loud(tmp_path: Path) -> None:
     """Codex review on PR #605 (round 3): a schema-invalid agents.yaml entry
     must fail the whole load loud, mirroring load_agents_config()'s own

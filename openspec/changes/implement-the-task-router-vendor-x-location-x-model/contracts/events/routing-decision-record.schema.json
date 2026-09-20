@@ -6,7 +6,8 @@
   "additionalProperties": false,
   "required": [
     "decision_id", "request", "selected", "alternatives", "excluded",
-    "exploration", "fallback", "policy_version", "budget_state"
+    "exploration", "fallback", "policy_version", "budget_state",
+    "assignment", "provenance", "created_at"
   ],
   "properties": {
     "decision_id": {"type": "string", "format": "uuid"},
@@ -17,7 +18,10 @@
     "exploration": {"type": "boolean"},
     "fallback": {"const": false},
     "policy_version": {"const": "linear-utility-v1"},
-    "budget_state": {"type": "object"}
+    "budget_state": {"type": "object"},
+    "assignment": {"type": "object"},
+    "provenance": {"type": "object"},
+    "created_at": {"type": "string", "format": "date-time"}
   },
   "$defs": {
     "persistedRequest": {
