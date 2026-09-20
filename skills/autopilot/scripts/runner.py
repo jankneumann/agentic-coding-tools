@@ -372,6 +372,7 @@ def _cmd_apply_outcome(args: argparse.Namespace) -> int:
             outcome=args.outcome,
             handoff_id=args.handoff_id,
             allow_phase_mismatch=args.allow_phase_mismatch,
+            change_dir=_change_dir(args.change_id),
         )
     except ValueError as exc:
         sys.stderr.write(f"runner: {exc}\n")

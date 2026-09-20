@@ -1,0 +1,373 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "unauthorized",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "constraint_without_reason",
+      "layer": "constraint",
+      "rationale": "Prohibition without a stated reason; a strong model argues with a bare rule.",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#02-when-to-use"
+    },
+    {
+      "evidence": {},
+      "id": "F002",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#03-the-optimization-workflow"
+    },
+    {
+      "evidence": {},
+      "id": "F003",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#05-backend-latency-budgets"
+    },
+    {
+      "evidence": {},
+      "id": "F004",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#06-frontend"
+    },
+    {
+      "evidence": {},
+      "id": "F005",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#07-backend"
+    },
+    {
+      "evidence": {},
+      "id": "F006",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#08-explain-analyze-workflow"
+    },
+    {
+      "evidence": {},
+      "id": "F007",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#09-step-2-identify-the-bottleneck"
+    },
+    {
+      "evidence": {},
+      "id": "F008",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#11-n-1-queries-the-single-most-common-backe"
+    },
+    {
+      "evidence": {},
+      "id": "F009",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#12-missing-or-wrong-indexes"
+    },
+    {
+      "evidence": {},
+      "id": "F010",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#13-connection-pool-sizing"
+    },
+    {
+      "evidence": {},
+      "id": "F011",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#14-async-profiling-python"
+    },
+    {
+      "evidence": {},
+      "id": "F012",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#15-unbounded-data-fetching"
+    },
+    {
+      "evidence": {},
+      "id": "F013",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#16-image-optimization-frontend-lcp-fix"
+    },
+    {
+      "evidence": {},
+      "id": "F014",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#17-unnecessary-re-renders-react"
+    },
+    {
+      "evidence": {},
+      "id": "F015",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#18-bundle-splitting"
+    },
+    {
+      "evidence": {},
+      "id": "F016",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#19-caching"
+    },
+    {
+      "evidence": {},
+      "id": "F017",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#20-performance-budget"
+    },
+    {
+      "evidence": {
+        "rule": "max_lines"
+      },
+      "id": "F018",
+      "kind": "convention_drift",
+      "layer": "contract",
+      "rationale": "SKILL.md has 509 lines; the rightsizing cap is 500",
+      "remediation": "move_to_reference",
+      "section_id": "SKILL.md"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-09-16T11:40:43+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Overview",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-overview"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "When to Use",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#02-when-to-use"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The Optimization Workflow",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#03-the-optimization-workflow"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Frontend: Core Web Vitals Targets",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#04-frontend-core-web-vitals-targets"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Backend: Latency Budgets",
+      "layer": "contract",
+      "rule": "contract_table",
+      "section_id": "SKILL.md#05-backend-latency-budgets"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Frontend",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#06-frontend"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Backend",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#07-backend"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "`EXPLAIN ANALYZE` workflow",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#08-explain-analyze-workflow"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 2 — Identify the Bottleneck",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#09-step-2-identify-the-bottleneck"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common bottlenecks by category",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#10-common-bottlenecks-by-category"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "N+1 Queries (the single most common backend bug)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#11-n-1-queries-the-single-most-common-backe"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Missing or wrong indexes",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-missing-or-wrong-indexes"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Connection-pool sizing",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-connection-pool-sizing"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Async profiling (Python)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#14-async-profiling-python"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Unbounded data fetching",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#15-unbounded-data-fetching"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Image optimization (frontend LCP fix)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#16-image-optimization-frontend-lcp-fix"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Unnecessary re-renders (React)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#17-unnecessary-re-renders-react"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Bundle splitting",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#18-bundle-splitting"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Caching",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#19-caching"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Performance Budget",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#20-performance-budget"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common Rationalizations",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#21-common-rationalizations"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Red Flags",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#22-red-flags"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Verification",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#23-verification"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "performance-optimization"
+}

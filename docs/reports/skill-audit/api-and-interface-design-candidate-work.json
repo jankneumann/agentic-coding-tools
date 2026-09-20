@@ -1,0 +1,230 @@
+[
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#05-1-contract-first.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F001"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-05-1-contract-first",
+    "tags": [
+      "source-rank-1"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#05-1-contract-first"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#06-2-consistent-error-semantics.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F002"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-06-2-consistent-error-semantics",
+    "tags": [
+      "source-rank-2"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#06-2-consistent-error-semantics"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#07-3-validate-at-boundaries.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F003"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-07-3-validate-at-boundaries",
+    "tags": [
+      "source-rank-3"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#07-3-validate-at-boundaries"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#08-4-prefer-addition-over-modification.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F004"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-08-4-prefer-addition-over-modification",
+    "tags": [
+      "source-rank-4"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#08-4-prefer-addition-over-modification"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#10-resource-design.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F005"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-10-resource-design",
+    "tags": [
+      "source-rank-5"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#10-resource-design"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#11-pagination.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F006"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-11-pagination",
+    "tags": [
+      "source-rank-6"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#11-pagination"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#12-filtering.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F007"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-12-filtering",
+    "tags": [
+      "source-rank-7"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#12-filtering"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#13-partial-updates-patch.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F008"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-13-partial-updates-patch",
+    "tags": [
+      "source-rank-8"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#13-partial-updates-patch"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#14-discriminated-unions-for-variants.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F009"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-14-discriminated-unions-for-variants",
+    "tags": [
+      "source-rank-9"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#14-discriminated-unions-for-variants"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#15-branded-nominal-types-for-ids.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F010"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-15-branded-nominal-types-for-ids",
+    "tags": [
+      "source-rank-10"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#15-branded-nominal-types-for-ids"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: contract_unpinned in SKILL.md#16-immutable-value-objects-frozen-dataclass.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F011"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-contract-unpinned-skill-md-16-immutable-value-objects-frozen-datac",
+    "tags": [
+      "source-rank-11"
+    ],
+    "title": "rightsize api-and-interface-design: contract_unpinned in SKILL.md#16-immutable-value-objects-frozen-dataclass"
+  },
+  {
+    "description": "Improve the harness capability: rightsize api-and-interface-design: convention_drift in SKILL.md.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F012"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/api-and-interface-design-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-api-and-interface-design-convention-drift-skill-md",
+    "tags": [
+      "source-rank-12"
+    ],
+    "title": "rightsize api-and-interface-design: convention_drift in SKILL.md"
+  }
+]

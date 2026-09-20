@@ -13,6 +13,9 @@ dependencies = [
     "jsonschema>=4.26.0",
     "pyyaml>=6.0",
     "urllib3>=2.7.0",
+    # Shared seam for calibrated System One (TypeSafe Jev) decisions.
+    # Fallback-only for now; no vendor SDK pulled in transitively.
+    "system-one-decisions",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +34,9 @@ test = [
     # one ruff version and cannot disagree about what is an error.
     "ruff>=0.15.21",
 ]
+
+[tool.uv.sources]
+system-one-decisions = { path = "../packages/system-one-decisions" }
 
 [tool.uv]
 override-dependencies = [
@@ -127,6 +133,7 @@ testpaths = [
     # `testpaths` and passes identically whether or not this line exists.
     "tests/setup-coordinator",
     "tests/codebase-atlas",
+    "tests/skill-audit",
     "tests/state-artifacts",
     "expedite/scripts/tests",
     # The CI-coverage guard itself. It used to sit loose in skills/tests, which

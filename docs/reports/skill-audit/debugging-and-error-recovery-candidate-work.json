@@ -1,0 +1,230 @@
+[
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#03-the-stop-the-line-rule.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F001"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-03-the-stop-the-line-rule",
+    "tags": [
+      "source-rank-1"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#03-the-stop-the-line-rule"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#05-step-1-reproduce.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F003"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-05-step-1-reproduce",
+    "tags": [
+      "source-rank-3"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#05-step-1-reproduce"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#06-step-2-localize.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F004"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-06-step-2-localize",
+    "tags": [
+      "source-rank-4"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#06-step-2-localize"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#08-step-4-fix-the-root-cause.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F005"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-08-step-4-fix-the-root-cause",
+    "tags": [
+      "source-rank-5"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#08-step-4-fix-the-root-cause"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#09-step-5-guard-against-recurrence.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F006"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-09-step-5-guard-against-recurrence",
+    "tags": [
+      "source-rank-6"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#09-step-5-guard-against-recurrence"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#10-step-6-verify-end-to-end.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F007"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-10-step-6-verify-end-to-end",
+    "tags": [
+      "source-rank-7"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#10-step-6-verify-end-to-end"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#11-test-failure-triage.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F008"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-11-test-failure-triage",
+    "tags": [
+      "source-rank-8"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#11-test-failure-triage"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#12-build-failure-triage.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F009"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-12-build-failure-triage",
+    "tags": [
+      "source-rank-9"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#12-build-failure-triage"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#13-runtime-error-triage.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F010"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-13-runtime-error-triage",
+    "tags": [
+      "source-rank-10"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#13-runtime-error-triage"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#14-safe-fallback-patterns.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F011"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-14-safe-fallback-patterns",
+    "tags": [
+      "source-rank-11"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#14-safe-fallback-patterns"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#17-semantic-code-context.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F012"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-contract-unpinned-skill-md-17-semantic-code-context",
+    "tags": [
+      "source-rank-12"
+    ],
+    "title": "rightsize debugging-and-error-recovery: contract_unpinned in SKILL.md#17-semantic-code-context"
+  },
+  {
+    "description": "Improve the harness capability: rightsize debugging-and-error-recovery: constraint_without_reason in SKILL.md#04-the-triage-checklist.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F002"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/debugging-and-error-recovery-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-debugging-and-error-recovery-constraint-without-reason-skill-md-04-the-triage-checklist",
+    "tags": [
+      "source-rank-2"
+    ],
+    "title": "rightsize debugging-and-error-recovery: constraint_without_reason in SKILL.md#04-the-triage-checklist"
+  }
+]

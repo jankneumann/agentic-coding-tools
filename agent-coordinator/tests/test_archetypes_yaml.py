@@ -271,3 +271,101 @@ def test_supervisor_not_write_capable_loads_clean(tmp_path: Path) -> None:
         assert archetypes[SUPERVISOR_ARCHETYPE].model == "frontier"
     finally:
         reset_archetypes_config()
+
+
+# ---------------------------------------------------------------------------
+# `procedure_mode` (OpenSpec change add-skill-audit, D3)
+#
+# Expectations are DERIVED from archetypes.yaml, never hardcoded: which
+# archetype carries which mode is roster policy and may be retuned freely.
+# The installed JSON schema is the contract consumers validate against, so
+# the real file must validate against it and it must reject what the runtime
+# schema rejects.
+# ---------------------------------------------------------------------------
+
+_INSTALLED_SCHEMA = (
+    Path(__file__).resolve().parents[2]
+    / "skills" / "autopilot" / "install_assets" / "openspec" / "schemas"
+    / "archetypes.schema.json"
+)
+
+
+def _installed_schema() -> dict:
+    import json
+
+    return json.loads(_INSTALLED_SCHEMA.read_text())
+
+
+def test_real_yaml_validates_against_installed_schema() -> None:
+    from jsonschema import validate
+
+    validate(instance=_raw(), schema=_installed_schema())
+
+
+def test_declared_procedure_modes_are_known() -> None:
+    from src.agents_config import PROCEDURE_MODES
+
+    unknown = {
+        name: data["procedure_mode"]
+        for name, data in _raw()["archetypes"].items()
+        if "procedure_mode" in data and data["procedure_mode"] not in PROCEDURE_MODES
+    }
+    assert not unknown, f"archetypes declare an unknown procedure_mode: {unknown}"
+
+
+def test_loaded_procedure_mode_matches_yaml(_load_real_config: None) -> None:
+    """Every archetype exposes the mode the YAML declares, or the default."""
+    from src.agents_config import DEFAULT_PROCEDURE_MODE
+
+    for name, data in _raw()["archetypes"].items():
+        archetype = get_archetype(name)
+        assert archetype is not None
+        assert archetype.procedure_mode == data.get(
+            "procedure_mode", DEFAULT_PROCEDURE_MODE
+        ), f"{name}: loaded procedure_mode differs from archetypes.yaml"
+
+
+@pytest.mark.parametrize("name", ["runner", "architect"])
+def test_authored_roster_modes_round_trip(name: str, _load_real_config: None) -> None:
+    """The two archetypes the change authors a mode for read back from the YAML.
+
+    Asserts the key is *present* (otherwise this test is vacuous) and that the
+    loader exposes exactly the declared value — never a literal mode string.
+    """
+    declared = _raw()["archetypes"][name]
+    assert "procedure_mode" in declared, f"{name} should declare a procedure_mode (D3)"
+    archetype = get_archetype(name)
+    assert archetype is not None
+    assert archetype.procedure_mode == declared["procedure_mode"]
+
+
+def test_installed_schema_rejects_unknown_procedure_mode() -> None:
+    from jsonschema import ValidationError, validate
+
+    raw = _raw()
+    raw["archetypes"]["runner"]["procedure_mode"] = "strict"
+    with pytest.raises(ValidationError) as exc_info:
+        validate(instance=raw, schema=_installed_schema())
+    message = str(exc_info.value)
+    assert "runner" in message
+    assert "strict" in message
+
+
+def test_installed_schema_still_rejects_unknown_archetype_key() -> None:
+    from jsonschema import ValidationError, validate
+
+    raw = _raw()
+    raw["archetypes"]["runner"]["procedure_density"] = "verbatim"
+    with pytest.raises(ValidationError, match="procedure_density"):
+        validate(instance=raw, schema=_installed_schema())
+
+
+def test_installed_schema_accepts_every_known_mode() -> None:
+    from jsonschema import validate
+
+    from src.agents_config import PROCEDURE_MODES
+
+    for mode in PROCEDURE_MODES:
+        raw = _raw()
+        raw["archetypes"]["runner"]["procedure_mode"] = mode
+        validate(instance=raw, schema=_installed_schema())

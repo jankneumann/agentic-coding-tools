@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Ran local-parallel tier, not coordinated, and said so** — check_coordinator reports CAN_LOCK true but the lock endpoint rejects this session's API key, as try_recall did at plan time. The coordinated protocol is built on lock claims, so running it would have meant reporting a coordinated run that never claimed a lock.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D1)
+
+---
+
 ## 2026-09-16 — add-visual-code-explainer
 
 ### Phase: Implementation

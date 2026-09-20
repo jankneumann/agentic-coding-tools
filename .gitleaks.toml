@@ -40,4 +40,11 @@ commits = [
     # MISSING_TEST_VAR, but the introducing commit is still in the PR's
     # diff range so gitleaks attributes the finding to it.
     "bcde916e524af7f1150513724afae46aa4a330d4",
+    # judge-transcript-struggle-triage-in-collect-transcripts PR (#595):
+    # test fixture string "sk-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGH",
+    # an openai-key-shaped value proving triage.py's new judged-call site
+    # sanitizes transcript text before it leaves the process. Replaced at
+    # HEAD with a low-entropy fixture that still matches the sanitizer's
+    # pattern without tripping gitleaks' entropy-based generic-api-key rule.
+    "e1c52a58e791115023cabe01f1cd027669dba8a9",
 ]

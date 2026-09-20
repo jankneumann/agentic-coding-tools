@@ -1,0 +1,293 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "unauthorized",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#05-1-contract-first"
+    },
+    {
+      "evidence": {},
+      "id": "F002",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#06-2-consistent-error-semantics"
+    },
+    {
+      "evidence": {},
+      "id": "F003",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#07-3-validate-at-boundaries"
+    },
+    {
+      "evidence": {},
+      "id": "F004",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#08-4-prefer-addition-over-modification"
+    },
+    {
+      "evidence": {},
+      "id": "F005",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#10-resource-design"
+    },
+    {
+      "evidence": {},
+      "id": "F006",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#11-pagination"
+    },
+    {
+      "evidence": {},
+      "id": "F007",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#12-filtering"
+    },
+    {
+      "evidence": {},
+      "id": "F008",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#13-partial-updates-patch"
+    },
+    {
+      "evidence": {},
+      "id": "F009",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#14-discriminated-unions-for-variants"
+    },
+    {
+      "evidence": {},
+      "id": "F010",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#15-branded-nominal-types-for-ids"
+    },
+    {
+      "evidence": {},
+      "id": "F011",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#16-immutable-value-objects-frozen-dataclass"
+    },
+    {
+      "evidence": {
+        "rule": "max_lines"
+      },
+      "id": "F012",
+      "kind": "convention_drift",
+      "layer": "contract",
+      "rationale": "SKILL.md has 531 lines; the rightsizing cap is 500",
+      "remediation": "move_to_reference",
+      "section_id": "SKILL.md"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-09-16T11:40:46+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Overview",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-overview"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "When to Use",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-when-to-use"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Hyrum's Law",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#03-hyrum-s-law"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "The One-Version Rule",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#04-the-one-version-rule"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "1. Contract First",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#05-1-contract-first"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2. Consistent Error Semantics",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#06-2-consistent-error-semantics"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "3. Validate at Boundaries",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#07-3-validate-at-boundaries"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "4. Prefer Addition Over Modification",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#08-4-prefer-addition-over-modification"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "5. Predictable Naming",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#09-5-predictable-naming"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Resource Design",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#10-resource-design"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Pagination",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#11-pagination"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Filtering",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-filtering"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Partial Updates (PATCH)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-partial-updates-patch"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Discriminated Unions for Variants",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#14-discriminated-unions-for-variants"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Branded / Nominal Types for IDs",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#15-branded-nominal-types-for-ids"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Immutable Value Objects (frozen dataclasses)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#16-immutable-value-objects-frozen-dataclass"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Input/Output Separation",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#17-input-output-separation"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common Rationalizations",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#18-common-rationalizations"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Red Flags",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#19-red-flags"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Verification",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#20-verification"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "api-and-interface-design"
+}

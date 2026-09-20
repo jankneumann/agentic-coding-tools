@@ -1,21 +1,34 @@
-"""Semantic evaluation via LLM-as-judge (D4, D9).
+"""Semantic evaluation via a calibrated Noul judgment (D4, D9).
 
-Invokes an LLM backend to judge whether a step's actual output
-satisfies the semantic criteria specified in a SemanticBlock.
-Uses the framework's existing backend infrastructure (CLIBackend,
-SDKBackend, AdaptiveBackend) rather than hardcoding a specific CLI.
+Judges whether a step's actual output satisfies the semantic criteria
+specified in a SemanticBlock by asking a single calibrated Noul question
+through ``system_one_decisions.decide()`` (see design.md D1 of
+``replace-the-gen-eval-semantic-judge-with-a-calibrated-noul``), rather than
+parsing a self-reported confidence out of free-text LLM output. The existing
+LLM backend infrastructure (CLIBackend, SDKBackend, AdaptiveBackend) is used
+only to generate human-readable reasoning prose for items that fail the
+noul threshold.
 
 Verdicts are additive: they enhance but never override structural
-verdicts. When the LLM is unavailable, produces ``skip`` not ``failure``.
+verdicts. When the decision helper is unavailable, produces ``skip`` not
+``failure``.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+from types import ModuleType
 from typing import Any, Protocol
 
 from .models import SemanticBlock, SemanticVerdict
+
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +62,9 @@ async def evaluate_semantic(
     """Judge a step's output against semantic criteria.
 
     Args:
-        backend: LLM backend (CLIBackend, SDKBackend, or AdaptiveBackend).
+        backend: LLM backend (CLIBackend, SDKBackend, or AdaptiveBackend),
+            invoked only to produce reasoning prose when the noul judgment
+            fails the confidence threshold.
         semantic: SemanticBlock with criteria and confidence threshold.
         actual_output: The step's actual response body/data.
         step_id: For logging context.
@@ -60,21 +75,47 @@ async def evaluate_semantic(
     if not semantic.judge:
         return SemanticVerdict(status="skip", reasoning="Semantic evaluation disabled")
 
-    # Check backend availability
-    try:
-        available = await backend.is_available()
-    except Exception:
-        available = False
-
-    if not available:
-        logger.warning("LLM backend unavailable for semantic eval on step '%s'", step_id)
-        return SemanticVerdict(
-            status="skip",
-            reasoning="LLM backend unavailable",
-        )
-
-    # Build prompt
     criteria_text = semantic.criteria or "Does the output look correct and complete?"
+
+    if system_one_decisions is None:
+        logger.warning(
+            "system_one_decisions not installed; skipping semantic eval on step '%s'", step_id
+        )
+        return SemanticVerdict(status="skip", reasoning="LLM backend unavailable")
+
+    state = {"criteria": criteria_text, "actual_output": actual_output}
+    questions = {
+        "satisfies": {"type": "noul", "instructions": "The actual output satisfies the criteria"}
+    }
+    # decide() makes a synchronous network call when the live extra is
+    # configured; run it off the event loop so a live judgment doesn't block
+    # every other scenario the orchestrator is evaluating concurrently.
+    answers = await asyncio.to_thread(
+        system_one_decisions.decide, state, questions, site="gen_eval.semantic_judge"
+    )
+
+    if answers is None:
+        logger.warning("decide() unavailable for semantic eval on step '%s'", step_id)
+        return SemanticVerdict(status="skip", reasoning="LLM backend unavailable")
+
+    confidence = max(0.0, min(1.0, float(answers["satisfies"].noul)))
+
+    if confidence >= semantic.min_confidence:
+        return SemanticVerdict(status="pass", confidence=confidence)
+
+    reasoning = await _generate_failure_reasoning(backend, criteria_text, actual_output, step_id)
+    return SemanticVerdict(status="fail", confidence=confidence, reasoning=reasoning)
+
+
+async def _generate_failure_reasoning(
+    backend: LLMBackend,
+    criteria_text: str,
+    actual_output: dict[str, Any],
+    step_id: str,
+) -> str:
+    """Produce human-readable reasoning prose for a step that already failed
+    its noul threshold. The backend's own pass/confidence judgment is
+    discarded -- only its ``reasoning`` text is used."""
     prompt = (
         f"## Step: {step_id}\n\n"
         f"## Criteria\n{criteria_text}\n\n"
@@ -84,16 +125,11 @@ async def evaluate_semantic(
 
     try:
         raw = await backend.run(prompt, system=_JUDGE_SYSTEM)
-        return _parse_verdict(raw, semantic.min_confidence)
     except Exception as exc:
-        logger.warning(
-            "Semantic evaluation failed for step '%s': %s", step_id, exc
-        )
-        return SemanticVerdict(
-            status="skip",
-            reasoning=f"LLM evaluation error: {exc}",
-            error_message=str(exc),
-        )
+        logger.warning("Reasoning generation failed for step '%s': %s", step_id, exc)
+        return f"Below confidence threshold; reasoning generation failed: {exc}"
+
+    return _parse_verdict(raw, min_confidence=0.0).reasoning
 
 
 def _parse_verdict(raw: str, min_confidence: float) -> SemanticVerdict:

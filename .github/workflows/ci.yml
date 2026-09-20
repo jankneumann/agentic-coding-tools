@@ -156,6 +156,7 @@ jobs:
             tests/autopilot \
             tests/autopilot-roadmap \
             tests/candidate-work \
+            tests/collect-transcripts \
             tests/coordinator-task-status-renderer \
             tests/docs \
             tests/githooks \
@@ -204,6 +205,53 @@ jobs:
 
       - name: Run skills tests
         run: agent-coordinator/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/ -v
+
+  # Non-blocking by design (design D6): a stale skill audit is a prompt to
+  # re-run /skill-audit, not a defect in the change under review. Fails soft so
+  # an unrelated archetypes.yaml edit never blocks a merge.
+  skill-audit-freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+        working-directory: agent-coordinator
+
+      - name: Check skill-audit report freshness
+        run: |
+          set +e
+          out="$(agent-coordinator/.venv/bin/python skills/skill-audit/scripts/skill_audit.py --all --check-freshness 2>&1)"
+          printf '%s\n' "$out"
+          # Two different facts, reported separately. A skill whose report's
+          # roster hash no longer matches archetypes.yaml has genuinely drifted
+          # and is worth re-auditing. A skill with no report at all has simply
+          # never been audited, which is the steady state for most of the
+          # corpus and is not drift.
+          drifted=$(printf '%s\n' "$out" | grep 'STALE' | grep -vc 'no report under' || true)
+          never=$(printf '%s\n' "$out" | grep -c 'no report under' || true)
+          if [ "${drifted:-0}" -gt 0 ]; then
+            printf '::warning title=skill-audit freshness::%s\n' \
+              "$drifted skill audit(s) drifted against the current archetypes.yaml. Re-run /skill-audit <skill> to refresh."
+          fi
+          if [ "${never:-0}" -gt 0 ]; then
+            printf '::notice title=skill-audit coverage::%s\n' \
+              "$never skill(s) have never been audited. Run /skill-audit <skill> to add coverage."
+          fi
+          # Always green. Per design D6 this job reports; it never gates. The
+          # underlying command exits 1 whenever any skill lacks a report, which
+          # is true for most of the corpus and would pin this check red forever,
+          # drowning the drift signal it exists to carry.
+          exit 0
 
   validate-specs:
     runs-on: ubuntu-latest
@@ -521,6 +569,9 @@ jobs:
               'src.http_proxy',
               'src.config',
               'gen_eval.mcp_service',
+              # system_one_decisions — shared seam for calibrated System One
+              # (TypeSafe Jev) decisions, fallback-only for now.
+              'system_one_decisions',
           ]
 
           failures = []
@@ -803,6 +854,33 @@ jobs:
         run: uv python install 3.12
 
       - name: Install code-search with dev extras
+        run: uv sync --extra dev
+
+      - name: Run pytest
+        run: uv run pytest
+
+  # Package-level unit tests for packages/system-one-decisions/.
+  #
+  # Modeled on code-search-tests above: same no-lint rationale applies (no
+  # ruff/mypy config in this package yet) — a style pass is its own change,
+  # not a precondition for running the tests that already exist.
+  system-one-decisions-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/system-one-decisions
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install system-one-decisions with dev extras
         run: uv sync --extra dev
 
       - name: Run pytest

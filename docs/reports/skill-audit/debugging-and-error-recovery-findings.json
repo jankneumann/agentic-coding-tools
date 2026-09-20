@@ -1,0 +1,298 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "unauthorized",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#03-the-stop-the-line-rule"
+    },
+    {
+      "evidence": {},
+      "id": "F002",
+      "kind": "constraint_without_reason",
+      "layer": "constraint",
+      "rationale": "Prohibition without a stated reason; a strong model argues with a bare rule.",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#04-the-triage-checklist"
+    },
+    {
+      "evidence": {},
+      "id": "F003",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#05-step-1-reproduce"
+    },
+    {
+      "evidence": {},
+      "id": "F004",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#06-step-2-localize"
+    },
+    {
+      "evidence": {},
+      "id": "F005",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#08-step-4-fix-the-root-cause"
+    },
+    {
+      "evidence": {},
+      "id": "F006",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#09-step-5-guard-against-recurrence"
+    },
+    {
+      "evidence": {},
+      "id": "F007",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#10-step-6-verify-end-to-end"
+    },
+    {
+      "evidence": {},
+      "id": "F008",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#11-test-failure-triage"
+    },
+    {
+      "evidence": {},
+      "id": "F009",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#12-build-failure-triage"
+    },
+    {
+      "evidence": {},
+      "id": "F010",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#13-runtime-error-triage"
+    },
+    {
+      "evidence": {},
+      "id": "F011",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#14-safe-fallback-patterns"
+    },
+    {
+      "evidence": {},
+      "id": "F012",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#17-semantic-code-context"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-09-16T11:40:40+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Overview",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-overview"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "When to Use",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-when-to-use"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The Stop-the-Line Rule",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#03-the-stop-the-line-rule"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The Triage Checklist",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#04-the-triage-checklist"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 1: Reproduce",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#05-step-1-reproduce"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 2: Localize",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#06-step-2-localize"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Step 3: Reduce",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#07-step-3-reduce"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 4: Fix the Root Cause",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#08-step-4-fix-the-root-cause"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 5: Guard Against Recurrence",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#09-step-5-guard-against-recurrence"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 6: Verify End-to-End",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#10-step-6-verify-end-to-end"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Test Failure Triage",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#11-test-failure-triage"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Build Failure Triage",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-build-failure-triage"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Runtime Error Triage",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-runtime-error-triage"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Safe Fallback Patterns",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#14-safe-fallback-patterns"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Instrumentation Guidelines",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#15-instrumentation-guidelines"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Treating Error Output as Untrusted Data",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#16-treating-error-output-as-untrusted-data"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Semantic Code Context",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#17-semantic-code-context"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "See Also",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#18-see-also"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common Rationalizations",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#19-common-rationalizations"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Red Flags",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#20-red-flags"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Verification",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#21-verification"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "debugging-and-error-recovery"
+}

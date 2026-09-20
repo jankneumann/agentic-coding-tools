@@ -1,17 +1,23 @@
 """Tests for semantic evaluation (LLM-as-judge).
 
 Covers spec scenarios:
-- gen-eval-framework (Semantic Evaluation): Semantic evaluation judges search
-  relevance, Low confidence produces semantic failure, Unavailable LLM produces
-  skip not failure
+- gen-eval-framework (Calibrated Noul-Based Semantic Judgment): A confident
+  noul produces a pass with zero LLM calls, A low-confidence noul triggers
+  reasoning generation, An unavailable decision helper still produces skip
+  not fail, judge=False still skips without calling decide() or the backend
 
-Design decisions: D4 (semantic independence), D9 (use existing LLM backend)
+Design decisions: D1 (decide() replaces the backend as the confidence
+source), D2 (optional system_one_decisions import), D3 (tests use
+system_one_decisions.testing.stub_decide)
 """
 
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
+
+from system_one_decisions.testing import stub_decide
 
 from gen_eval.models import SemanticBlock
 from gen_eval.semantic_judge import _parse_verdict, evaluate_semantic
@@ -21,11 +27,20 @@ from gen_eval.semantic_judge import _parse_verdict, evaluate_semantic
 # ---------------------------------------------------------------------------
 
 
-def _mock_backend(response: str, available: bool = True) -> AsyncMock:
+def _mock_backend(response: str = "") -> AsyncMock:
+    """A backend double used only for reasoning-prose generation now --
+    evaluate_semantic no longer calls `is_available()` (D1: unavailability is
+    detected via decide() returning None, not a backend health check)."""
     backend = AsyncMock()
-    backend.is_available = AsyncMock(return_value=available)
     backend.run = AsyncMock(return_value=response)
     return backend
+
+
+def _noul_answers(value: float) -> dict[str, object]:
+    """Mimic decide()'s real return shape: `response.answers` keyed by
+    question name, with attribute-accessed answer objects (`.noul`), per
+    `typesafe_sdk._core.response_types.NoulAnswer`."""
+    return {"satisfies": SimpleNamespace(noul=value)}
 
 
 # ── evaluate_semantic ────────────────────────────────────────────
@@ -34,84 +49,110 @@ def _mock_backend(response: str, available: bool = True) -> AsyncMock:
 class TestEvaluateSemantic:
     """Test end-to-end semantic evaluation."""
 
-    async def test_pass_with_high_confidence(self) -> None:
-        response = json.dumps({"pass": True, "confidence": 0.95, "reasoning": "Looks correct"})
-        backend = _mock_backend(response)
+    async def test_confident_noul_passes_with_zero_llm_calls(self, monkeypatch) -> None:
+        stub_decide(monkeypatch, returns=_noul_answers(0.95))
+        backend = _mock_backend()
         semantic = SemanticBlock(judge=True, criteria="Is the search relevant?")
         actual = {"results": [{"name": "alice", "score": 0.9}]}
 
         verdict = await evaluate_semantic(backend, semantic, actual, "search-step")
         assert verdict.status == "pass"
         assert verdict.confidence == 0.95
-        assert verdict.reasoning == "Looks correct"
+        backend.run.assert_not_called()
 
-    async def test_fail_when_judge_says_no(self) -> None:
+    async def test_low_confidence_noul_triggers_reasoning_generation(self, monkeypatch) -> None:
+        stub_decide(monkeypatch, returns=_noul_answers(0.3))
         response = json.dumps({"pass": False, "confidence": 0.8, "reasoning": "Wrong results"})
-        backend = _mock_backend(response)
-        semantic = SemanticBlock(judge=True, criteria="Are results relevant?")
-
-        verdict = await evaluate_semantic(backend, semantic, {"results": []}, "step1")
-        assert verdict.status == "fail"
-        assert verdict.confidence == 0.8
-
-    async def test_low_confidence_produces_failure(self) -> None:
-        """Low confidence even with pass=True → fail."""
-        response = json.dumps({"pass": True, "confidence": 0.3, "reasoning": "Maybe ok"})
         backend = _mock_backend(response)
         semantic = SemanticBlock(judge=True, min_confidence=0.7)
 
+        verdict = await evaluate_semantic(backend, semantic, {"results": []}, "step1")
+        assert verdict.status == "fail"
+        assert verdict.confidence == 0.3  # noul-derived, not the backend's own 0.8
+        assert verdict.reasoning == "Wrong results"
+        backend.run.assert_called_once()
+
+    async def test_low_confidence_backend_error_still_fails_with_generic_reasoning(
+        self, monkeypatch
+    ) -> None:
+        """A reasoning-generation failure must not turn a decided `fail` into `skip`."""
+        stub_decide(monkeypatch, returns=_noul_answers(0.1))
+        backend = AsyncMock()
+        backend.run = AsyncMock(side_effect=RuntimeError("connection refused"))
+        semantic = SemanticBlock(judge=True)
+
         verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "fail"
-        assert "Below confidence" in verdict.reasoning
+        assert verdict.confidence == 0.1
 
-    async def test_unavailable_llm_produces_skip(self) -> None:
-        """Unavailable LLM → skip, not failure."""
-        backend = _mock_backend("", available=False)
+    async def test_decide_returns_none_produces_skip(self, monkeypatch) -> None:
+        """decide() returning None (any of its own unavailability branches) -> skip."""
+        stub_decide(monkeypatch, returns=None)
+        backend = _mock_backend()
         semantic = SemanticBlock(judge=True, criteria="Check relevance")
 
         verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "skip"
-        assert "unavailable" in verdict.reasoning.lower()
+        backend.run.assert_not_called()
 
-    async def test_judge_false_skips(self) -> None:
-        """judge=False → skip without calling backend."""
-        backend = _mock_backend("")
+    async def test_judge_false_skips(self, monkeypatch) -> None:
+        """judge=False -> skip without calling decide() or the backend."""
+        stub_decide(monkeypatch, returns=_noul_answers(0.99))
+        backend = _mock_backend()
         semantic = SemanticBlock(judge=False)
 
         verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "skip"
         backend.run.assert_not_called()
 
-    async def test_backend_error_produces_skip(self) -> None:
-        """Backend error → skip, not failure."""
-        backend = AsyncMock()
-        backend.is_available = AsyncMock(return_value=True)
-        backend.run = AsyncMock(side_effect=RuntimeError("connection refused"))
-        semantic = SemanticBlock(judge=True)
-
-        verdict = await evaluate_semantic(backend, semantic, {}, "step1")
-        assert verdict.status == "skip"
-        assert verdict.error_message is not None
-
-    async def test_markdown_fences_stripped(self) -> None:
-        """Response wrapped in markdown code fences is still parsed."""
-        response = '```json\n{"pass": true, "confidence": 0.9, "reasoning": "good"}\n```'
+    async def test_markdown_fences_stripped_from_reasoning_response(self, monkeypatch) -> None:
+        """A fail-path reasoning response wrapped in markdown fences is still parsed."""
+        stub_decide(monkeypatch, returns=_noul_answers(0.2))
+        response = '```json\n{"pass": false, "confidence": 0.9, "reasoning": "good catch"}\n```'
         backend = _mock_backend(response)
         semantic = SemanticBlock(judge=True)
 
         verdict = await evaluate_semantic(backend, semantic, {}, "step1")
-        assert verdict.status == "pass"
+        assert verdict.status == "fail"
+        assert verdict.reasoning == "good catch"
 
-    async def test_invalid_json_produces_skip(self) -> None:
+    async def test_invalid_reasoning_json_still_fails_with_fallback_reasoning(
+        self, monkeypatch
+    ) -> None:
+        stub_decide(monkeypatch, returns=_noul_answers(0.2))
         backend = _mock_backend("this is not json")
         semantic = SemanticBlock(judge=True)
 
         verdict = await evaluate_semantic(backend, semantic, {}, "step1")
+        assert verdict.status == "fail"
+        assert verdict.confidence == 0.2
+
+
+class TestEvaluateSemanticWithoutDecisionsExtra:
+    """decide() unreachable because system_one_decisions itself isn't installed.
+
+    semantic_judge.py holds its own module-level reference (`None` when the
+    import failed, per D2) rather than a bound `decide` name -- patching that
+    reference is the unit-test equivalent of the optional extra being absent,
+    without needing a real ImportError.
+    """
+
+    async def test_module_unavailable_produces_skip(self, monkeypatch) -> None:
+        import gen_eval.semantic_judge as module
+
+        monkeypatch.setattr(module, "system_one_decisions", None)
+        backend = _mock_backend()
+        semantic = SemanticBlock(judge=True)
+
+        verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "skip"
-        assert "JSON" in (verdict.error_message or verdict.reasoning)
+        backend.run.assert_not_called()
 
 
 # ── _parse_verdict ───────────────────────────────────────────────
+#
+# Unchanged: _parse_verdict is reused verbatim as a reasoning-text parsing
+# helper (design D1); its own unit tests are untouched.
 
 
 class TestParseVerdict:

@@ -1,0 +1,7 @@
+{
+  "change_id": "add-skill-audit",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

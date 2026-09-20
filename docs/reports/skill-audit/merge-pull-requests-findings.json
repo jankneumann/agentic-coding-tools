@@ -1,0 +1,609 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "unauthorized",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#05-active-agent-guard-sync-point-skill"
+    },
+    {
+      "evidence": {},
+      "id": "F002",
+      "kind": "constraint_without_reason",
+      "layer": "constraint",
+      "rationale": "Prohibition without a stated reason; a strong model argues with a bare rule.",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#07-merge-metrics-always-on"
+    },
+    {
+      "evidence": {},
+      "id": "F003",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#12-1-verify-environment"
+    },
+    {
+      "evidence": {},
+      "id": "F004",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#13-2-pull-latest-main"
+    },
+    {
+      "evidence": {},
+      "id": "F005",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#15-draft-prs"
+    },
+    {
+      "evidence": {},
+      "id": "F006",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#19-5-check-staleness-for-each-pr"
+    },
+    {
+      "evidence": {},
+      "id": "F007",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#21-6-identify-conflicting-pr-pairs"
+    },
+    {
+      "evidence": {},
+      "id": "F008",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#22-7-batch-close-obsolete-prs"
+    },
+    {
+      "evidence": {},
+      "id": "F009",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#23-8-analyze-review-comments"
+    },
+    {
+      "evidence": {},
+      "id": "F010",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#26-9-6-check-holdout-gate-openspec-prs-only"
+    },
+    {
+      "evidence": {},
+      "id": "F011",
+      "kind": "procedure_without_probe",
+      "layer": "procedure",
+      "rationale": "Ordered steps with no acceptance probe; a goal-directed tier cannot tell when it is done.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#28-11-interactive-pr-review"
+    },
+    {
+      "evidence": {},
+      "id": "F012",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#29-save-point-pattern"
+    },
+    {
+      "evidence": {},
+      "id": "F013",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#30-change-summary-template"
+    },
+    {
+      "evidence": {},
+      "id": "F014",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#34-re-check-staleness-after-merge"
+    },
+    {
+      "evidence": {},
+      "id": "F015",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#35-close-a-pr"
+    },
+    {
+      "evidence": {},
+      "id": "F016",
+      "kind": "constraint_without_reason",
+      "layer": "constraint",
+      "rationale": "Prohibition without a stated reason; a strong model argues with a bare rule.",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#40-guards-in-enforcement-order"
+    },
+    {
+      "evidence": {},
+      "id": "F017",
+      "kind": "constraint_without_reason",
+      "layer": "constraint",
+      "rationale": "Prohibition without a stated reason; a strong model argues with a bare rule.",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#45-ownership-boundary"
+    },
+    {
+      "evidence": {},
+      "id": "F018",
+      "kind": "missing_deviation_protocol",
+      "layer": "procedure",
+      "rationale": "The skill has procedure but never says how to record a deviation from it.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#28-11-interactive-pr-review"
+    },
+    {
+      "evidence": {
+        "rule": "max_lines"
+      },
+      "id": "F019",
+      "kind": "convention_drift",
+      "layer": "contract",
+      "rationale": "SKILL.md has 1128 lines; the rightsizing cap is 500",
+      "remediation": "move_to_reference",
+      "section_id": "SKILL.md"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-09-16T11:40:31+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Merge Pull Requests",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-merge-pull-requests"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Arguments",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-arguments"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Script Location",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#03-script-location"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Prerequisites",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#04-prerequisites"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Active-Agent Guard (Sync-Point Skill)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#05-active-agent-guard-sync-point-skill"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Merge Backend Selection",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#06-merge-backend-selection"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Merge Metrics (always on)",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#07-merge-metrics-always-on"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Post-Merge Pipeline",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#08-post-merge-pipeline"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Background Merge Watcher",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#09-background-merge-watcher"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Default conductor (plan-then-execute)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#10-default-conductor-plan-then-execute"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Durable Merge Plan and Fresh-Context Execution",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#11-durable-merge-plan-and-fresh-context-exe"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "1. Verify Environment",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-1-verify-environment"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2. Pull Latest Main",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-2-pull-latest-main"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "3. Discover and Classify Open PRs (`--interactive` continues here)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#14-3-discover-and-classify-open-prs-interac"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Draft PRs",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#15-draft-prs"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Stacked PRs",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#16-stacked-prs"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Fork PRs",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#17-fork-prs"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Auto-Merge PRs",
+      "layer": "constraint",
+      "rule": "constraint",
+      "section_id": "SKILL.md#18-auto-merge-prs"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "5. Check Staleness for Each PR",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#19-5-check-staleness-for-each-pr"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "5b. Classify CI Failures",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#20-5b-classify-ci-failures"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "6. Identify Conflicting PR Pairs",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#21-6-identify-conflicting-pr-pairs"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "7. Batch Close Obsolete PRs",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#22-7-batch-close-obsolete-prs"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "8. Analyze Review Comments",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#23-8-analyze-review-comments"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "9. Conditional Multi-Vendor Review",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#24-9-conditional-multi-vendor-review"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "9.5. Merge-Time Validation Gate for OpenSpec PRs",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#25-9-5-merge-time-validation-gate-for-opens"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "9.6. Check Holdout Gate (OpenSpec PRs Only)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#26-9-6-check-holdout-gate-openspec-prs-only"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "10. Determine Merge Order",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#27-10-determine-merge-order"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "11. Interactive PR Review",
+      "layer": "procedure",
+      "rule": "procedure",
+      "section_id": "SKILL.md#28-11-interactive-pr-review"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Save Point Pattern",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#29-save-point-pattern"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Change Summary template",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#30-change-summary-template"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Merge Strategy Selection",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#31-merge-strategy-selection"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Merge a PR",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#32-merge-a-pr"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Re-run Failed CI Checks",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#33-re-run-failed-ci-checks"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Re-check Staleness After Merge",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#34-re-check-staleness-after-merge"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Close a PR",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#35-close-a-pr"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Address Comments",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#36-address-comments"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "11.5. Post-Merge OpenSpec Cleanup Approval",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#37-11-5-post-merge-openspec-cleanup-approva"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "11.6. Main Context Convergence",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#38-11-6-main-context-convergence"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Phases",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#39-phases"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Guards, in enforcement order",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#40-guards-in-enforcement-order"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Identity and idempotence",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#41-identity-and-idempotence"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Outcomes",
+      "layer": "contract",
+      "rule": "contract_table",
+      "section_id": "SKILL.md#42-outcomes"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Semantic index",
+      "layer": "constraint",
+      "rule": "constraint",
+      "section_id": "SKILL.md#43-semantic-index"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "What lands, and what stays untracked",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#44-what-lands-and-what-stays-untracked"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Ownership boundary",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#45-ownership-boundary"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "12. Summary",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#46-12-summary"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "13. Append Merge Log",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#47-13-append-merge-log"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Dry-Run Mode",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#48-dry-run-mode"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Output",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#49-output"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Error Handling",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#50-error-handling"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common Rationalizations",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#51-common-rationalizations"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Red Flags",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#52-red-flags"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Verification",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#53-verification"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "merge-pull-requests"
+}

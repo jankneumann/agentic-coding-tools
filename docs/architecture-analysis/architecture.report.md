@@ -2,25 +2,25 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-18T02:39:57+00:00  
-Git SHA: `6e09ff2d50b07bdadbdc0258542a4702cccf3bd1`
+Generated: 2026-09-19T02:54:45+00:00  
+Git SHA: `8890ba60f30f01765b8ced7e984df183d99c9f19`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1115 functions (444 async) and 256 classes.
+This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1118 functions (444 async) and 256 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1953 |
-| Total edges | 1228 |
+| Total nodes | 1956 |
+| Total edges | 1231 |
 | Python modules | 77 |
-| Functions | 1115 (444 async) |
+| Functions | 1118 (444 async) |
 | Classes | 256 |
 | Mcp Endpoints | 97 |
 | DB tables | 29 |
-| Python nodes | 1500 |
+| Python nodes | 1503 |
 | Sql nodes | 453 |
 
 ## Module Responsibility Map
@@ -33,7 +33,7 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 | `approval` | Service | Parse a datetime value from various formats. | 14 / 2 |
 | `assurance` | Service | — | 0 / 0 |
 | `audit` | Foundation | Get the global audit service instance. | 51 / 6 |
-| `audit_triage` | Service | Validate a single classifier finding against the required schema. | 2 / 1 |
+| `audit_triage` | Service | Read the optional sidecar JSON, falling back to the module default. | 2 / 1 |
 | `axi_output` | Service | Detect truncation precisely via the limit+1 fetch pattern. | 11 / 0 |
 | `cloudflare_access` | Service | Add the Cloudflare Access middleware to ``app`` when enabled. | 2 / 0 |
 | `code_search` | Foundation | Return whether semantic code search is explicitly enabled. | 11 / 4 |
@@ -279,18 +279,18 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2813 findings** across 4 categories:
+**2819 findings** across 4 categories:
 
-### Orphan — 1248
+### Orphan — 1251
 
-1248 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1251 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1243 more
+- ... and 1246 more
 
 ### Reachability — 97
 
@@ -305,16 +305,16 @@ Breakdown: 89 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 92 more
 
-### Test Coverage — 1371
+### Test Coverage — 1374
 
-1371 functions lack test references — consider adding tests for critical paths.
+1374 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1366 more
+- ... and 1369 more
 
 ### Disconnected Flow (expected) — 97
 
@@ -375,8 +375,8 @@ Breakdown: 89 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 444/1115 (40%) |
-| Docstring coverage | 792/1115 (71%) |
+| Async ratio | 444/1118 (40%) |
+| Docstring coverage | 795/1118 (71%) |
 | Dead code candidates | 514 |
 
 ### Hot Functions
@@ -501,7 +501,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1500 nodes)"]
+    Backend["Backend (1503 nodes)"]
     Database["Database (453 nodes)"]
 ```
 
@@ -514,7 +514,7 @@ flowchart TB
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (18 symbols)"]
-    audit_triage["audit_triage (11 symbols)"]
+    audit_triage["audit_triage (14 symbols)"]
     axi_output["axi_output (4 symbols)"]
     cloudflare_access["cloudflare_access (12 symbols)"]
     code_search["code_search (37 symbols)"]

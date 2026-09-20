@@ -22,6 +22,7 @@ from typing import Any
 DEFAULT_RULES_PATH = Path(__file__).parent / "review-rules.json"
 PROJECT_RULES_FILENAME = ".review-rules.json"
 DEFAULT_COVERAGE_QUORUM_THRESHOLD = 0.8
+DEFAULT_MATCH_THRESHOLD = 0.6
 DEFAULT_RULE_TEXT = (
     "Review for correctness, security, and adherence to this repository's "
     "conventions."
@@ -43,6 +44,7 @@ class RuleConfig:
     project_rules: list[tuple[str, str]] = field(default_factory=list)
     default_rules: list[tuple[str, str]] = field(default_factory=list)
     coverage_quorum_threshold: float = DEFAULT_COVERAGE_QUORUM_THRESHOLD
+    match_threshold: float = DEFAULT_MATCH_THRESHOLD
 
 
 def _load_layer(path: Path) -> dict[str, Any] | None:
@@ -94,6 +96,12 @@ def load_config(repo_root: Path | None = None) -> RuleConfig:
                 default_doc.get(
                     "coverage_quorum_threshold", DEFAULT_COVERAGE_QUORUM_THRESHOLD,
                 ),
+            )
+        ),
+        match_threshold=float(
+            _pick(
+                "match_threshold",
+                default_doc.get("match_threshold", DEFAULT_MATCH_THRESHOLD),
             )
         ),
     )

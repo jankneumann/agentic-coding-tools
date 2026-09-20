@@ -15,3 +15,14 @@
   labelled consumer-project-relative; source-only contribution commands must
   be labelled as such. See
   [`skills/references/skill-path-resolution.md`](../../skills/references/skill-path-resolution.md).
+- **Auditing a skill for model-tier fit**: `/skill-audit <skill-name>` (or
+  `--all`) classifies each section of a `SKILL.md` as contract, constraint,
+  procedure, or teaching, lists the `(provider, model, thinking)` tiers that
+  actually run the skill, joins `affected_skill:` capability-gap signals to
+  the tier that ran the failing phase, and writes a report plus a findings
+  ledger to `docs/reports/skill-audit/`. It is read-only: it proposes, and
+  `--propose` turns non-`keep` findings into candidate-work stubs for
+  `/prioritize-proposals`. Re-run it when
+  `agent-coordinator/archetypes.yaml` changes — the report carries that
+  file's content hash, `--check-freshness` exits `1` once they diverge, and
+  the non-blocking `skill-audit-freshness` CI job annotates when they do.

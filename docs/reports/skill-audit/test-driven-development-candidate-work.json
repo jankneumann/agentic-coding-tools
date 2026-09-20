@@ -1,0 +1,344 @@
+[
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#03-the-tdd-cycle.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F001"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-03-the-tdd-cycle",
+    "tags": [
+      "source-rank-1"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#03-the-tdd-cycle"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#04-step-1-red-write-a-failing-test.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F002"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-04-step-1-red-write-a-failing-test",
+    "tags": [
+      "source-rank-2"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#04-step-1-red-write-a-failing-test"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#05-step-2-green-make-it-pass.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F003"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-05-step-2-green-make-it-pass",
+    "tags": [
+      "source-rank-3"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#05-step-2-green-make-it-pass"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#06-step-3-refactor-clean-up.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F004"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-06-step-3-refactor-clean-up",
+    "tags": [
+      "source-rank-4"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#06-step-3-refactor-clean-up"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#07-the-prove-it-pattern-bug-fixes.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F005"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-07-the-prove-it-pattern-bug-fixes",
+    "tags": [
+      "source-rank-5"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#07-the-prove-it-pattern-bug-fixes"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#08-the-test-pyramid.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F006"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-08-the-test-pyramid",
+    "tags": [
+      "source-rank-6"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#08-the-test-pyramid"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#10-decision-guide.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F007"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-10-decision-guide",
+    "tags": [
+      "source-rank-7"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#10-decision-guide"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#12-test-state-not-interactions.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F008"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-12-test-state-not-interactions",
+    "tags": [
+      "source-rank-8"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#12-test-state-not-interactions"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#13-damp-over-dry-in-tests.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F009"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-13-damp-over-dry-in-tests",
+    "tags": [
+      "source-rank-9"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#13-damp-over-dry-in-tests"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#14-prefer-real-implementations-over-mocks.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F010"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-14-prefer-real-implementations-over-moc",
+    "tags": [
+      "source-rank-10"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#14-prefer-real-implementations-over-mocks"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#15-use-the-arrange-act-assert-pattern.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F011"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-15-use-the-arrange-act-assert-pattern",
+    "tags": [
+      "source-rank-11"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#15-use-the-arrange-act-assert-pattern"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#16-one-assertion-per-concept.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F012"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-16-one-assertion-per-concept",
+    "tags": [
+      "source-rank-12"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#16-one-assertion-per-concept"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#17-name-tests-descriptively.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F013"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-17-name-tests-descriptively",
+    "tags": [
+      "source-rank-13"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#17-name-tests-descriptively"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#19-coverage-and-targeted-runs.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F014"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-19-coverage-and-targeted-runs",
+    "tags": [
+      "source-rank-14"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#19-coverage-and-targeted-runs"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#20-browser-testing-with-devtools.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F015"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-20-browser-testing-with-devtools",
+    "tags": [
+      "source-rank-15"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#20-browser-testing-with-devtools"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: contract_unpinned in SKILL.md#22-when-to-use-subagents-for-testing.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F017"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-contract-unpinned-skill-md-22-when-to-use-subagents-for-testing",
+    "tags": [
+      "source-rank-17"
+    ],
+    "title": "rightsize test-driven-development: contract_unpinned in SKILL.md#22-when-to-use-subagents-for-testing"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: constraint_without_reason in SKILL.md#21-security-boundaries.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F016"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-constraint-without-reason-skill-md-21-security-boundaries",
+    "tags": [
+      "source-rank-16"
+    ],
+    "title": "rightsize test-driven-development: constraint_without_reason in SKILL.md#21-security-boundaries"
+  },
+  {
+    "description": "Improve the harness capability: rightsize test-driven-development: convention_drift in SKILL.md.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F018"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/test-driven-development-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-test-driven-development-convention-drift-skill-md",
+    "tags": [
+      "source-rank-18"
+    ],
+    "title": "rightsize test-driven-development: convention_drift in SKILL.md"
+  }
+]

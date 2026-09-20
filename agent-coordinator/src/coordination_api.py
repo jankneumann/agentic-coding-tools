@@ -2546,6 +2546,11 @@ def create_coordination_api() -> FastAPI:
             # Optional thinking/reasoning level from the tier entry. Additive:
             # older clients ignore it; adapters translate it to CLI flags.
             "thinking": resolved.thinking,
+            # Procedure mode of the resolved archetype (add-skill-audit D3).
+            # Additive passthrough: the bridge forwards it when present and
+            # older clients that ignore it still see the sentence, because it
+            # is already appended to system_prompt by the resolver.
+            "procedure_mode": resolved.procedure_mode,
         }
 
     # --------------------------------------------------------------------- #
