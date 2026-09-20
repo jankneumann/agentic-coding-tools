@@ -282,6 +282,63 @@ async def test_mcp_select_model_uses_same_service_in_db_mode() -> None:
 
 
 @pytest.mark.asyncio
+async def test_mcp_select_model_threads_routing_profile_in_db_mode() -> None:
+    """A direct-secret task must be able to force a local lane over MCP.
+
+    Codex review on PR #605: routing_profile was only wired into the HTTP
+    request model, so an MCP caller could not supply location/isolation/
+    dispatch-mode or roadmap constraints. This proves the field reaches the
+    validated ``SelectModelRequest`` in direct-DB mode.
+    """
+    from src import coordination_mcp
+
+    service = AsyncMock()
+    service.select_model.return_value = _selection()
+
+    with (
+        patch.object(coordination_mcp, "_transport", "db"),
+        patch("src.model_routing.api.get_routing_service", return_value=service),
+    ):
+        result = await coordination_mcp.select_model_for_task(
+            task_signals={"archetype": "runner", "phase": "INIT"},
+            routing_profile={"secret_need": "direct", "required_location": "local"},
+        )
+
+    assert result == _selection()
+    request = service.select_model.await_args.args[0]
+    assert request.routing_profile is not None
+    assert request.routing_profile.secret_need == "direct"
+    assert request.routing_profile.required_location == "local"
+
+
+@pytest.mark.asyncio
+async def test_mcp_select_model_threads_routing_profile_in_proxy_mode() -> None:
+    """Same as above, but through the HTTP-proxy transport."""
+    from src import coordination_mcp
+
+    with (
+        patch.object(coordination_mcp, "_transport", "http"),
+        patch(
+            "src.coordination_mcp.http_proxy.proxy_select_model_for_task",
+            new=AsyncMock(return_value=_selection()),
+        ) as proxy,
+    ):
+        result = await coordination_mcp.select_model_for_task(
+            task_signals={"archetype": "runner"},
+            routing_profile={"secret_need": "direct", "required_location": "local"},
+        )
+
+    assert result == _selection()
+    proxy.assert_awaited_once_with(
+        task_signals={"archetype": "runner"},
+        routing_profile={"secret_need": "direct", "required_location": "local"},
+        objective_profile=None,
+        weight_overrides=None,
+        allow_exploration=True,
+    )
+
+
+@pytest.mark.asyncio
 async def test_mcp_no_candidate_matches_http_proxy_error_semantics() -> None:
     from src import coordination_mcp
 
@@ -376,6 +433,7 @@ async def test_mcp_select_model_uses_http_proxy_in_proxy_mode() -> None:
     assert result == _selection()
     proxy.assert_awaited_once_with(
         task_signals={"archetype": "runner"},
+        routing_profile=None,
         objective_profile=None,
         weight_overrides={"w_quality": 1.0, "w_cost": 0.0, "w_latency": 0.0},
         allow_exploration=True,
