@@ -264,6 +264,44 @@ def test_exact_lane_catalog_association_rejects_near_matches() -> None:
     ]
 
 
+def test_lane_declared_model_missing_from_catalog_is_excluded() -> None:
+    """Codex review on PR #605: a configured lane's declared model with no
+    matching catalog row must be recorded as registry:no-catalog-projection,
+    not silently dropped -- spec scenario "Missing exact projection is
+    excluded"."""
+    feasible, excluded = build_feasible_assignments(
+        [_lane("codex-local")],
+        [],  # empty catalog snapshot -- the lane's one declared model has no row
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    assert feasible == []
+    assert [(item.agent_id, item.vendor, item.model, item.reason) for item in excluded] == [
+        ("codex-local", "codex", "gpt-5.6-terra", "registry:no-catalog-projection")
+    ]
+
+
+def test_lane_with_no_declared_models_is_excluded() -> None:
+    """A lane whose cost.models is empty has no unique exact catalog
+    projection either -- same exclusion, not a silent no-op."""
+    lane = _lane("codex-local")
+    lane["cost"] = {"models": []}
+
+    feasible, excluded = build_feasible_assignments(
+        [lane],
+        [CandidateInput(vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli")],
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    assert feasible == []
+    codex_local_exclusions = [
+        (item.agent_id, item.reason) for item in excluded if item.agent_id == "codex-local"
+    ]
+    assert codex_local_exclusions == [("codex-local", "registry:no-catalog-projection")]
+
+
 def test_lane_feasibility_excludes_unavailable_before_utility_scoring() -> None:
     candidate = CandidateInput(
         vendor="codex",

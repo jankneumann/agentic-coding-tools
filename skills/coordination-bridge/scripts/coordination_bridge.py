@@ -1975,15 +1975,27 @@ def try_select_model_for_task(
 ) -> dict[str, Any] | None:
     """Select a model/lane for a task, falling back to a local static route.
 
-    Tries ``POST /routing/select_model`` first. On any transport failure
-    (missing URL, network error, timeout, non-200, malformed response), and
-    only when the caller supplied its own already-resolved
-    ``static_provider``/``static_model``, falls back to
-    ``routing_fallback.local_static_route`` -- a deterministic,
-    coordinator-free assignment carrying ``source="local-static"`` and
-    ``fallback=True`` (see dg-04 design D8). When no static provider/model was
-    supplied, or the local fallback itself cannot find an exact lane, this
-    returns ``None`` -- the same "no signal, use harness defaults" contract as
+    Tries ``POST /routing/select_model`` first. Local fallback triggers ONLY
+    when the coordinator is genuinely unreachable -- missing/disallowed URL,
+    network error, or timeout, all of which ``_http_request`` reports as
+    ``status_code=None`` -- or when it returns a 200 with a malformed body. A
+    concrete HTTP error the coordinator actually returned (422 for an invalid
+    typed profile, 503 "no feasible candidate", etc.) is its real,
+    authoritative answer: routing locally after one would silently mask a
+    caller error or contradict a semantic "no candidate" verdict with a
+    fabricated local one, defeating the point of the typed validation
+    boundary. Design D8 restricts fallback to "transport timeout/
+    unreachability" for exactly this reason (Codex review on PR #605). This
+    helper never surfaces the coordinator's error body -- callers that need
+    it should call the HTTP API directly.
+
+    Local fallback also requires the caller to have supplied its own
+    already-resolved ``static_provider``/``static_model``. Returns the
+    coordinator's response dict on success; the local
+    ``routing_fallback.local_static_route`` result (``source="local-static"``,
+    ``fallback=True``) only when unreachable; and ``None`` otherwise -- no
+    static provider/model, a concrete coordinator answer, or no exact local
+    lane -- the same "no signal, use harness defaults" contract as
     ``try_resolve_archetype_for_phase``. Never raises.
 
     Spec: openspec/changes/implement-the-task-router-vendor-x-location-x-model/
@@ -2000,7 +2012,12 @@ def try_select_model_for_task(
     payload["allow_exploration"] = allow_exploration
 
     resolved_url = _resolve_http_url(http_url)
-    if resolved_url:
+    if not resolved_url:
+        logger.warning(
+            "try_select_model_for_task failed: missing_http_url; falling back "
+            "to local-static routing when a static provider/model was supplied"
+        )
+    else:
         response = _http_request(
             method="POST",
             path="/routing/select_model",
@@ -2015,18 +2032,34 @@ def try_select_model_for_task(
             k in data for k in _SELECT_MODEL_REQUIRED_FIELDS
         ):
             return data
-        logger.warning(
-            "try_select_model_for_task coordinator call failed: HTTP status=%s "
-            "error=%s; falling back to local-static routing when a static "
-            "provider/model was supplied",
-            status,
-            response.get("error"),
-        )
-    else:
-        logger.warning(
-            "try_select_model_for_task failed: missing_http_url; falling back "
-            "to local-static routing when a static provider/model was supplied"
-        )
+        if status is not None and status != 200:
+            # The coordinator is reachable and gave a concrete, authoritative
+            # answer -- even an error -- never second-guess it with a locally
+            # fabricated assignment.
+            logger.warning(
+                "try_select_model_for_task coordinator returned HTTP status=%s "
+                "error=%s; treating as authoritative, not falling back to "
+                "local-static routing",
+                status,
+                response.get("error"),
+            )
+            return None
+        if status == 200:
+            # 200 with a malformed body is not an authoritative answer -- it's
+            # a broken response, so it degrades the same as unreachability.
+            logger.warning(
+                "try_select_model_for_task coordinator returned a malformed "
+                "200 response: %r; falling back to local-static routing when "
+                "a static provider/model was supplied",
+                data,
+            )
+        else:
+            logger.warning(
+                "try_select_model_for_task coordinator unreachable: error=%s; "
+                "falling back to local-static routing when a static "
+                "provider/model was supplied",
+                response.get("error"),
+            )
 
     if not static_provider or not static_model:
         logger.warning(
