@@ -178,6 +178,29 @@ def test_no_matching_vendor_type_raises_bounded_error(checkout: Path) -> None:
         _route(checkout, static_provider="codex")
 
 
+def test_malformed_agents_yaml_entry_fails_loud(tmp_path: Path) -> None:
+    """Codex review on PR #605 (round 3): a schema-invalid agents.yaml entry
+    must fail the whole load loud, mirroring load_agents_config()'s own
+    strict validation -- not silently produce a successful local assignment
+    from whatever partial data happens to coerce cleanly."""
+    coordinator_dir = tmp_path / "agent-coordinator"
+    coordinator_dir.mkdir()
+    (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(_ROUTING_YAML))
+    agents = {"agents": dict(_AGENTS_YAML["agents"])}
+    agents["agents"]["claude-local"] = dict(agents["agents"]["claude-local"])
+    agents["agents"]["claude-local"]["location"] = ["not", "a", "string"]
+    (coordinator_dir / "agents.yaml").write_text(yaml.safe_dump(agents))
+    (coordinator_dir / "archetypes.yaml").write_text(yaml.safe_dump(_ARCHETYPES_YAML))
+
+    with pytest.raises(ValueError, match="location must be a string"):
+        routing_fallback.local_static_route(
+            {"archetype": "implementer", "phase": "IMPLEMENT"},
+            static_provider="claude_code",
+            static_model="claude-sonnet-4-6",
+            repo_root=tmp_path,
+        )
+
+
 def test_roadmap_policy_allowed_locations_excludes_prohibited_lane(checkout: Path) -> None:
     """Codex review on PR #605: an outage must not route onto a location the
     caller's roadmap policy prohibits, even though claude-local (location=local)
@@ -217,6 +240,26 @@ def test_roadmap_policy_allowed_agent_ids_yields_no_candidates_when_unmatched(
             checkout,
             routing_profile={"roadmap_policy": {"allowed_agent_ids": ["some-other-agent"]}},
         )
+
+
+def test_non_mapping_roadmap_policy_fails_loud_not_attributeerror(checkout: Path) -> None:
+    """Codex review on PR #605 (round 3): routing_profile is caller-supplied
+    and never passes through SelectModelRequest's pydantic validation on this
+    path, so a malformed shape must raise ValueError, not leak an
+    AttributeError that would break try_select_model_for_task's
+    never-raises contract."""
+    with pytest.raises(ValueError, match="roadmap_policy must be a mapping"):
+        _route(checkout, routing_profile={"roadmap_policy": "invalid"})
+
+
+def test_non_list_roadmap_policy_field_fails_loud_not_typeerror(checkout: Path) -> None:
+    with pytest.raises(ValueError, match="allowed_agent_ids must be a list of strings"):
+        _route(checkout, routing_profile={"roadmap_policy": {"allowed_agent_ids": 1}})
+
+
+def test_non_string_roadmap_policy_list_item_fails_loud(checkout: Path) -> None:
+    with pytest.raises(ValueError, match="excluded_agent_ids must be a list of strings"):
+        _route(checkout, routing_profile={"roadmap_policy": {"excluded_agent_ids": [123]}})
 
 
 def test_sdk_only_lane_is_selectable_via_sdk_dispatch_mode(tmp_path: Path) -> None:

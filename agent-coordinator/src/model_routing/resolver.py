@@ -155,21 +155,47 @@ def build_feasible_assignments(
     policy = roadmap_policy or {}
     for lane in lanes:
         lane_agent_id = str(lane.get("agent_id") or "")
+        cost = lane.get("cost")
+        misses = cost.get("misses") if isinstance(cost, Mapping) else None
+        had_misses = False
+        if isinstance(misses, list):
+            for miss in misses:
+                if not isinstance(miss, Mapping):
+                    continue
+                had_misses = True
+                # VendorRegistryService._cost_projection already dropped this
+                # declared-but-unmatched (missing/ambiguous) model before
+                # cost.models was built -- it never reaches the by_key join
+                # below, so it must be excluded here from the registry's own
+                # miss record rather than silently vanishing (spec scenario
+                # "Missing exact projection is excluded"; Codex review on
+                # PR #605).
+                excluded.append(
+                    ExcludedAssignmentInput(
+                        agent_id=lane_agent_id,
+                        vendor=str(miss.get("catalog_vendor") or ""),
+                        model=str(miss.get("model") or ""),
+                        endpoint_kind=str(miss.get("endpoint_kind") or ""),
+                        base_url=miss.get("base_url"),
+                        reason="registry:no-catalog-projection",
+                    )
+                )
         projections = _lane_models(lane)
         if not projections:
-            # A configured lane with no declared models at all has no unique
-            # exact catalog projection -- excluded, not silently dropped
-            # (spec scenario "Missing exact projection is excluded").
-            excluded.append(
-                ExcludedAssignmentInput(
-                    agent_id=lane_agent_id,
-                    vendor=str(lane.get("catalog_vendor") or ""),
-                    model="",
-                    endpoint_kind="",
-                    base_url=None,
-                    reason="registry:no-catalog-projection",
+            if not had_misses:
+                # A configured lane with no declared models at all (and no
+                # registry misses to explain why) has no unique exact catalog
+                # projection -- excluded, not silently dropped.
+                excluded.append(
+                    ExcludedAssignmentInput(
+                        agent_id=lane_agent_id,
+                        vendor=str(lane.get("catalog_vendor") or ""),
+                        model="",
+                        endpoint_kind="",
+                        base_url=None,
+                        reason="registry:no-catalog-projection",
+                    )
                 )
-            )
             continue
         for projection in projections:
             key = (

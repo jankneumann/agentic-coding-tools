@@ -327,6 +327,7 @@ class VendorRegistryService:
             str(row["model"]) for row in limits if row["scope"] == "model" and row.get("model")
         }
         projections: list[dict[str, Any]] = []
+        misses: list[dict[str, Any]] = []
         for model in self._agent_models(agent):
             if agent.catalog_vendor is None or agent.endpoint_kind is None:
                 matches: list[dict[str, Any]] = []
@@ -358,6 +359,15 @@ class VendorRegistryService:
                     {"model": model, "reason": miss_reason, "match_count": len(matches)},
                     success=False,
                 )
+                misses.append(
+                    {
+                        "catalog_vendor": agent.catalog_vendor or "",
+                        "model": model,
+                        "endpoint_kind": agent.endpoint_kind or "",
+                        "base_url": agent.base_url,
+                        "reason": miss_reason,
+                    }
+                )
                 continue
             row = matches[0]
             projections.append(
@@ -379,7 +389,7 @@ class VendorRegistryService:
             and not row["stale"]
             for row in projections
         )
-        return {"source": "model_catalog", "known": known, "models": projections}
+        return {"source": "model_catalog", "known": known, "models": projections, "misses": misses}
 
     def _agent_models(self, agent: AgentEntry) -> list[str]:
         if agent.endpoint_kind == "vendor-sdk":

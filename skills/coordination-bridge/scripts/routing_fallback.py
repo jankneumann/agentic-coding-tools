@@ -369,6 +369,52 @@ def _lane_model_set(
     return models
 
 
+_STRING_AGENT_FIELDS = ("type", "location", "isolation", "endpoint_kind", "base_url", "policy_vendor", "catalog_vendor")
+
+
+def _validate_agent_entry(agent_id: str, entry: Any) -> None:
+    """Fail loud on the shape ``local_static_route`` actually reads.
+
+    This is a bounded subset of the coordinator's full ``AGENTS_SCHEMA``
+    (``agents_config.py``) -- just the fields this module consumes (type,
+    location, isolation, endpoint_kind, base_url, policy_vendor,
+    catalog_vendor, and the cli/sdk substructures it reads for dispatch
+    modes and model identity). The full schema also enforces trust levels,
+    capability enums, and archetype-name patterns this module never reads;
+    duplicating those here would mean hand-copying and maintaining a
+    security-adjacent schema skills-side with no shared source of truth,
+    which is a larger, separate change (extracting AGENTS_SCHEMA to a
+    static file both sides load) rather than a bug fix. Codex review on
+    PR #605 (round 3) -- see the PR reply for that scoping call.
+    """
+    where = f"agents.yaml agents.{agent_id}"
+    if not isinstance(entry, dict):
+        raise ValueError(f"{where} must be a mapping")
+    for field_name in _STRING_AGENT_FIELDS:
+        value = entry.get(field_name)
+        if value is not None and not isinstance(value, str):
+            raise ValueError(f"{where}.{field_name} must be a string")
+    cli = entry.get("cli")
+    if cli is not None:
+        if not isinstance(cli, dict):
+            raise ValueError(f"{where}.cli must be a mapping")
+        dispatch_modes = cli.get("dispatch_modes")
+        if dispatch_modes is not None and not isinstance(dispatch_modes, dict):
+            raise ValueError(f"{where}.cli.dispatch_modes must be a mapping")
+    sdk = entry.get("sdk")
+    if sdk is not None:
+        if not isinstance(sdk, dict):
+            raise ValueError(f"{where}.sdk must be a mapping")
+        model = sdk.get("model")
+        if model is not None and not isinstance(model, str):
+            raise ValueError(f"{where}.sdk.model must be a string")
+        fallbacks = sdk.get("model_fallbacks")
+        if fallbacks is not None and (
+            not isinstance(fallbacks, list) or not all(isinstance(m, str) for m in fallbacks)
+        ):
+            raise ValueError(f"{where}.sdk.model_fallbacks must be a list of strings")
+
+
 def _lane_dispatch_modes(entry: dict[str, Any]) -> set[str]:
     modes: set[str] = set()
     cli = entry.get("cli")
@@ -415,6 +461,40 @@ def _candidate_from_assignment(assignment: dict[str, Any], score: float) -> dict
     }
 
 
+def _string_set(value: Any, field_name: str) -> set[str]:
+    """Coerce a roadmap-policy list field, rejecting non-list/non-string shapes.
+
+    ``routing_profile`` is caller-supplied and, unlike the HTTP path, never
+    passed through ``SelectModelRequest``'s pydantic validation before
+    reaching here -- so a malformed shape (a string instead of a list, a
+    non-string element) must fail loud with ``ValueError`` rather than raise
+    an uncaught ``AttributeError``/``TypeError`` that would break
+    ``try_select_model_for_task``'s never-raises contract (Codex review on
+    PR #605).
+    """
+    if value is None:
+        return set()
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise ValueError(f"routing_profile.roadmap_policy.{field_name} must be a list of strings")
+    return set(value)
+
+
+def _parse_roadmap_policy(
+    roadmap_policy: Any,
+) -> tuple[set[str], set[str], set[str], set[str], set[str]]:
+    if roadmap_policy is None:
+        return set(), set(), set(), set(), set()
+    if not isinstance(roadmap_policy, dict):
+        raise ValueError("routing_profile.roadmap_policy must be a mapping")
+    return (
+        _string_set(roadmap_policy.get("allowed_agent_ids"), "allowed_agent_ids"),
+        _string_set(roadmap_policy.get("excluded_agent_ids"), "excluded_agent_ids"),
+        _string_set(roadmap_policy.get("allowed_vendor_types"), "allowed_vendor_types"),
+        _string_set(roadmap_policy.get("excluded_vendor_types"), "excluded_vendor_types"),
+        _string_set(roadmap_policy.get("allowed_locations"), "allowed_locations"),
+    )
+
+
 def local_static_route(
     task_signals: dict[str, Any],
     *,
@@ -453,16 +533,19 @@ def local_static_route(
     # _lane_exclusion_reason applies server-side -- an outage must not route
     # onto a lane/vendor/location the caller explicitly prohibited (Codex
     # review on PR #605).
-    roadmap_policy = profile.get("roadmap_policy") or {}
-    allowed_agents = set(roadmap_policy.get("allowed_agent_ids") or [])
-    excluded_agents = set(roadmap_policy.get("excluded_agent_ids") or [])
-    allowed_vendor_types = set(roadmap_policy.get("allowed_vendor_types") or [])
-    excluded_vendor_types = set(roadmap_policy.get("excluded_vendor_types") or [])
-    allowed_locations_policy = set(roadmap_policy.get("allowed_locations") or [])
+    (
+        allowed_agents,
+        excluded_agents,
+        allowed_vendor_types,
+        excluded_vendor_types,
+        allowed_locations_policy,
+    ) = _parse_roadmap_policy(profile.get("roadmap_policy"))
 
     agents_raw = yaml.safe_load(_agents_yaml_path(repo_root).read_bytes())
     if not isinstance(agents_raw, dict) or not isinstance(agents_raw.get("agents"), dict):
         raise ValueError(f"agents.yaml at {_agents_yaml_path(repo_root)} has no 'agents' mapping")
+    for agent_id, entry in agents_raw["agents"].items():
+        _validate_agent_entry(agent_id, entry)
     roster = _archetype_roster()
     archetypes_path = (repo_root / "agent-coordinator" / "archetypes.yaml") if repo_root else None
     model_aliases = roster.model_aliases(archetypes_path)
