@@ -24,6 +24,15 @@ from .resolver import (
     score_and_rank,
 )
 
+# Match contracts/events/routing-decision-record.schema.json's
+# alternatives.maxItems / excluded.maxItems -- a real catalog refresh (e.g.
+# OpenRouter's full model list) can produce far more candidates/exclusions
+# than the persisted-record contract allows; both the response and the
+# durable payload are built from the same truncated lists so neither can
+# violate it (Codex review on PR #605, round 5).
+_ALTERNATIVES_MAX = 64
+_EXCLUDED_MAX = 256
+
 EndpointKind = Literal["vendor-cli", "vendor-sdk", "openrouter", "local"]
 ObjectiveProfile = Literal["quality-first", "balanced", "cost-first", "resilience"]
 FeedbackSource = Literal[
@@ -60,16 +69,20 @@ class TaskSignals(BaseModel):
 class RoadmapRoutingPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    allowed_agent_ids: list[Annotated[str, Field(max_length=128)]] = Field(
+    # min_length matches contracts/events/routing-decision-record.schema.json's
+    # persistedRoadmapPolicy item bounds -- an empty string excludes no real
+    # lane but would still reach persistence unchanged (Codex review on
+    # PR #605, round 5).
+    allowed_agent_ids: list[Annotated[str, Field(min_length=1, max_length=128)]] = Field(
         default_factory=list, max_length=64
     )
-    excluded_agent_ids: list[Annotated[str, Field(max_length=128)]] = Field(
+    excluded_agent_ids: list[Annotated[str, Field(min_length=1, max_length=128)]] = Field(
         default_factory=list, max_length=64
     )
-    allowed_vendor_types: list[Annotated[str, Field(max_length=64)]] = Field(
+    allowed_vendor_types: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
         default_factory=list, max_length=32
     )
-    excluded_vendor_types: list[Annotated[str, Field(max_length=64)]] = Field(
+    excluded_vendor_types: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
         default_factory=list, max_length=32
     )
     allowed_locations: list[Literal["local", "cloud", "unknown"]] = Field(
@@ -540,7 +553,7 @@ class RoutingService:
         selected = _candidate_payload(selection.selected)
         alternatives = [
             _candidate_payload(candidate) for candidate in ranked if candidate != selection.selected
-        ]
+        ][:_ALTERNATIVES_MAX]
         excluded_payloads = [_excluded_payload(item) for item in assignment_excluded]
         excluded_payloads.extend(
             _excluded_payload(
@@ -559,6 +572,7 @@ class RoutingService:
             )
             for candidate, reason in excluded
         )
+        excluded_payloads = excluded_payloads[:_EXCLUDED_MAX]
         payload: dict[str, Any] = {
             "decision_id": str(uuid4()),
             "selected": selected,
