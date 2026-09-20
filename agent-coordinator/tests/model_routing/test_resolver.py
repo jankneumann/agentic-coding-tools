@@ -282,6 +282,42 @@ def test_lane_declared_model_missing_from_catalog_is_excluded() -> None:
     ]
 
 
+def test_lane_registry_miss_is_excluded_even_when_another_model_projects() -> None:
+    """Codex review on PR #605 (round 3): VendorRegistryService._cost_projection
+    drops an unmatched declared model from cost.models BEFORE resolver.py ever
+    sees it, so a lane where model A projects fine while model B is missing
+    must still record B's exclusion from the registry's own cost.misses list
+    -- not just from a by_key miss, which never fires for B since B was never
+    in cost.models to begin with."""
+    lane = _lane("codex-local")
+    lane["cost"] = {
+        "models": lane["cost"]["models"],  # model A: gpt-5.6-terra, still projects
+        "misses": [
+            {
+                "catalog_vendor": "codex",
+                "model": "gpt-5.6-terra-missing",  # model B: dropped upstream
+                "endpoint_kind": "vendor-cli",
+                "base_url": None,
+                "reason": "missing",
+            }
+        ],
+    }
+    candidate = CandidateInput(vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli")
+
+    feasible, excluded = build_feasible_assignments(
+        [lane],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    assert len(feasible) == 1
+    assert feasible[0].model == "gpt-5.6-terra"
+    assert [(item.agent_id, item.model, item.reason) for item in excluded] == [
+        ("codex-local", "gpt-5.6-terra-missing", "registry:no-catalog-projection")
+    ]
+
+
 def test_lane_with_no_declared_models_is_excluded() -> None:
     """A lane whose cost.models is empty has no unique exact catalog
     projection either -- same exclusion, not a silent no-op."""

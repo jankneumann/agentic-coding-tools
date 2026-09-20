@@ -335,6 +335,17 @@ async def test_missing_catalog_model_makes_whole_projection_unknown_and_audits()
     lane = (await service.list_vendors())[0]
 
     assert lane["cost"]["known"] is False
+    # _agent_models also pulls in the real archetypes.yaml's codex tier
+    # models (provider_model_map is not overridden here), so misses may
+    # contain more than just the one this test cares about -- assert
+    # containment, not exact equality.
+    assert {
+        "catalog_vendor": "codex",
+        "model": "gpt-missing",
+        "endpoint_kind": "vendor-cli",
+        "base_url": None,
+        "reason": "missing",
+    } in lane["cost"]["misses"]
     event = audit.log_operation.await_args.kwargs
     assert event["operation"] == "vendor_catalog_projection_miss"
     assert event["parameters"] == {"target_agent_id": "codex-local"}
@@ -374,6 +385,13 @@ async def test_ambiguous_catalog_model_makes_whole_projection_unknown_and_audits
     lane = (await service.list_vendors())[0]
 
     assert lane["cost"]["known"] is False
+    assert {
+        "catalog_vendor": "codex",
+        "model": "gpt-ambiguous",
+        "endpoint_kind": "vendor-cli",
+        "base_url": None,
+        "reason": "ambiguous",
+    } in lane["cost"]["misses"]
     event = audit.log_operation.await_args.kwargs
     assert event["operation"] == "vendor_catalog_projection_miss"
     assert event["result"]["model"] == "gpt-ambiguous"
