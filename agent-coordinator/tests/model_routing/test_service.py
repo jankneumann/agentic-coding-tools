@@ -16,6 +16,8 @@ from src.model_routing.resolver import CandidateInput
         {"allowed_agent_ids": ["codex-local", "codex-local"]},
         {"allowed_vendor_types": ["v" * 65]},
         {"paths": ["secrets/**"]},
+        {"allowed_agent_ids": [""]},
+        {"excluded_vendor_types": [""]},
     ],
 )
 def test_request_rejects_unbounded_or_unknown_roadmap_policy(
@@ -75,6 +77,54 @@ async def test_service_scores_catalog_candidates_and_records_decision() -> None:
         "exploration_usd_used": None,
         "metered_usd_used": None,
     }
+
+
+@pytest.mark.asyncio
+async def test_select_model_response_and_persisted_record_stay_within_schema_bounds() -> None:
+    """Codex review on PR #605 (round 5): a real catalog refresh (e.g.
+    OpenRouter's full model list) can produce far more feasible or excluded
+    candidates than contracts/events/routing-decision-record.schema.json
+    allows (alternatives.maxItems=64, excluded.maxItems=256). Both the
+    response and the persisted payload must stay within those bounds rather
+    than growing unboundedly with the catalog."""
+    feasible = [
+        CandidateInput(
+            vendor="local",
+            model=f"model-{i}",
+            endpoint_kind="local",
+            benchmark_prior=0.5,
+            prompt_usd_per_mtok=1.0,
+            completion_usd_per_mtok=1.0,
+        )
+        for i in range(100)
+    ]
+    unavailable = [
+        CandidateInput(
+            vendor="openrouter",
+            model=f"unavailable-{i}",
+            endpoint_kind="openrouter",
+            available=False,
+        )
+        for i in range(300)
+    ]
+    catalog = AsyncMock()
+    catalog.list_candidates.return_value = feasible + unavailable
+    catalog.record_decision.return_value = {}
+    ledger = AsyncMock()
+    service = RoutingService(catalog=catalog, ledger=ledger)
+
+    result = await service.select_model(
+        SelectModelRequest(
+            task_signals={"archetype": "runner"},
+            allow_exploration=False,
+        )
+    )
+
+    assert len(result["alternatives"]) <= 64
+    assert len(result["excluded"]) <= 256
+    decision = catalog.record_decision.await_args.args[0]
+    assert len(decision["alternatives"]) <= 64
+    assert len(decision["excluded"]) <= 256
 
 
 @pytest.mark.asyncio
