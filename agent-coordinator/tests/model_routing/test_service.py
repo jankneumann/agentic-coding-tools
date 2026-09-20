@@ -1,13 +1,23 @@
 """Service-level coverage for catalog-to-resolver routing orchestration."""
 
+import json
 import random
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from jsonschema import Draft202012Validator, FormatChecker
+from openspec_paths import change_dir, repo_root_from
 from pydantic import ValidationError
 
 from src.model_routing.api import RoutingService, RoutingUnavailableError, SelectModelRequest
 from src.model_routing.resolver import CandidateInput
+
+_DECISION_RECORD_SCHEMA = (
+    change_dir(repo_root_from(__file__, 3), "implement-the-task-router-vendor-x-location-x-model")
+    / "contracts"
+    / "events"
+    / "routing-decision-record.schema.json"
+)
 
 
 @pytest.mark.parametrize(
@@ -320,6 +330,67 @@ async def test_service_routes_only_exact_registry_pair_and_returns_assignment() 
     catalog.list_candidates.assert_awaited_once()
     catalog.record_decision.assert_not_awaited()
     catalog.record_decision_and_audit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_durable_payload_validates_against_the_persisted_record_schema() -> None:
+    """Codex review on PR #605 (round 6): the object select_model() actually
+    passes to record_decision_and_audit() -- not a hand-built fixture -- must
+    validate against contracts/events/routing-decision-record.schema.json.
+    Reuses the same assignment-enabled fixture as
+    test_service_routes_only_exact_registry_pair_and_returns_assignment."""
+    catalog = AsyncMock()
+    catalog.list_candidates.return_value = [
+        CandidateInput(
+            vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli", benchmark_prior=0.8
+        )
+    ]
+    catalog.record_decision_and_audit.return_value = {}
+    registry = AsyncMock()
+    registry.list_vendors.return_value = [
+        {
+            "agent_id": "codex-local",
+            "vendor_type": "codex",
+            "policy_vendor": "codex",
+            "catalog_vendor": "codex",
+            "location": "local",
+            "isolation": "worktree",
+            "archetypes": ["implementer"],
+            "dispatch_modes": ["quick"],
+            "dispatchable": True,
+            "availability": {"available": True, "rate_limits": []},
+            "cost": {
+                "models": [
+                    {
+                        "catalog_vendor": "codex",
+                        "model": "gpt-5.6-terra",
+                        "endpoint_kind": "vendor-cli",
+                        "base_url": None,
+                        "available": True,
+                    }
+                ]
+            },
+        }
+    ]
+    policy = MagicMock()
+    policy.version = "dg04-v1"
+    policy.checksum = "a" * 64
+    policy.evaluate.return_value = MagicMock(
+        location=None,
+        isolation=None,
+        dispatch_mode="quick",
+        matched_rule_ids=(),
+        rationale=("default:dispatch_mode=quick",),
+    )
+    service = RoutingService(catalog=catalog, ledger=AsyncMock(), registry=registry, policy=policy)
+
+    await service.select_model(
+        SelectModelRequest(task_signals={"archetype": "implementer"}, allow_exploration=False)
+    )
+
+    durable_payload = catalog.record_decision_and_audit.await_args.args[0]
+    schema = json.loads(_DECISION_RECORD_SCHEMA.read_text())
+    Draft202012Validator(schema, format_checker=FormatChecker()).validate(durable_payload)
 
 
 @pytest.mark.asyncio
