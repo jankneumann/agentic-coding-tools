@@ -1243,6 +1243,7 @@ async def proxy_run_gen_eval(
 async def proxy_select_model_for_task(
     *,
     task_signals: dict[str, Any],
+    routing_profile: dict[str, Any] | None = None,
     objective_profile: str | None = None,
     weight_overrides: dict[str, float] | None = None,
     allow_exploration: bool = True,
@@ -1253,6 +1254,7 @@ async def proxy_select_model_for_task(
         "/routing/select_model",
         json_body={
             "task_signals": task_signals,
+            "routing_profile": routing_profile,
             "objective_profile": objective_profile,
             "weight_overrides": weight_overrides,
             "allow_exploration": allow_exploration,

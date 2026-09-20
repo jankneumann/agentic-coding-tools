@@ -220,6 +220,101 @@ def test_malformed_routing_yaml_fails_loud(tmp_path: Path) -> None:
         )
 
 
+def _write_routing_yaml(tmp_path: Path, document: dict[str, Any]) -> Path:
+    coordinator_dir = tmp_path / "agent-coordinator"
+    coordinator_dir.mkdir(exist_ok=True)
+    (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(document))
+    (coordinator_dir / "agents.yaml").write_text(yaml.safe_dump(_AGENTS_YAML))
+    return tmp_path
+
+
+def test_duplicate_rule_id_fails_loud(tmp_path: Path) -> None:
+    document = dict(_ROUTING_YAML)
+    document["rules"] = [
+        {"id": "dup-rule", "when": {"scope": "read-only"}, "constrain": {"dispatch_mode": "review"}},
+        {"id": "dup-rule", "when": {"secret_need": "direct"}, "constrain": {"location": "local"}},
+    ]
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="duplicate rule id"):
+        routing_fallback.load_routing_policy_document(root)
+
+
+def test_unknown_top_level_field_fails_loud(tmp_path: Path) -> None:
+    document = dict(_ROUTING_YAML)
+    document["unexpected_field"] = True
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="unknown field"):
+        routing_fallback.load_routing_policy_document(root)
+
+
+def test_unknown_rule_when_field_fails_loud(tmp_path: Path) -> None:
+    document = dict(_ROUTING_YAML)
+    document["rules"] = [{"id": "bad-rule", "when": {"not_a_real_field": "x"}, "constrain": {"location": "local"}}]
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="unknown field"):
+        routing_fallback.load_routing_policy_document(root)
+
+
+def test_invalid_rule_when_enum_fails_loud(tmp_path: Path) -> None:
+    document = dict(_ROUTING_YAML)
+    document["rules"] = [{"id": "bad-rule", "when": {"scope": "not-a-real-scope"}, "constrain": {"location": "local"}}]
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="invalid value"):
+        routing_fallback.load_routing_policy_document(root)
+
+
+def test_invalid_rule_constrain_enum_fails_loud(tmp_path: Path) -> None:
+    document = dict(_ROUTING_YAML)
+    document["rules"] = [
+        {"id": "bad-rule", "when": {"scope": "read-only"}, "constrain": {"location": "mars"}}
+    ]
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="invalid value"):
+        routing_fallback.load_routing_policy_document(root)
+
+
+def test_rule_duration_min_greater_than_max_fails_loud(tmp_path: Path) -> None:
+    document = dict(_ROUTING_YAML)
+    document["rules"] = [
+        {
+            "id": "bad-rule",
+            "when": {"min_duration_seconds": 100, "max_duration_seconds": 10},
+            "constrain": {"location": "local"},
+        }
+    ]
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="min_duration_seconds greater than max_duration_seconds"):
+        routing_fallback.load_routing_policy_document(root)
+
+
+def test_invalid_phase_dispatch_mode_value_fails_loud(tmp_path: Path) -> None:
+    document = dict(_ROUTING_YAML)
+    document["defaults"] = {
+        "dispatch_mode": "quick",
+        "phase_dispatch_modes": {"IMPL_REVIEW": "not-a-real-mode"},
+    }
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="phase_dispatch_modes"):
+        routing_fallback.load_routing_policy_document(root)
+
+
+def test_duplicate_fallback_order_value_fails_loud(tmp_path: Path) -> None:
+    document = dict(_ROUTING_YAML)
+    document["fallback"] = dict(_ROUTING_YAML["fallback"])
+    document["fallback"]["location_order"] = ["local", "local", "cloud"]
+    root = _write_routing_yaml(tmp_path, document)
+
+    with pytest.raises(ValueError, match="duplicate value"):
+        routing_fallback.load_routing_policy_document(root)
+
+
 def test_missing_routing_yaml_fails_loud(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         routing_fallback.local_static_route(

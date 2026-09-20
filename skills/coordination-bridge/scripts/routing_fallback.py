@@ -20,6 +20,7 @@ Spec: openspec/changes/implement-the-task-router-vendor-x-location-x-model/
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -32,6 +33,10 @@ _CONSTRAINT_CONFLICT = "__constraint-conflict__"
 _LOCATION_VALUES = frozenset({"local", "cloud", "unknown"})
 _ISOLATION_VALUES = frozenset({"none", "worktree", "sandbox"})
 _DISPATCH_MODE_VALUES = frozenset({"review", "alternative", "quick", "sdk"})
+_SCOPE_VALUES = frozenset({"read-only", "bounded-write", "broad-write"})
+_INTERACTIVITY_VALUES = frozenset({"interactive", "headless"})
+_SECRET_NEED_VALUES = frozenset({"none", "brokered", "direct"})
+_REPO_SHAPE_VALUES = frozenset({"single-package", "monorepo", "unknown"})
 
 _DIRECT_PROFILE_FIELDS = (
     "phase",
@@ -41,6 +46,35 @@ _DIRECT_PROFILE_FIELDS = (
     "secret_need",
     "repo_shape",
 )
+
+_RULE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
+_POLICY_VERSION_PATTERN = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
+
+_TOP_LEVEL_FIELDS = frozenset({"schema_version", "policy_version", "defaults", "rules", "fallback"})
+_RULE_FIELDS = frozenset({"id", "when", "constrain"})
+_DEFAULTS_FIELDS = frozenset({"dispatch_mode", "phase_dispatch_modes"})
+_FALLBACK_FIELDS = frozenset({"location_order", "isolation_order", "dispatch_mode_order"})
+_WHEN_FIELDS = frozenset(
+    {
+        "phase",
+        "archetype",
+        "scope",
+        "interactivity",
+        "secret_need",
+        "min_duration_seconds",
+        "max_duration_seconds",
+        "min_parallelism",
+        "max_parallelism",
+        "repo_shape",
+    }
+)
+_CONSTRAIN_FIELDS = frozenset({"location", "isolation", "dispatch_mode"})
+_WHEN_ENUM_FIELDS: dict[str, frozenset[str]] = {
+    "scope": _SCOPE_VALUES,
+    "interactivity": _INTERACTIVITY_VALUES,
+    "secret_need": _SECRET_NEED_VALUES,
+    "repo_shape": _REPO_SHAPE_VALUES,
+}
 
 
 class LocalRoutingFallbackError(Exception):
@@ -106,34 +140,111 @@ def _agents_yaml_path(repo_root: Path | None) -> Path:
     return root / "agent-coordinator" / "agents.yaml"
 
 
-def load_routing_policy_document(repo_root: Path | None = None) -> tuple[dict[str, Any], str]:
-    """Load and minimally validate ``routing.yaml``. Fails loud, never permissive.
+def _reject_unknown_fields(obj: dict[str, Any], allowed: frozenset[str], where: str) -> None:
+    unknown = set(obj) - allowed
+    if unknown:
+        raise ValueError(f"{where} has unknown field(s): {sorted(unknown)}")
 
-    Returns ``(document, checksum)``. This intentionally re-validates shape
-    rather than importing ``agent-coordinator``'s pydantic models: this module
-    runs in the skills environment, which does not depend on the coordinator
-    package, and must still refuse malformed config rather than invent
-    defaults (design D8).
+
+def _validate_when(when: Any, where: str) -> None:
+    if not isinstance(when, dict) or not when:
+        raise ValueError(f"{where}.when must be a non-empty mapping")
+    _reject_unknown_fields(when, _WHEN_FIELDS, f"{where}.when")
+    for field, allowed_values in _WHEN_ENUM_FIELDS.items():
+        value = when.get(field)
+        if value is not None and value not in allowed_values:
+            raise ValueError(f"{where}.when.{field} has an invalid value: {value!r}")
+    for field in ("phase", "archetype"):
+        value = when.get(field)
+        if value is not None and not isinstance(value, str):
+            raise ValueError(f"{where}.when.{field} must be a string")
+    for lo, hi in (("min_duration_seconds", "max_duration_seconds"), ("min_parallelism", "max_parallelism")):
+        lo_value, hi_value = when.get(lo), when.get(hi)
+        floor = 0 if lo == "min_duration_seconds" else 1
+        for name, value in ((lo, lo_value), (hi, hi_value)):
+            if value is not None and (not isinstance(value, int) or isinstance(value, bool) or value < floor):
+                raise ValueError(f"{where}.when.{name} must be an integer >= {floor}")
+        if lo_value is not None and hi_value is not None and lo_value > hi_value:
+            raise ValueError(f"{where}.when has {lo} greater than {hi}")
+
+
+def _validate_constrain(constrain: Any, where: str) -> None:
+    if not isinstance(constrain, dict) or not constrain:
+        raise ValueError(f"{where}.constrain must be a non-empty mapping")
+    _reject_unknown_fields(constrain, _CONSTRAIN_FIELDS, f"{where}.constrain")
+    for field, allowed_values in (
+        ("location", _LOCATION_VALUES),
+        ("isolation", _ISOLATION_VALUES),
+        ("dispatch_mode", _DISPATCH_MODE_VALUES),
+    ):
+        value = constrain.get(field)
+        if value is not None and value not in allowed_values:
+            raise ValueError(f"{where}.constrain.{field} has an invalid value: {value!r}")
+
+
+def load_routing_policy_document(repo_root: Path | None = None) -> tuple[dict[str, Any], str]:
+    """Load and fully validate ``routing.yaml``. Fails loud, never permissive.
+
+    Returns ``(document, checksum)``. This intentionally re-validates the same
+    shape the coordinator's strict pydantic ``RoutingPolicyDocument`` enforces
+    (``routing_policy.py``) rather than importing it: this module runs in the
+    skills environment, which does not depend on the coordinator package, and
+    must still refuse a document the coordinator's own loader would reject --
+    duplicate rule IDs, unknown fields, invalid enum values, or an invalid
+    phase dispatch mode -- rather than silently ignore the bad parts and route
+    anyway (design D8; Codex review on PR #605).
     """
     path = _routing_yaml_path(repo_root)
     raw_bytes = path.read_bytes()
     document = yaml.safe_load(raw_bytes)
     if not isinstance(document, dict):
         raise ValueError(f"routing.yaml at {path} must be a mapping")
+    _reject_unknown_fields(document, _TOP_LEVEL_FIELDS, f"routing.yaml at {path}")
     if document.get("schema_version") != 1:
         raise ValueError(f"routing.yaml at {path} has unsupported schema_version")
-    if not isinstance(document.get("policy_version"), str) or not document["policy_version"]:
-        raise ValueError(f"routing.yaml at {path} is missing policy_version")
+    if not isinstance(document.get("policy_version"), str) or not _POLICY_VERSION_PATTERN.match(
+        document["policy_version"]
+    ):
+        raise ValueError(f"routing.yaml at {path} has an invalid policy_version")
+
     defaults = document.get("defaults")
-    if not isinstance(defaults, dict) or defaults.get("dispatch_mode") not in _DISPATCH_MODE_VALUES:
+    if not isinstance(defaults, dict):
+        raise ValueError(f"routing.yaml at {path} is missing defaults")
+    _reject_unknown_fields(defaults, _DEFAULTS_FIELDS, f"routing.yaml at {path}: defaults")
+    if defaults.get("dispatch_mode") not in _DISPATCH_MODE_VALUES:
         raise ValueError(f"routing.yaml at {path} has an invalid defaults.dispatch_mode")
-    if not isinstance(defaults.get("phase_dispatch_modes"), dict):
+    phase_dispatch_modes = defaults.get("phase_dispatch_modes")
+    if not isinstance(phase_dispatch_modes, dict):
         raise ValueError(f"routing.yaml at {path} has an invalid defaults.phase_dispatch_modes")
-    if not isinstance(document.get("rules"), list):
+    for phase, mode in phase_dispatch_modes.items():
+        if not isinstance(phase, str) or mode not in _DISPATCH_MODE_VALUES:
+            raise ValueError(
+                f"routing.yaml at {path} has an invalid defaults.phase_dispatch_modes entry: "
+                f"{phase!r}={mode!r}"
+            )
+
+    rules = document.get("rules")
+    if not isinstance(rules, list):
         raise ValueError(f"routing.yaml at {path} has an invalid rules list")
+    seen_ids: set[str] = set()
+    for index, rule in enumerate(rules):
+        where = f"routing.yaml at {path}: rules[{index}]"
+        if not isinstance(rule, dict):
+            raise ValueError(f"{where} must be a mapping")
+        _reject_unknown_fields(rule, _RULE_FIELDS, where)
+        rule_id = rule.get("id")
+        if not isinstance(rule_id, str) or not _RULE_ID_PATTERN.match(rule_id):
+            raise ValueError(f"{where}.id is missing or invalid: {rule_id!r}")
+        if rule_id in seen_ids:
+            raise ValueError(f"routing.yaml at {path} has a duplicate rule id: {rule_id!r}")
+        seen_ids.add(rule_id)
+        _validate_when(rule.get("when"), where)
+        _validate_constrain(rule.get("constrain"), where)
+
     fallback = document.get("fallback")
     if not isinstance(fallback, dict):
         raise ValueError(f"routing.yaml at {path} is missing fallback")
+    _reject_unknown_fields(fallback, _FALLBACK_FIELDS, f"routing.yaml at {path}: fallback")
     for key, allowed in (
         ("location_order", _LOCATION_VALUES),
         ("isolation_order", _ISOLATION_VALUES),
@@ -142,6 +253,9 @@ def load_routing_policy_document(repo_root: Path | None = None) -> tuple[dict[st
         order = fallback.get(key)
         if not isinstance(order, list) or not order or not set(order) <= allowed:
             raise ValueError(f"routing.yaml at {path} has an invalid fallback.{key}")
+        if len(order) != len(set(order)):
+            raise ValueError(f"routing.yaml at {path} has a duplicate value in fallback.{key}")
+
     return document, hashlib.sha256(raw_bytes).hexdigest()
 
 
