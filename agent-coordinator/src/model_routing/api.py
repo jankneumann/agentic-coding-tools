@@ -46,9 +46,13 @@ class WeightOverrides(BaseModel):
 class TaskSignals(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    archetype: str = Field(min_length=1)
-    phase: str | None = None
-    task_type: str | None = None
+    # max_length matches contracts/events/routing-decision-record.schema.json's
+    # persistedRequest.task_signals bounds -- a value the HTTP boundary accepts
+    # but the persisted-record contract would reject must never reach a
+    # successful select_model() call (Codex review on PR #605, round 4).
+    archetype: str = Field(min_length=1, max_length=128)
+    phase: str | None = Field(default=None, max_length=128)
+    task_type: str | None = Field(default=None, max_length=128)
     complexity: Literal["low", "medium", "high"] | None = None
     modality: Literal["interactive", "programmatic"] = "programmatic"
 
@@ -90,11 +94,13 @@ class RoadmapRoutingPolicy(BaseModel):
 class TaskRoutingProfile(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    expected_duration_seconds: int | None = Field(default=None, ge=0)
+    # Bounds match contracts/events/routing-decision-record.schema.json's
+    # persistedRequest.routing_profile (Codex review on PR #605, round 4).
+    expected_duration_seconds: int | None = Field(default=None, ge=0, le=31536000)
     scope: Literal["read-only", "bounded-write", "broad-write"] = "read-only"
     interactivity: Literal["interactive", "headless"] = "headless"
     secret_need: Literal["none", "brokered", "direct"] = "none"
-    parallelism: int = Field(default=1, ge=1)
+    parallelism: int = Field(default=1, ge=1, le=1024)
     repo_shape: Literal["single-package", "monorepo", "unknown"] = "unknown"
     roadmap_policy: RoadmapRoutingPolicy | None = None
     required_location: Literal["local", "cloud", "unknown"] | None = None

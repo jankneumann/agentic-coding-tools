@@ -355,6 +355,68 @@ async def test_missing_catalog_model_makes_whole_projection_unknown_and_audits()
 
 
 @pytest.mark.asyncio
+async def test_openrouter_lane_projects_despite_publisher_vendor_and_base_url_mismatch() -> None:
+    """Codex review on PR #605 (round 4): OpenRouterRefresher._entry stores
+    each row under its publisher vendor (e.g. "moonshotai") with OpenRouter's
+    fixed base URL, while a configured OpenRouter lane (pi-local in
+    agents.yaml) sets catalog_vendor="openrouter" and no base_url. Requiring
+    an exact match on both made every OpenRouter lane permanently infeasible
+    -- this proves the fix matches by model+endpoint_kind identity instead
+    and carries the row's real vendor/base_url into the projection."""
+    service = VendorRegistryService(
+        _db(
+            {
+                "model_catalog": [
+                    {
+                        "vendor": "moonshotai",
+                        "model": "moonshotai/kimi-k3",
+                        "endpoint_kind": "openrouter",
+                        "base_url": "https://openrouter.ai/api/v1",
+                        "prompt_usd_per_mtok": 1.0,
+                        "completion_usd_per_mtok": 3.0,
+                        "refreshed_at": NOW.isoformat(),
+                        "available": True,
+                        "stale": False,
+                    }
+                ]
+            }
+        ),
+        agents=[
+            _agent(
+                "pi-local",
+                endpoint_kind="openrouter",
+                catalog_vendor="openrouter",
+                model="moonshotai/kimi-k3",
+            )
+        ],
+        # Isolate from the real archetypes.yaml's pi tier models -- this test
+        # asserts exact known/misses/models equality, so it must not also
+        # pick up frontier/premium/standard/economy slugs that have no
+        # catalog row here (see _agent_models' provider_model_map fallback).
+        provider_model_map={},
+        now_fn=lambda: NOW,
+    )
+
+    lane = (await service.list_vendors())[0]
+
+    assert lane["cost"]["known"] is True
+    assert lane["cost"]["misses"] == []
+    assert lane["cost"]["models"] == [
+        {
+            "catalog_vendor": "moonshotai",
+            "model": "moonshotai/kimi-k3",
+            "endpoint_kind": "openrouter",
+            "base_url": "https://openrouter.ai/api/v1",
+            "prompt_usd_per_mtok": 1.0,
+            "completion_usd_per_mtok": 3.0,
+            "refreshed_at": NOW.isoformat(),
+            "available": True,
+            "stale": False,
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_ambiguous_catalog_model_makes_whole_projection_unknown_and_audits() -> None:
     exact = {
         "vendor": "codex",
