@@ -154,7 +154,10 @@ class CandidateResponse(BaseModel):
     posterior_sample_size: int | float | None = None
     stale_catalog: bool = False
     cost_source: Literal["posterior", "prior"] | None = None
-    assignment: RoutingAssignmentResponse
+    # dg-04's own overlay: absent whenever assignment-based routing (policy/
+    # registry/catalog-driven location+isolation+dispatch_mode) is disabled,
+    # i.e. the base dg-00 linear-utility selection shape.
+    assignment: RoutingAssignmentResponse | None = None
 
 
 class ExcludedCandidate(BaseModel):
@@ -175,8 +178,10 @@ class SelectModelResponse(BaseModel):
     exploration: bool = False
     fallback: bool = False
     excluded: list[ExcludedCandidate] = Field(default_factory=list)
-    assignment: RoutingAssignmentResponse
-    provenance: RoutingProvenanceResponse
+    # Both absent together whenever assignment-based routing is disabled --
+    # see CandidateResponse.assignment.
+    assignment: RoutingAssignmentResponse | None = None
+    provenance: RoutingProvenanceResponse | None = None
 
 
 class UsageByModelResponse(BaseModel):

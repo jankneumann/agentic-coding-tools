@@ -1956,6 +1956,109 @@ def try_resolve_archetype_for_phase(
     return data
 
 
+_SELECT_MODEL_REQUIRED_FIELDS = ("decision_id", "selected", "fallback")
+
+
+def try_select_model_for_task(
+    task_signals: dict[str, Any],
+    *,
+    routing_profile: dict[str, Any] | None = None,
+    objective_profile: str | None = None,
+    weight_overrides: dict[str, Any] | None = None,
+    allow_exploration: bool = True,
+    static_provider: str | None = None,
+    static_model: str | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    repo_root: Any = None,
+) -> dict[str, Any] | None:
+    """Select a model/lane for a task, falling back to a local static route.
+
+    Tries ``POST /routing/select_model`` first. On any transport failure
+    (missing URL, network error, timeout, non-200, malformed response), and
+    only when the caller supplied its own already-resolved
+    ``static_provider``/``static_model``, falls back to
+    ``routing_fallback.local_static_route`` -- a deterministic,
+    coordinator-free assignment carrying ``source="local-static"`` and
+    ``fallback=True`` (see dg-04 design D8). When no static provider/model was
+    supplied, or the local fallback itself cannot find an exact lane, this
+    returns ``None`` -- the same "no signal, use harness defaults" contract as
+    ``try_resolve_archetype_for_phase``. Never raises.
+
+    Spec: openspec/changes/implement-the-task-router-vendor-x-location-x-model/
+          specs/task-routing/spec.md -- Requirement: Honest local fallback.
+    Design decisions: D6 (additive assignment/provenance), D8 (local fallback).
+    """
+    payload: dict[str, Any] = {"task_signals": task_signals}
+    if routing_profile is not None:
+        payload["routing_profile"] = routing_profile
+    if objective_profile is not None:
+        payload["objective_profile"] = objective_profile
+    if weight_overrides is not None:
+        payload["weight_overrides"] = weight_overrides
+    payload["allow_exploration"] = allow_exploration
+
+    resolved_url = _resolve_http_url(http_url)
+    if resolved_url:
+        response = _http_request(
+            method="POST",
+            path="/routing/select_model",
+            payload=payload,
+            http_url=resolved_url,
+            api_key=_resolve_api_key(api_key),
+            timeout=timeout,
+        )
+        status = response.get("status_code")
+        data = response.get("data")
+        if status == 200 and isinstance(data, dict) and all(
+            k in data for k in _SELECT_MODEL_REQUIRED_FIELDS
+        ):
+            return data
+        logger.warning(
+            "try_select_model_for_task coordinator call failed: HTTP status=%s "
+            "error=%s; falling back to local-static routing when a static "
+            "provider/model was supplied",
+            status,
+            response.get("error"),
+        )
+    else:
+        logger.warning(
+            "try_select_model_for_task failed: missing_http_url; falling back "
+            "to local-static routing when a static provider/model was supplied"
+        )
+
+    if not static_provider or not static_model:
+        logger.warning(
+            "try_select_model_for_task: no static_provider/static_model supplied; "
+            "cannot fall back to local-static routing"
+        )
+        return None
+
+    try:
+        import routing_fallback
+    except ImportError:
+        logger.warning("try_select_model_for_task: routing_fallback module unavailable")
+        return None
+
+    try:
+        return routing_fallback.local_static_route(
+            task_signals,
+            static_provider=static_provider,
+            static_model=static_model,
+            routing_profile=routing_profile,
+            repo_root=repo_root,
+        )
+    except routing_fallback.LocalRoutingFallbackError as exc:
+        logger.warning("try_select_model_for_task: local-static fallback failed: %s", exc)
+        return None
+    except (FileNotFoundError, ValueError) as exc:
+        logger.warning(
+            "try_select_model_for_task: local-static config invalid or missing: %s", exc
+        )
+        return None
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Coordinator HTTP bridge helper")
     parser.add_argument(
