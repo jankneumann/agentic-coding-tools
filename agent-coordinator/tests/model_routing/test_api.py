@@ -126,6 +126,31 @@ def test_select_model_requires_task_signal_archetype(client: TestClient) -> None
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"task_signals": {"archetype": "a" * 129}},
+        {"task_signals": {"archetype": "runner", "phase": "p" * 129}},
+        {"task_signals": {"archetype": "runner", "task_type": "t" * 129}},
+        {
+            "task_signals": {"archetype": "runner"},
+            "routing_profile": {"expected_duration_seconds": 31536001},
+        },
+        {"task_signals": {"archetype": "runner"}, "routing_profile": {"parallelism": 1025}},
+    ],
+)
+def test_select_model_rejects_values_exceeding_persisted_record_bounds(
+    client: TestClient, body: dict[str, Any]
+) -> None:
+    """Codex review on PR #605 (round 4): a value the runtime request model
+    accepted but the persisted decision-record contract
+    (routing-decision-record.schema.json) caps must never reach a successful
+    select_model() call -- these bounds now match at the request boundary."""
+    response = client.post("/routing/select_model", headers=_auth_headers(), json=body)
+
+    assert response.status_code == 422
+
+
 def test_select_model_maps_no_candidate_to_documented_503(client: TestClient) -> None:
     service = AsyncMock()
     service.select_model.side_effect = RoutingUnavailableError("no feasible candidate")

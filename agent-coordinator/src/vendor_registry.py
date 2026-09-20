@@ -331,6 +331,22 @@ class VendorRegistryService:
         for model in self._agent_models(agent):
             if agent.catalog_vendor is None or agent.endpoint_kind is None:
                 matches: list[dict[str, Any]] = []
+            elif agent.endpoint_kind == "openrouter":
+                # OpenRouter catalog rows are keyed by their own per-publisher
+                # vendor (e.g. "moonshotai") and OpenRouter's fixed base URL
+                # (OpenRouterRefresher._entry) -- never the lane's own
+                # catalog_vendor ("openrouter") or its (typically unset)
+                # base_url. The full "publisher/model" id already uniquely
+                # identifies the row within this endpoint kind, so match on
+                # model + endpoint_kind alone and let the projection below
+                # carry the matched row's actual vendor/base_url through
+                # (Codex review on PR #605, round 4).
+                matches = [
+                    row
+                    for row in rows
+                    if str(row.get("model") or "") == model
+                    and row.get("endpoint_kind") == agent.endpoint_kind
+                ]
             else:
                 matches = [
                     row
