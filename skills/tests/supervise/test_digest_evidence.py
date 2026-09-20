@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,16 @@ from digest import (
     store_candidates,
 )  # noqa: E402
 
-AS_OF = "2026-09-20T00:00:00Z"
+# Evidence whose commit time is after `as_of` is rejected as `clock_skew`, and
+# these tests commit their fixtures while running. A fixed date therefore only
+# works until it arrives: this read "2026-09-20T00:00:00Z" and the whole suite
+# began failing at midnight that day, roughly three days after it was written.
+# Nothing caught it, because pushes to main run only the audit and secret-scan
+# jobs -- the suite runs on pull_request -- so main went red without a red run.
+#
+# Anchor it ahead of now instead. No assertion here depends on the exact value:
+# staleness is only ever checked as `>= 0` or `is None`.
+AS_OF = (datetime.now(UTC) + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _git(repo: Path, *args: str) -> str:
