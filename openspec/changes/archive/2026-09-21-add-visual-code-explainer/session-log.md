@@ -166,3 +166,30 @@ Implemented codebase-atlas --tree export and the prompt-only explain-code skill 
 ### Context
 VALIDATE passed for add-visual-code-explainer on non-deployable skills/docs surface. Spec Compliance green: openspec --strict, install.sh --check, 98 atlas+explain-code tests, 32 install_sh tests, tree determinism cmp, change-scoped traceability. Container phases not applicable.
 
+---
+
+## Phase: Cleanup (2026-09-21)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Post-merge archive path** — PR #558 was already MERGED; skip merge/pre-merge gates and archive from main.
+2. **No open-task migration** — tasks.md is 24/24 checked; nothing to migrate to coordinator issues or a follow-up proposal.
+
+### Completed Work
+- verify PR #558 MERGED
+- sync autopilot DONE handoff + loop-state into change dir
+- archive OpenSpec change
+- regenerate docs/decisions
+- teardown feature worktrees
+
+### Next Steps
+- None — change complete
+
+### Relevant Files
+- `openspec/changes/add-visual-code-explainer/` — Active change being archived
+- `docs/decisions/` — Regenerated with archive
+
+### Context
+Post-merge cleanup for PR #558 (already merged 2026-09-18). All 24 tasks complete — no open-task migration. Archiving OpenSpec change and regenerating docs/decisions in the same commit.
+

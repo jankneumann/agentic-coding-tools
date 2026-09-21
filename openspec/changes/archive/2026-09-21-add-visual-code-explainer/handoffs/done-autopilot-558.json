@@ -1,0 +1,25 @@
+{
+  "agent_name": "autopilot-done",
+  "summary": "Autopilot run complete for add-visual-code-explainer. Merge authorized; PR #558 awaits /cleanup-feature.",
+  "completed_work": [
+    "GATEKEEPER proceed",
+    "PLAN_ITERATE + PLAN_REVIEW converged",
+    "IMPLEMENT + IMPL_ITERATE + IMPL_REVIEW converged",
+    "VALIDATE passed",
+    "PR #558 evidence trail updated",
+    "Merge authorization recorded"
+  ],
+  "in_progress": [],
+  "decisions": [
+    "Autopilot does not merge; /cleanup-feature is the sole merge executor"
+  ],
+  "next_steps": [
+    "/cleanup-feature add-visual-code-explainer"
+  ],
+  "relevant_files": [
+    "openspec/changes/add-visual-code-explainer/loop-state.json",
+    "openspec/changes/add-visual-code-explainer/validation-report.md"
+  ],
+  "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/558",
+  "phase_history_count": 8
+}

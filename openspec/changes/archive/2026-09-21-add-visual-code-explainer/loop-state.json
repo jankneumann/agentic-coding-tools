@@ -168,40 +168,31 @@
       "disposition": "block",
       "phase": "DONE",
       "recorded_at": "2026-09-16T22:13:57.596666+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator replied approve; merge authorization only \u2014 /cleanup-feature merges",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "DONE",
+      "recorded_at": "2026-09-20T10:36:46.891591+00:00",
+      "note": "Operator replied approve; merge authorization only \u2014 /cleanup-feature merges"
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "add-visual-code-explainer",
-    "gate": "merge",
-    "phase": "DONE",
-    "requested_at": "2026-09-16T22:13:57.597226+00:00",
-    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-    "context": {
-      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/558",
-      "branch": "openspec/add-visual-code-explainer",
-      "change_id": "add-visual-code-explainer"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": {
-    "verdict": "passed",
-    "reason": "all required evidence present",
+    "verdict": "pending",
+    "reason": "merge authorized; DONE evidence not yet checked",
     "evidence": {
-      "report_path": "openspec/changes/add-visual-code-explainer/validation-report.md",
-      "checked_at": "2026-09-16T22:13:53.821639+00:00",
-      "validate_outcome": "passed",
-      "validate_at": "2026-09-16T15:45:30.753559+00:00",
-      "report_mtime": "2026-09-16T15:44:44.020833+00:00",
-      "required_sections": [
-        "Spec Compliance"
-      ],
-      "phase_statuses": {
-        "Spec Compliance": "pass"
-      }
+      "merge_authorized": true,
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/558"
     }
   }
 }
