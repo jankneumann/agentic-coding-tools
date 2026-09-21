@@ -233,6 +233,9 @@ class LockReleaseRequest(BaseModel):
     agent_id: str
 
 
+class LockReleaseByAgentRequest(BaseModel):
+    agent_id: str
+
 class MemoryStoreRequest(BaseModel):
     agent_id: str
     session_id: str | None = None
@@ -1116,6 +1119,55 @@ def create_coordination_api() -> FastAPI:
                 "reason": lock.reason,
             },
         }
+
+
+    @app.get("/locks")
+    async def list_locks_by_agent(
+        agent_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """List active locks held by the authenticated agent."""
+        resolved_agent_id, agent_type = resolve_identity(principal, agent_id, None)
+        await authorize_operation(
+            agent_id=resolved_agent_id,
+            agent_type=agent_type,
+            operation="check_locks",
+            resource=resolved_agent_id,
+        )
+        from .locks import get_lock_service
+
+        locks = await get_lock_service().check(locked_by=resolved_agent_id)
+        return {
+            "locks": [
+                {
+                    "file_path": lock.file_path,
+                    "locked_by": lock.locked_by,
+                    "agent_type": lock.agent_type,
+                    "locked_at": lock.locked_at.isoformat(),
+                    "expires_at": lock.expires_at.isoformat(),
+                    "reason": lock.reason,
+                }
+                for lock in locks
+            ]
+        }
+
+    @app.post("/locks/release-by-agent")
+    async def release_locks_by_agent(
+        request: LockReleaseByAgentRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Idempotently release active locks held by the authenticated agent."""
+        resolved_agent_id, agent_type = resolve_identity(principal, request.agent_id, None)
+        await authorize_operation(
+            agent_id=resolved_agent_id,
+            agent_type=agent_type,
+            operation="release_lock",
+            resource=resolved_agent_id,
+        )
+        from .locks import get_lock_service
+
+        result = await get_lock_service().release_by_agent(resolved_agent_id)
+        return result
 
     # --------------------------------------------------------------------- #
     # MEMORY
