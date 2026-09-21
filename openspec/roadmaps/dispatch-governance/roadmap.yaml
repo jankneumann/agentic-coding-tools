@@ -102,7 +102,7 @@ items:
     change
 - item_id: dg-04
   title: Extend routing to vendor x location x isolation x dispatch mode
-  status: approved
+  status: completed
   priority: 1
   effort: L
   depends_on:
