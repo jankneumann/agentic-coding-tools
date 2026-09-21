@@ -92,4 +92,3 @@ Implemented dg-01 as a registry projection over explicit AgentEntry lane identit
 
 ### Context
 Validated dg-01 at e5684e8c: coordinator 2,659; required PostgreSQL 33 with zero skips; skills-root 4,873; affected skills 501; contract 19; strict mypy and Ruff green; OpenSpec 93/93; DAG/scope valid. Ready for stacked PR submission.
-
