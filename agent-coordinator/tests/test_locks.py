@@ -1,5 +1,7 @@
 """Tests for the file locking service."""
 
+from unittest.mock import AsyncMock
+
 import pytest
 from httpx import Response
 
@@ -240,3 +242,42 @@ class TestLockAtomicity:
         result2 = await service.acquire("src/main.py")
         assert result2.success is False
         assert result2.reason == "locked_by_other"
+
+
+@pytest.mark.asyncio
+async def test_release_by_agent_releases_each_active_lock(monkeypatch):
+    """A session cleanup releases every current lock for its owning agent."""
+    service = LockService()
+    locks = [
+        type("HeldLock", (), {"file_path": "src/one.py"})(),
+        type("HeldLock", (), {"file_path": "src/two.py"})(),
+    ]
+    check = AsyncMock(return_value=locks)
+    release = AsyncMock(
+        side_effect=[
+            LockResult(success=True, action="released", file_path="src/one.py"),
+            LockResult(success=True, action="released", file_path="src/two.py"),
+        ]
+    )
+    monkeypatch.setattr(service, "check", check)
+    monkeypatch.setattr(service, "release", release)
+
+    result = await service.release_by_agent("cloud-agent")
+
+    assert result == {"released_count": 2, "attempted_paths": ["src/one.py", "src/two.py"]}
+    check.assert_awaited_once_with(locked_by="cloud-agent")
+    assert [call.args for call in release.await_args_list] == [
+        ("src/one.py", "cloud-agent"),
+        ("src/two.py", "cloud-agent"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_release_by_agent_is_an_idempotent_no_op(monkeypatch):
+    service = LockService()
+    monkeypatch.setattr(service, "check", AsyncMock(return_value=[]))
+
+    assert await service.release_by_agent("cloud-agent") == {
+        "released_count": 0,
+        "attempted_paths": [],
+    }

@@ -437,6 +437,22 @@ async def proxy_check_locks(
     return results
 
 
+
+async def proxy_list_locks_by_agent(agent_id: str) -> dict[str, Any]:
+    """List the caller's active locks through the recovery endpoint."""
+    from urllib.parse import quote
+
+    return await _request("GET", f"/locks?agent_id={quote(agent_id, safe='')}")
+
+
+async def proxy_release_locks_by_agent(agent_id: str) -> dict[str, Any]:
+    """Idempotently release the caller's active locks through HTTP."""
+    return await _request(
+        "POST",
+        "/locks/release-by-agent",
+        json_body={"agent_id": agent_id},
+    )
+
 # =============================================================================
 # PROXY FUNCTIONS: Work Queue
 # =============================================================================
