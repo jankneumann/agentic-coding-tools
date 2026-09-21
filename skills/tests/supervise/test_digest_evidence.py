@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -28,7 +29,11 @@ AS_OF = "2026-09-20T00:00:00Z"
 
 def _git(repo: Path, *args: str) -> str:
     return subprocess.run(
-        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "GIT_AUTHOR_DATE": "2026-09-19T00:00:00Z", "GIT_COMMITTER_DATE": "2026-09-19T00:00:00Z"},
     ).stdout.strip()
 
 
