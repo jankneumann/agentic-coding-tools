@@ -50,6 +50,29 @@ _DIRECT_PROFILE_FIELDS = (
     "repo_shape",
 )
 
+# Mirrors TaskRoutingProfile's pydantic field defaults (api.py). A caller here
+# never goes through SelectModelRequest validation -- this path exists
+# precisely because the coordinator (which would apply those defaults) is
+# unreachable -- so an omitted or explicit-null field must still resolve to
+# the same default the coordinator would have used. Leaving it unset instead
+# evaluates the policy against an empty profile, which can match a *different*
+# rule (or none) than the coordinator would have matched, silently weakening
+# routing constraints during an outage (Codex review on PR #605).
+_PROFILE_DEFAULTS: dict[str, Any] = {
+    "scope": "read-only",
+    "interactivity": "headless",
+    "secret_need": "none",
+    "parallelism": 1,
+    "repo_shape": "unknown",
+}
+
+
+def _apply_profile_defaults(profile: dict[str, Any]) -> dict[str, Any]:
+    for field_name, default in _PROFILE_DEFAULTS.items():
+        if profile.get(field_name) is None:
+            profile[field_name] = default
+    return profile
+
 _RULE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
 _POLICY_VERSION_PATTERN = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
 
@@ -521,7 +544,7 @@ def local_static_route(
     design D8 -- never substitute a permissive default).
     """
     document, checksum = load_routing_policy_document(repo_root)
-    profile: dict[str, Any] = dict(routing_profile or {})
+    profile: dict[str, Any] = _apply_profile_defaults(dict(routing_profile or {}))
     profile["phase"] = task_signals.get("phase")
     profile["archetype"] = task_signals.get("archetype")
     evaluation = evaluate_policy(document, profile)
