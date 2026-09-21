@@ -139,7 +139,12 @@ def test_rule_derived_location_constrains_selection(checkout: Path) -> None:
     result = _route(checkout, routing_profile={"secret_need": "direct"})
 
     assert result["selected"]["assignment"]["location"] == "local"
-    assert result["provenance"]["matched_rule_ids"] == ["direct-secrets-local"]
+    # scope defaults to "read-only" (TaskRoutingProfile default), so
+    # read-only-review also fires alongside direct-secrets-local.
+    assert result["provenance"]["matched_rule_ids"] == [
+        "direct-secrets-local",
+        "read-only-review",
+    ]
     assert "rule:direct-secrets-local:location=local" in result["provenance"]["rationale"]
 
 
@@ -158,10 +163,50 @@ def test_explicit_and_rule_constraint_conflict_yields_no_candidates(checkout: Pa
         )
 
 
+def test_missing_routing_profile_applies_task_routing_profile_defaults(checkout: Path) -> None:
+    # No routing_profile at all -- the coordinator is unreachable, so nothing
+    # ever ran this through SelectModelRequest/TaskRoutingProfile validation.
+    # scope must still default to "read-only" (TaskRoutingProfile's pydantic
+    # default), matching the read-only-review rule, exactly as a reachable
+    # coordinator would have. Evaluating against an empty profile instead
+    # would silently fall through to the "quick" default dispatch mode --
+    # an outage weakening routing constraints (Codex review on PR #605).
+    result = _route(checkout)
+
+    assert result["selected"]["assignment"]["dispatch_mode"] == "review"
+    assert "rule:read-only-review:dispatch_mode=review" in result["provenance"]["rationale"]
+
+
+def test_partial_routing_profile_defaults_only_fill_omitted_fields(checkout: Path) -> None:
+    # secret_need is supplied explicitly; scope is omitted and must still
+    # default to "read-only" -- both rules fire, proving defaults apply
+    # alongside caller-supplied fields rather than only when the profile is
+    # entirely absent.
+    result = _route(checkout, routing_profile={"secret_need": "direct"})
+
+    assert result["selected"]["assignment"]["dispatch_mode"] == "review"
+    assert set(result["provenance"]["matched_rule_ids"]) == {
+        "direct-secrets-local",
+        "read-only-review",
+    }
+
+
+def test_explicit_non_default_scope_is_not_overridden_by_defaults(checkout: Path) -> None:
+    # An explicit, non-default scope must be preserved -- defaults fill gaps,
+    # they never clobber a caller-supplied value.
+    result = _route(checkout, routing_profile={"scope": "broad-write"})
+
+    assert result["provenance"]["matched_rule_ids"] == []
+    assert "default:dispatch_mode=quick" in result["provenance"]["rationale"]
+
+
 def test_default_dispatch_mode_used_when_no_rule_matches(checkout: Path) -> None:
+    # scope must be a non-default value here so read-only-review does not
+    # fire and mask the phase-default path this test targets.
     result = _route(
         checkout,
         task_signals={"archetype": "implementer", "phase": "IMPL_REVIEW"},
+        routing_profile={"scope": "broad-write"},
     )
 
     assert result["selected"]["assignment"]["dispatch_mode"] == "review"
@@ -324,7 +369,9 @@ def test_sdk_only_lane_is_selectable_via_sdk_dispatch_mode(tmp_path: Path) -> No
         {"archetype": "implementer"},
         static_provider="grok",
         static_model="grok-5",
-        routing_profile={"required_dispatch_mode": "sdk"},
+        # scope must be non-default here, or read-only-review's rule-derived
+        # dispatch_mode="review" conflicts with the explicit "sdk" request.
+        routing_profile={"required_dispatch_mode": "sdk", "scope": "broad-write"},
         repo_root=tmp_path,
     )
 
