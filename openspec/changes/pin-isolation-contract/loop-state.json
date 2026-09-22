@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "pin-isolation-contract",
-  "current_phase": "VALIDATE",
+  "current_phase": "SUBMIT_PR",
   "iteration": 0,
-  "total_iterations": 12,
+  "total_iterations": 13,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -18,7 +18,8 @@
     "vendor-plan-review-incorporated",
     "dg05-implementation-682b40cb",
     "dg05-impl-iterate-inline-5fd75b8d",
-    "dg05-impl-review-quorum-2-of-5"
+    "dg05-impl-review-quorum-2-of-5",
+    "dg05-validation-pass-local"
   ],
   "phase_history": [
     {
@@ -62,17 +63,22 @@
       "at": "2026-09-22T01:59:26.950679+00:00",
       "outcome": "converged",
       "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-22T02:20:53.050153+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "dg05-impl-review-quorum-2-of-5",
+  "last_handoff_id": "dg05-validation-pass-local",
   "started_at": "2026-09-21T23:01:31.334854+00:00",
-  "phase_started_at": "2026-09-22T01:59:27.021310+00:00",
+  "phase_started_at": "2026-09-22T02:20:53.116590+00:00",
   "previous_phase": "INIT",
   "escalation_reason": "logical transition failure: Invalid outcome 'exists' for phase 'INIT'",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": null,
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {},
   "gate_verdict": null,
@@ -169,8 +175,37 @@
       "recorded_at": "2026-09-22T00:43:23.404185+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-22T02:21:22.200629+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "pin-isolation-contract",
+    "gate": "pr_creation",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-09-22T02:21:22.200978+00:00",
+    "prompt": "Create the pull request for this change?",
+    "context": {
+      "validation_report": "openspec/changes/pin-isolation-contract/validation-report.md"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    }
+  },
   "goal_gate": null
 }
