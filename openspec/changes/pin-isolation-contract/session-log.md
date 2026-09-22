@@ -65,3 +65,36 @@ Inline iteration review completed after the required implementer dispatch could 
 ### Context
 The canonical implementation convergence loop completed one round with quorum from Claude Code/Fable and Grok 4.5. It reported zero confirmed blocking findings; unconfirmed advisories were dispositioned explicitly, and the spec readability item was fixed.
 
+---
+
+## Phase: Validation (2026-09-22)
+
+**Agent**: autopilot-inline | **Session**: N/A
+
+### Decisions
+1. **Exclude generated global architecture churn** `architectural: vendor-dispatch` — Preserve the scoped architecture impact and validation result while restoring repository-wide generated files that include unrelated adaptive-router and stale-baseline deltas.
+
+### Alternatives Considered
+- Commit the full architecture refresh: rejected because it adds thousands of unrelated generated lines to a narrow contract work package
+
+### Trade-offs
+- Accepted an advisory architecture summary over generated snapshots because it keeps the PR reviewable while preserving relevant finding counts and dispositions
+
+### Completed Work
+- Passed the canonical validation gate for the declared non-deployable surface
+- Passed strict OpenSpec, traceability, work-package, lint, and complete regression coverage
+- Completed architecture refresh, baseline diff, and scoped flow validation
+- Recorded deploy, smoke, gen-eval, security, E2E, and log phases as not applicable
+
+### Next Steps
+- Push the feature branch
+- Open the pull request against openspec/add-adaptive-model-router
+- Inspect pull-request checks without merging
+
+### Relevant Files
+- `openspec/changes/pin-isolation-contract/validation-report.md` — canonical validation result
+- `openspec/changes/pin-isolation-contract/architecture-impact.md` — architecture evidence and disposition
+
+### Context
+Validation passed. Coordinator coverage is green as a two-process partition (2650 + 193 passed) to isolate known pre-existing policy-test global state; skills cross-boundary coverage adds 146 passed. Scoped architecture flow checks produced zero findings. External coordinator writes remain intentionally disabled after the prior denial, and the local PhaseRecord records the fallback.
+
