@@ -6,6 +6,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+from jsonschema import ValidationError
 
 from src.agents_config import (
     AgentEntry,
@@ -286,5 +287,5 @@ def test_invalid_per_mode_isolation_is_rejected_at_load(
     path = _mode_aware_agents_yaml(tmp_path)
     path.write_text(path.read_text().replace("isolation: sandbox", "isolation: container"))
 
-    with pytest.raises(Exception, match="container"):
+    with pytest.raises(ValidationError, match="container"):
         load_agents_config(path, secrets_path=dummy_secrets)

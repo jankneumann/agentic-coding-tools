@@ -34,4 +34,9 @@ field. dg-06 execution wiring and dg-07 enforcement remain excluded.
 
 ## Decision D4 — Widening requires an explicit amendment
 
-`container` is not valid in this change. `add-sandboxed-harness-execution` must
+`container` is not valid in this change. Before
+`add-sandboxed-harness-execution` can introduce that posture, a future OpenSpec
+amendment must update the canonical type and values, both published schema
+enums, validation and precedence tests, and the router/fallback parity matrix.
+Until that amendment lands, every producer and consumer rejects `container`
+as an invalid present value rather than treating it as absence or `none`.
