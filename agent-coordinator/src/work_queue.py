@@ -802,6 +802,8 @@ class WorkQueueService:
         resolved_agent_type = (
             claimant_agent_type if claim_immediately else config.agent.agent_type
         )
+        assert resolved_agent_id is not None
+        assert resolved_agent_type is not None
 
         _, _, _, submit_counter, _ = _ensure_instruments()
 
