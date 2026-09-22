@@ -95,9 +95,9 @@ def main() -> None:
     else:
         print(f"{PREFIX} Handoff write failed", file=sys.stderr)
 
-    # Let a bound API-key identity remain authoritative; unbound keys retain
-    # the server legacy cloud-agent fallback.
-    lock_result = _post(base_url, "/locks/release-by-agent", {"agent_id": ""})
+    # Match the identity used by legacy unbound-key lock acquisition. Bound
+    # keys still enforce their authenticated identity at the API boundary.
+    lock_result = _post(base_url, "/locks/release-by-agent", {"agent_id": agent_id})
     if lock_result is not None and "released_count" in lock_result:
         released_count = lock_result.get("released_count")
         print(f"{PREFIX} Released {released_count} session lock(s)")

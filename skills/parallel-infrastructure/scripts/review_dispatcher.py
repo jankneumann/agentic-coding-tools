@@ -642,7 +642,8 @@ def parse_vendor_result_envelope(payload: str) -> VendorResultEnvelope:
         raise VendorResultProtocolError(
             f"vendor result envelope has unexpected field: {unexpected_fields[0]}"
         )
-    if data.get("version") != 1:
+    version = data.get("version")
+    if isinstance(version, bool) or not isinstance(version, int) or version != 1:
         raise VendorResultProtocolError("unsupported vendor result envelope version")
     state = data.get("state")
     valid_states = {"submitted", "running", "succeeded", "failed", "cancelled"}
@@ -679,6 +680,9 @@ def parse_vendor_result_envelope(payload: str) -> VendorResultEnvelope:
             )
         if not message:
             raise VendorResultProtocolError("error message must not be empty")
+        error_code = error.get("code")
+        if error_code is not None and (not isinstance(error_code, str) or not error_code):
+            raise VendorResultProtocolError("error code must be a non-empty string")
     return VendorResultEnvelope(
         version=1,
         state=state,
@@ -785,8 +789,6 @@ class CliVendorAdapter:
         """Create and claim one queue row before remote work can start."""
         correlation_id = str(uuid4())
         task_type = f"vendor-dispatch-{correlation_id}"
-        dispatcher_agent_id = os.environ.get("AGENT_ID")
-        dispatcher_agent_type = os.environ.get("AGENT_TYPE")
         response = self._ledger_submitter(
             task_type=task_type,
             task_description=(
@@ -799,6 +801,7 @@ class CliVendorAdapter:
                 "dispatch_mode": mode,
             },
             priority=5,
+            claim_immediately=True,
         )
         data = response.get("data")
         ledger_task_id = data.get("task_id") if isinstance(data, dict) else None
@@ -811,22 +814,8 @@ class CliVendorAdapter:
         ):
             return None, self._ledger_response_error(response)
 
-        claim = self._ledger_claimer(
-            agent_id=dispatcher_agent_id,
-            agent_type=dispatcher_agent_type,
-            task_types=[task_type],
-        )
-        claim_data = claim.get("data")
-        claimed_task_id = (
-            claim_data.get("task_id") if isinstance(claim_data, dict) else None
-        )
-        if (
-            claim.get("status") != "ok"
-            or not isinstance(claim_data, dict)
-            or claim_data.get("success") is not True
-            or claimed_task_id != ledger_task_id
-        ):
-            return None, f"claim failed: {self._ledger_response_error(claim)}"
+        if data.get("status") != "claimed":
+            return None, "atomic ledger submission did not return claimed status"
         return ledger_task_id, None
 
     def _complete_completion_ledger(
@@ -1768,10 +1757,20 @@ class CliVendorAdapter:
                     ledger_task_id=ledger_task_id,
                 )
             if envelope.state == "succeeded":
+                findings_payload = json.dumps(envelope.result or {"findings": []})
+                ingested = self._ingest_stdout(
+                    findings_payload,
+                    result.stderr,
+                    elapsed=time.monotonic() - elapsed_start,
+                    model_name="(async)",
+                    models_attempted=[],
+                    enforce_empty_findings_grace=review_started_at is not None,
+                )
                 ledger_error = self._complete_completion_ledger(
                     ledger_task_id,
-                    success=True,
+                    success=ingested.success,
                     envelope=envelope,
+                    error_message=None if ingested.success else ingested.error,
                 )
                 if ledger_error:
                     return ReviewResult(
@@ -1786,15 +1785,6 @@ class CliVendorAdapter:
                         task_id=task_id,
                         ledger_task_id=ledger_task_id,
                     )
-                findings_payload = json.dumps(envelope.result or {"findings": []})
-                ingested = self._ingest_stdout(
-                    findings_payload,
-                    result.stderr,
-                    elapsed=time.monotonic() - elapsed_start,
-                    model_name="(async)",
-                    models_attempted=[],
-                    enforce_empty_findings_grace=review_started_at is not None,
-                )
                 ingested.task_id = task_id
                 ingested.ledger_task_id = ledger_task_id
                 return ingested
