@@ -190,22 +190,24 @@
       "disposition": "block",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-22T02:21:22.200629+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 User explicitly approves git push and gh pr create for dg-05. Do not merge yet.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-22T12:50:47.049865+00:00",
+      "note": "User explicitly approves git push and gh pr create for dg-05. Do not merge yet."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "pin-isolation-contract",
-    "gate": "pr_creation",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-09-22T02:21:22.200978+00:00",
-    "prompt": "Create the pull request for this change?",
-    "context": {
-      "validation_report": "openspec/changes/pin-isolation-contract/validation-report.md"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
