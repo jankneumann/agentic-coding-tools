@@ -1,0 +1,101 @@
+{
+  "review_type": "implementation",
+  "target": "pin-isolation-contract",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Isolation ladder provenance is computed then discarded, so coordinator-unreachable decisions cannot record which rung produced isolation. `resolve_isolation()` returns `IsolationResolution(value, source)` with `router|agents_yaml|default`, but `skills/coordination-bridge/scripts/routing_fallback.py` and `agent-coordinator/src/model_routing/resolver.py` keep only `.value` when building assignments. `RoutingProvenance.source` is only `coordinator|local-static`, not the isolation rung. This leaves the vendor-dispatch scenario \u201cCoordinator-unreachable yields a decision\u2026 SHALL record which rung\u201d unmet, even though `openspec/changes/pin-isolation-contract/change-context.md` marks that requirement as pass.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "resolution": "Keep the full `IsolationResolution` at emit sites; add an additive `isolation_source` (or equivalent) on the assignment/decision payload and assert it in fallback + resolver tests for agents_yaml vs default.",
+      "package_id": "wp-isolation-contract",
+      "file_path": "skills/coordination-bridge/scripts/routing_fallback.py",
+      "line_range": {
+        "start": 630,
+        "end": 634
+      },
+      "evidence_class": "judgment",
+      "existing_code": "isolation = isolation_contract.resolve_isolation(\n            router_reachable=False,\n            router_value=None,\n            configured_value=configured_isolation,\n        ).value",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: The same provenance drop exists on the coordinator emit path. `resolver.py` calls `resolve_isolation(...).value` and stores only `isolation` on `RoutingAssignment`, so even reachable-router assignments never carry ladder provenance required by design D2 (\u201cprovenance must remain observable\u201d).",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "resolution": "Thread `IsolationResolution.source` through `RoutingAssignment` / OpenAPI assignment schema in the same additive change as finding 1.",
+      "package_id": "wp-isolation-contract",
+      "file_path": "agent-coordinator/src/model_routing/resolver.py",
+      "line_range": {
+        "start": 232,
+        "end": 243
+      },
+      "evidence_class": "judgment",
+      "existing_code": "isolation = resolve_isolation(\n                router_reachable=False,\n                router_value=None,\n                configured_value=configured_isolation,\n            ).value\n            assignment = RoutingAssignment(\n                agent_id=str(lane.get(\"agent_id\") or \"\"),\n                vendor_type=str(lane.get(\"vendor_type\") or \"\"),\n                policy_vendor=str(lane.get(\"policy_vendor\") or \"\"),\n                catalog_vendor=key[0],\n                location=str(lane.get(\"location\") or \"unknown\"),\n                isolation=isolation,",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: `review_dispatcher.py` parses per-mode `isolation` into `ModeConfig` as an unconstrained `str | None` and never validates it against `isolation_contract`. The vendor-dispatch scenario \u201cAn unrecognized isolation value is rejected\u201d requires fail-closed behavior when a present value reaches the dispatch layer. Design D3 defers enforcement/execution wiring, but accepting `container` (or any free string) into the parsed field still leaves a fail-open parse path; the field is currently write-only, so impact is latent until dg-06 consumes it.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "When constructing `ModeConfig`, validate present isolation values with the same checkout-root `isolation_contract` load shim used by `routing_fallback`, or reject before storing the field.",
+      "package_id": "wp-isolation-contract",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2204,
+        "end": 2209
+      },
+      "evidence_class": "judgment",
+      "existing_code": "dispatch_modes[mode_name] = ModeConfig(\n                        args=mode_data[\"args\"],\n                        async_dispatch=mode_data.get(\"async\", False),\n                        poll=poll_cfg,\n                        isolation=mode_data.get(\"isolation\"),\n                    )",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: In `specs/vendor-dispatch/spec.md`, the scenario \u201cAbsence falls through while invalid presence fails\u201d packs two distinct WHEN/THEN behaviors (absence fall-through vs invalid-present rejection) under one `#### Scenario` heading and omits a blank line before the next scenario. Group 4 reviewability is weaker than one-behavior-per-scenario, even though both branches have WHEN/THEN.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Split into two scenarios (absence fall-through; invalid present fails closed) and restore normal heading spacing.",
+      "package_id": "wp-isolation-contract",
+      "file_path": "openspec/changes/pin-isolation-contract/specs/vendor-dispatch/spec.md",
+      "line_range": {
+        "start": 52,
+        "end": 60
+      },
+      "evidence_class": "judgment",
+      "existing_code": "#### Scenario: Absence falls through while invalid presence fails\n\nWHEN a reachable router supplies no isolation value\nOR a configured agent has no matching per-mode override\nTHEN resolution SHALL fall through to the next rung and record that source.\n\nWHEN any supplied isolation value is outside the canonical vocabulary\nTHEN resolution SHALL raise an explicit contract error naming the source rung\nAND SHALL NOT treat that invalid value as an absent value.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Mode-aware isolation emission and fallback parity look correctly wired for this change: `vendor_registry` projects `isolation_by_dispatch_mode`, `resolver` selects by dispatch mode after mode is known, `routing_fallback` loads the canonical `isolation_contract.py` via checkout-root shim (no local vocabulary copy), and static OpenAPI/routing-schema enums are pinned to `ISOLATION_MODES` by test.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-isolation-contract",
+      "file_path": "agent-coordinator/src/isolation_contract.py",
+      "line_range": {
+        "start": 9,
+        "end": 63
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    }
+  ]
+}

@@ -33,3 +33,35 @@
 ### Context
 Inline iteration review completed after the required implementer dispatch could not start because the collaboration thread limit was exhausted. The review repaired the truncated future-amendment contract and tightened the invalid-configuration test; focused validation is green and no runtime finding remains at the medium threshold.
 
+---
+
+## Phase: Implementation Review (2026-09-22)
+
+**Agent**: autopilot-inline | **Session**: N/A
+
+### Decisions
+1. **Do not widen the dg-04 assignment schema in dg-05** `architectural: vendor-dispatch` — The canonical IsolationResolution preserves source; execution/API threading belongs to dg-06 and the archived assignment contract is outside this package write scope.
+
+### Alternatives Considered
+- Add isolation_source to RoutingAssignment now: rejected because it would expand the published dg-04 API and work-package scope beyond the approved dg-05 contract
+
+### Trade-offs
+- Accepted preserving raw vendor and fact-check evidence over presenting only the synthesized consensus because the fact-check stage incorrectly removed changed-file findings and the limitation must remain auditable
+
+### Completed Work
+- Completed vendor review at quorum 2/5
+- Preserved manifest, raw successful findings, and fact-check decisions
+- Split the combined absence/invalid-presence scenario
+- Recorded explicit dispositions for every advisory
+
+### Next Steps
+- Run validate-feature checks
+- Push and open the pull request without merging
+
+### Relevant Files
+- `openspec/changes/pin-isolation-contract/reviews/implementation/review-summary.md` — review outcome and dispositions
+- `openspec/changes/pin-isolation-contract/reviews/implementation/review-manifest.json` — vendor dispatch evidence
+
+### Context
+The canonical implementation convergence loop completed one round with quorum from Claude Code/Fable and Grok 4.5. It reported zero confirmed blocking findings; unconfirmed advisories were dispositioned explicitly, and the spec readability item was fixed.
+
