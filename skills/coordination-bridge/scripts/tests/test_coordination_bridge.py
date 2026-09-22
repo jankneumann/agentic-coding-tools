@@ -682,3 +682,120 @@ def test_try_issue_create_unauthorized_returns_skipped(monkeypatch) -> None:
 
     assert result["status"] == "skipped"
     assert result["reason"] == "unauthorized"
+
+
+def _refusal() -> dict[str, Any]:
+    return {
+        "status_code": 403,
+        "data": {"detail": "API key is not permitted to act as requested agent_id"},
+        "error": "forbidden",
+    }
+
+
+def _ok() -> dict[str, Any]:
+    return {"status_code": 200, "data": {"success": True}, "error": None}
+
+
+def _capture_bridge(monkeypatch, responses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    captured: list[dict[str, Any]] = []
+    queue = list(responses)
+    monkeypatch.setattr(
+        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+    )
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **kwargs: (captured.append(kwargs) or queue.pop(0)),
+    )
+    return captured
+
+
+def test_try_lock_sends_caller_identity_first(monkeypatch) -> None:
+    """An unbound key is the only identity the server has; do not discard it.
+
+    A deployment may list a key in COORDINATION_API_KEYS with no entry in
+    COORDINATION_API_KEY_IDENTITIES. Blanking identity there resolves every
+    agent to the `cloud-agent` default, so two agents would share one lock
+    owner and could release each other's locks.
+    """
+    captured = _capture_bridge(monkeypatch, [_ok()])
+
+    coordination_bridge.try_lock(
+        file_path="f", agent_id="local-agent", agent_type="claude_code", api_key="k"
+    )
+
+    assert len(captured) == 1
+    assert captured[0]["payload"]["agent_id"] == "local-agent"
+    assert captured[0]["payload"]["agent_type"] == "claude_code"
+
+
+def test_try_lock_retries_without_identity_when_the_key_is_bound(monkeypatch) -> None:
+    """A bound key may only act as itself, and the caller cannot know its name.
+
+    The refusal is the only signal that the key is bound, so it drives one
+    retry with the identity dropped.
+    """
+    captured = _capture_bridge(monkeypatch, [_refusal(), _ok()])
+
+    result = coordination_bridge.try_lock(
+        file_path="f",
+        agent_id="merge-pull-requests-sync-point",
+        agent_type="merge-pull-requests",
+        api_key="bound-key-xyz",
+    )
+
+    assert [c["payload"]["agent_id"] for c in captured] == [
+        "merge-pull-requests-sync-point",
+        "",
+    ]
+    assert captured[1]["payload"]["agent_type"] == ""
+    assert result["status"] == "ok"
+
+
+def test_try_unlock_retries_without_identity_when_the_key_is_bound(monkeypatch) -> None:
+    """A refused release strands the lock until its TTL expires."""
+    captured = _capture_bridge(monkeypatch, [_refusal(), _ok()])
+
+    coordination_bridge.try_unlock(
+        file_path="f", agent_id="merge-pull-requests-sync-point", api_key="bound-key-xyz"
+    )
+
+    assert [c["payload"]["agent_id"] for c in captured] == [
+        "merge-pull-requests-sync-point",
+        "",
+    ]
+
+
+def test_an_unrelated_403_is_not_retried(monkeypatch) -> None:
+    """Only the identity refusal means "you are bound"; other 403s are real."""
+    denied = {
+        "status_code": 403,
+        "data": {"detail": "agent is not permitted to acquire locks"},
+        "error": "forbidden",
+    }
+    captured = _capture_bridge(monkeypatch, [denied])
+
+    result = coordination_bridge.try_lock(
+        file_path="f", agent_id="a", agent_type="t", api_key="k"
+    )
+
+    assert len(captured) == 1
+    assert result["reason"] == "forbidden"
+
+
+def test_a_forbidden_response_is_distinguished_from_a_rejected_key(monkeypatch) -> None:
+    """403 and 401 want different fixes, so they must not share one reason."""
+    monkeypatch.setattr(
+        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+    )
+    monkeypatch.setattr(
+        coordination_bridge, "_http_request", lambda **_: _refusal()
+    )
+
+    result = coordination_bridge.try_lock(
+        file_path="f", agent_id="a", agent_type="t", api_key="k"
+    )
+
+    assert result["reason"] == "forbidden"
+    assert result["status_code"] == 403
+    assert "not permitted to act as requested agent_id" in result["detail"]

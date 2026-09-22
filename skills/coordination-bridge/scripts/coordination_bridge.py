@@ -481,10 +481,23 @@ def _normalize_operation_response(
             state=state,
         )
     if status_code in (401, 403):
+        # 401 and 403 mean different things and want different fixes: a
+        # rejected credential versus a valid credential doing something it may
+        # not. Collapsing both into "unauthorized" is why a 403 reading "API
+        # key is not permitted to act as requested agent_id" reached operators
+        # as "coordinator lock skipped (unauthorized)" and went undiagnosed for
+        # days. Carry the server's own explanation through.
+        detail = None
+        data = response.get("data")
+        if isinstance(data, dict):
+            raw_detail = data.get("detail")
+            if isinstance(raw_detail, str) and raw_detail:
+                detail = raw_detail[:200]
         return _skipped_operation(
             operation=operation,
-            reason="unauthorized",
+            reason="unauthorized" if status_code == 401 else "forbidden",
             state=state,
+            extra={"status_code": status_code, **({"detail": detail} if detail else {})},
         )
     if 200 <= status_code < 300:
         payload = response.get("data")
@@ -614,6 +627,68 @@ def _execute_multi_endpoint_operation(
     )
 
 
+#: The coordinator's exact wording when an API key is bound to one identity and
+#: the request names another. Matching it keeps the retry below narrow: any
+#: other 403 is a real authorization failure and must not be retried.
+_IDENTITY_REFUSED = "not permitted to act as requested"
+
+
+def _identity_was_refused(result: dict[str, Any]) -> bool:
+    return result.get("reason") == "forbidden" and _IDENTITY_REFUSED in str(
+        result.get("detail") or ""
+    )
+
+
+def _lock_request(
+    *,
+    operation: str,
+    path: str,
+    payload: dict[str, Any],
+    identity: dict[str, Any],
+    http_url: str | None,
+    api_key: str | None,
+) -> dict[str, Any]:
+    """Send a lock request, retrying once without identity if it is refused.
+
+    Two deployment shapes have to work, and the client cannot tell them apart:
+
+    * a key listed in ``COORDINATION_API_KEY_IDENTITIES`` is *bound*, and
+      ``resolve_identity`` 403s on any request naming a different identity. The
+      caller cannot know the bound name, so it must send none.
+    * a key in ``COORDINATION_API_KEYS`` with no identity entry is *unbound*,
+      and the request's own identity is all the server has. Sending none there
+      collapses every agent to the ``cloud-agent`` default, so two agents could
+      release each other's locks.
+
+    Blanking unconditionally fixes the first and breaks the second. So the
+    caller's identity goes first, which is correct for an unbound key, and a
+    refusal -- the one error that means "you are bound" -- triggers a single
+    retry without it. Each deployment pays at most one extra round trip, and
+    only when the server has said the first attempt was wrong.
+    """
+    attempt = _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_LOCK",
+        method="POST",
+        path=path,
+        payload={**payload, **identity},
+        http_url=http_url,
+        api_key=api_key,
+    )
+    if not _identity_was_refused(attempt):
+        return attempt
+    blanked = dict.fromkeys(identity, "")
+    return _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_LOCK",
+        method="POST",
+        path=path,
+        payload={**payload, **blanked},
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def try_lock(
     *,
     file_path: str,
@@ -626,19 +701,16 @@ def try_lock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Acquire a coordinator lock when lock capability is available."""
-    return _execute_single_endpoint_operation(
+    return _lock_request(
         operation="try_lock",
-        capability_flag="CAN_LOCK",
-        method="POST",
         path="/locks/acquire",
         payload={
             "file_path": file_path,
-            "agent_id": agent_id,
-            "agent_type": agent_type,
             "session_id": session_id,
             "reason": reason,
             "ttl_minutes": ttl_minutes,
         },
+        identity={"agent_id": agent_id, "agent_type": agent_type},
         http_url=http_url,
         api_key=api_key,
     )
@@ -652,15 +724,13 @@ def try_unlock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Release a coordinator lock when lock capability is available."""
-    return _execute_single_endpoint_operation(
+    # Same binding rule as acquire: a release naming an identity the key is not
+    # bound to is refused, stranding the lock until its TTL expires.
+    return _lock_request(
         operation="try_unlock",
-        capability_flag="CAN_LOCK",
-        method="POST",
         path="/locks/release",
-        payload={
-            "file_path": file_path,
-            "agent_id": agent_id,
-        },
+        payload={"file_path": file_path},
+        identity={"agent_id": agent_id},
         http_url=http_url,
         api_key=api_key,
     )
