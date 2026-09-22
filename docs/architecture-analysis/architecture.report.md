@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-19T02:56:36+00:00  
-Git SHA: `5a3e4652623831f8f4a06be7b09f149bed3d2603`
+Generated: 2026-09-22T13:04:52+00:00  
+Git SHA: `dda8d2231ce30553c784cd92c05c53e746075d01`
 
 ## System Overview
 
@@ -13,15 +13,15 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1886 |
+| Total nodes | 1956 |
 | Total edges | 1231 |
 | Python modules | 77 |
 | Functions | 1118 (444 async) |
 | Classes | 256 |
 | Mcp Endpoints | 97 |
 | DB tables | 29 |
-| Python nodes | 1451 |
-| Sql nodes | 435 |
+| Python nodes | 1503 |
+| Sql nodes | 453 |
 
 ## Module Responsibility Map
 
@@ -279,7 +279,7 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2828 findings** across 5 categories:
+**2819 findings** across 4 categories:
 
 ### Orphan — 1251
 
@@ -291,17 +291,6 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
 - ... and 1246 more
-
-### Pattern Consistency — 9
-
-9 unclassified findings.
-
-- 'IF' uses PascalCase but most columns use snake_case
-- 'IF' uses PascalCase but most columns use snake_case
-- 'IF' uses PascalCase but most columns use snake_case
-- 'IF' uses PascalCase but most columns use snake_case
-- 'IF' uses PascalCase but most columns use snake_case
-- ... and 4 more
 
 ### Reachability — 97
 
@@ -472,7 +461,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1154 independent groups** identified. The largest interconnected group has 554 modules; 1464 modules are leaf nodes (safe to modify in isolation).
+**1224 independent groups** identified. The largest interconnected group has 554 modules; 1534 modules are leaf nodes (safe to modify in isolation).
 
 **42 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -500,9 +489,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1464)
+### Leaf Modules (1534)
 
-1464 modules have no dependents — changes are fully isolated. 1129 of the 1154 groups are singletons.
+1534 modules have no dependents — changes are fully isolated. 1199 of the 1224 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -512,8 +501,8 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1451 nodes)"]
-    Database["Database (435 nodes)"]
+    Backend["Backend (1503 nodes)"]
+    Database["Database (453 nodes)"]
 ```
 
 ### Backend Components
@@ -592,6 +581,7 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (14 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     trust_levels["trust_levels (2 symbols)"]
     trust_resolution["trust_resolution (5 symbols)"]
     watchdog["watchdog (18 symbols)"]
@@ -817,16 +807,17 @@ erDiagram
         TEXT agent_id
         TIMESTAMPTZ assigned_at
         TEXT assigned_by
+        UNKNOWN enable
         UUID id
         UUID profile_id
     }
     public__agent_profiles {
-        NOT_EXISTS_synced_from_registry_at_TIMESTAMPTZ IF
         TEXT agent_type
-        TEXT__ allowed_operations
-        TEXT__ blocked_operations
+        TEXT allowed_operations
+        TEXT blocked_operations
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT max_api_calls_per_hour
@@ -835,20 +826,23 @@ erDiagram
         JSONB metadata
         TEXT name
         JSONB network_policy
+        TIMESTAMPTZ synced_from_registry_at
         INT trust_level
         TIMESTAMPTZ updated_at
     }
     public__agent_sessions {
-        NOT_EXISTS_delegated_from_TEXT IF
         TEXT agent_id
         TEXT agent_type
-        TEXT__ capabilities
+        TEXT capabilities
         TEXT current_task
+        TEXT delegated_from
+        UNKNOWN enable
         TIMESTAMPTZ ended_at
-        TEXT__ files_modified
+        TEXT files_modified
         TEXT id
         TIMESTAMPTZ last_heartbeat
         JSONB metadata
+        TEXT phase_archetype
         TIMESTAMPTZ started_at
         TEXT status
         TEXT task_description
@@ -861,6 +855,7 @@ erDiagram
         TIMESTAMPTZ created_at
         TIMESTAMPTZ decided_at
         TEXT decided_by
+        UNKNOWN enable
         TIMESTAMPTZ expires_at
         UUID id
         TEXT operation
@@ -869,11 +864,12 @@ erDiagram
         TEXT status
     }
     public__audit_log {
-        NOT_EXISTS_delegated_from_TEXT IF
         TEXT agent_id
         TEXT agent_type
         TIMESTAMPTZ created_at
+        TEXT delegated_from
         INT duration_ms
+        UNKNOWN enable
         TEXT error_message
         UUID id
         TEXT operation
@@ -884,6 +880,7 @@ erDiagram
     public__cedar_entities {
         JSONB attributes
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         TEXT entity_id
         TEXT entity_type
         UUID id
@@ -891,13 +888,14 @@ erDiagram
         TIMESTAMPTZ updated_at
     }
     public__cedar_policies {
-        NOT_EXISTS_policy_version_INTEGER IF
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         TEXT name
         TEXT policy_text
+        INTEGER policy_version
         INTEGER priority
         TIMESTAMPTZ updated_at
     }
@@ -918,6 +916,7 @@ erDiagram
         TEXT commit_sha
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         UUID id
         TEXT session_id
         TEXT status
@@ -947,13 +946,12 @@ erDiagram
         UUID index_id
     }
     public__code_search_indexes {
-        code_search_indexes_natural_key CONSTRAINT
-        NOT_EXISTS_policy_fingerprint_TEXT IF
         INTEGER attempt_count
         INTEGER chunk_count
         TIMESTAMPTZ completed_at
         TIMESTAMPTZ created_at
         TIMESTAMPTZ deleted_at
+        TEXT embedder_fingerprint
         TEXT embedder_model
         INTEGER embedding_dim
         UUID index_id
@@ -963,20 +961,23 @@ erDiagram
         UUID lease_token
         TEXT namespace_key
         TEXT namespace_kind
+        UUID parent_index_id
+        TEXT pipeline_fingerprint
+        TEXT policy_fingerprint
         TEXT repo_slug
         TIMESTAMPTZ retention_until
-        TEXT source_revision
         TIMESTAMPTZ started_at
         TEXT status
         TEXT storage_key
         TIMESTAMPTZ updated_at
     }
     public__code_search_registry {
-        NOT_EXISTS_canonical_index_id_UUID IF
+        UUID canonical_index_id
         INTEGER chunk_count
         TIMESTAMPTZ created_at
         TEXT embedder_model
         INTEGER embedding_dim
+        TEXT git_common_dir_fingerprint
         TEXT last_indexed_commit
         TEXT repo_root
         TEXT repo_slug
@@ -987,16 +988,16 @@ erDiagram
         TIMESTAMPTZ completed_at
         TEXT feature_id
         INTEGER merge_priority
-        JSONB metadata
         TIMESTAMPTZ registered_at
         TEXT registered_by
-        TEXT__ resource_claims
+        TEXT resource_claims
         TEXT status
         TEXT title
         TIMESTAMPTZ updated_at
     }
     public__file_locks {
         TEXT agent_type
+        UNKNOWN enable
         TIMESTAMPTZ expires_at
         TEXT file_path
         TIMESTAMPTZ locked_at
@@ -1012,6 +1013,7 @@ erDiagram
         TEXT category
         JSONB context
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         UUID id
         TEXT matched_text
         TEXT operation_text
@@ -1019,22 +1021,24 @@ erDiagram
         INT trust_level
     }
     public__handoff_documents {
-        NOT_EXISTS_supervisor_record_JSONB IF
         TEXT agent_name
         JSONB completed_work
         TIMESTAMPTZ created_at
         JSONB decisions
+        UNKNOWN enable
         UUID id
         JSONB in_progress
         JSONB next_steps
         JSONB relevant_files
         TEXT session_id
         TEXT summary
+        JSONB supervisor_record
     }
     public__issue_comments {
         TEXT author
         TEXT body
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         UUID id
         UUID issue_id
     }
@@ -1042,20 +1046,22 @@ erDiagram
         TEXT agent_id
         TIMESTAMPTZ created_at
         JSONB details
+        UNKNOWN enable
         TEXT event_type
         UUID id
-        TEXT__ lessons
+        TEXT lessons
         TEXT outcome
         FLOAT relevance_score
         TEXT session_id
         TEXT summary
-        TEXT__ tags
+        TEXT tags
     }
     public__network_access_log {
         TEXT agent_id
         BOOLEAN allowed
         TIMESTAMPTZ created_at
         TEXT domain
+        UNKNOWN enable
         UUID id
         UUID policy_id
         TEXT reason
@@ -1065,6 +1071,7 @@ erDiagram
         TIMESTAMPTZ created_at
         TEXT description
         TEXT domain_pattern
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT priority
@@ -1083,6 +1090,7 @@ erDiagram
         TEXT category
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT min_trust_level
@@ -1104,45 +1112,45 @@ erDiagram
         JSONB config
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
-        verification_executor executor
+        UNKNOWN executor
         TEXT file_pattern
         UUID id
         TEXT name
         INT priority
-        verification_tier tier
+        UNKNOWN tier
     }
     public__verification_results {
         UUID changeset_id
         TIMESTAMPTZ completed_at
         TIMESTAMPTZ created_at
         INT duration_ms
+        UNKNOWN enable
         TEXT error_message
-        verification_executor executor
+        UNKNOWN executor
         UUID id
         JSONB result
         TIMESTAMPTZ started_at
-        verification_status status
-        verification_tier tier
+        UNKNOWN status
+        UNKNOWN tier
     }
     public__work_queue {
-        NOT_EXISTS_labels_TEXT__ IF
-        INTEGER attempt_count
+        JSONB agent_requirements
+        TEXT assignee
         TIMESTAMPTZ claimed_at
         TEXT claimed_by
-        TIMESTAMPTZ completed_at
-        TIMESTAMPTZ created_at
-        TIMESTAMPTZ deadline
-        UUID__ depends_on
+        TEXT close_reason
+        TIMESTAMPTZ closed_at
         TEXT description
-        TEXT error_message
+        UNKNOWN enable
         UUID id
         JSONB input_data
-        INTEGER max_attempts
+        TEXT issue_type
+        TEXT labels
+        JSONB metadata
+        UUID parent_id
         INTEGER priority
-        JSONB result
-        TIMESTAMPTZ started_at
-        TEXT status
         TEXT task_type
     }
     public__work_queue_projection_heads {
