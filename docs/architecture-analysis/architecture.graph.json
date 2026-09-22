@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-09-19T02:54:45+00:00",
-      "git_sha": "8890ba60f30f01765b8ced7e984df183d99c9f19",
+      "generated_at": "2026-09-19T02:56:36+00:00",
+      "git_sha": "5a3e4652623831f8f4a06be7b09f149bed3d2603",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -21199,21 +21199,6 @@
       }
     },
     {
-      "id": "pg:public.public.file_locks.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.work_queue",
       "kind": "table",
       "language": "sql",
@@ -21332,10 +21317,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.enable",
+      "id": "pg:public.public.work_queue.depends_on",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "depends_on",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21343,44 +21328,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "UUID[]"
       }
     },
     {
-      "id": "pg:public.public.work_queue.labels",
+      "id": "pg:public.public.work_queue.status",
       "kind": "column",
       "language": "sql",
-      "name": "labels",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.parent_id",
-      "kind": "column",
-      "language": "sql",
-      "name": "parent_id",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UUID"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.issue_type",
-      "kind": "column",
-      "language": "sql",
-      "name": "issue_type",
+      "name": "status",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21392,10 +21347,25 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.assignee",
+      "id": "pg:public.public.work_queue.result",
       "kind": "column",
       "language": "sql",
-      "name": "assignee",
+      "name": "result",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.error_message",
+      "kind": "column",
+      "language": "sql",
+      "name": "error_message",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21407,10 +21377,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.closed_at",
+      "id": "pg:public.public.work_queue.created_at",
       "kind": "column",
       "language": "sql",
-      "name": "closed_at",
+      "name": "created_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21422,10 +21392,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.close_reason",
+      "id": "pg:public.public.work_queue.started_at",
       "kind": "column",
       "language": "sql",
-      "name": "close_reason",
+      "name": "started_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21433,14 +21403,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TIMESTAMPTZ"
       }
     },
     {
-      "id": "pg:public.public.work_queue.metadata",
+      "id": "pg:public.public.work_queue.completed_at",
       "kind": "column",
       "language": "sql",
-      "name": "metadata",
+      "name": "completed_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21448,14 +21418,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "TIMESTAMPTZ"
       }
     },
     {
-      "id": "pg:public.public.work_queue.agent_requirements",
+      "id": "pg:public.public.work_queue.deadline",
       "kind": "column",
       "language": "sql",
-      "name": "agent_requirements",
+      "name": "deadline",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21463,7 +21433,52 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.attempt_count",
+      "kind": "column",
+      "language": "sql",
+      "name": "attempt_count",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.max_attempts",
+      "kind": "column",
+      "language": "sql",
+      "name": "max_attempts",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.IF",
+      "kind": "column",
+      "language": "sql",
+      "name": "IF",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "NOT EXISTS labels TEXT[]"
       }
     },
     {
@@ -21596,7 +21611,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21615,21 +21630,6 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.agent_sessions.capabilities",
       "kind": "column",
       "language": "sql",
@@ -21641,7 +21641,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21690,10 +21690,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.delegated_from",
+      "id": "pg:public.public.agent_sessions.IF",
       "kind": "column",
       "language": "sql",
-      "name": "delegated_from",
+      "name": "IF",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21701,22 +21701,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_sessions.phase_archetype",
-      "kind": "column",
-      "language": "sql",
-      "name": "phase_archetype",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS delegated_from TEXT"
       }
     },
     {
@@ -21883,10 +21868,10 @@
       }
     },
     {
-      "id": "pg:public.public.handoff_documents.enable",
+      "id": "pg:public.public.handoff_documents.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "002_handoff_documents.sql",
       "span": {
         "start": 1,
@@ -21894,22 +21879,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.handoff_documents.supervisor_record",
-      "kind": "column",
-      "language": "sql",
-      "name": "supervisor_record",
-      "file": "002_handoff_documents.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "JSONB"
+        "type": "NOT EXISTS supervisor_record JSONB"
       }
     },
     {
@@ -22042,7 +22012,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -22057,7 +22027,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -22088,21 +22058,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.memory_episodic.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "004_memory_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22269,21 +22224,6 @@
       }
     },
     {
-      "id": "pg:public.public.changesets.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.verification_results",
       "kind": "table",
       "language": "sql",
@@ -22338,7 +22278,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_tier"
       }
     },
     {
@@ -22353,7 +22293,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_executor"
       }
     },
     {
@@ -22368,7 +22308,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_status"
       }
     },
     {
@@ -22462,21 +22402,6 @@
       }
     },
     {
-      "id": "pg:public.public.verification_results.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.verification_policies",
       "kind": "table",
       "language": "sql",
@@ -22561,7 +22486,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_tier"
       }
     },
     {
@@ -22576,7 +22501,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_executor"
       }
     },
     {
@@ -22637,21 +22562,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.verification_policies.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22800,21 +22710,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.operation_guardrails.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "006_guardrails_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22996,21 +22891,6 @@
       }
     },
     {
-      "id": "pg:public.public.guardrail_violations.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "006_guardrails_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.agent_profiles",
       "kind": "table",
       "language": "sql",
@@ -23110,7 +22990,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -23125,7 +23005,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -23249,10 +23129,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_profiles.enable",
+      "id": "pg:public.public.agent_profiles.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "007_agent_profiles.sql",
       "span": {
         "start": 1,
@@ -23260,22 +23140,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_profiles.synced_from_registry_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "synced_from_registry_at",
-      "file": "007_agent_profiles.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
+        "type": "NOT EXISTS synced_from_registry_at TIMESTAMPTZ"
       }
     },
     {
@@ -23364,21 +23229,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_profile_assignments.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "007_agent_profiles.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -23545,10 +23395,10 @@
       }
     },
     {
-      "id": "pg:public.public.audit_log.enable",
+      "id": "pg:public.public.audit_log.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "008_audit_log.sql",
       "span": {
         "start": 1,
@@ -23556,22 +23406,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.audit_log.delegated_from",
-      "kind": "column",
-      "language": "sql",
-      "name": "delegated_from",
-      "file": "008_audit_log.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS delegated_from TEXT"
       }
     },
     {
@@ -23708,21 +23543,6 @@
       }
     },
     {
-      "id": "pg:public.public.network_policies.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "009_network_policies.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.network_access_log",
       "kind": "table",
       "language": "sql",
@@ -23838,21 +23658,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.network_access_log.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "009_network_policies.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -23989,10 +23794,10 @@
       }
     },
     {
-      "id": "pg:public.public.cedar_policies.enable",
+      "id": "pg:public.public.cedar_policies.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "010_cedar_policy_store.sql",
       "span": {
         "start": 1,
@@ -24000,22 +23805,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.cedar_policies.policy_version",
-      "kind": "column",
-      "language": "sql",
-      "name": "policy_version",
-      "file": "010_cedar_policy_store.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "INTEGER"
+        "type": "NOT EXISTS policy_version INTEGER"
       }
     },
     {
@@ -24134,21 +23924,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.cedar_entities.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "010_cedar_policy_store.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -24281,7 +24056,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -24312,6 +24087,21 @@
       "tags": [],
       "signatures": {
         "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.metadata",
+      "kind": "column",
+      "language": "sql",
+      "name": "metadata",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
       }
     },
     {
@@ -24774,21 +24564,6 @@
       }
     },
     {
-      "id": "pg:public.public.approval_queue.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "014_fix_approval_queue_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.notification_tokens",
       "kind": "table",
       "language": "sql",
@@ -24995,21 +24770,6 @@
       }
     },
     {
-      "id": "pg:public.public.issue_comments.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "017_issue_tracking.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.code_search_registry",
       "kind": "table",
       "language": "sql",
@@ -25143,10 +24903,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_registry.canonical_index_id",
+      "id": "pg:public.public.code_search_registry.IF",
       "kind": "column",
       "language": "sql",
-      "name": "canonical_index_id",
+      "name": "IF",
       "file": "028_code_search_registry.sql",
       "span": {
         "start": 1,
@@ -25154,22 +24914,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UUID"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_registry.git_common_dir_fingerprint",
-      "kind": "column",
-      "language": "sql",
-      "name": "git_common_dir_fingerprint",
-      "file": "028_code_search_registry.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS canonical_index_id UUID"
       }
     },
     {
@@ -25250,6 +24995,21 @@
       "kind": "column",
       "language": "sql",
       "name": "namespace_key",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.code_search_indexes.source_revision",
+      "kind": "column",
+      "language": "sql",
+      "name": "source_revision",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25486,10 +25246,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.policy_fingerprint",
+      "id": "pg:public.public.code_search_indexes.CONSTRAINT",
       "kind": "column",
       "language": "sql",
-      "name": "policy_fingerprint",
+      "name": "CONSTRAINT",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25497,14 +25257,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "code_search_indexes_natural_key"
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.pipeline_fingerprint",
+      "id": "pg:public.public.code_search_indexes.IF",
       "kind": "column",
       "language": "sql",
-      "name": "pipeline_fingerprint",
+      "name": "IF",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25512,37 +25272,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.embedder_fingerprint",
-      "kind": "column",
-      "language": "sql",
-      "name": "embedder_fingerprint",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.parent_index_id",
-      "kind": "column",
-      "language": "sql",
-      "name": "parent_index_id",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UUID"
+        "type": "NOT EXISTS policy_fingerprint TEXT"
       }
     },
     {
@@ -27556,827 +27286,6 @@
         "end": 1
       },
       "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestSchemaValidation",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 129,
-        "end": 213
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_well_formed_graph_passes",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 132,
-        "end": 135
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_missing_confidence_on_edges_fails",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 137,
-        "end": 155
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_invalid_node_id_pattern_fails",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 157,
-        "end": 181
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_edges_referencing_nonexistent_nodes",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 183,
-        "end": 201
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_entrypoint_referencing_nonexistent_node",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 203,
-        "end": 213
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestPythonAnalyzer",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 221,
-        "end": 392
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_analyze_directory_output_structure",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 278,
-        "end": 290
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_entry_point_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 292,
-        "end": 308
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_call_graph_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 310,
-        "end": 325
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_db_access_pattern_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 327,
-        "end": 337
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_dead_code_candidate_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 339,
-        "end": 346
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_syntax_error_handling",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 348,
-        "end": 358
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_include_exclude_filtering",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 360,
-        "end": 375
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_async_function_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 377,
-        "end": 383
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_class_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 385,
-        "end": 392
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestPostgresAnalyzer",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 400,
-        "end": 540
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_table_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 440,
-        "end": 462
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_fk_relationship_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 464,
-        "end": 488
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_index_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 490,
-        "end": 508
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_summary_statistics",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 510,
-        "end": 520
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_unparseable_sql_handling",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 522,
-        "end": 540
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestGraphCompiler",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 548,
-        "end": 753
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_compile_graph_produces_output",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 633,
-        "end": 644
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_node_id_normalization",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 646,
-        "end": 651
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_python_ingestion_creates_nodes_and_edges",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 653,
-        "end": 674
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_cross_language_backend_db_edges",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 676,
-        "end": 687
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_full_compilation_with_backend_db_linking",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 689,
-        "end": 708
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_summary_generation_adaptive_threshold",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 710,
-        "end": 724
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_deduplication_helpers",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 726,
-        "end": 743
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_validate_edges_drops_invalid",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 745,
-        "end": 753
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestFlowValidator",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 761,
-        "end": 890
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_reachability_check",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 764,
-        "end": 783
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_disconnected_flow_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 785,
-        "end": 804
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_orphan_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 806,
-        "end": 833
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_diagnostics_output_format",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 835,
-        "end": 854
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_entrypoint_no_downstream",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 856,
-        "end": 890
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestViewGenerator",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 898,
-        "end": 1043
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_view_files_are_generated",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 987,
-        "end": 1001
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_container_view_contents",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1003,
-        "end": 1010
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_db_erd_contains_table_nodes",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1012,
-        "end": 1017
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_backend_component_view",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1019,
-        "end": 1024
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_frontend_component_view",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1026,
-        "end": 1030
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_feature_slice_generation",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1032,
-        "end": 1043
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestParallelZones",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1051,
-        "end": 1269
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_connected_component_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1149,
-        "end": 1173
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_leaf_module_identification",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1175,
-        "end": 1190
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_high_impact_module_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1192,
-        "end": 1209
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_impact_radius",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1211,
-        "end": 1219
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_build_output_structure",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1221,
-        "end": 1240
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_union_find_components",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1242,
-        "end": 1251
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_main_cli",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1253,
-        "end": 1269
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
       "signatures": {}
     }
   ],
