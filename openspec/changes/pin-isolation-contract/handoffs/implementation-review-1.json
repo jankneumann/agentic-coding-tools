@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-22T01:59:12.660786+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator handoff intentionally disabled after write denial",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "autopilot-inline",
+    "session_id": null,
+    "summary": "The canonical implementation convergence loop completed one round with quorum from Claude Code/Fable and Grok 4.5. It reported zero confirmed blocking findings; unconfirmed advisories were dispositioned explicitly, and the spec readability item was fixed.",
+    "completed_work": [
+      "Completed vendor review at quorum 2/5",
+      "Preserved manifest, raw successful findings, and fact-check decisions",
+      "Split the combined absence/invalid-presence scenario",
+      "Recorded explicit dispositions for every advisory"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Do not widen the dg-04 assignment schema in dg-05",
+        "rationale": "The canonical IsolationResolution preserves source; execution/API threading belongs to dg-06 and the archived assignment contract is outside this package write scope.",
+        "capability": "vendor-dispatch",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run validate-feature checks",
+      "Push and open the pull request without merging"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/pin-isolation-contract/reviews/implementation/review-summary.md",
+        "description": "review outcome and dispositions"
+      },
+      {
+        "path": "openspec/changes/pin-isolation-contract/reviews/implementation/review-manifest.json",
+        "description": "vendor dispatch evidence"
+      }
+    ]
+  }
+}

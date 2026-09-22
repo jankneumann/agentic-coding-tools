@@ -49,11 +49,14 @@ WHEN the coordinator is unreachable
 THEN resolution SHALL yield a defined isolation decision rather than raising
 AND the decision SHALL fall through to `agents.yaml`, then to `none`
 AND the resolved decision SHALL record which rung of the ladder produced it.
-#### Scenario: Absence falls through while invalid presence fails
+
+#### Scenario: Absence falls through
 
 WHEN a reachable router supplies no isolation value
 OR a configured agent has no matching per-mode override
 THEN resolution SHALL fall through to the next rung and record that source.
+
+#### Scenario: Invalid presence fails closed
 
 WHEN any supplied isolation value is outside the canonical vocabulary
 THEN resolution SHALL raise an explicit contract error naming the source rung
@@ -77,6 +80,7 @@ AND resolving `(agent_type, "alternative")` SHALL return the alternative posture
 
 WHEN an agent entry declares an isolation posture with no per-mode override
 THEN every dispatch mode for that entry SHALL resolve to the entry-level posture.
+
 #### Scenario: Exact agent identity disambiguates repeated agent types
 
 WHEN more than one `agents.yaml` entry has the same agent type
