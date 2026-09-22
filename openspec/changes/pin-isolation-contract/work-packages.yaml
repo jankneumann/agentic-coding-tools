@@ -1,0 +1,84 @@
+schema_version: 1
+feature:
+  id: pin-isolation-contract
+  title: "Pinned router-to-dispatch isolation contract"
+  plan_revision: 1
+  created_by: codex
+  deployable: false
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml"
+    files:
+      - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml"
+      - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/config/routing.schema.json"
+      - "openspec/changes/pin-isolation-contract/contracts/README.md"
+defaults:
+  priority: 1
+  lock_ttl_minutes: 120
+  timeout_minutes: 180
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+  - package_id: wp-isolation-contract
+    title: "Canonical isolation vocabulary and routing parity"
+    task_type: integration
+    description: "Implement the shared three-mode vocabulary, mode-aware configuration, router/fallback parity, and regression evidence without dg-06 execution wiring or dg-07 enforcement."
+    role: backend-implementer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/vendor_registry.py"
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/src/model_routing/routing_policy.py"
+        - "agent-coordinator/src/model_routing/api.py"
+        - "skills/coordination-bridge/scripts/routing_fallback.py"
+      keys:
+        - "contract:isolation-vocabulary"
+        - "feature:router-fallback:parity"
+      ttl_minutes: 180
+      reason: "One cross-boundary vocabulary and precedence contract"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/isolation_contract.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/vendor_registry.py"
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/src/model_routing/routing_policy.py"
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/tests/test_agents_config_isolation.py"
+        - "agent-coordinator/tests/test_vendor_registry.py"
+        - "agent-coordinator/tests/model_routing/test_resolver.py"
+        - "agent-coordinator/tests/model_routing/test_routing_policy.py"
+        - "agent-coordinator/tests/model_routing/test_task_routing_contracts.py"
+        - "skills/coordination-bridge/scripts/routing_fallback.py"
+        - "skills/coordination-bridge/scripts/tests/test_routing_fallback.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "openspec/changes/pin-isolation-contract/**"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities, semantic_code]}
+    worktree: {name: pin-isolation-contract, mode: isolated}
+    timeout_minutes: 240
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator isolation and routing tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_vendor_registry.py agent-coordinator/tests/model_routing/test_resolver.py agent-coordinator/tests/model_routing/test_routing_policy.py agent-coordinator/tests/model_routing/test_task_routing_contracts.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [coordinator_isolation_tests]}
+        - name: "Skills fallback and dispatcher tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/coordination-bridge/scripts/tests/test_routing_fallback.py skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [skills_isolation_tests]}
+    outputs: {result_keys: [coordinator_isolation_tests, skills_isolation_tests]}
