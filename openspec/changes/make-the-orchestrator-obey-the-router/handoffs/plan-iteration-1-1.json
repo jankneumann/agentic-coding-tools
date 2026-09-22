@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-22T13:15:30.694179+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "orchestrator",
+    "session_id": null,
+    "summary": "Reconciled the stale dg-06 scaffold with merged dg-02, dg-04, and dg-05 contracts. The plan now specifies pre-dispatch routing, ledger-correlated switching, canonical isolation carriage, and restart-safe loop guards while excluding completed work.",
+    "completed_work": [
+      "Replaced stale parent, dependency, and scope statements.",
+      "Specified fail-closed routing, alternate-lane ledger verification, and restart-safe no-progress scenarios.",
+      "Replaced generic checklist with ordered work packages and test matrix."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use a separate routing-dispatch context",
+        "rationale": "Keeps dg-02 VendorResultEnvelope stable while binding each ledger lifecycle to the dg-04 assignment.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep router access host-assisted",
+        "rationale": "The roadmap state machine receives a resolver protocol and never calls a model SDK or selects a vendor locally.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}
