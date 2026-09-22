@@ -7,8 +7,8 @@
 - [x] Planning
 - [x] Implementation
 - [x] Testing
-- [ ] Review
-- [ ] Done
+- [x] Review
+- [x] Done
 
 ## Tasks
 
@@ -30,5 +30,5 @@
   **Spec scenarios**: unsupported SDK mode is rejected before network work.
 - [x] 3.2 Document SDK dispatch scope and vendor capability matrix (S)
   **Dependencies**: 3.1.
-- [ ] 3.3 Run strict OpenSpec, focused suites, lint, and vendor review (M)
+- [x] 3.3 Run strict OpenSpec, focused suites, lint, and vendor review (M)
   **Dependencies**: 1.4, 2.2, 3.2.

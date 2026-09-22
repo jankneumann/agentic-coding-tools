@@ -393,6 +393,7 @@ async def submit_work(
     agent_requirements: dict[str, Any] | None = None,
     projection_key: dict[str, Any] | None = None,
     projection_labels: list[str] | None = None,
+    claim_immediately: bool = False,
 ) -> dict[str, Any]:
     """
     Submit a new task to the work queue.
@@ -405,6 +406,8 @@ async def submit_work(
         input_data: Data needed to complete the task (optional)
         priority: 1 (highest) to 10 (lowest), default 5
         depends_on: List of task_ids that must complete first (optional)
+        claim_immediately: Atomically claim the new row as this authenticated
+            agent; incompatible with dependencies, requirements, and projections
 
     Returns:
         success: Whether the task was created
@@ -429,6 +432,7 @@ async def submit_work(
             agent_requirements=agent_requirements,
             projection_key=projection_key,
             projection_labels=projection_labels,
+            claim_immediately=claim_immediately,
         )
     from uuid import UUID
 
@@ -437,6 +441,7 @@ async def submit_work(
     depends_on_uuids = None
     if depends_on:
         depends_on_uuids = [UUID(d) for d in depends_on]
+    claimant = get_config().agent if claim_immediately else None
 
     result = await service.submit(
         task_type=task_type,
@@ -447,6 +452,9 @@ async def submit_work(
         agent_requirements=agent_requirements,
         projection_key=projection_key,
         projection_labels=projection_labels,
+        claim_immediately=claim_immediately,
+        claimant_agent_id=claimant.agent_id if claimant else None,
+        claimant_agent_type=claimant.agent_type if claimant else None,
     )
 
     if not result.success:

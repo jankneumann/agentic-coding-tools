@@ -1,5 +1,6 @@
 """Projection parity tests for direct and HTTP-proxy MCP."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -97,3 +98,47 @@ async def test_proxy_mcp_forwards_one_explicit_projection_key(monkeypatch):
 
     assert proxy.await_args.kwargs["projection_key"] == key
     assert proxy.await_args.kwargs["projection_labels"] == labels
+
+
+@pytest.mark.asyncio
+async def test_proxy_mcp_forwards_atomic_claim_request(monkeypatch):
+    monkeypatch.setattr(coordination_mcp, "_transport", "http")
+    proxy = AsyncMock(return_value={"success": True, "task_id": str(UUID(int=14))})
+    monkeypatch.setattr(coordination_mcp.http_proxy, "proxy_submit_work", proxy)
+
+    await coordination_mcp.submit_work(
+        task_type="vendor-dispatch-correlation",
+        description="atomic ledger row",
+        claim_immediately=True,
+    )
+
+    assert proxy.await_args.kwargs["claim_immediately"] is True
+
+
+@pytest.mark.asyncio
+async def test_direct_mcp_resolves_claimant_for_atomic_claim(monkeypatch):
+    task_id = UUID(int=15)
+    service = AsyncMock()
+    service.submit.return_value = SubmitResult(
+        success=True, task_id=task_id, created=True, deduplicated=False, status="claimed"
+    )
+    monkeypatch.setattr(coordination_mcp, "_transport", "db")
+    monkeypatch.setattr(coordination_mcp, "get_work_queue_service", lambda: service)
+    monkeypatch.setattr(
+        coordination_mcp,
+        "get_config",
+        lambda: SimpleNamespace(
+            agent=SimpleNamespace(agent_id="mcp-agent", agent_type="codex")
+        ),
+    )
+
+    result = await coordination_mcp.submit_work(
+        task_type="vendor-dispatch-correlation",
+        description="atomic ledger row",
+        claim_immediately=True,
+    )
+
+    assert result["status"] == "claimed"
+    assert service.submit.await_args.kwargs["claim_immediately"] is True
+    assert service.submit.await_args.kwargs["claimant_agent_id"] == "mcp-agent"
+    assert service.submit.await_args.kwargs["claimant_agent_type"] == "codex"

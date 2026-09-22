@@ -833,7 +833,7 @@ def try_submit_work(
             "input_data": input_data,
             "priority": priority,
             "depends_on": depends_on,
-            "claim_immediately": claim_immediately,
+            **({"claim_immediately": True} if claim_immediately else {}),
             **({"projection_key": projection_key} if projection_key is not None else {}),
             **(
                 {"projection_labels": projection_labels}
