@@ -80,7 +80,6 @@ class _LedgerStub:
 
     def __init__(self) -> None:
         self.submissions: list[dict[str, object]] = []
-        self.claims: list[dict[str, object]] = []
         self.completions: list[dict[str, object]] = []
         self.submit_response: dict[str, object] = {
             "status": "ok",
@@ -89,10 +88,6 @@ class _LedgerStub:
                 "task_id": "ledger-123",
                 "status": "claimed",
             },
-        }
-        self.claim_response: dict[str, object] = {
-            "status": "ok",
-            "data": {"success": True, "task_id": "ledger-123"},
         }
         self.complete_response: dict[str, object] = {
             "status": "ok",
@@ -103,9 +98,6 @@ class _LedgerStub:
         self.submissions.append(kwargs)
         return self.submit_response
 
-    def claim(self, **kwargs: object) -> dict[str, object]:
-        self.claims.append(kwargs)
-        return self.claim_response
 
     def complete(self, **kwargs: object) -> dict[str, object]:
         self.completions.append(kwargs)
@@ -772,8 +764,16 @@ class TestOrchestrator:
     def test_write_manifest(self, tmp_path: Path) -> None:
         orch = ReviewOrchestrator({})
         results = [
-            ReviewResult(vendor="codex", success=True, model_used="gpt-5.4",
-                        models_attempted=["gpt-5.4"], elapsed_seconds=120.5),
+            ReviewResult(
+                vendor="codex",
+                success=True,
+                model_used="gpt-5.4",
+                models_attempted=["gpt-5.4"],
+                elapsed_seconds=120.5,
+                async_dispatch=True,
+                task_id="vendor-task-7",
+                ledger_task_id="ledger-task-9",
+            ),
             ReviewResult(vendor="grok", success=False, error="429 capacity",
                         error_class=ErrorClass.CAPACITY,
                         models_attempted=["(default)", "grok-4.5"]),
@@ -785,6 +785,9 @@ class TestOrchestrator:
         assert data["quorum_requested"] == 2
         assert data["quorum_received"] == 1
         assert data["dispatches"][0]["success"] is True
+        assert data["dispatches"][0]["async_dispatch"] is True
+        assert data["dispatches"][0]["task_id"] == "vendor-task-7"
+        assert data["dispatches"][0]["ledger_task_id"] == "ledger-task-9"
         assert data["dispatches"][1]["error_class"] == "capacity_exhausted"
 
 
@@ -815,7 +818,6 @@ def _async_adapter(*, ledger: _LedgerStub | None = None) -> CliVendorAdapter:
             model_flag="-m",
         ),
         ledger_submitter=ledger.submit,
-        ledger_claimer=ledger.claim,
         ledger_completer=ledger.complete,
     )
 
@@ -854,25 +856,7 @@ class TestAsyncDispatch:
         assert result.async_dispatch is True
         assert len(ledger.submissions) == 1
         assert ledger.submissions[0]["claim_immediately"] is True
-        assert ledger.claims == []
         assert ledger.completions == []
-
-    @patch("review_dispatcher.subprocess.run")
-    def test_async_ledger_open_requests_atomic_claim_without_second_claim_call(
-        self, mock_run: MagicMock, tmp_path: Path,
-    ) -> None:
-        ledger = _LedgerStub()
-        ledger.claim = MagicMock(side_effect=AssertionError("separate claim is unsafe"))
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout=_vendor_envelope("submitted"), stderr="",
-        )
-        adapter = _async_adapter(ledger=ledger)
-
-        result = adapter.dispatch_async("alternative", "prompt", cwd=tmp_path)
-
-        assert result.success is True
-        assert ledger.submissions[0]["claim_immediately"] is True
-        ledger.claim.assert_not_called()
 
     @patch("review_dispatcher.subprocess.run")
     def test_async_submit_rejects_ledger_row_not_atomically_claimed(
@@ -913,6 +897,22 @@ class TestAsyncDispatch:
         mock_run.assert_not_called()
 
     @patch("review_dispatcher.subprocess.run")
+    def test_async_submit_oserror_completes_claimed_ledger(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        ledger = _LedgerStub()
+        mock_run.side_effect = FileNotFoundError("vendor CLI disappeared")
+        adapter = _async_adapter(ledger=ledger)
+
+        result = adapter.dispatch_async("alternative", "prompt", cwd=tmp_path)
+
+        assert result.success is False
+        assert "vendor CLI disappeared" in (result.error or "")
+        assert len(ledger.completions) == 1
+        assert ledger.completions[0]["success"] is False
+
+
+    @patch("review_dispatcher.subprocess.run")
     def test_async_submit_rejects_unknown_result_protocol_before_ledger_or_launch(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -927,7 +927,6 @@ class TestAsyncDispatch:
         assert result.success is False
         assert "unsupported result protocol" in (result.error or "").lower()
         assert ledger.submissions == []
-        assert ledger.claims == []
         assert ledger.completions == []
         mock_run.assert_not_called()
 
@@ -988,7 +987,7 @@ class TestAsyncDispatch:
     @patch("review_dispatcher.subprocess.run")
     @patch("review_dispatcher.time.sleep")
     def test_poll_success_completes_ledger_before_consuming_findings(
-        self, mock_sleep: MagicMock, mock_run: MagicMock,
+        self, mock_sleep: MagicMock, mock_run: MagicMock, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         findings = json.loads(VALID_FINDINGS_JSON)
         ledger = _LedgerStub()
@@ -1004,6 +1003,7 @@ class TestAsyncDispatch:
             timeout_seconds=10,
         )
 
+        monkeypatch.setenv("AGENT_ID", "different-process-agent")
         result = adapter.poll_for_result(
             "abc123", poll_cfg, ledger_task_id="ledger-123",
         )
@@ -1014,6 +1014,7 @@ class TestAsyncDispatch:
         assert result.task_id == "abc123"
         assert result.ledger_task_id == "ledger-123"
         assert ledger.completions[0]["success"] is True
+        assert ledger.completions[0]["agent_id"] is None
         assert ledger.completions[0]["result"] == {
             "vendor_result": {
                 "version": 1,
@@ -1023,6 +1024,31 @@ class TestAsyncDispatch:
                 "error": None,
             }
         }
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_poll_does_not_rewrite_empty_result_as_clean_findings(
+        self, mock_run: MagicMock,
+    ) -> None:
+        ledger = _LedgerStub()
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout=_vendor_envelope("succeeded", result={}),
+            stderr="",
+        )
+        adapter = _async_adapter(ledger=ledger)
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
+
+        assert result.success is False
+        assert result.error is not None
+        assert ledger.completions[0]["success"] is False
 
     @patch("review_dispatcher.subprocess.run")
     def test_poll_placeholder_is_unsuccessful(
@@ -1053,6 +1079,38 @@ class TestAsyncDispatch:
 
         assert ledger.completions[0]["success"] is False
         assert ledger.completions[0]["error_message"] == result.error
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_poll_preserves_ingestion_error_when_ledger_completion_fails(
+        self, mock_run: MagicMock,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = "Placeholder while review runs"
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout=_vendor_envelope("succeeded", result=payload),
+            stderr="",
+        )
+        ledger = _LedgerStub()
+        ledger.complete_response = {
+            "status": "skipped",
+            "reason": "coordinator_unavailable",
+        }
+        adapter = _async_adapter(ledger=ledger)
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
+
+        assert result.success is False
+        assert "non_substantive_placeholder" in (result.error or "")
+        assert "completion ledger update failed" in (result.error or "").lower()
+
 
     @patch("review_dispatcher.subprocess.run")
     def test_poll_accepts_clean_findings_when_remote_runtime_is_unknown(
@@ -1103,6 +1161,29 @@ class TestAsyncDispatch:
         assert result.success is False
         assert result.error == "empty_findings_too_fast"
         assert result.task_id == "abc123"
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_poll_oserror_completes_claimed_ledger(
+        self, mock_run: MagicMock,
+    ) -> None:
+        ledger = _LedgerStub()
+        mock_run.side_effect = FileNotFoundError("status CLI disappeared")
+        adapter = _async_adapter(ledger=ledger)
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
+
+        assert result.success is False
+        assert "status CLI disappeared" in (result.error or "")
+        assert len(ledger.completions) == 1
+        assert ledger.completions[0]["success"] is False
+
 
     @patch("review_dispatcher.subprocess.run")
     @patch("review_dispatcher.time.sleep")

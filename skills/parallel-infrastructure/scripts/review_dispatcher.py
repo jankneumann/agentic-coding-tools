@@ -48,7 +48,6 @@ if str(_BRIDGE_SCRIPTS) not in sys.path:
 
 from coordination_bridge import (  # noqa: E402
     try_complete_work,
-    try_get_work,
     try_submit_work,
 )
 
@@ -766,7 +765,6 @@ class CliVendorAdapter:
         cli_config: CliConfig,
         transport: str = "mcp",
         ledger_submitter: Callable[..., dict[str, Any]] = try_submit_work,
-        ledger_claimer: Callable[..., dict[str, Any]] = try_get_work,
         ledger_completer: Callable[..., dict[str, Any]] = try_complete_work,
     ) -> None:
         self.agent_id = agent_id
@@ -774,7 +772,6 @@ class CliVendorAdapter:
         self.cli_config = cli_config
         self.transport = transport
         self._ledger_submitter = ledger_submitter
-        self._ledger_claimer = ledger_claimer
         self._ledger_completer = ledger_completer
 
     @staticmethod
@@ -834,7 +831,7 @@ class CliVendorAdapter:
         )
         response = self._ledger_completer(
             task_id=ledger_task_id,
-            agent_id=os.environ.get("AGENT_ID"),
+            agent_id=None,
             success=success,
             result=result,
             error_message=error_message,
@@ -1538,6 +1535,12 @@ class CliVendorAdapter:
                     "Timeout submitting async task",
                     error_class=ErrorClass.TRANSIENT,
                 )
+            except OSError as exc:
+                return fail(
+                    f"Async submission command failed: {exc}",
+                    error_class=ErrorClass.UNKNOWN,
+                    elapsed=time.monotonic() - start,
+                )
 
             elapsed = time.monotonic() - start
 
@@ -1597,9 +1600,10 @@ class CliVendorAdapter:
                     envelope=envelope,
                 )
             logger.info(
-                "Async task submitted for %s: task_id=%s",
+                "Async task submitted for %s: vendor_task_id=%s ledger_task_id=%s",
                 self.vendor,
                 envelope.vendor_task_id,
+                ledger_task_id,
             )
             return ReviewResult(
                 vendor=self.vendor,
@@ -1676,6 +1680,24 @@ class CliVendorAdapter:
                 logger.warning("Poll command timed out, retrying")
                 time.sleep(poll_config.interval_seconds)
                 continue
+            except OSError as exc:
+                message = f"Async status command failed: {exc}"
+                ledger_error = self._complete_completion_ledger(
+                    ledger_task_id,
+                    success=False,
+                    error_message=message,
+                )
+                if ledger_error:
+                    message += f"; completion ledger update failed: {ledger_error}"
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    elapsed_seconds=time.monotonic() - elapsed_start,
+                    error=message,
+                    error_class=ErrorClass.UNKNOWN,
+                    task_id=task_id,
+                    ledger_task_id=ledger_task_id,
+                )
 
             if result.returncode != 0:
                 message = result.stderr[:500] or "async status command failed"
@@ -1757,7 +1779,7 @@ class CliVendorAdapter:
                     ledger_task_id=ledger_task_id,
                 )
             if envelope.state == "succeeded":
-                findings_payload = json.dumps(envelope.result or {"findings": []})
+                findings_payload = json.dumps(envelope.result)
                 ingested = self._ingest_stdout(
                     findings_payload,
                     result.stderr,
@@ -1773,14 +1795,17 @@ class CliVendorAdapter:
                     error_message=None if ingested.success else ingested.error,
                 )
                 if ledger_error:
+                    message = (
+                        "Completion ledger update failed before result "
+                        f"consumption: {ledger_error}"
+                    )
+                    if not ingested.success and ingested.error:
+                        message = f"{ingested.error}; {message}"
                     return ReviewResult(
                         vendor=self.vendor,
                         success=False,
                         elapsed_seconds=time.monotonic() - elapsed_start,
-                        error=(
-                            "Completion ledger update failed before result "
-                            f"consumption: {ledger_error}"
-                        ),
+                        error=message,
                         error_class=ErrorClass.UNKNOWN,
                         task_id=task_id,
                         ledger_task_id=ledger_task_id,
@@ -3226,6 +3251,9 @@ class ReviewOrchestrator:
                 "elapsed_seconds": r.elapsed_seconds,
                 "error": r.error,
                 "error_class": r.error_class.value if r.error_class else None,
+                "async_dispatch": r.async_dispatch,
+                "task_id": r.task_id,
+                "ledger_task_id": r.ledger_task_id,
             }
             for r in results
         ]

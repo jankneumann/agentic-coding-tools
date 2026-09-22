@@ -1,3 +1,7 @@
+-- 043: atomically submit and claim a completion-ledger row.
+
+BEGIN;
+
 -- Atomically create a queue row already claimed by the authenticated caller.
 --
 -- This closes the submit-then-claim race for completion-ledger rows. The
@@ -11,7 +15,13 @@ CREATE OR REPLACE FUNCTION submit_claimed_task(
     p_input_data JSONB DEFAULT NULL,
     p_priority INTEGER DEFAULT 5,
     p_deadline TIMESTAMPTZ DEFAULT NULL
-) RETURNS JSONB AS $$
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+VOLATILE
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     v_id UUID;
     v_status TEXT;
@@ -31,6 +41,15 @@ BEGIN
             'reason', 'invalid_priority'
         );
     END IF;
+
+    IF p_input_data ?| ARRAY['change_id', 'phase', 'transition_sequence'] THEN
+        RETURN jsonb_build_object(
+            'success', FALSE,
+            'created', FALSE,
+            'reason', 'reserved_projection_key'
+        );
+    END IF;
+
 
     INSERT INTO work_queue(
         task_type,
@@ -64,4 +83,13 @@ BEGIN
         'deduplicated', FALSE
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
+
+REVOKE ALL ON FUNCTION submit_claimed_task(
+    TEXT, TEXT, TEXT, JSONB, INTEGER, TIMESTAMPTZ
+) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION submit_claimed_task(
+    TEXT, TEXT, TEXT, JSONB, INTEGER, TIMESTAMPTZ
+) TO service_role;
+
+COMMIT;

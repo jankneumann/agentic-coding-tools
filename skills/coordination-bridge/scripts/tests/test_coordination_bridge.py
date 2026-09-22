@@ -332,6 +332,7 @@ def test_try_submit_work_passes_payload(monkeypatch) -> None:
     assert payload["task_type"] == "implementation"
     assert payload["priority"] == 3
     assert payload["depends_on"] == ["a", "b"]
+    assert "claim_immediately" not in payload
 
 def test_try_submit_work_passes_atomic_claim_flag_without_client_identity(
     monkeypatch,

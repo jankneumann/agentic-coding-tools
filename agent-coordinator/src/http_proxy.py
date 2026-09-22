@@ -477,7 +477,6 @@ async def proxy_complete_work(
 ) -> dict[str, Any]:
     """Proxy complete_work to POST /work/complete."""
     body = {
-        **_agent_identity(),
         "task_id": task_id,
         "success": success,
         "result": result,
@@ -495,6 +494,7 @@ async def proxy_submit_work(
     agent_requirements: dict[str, Any] | None = None,
     projection_key: dict[str, Any] | None = None,
     projection_labels: list[str] | None = None,
+    claim_immediately: bool = False,
 ) -> dict[str, Any]:
     """Proxy submit_work to POST /work/submit.
 
@@ -512,6 +512,8 @@ async def proxy_submit_work(
         "depends_on": depends_on,
         "agent_requirements": agent_requirements,
     }
+    if claim_immediately:
+        body["claim_immediately"] = True
     if projection_key is not None:
         body["projection_key"] = projection_key
     if projection_labels is not None:
