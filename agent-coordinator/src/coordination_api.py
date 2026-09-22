@@ -314,6 +314,7 @@ class WorkSubmitRequest(BaseModel):
     priority: int = Field(default=5, ge=1, le=10)
     depends_on: list[UUID] | None = None
     agent_requirements: dict[str, Any] | None = None
+    claim_immediately: bool = False
 
 
 class WorkReconcileRequest(BaseModel):
@@ -1299,8 +1300,13 @@ def create_coordination_api() -> FastAPI:
 
         from .work_queue import get_work_queue_service
 
+        try:
+            task_id = UUID(request.task_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid task_id") from exc
+
         result = await get_work_queue_service().complete(
-            task_id=UUID(request.task_id),
+            task_id=task_id,
             success=request.success,
             result=request.result,
             error_message=request.error_message,
@@ -1359,6 +1365,9 @@ def create_coordination_api() -> FastAPI:
             projection_labels=(
                 list(request.projection_labels) if request.projection_labels else None
             ),
+            claim_immediately=request.claim_immediately,
+            claimant_agent_id=agent_id if request.claim_immediately else None,
+            claimant_agent_type=agent_type if request.claim_immediately else None,
         )
         payload = _projection_mutation_payload(result)
         if request.projection_key is None:

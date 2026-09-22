@@ -813,6 +813,7 @@ def try_submit_work(
     depends_on: list[str] | None = None,
     projection_key: dict[str, Any] | None = None,
     projection_labels: list[str] | None = None,
+    claim_immediately: bool = False,
     http_url: str | None = None,
     api_key: str | None = None,
     _coordination_state: dict[str, Any] | None = None,
@@ -832,6 +833,7 @@ def try_submit_work(
             "input_data": input_data,
             "priority": priority,
             "depends_on": depends_on,
+            "claim_immediately": claim_immediately,
             **({"projection_key": projection_key} if projection_key is not None else {}),
             **(
                 {"projection_labels": projection_labels}

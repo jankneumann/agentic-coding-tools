@@ -281,3 +281,19 @@ async def test_release_by_agent_is_an_idempotent_no_op(monkeypatch):
         "released_count": 0,
         "attempted_paths": [],
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("agent_id", ["", "   "])
+async def test_release_by_agent_rejects_blank_identity_without_listing_locks(
+    agent_id: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = LockService()
+    check = AsyncMock()
+    monkeypatch.setattr(service, "check", check)
+
+    assert await service.release_by_agent(agent_id) == {
+        "released_count": 0,
+        "attempted_paths": [],
+    }
+    check.assert_not_awaited()

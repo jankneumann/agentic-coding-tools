@@ -333,6 +333,34 @@ def test_try_submit_work_passes_payload(monkeypatch) -> None:
     assert payload["priority"] == 3
     assert payload["depends_on"] == ["a", "b"]
 
+def test_try_submit_work_passes_atomic_claim_flag_without_client_identity(
+    monkeypatch,
+) -> None:
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        coordination_bridge,
+        "detect_coordination",
+        lambda **_: _state(CAN_QUEUE_WORK=True),
+    )
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        captured.append(kwargs)
+        return {
+            "status_code": 200,
+            "data": {"success": True, "task_id": "t-1", "status": "claimed"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+    result = coordination_bridge.try_submit_work(
+        task_type="vendor-dispatch-correlation",
+        task_description="Track async dispatch",
+        claim_immediately=True,
+    )
+
+    assert result["status"] == "ok"
+    assert captured[0]["payload"]["claim_immediately"] is True
+    assert "agent_id" not in captured[0]["payload"]
 
 def test_work_lifecycle_helpers_allow_server_resolved_identity(monkeypatch) -> None:
     captured: list[dict[str, Any]] = []

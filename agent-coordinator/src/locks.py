@@ -372,6 +372,11 @@ class LockService:
         retry it after an interrupted request. Individual releases keep the
         existing holder-aware authorization and audit semantics.
         """
+        normalized_agent_id = agent_id.strip()
+        if not normalized_agent_id:
+            return {"released_count": 0, "attempted_paths": []}
+
+        agent_id = normalized_agent_id
         locks = await self.check(locked_by=agent_id)
         attempted_paths = [lock.file_path for lock in locks]
         released_count = 0

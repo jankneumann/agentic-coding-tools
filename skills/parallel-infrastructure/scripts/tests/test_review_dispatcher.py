@@ -84,7 +84,11 @@ class _LedgerStub:
         self.completions: list[dict[str, object]] = []
         self.submit_response: dict[str, object] = {
             "status": "ok",
-            "data": {"success": True, "task_id": "ledger-123"},
+            "data": {
+                "success": True,
+                "task_id": "ledger-123",
+                "status": "claimed",
+            },
         }
         self.claim_response: dict[str, object] = {
             "status": "ok",
@@ -146,6 +150,20 @@ def test_parse_vendor_result_envelope_rejects_schema_drift() -> None:
         parse_vendor_result_envelope(
             '{"version": 1, "state": "succeeded", "result": {}, "status": "done"}'
         )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"version": true, "state": "succeeded", "result": {}}',
+        '{"version": 1.0, "state": "succeeded", "result": {}}',
+        '{"version": 1, "state": "failed", "error": {"message": "failed", "code": 5}}',
+        '{"version": 1, "state": "failed", "error": {"message": "failed", "code": ""}}',
+    ],
+)
+def test_parser_rejects_values_disallowed_by_the_json_schema(payload: str) -> None:
+    with pytest.raises(VendorResultProtocolError):
+        parse_vendor_result_envelope(payload)
 
 
 @pytest.mark.parametrize(
@@ -835,8 +853,47 @@ class TestAsyncDispatch:
         assert result.ledger_task_id == "ledger-123"
         assert result.async_dispatch is True
         assert len(ledger.submissions) == 1
-        assert len(ledger.claims) == 1
+        assert ledger.submissions[0]["claim_immediately"] is True
+        assert ledger.claims == []
         assert ledger.completions == []
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_async_ledger_open_requests_atomic_claim_without_second_claim_call(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        ledger = _LedgerStub()
+        ledger.claim = MagicMock(side_effect=AssertionError("separate claim is unsafe"))
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=_vendor_envelope("submitted"), stderr="",
+        )
+        adapter = _async_adapter(ledger=ledger)
+
+        result = adapter.dispatch_async("alternative", "prompt", cwd=tmp_path)
+
+        assert result.success is True
+        assert ledger.submissions[0]["claim_immediately"] is True
+        ledger.claim.assert_not_called()
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_async_submit_rejects_ledger_row_not_atomically_claimed(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        ledger = _LedgerStub()
+        ledger.submit_response = {
+            "status": "ok",
+            "data": {
+                "success": True,
+                "task_id": "ledger-123",
+                "status": "pending",
+            },
+        }
+        adapter = _async_adapter(ledger=ledger)
+
+        result = adapter.dispatch_async("alternative", "prompt", cwd=tmp_path)
+
+        assert result.success is False
+        assert "did not return claimed status" in (result.error or "")
+        mock_run.assert_not_called()
 
     @patch("review_dispatcher.subprocess.run")
     def test_async_submit_does_not_launch_when_completion_ledger_is_unavailable(
@@ -978,7 +1035,8 @@ class TestAsyncDispatch:
             stdout=_vendor_envelope("succeeded", result=payload),
             stderr="",
         )
-        adapter = _async_adapter()
+        ledger = _LedgerStub()
+        adapter = _async_adapter(ledger=ledger)
         poll_cfg = PollConfig(
             command_template=["codex", "cloud", "status", "{task_id}"],
             interval_seconds=1,
@@ -992,6 +1050,9 @@ class TestAsyncDispatch:
         assert result.success is False
         assert result.error == "non_substantive_placeholder"
         assert result.task_id == "abc123"
+
+        assert ledger.completions[0]["success"] is False
+        assert ledger.completions[0]["error_message"] == result.error
 
     @patch("review_dispatcher.subprocess.run")
     def test_poll_accepts_clean_findings_when_remote_runtime_is_unknown(
@@ -1070,6 +1131,42 @@ class TestAsyncDispatch:
 
         assert result.success is False
         assert "something broke" in (result.error or "").lower()
+        assert ledger.completions[0]["success"] is False
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_poll_rejects_status_for_a_different_vendor_task(
+        self, mock_run: MagicMock,
+    ) -> None:
+        ledger = _LedgerStub()
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "version": 1,
+                    "state": "failed",
+                    "vendor_task_id": "different-task",
+                    "error": {
+                        "code": "vendor_failed",
+                        "message": "wrong task",
+                    },
+                }
+            ),
+            stderr="",
+        )
+        adapter = _async_adapter(ledger=ledger)
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
+
+        assert result.success is False
+        assert "does not match submitted task" in (result.error or "")
         assert ledger.completions[0]["success"] is False
 
     @patch("review_dispatcher.subprocess.run")

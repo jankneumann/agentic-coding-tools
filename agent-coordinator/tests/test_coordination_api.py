@@ -306,6 +306,83 @@ def test_lock_status_returns_locked(
     assert data["lock"]["locked_by"] == "agent-1"
 
 
+def test_list_locks_by_agent_uses_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_service = AsyncMock()
+    mock_service.check.return_value = []
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.locks
+
+    monkeypatch.setattr(src.locks, "_lock_service", mock_service)
+    response = client.get(
+        "/locks",
+        headers=_auth_headers(),
+        params={"agent_id": "agent-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"locks": []}
+    mock_service.check.assert_awaited_once_with(locked_by="agent-1")
+
+
+def test_release_locks_by_agent_uses_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_service = AsyncMock()
+    mock_service.release_by_agent.return_value = {
+        "success": True,
+        "released_count": 2,
+    }
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.locks
+
+    monkeypatch.setattr(src.locks, "_lock_service", mock_service)
+    response = client.post(
+        "/locks/release-by-agent",
+        headers=_auth_headers(),
+        json={"agent_id": "agent-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["released_count"] == 2
+    mock_service.release_by_agent.assert_awaited_once_with("agent-1")
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "request_kwargs"),
+    [
+        ("get", "/locks", {"params": {"agent_id": "other-agent"}}),
+        (
+            "post",
+            "/locks/release-by-agent",
+            {"json": {"agent_id": "other-agent"}},
+        ),
+    ],
+)
+def test_lock_by_agent_endpoints_reject_bound_identity_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    path: str,
+    request_kwargs: dict[str, Any],
+) -> None:
+    from src.config import reset_config
+
+    monkeypatch.setenv(
+        "COORDINATION_API_KEY_IDENTITIES",
+        '{"test-key-001":{"agent_id":"bound-agent","agent_type":"codex"}}',
+    )
+    reset_config()
+    with TestClient(create_coordination_api()) as bound_client:
+        response = getattr(bound_client, method)(
+            path, headers=_auth_headers(), **request_kwargs
+        )
+
+    assert response.status_code == 403
+
+
 # =============================================================================
 # Memory endpoint tests
 # =============================================================================
@@ -490,6 +567,21 @@ def test_complete_work_passes_resolved_identity_when_body_omits_agent_id(
     )
 
 
+def test_complete_work_rejects_malformed_task_id(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = AsyncMock()
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    monkeypatch.setattr("src.work_queue._work_queue_service", service)
+
+    response = client.post(
+        "/work/complete",
+        headers=_auth_headers(),
+        json={"task_id": "not-a-uuid", "success": False},
+    )
+    assert response.status_code == 400
+
+
 def test_submit_work_delegates_to_service(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -515,6 +607,46 @@ def test_submit_work_delegates_to_service(
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
+
+
+def test_submit_work_atomic_claim_uses_server_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import SubmitResult
+
+    task_uuid = UUID("12345678-1234-1234-1234-123456789abc")
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=True,
+        task_id=task_uuid,
+        status="claimed",
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "vendor-dispatch-correlation",
+            "task_description": "Track async dispatch",
+            "claim_immediately": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "claimed"
+    assert mock_service.submit.await_args.kwargs["claim_immediately"] is True
+    assert (
+        mock_service.submit.await_args.kwargs["claimant_agent_id"]
+        == "cloud-agent"
+    )
+    assert (
+        mock_service.submit.await_args.kwargs["claimant_agent_type"]
+        == "cloud_agent"
+    )
 
 
 def test_projection_submit_exposes_additive_result(

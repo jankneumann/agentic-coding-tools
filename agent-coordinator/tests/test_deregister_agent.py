@@ -64,7 +64,7 @@ def test_session_end_releases_authenticated_agent_locks_before_status(
                 "summary": "Session ended.",
             },
         ),
-        ("/locks/release-by-agent", {"agent_id": ""}),
+        ("/locks/release-by-agent", {"agent_id": "legacy-agent"}),
         (
             "/status/report",
             {
