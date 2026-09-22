@@ -627,32 +627,66 @@ def _execute_multi_endpoint_operation(
     )
 
 
-def _lock_identity(
-    agent_id: str, agent_type: str, api_key: str | None
+#: The coordinator's exact wording when an API key is bound to one identity and
+#: the request names another. Matching it keeps the retry below narrow: any
+#: other 403 is a real authorization failure and must not be retried.
+_IDENTITY_REFUSED = "not permitted to act as requested"
+
+
+def _identity_was_refused(result: dict[str, Any]) -> bool:
+    return result.get("reason") == "forbidden" and _IDENTITY_REFUSED in str(
+        result.get("detail") or ""
+    )
+
+
+def _lock_request(
+    *,
+    operation: str,
+    path: str,
+    payload: dict[str, Any],
+    identity: dict[str, Any],
+    http_url: str | None,
+    api_key: str | None,
 ) -> dict[str, Any]:
-    """Return the identity fields a lock request should carry.
+    """Send a lock request, retrying once without identity if it is refused.
 
-    ``resolve_identity`` on the coordinator uses the identity its API key is
-    bound to, and 403s when the request names a *different* one. Callers cannot
-    know the bound name, so any value they invent is refused: the merge
-    sync-point sent ``agent_id="merge-pull-requests-sync-point"`` and every
-    acquisition failed with "API key is not permitted to act as requested
-    agent_id", reported to operators only as "coordinator lock skipped
-    (unauthorized)".
+    Two deployment shapes have to work, and the client cannot tell them apart:
 
-    ``try_handoff_write`` already solved this by dropping the fields for a bound
-    key; locks never got the same treatment. They are sent empty rather than
-    omitted because ``LockAcquireRequest`` still declares them required, so
-    omitting them returns 422 against a coordinator that has not yet picked up
-    the matching model change -- and an empty string is falsy, so the resolver
-    falls back to the bound identity either way.
+    * a key listed in ``COORDINATION_API_KEY_IDENTITIES`` is *bound*, and
+      ``resolve_identity`` 403s on any request naming a different identity. The
+      caller cannot know the bound name, so it must send none.
+    * a key in ``COORDINATION_API_KEYS`` with no identity entry is *unbound*,
+      and the request's own identity is all the server has. Sending none there
+      collapses every agent to the ``cloud-agent`` default, so two agents could
+      release each other's locks.
 
-    On the genuinely unauthenticated path the caller's identity is all the
-    server has, so it is passed through unchanged.
+    Blanking unconditionally fixes the first and breaks the second. So the
+    caller's identity goes first, which is correct for an unbound key, and a
+    refusal -- the one error that means "you are bound" -- triggers a single
+    retry without it. Each deployment pays at most one extra round trip, and
+    only when the server has said the first attempt was wrong.
     """
-    if _resolve_api_key(api_key) is None:
-        return {"agent_id": agent_id, "agent_type": agent_type}
-    return {"agent_id": "", "agent_type": ""}
+    attempt = _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_LOCK",
+        method="POST",
+        path=path,
+        payload={**payload, **identity},
+        http_url=http_url,
+        api_key=api_key,
+    )
+    if not _identity_was_refused(attempt):
+        return attempt
+    blanked = dict.fromkeys(identity, "")
+    return _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_LOCK",
+        method="POST",
+        path=path,
+        payload={**payload, **blanked},
+        http_url=http_url,
+        api_key=api_key,
+    )
 
 
 def try_lock(
@@ -667,18 +701,16 @@ def try_lock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Acquire a coordinator lock when lock capability is available."""
-    return _execute_single_endpoint_operation(
+    return _lock_request(
         operation="try_lock",
-        capability_flag="CAN_LOCK",
-        method="POST",
         path="/locks/acquire",
         payload={
             "file_path": file_path,
-            **_lock_identity(agent_id, agent_type, api_key),
             "session_id": session_id,
             "reason": reason,
             "ttl_minutes": ttl_minutes,
         },
+        identity={"agent_id": agent_id, "agent_type": agent_type},
         http_url=http_url,
         api_key=api_key,
     )
@@ -692,17 +724,13 @@ def try_unlock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Release a coordinator lock when lock capability is available."""
-    return _execute_single_endpoint_operation(
+    # Same binding rule as acquire: a release naming an identity the key is not
+    # bound to is refused, stranding the lock until its TTL expires.
+    return _lock_request(
         operation="try_unlock",
-        capability_flag="CAN_LOCK",
-        method="POST",
         path="/locks/release",
-        payload={
-            "file_path": file_path,
-            # Same binding rule as acquire: a release naming an identity the key
-            # is not bound to is refused, stranding the lock until its TTL.
-            "agent_id": _lock_identity(agent_id, "", api_key)["agent_id"],
-        },
+        payload={"file_path": file_path},
+        identity={"agent_id": agent_id},
         http_url=http_url,
         api_key=api_key,
     )
