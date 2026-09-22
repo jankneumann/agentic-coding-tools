@@ -13,6 +13,12 @@ AND the dispatch layer resolves that value
 THEN both SHALL derive the accepted value set from the same definition
 AND neither SHALL hard-code an independent copy of the vocabulary.
 
+#### Scenario: Static contracts remain in parity with the canonical vocabulary
+
+WHEN the published routing OpenAPI or routing-policy schema is checked
+THEN its isolation enum SHALL equal the canonical vocabulary
+AND the check SHALL fail if either contract drifts from the runtime definition.
+
 #### Scenario: An unrecognized isolation value is rejected
 
 WHEN a value outside the defined vocabulary reaches the dispatch layer
@@ -43,6 +49,16 @@ WHEN the coordinator is unreachable
 THEN resolution SHALL yield a defined isolation decision rather than raising
 AND the decision SHALL fall through to `agents.yaml`, then to `none`
 AND the resolved decision SHALL record which rung of the ladder produced it.
+#### Scenario: Absence falls through while invalid presence fails
+
+WHEN a reachable router supplies no isolation value
+OR a configured agent has no matching per-mode override
+THEN resolution SHALL fall through to the next rung and record that source.
+
+WHEN any supplied isolation value is outside the canonical vocabulary
+THEN resolution SHALL raise an explicit contract error naming the source rung
+AND SHALL NOT treat that invalid value as an absent value.
+
 
 ### Requirement: Isolation SHALL resolve for an (agent_type, dispatch_mode) pair
 
@@ -61,3 +77,15 @@ AND resolving `(agent_type, "alternative")` SHALL return the alternative posture
 
 WHEN an agent entry declares an isolation posture with no per-mode override
 THEN every dispatch mode for that entry SHALL resolve to the entry-level posture.
+#### Scenario: Exact agent identity disambiguates repeated agent types
+
+WHEN more than one `agents.yaml` entry has the same agent type
+AND the resolver is given the dispatched agent identity
+THEN its per-mode or entry-level posture SHALL be resolved from that exact entry
+AND SHALL NOT depend on YAML ordering.
+
+#### Scenario: Router and local fallback agree on a configured mode override
+
+WHEN an agent entry defines a per-mode isolation override
+AND both paths select that agent and mode
+THEN both paths SHALL emit the same effective isolation value.
