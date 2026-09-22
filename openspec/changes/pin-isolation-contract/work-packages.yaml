@@ -60,6 +60,7 @@ packages:
         - "skills/tests/coordination-bridge/test_routing_fallback.py"
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "openspec/roadmaps/dispatch-governance/roadmap.yaml"
         - "openspec/changes/pin-isolation-contract/**"
       read_allow: ["**"]
     context_impact: {surfaces: [apis, capabilities, semantic_code]}
@@ -78,7 +79,7 @@ packages:
           evidence: {artifacts: [], result_keys: [coordinator_isolation_tests]}
         - name: "Skills fallback and dispatcher tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/coordination-bridge/scripts/tests/test_routing_fallback.py skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/coordination-bridge/test_routing_fallback.py skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [skills_isolation_tests]}

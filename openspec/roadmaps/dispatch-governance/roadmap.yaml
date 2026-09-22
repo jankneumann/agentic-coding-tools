@@ -132,7 +132,7 @@ items:
     unreachable
 - item_id: dg-05
   title: Pin the isolation contract between router and dispatch
-  status: candidate
+  status: completed
   priority: 1
   effort: S
   depends_on:
