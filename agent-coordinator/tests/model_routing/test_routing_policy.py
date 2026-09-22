@@ -91,3 +91,23 @@ fallback:
 
     with pytest.raises(ValueError, match="unconfigured phase dispatch default"):
         load_routing_policy(policy_path)
+
+
+def test_loader_rejects_isolation_outside_canonical_vocabulary(tmp_path: Path) -> None:
+    policy_path = tmp_path / "routing.yaml"
+    policy_path.write_text(
+        """\
+schema_version: 1
+policy_version: test-v1
+defaults: {dispatch_mode: quick, phase_dispatch_modes: {}}
+rules:
+  - {id: container-rule, when: {scope: broad-write}, constrain: {isolation: container}}
+fallback:
+  location_order: [local, cloud, unknown]
+  isolation_order: [worktree, sandbox, none]
+  dispatch_mode_order: [review, alternative, quick, sdk]
+"""
+    )
+
+    with pytest.raises(ValueError, match="container"):
+        load_routing_policy(policy_path)

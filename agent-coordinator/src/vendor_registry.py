@@ -13,6 +13,7 @@ from typing import Any, cast
 
 from .agents_config import AgentEntry, get_agents_config, get_provider_model_map
 from .db import DatabaseClient, get_db
+from .isolation_contract import resolve_isolation
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,7 @@ class VendorRegistryService:
             "capabilities": sorted(set(agent.capabilities)),
             "archetypes": sorted(set(agent.archetypes)),
             "isolation": agent.isolation,
+            "isolation_by_dispatch_mode": self._isolation_by_dispatch_mode(agent),
             "transport": agent.transport,
             "dispatch_modes": self._dispatch_modes(agent),
             "dispatchable": bool(
@@ -192,6 +194,22 @@ class VendorRegistryService:
         if agent.sdk is not None:
             modes.add("sdk")
         return sorted(modes)
+
+    @classmethod
+    def _isolation_by_dispatch_mode(cls, agent: AgentEntry) -> dict[str, str]:
+        values: dict[str, str] = {}
+        for mode in cls._dispatch_modes(agent):
+            configured: object | None = agent.isolation
+            if agent.cli is not None:
+                mode_config = agent.cli.dispatch_modes.get(mode)
+                if mode_config is not None and mode_config.isolation is not None:
+                    configured = mode_config.isolation
+            values[mode] = resolve_isolation(
+                router_reachable=False,
+                router_value=None,
+                configured_value=configured,
+            ).value
+        return values
 
     def _active_limits(self, limits: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
         now = _utc_datetime(self._now_fn())

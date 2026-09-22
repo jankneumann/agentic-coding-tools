@@ -14,10 +14,10 @@
 
 ## 2. Router and fallback parity
 
-- [ ] 2.1 **S** Write RED router/fallback parity and static-contract parity tests,
+- [x] 2.1 **S** Write RED router/fallback parity and static-contract parity tests,
   including a mode override on a repeated agent type.
   **Spec scenarios**: vendor-dispatch.1, .4–.6. **Design decisions**: D1, D3.
-- [ ] 2.2 **M** Apply the shared helper in registry/resolver and local routing
+- [x] 2.2 **M** Apply the shared helper in registry/resolver and local routing
   fallback; parse the additive field in the review dispatcher.
   **Dependencies**: 1.2, 2.1. **Design decisions**: D1, D3.
 - [ ] Checkpoint: run targeted coordinator and skills tests, review the diff, and

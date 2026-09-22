@@ -551,6 +551,7 @@ class ModeConfig:
     args: list[str]
     async_dispatch: bool = False
     poll: PollConfig | None = None
+    isolation: str | None = None
 
 
 @dataclass
@@ -2550,6 +2551,7 @@ class ReviewOrchestrator:
                         args=mode_data["args"],
                         async_dispatch=mode_data.get("async", False),
                         poll=poll_cfg,
+                        isolation=mode_data.get("isolation"),
                     )
                 adapters[agent["agent_id"]] = CliVendorAdapter(
                     agent_id=agent["agent_id"],

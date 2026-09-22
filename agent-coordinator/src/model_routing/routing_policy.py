@@ -11,8 +11,10 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.isolation_contract import IsolationMode
+
 Location = Literal["local", "cloud", "unknown"]
-Isolation = Literal["none", "worktree", "sandbox"]
+Isolation = IsolationMode
 DispatchMode = Literal["review", "alternative", "quick", "sdk"]
 
 

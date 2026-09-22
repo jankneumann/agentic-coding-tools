@@ -220,6 +220,30 @@ def test_cli_keeps_precedence_over_openai_compatible_endpoint(
 
     assert reviewers[0].dispatch_tier == "cli"
 
+
+def test_config_parser_preserves_per_mode_isolation() -> None:
+    orchestrator = ReviewOrchestrator.from_config_dict({
+        "agents": [
+            {
+                "agent_id": "codex-local",
+                "type": "codex",
+                "transport": "mcp",
+                "cli": {
+                    "command": "codex",
+                    "dispatch_modes": {
+                        "review": {"args": ["exec"], "isolation": "sandbox"},
+                        "alternative": {"args": ["exec"]},
+                    },
+                    "model_flag": "-m",
+                },
+            }
+        ]
+    })
+
+    modes = orchestrator.adapters["codex-local"].cli_config.dispatch_modes
+    assert modes["review"].isolation == "sandbox"
+    assert modes["alternative"].isolation is None
+
 def test_openai_compatible_discovery_path_dispatches_review(tmp_path: Path) -> None:
     orchestrator = ReviewOrchestrator.from_config_dict({
         "agents": [{

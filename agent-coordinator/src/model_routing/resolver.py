@@ -25,6 +25,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
+from src.isolation_contract import resolve_isolation
+
 # Sample size at which a task-type posterior is trusted enough to blend in /
 # to use the observed cost-per-completed-task instead of the price prior.
 DEFAULT_CONFIDENCE_K = 5.0
@@ -221,13 +223,24 @@ def build_feasible_assignments(
                 )
                 continue
             matched_keys.add(key)
+            mode_isolation = lane.get("isolation_by_dispatch_mode")
+            configured_isolation = (
+                mode_isolation[dispatch_mode]
+                if isinstance(mode_isolation, Mapping) and dispatch_mode in mode_isolation
+                else lane.get("isolation")
+            )
+            isolation = resolve_isolation(
+                router_reachable=False,
+                router_value=None,
+                configured_value=configured_isolation,
+            ).value
             assignment = RoutingAssignment(
                 agent_id=str(lane.get("agent_id") or ""),
                 vendor_type=str(lane.get("vendor_type") or ""),
                 policy_vendor=str(lane.get("policy_vendor") or ""),
                 catalog_vendor=key[0],
                 location=str(lane.get("location") or "unknown"),
-                isolation=str(lane.get("isolation") or "none"),
+                isolation=isolation,
                 dispatch_mode=dispatch_mode,
                 model=key[1],
                 endpoint_kind=key[2],

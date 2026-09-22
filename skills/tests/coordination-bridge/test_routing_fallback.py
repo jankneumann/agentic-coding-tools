@@ -15,6 +15,8 @@ cannot silently break this suite's assumptions.
 
 from __future__ import annotations
 
+import copy
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -93,10 +95,23 @@ _ARCHETYPES_YAML = {
 }
 
 
+def _write_canonical_contract(coordinator_dir: Path) -> None:
+    source_dir = coordinator_dir / "src"
+    source_dir.mkdir(exist_ok=True)
+    canonical_contract = (
+        Path(__file__).resolve().parents[3]
+        / "agent-coordinator"
+        / "src"
+        / "isolation_contract.py"
+    )
+    shutil.copyfile(canonical_contract, source_dir / "isolation_contract.py")
+
+
 @pytest.fixture()
 def checkout(tmp_path: Path) -> Path:
     coordinator_dir = tmp_path / "agent-coordinator"
     coordinator_dir.mkdir()
+    _write_canonical_contract(coordinator_dir)
     (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(_ROUTING_YAML))
     (coordinator_dir / "agents.yaml").write_text(yaml.safe_dump(_AGENTS_YAML))
     (coordinator_dir / "archetypes.yaml").write_text(yaml.safe_dump(_ARCHETYPES_YAML))
@@ -133,6 +148,45 @@ def test_selects_the_only_exact_lane_when_unconstrained(checkout: Path) -> None:
     assert result["selected"]["assignment"]["isolation"] == "worktree"
     # The other exact lane is retained as an alternative, not dropped.
     assert [a["assignment"]["agent_id"] for a in result["alternatives"]] == ["claude-remote"]
+
+
+def test_mode_override_matches_reachable_router_assignment(checkout: Path) -> None:
+    agents = copy.deepcopy(_AGENTS_YAML)
+    local_modes = agents["agents"]["claude-local"]["cli"]["dispatch_modes"]
+    local_modes["review"]["isolation"] = "sandbox"
+    local_modes["alternative"]["isolation"] = "none"
+    (checkout / "agent-coordinator" / "agents.yaml").write_text(
+        yaml.safe_dump(agents)
+    )
+
+    review = _route(checkout)
+    alternative = _route(
+        checkout,
+        routing_profile={
+            "scope": "bounded-write",
+            "required_dispatch_mode": "alternative",
+        },
+    )
+
+    assert review["assignment"]["agent_id"] == "claude-local"
+    assert review["assignment"]["dispatch_mode"] == "review"
+    assert review["assignment"]["isolation"] == "sandbox"
+    assert alternative["assignment"]["agent_id"] == "claude-local"
+    assert alternative["assignment"]["dispatch_mode"] == "alternative"
+    assert alternative["assignment"]["isolation"] == "none"
+
+
+def test_invalid_present_mode_override_names_agents_yaml_rung(checkout: Path) -> None:
+    agents = copy.deepcopy(_AGENTS_YAML)
+    agents["agents"]["claude-local"]["cli"]["dispatch_modes"]["review"][
+        "isolation"
+    ] = "container"
+    (checkout / "agent-coordinator" / "agents.yaml").write_text(
+        yaml.safe_dump(agents)
+    )
+
+    with pytest.raises(ValueError, match="agents_yaml.*container"):
+        _route(checkout)
 
 
 def test_rule_derived_location_constrains_selection(checkout: Path) -> None:
@@ -230,6 +284,7 @@ def test_alternatives_are_bounded_to_the_response_contract_limit(tmp_path: Path)
     contract-invalid response during an outage."""
     coordinator_dir = tmp_path / "agent-coordinator"
     coordinator_dir.mkdir()
+    _write_canonical_contract(coordinator_dir)
     (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(_ROUTING_YAML))
     agents = {
         f"claude-local-{i}": {
@@ -266,6 +321,7 @@ def test_malformed_agents_yaml_entry_fails_loud(tmp_path: Path) -> None:
     from whatever partial data happens to coerce cleanly."""
     coordinator_dir = tmp_path / "agent-coordinator"
     coordinator_dir.mkdir()
+    _write_canonical_contract(coordinator_dir)
     (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(_ROUTING_YAML))
     agents = {"agents": dict(_AGENTS_YAML["agents"])}
     agents["agents"]["claude-local"] = dict(agents["agents"]["claude-local"])
@@ -346,6 +402,7 @@ def test_non_string_roadmap_policy_list_item_fails_loud(checkout: Path) -> None:
 def test_sdk_only_lane_is_selectable_via_sdk_dispatch_mode(tmp_path: Path) -> None:
     coordinator_dir = tmp_path / "agent-coordinator"
     coordinator_dir.mkdir()
+    _write_canonical_contract(coordinator_dir)
     (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(_ROUTING_YAML))
     agents = {
         "agents": {
@@ -382,6 +439,7 @@ def test_sdk_only_lane_is_selectable_via_sdk_dispatch_mode(tmp_path: Path) -> No
 def test_malformed_routing_yaml_fails_loud(tmp_path: Path) -> None:
     coordinator_dir = tmp_path / "agent-coordinator"
     coordinator_dir.mkdir()
+    _write_canonical_contract(coordinator_dir)
     (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump({"schema_version": 2}))
     (coordinator_dir / "agents.yaml").write_text(yaml.safe_dump(_AGENTS_YAML))
 
@@ -397,6 +455,7 @@ def test_malformed_routing_yaml_fails_loud(tmp_path: Path) -> None:
 def _write_routing_yaml(tmp_path: Path, document: dict[str, Any]) -> Path:
     coordinator_dir = tmp_path / "agent-coordinator"
     coordinator_dir.mkdir(exist_ok=True)
+    _write_canonical_contract(coordinator_dir)
     (coordinator_dir / "routing.yaml").write_text(yaml.safe_dump(document))
     (coordinator_dir / "agents.yaml").write_text(yaml.safe_dump(_AGENTS_YAML))
     (coordinator_dir / "archetypes.yaml").write_text(yaml.safe_dump(_ARCHETYPES_YAML))

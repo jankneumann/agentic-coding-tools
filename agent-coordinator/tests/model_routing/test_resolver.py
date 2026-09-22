@@ -201,6 +201,7 @@ def _lane(
     location: str = "local",
     available: bool = True,
     dispatch_modes: list[str] | None = None,
+    isolation_by_dispatch_mode: dict[str, str] | None = None,
 ) -> dict:
     return {
         "agent_id": agent_id,
@@ -209,6 +210,7 @@ def _lane(
         "catalog_vendor": "codex",
         "location": location,
         "isolation": "worktree",
+        "isolation_by_dispatch_mode": isolation_by_dispatch_mode or {},
         "archetypes": ["implementer"],
         "dispatch_modes": dispatch_modes or ["quick"],
         "dispatchable": True,
@@ -262,6 +264,56 @@ def test_exact_lane_catalog_association_rejects_near_matches() -> None:
     assert [(item.vendor, item.model, item.reason) for item in excluded] == [
         ("publisher-codex", "gpt-5.6-terra-preview", "catalog:no-configured-lane")
     ]
+
+
+def test_assignment_uses_mode_isolation_after_dispatch_mode_is_known() -> None:
+    lane = _lane(
+        "codex-local",
+        dispatch_modes=["review", "alternative"],
+        isolation_by_dispatch_mode={
+            "review": "sandbox",
+            "alternative": "worktree",
+        },
+    )
+    candidate = CandidateInput(
+        vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli"
+    )
+
+    review, _ = build_feasible_assignments(
+        [lane],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="review",
+        required_isolation="sandbox",
+    )
+    alternative, _ = build_feasible_assignments(
+        [lane],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="alternative",
+        required_isolation="worktree",
+    )
+
+    assert review[0].assignment is not None
+    assert review[0].assignment.isolation == "sandbox"
+    assert alternative[0].assignment is not None
+    assert alternative[0].assignment.isolation == "worktree"
+
+
+def test_invalid_mode_isolation_fails_instead_of_defaulting() -> None:
+    lane = _lane(
+        "codex-local",
+        dispatch_modes=["review"],
+        isolation_by_dispatch_mode={"review": "container"},
+    )
+    candidate = CandidateInput(
+        vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli"
+    )
+
+    with pytest.raises(ValueError, match="agents_yaml.*container"):
+        build_feasible_assignments(
+            [lane], [candidate], archetype="implementer", dispatch_mode="review"
+        )
 
 
 def test_lane_declared_model_missing_from_catalog_is_excluded() -> None:
