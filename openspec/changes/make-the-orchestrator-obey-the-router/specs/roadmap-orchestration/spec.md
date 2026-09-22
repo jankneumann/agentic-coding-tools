@@ -2,29 +2,34 @@
 
 ### Requirement: Executed Routing Decisions
 
-`autopilot-roadmap` SHALL obtain a routing decision before each dispatch and verify the dispatch honored it.
+`autopilot-roadmap` SHALL obtain and durably persist a validated routing decision before each host dispatch. The immutable dispatch context SHALL include a decision identifier, selected agent/vendor/model/location, canonical dg-05 isolation, dispatch mode, and ledger work/attempt correlation. The host seam SHALL preserve this context unchanged; the state machine SHALL not call a model SDK or select a vendor locally.
 
 #### Scenario: Ledger-verified vendor switch
 
-WHEN the policy engine selects switch for a limited vendor
-THEN the next dispatch SHALL be issued to the alternate vendor
-AND the dispatch ledger SHALL confirm the alternate vendor executed the work
-AND expected and observed cost and latency deltas SHALL be persisted in checkpoint.json.
+WHEN a submitted attempt reports a vendor-limit result
+THEN the orchestrator SHALL resolve a fresh alternate assignment excluding the observed limited lane
+AND persist a new attempt before redispatching the same item and phase
+AND accept success only when the terminal VendorResultEnvelope/ledger completion matches that attempt's decision identifier and observed lane
+AND reject a stale, mismatched, or unavailable completion without treating the phase as complete.
+
+#### Scenario: Router unavailable
+
+WHEN no validated routing decision can be obtained from the configured resolver
+THEN the orchestrator SHALL use only a declared static fallback assignment with canonical isolation
+OR SHALL checkpoint a fail-closed escalation
+AND SHALL NOT dispatch with an un-routed context.
 
 ### Requirement: Roadmap Loop Safety Caps
 
-The roadmap execution loop SHALL enforce a global iteration cap and a no-progress detector.
+The roadmap execution loop SHALL enforce durable global iteration and no-progress safeguards. Their counters and last durable-progress fingerprint SHALL be checkpointed before each dispatch and survive a resumed process.
 
 #### Scenario: Stuck dispatch trips the cap
 
-WHEN consecutive iterations produce no item state transition
-THEN the loop SHALL checkpoint and escalate rather than continue spinning.
+WHEN the configured iteration cap is reached or consecutive iterations produce no durable item, phase, or correlated-ledger transition
+THEN the loop SHALL checkpoint an explicit parked/escalated outcome and return it without continuing to dispatch.
 
-### Requirement: Loud Outcome-State Failures
+#### Scenario: Resume does not duplicate a submitted attempt
 
-Applying a phase outcome against a missing loop-state file SHALL be an error, not a silent no-op.
-
-#### Scenario: Missing state file
-
-WHEN apply-outcome runs and the loop state file is absent
-THEN the command SHALL exit non-zero with a structured error.
+WHEN a process stops after persisting a prepared attempt and before terminal completion
+THEN a resumed process SHALL reconcile the correlated ledger state before any new submission
+AND SHALL NOT issue a duplicate dispatch for that attempt.
