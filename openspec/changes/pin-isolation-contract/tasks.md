@@ -20,12 +20,12 @@
 - [x] 2.2 **M** Apply the shared helper in registry/resolver and local routing
   fallback; parse the additive field in the review dispatcher.
   **Dependencies**: 1.2, 2.1. **Design decisions**: D1, D3.
-- [ ] Checkpoint: run targeted coordinator and skills tests, review the diff, and
+- [x] Checkpoint: run targeted coordinator and skills tests, review the diff, and
   verify no dg-06 execution or dg-07 enforcement code entered scope.
 
 ## 3. Evidence and validation
 
 - [x] 3.1 **S** Preserve the vendor plan-review manifest and incorporate its
   actionable findings into the design and test matrix.
-- [ ] 3.2 **S** Run strict OpenSpec, targeted suites, affected lint, and full
+- [x] 3.2 **S** Run strict OpenSpec, targeted suites, affected lint, and full
   cross-boundary regression; update the roadmap only after green evidence.
