@@ -1,0 +1,127 @@
+{
+  "review_type": "implementation",
+  "target": "add-visual-code-explainer",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 39,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Ledger item 13 is marked 'retired' with retired_reason 'plan-review-adjudication-round-4' in .review-ledger/ledger.json, but the same item is tracked as an active parked disagreement in reviews/parked-disagreements.json. The disagreement about module file path vs basename coverage remains unresolved; retiring it while keeping it parked is contradictory.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 40,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The Atlas Symbol Tree Export requirement states '<target> SHALL resolve as exact node id, then unique symbol name, then module file path or basename', but the only module-resolution scenario ('File target gives the aggregated module view') and task 1.1 test only cover basename resolution ('api.py'). Full file path resolution (e.g., 'src/api.py') and the unique-name-before-module precedence are not exercised by any scenario or test.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 41,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The Atlas Symbol Tree Export requirement mandates 'using only the Python standard library and making no network requests', but no WHEN/THEN scenario or task verifies either constraint. The security and operability boundary is unenforced \u2014 an implementation could import third-party packages or make network calls and still pass all tests.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 42,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The grounding requirement maps failure to spawn or run run_architecture.py --check to 'graph check failed' (first-match order), but no skill-workflow scenario has a WHEN condition for --check spawn failure (OSError/exception before exit code). The 'Stale or absent graph' scenario covers missing files and non-zero exits; the 'Tree tool failure' scenario only covers build_atlas.py --tree after a fresh check. An implementation could misclassify a --check spawn failure and still pass all behavioural tests.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 43,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The atlas requirement states each node line SHALL show '<name> (<file>:<line>) [<kind>]', but test_every_printed_node_matches_fixture in test_atlas_tree.py only validates (name, file) against the fixture. Incorrect line numbers or kinds on descendant nodes would pass. The LINE_RE regex captures all four fields but the assertion doesn't use line and kind.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 44,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "proposal.md 'What Changes' lists six frontmatter keys (name, description, category, tags, user_invocable, related) but then states the skill test 'asserts the four surviving keys explicitly'. The count is wrong \u2014 there are six surviving keys after omitting 'triggers', not four. This mis-briefs implementers of task 2.1.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 47,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The 'Stale or absent graph falls back to source' scenario allows reason 'graph check failed' per the first-match table, but its WHEN clause ('--check exits non-zero, or the script or graph file is missing') cannot produce that reason: missing script/graph maps to 'graph absent' (first match), non-zero --check exit maps to 'graph stale' (third match). 'graph check failed' is only for --check spawn/OSError, which is not in the WHEN condition. The scenario's reason list includes an unreachable value.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 48,
+      "type": "style",
+      "criticality": "low",
+      "description": "session-log.md 'Phase: Plan Review (2026-09-16)' still contains '### Next Steps' positioned between round-1 and round-2 decisions, stating 'IMPLEMENT if converged'. Rounds 3-4 adjudications (removing slimmed converge-result, extending task 1.1 scenarios, --tree failure -> graph check failed, requiring source read for non-call-tree forms, proposal disclosure alignment; plan_revision -> 6) are recorded only in plan-findings.md. The session log is the standing decision record and is stale mid-review.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 49,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "session-log.md Plan Review decision 2 understates 'graph check failed' as 'spawn failure or --tree exit 1', while D5 and the skill-workflow requirement also map any --tree exit other than 0/2/3 (after a fresh --check) to that reason. The session log decision record has drifted from the closed decision table.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 50,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Parked disagreement item 13 indicates 'Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered' \u2014 this disagreement is valid and active (per parked-disagreements.json) but ledger item 13 is incorrectly retired. The underlying spec gap (items 40/51) remains unaddressed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 51,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "In specs/codebase-analysis/spec.md, the Atlas Symbol Tree Export requirement states '<target> SHALL resolve as exact node id, then unique symbol name, then module file path or basename' but the corresponding test scenario 'File target gives the aggregated module view' only covers basename resolution explicitly (WHEN '--tree <file-basename>'). The 'Target resolution precedence' scenario mentions exact-id-before-name but does not test file path resolution as a distinct case.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 52,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "design.md D4 describes target resolution as 'exact node id; unique symbol name; a file path or basename matching a module', and task 1.1 is said to cover file path resolution, but there is no explicit scenario in codebase-analysis spec.md that specifically tests module file path resolution as a distinct case from basename resolution. The only module scenario uses 'file-basename' in its WHEN clause.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

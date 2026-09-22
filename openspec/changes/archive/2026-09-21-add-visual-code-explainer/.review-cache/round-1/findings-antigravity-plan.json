@@ -1,0 +1,51 @@
+{
+  "review_type": "plan",
+  "target": "add-visual-code-explainer",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "architecture",
+      "criticality": "medium",
+      "description": "Design decisions D8 (module name / atlas_tree.py helper) and D9 (refusal list) are referenced by tasks 1.1, 1.3, 2.2, 2.5 in tasks.md and by packages wp-atlas-tree and wp-skill in work-packages.yaml, but design.md only defines decisions up through D7. Neither D8 nor D9 is documented in design.md.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md",
+      "id": 1,
+      "severity": "optional",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Task 2.5 in tasks.md outlines writing references/grounding.md including handling tree tool failures and mapping them to 'graph check failed', but omits skill-workflow scenario 'Tree tool failure after fresh check' from its Spec scenarios list, despite enumerating all other grounding scenarios.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md",
+      "id": 2,
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "readability",
+      "criticality": "low",
+      "description": "In session-log.md under '## Phase: Plan Review (2026-09-16)', '### Next Steps' is placed ahead of '### Decisions (round 2)', and decisions from Plan Review rounds 3 and 4 (which bumped plan_revision to 6) are missing from the log.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-visual-code-explainer/session-log.md",
+      "id": 3,
+      "severity": "nit",
+      "type": "style",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "In .review-ledger/ledger.json, item 13 is marked as status 'retired' with retired_reason 'plan-review-adjudication-round-4', which conflicts with reviews/parked-disagreements.json where item 13 is tracked as an active parked disagreement.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
+      "id": 4,
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    }
+  ]
+}

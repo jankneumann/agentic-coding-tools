@@ -1,0 +1,7 @@
+{
+  "change_id": "add-the-shared-system-one-decision-helper-fallback-only",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

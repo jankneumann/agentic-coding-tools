@@ -220,9 +220,19 @@ def _projection_mutation_payload(result: Any) -> dict[str, Any]:
 
 
 class LockAcquireRequest(BaseModel):
+    """Lock request whose identity fields are optional by design.
+
+    ``resolve_identity`` already treats an absent ``agent_id``/``agent_type`` as
+    "act as whoever this API key is bound to", and rejects a supplied id only
+    when it contradicts the binding. Requiring the fields here contradicted
+    that: a key-bound caller had to send *something*, and anything other than
+    the exact bound value was refused as spoofing. Optional is what the resolver
+    was written for.
+    """
+
     file_path: str
-    agent_id: str
-    agent_type: str
+    agent_id: str | None = None
+    agent_type: str | None = None
     session_id: str | None = None
     reason: str | None = None
     ttl_minutes: int = 30
@@ -230,7 +240,7 @@ class LockAcquireRequest(BaseModel):
 
 class LockReleaseRequest(BaseModel):
     file_path: str
-    agent_id: str
+    agent_id: str | None = None
 
 
 class LockReleaseByAgentRequest(BaseModel):
@@ -2779,6 +2789,11 @@ def create_coordination_api() -> FastAPI:
             # Optional thinking/reasoning level from the tier entry. Additive:
             # older clients ignore it; adapters translate it to CLI flags.
             "thinking": resolved.thinking,
+            # Procedure mode of the resolved archetype (add-skill-audit D3).
+            # Additive passthrough: the bridge forwards it when present and
+            # older clients that ignore it still see the sentence, because it
+            # is already appended to system_prompt by the resolver.
+            "procedure_mode": resolved.procedure_mode,
         }
 
     # --------------------------------------------------------------------- #

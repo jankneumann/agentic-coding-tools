@@ -350,3 +350,50 @@ def test_release_failure_is_a_warning_not_an_exception(tmp_path: Path) -> None:
     warnings = mc.release_sync_point_guards(state, agent_id="a", releaser=_release)
 
     assert warnings != ()
+
+
+class TestCoordinatorLockImport:
+    """Layer 2 is only real if ``coordination_bridge`` actually imports.
+
+    ``acquire_coordinator_lock`` catches every exception from the acquirer and
+    degrades to layers 1 and 3 with a warning. That is right for a coordinator
+    that is absent, but it also swallowed a plain ``ModuleNotFoundError``:
+    ``main_convergence`` extended ``sys.path`` with ``project-context-runtime``
+    and ``shared`` but never with ``coordination-bridge/scripts``, so the lazy
+    ``from coordination_bridge import try_lock`` could not resolve. Every
+    convergence pass from 2026-09-14 to 2026-09-16 ran unlocked while reporting
+    only "coordinator lock unavailable".
+
+    This suite's own header block repeats the production path list, and repeated
+    the same omission, which is why no existing test caught it. These tests
+    therefore assert on what importing ``main_convergence`` does to the path,
+    and never add the bridge directory themselves.
+    """
+
+    def test_importing_main_convergence_makes_the_bridge_importable(self) -> None:
+        import importlib.util
+
+        assert importlib.util.find_spec("coordination_bridge") is not None
+
+    def test_bridge_scripts_directory_is_on_the_path(self) -> None:
+        bridge = mc._SKILLS_DIR / "coordination-bridge" / "scripts"
+        assert bridge.is_dir(), "coordination_bridge ships here"
+        assert str(bridge) in sys.path
+
+    def test_default_acquirer_reaches_try_lock(self) -> None:
+        """The failure was at import, so resolving the symbol is the assertion."""
+        from coordination_bridge import try_lock
+
+        assert callable(try_lock)
+
+    def test_a_missing_bridge_still_degrades_rather_than_raising(self) -> None:
+        """The degrade path stays intact; it just must not hide an import bug."""
+
+        def _boom(**_kwargs: object) -> dict[str, object]:
+            raise ModuleNotFoundError("No module named 'coordination_bridge'")
+
+        result = mc.acquire_coordinator_lock(acquirer=_boom)
+
+        assert result.allowed is True
+        assert result.lock_acquired is False
+        assert result.reason == "coordinator_lock_unavailable"

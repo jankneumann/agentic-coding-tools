@@ -57,6 +57,23 @@ if str(_BRIDGE_SCRIPTS) not in sys.path:
 import coordination_bridge  # type: ignore[import-not-found]  # noqa: E402
 from phase_record import PhaseRecord  # noqa: E402
 
+# GATEKEEPER shadow judgment (roadmap ri-06). Guarded: apply_phase_outcome
+# must keep working even if this sibling module is unavailable for some
+# reason -- the shadow record is strictly observational.
+if str(_THIS_DIR) not in sys.path:
+    sys.path.insert(0, str(_THIS_DIR))
+try:
+    import gatekeeper_shadow  # type: ignore[import-not-found]
+except ImportError:
+    gatekeeper_shadow = None  # type: ignore[assignment]
+
+# Phase-outcome shadow adjudication (roadmap ri-07). Same guard shape as
+# gatekeeper_shadow above -- strictly observational.
+try:
+    import phase_outcome_shadow  # type: ignore[import-not-found]
+except ImportError:
+    phase_outcome_shadow = None  # type: ignore[assignment]
+
 # ---------------------------------------------------------------------------
 # Per-phase runtime config
 # ---------------------------------------------------------------------------
@@ -1053,7 +1070,15 @@ def build_phase_dispatch_kwargs(
 
 
 def _expected_outcomes_for_phase(phase: str) -> list[str]:
-    """Return allowed outcomes for a phase dispatch payload."""
+    """Return allowed outcomes for a phase dispatch payload.
+
+    VAL_REVIEW's ``max_iter`` was missing here even though
+    ``autopilot.TRANSITIONS["VAL_REVIEW"]`` has always allowed it (a
+    pre-existing bug found by Codex review while adjudicating this exact
+    dict, PR #592) -- a real max_iter claim had no matching Choice
+    criterion, forcing an artificial disagreement in the phase-outcome
+    shadow judgment (roadmap ri-07).
+    """
     return {
         "GATEKEEPER": ["proceed", "proceed_with_review", "escalate"],
         "PLAN_ITERATE": ["complete", "failed"],
@@ -1062,7 +1087,7 @@ def _expected_outcomes_for_phase(phase: str) -> list[str]:
         "IMPL_ITERATE": ["complete", "failed"],
         "IMPL_REVIEW": ["converged", "not_converged", "max_iter"],
         "VALIDATE": ["passed", "failed"],
-        "VAL_REVIEW": ["converged", "not_converged"],
+        "VAL_REVIEW": ["converged", "not_converged", "max_iter"],
     }.get(phase, ["complete", "failed"])
 
 
@@ -1133,8 +1158,20 @@ def apply_phase_outcome(
     handoff_id: str,
     *,
     allow_phase_mismatch: bool = False,
+    change_dir: Path | None = None,
 ) -> None:
     """Update loop-state.json after a phase sub-agent returns (D4).
+
+    ``change_dir`` (roadmap ri-06): on the non-replay path, when *phase* is
+    ``"GATEKEEPER"``, also builds and appends a ``"GATEKEEPER_SHADOW"``
+    ``phase_history`` entry via ``gatekeeper_shadow.build_shadow_entry`` --
+    the real host-driven GATEKEEPER dispatch protocol
+    (``skills/autopilot/SKILL.md`` Step 1.5: ``build-dispatch`` /
+    ``apply-outcome``) never calls the Python-level ``_phase_gatekeeper``, so
+    this is the only place a production run can record shadow data (Codex
+    review, PR #591, P1). Replay-safe: the shadow judgment is skipped
+    entirely on the replay path above, so a retried ``apply-outcome`` call
+    never doubles the ``decide()`` call count or the shadow record.
 
     **No-transition contract (design D1 Layer A / Task 3):** this function
     updates ONLY the fields it owns — ``last_handoff_id``, ``handoff_ids``
@@ -1289,6 +1326,37 @@ def apply_phase_outcome(
         "outcome": outcome,
         "at": _now_iso(),
     })
+
+    if phase == "GATEKEEPER" and gatekeeper_shadow is not None:
+        gate_signals = state.get("gate_signals")
+        shadow_entry = gatekeeper_shadow.build_shadow_entry(
+            gate_signals if isinstance(gate_signals, dict) else {},
+            change_dir,
+            acting_verdict=outcome,
+        )
+        if shadow_entry is not None:
+            history.append(shadow_entry)
+    elif phase_outcome_shadow is not None and change_dir is not None:
+        # Every other phase transition (roadmap ri-07) -- GATEKEEPER already
+        # has its own dedicated shadow judgment above (ri-06).
+        expected_outcomes = _expected_outcomes_for_phase(phase)
+        handoff_record = phase_outcome_shadow.read_local_handoff(
+            change_dir, phase, handoff_id
+        )
+        worktree_path = Path.cwd().resolve() / ".git-worktrees" / change_id
+        diff_stat = phase_outcome_shadow.git_diff_stat(worktree_path)
+        output_tail = phase_outcome_shadow.test_output_tail(change_dir)
+        outcome_entry = phase_outcome_shadow.build_outcome_adjudication_entry(
+            phase=phase,
+            claimed_outcome=outcome,
+            expected_outcomes=expected_outcomes,
+            handoff_record=handoff_record,
+            diff_stat=diff_stat,
+            test_output_tail=output_tail,
+        )
+        if outcome_entry is not None:
+            history.append(outcome_entry)
+
     state["phase_history"] = history
 
     _save_state(state_path, state)

@@ -225,6 +225,33 @@ NON_TERMINAL_PHASES: tuple[str, ...] = (
 )
 
 # ---------------------------------------------------------------------------
+# Procedure mode (OpenSpec change add-skill-audit, design D3)
+#
+# How much of a skill's written procedure an agent running under an archetype
+# is expected to follow. It is a property of the archetype (the role), not of
+# the tier it escalates to. `guided` is the default and appends nothing, so a
+# roster that never declares the field resolves byte-identically to before.
+# The sentences are defined once, here, and injected at exactly one place:
+# resolve_archetype_for_phase. Tests import these constants rather than
+# restating the text.
+# ---------------------------------------------------------------------------
+
+PROCEDURE_MODES: tuple[str, ...] = ("verbatim", "guided", "goal-directed")
+DEFAULT_PROCEDURE_MODE = "guided"
+PROCEDURE_MODE_SENTENCES: dict[str, str] = {
+    "verbatim": (
+        "Follow the skill's written procedure step by step; do not skip, "
+        "reorder, or merge steps."
+    ),
+    "goal-directed": (
+        "Satisfy the skill's acceptance probes by whatever route is sound; "
+        "where you deviate from the written procedure, record each deviation "
+        "as a session-log Decision with capability `skill-procedure-deviation`."
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
 # JSON Schema for archetypes.yaml validation
 # ---------------------------------------------------------------------------
 
@@ -233,11 +260,12 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
     "required": ["schema_version", "archetypes"],
     "properties": {
         # schema_version selects optional structure: v2 enables phase_mapping (OpenSpec
-        # add-per-phase-archetype-resolution), v3 adds model_aliases / tier models. Note:
+        # add-per-phase-archetype-resolution), v3 adds model_aliases / tier models, v4
+        # adds the optional per-archetype `procedure_mode` (add-skill-audit D3). Note:
         # `write_capable` is REQUIRED on every archetype regardless of version (fail-loud,
         # design D3 — no implicit default). A pre-existing v1 file that omits it must add
         # `write_capable` on migration; the version does NOT grandfather the field away.
-        "schema_version": {"type": "integer", "enum": [1, 2, 3]},
+        "schema_version": {"type": "integer", "enum": [1, 2, 3, 4]},
         # Host class of the machine serving the `local` provider. Optional:
         # absent means the GB10 defaults apply (DEFAULT_LOCAL_HOST_CLASS).
         "local_host_class": _LOCAL_HOST_CLASS_SCHEMA,
@@ -284,6 +312,12 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                     # on every archetype (design D3 / D3.1 — no implicit default;
                     # a missing field fails schema validation, i.e. fail-loud).
                     "write_capable": {"type": "boolean"},
+                    # Optional; omitted means DEFAULT_PROCEDURE_MODE. Any other
+                    # value fails validation naming the archetype and the value.
+                    "procedure_mode": {
+                        "type": "string",
+                        "enum": list(PROCEDURE_MODES),
+                    },
                     "escalation": {
                         "type": ["object", "null"],
                         "properties": {
@@ -624,8 +658,9 @@ class EscalationConfig:
 class ArchetypeConfig:
     """A named agent archetype from ``archetypes.yaml``.
 
-    Bundles model preference, system prompt, and optional complexity
-    escalation rules.
+    Bundles model preference, system prompt, optional complexity escalation
+    rules, and the procedure mode (one of :data:`PROCEDURE_MODES`; defaults
+    to :data:`DEFAULT_PROCEDURE_MODE` when the YAML omits it).
     """
 
     name: str
@@ -633,6 +668,7 @@ class ArchetypeConfig:
     system_prompt: str
     write_capable: bool = False
     escalation: EscalationConfig | None = None
+    procedure_mode: str = DEFAULT_PROCEDURE_MODE
 
 
 @dataclass
@@ -678,6 +714,9 @@ class ResolvedArchetype:
     provider: str | None = None
     write_capable: bool = False
     thinking: str | None = None
+    # The resolved archetype's procedure mode (add-skill-audit D3). Escalation
+    # never changes it: it belongs to the archetype, not to the tier.
+    procedure_mode: str = DEFAULT_PROCEDURE_MODE
 
 
 class ProviderModelMappingError(ValueError):
@@ -2087,12 +2126,22 @@ def load_archetypes_config(
                 f"write-capable worker archetypes and never edits code, specs, "
                 f"tests, or configuration directly. Got write_capable: true."
             )
+        # Optional per-archetype procedure mode (add-skill-audit D3). The JSON
+        # schema already rejects unknown values; this guard keeps the error
+        # structured if the two ever drift.
+        procedure_mode = data.get("procedure_mode", DEFAULT_PROCEDURE_MODE)
+        if procedure_mode not in PROCEDURE_MODES:
+            raise ValueError(
+                f"archetype {name!r} declares unknown procedure_mode "
+                f"{procedure_mode!r}; expected one of {', '.join(PROCEDURE_MODES)}"
+            )
         result[name] = ArchetypeConfig(
             name=name,
             model=data["model"],
             system_prompt=data["system_prompt"],
             write_capable=write_capable,
             escalation=esc_config,
+            procedure_mode=procedure_mode,
         )
 
     # Phase mapping (optional, schema_version=2). Validate archetype refs after
@@ -2548,7 +2597,11 @@ def _resolve_archetype_for_phase_static(
 
     Returns:
         A :class:`ResolvedArchetype` carrying the model, system prompt,
-        archetype name, and a reasons trace.
+        archetype name, procedure mode, and a reasons trace. For a non-guided
+        ``procedure_mode`` the archetype's ``system_prompt`` is returned with
+        the mode's sentence from :data:`PROCEDURE_MODE_SENTENCES` appended
+        after one blank line (add-skill-audit D3). This is the only injection
+        point; ``guided`` returns the prompt unchanged.
 
     Raises:
         KeyError: If *phase* is not present in ``phase_mapping``.
@@ -2626,14 +2679,24 @@ def _resolve_archetype_for_phase_static(
     if not escalation_reasons:
         reasons.append("no escalation triggered")
 
+    # Procedure-mode injection (add-skill-audit D3): the single place the
+    # mode sentence enters a prompt. `guided` has no sentence and leaves the
+    # archetype prompt byte-identical. The mode is read from the archetype,
+    # so escalation to another tier cannot change it.
+    system_prompt = archetype.system_prompt
+    sentence = PROCEDURE_MODE_SENTENCES.get(archetype.procedure_mode)
+    if sentence is not None:
+        system_prompt = system_prompt.rstrip("\n") + "\n\n" + sentence
+
     return ResolvedArchetype(
         model=spec.model,
-        system_prompt=archetype.system_prompt,
+        system_prompt=system_prompt,
         archetype=archetype.name,
         reasons=reasons,
         provider=provider,
         write_capable=archetype.write_capable,
         thinking=spec.thinking,
+        procedure_mode=archetype.procedure_mode,
     )
 
 

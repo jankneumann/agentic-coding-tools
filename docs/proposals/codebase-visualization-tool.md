@@ -1,9 +1,9 @@
 # Interactive Codebase Visualization & Navigation Tool
 
 **Roadmap ID**: codeviz
-**Status**: Phase 0a shipped (`/codebase-atlas`); Phases 0–5 remain roadmap, now usage-gated
+**Status**: Phase 0a shipped (`/codebase-atlas`); Phase 0b shipped (`/explain-code`); Phases 0–5 remain roadmap, now usage-gated
 **Created**: 2026-05-12
-**Last revised**: 2026-07-25
+**Last revised**: 2026-09-16
 
 ## Delivery status and revised sequencing
 
@@ -29,6 +29,14 @@ described — see the skill's `SKILL.md` for the full surface.
 
 What it deliberately does **not** do: extraction, temporal queries, agent memory,
 AI chat, multi-repo federation. Those remain the phases below.
+
+### Shipped: Phase 0b — `/explain-code` question-driven explainer
+
+`skills/explain-code/` answers a narrow question with the smallest visual form
+from a fixed catalogue (call tree, component tree, file tree, sequence, structural
+diff), grounded through `codebase-atlas --tree` when the architecture graph is
+fresh, and always disclosing coverage on sketching replies. Prompt-only skill;
+the only new code is the atlas `--tree` export.
 
 ### Discovery that outranks the rest of this roadmap
 

@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-16T11:42:24.554436+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented add-skill-audit across three work packages: the optional procedure_mode field on archetypes (schema v4, injected once at resolve_archetype_for_phase), the new read-only skill-audit skill with 86 tests, and integration wiring. Ran local-parallel tier rather than coordinated because the coordinator rejects this session's key for lock and memory operations. Two defects found and fixed at integration that neither package could see alone: a flat module-name collision and a stale schema copy.",
+    "completed_work": [
+      "wp-procedure-mode: procedure_mode on archetypes at schema v4, injected once in resolve_archetype_for_phase; 208 coordinator tests and 142 skills tests pass",
+      "wp-skill-audit: 8 scripts, 3 references, SKILL.md at 102 lines, 86 tests, all deterministic and LLM-free",
+      "wp-integration: manifest and testpaths registration, non-blocking freshness CI job, skills guide and reports README, mirrors regenerated, six audit reports committed",
+      "All 23 tasks and 8 checkpoints checked; openspec validate --strict passes"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Ran local-parallel tier, not coordinated, and said so",
+        "rationale": "check_coordinator reports CAN_LOCK true but the lock endpoint rejects this session's API key, as try_recall did at plan time. The coordinated protocol is built on lock claims, so running it would have meant reporting a coordinated run that never claimed a lock.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Renamed skills/skill-audit/scripts/findings.py to audit_findings.py",
+        "rationale": "playwright-validator already owns the flat module name `findings`. Once tests entered testpaths, whole-suite collection resolved `from findings import Finding` to that module and broke all six skill-audit test modules. Measured 36 pre-existing collection errors at base, 42 with the collision, 36 after the rename. The filename was mandated by my own tasks.md 2.2, so the mandate was the defect.",
+        "capability": "skill-audit",
+        "supersedes": null
+      },
+      {
+        "title": "Reconciled openspec/schemas/archetypes.schema.json from the skill-owned copy",
+        "rationale": "install.sh flagged divergence and assumes the openspec/ copy is newer; here the direction inverted because task 1.3 edited the skill-owned source. The stale copy provably rejected the shipped roster with '4 is not one of [1, 2, 3]'.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Corrected suggested_change_id to update-rightsize-<skill>-<kind>-<section-slug>",
+        "rationale": "candidate-work.schema.json admits only an add|update|remove|refactor prefix, and one kind firing in two sections would collide on a duplicate id. The spec text I wrote at plan time was unimplementable; the spec was corrected to match the working implementation.",
+        "capability": "skill-audit",
+        "supersedes": null
+      },
+      {
+        "title": "Corrected the proposal's injection point from compose_prompt to resolve_archetype_for_phase",
+        "rationale": "compose_prompt composes with a task prompt and is used by other callers such as audit_triage; injecting there would change behaviour beyond phase resolution. Design D3 was right and the Impact prose had drifted from it.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Committed the first six audits with 58 sections left unclassified",
+        "rationale": "No model backend is configured here, so the teaching-layer question is reported open rather than guessed. Guessing would defeat the audit's purpose.",
+        "capability": "skill-audit",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "validate-feature should check the spec and evidence phases first; the tier-failure path is the least exercised surface because no coordinator evidence was reachable.",
+      "Re-run the six audits with SKILL_AUDIT_MODEL_CMD set to fill the 58 unclassified sections and answer the teaching-layer question."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/skill-audit/SKILL.md",
+        "description": "the new skill, 102 lines"
+      },
+      {
+        "path": "skills/skill-audit/scripts/classifier.py",
+        "description": "deterministic pre-pass plus one batched model call"
+      },
+      {
+        "path": "agent-coordinator/src/agents_config.py",
+        "description": "PROCEDURE_MODE_SENTENCES and the single injection point"
+      },
+      {
+        "path": "docs/reports/skill-audit/",
+        "description": "first six audit reports, ledgers, and candidate-work stubs"
+      },
+      {
+        "path": "openspec/changes/add-skill-audit/change-context.md",
+        "description": "traceability matrix, Files Changed still pending validation"
+      }
+    ]
+  }
+}

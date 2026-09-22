@@ -283,13 +283,33 @@ to analyst dispatch; render the probe reason only as stdout/debug context, not a
 Degraded line. A missing, invalid, or mismatched singleton cache makes reuse unavailable
 for this branch; it does not abort the cycle.
 
-Dispatch exactly one host sub-agent using `templates/rubric-prompt.md` and the analyst archetype only when the manifest has at least one requested key. Give it 120 seconds and one retry, require JSON-only output conforming to the
+When the manifest has at least one requested key, try the batched judged scorer first:
+
+```bash
+if python3 "<skill-base-dir>/scripts/rubric_score.py" --repo-root . score-batch \
+    --manifest "$SUPERVISE_BATCH" > "$SUPERVISE_SCORES"; then
+  SUPERVISE_SCORED_VIA=rubric_score
+else
+  SUPERVISE_SCORED_VIA=analyst_archetype
+fi
+```
+
+`rubric_score.py` scores every requested stub on all 5 factors with one batched
+calibrated-decision call and exits 0 with a schema-valid rubric-score document on stdout
+only when every requested stub got a usable answer for every factor; any missing,
+unavailable, or malformed answer for even one stub/factor exits nonzero with no output.
+
+Dispatch exactly one host sub-agent using `templates/rubric-prompt.md` and the analyst archetype
+**only when `rubric_score.py` exited nonzero** (module unavailable, live
+judgment unreachable, or any structural defect) -- it remains the fallback path, not the
+primary one. Give it 120 seconds and one retry, require JSON-only output conforming to the
 stable rubric schema, and require `scored_at` to exactly echo `$SUPERVISE_AS_OF`. When
 archetype resolution is unavailable, omit the explicit model and use the harness default.
 Timeout, retry exhaustion, missing/partial output, schema failure, key mismatch, or time
 mismatch keeps the prior valid digest byte-identical, writes no journal/cache/digest/
 mirror state, does not advance the ledger fingerprint, and renders one Degraded scoring
-line so a later cycle retries.
+line so a later cycle retries. This is the same fallback contract `rubric_score.py` itself
+already inherits -- `rank`'s validation below treats both sources identically.
 
 Join the returned scores mechanically:
 

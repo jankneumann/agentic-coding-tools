@@ -1,0 +1,7 @@
+{
+  "change_id": "wire-the-live-typesafe-client-thresholds-and-telemetry",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

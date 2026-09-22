@@ -1,4 +1,4 @@
-schema_version: 3
+schema_version: 4
 
 # Host class of the machine serving the `local` provider (ASUS Ascent GX10 /
 # NVIDIA GB10: 128 GB unified LPDDR5x at ~273 GB/s). Decode throughput is
@@ -95,6 +95,9 @@ archetypes:
     # frontier: planning is where weaker models get lost; implementer stays
     # standard (with premium escalation), so frontier spend is planning-only.
     model: frontier
+    # goal-directed (add-skill-audit D3): frontier planning pays for scaffolding
+    # it would derive itself; deviations are logged as skill-procedure-deviation.
+    procedure_mode: goal-directed
     system_prompt: |
       You are a software architect. Focus on cross-cutting concerns, dependency
       ordering, interface contracts, and long-term maintainability. Think deeply
@@ -145,6 +148,9 @@ archetypes:
   runner:
     write_capable: false
     model: economy
+    # verbatim (add-skill-audit D3): economy phases INIT and SUBMIT_PR omit
+    # steps when unguided, so the runner follows the written procedure as-is.
+    procedure_mode: verbatim
     system_prompt: |
       Execute the requested command and report results. Include exit codes,
       error output, and pass/fail summary. Do not analyze or suggest fixes.

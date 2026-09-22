@@ -61,6 +61,10 @@
       "parallel-infrastructure",
       "session-log"
     ],
+    "explain-code": [
+      "codebase-atlas",
+      "refresh-architecture"
+    ],
     "explore-feature": [
       "coordination-bridge",
       "refresh-architecture",
@@ -70,9 +74,6 @@
     "fix-scrub": [
       "worktree"
     ],
-    "improve-harness": [
-      "shared"
-    ],
     "implement-feature": [
       "coordination-bridge",
       "coordinator-task-status-renderer",
@@ -80,6 +81,9 @@
       "project-context-refresh",
       "validate-feature",
       "worktree"
+    ],
+    "improve-harness": [
+      "shared"
     ],
     "iterate-on-implementation": [
       "audit-choices",
@@ -152,6 +156,11 @@
       "coordination-bridge",
       "parallel-infrastructure",
       "project-context-runtime"
+    ],
+    "skill-audit": [
+      "shared",
+      "coordination-bridge",
+      "improve-harness"
     ],
     "supervise": [
       "plan-roadmap",
@@ -260,6 +269,9 @@
       "distribution": "portable"
     },
     "expedite": {
+      "distribution": "portable"
+    },
+    "explain-code": {
       "distribution": "portable"
     },
     "explore-feature": {
@@ -374,6 +386,9 @@
       ]
     },
     "simplify": {
+      "distribution": "portable"
+    },
+    "skill-audit": {
       "distribution": "portable"
     },
     "source-driven-development": {

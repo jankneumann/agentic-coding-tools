@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-21T15:18:27.064063+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Post-merge cleanup for PR #558 (already merged 2026-09-18). All 24 tasks complete \u2014 no open-task migration. Archiving OpenSpec change and regenerating docs/decisions in the same commit.",
+    "completed_work": [
+      "verify PR #558 MERGED",
+      "sync autopilot DONE handoff + loop-state into change dir",
+      "archive OpenSpec change",
+      "regenerate docs/decisions",
+      "teardown feature worktrees"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Post-merge archive path",
+        "rationale": "PR #558 was already MERGED; skip merge/pre-merge gates and archive from main.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "No open-task migration",
+        "rationale": "tasks.md is 24/24 checked; nothing to migrate to coordinator issues or a follow-up proposal.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "None \u2014 change complete"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-visual-code-explainer/",
+        "description": "Active change being archived"
+      },
+      {
+        "path": "docs/decisions/",
+        "description": "Regenerated with archive"
+      }
+    ]
+  }
+}

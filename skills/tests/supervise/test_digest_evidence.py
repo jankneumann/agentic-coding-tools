@@ -24,16 +24,39 @@ from digest import (
     store_candidates,
 )  # noqa: E402
 
-AS_OF = "2026-09-20T00:00:00Z"
+#: Stamped on every fixture commit, so evidence timestamps never come from the
+#: wall clock. Two tests below already pin dates this way to assert an exact
+#: ``staleness_days``; the default path did not, and that asymmetry is what made
+#: the suite time-dependent.
+FIXTURE_COMMITTED_AT = "2026-01-02T00:00:00Z"
+
+#: Evidence committed after ``as_of`` is rejected as ``clock_skew``, so ``as_of``
+#: has to sit after ``FIXTURE_COMMITTED_AT``.
+#:
+#: This read "2026-09-20T00:00:00Z" while fixture commits took the wall-clock
+#: time -- a pairing that holds only while the constant is still in the future.
+#: The suite duly began failing at midnight on 2026-09-20, three days after it
+#: was written. Pinning both sides makes the relationship true on any day.
+AS_OF = "2026-01-03T00:00:00Z"
 
 
 def _git(repo: Path, *args: str) -> str:
+    """Run git with fixture commits stamped at ``FIXTURE_COMMITTED_AT``.
+
+    Evidence freshness is derived from git commit time, so letting commits take
+    the wall clock makes every assertion about it depend on the day the suite
+    runs. Tests needing a different date pass their own ``GIT_*_DATE``.
+    """
     return subprocess.run(
         ["git", "-C", str(repo), *args],
         check=True,
         capture_output=True,
         text=True,
-        env={**os.environ, "GIT_AUTHOR_DATE": "2026-09-19T00:00:00Z", "GIT_COMMITTER_DATE": "2026-09-19T00:00:00Z"},
+        env={
+            **os.environ,
+            "GIT_AUTHOR_DATE": FIXTURE_COMMITTED_AT,
+            "GIT_COMMITTER_DATE": FIXTURE_COMMITTED_AT,
+        },
     ).stdout.strip()
 
 
@@ -94,7 +117,10 @@ def test_prepare_batch_sanitizes_delimits_caps_and_dates_tracked_evidence(repo: 
 
     assert manifest["requested_keys"] == ["change:add-evidence-boundary"]
     assert manifest["as_of"] == AS_OF
-    assert candidate["signals"]["staleness_days"] >= 0
+    # Exactly one day separates FIXTURE_COMMITTED_AT from AS_OF. Asserting the
+    # value rather than its sign is only possible because both are pinned; the
+    # old `>= 0` could not distinguish a correct computation from a broken one.
+    assert candidate["signals"]["staleness_days"] == 1
     assert len(candidate["evidence"].encode("utf-8")) <= 2300
     assert "[REDACTED:token]" in candidate["evidence"]
     assert "BEGIN UNTRUSTED PROVENANCE" in candidate["evidence"]
@@ -157,7 +183,7 @@ def test_offset_crossing_git_timestamp_never_produces_negative_staleness(repo: P
         check=True,
         capture_output=True,
         env={
-            **__import__("os").environ,
+            **os.environ,
             "GIT_AUTHOR_DATE": "2026-09-20T00:30:00+02:00",
             "GIT_COMMITTER_DATE": "2026-09-20T00:30:00+02:00",
         },
@@ -196,7 +222,7 @@ def test_future_git_timestamp_degrades_to_clock_skew(repo: Path) -> None:
         check=True,
         capture_output=True,
         env={
-            **__import__("os").environ,
+            **os.environ,
             "GIT_AUTHOR_DATE": "2027-01-01T00:00:00Z",
             "GIT_COMMITTER_DATE": "2027-01-01T00:00:00Z",
         },

@@ -20,7 +20,14 @@
       "id": "c0affb90-b7ec-4561-93e2-90dd3ea59835",
       "rationale": "Direct autopilot-roadmap invocation for dg-00 recovery; stale in_progress state had no canonical checkpoint",
       "scope": "dispatch-governance"
+    },
+    {
+      "decided_at": "2026-09-18T11:31:45.995122+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "fa4278cf-0e86-4d2b-ba0f-0640e2c0e740",
+      "rationale": "direct invocation: user asked to approve items and start autopilot-roadmap on ri-01, continuing through the roadmap",
+      "scope": "roadmap-jev-system-one-integration-assessment"
     }
   ],
-  "written_at": "2026-09-16T15:00:01.340411Z"
+  "written_at": "2026-09-18T11:31:45.951577Z"
 }

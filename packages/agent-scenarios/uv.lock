@@ -157,17 +157,18 @@ requires-dist = [
     { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2.0" },
     { name = "gen-eval", extras = ["mcp", "sdk", "db"], marker = "extra == 'all'" },
     { name = "httpx", specifier = ">=0.28" },
-    { name = "jinja2", specifier = ">=3.1" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsonpath-ng", specifier = ">=1.6" },
     { name = "openai", marker = "extra == 'sdk'", specifier = ">=1.50" },
     { name = "pydantic", specifier = ">=2.13" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "system-one-decisions", extras = ["live"], marker = "extra == 'decisions'", directory = "../system-one-decisions" },
 ]
-provides-extras = ["mcp", "sdk", "db", "all"]
+provides-extras = ["mcp", "sdk", "db", "all", "decisions"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "jsonschema", specifier = ">=4.23" },
+    { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
