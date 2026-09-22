@@ -25,7 +25,7 @@
 
 ## 3. Evidence and validation
 
-- [ ] 3.1 **S** Preserve the vendor plan-review manifest and incorporate its
+- [x] 3.1 **S** Preserve the vendor plan-review manifest and incorporate its
   actionable findings into the design and test matrix.
 - [ ] 3.2 **S** Run strict OpenSpec, targeted suites, affected lint, and full
   cross-boundary regression; update the roadmap only after green evidence.
