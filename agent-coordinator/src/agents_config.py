@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 import yaml
 from jsonschema import validate
 
+from src.isolation_contract import ISOLATION_MODES, IsolationMode, validate_isolation
 from src.profile_loader import _INTERPOLATION_RE, _load_secrets_file, interpolate
 from src.trust_levels import MAX_TRUST, MIN_TRUST, TrustLevel
 
@@ -342,7 +343,7 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 VALID_TRANSPORTS = {"mcp", "http"}
-VALID_ISOLATION_MODES = {"worktree", "sandbox", "none"}
+VALID_ISOLATION_MODES = frozenset(ISOLATION_MODES)
 VALID_ENDPOINT_KINDS = {"vendor-cli", "vendor-sdk", "openrouter", "local"}
 VALID_LOCATIONS = {"local", "cloud", "unknown"}
 VALID_CAPABILITIES = {
@@ -455,6 +456,10 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                             "minItems": 1,
                                         },
                                         "async": {"type": "boolean"},
+                                        "isolation": {
+                                            "type": "string",
+                                            "enum": list(ISOLATION_MODES),
+                                        },
                                         "poll": {
                                             "type": "object",
                                             "required": [
@@ -538,6 +543,7 @@ class ModeConfig:
     args: list[str]
     async_dispatch: bool = False
     poll: PollConfig | None = None
+    isolation: IsolationMode | None = None
 
 
 @dataclass
@@ -592,7 +598,7 @@ class AgentEntry:
     transport: str
     capabilities: list[str]
     description: str
-    isolation: str = "none"
+    isolation: IsolationMode = "none"
     api_key: str | None = None
     openbao_role_id: str | None = None
     endpoint_kind: str | None = None
@@ -850,6 +856,7 @@ def load_agents_config(
                 return ModeConfig(
                     args=mode_data["args"],
                     async_dispatch=mode_data.get("async", False),
+                    isolation=mode_data.get("isolation"),
                     poll=poll_config,
                 )
 
@@ -1830,6 +1837,11 @@ def get_dispatch_configs(
                     name: {
                         "args": mc.args,
                         "async": mc.async_dispatch,
+                        **(
+                            {"isolation": mc.isolation}
+                            if mc.isolation is not None
+                            else {}
+                        ),
                         **({"poll": {
                             "command_template": mc.poll.command_template,
                             "task_id_pattern": mc.poll.task_id_pattern,
@@ -1866,15 +1878,26 @@ def get_dispatch_configs(
 # Isolation helpers
 # ---------------------------------------------------------------------------
 
-def get_agent_isolation(agent_type: str) -> str | None:
-    """Return the isolation mode for *agent_type*, or ``None`` if not found.
+def get_agent_isolation(
+    agent_type: str,
+    dispatch_mode: str | None = None,
+    *,
+    agent_id: str | None = None,
+) -> IsolationMode | None:
+    """Return isolation for an exact agent/mode, or ``None`` if not found.
 
-    Searches through loaded agent entries and returns the ``isolation``
-    field of the first agent whose ``type`` matches *agent_type*.
+    The legacy one-argument call retains first-type-match behavior. Callers
+    that know the selected lane pass ``agent_id`` to avoid YAML-order coupling.
     """
     for agent in get_agents_config():
-        if agent.type == agent_type:
-            return agent.isolation
+        if agent.type != agent_type or (agent_id is not None and agent.name != agent_id):
+            continue
+        configured: object = agent.isolation
+        if dispatch_mode is not None and agent.cli is not None:
+            mode = agent.cli.dispatch_modes.get(dispatch_mode)
+            if mode is not None and mode.isolation is not None:
+                configured = mode.isolation
+        return validate_isolation(configured, rung="agents_yaml")
     return None
 
 
