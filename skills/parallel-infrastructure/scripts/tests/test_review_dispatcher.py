@@ -23,6 +23,8 @@ from review_dispatcher import (
     ReviewResult,
     SdkConfig,
     SdkVendorAdapter,
+    VendorResultProtocolError,
+    parse_vendor_result_envelope,
     classify_error,
     create_review_snapshot,
     review_snapshot_path,
@@ -71,6 +73,94 @@ def _resolved_primary(vendor: str = "codex") -> str:
 
     model, _ = _resolve_review_model_spec(vendor)
     return model or "(default)"
+
+
+class _LedgerStub:
+    """In-memory completion-ledger boundary for async adapter contract tests."""
+
+    def __init__(self) -> None:
+        self.submissions: list[dict[str, object]] = []
+        self.claims: list[dict[str, object]] = []
+        self.completions: list[dict[str, object]] = []
+        self.submit_response: dict[str, object] = {
+            "status": "ok",
+            "data": {"success": True, "task_id": "ledger-123"},
+        }
+        self.claim_response: dict[str, object] = {
+            "status": "ok",
+            "data": {"success": True, "task_id": "ledger-123"},
+        }
+        self.complete_response: dict[str, object] = {
+            "status": "ok",
+            "data": {"success": True, "status": "completed"},
+        }
+
+    def submit(self, **kwargs: object) -> dict[str, object]:
+        self.submissions.append(kwargs)
+        return self.submit_response
+
+    def claim(self, **kwargs: object) -> dict[str, object]:
+        self.claims.append(kwargs)
+        return self.claim_response
+
+    def complete(self, **kwargs: object) -> dict[str, object]:
+        self.completions.append(kwargs)
+        return self.complete_response
+
+
+def test_parse_vendor_result_envelope_accepts_submitted_task() -> None:
+    envelope = parse_vendor_result_envelope('{"version": 1, "state": "submitted", "vendor_task_id": "task-123"}')
+    assert envelope.version == 1
+    assert envelope.state == "submitted"
+    assert envelope.vendor_task_id == "task-123"
+    assert envelope.is_terminal is False
+
+
+def test_parse_vendor_result_envelope_rejects_malformed_json_without_regex_fallback() -> None:
+    with pytest.raises(VendorResultProtocolError, match="invalid JSON"):
+        parse_vendor_result_envelope("task completed: 123")
+
+
+def test_parse_vendor_result_envelope_rejects_nonterminal_state_without_task_id() -> None:
+    with pytest.raises(VendorResultProtocolError, match="vendor_task_id"):
+        parse_vendor_result_envelope('{"version": 1, "state": "running"}')
+
+
+def test_parse_vendor_result_envelope_rejects_unknown_version() -> None:
+    with pytest.raises(VendorResultProtocolError, match="version"):
+        parse_vendor_result_envelope('{"version": 2, "state": "succeeded"}')
+
+
+def test_parse_vendor_result_envelope_requires_result_on_success() -> None:
+    with pytest.raises(VendorResultProtocolError, match="result"):
+        parse_vendor_result_envelope('{"version": 1, "state": "succeeded"}')
+
+
+def test_parse_vendor_result_envelope_requires_error_on_failure() -> None:
+    with pytest.raises(VendorResultProtocolError, match="error"):
+        parse_vendor_result_envelope('{"version": 1, "state": "failed"}')
+
+
+def test_parse_vendor_result_envelope_rejects_schema_drift() -> None:
+    with pytest.raises(VendorResultProtocolError, match="unexpected field"):
+        parse_vendor_result_envelope(
+            '{"version": 1, "state": "succeeded", "result": {}, "status": "done"}'
+        )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"version": 1, "state": "cancelled", "error": {"message": ""}}',
+        '{"version": 1, "state": "succeeded", "vendor_task_id": "", "result": {}}',
+    ],
+)
+def test_parse_vendor_result_envelope_enforces_schema_string_lengths(
+    payload: str,
+) -> None:
+    with pytest.raises(VendorResultProtocolError, match="must not be empty"):
+        parse_vendor_result_envelope(payload)
+
 
 
 def test_openai_compatible_endpoint_is_discovered_after_cli_and_sdk() -> None:
@@ -684,9 +774,9 @@ class TestOrchestrator:
 # Async dispatch + polling tests
 # ---------------------------------------------------------------------------
 
-def _async_adapter(**kwargs: object) -> CliVendorAdapter:
-    """Create adapter with async mode configured."""
-    from review_dispatcher import PollConfig
+def _async_adapter(*, ledger: _LedgerStub | None = None) -> CliVendorAdapter:
+    """Create adapter with async mode and injected ledger boundaries."""
+    ledger = ledger or _LedgerStub()
     return CliVendorAdapter(
         agent_id="codex-remote",
         vendor="codex",
@@ -699,9 +789,6 @@ def _async_adapter(**kwargs: object) -> CliVendorAdapter:
                     async_dispatch=True,
                     poll=PollConfig(
                         command_template=["codex", "cloud", "status", "{task_id}"],
-                        task_id_pattern=r"task[_\s:]+(\w+)",
-                        success_pattern="completed",
-                        failure_pattern="failed|error",
                         interval_seconds=1,
                         timeout_seconds=5,
                     ),
@@ -709,24 +796,84 @@ def _async_adapter(**kwargs: object) -> CliVendorAdapter:
             },
             model_flag="-m",
         ),
+        ledger_submitter=ledger.submit,
+        ledger_claimer=ledger.claim,
+        ledger_completer=ledger.complete,
     )
+
+
+def _vendor_envelope(
+    state: str,
+    *,
+    result: dict[str, object] | None = None,
+    error: dict[str, object] | None = None,
+) -> str:
+    return json.dumps({
+        "version": 1,
+        "state": state,
+        "vendor_task_id": "abc123",
+        **({"result": result} if result is not None else {}),
+        **({"error": error} if error is not None else {}),
+    })
 
 
 class TestAsyncDispatch:
     @patch("review_dispatcher.subprocess.run")
-    def test_async_submit_extracts_task_id(
+    def test_async_submit_reads_task_id_from_structured_envelope(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """Async dispatch extracts task_id from output."""
+        ledger = _LedgerStub()
         mock_run.return_value = subprocess.CompletedProcess(
-            args=[], returncode=0,
-            stdout="Submitted! task: abc123\n", stderr="",
+            args=[], returncode=0, stdout=_vendor_envelope("submitted"), stderr="",
         )
-        adapter = _async_adapter()
+        adapter = _async_adapter(ledger=ledger)
+
         result = adapter.dispatch_async("alternative", "prompt", cwd=tmp_path)
+
         assert result.success is True
         assert result.task_id == "abc123"
+        assert result.ledger_task_id == "ledger-123"
         assert result.async_dispatch is True
+        assert len(ledger.submissions) == 1
+        assert len(ledger.claims) == 1
+        assert ledger.completions == []
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_async_submit_does_not_launch_when_completion_ledger_is_unavailable(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        ledger = _LedgerStub()
+        ledger.submit_response = {
+            "status": "skipped",
+            "reason": "coordinator_unavailable",
+        }
+        adapter = _async_adapter(ledger=ledger)
+
+        result = adapter.dispatch_async("alternative", "prompt", cwd=tmp_path)
+
+        assert result.success is False
+        assert "completion ledger" in (result.error or "").lower()
+        mock_run.assert_not_called()
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_async_submit_rejects_unknown_result_protocol_before_ledger_or_launch(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        ledger = _LedgerStub()
+        adapter = _async_adapter(ledger=ledger)
+        poll = adapter.cli_config.dispatch_modes["alternative"].poll
+        assert poll is not None
+        poll.result_protocol = "vendor-envelope-v2"
+
+        result = adapter.dispatch_async("alternative", "prompt", cwd=tmp_path)
+
+        assert result.success is False
+        assert "unsupported result protocol" in (result.error or "").lower()
+        assert ledger.submissions == []
+        assert ledger.claims == []
+        assert ledger.completions == []
+        mock_run.assert_not_called()
+
 
     @patch("review_dispatcher.subprocess.run")
     def test_async_capacity_callback_fires_before_successful_fallback(
@@ -737,7 +884,7 @@ class TestAsyncDispatch:
                 args=[], returncode=1, stdout="", stderr="429 capacity",
             ),
             subprocess.CompletedProcess(
-                args=[], returncode=0, stdout="task: abc123", stderr="",
+                args=[], returncode=0, stdout=_vendor_envelope("submitted"), stderr="",
             ),
         ]
         adapter = _async_adapter()
@@ -759,24 +906,23 @@ class TestAsyncDispatch:
         assert observations[0].capacity_model == "gpt-primary"
 
     @patch("review_dispatcher.subprocess.run")
-    def test_async_submit_no_task_id(
+    def test_async_submit_rejects_text_without_regex_fallback(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """Async dispatch fails if task_id cannot be extracted."""
         mock_run.return_value = subprocess.CompletedProcess(
-            args=[], returncode=0,
-            stdout="Something happened but no ID\n", stderr="",
+            args=[], returncode=0, stdout="Submitted! task: abc123\n", stderr="",
         )
         adapter = _async_adapter()
+
         result = adapter.dispatch_async("alternative", "prompt", cwd=tmp_path)
+
         assert result.success is False
-        assert "Could not extract task ID" in (result.error or "")
+        assert "Invalid structured async submission" in (result.error or "")
 
     @patch("review_dispatcher.subprocess.run")
     def test_async_not_configured(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """Async dispatch on sync mode returns error."""
         adapter = _async_adapter()
         result = adapter.dispatch_async("review", "prompt", cwd=tmp_path)
         assert result.success is False
@@ -784,28 +930,42 @@ class TestAsyncDispatch:
 
     @patch("review_dispatcher.subprocess.run")
     @patch("review_dispatcher.time.sleep")
-    def test_poll_success(
+    def test_poll_success_completes_ledger_before_consuming_findings(
         self, mock_sleep: MagicMock, mock_run: MagicMock,
     ) -> None:
-        """Polling detects completion and parses findings."""
-        from review_dispatcher import PollConfig
+        findings = json.loads(VALID_FINDINGS_JSON)
+        ledger = _LedgerStub()
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0,
-            stdout=f"Status: completed\n{VALID_FINDINGS_JSON}",
+            stdout=_vendor_envelope("succeeded", result=findings),
             stderr="",
         )
-        adapter = _async_adapter()
+        adapter = _async_adapter(ledger=ledger)
         poll_cfg = PollConfig(
             command_template=["codex", "cloud", "status", "{task_id}"],
-            task_id_pattern=r"task[_\s:]+(\w+)",
-            success_pattern="completed",
             interval_seconds=1,
             timeout_seconds=10,
         )
-        result = adapter.poll_for_result("abc123", poll_cfg)
+
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
+
         assert result.success is True
         assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
         assert result.task_id == "abc123"
+        assert result.ledger_task_id == "ledger-123"
+        assert ledger.completions[0]["success"] is True
+        assert ledger.completions[0]["result"] == {
+            "vendor_result": {
+                "version": 1,
+                "state": "succeeded",
+                "vendor_task_id": "abc123",
+                "result": findings,
+                "error": None,
+            }
+        }
 
     @patch("review_dispatcher.subprocess.run")
     def test_poll_placeholder_is_unsuccessful(
@@ -814,21 +974,20 @@ class TestAsyncDispatch:
         payload = json.loads(VALID_FINDINGS_JSON)
         payload["findings"][0]["description"] = "Placeholder while review runs"
         mock_run.return_value = subprocess.CompletedProcess(
-            args=[],
-            returncode=0,
-            stdout=f"Status: completed\n{json.dumps(payload)}",
+            args=[], returncode=0,
+            stdout=_vendor_envelope("succeeded", result=payload),
             stderr="",
         )
         adapter = _async_adapter()
         poll_cfg = PollConfig(
             command_template=["codex", "cloud", "status", "{task_id}"],
-            task_id_pattern=r"task[_\s:]+(\w+)",
-            success_pattern="completed",
             interval_seconds=1,
             timeout_seconds=10,
         )
 
-        result = adapter.poll_for_result("abc123", poll_cfg)
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
 
         assert result.success is False
         assert result.error == "non_substantive_placeholder"
@@ -838,21 +997,21 @@ class TestAsyncDispatch:
     def test_poll_accepts_clean_findings_when_remote_runtime_is_unknown(
         self, mock_run: MagicMock,
     ) -> None:
-        """Poll-loop elapsed time is not the remote review runtime."""
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0,
-            stdout='Status: completed\n{"findings": []}', stderr="",
+            stdout=_vendor_envelope("succeeded", result={"findings": []}),
+            stderr="",
         )
         adapter = _async_adapter()
         poll_cfg = PollConfig(
             command_template=["codex", "cloud", "status", "{task_id}"],
-            task_id_pattern=r"task[_\s:]+(\w+)",
-            success_pattern="completed",
             interval_seconds=1,
             timeout_seconds=10,
         )
 
-        result = adapter.poll_for_result("abc123", poll_cfg)
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
 
         assert result.success is True
         assert result.findings == {"findings": []}
@@ -861,16 +1020,14 @@ class TestAsyncDispatch:
     def test_poll_rejects_clean_findings_when_submission_runtime_is_fast(
         self, mock_run: MagicMock,
     ) -> None:
-        """Production polling retains the fast-empty quorum guard."""
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0,
-            stdout='Status: completed\n{"findings": []}', stderr="",
+            stdout=_vendor_envelope("succeeded", result={"findings": []}),
+            stderr="",
         )
         adapter = _async_adapter()
         poll_cfg = PollConfig(
             command_template=["codex", "cloud", "status", "{task_id}"],
-            task_id_pattern=r"task[_\s:]+(\w+)",
-            success_pattern="completed",
             interval_seconds=1,
             timeout_seconds=10,
         )
@@ -879,37 +1036,41 @@ class TestAsyncDispatch:
             "abc123",
             poll_cfg,
             review_started_at=time.monotonic(),
+            ledger_task_id="ledger-123",
         )
 
         assert result.success is False
         assert result.error == "empty_findings_too_fast"
         assert result.task_id == "abc123"
-        assert result.task_id == "abc123"
 
     @patch("review_dispatcher.subprocess.run")
     @patch("review_dispatcher.time.sleep")
-    def test_poll_failure(
+    def test_poll_terminal_failure_completes_ledger(
         self, mock_sleep: MagicMock, mock_run: MagicMock,
     ) -> None:
-        """Polling detects failure."""
-        from review_dispatcher import PollConfig
+        ledger = _LedgerStub()
         mock_run.return_value = subprocess.CompletedProcess(
-            args=[], returncode=1,
-            stdout="Status: failed\nError: something broke",
+            args=[], returncode=0,
+            stdout=_vendor_envelope(
+                "failed",
+                error={"code": "vendor_failed", "message": "something broke"},
+            ),
             stderr="",
         )
-        adapter = _async_adapter()
+        adapter = _async_adapter(ledger=ledger)
         poll_cfg = PollConfig(
             command_template=["codex", "cloud", "status", "{task_id}"],
-            task_id_pattern=r"task[_\s:]+(\w+)",
-            success_pattern="completed",
-            failure_pattern="failed",
             interval_seconds=1,
             timeout_seconds=10,
         )
-        result = adapter.poll_for_result("abc123", poll_cfg)
+
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
+
         assert result.success is False
-        assert "failed" in (result.error or "").lower()
+        assert "something broke" in (result.error or "").lower()
+        assert ledger.completions[0]["success"] is False
 
     @patch("review_dispatcher.subprocess.run")
     @patch("review_dispatcher.time.sleep")
@@ -918,25 +1079,51 @@ class TestAsyncDispatch:
         self, mock_time: MagicMock, mock_sleep: MagicMock,
         mock_run: MagicMock,
     ) -> None:
-        """Polling times out when task doesn't complete."""
-        from review_dispatcher import PollConfig
-        # Simulate time passing beyond timeout
         mock_time.side_effect = [0, 0, 1, 3, 6, 100]
         mock_run.return_value = subprocess.CompletedProcess(
-            args=[], returncode=0,
-            stdout="Status: running", stderr="",
+            args=[], returncode=0, stdout=_vendor_envelope("running"), stderr="",
         )
         adapter = _async_adapter()
         poll_cfg = PollConfig(
             command_template=["codex", "cloud", "status", "{task_id}"],
-            task_id_pattern=r"task[_\s:]+(\w+)",
-            success_pattern="completed",
             interval_seconds=1,
             timeout_seconds=5,
         )
-        result = adapter.poll_for_result("abc123", poll_cfg)
+
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
+
         assert result.success is False
         assert "timed out" in (result.error or "").lower()
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_terminal_result_is_not_consumed_when_ledger_completion_fails(
+        self, mock_run: MagicMock,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout=_vendor_envelope(
+                "succeeded", result=json.loads(VALID_FINDINGS_JSON),
+            ),
+            stderr="",
+        )
+        ledger = _LedgerStub()
+        ledger.complete_response = {
+            "status": "skipped",
+            "reason": "coordinator_unavailable",
+        }
+        adapter = _async_adapter(ledger=ledger)
+        poll_cfg = adapter.cli_config.dispatch_modes["alternative"].poll
+        assert poll_cfg is not None
+
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123",
+        )
+
+        assert result.success is False
+        assert result.findings is None
+        assert "completion ledger" in (result.error or "").lower()
 
 
 # ---------------------------------------------------------------------------
@@ -990,6 +1177,20 @@ class TestSdkCanDispatch:
 
 
 class TestSdkDispatch:
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_unsupported_mode_is_rejected_before_sdk_call(
+        self, mock_call: MagicMock, tmp_path: Path,
+    ) -> None:
+        adapter = _sdk_adapter()
+
+        result = adapter.dispatch(
+            "alternative", "prompt", cwd=tmp_path, api_key="sk-test",
+        )
+
+        assert result.success is False
+        assert result.error == "SDK dispatch mode 'alternative' is unsupported"
+        mock_call.assert_not_called()
+
     def test_dispatch_without_api_key(self, tmp_path: Path) -> None:
         """SDK dispatch fails when no API key provided."""
         adapter = _sdk_adapter()
@@ -1558,8 +1759,6 @@ class TestConcurrentDispatch:
                             async_dispatch=True,
                             poll=PollConfig(
                                 command_template=["status", "{task_id}"],
-                                task_id_pattern=r"task[_\s:]+(\w+)",
-                                success_pattern="completed",
                                 interval_seconds=1,
                                 timeout_seconds=10,
                             ),
@@ -1584,6 +1783,7 @@ class TestConcurrentDispatch:
                 success=True,
                 async_dispatch=True,
                 task_id=f"task-{self.vendor}",
+                ledger_task_id=f"ledger-{self.vendor}",
             )
 
         def fake_poll(
@@ -1593,8 +1793,10 @@ class TestConcurrentDispatch:
             cwd: Path | None = None,
             *,
             review_started_at: float | None = None,
+            ledger_task_id: str | None = None,
         ) -> ReviewResult:
             assert review_started_at is not None
+            assert ledger_task_id == f"ledger-{self.vendor}"
             with lock:
                 poll_starts.append(time.monotonic())
             return ReviewResult(
@@ -1679,8 +1881,6 @@ class TestConcurrentDispatch:
                         async_dispatch=True,
                         poll=PollConfig(
                             command_template=["status", "{task_id}"],
-                            task_id_pattern=r"task[_\s:]+(\w+)",
-                            success_pattern="completed",
                             interval_seconds=1,
                             timeout_seconds=10,
                         ),
@@ -1714,6 +1914,7 @@ class TestConcurrentDispatch:
                     success=True,
                     async_dispatch=True,
                     task_id="task-grok",
+                    ledger_task_id="ledger-grok",
                 ),
             ),
             patch.object(
@@ -1741,8 +1942,6 @@ class TestConcurrentDispatch:
                         async_dispatch=True,
                         poll=PollConfig(
                             command_template=["status", "{task_id}"],
-                            task_id_pattern=r"task[_\s:]+(\w+)",
-                            success_pattern="completed",
                             interval_seconds=1,
                             timeout_seconds=10,
                         ),
@@ -1753,7 +1952,11 @@ class TestConcurrentDispatch:
         )
         callbacks: list[ReviewResult] = []
         submission = ReviewResult(
-            vendor="grok", success=True, async_dispatch=True, task_id="task-grok",
+            vendor="grok",
+            success=True,
+            async_dispatch=True,
+            task_id="task-grok",
+            ledger_task_id="ledger-grok",
         )
         terminal = ReviewResult(
             vendor="grok", success=True, findings=json.loads(VALID_FINDINGS_JSON),

@@ -125,19 +125,6 @@ agents:
           # --json-schema verified 2026-09-12 (same claude CLI as claude-local).
           # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
-        alternative:
-          # Async: --remote without --print returns immediately
-          args: ["--remote"]
-          async: true
-          poll:
-            # Poll via RemoteTrigger API or `claude --resume` (session-based)
-            # For now, use `claude tasks` to check status
-            command_template: ["claude", "--resume", "{task_id}", "--print"]
-            task_id_pattern: "session[_\\s:]+([a-f0-9-]+)"
-            success_pattern: "completed|finished|done"
-            failure_pattern: "failed|error|cancelled"
-            interval_seconds: 60
-            timeout_seconds: 1800
         quick:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
       model_flag: "--model"
@@ -210,35 +197,6 @@ agents:
     capabilities: [lock, queue, memory, guardrails, handoff, discover, feature_registry, vendor_limit_reporter]
     archetypes: [implementer, reviewer]
     description: Remote Codex agent (runs on OpenAI infrastructure)
-    cli:
-      command: codex
-      dispatch_modes:
-        review:
-          # codex cloud exec requires --env; set CODEX_CLOUD_ENV in environment
-          # All cloud exec is async — submit + poll
-          # Model + thinking come from archetypes.yaml reviewer/premium tier.
-          args: ["cloud", "exec", "--env", "${CODEX_CLOUD_ENV}"]
-          async: true
-          poll:
-            command_template: ["codex", "cloud", "status", "{task_id}"]
-            task_id_pattern: "task[_\\s:]+([\\w-]+)"
-            success_pattern: "completed|succeeded"
-            failure_pattern: "failed|cancelled|error"
-            interval_seconds: 30
-            timeout_seconds: 600
-        alternative:
-          args: ["cloud", "exec", "--env", "${CODEX_CLOUD_ENV}"]
-          async: true
-          poll:
-            command_template: ["codex", "cloud", "status", "{task_id}"]
-            task_id_pattern: "task[_\\s:]+([\\w-]+)"
-            success_pattern: "completed|succeeded"
-            failure_pattern: "failed|cancelled|error"
-            interval_seconds: 30
-            timeout_seconds: 1800
-      model_flag: "-m"
-      model: null
-      model_fallbacks: []
     sdk:
       package: openai
       method: chat.completions.create

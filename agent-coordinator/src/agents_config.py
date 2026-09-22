@@ -459,17 +459,16 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                             "type": "object",
                                             "required": [
                                                 "command_template",
-                                                "task_id_pattern",
-                                                "success_pattern",
+                                                "result_protocol",
                                             ],
                                             "properties": {
                                                 "command_template": {
                                                     "type": "array",
                                                     "items": {"type": "string"},
                                                 },
-                                                "task_id_pattern": {"type": "string"},
-                                                "success_pattern": {"type": "string"},
-                                                "failure_pattern": {"type": "string"},
+                                                "result_protocol": {
+                                                    "const": "vendor-envelope-v1"
+                                                },
                                                 "interval_seconds": {"type": "integer"},
                                                 "timeout_seconds": {"type": "integer"},
                                             },
@@ -515,18 +514,10 @@ AGENTS_SCHEMA: dict[str, Any] = {
 
 @dataclass
 class PollConfig:
-    """Polling configuration for async dispatch modes.
-
-    The dispatcher extracts a task ID from the dispatch command's output
-    using ``task_id_pattern``, substitutes it into ``command_template``,
-    and polls until ``success_pattern`` or ``failure_pattern`` matches
-    or ``timeout_seconds`` is reached.
-    """
+    """Polling configuration for versioned JSON vendor envelopes."""
 
     command_template: list[str]
-    task_id_pattern: str
-    success_pattern: str
-    failure_pattern: str = "failed|error"
+    result_protocol: str = "vendor-envelope-v1"
     interval_seconds: int = 30
     timeout_seconds: int = 600
 
@@ -835,11 +826,7 @@ def load_agents_config(
                 if raw_poll:
                     poll_config = PollConfig(
                         command_template=raw_poll["command_template"],
-                        task_id_pattern=raw_poll["task_id_pattern"],
-                        success_pattern=raw_poll["success_pattern"],
-                        failure_pattern=raw_poll.get(
-                            "failure_pattern", "failed|error",
-                        ),
+                        result_protocol=raw_poll["result_protocol"],
                         interval_seconds=raw_poll.get(
                             "interval_seconds", 30,
                         ),
@@ -1832,9 +1819,7 @@ def get_dispatch_configs(
                         "async": mc.async_dispatch,
                         **({"poll": {
                             "command_template": mc.poll.command_template,
-                            "task_id_pattern": mc.poll.task_id_pattern,
-                            "success_pattern": mc.poll.success_pattern,
-                            "failure_pattern": mc.poll.failure_pattern,
+                            "result_protocol": mc.poll.result_protocol,
                             "interval_seconds": mc.poll.interval_seconds,
                             "timeout_seconds": mc.poll.timeout_seconds,
                         }} if mc.poll else {}),

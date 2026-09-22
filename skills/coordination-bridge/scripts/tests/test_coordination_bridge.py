@@ -334,6 +334,47 @@ def test_try_submit_work_passes_payload(monkeypatch) -> None:
     assert payload["depends_on"] == ["a", "b"]
 
 
+def test_work_lifecycle_helpers_allow_server_resolved_identity(monkeypatch) -> None:
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        coordination_bridge,
+        "detect_coordination",
+        lambda **_: _state(CAN_QUEUE_WORK=True),
+    )
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        captured.append(kwargs)
+        return {
+            "status_code": 200,
+            "data": {"success": True, "task_id": "ledger-1"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+
+    coordination_bridge.try_get_work(
+        agent_id=None,
+        agent_type=None,
+        task_types=["vendor-dispatch-correlation"],
+    )
+    coordination_bridge.try_complete_work(
+        task_id="ledger-1",
+        agent_id=None,
+        success=True,
+        result={"vendor_result": {"version": 1, "state": "succeeded"}},
+    )
+
+    assert captured[0]["payload"] == {
+        "task_types": ["vendor-dispatch-correlation"],
+    }
+    assert captured[1]["payload"] == {
+        "task_id": "ledger-1",
+        "success": True,
+        "result": {"vendor_result": {"version": 1, "state": "succeeded"}},
+        "error_message": None,
+    }
+
+
 def test_validate_url_allows_custom_domain(monkeypatch) -> None:
     """Custom domain in COORDINATION_ALLOWED_HOSTS is accepted."""
     monkeypatch.setenv("COORDINATION_ALLOWED_HOSTS", "coord.example.com")

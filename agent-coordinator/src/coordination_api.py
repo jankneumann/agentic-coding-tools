@@ -255,14 +255,14 @@ class MemoryQueryRequest(BaseModel):
 
 
 class WorkClaimRequest(BaseModel):
-    agent_id: str
-    agent_type: str
+    agent_id: str | None = None
+    agent_type: str | None = None
     task_types: list[str] | None = None
 
 
 class WorkCompleteRequest(BaseModel):
     task_id: str
-    agent_id: str
+    agent_id: str | None = None
     success: bool
     result: dict[str, Any] | None = None
     error_message: str | None = None
@@ -1304,6 +1304,7 @@ def create_coordination_api() -> FastAPI:
             success=request.success,
             result=request.result,
             error_message=request.error_message,
+            agent_id=agent_id,
         )
         return {
             "success": result.success,
