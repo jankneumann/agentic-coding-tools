@@ -5,10 +5,10 @@
 
 ## 1. Canonical vocabulary and configuration
 
-- [ ] 1.1 **S** Write RED tests for canonical values, invalid rung errors,
+- [x] 1.1 **S** Write RED tests for canonical values, invalid rung errors,
   source provenance, per-mode fallback, and exact-agent disambiguation.
   **Spec scenarios**: vendor-dispatch.1–.6. **Design decisions**: D1, D2.
-- [ ] 1.2 **M** Add the pure isolation contract and wire `agents_config` schema,
+- [x] 1.2 **M** Add the pure isolation contract and wire `agents_config` schema,
   `ModeConfig`, parsing, backward-compatible lookup, and dispatch-config output.
   **Dependencies**: 1.1. **Design decisions**: D1, D2, D3.
 
