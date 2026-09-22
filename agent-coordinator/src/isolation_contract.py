@@ -43,7 +43,7 @@ def configured_isolation_value(
         if isinstance(dispatch_modes, Mapping):
             mode = dispatch_modes.get(dispatch_mode)
             if isinstance(mode, Mapping) and "isolation" in mode:
-                return mode["isolation"]
+                return cast(object, mode["isolation"])
     return configured.get("isolation")
 
 

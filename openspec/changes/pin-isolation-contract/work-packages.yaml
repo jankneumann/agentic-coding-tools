@@ -63,7 +63,7 @@ packages:
         - "openspec/roadmaps/dispatch-governance/roadmap.yaml"
         - "openspec/changes/pin-isolation-contract/**"
       read_allow: ["**"]
-    context_impact: {surfaces: [apis, capabilities, semantic_code]}
+    context_impact: {surfaces: [apis, capabilities, documentation, semantic_code]}
     worktree: {name: pin-isolation-contract, mode: isolated}
     timeout_minutes: 240
     retry_budget: 1
