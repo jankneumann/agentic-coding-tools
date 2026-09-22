@@ -7,10 +7,8 @@ document for the next session to pick up.
 
 Uses only stdlib (urllib) — no third-party dependencies required.
 
-Note: Lock release is not performed here because the HTTP API has no
-endpoint to list locks by agent. Locks expire automatically via TTL
-(default 120 minutes). If immediate release is needed, skills should
-release locks explicitly before session end.
+The hook releases every lock owned by the authenticated coordinator principal
+before reporting session end. Cleanup is best effort and never blocks shutdown.
 
 Usage:
     python agent-coordinator/scripts/deregister_agent.py
@@ -96,6 +94,15 @@ def main() -> None:
         print(f"{PREFIX} Handoff write failed: {handoff_result['error']}", file=sys.stderr)
     else:
         print(f"{PREFIX} Handoff write failed", file=sys.stderr)
+
+    # Let a bound API-key identity remain authoritative; unbound keys retain
+    # the server legacy cloud-agent fallback.
+    lock_result = _post(base_url, "/locks/release-by-agent", {"agent_id": ""})
+    if lock_result is not None and "released_count" in lock_result:
+        released_count = lock_result.get("released_count")
+        print(f"{PREFIX} Released {released_count} session lock(s)")
+    else:
+        print(f"{PREFIX} Lock release failed", file=sys.stderr)
 
     # Report session end (triggers heartbeat on the coordinator)
     result = _post(base_url, "/status/report", {

@@ -400,6 +400,33 @@ def test_claim_work_delegates_to_service(
     assert data["task_type"] == "test"
 
 
+def test_claim_work_uses_authenticated_fallback_identity_when_body_omits_it(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import ClaimResult
+
+    mock_service = AsyncMock()
+    mock_service.claim.return_value = ClaimResult(success=False, reason="empty")
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/claim",
+        headers=_auth_headers(),
+        json={"task_types": ["vendor-dispatch-correlation"]},
+    )
+
+    assert response.status_code == 200
+    mock_service.claim.assert_awaited_once_with(
+        agent_id="cloud-agent",
+        agent_type="cloud_agent",
+        task_types=["vendor-dispatch-correlation"],
+    )
+
+
 def test_complete_work_delegates_to_service(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -429,6 +456,38 @@ def test_complete_work_delegates_to_service(
     assert response.status_code == 200
     assert response.json()["success"] is True
     assert response.json()["status"] == "completed"
+
+
+def test_complete_work_passes_resolved_identity_when_body_omits_agent_id(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import CompleteResult
+
+    task_uuid = UUID("12345678-1234-1234-1234-123456789abc")
+    mock_service = AsyncMock()
+    mock_service.complete.return_value = CompleteResult(
+        success=True, status="completed", task_id=task_uuid
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/complete",
+        headers=_auth_headers(),
+        json={"task_id": str(task_uuid), "success": True, "result": {"ok": True}},
+    )
+
+    assert response.status_code == 200
+    mock_service.complete.assert_awaited_once_with(
+        task_id=task_uuid,
+        success=True,
+        result={"ok": True},
+        error_message=None,
+        agent_id="cloud-agent",
+    )
 
 
 def test_submit_work_delegates_to_service(

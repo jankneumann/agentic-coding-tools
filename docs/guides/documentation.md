@@ -32,6 +32,7 @@ Read these before contributing infrastructure changes:
 - [Parallel Git Config](../parallel-git-config.md) — Multi-agent git configuration
 - [Script/Skill Dependencies](../script-skill-dependencies.md) — Cross-skill Python import contract
 - [Coordination Detection Template](../coordination-detection-template.md) — Detecting coordinator availability
+- [Vendor Dispatch Capabilities](vendor-dispatch-capabilities.md) — Structured result guarantees, async ledger lifecycle, and per-lane CLI/SDK limits
 
 ## Subdirectories
 

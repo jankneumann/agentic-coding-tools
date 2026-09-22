@@ -948,8 +948,8 @@ def try_reconcile_work_projection(
 
 def try_get_work(
     *,
-    agent_id: str,
-    agent_type: str,
+    agent_id: str | None,
+    agent_type: str | None,
     task_types: list[str] | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
@@ -961,8 +961,8 @@ def try_get_work(
         method="POST",
         path="/work/claim",
         payload={
-            "agent_id": agent_id,
-            "agent_type": agent_type,
+            **({"agent_id": agent_id} if agent_id is not None else {}),
+            **({"agent_type": agent_type} if agent_type is not None else {}),
             "task_types": task_types,
         },
         http_url=http_url,
@@ -973,7 +973,7 @@ def try_get_work(
 def try_complete_work(
     *,
     task_id: str,
-    agent_id: str,
+    agent_id: str | None,
     success: bool,
     result: dict[str, Any] | None = None,
     error_message: str | None = None,
@@ -988,7 +988,7 @@ def try_complete_work(
         path="/work/complete",
         payload={
             "task_id": task_id,
-            "agent_id": agent_id,
+            **({"agent_id": agent_id} if agent_id is not None else {}),
             "success": success,
             "result": result,
             "error_message": error_message,
