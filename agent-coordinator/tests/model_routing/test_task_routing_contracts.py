@@ -10,12 +10,15 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 from openspec_paths import change_dir, repo_root_from
 
+from src.isolation_contract import ISOLATION_MODES
+
 _CHANGE = change_dir(
     repo_root_from(__file__, 3),
     "implement-the-task-router-vendor-x-location-x-model",
 )
 _CONTRACTS = _CHANGE / "contracts"
 _OPENAPI = _CONTRACTS / "openapi/v1.1.yaml"
+_ROUTING_SCHEMA = _CONTRACTS / "config/routing.schema.json"
 _DECISION_RECORD = _CONTRACTS / "events/routing-decision-record.schema.json"
 _AUDIT_LINK = _CONTRACTS / "events/routing-decision.schema.json"
 
@@ -61,6 +64,14 @@ def test_overlay_extends_only_existing_select_model_operation() -> None:
     assert set(document["paths"]) == {"/routing/select_model"}
     assert set(document["paths"]["/routing/select_model"]) == {"post"}
     assert "/route/task" not in document["paths"]
+
+
+def test_published_isolation_enums_match_canonical_runtime_vocabulary() -> None:
+    openapi_values = _openapi()["components"]["schemas"]["Isolation"]["enum"]
+    schema_values = _json_schema(_ROUTING_SCHEMA)["$defs"]["isolation"]["enum"]
+
+    assert openapi_values == list(ISOLATION_MODES)
+    assert schema_values == list(ISOLATION_MODES)
 
 
 def test_request_keeps_legacy_signals_permissive_and_profile_strict() -> None:

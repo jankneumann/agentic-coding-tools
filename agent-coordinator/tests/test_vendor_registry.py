@@ -66,6 +66,26 @@ def test_agent_entry_exposes_typed_lane_identity() -> None:
 
 
 @pytest.mark.asyncio
+async def test_lane_projects_effective_isolation_for_each_dispatch_mode() -> None:
+    agent = _agent()
+    assert agent.cli is not None
+    agent.isolation = "worktree"
+    agent.cli.dispatch_modes["review"].isolation = "sandbox"
+    agent.cli.dispatch_modes["alternative"] = ModeConfig(args=[])
+    service = VendorRegistryService(
+        _db(), agents=[agent], provider_model_map={}, now_fn=lambda: NOW
+    )
+
+    lane = (await service.list_vendors())[0]
+
+    assert lane["isolation"] == "worktree"
+    assert lane["isolation_by_dispatch_mode"] == {
+        "alternative": "worktree",
+        "review": "sandbox",
+    }
+
+
+@pytest.mark.asyncio
 async def test_projection_with_missing_identity_fails_closed_without_fuzzy_match() -> None:
     service = VendorRegistryService(
         _db(

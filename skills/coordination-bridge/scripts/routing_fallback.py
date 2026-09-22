@@ -20,6 +20,7 @@ Spec: openspec/changes/implement-the-task-router-vendor-x-location-x-model/
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import re
 import sys
 import uuid
@@ -34,7 +35,6 @@ _CONSTRAINT_CONFLICT = "__constraint-conflict__"
 _ALTERNATIVES_MAX = 64
 
 _LOCATION_VALUES = frozenset({"local", "cloud", "unknown"})
-_ISOLATION_VALUES = frozenset({"none", "worktree", "sandbox"})
 _DISPATCH_MODE_VALUES = frozenset({"review", "alternative", "quick", "sdk"})
 _SCOPE_VALUES = frozenset({"read-only", "bounded-write", "broad-write"})
 _INTERACTIVITY_VALUES = frozenset({"interactive", "headless"})
@@ -166,6 +166,20 @@ def _agents_yaml_path(repo_root: Path | None) -> Path:
     return root / "agent-coordinator" / "agents.yaml"
 
 
+def _isolation_contract(repo_root: Path | None) -> Any:
+    """Load the canonical contract from the checkout being routed."""
+    root = repo_root or find_repo_root()
+    path = root / "agent-coordinator" / "src" / "isolation_contract.py"
+    module_name = f"_routing_fallback_isolation_contract_{hash(path)}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load canonical isolation contract at {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def _reject_unknown_fields(obj: dict[str, Any], allowed: frozenset[str], where: str) -> None:
     unknown = set(obj) - allowed
     if unknown:
@@ -194,18 +208,20 @@ def _validate_when(when: Any, where: str) -> None:
             raise ValueError(f"{where}.when has {lo} greater than {hi}")
 
 
-def _validate_constrain(constrain: Any, where: str) -> None:
+def _validate_constrain(constrain: Any, where: str, isolation_contract: Any) -> None:
     if not isinstance(constrain, dict) or not constrain:
         raise ValueError(f"{where}.constrain must be a non-empty mapping")
     _reject_unknown_fields(constrain, _CONSTRAIN_FIELDS, f"{where}.constrain")
     for field, allowed_values in (
         ("location", _LOCATION_VALUES),
-        ("isolation", _ISOLATION_VALUES),
         ("dispatch_mode", _DISPATCH_MODE_VALUES),
     ):
         value = constrain.get(field)
         if value is not None and value not in allowed_values:
             raise ValueError(f"{where}.constrain.{field} has an invalid value: {value!r}")
+    isolation = constrain.get("isolation")
+    if isolation is not None:
+        isolation_contract.validate_isolation(isolation, rung="routing_policy")
 
 
 def load_routing_policy_document(repo_root: Path | None = None) -> tuple[dict[str, Any], str]:
@@ -221,6 +237,8 @@ def load_routing_policy_document(repo_root: Path | None = None) -> tuple[dict[st
     anyway (design D8; Codex review on PR #605).
     """
     path = _routing_yaml_path(repo_root)
+    isolation_contract = _isolation_contract(repo_root)
+    isolation_values = frozenset(isolation_contract.ISOLATION_MODES)
     raw_bytes = path.read_bytes()
     document = yaml.safe_load(raw_bytes)
     if not isinstance(document, dict):
@@ -277,7 +295,7 @@ def load_routing_policy_document(repo_root: Path | None = None) -> tuple[dict[st
             raise ValueError(f"routing.yaml at {path} has a duplicate rule id: {rule_id!r}")
         seen_ids.add(rule_id)
         _validate_when(rule.get("when"), where)
-        _validate_constrain(rule.get("constrain"), where)
+        _validate_constrain(rule.get("constrain"), where, isolation_contract)
 
     fallback = document.get("fallback")
     if not isinstance(fallback, dict):
@@ -285,7 +303,7 @@ def load_routing_policy_document(repo_root: Path | None = None) -> tuple[dict[st
     _reject_unknown_fields(fallback, _FALLBACK_FIELDS, f"routing.yaml at {path}: fallback")
     for key, allowed in (
         ("location_order", _LOCATION_VALUES),
-        ("isolation_order", _ISOLATION_VALUES),
+        ("isolation_order", isolation_values),
         ("dispatch_mode_order", _DISPATCH_MODE_VALUES),
     ):
         order = fallback.get(key)
@@ -398,7 +416,7 @@ def _lane_model_set(
 _STRING_AGENT_FIELDS = ("type", "location", "isolation", "endpoint_kind", "base_url", "policy_vendor", "catalog_vendor")
 
 
-def _validate_agent_entry(agent_id: str, entry: Any) -> None:
+def _validate_agent_entry(agent_id: str, entry: Any, isolation_contract: Any) -> None:
     """Fail loud on the shape ``local_static_route`` actually reads.
 
     This is a bounded subset of the coordinator's full ``AGENTS_SCHEMA``
@@ -420,6 +438,10 @@ def _validate_agent_entry(agent_id: str, entry: Any) -> None:
         value = entry.get(field_name)
         if value is not None and not isinstance(value, str):
             raise ValueError(f"{where}.{field_name} must be a string")
+    if "isolation" in entry:
+        isolation_contract.validate_isolation(
+            entry["isolation"], rung=f"agents_yaml agents.{agent_id}"
+        )
     cli = entry.get("cli")
     if cli is not None:
         if not isinstance(cli, dict):
@@ -427,6 +449,19 @@ def _validate_agent_entry(agent_id: str, entry: Any) -> None:
         dispatch_modes = cli.get("dispatch_modes")
         if dispatch_modes is not None and not isinstance(dispatch_modes, dict):
             raise ValueError(f"{where}.cli.dispatch_modes must be a mapping")
+        if isinstance(dispatch_modes, dict):
+            for mode_name, mode in dispatch_modes.items():
+                if not isinstance(mode, dict):
+                    raise ValueError(
+                        f"{where}.cli.dispatch_modes.{mode_name} must be a mapping"
+                    )
+                if "isolation" in mode:
+                    isolation_contract.validate_isolation(
+                        mode["isolation"],
+                        rung=(
+                            f"agents_yaml agents.{agent_id}.cli.dispatch_modes.{mode_name}"
+                        ),
+                    )
     sdk = entry.get("sdk")
     if sdk is not None:
         if not isinstance(sdk, dict):
@@ -570,8 +605,9 @@ def local_static_route(
     agents_raw = yaml.safe_load(_agents_yaml_path(repo_root).read_bytes())
     if not isinstance(agents_raw, dict) or not isinstance(agents_raw.get("agents"), dict):
         raise ValueError(f"agents.yaml at {_agents_yaml_path(repo_root)} has no 'agents' mapping")
+    isolation_contract = _isolation_contract(repo_root)
     for agent_id, entry in agents_raw["agents"].items():
-        _validate_agent_entry(agent_id, entry)
+        _validate_agent_entry(agent_id, entry, isolation_contract)
     roster = _archetype_roster()
     archetypes_path = (repo_root / "agent-coordinator" / "archetypes.yaml") if repo_root else None
     model_aliases = roster.model_aliases(archetypes_path)
@@ -588,7 +624,14 @@ def local_static_route(
         if static_model not in _lane_model_set(entry, static_provider, model_aliases, roster):
             continue
         location = str(entry.get("location") or "unknown")
-        isolation = str(entry.get("isolation") or "none")
+        configured_isolation = isolation_contract.configured_isolation_value(
+            entry, dispatch_mode
+        )
+        isolation = isolation_contract.resolve_isolation(
+            router_reachable=False,
+            router_value=None,
+            configured_value=configured_isolation,
+        ).value
         if required_location is not None and location != required_location:
             continue
         if required_isolation is not None and isolation != required_isolation:

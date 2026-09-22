@@ -15,6 +15,8 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.isolation_contract import IsolationMode
+
 from .exploration import ExplorationBudget, choose
 from .resolver import (
     OBJECTIVE_PROFILES,
@@ -117,7 +119,7 @@ class TaskRoutingProfile(BaseModel):
     repo_shape: Literal["single-package", "monorepo", "unknown"] = "unknown"
     roadmap_policy: RoadmapRoutingPolicy | None = None
     required_location: Literal["local", "cloud", "unknown"] | None = None
-    required_isolation: Literal["none", "worktree", "sandbox"] | None = None
+    required_isolation: IsolationMode | None = None
     required_dispatch_mode: Literal["review", "alternative", "quick", "sdk"] | None = None
 
 
@@ -139,7 +141,7 @@ class RoutingAssignmentResponse(BaseModel):
     policy_vendor: str
     catalog_vendor: str
     location: Literal["local", "cloud", "unknown"]
-    isolation: Literal["none", "worktree", "sandbox"]
+    isolation: IsolationMode
     dispatch_mode: Literal["review", "alternative", "quick", "sdk"]
     model: str
     endpoint_kind: str
