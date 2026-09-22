@@ -363,6 +363,7 @@ def test_release_locks_by_agent_uses_resolved_identity(
     ],
 )
 def test_lock_by_agent_endpoints_reject_bound_identity_mismatch(
+    _api_config: None,
     monkeypatch: pytest.MonkeyPatch,
     method: str,
     path: str,
