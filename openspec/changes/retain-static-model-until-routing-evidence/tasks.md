@@ -21,14 +21,14 @@
 
 ## 2. Evidence predicate and retention core
 
-- [ ] 2.1 Write failing resolver tests for `has_evidence`: samples only, prior only, both, and
+- [x] 2.1 Write failing resolver tests for `has_evidence`: samples only, prior only, both, and
   neither. [XS]
   **Spec scenarios**: model-routing.1
   **Design decisions**: D1
   **Dependencies**: None
-- [ ] 2.2 Implement `has_evidence(candidate)` in `model_routing/resolver.py`. [XS]
+- [x] 2.2 Implement `has_evidence(candidate)` in `model_routing/resolver.py`. [XS]
   **Dependencies**: 2.1
-- [ ] 2.3 Write failing tests for the pure `apply_incumbent_retention(ranked, excluded,
+- [x] 2.3 Write failing tests for the pure `apply_incumbent_retention(ranked, excluded,
   incumbent, margin)`, covering every row of the D3 table: no evidence, below margin, above margin,
   exact tie at margin 0, unresolved, infeasible with and without an evidenced alternative, and duplicate
   `(vendor, model)` rows taking the maximum score. [S]
@@ -36,9 +36,9 @@
   model-routing.5, model-routing.6, model-routing.7
   **Design decisions**: D2, D3
   **Dependencies**: 2.2
-- [ ] 2.4 Implement `apply_incumbent_retention` in `model_routing/resolver.py`. [S]
+- [x] 2.4 Implement `apply_incumbent_retention` in `model_routing/resolver.py`. [S]
   **Dependencies**: 2.3
-- [ ] Checkpoint: run `tests/model_routing/`, review the diff, and confirm only contracts and resolver.py changed.
+- [x] Checkpoint: run `tests/model_routing/`, review the diff, and confirm only contracts and resolver.py changed.
 
 ## 3. Exploration gating
 
