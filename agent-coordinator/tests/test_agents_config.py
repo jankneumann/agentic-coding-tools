@@ -161,6 +161,16 @@ class TestLoadAgentsConfig:
         profiles = [a.profile for a in agents]
         assert len(profiles) == len(set(profiles))
 
+    def test_shipped_dispatchable_agents_have_explicit_catalog_identity(self) -> None:
+        agents = load_agents_config()
+
+        dispatchable = [
+            agent for agent in agents if agent.cli is not None or agent.sdk is not None
+        ]
+        assert dispatchable
+        assert all(agent.catalog_vendor for agent in dispatchable)
+        assert all(agent.endpoint_kind for agent in dispatchable)
+
 
 # ---------------------------------------------------------------------------
 # get_api_key_identities

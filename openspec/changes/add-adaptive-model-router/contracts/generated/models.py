@@ -1,10 +1,10 @@
 """Pydantic models generated from contracts/openapi/v1.yaml (routing API surface).
 
-Hand-materialized from the OpenAPI 3.1 component schemas so downstream packages
-(wp-resolver, wp-dispatch, wp-feedback, wp-dashboard) share one typed contract
-rather than each other's internals. Keep in sync with contracts/openapi/v1.yaml;
-the parity test in tests/model_routing/test_contracts_generated.py asserts the
-field sets match the OpenAPI source.
+Hand-materialized from the OpenAPI 3.1 component schemas so the canonical dg-00
+packages share one typed contract rather than each other's internals. Keep in
+sync with contracts/openapi/v1.yaml; the parity test in
+tests/model_routing/test_contracts_generated.py asserts field and requiredness
+parity with the OpenAPI source.
 
 Source of truth: openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml
 """
@@ -12,7 +12,7 @@ Source of truth: openspec/changes/add-adaptive-model-router/contracts/openapi/v1
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -27,6 +27,10 @@ class WeightOverrides(BaseModel):
     w_quality: float | None = None
     w_cost: float | None = None
     w_latency: float | None = None
+
+
+class HTTPError(BaseModel):
+    detail: str
 
 
 class TaskSignals(BaseModel):
@@ -54,7 +58,7 @@ class Candidate(BaseModel):
     quality: float | None = None
     norm_cost: float | None = None
     norm_latency: float | None = None
-    posterior_sample_size: int | None = None
+    posterior_sample_size: float | None = None
     stale_catalog: bool = False
     # Provenance for the cost term (design D3, rev2): "posterior" once the
     # (model, task_type) cost-per-completed-task sample clears confidence,
@@ -71,7 +75,7 @@ class ExcludedCandidate(BaseModel):
 class SelectModelResponse(BaseModel):
     decision_id: str
     selected: Candidate
-    alternatives: list[Candidate] = Field(default_factory=list)
+    alternatives: list[Candidate]
     exploration: bool = False
     fallback: bool = False
     excluded: list[ExcludedCandidate] = Field(default_factory=list)
@@ -87,7 +91,7 @@ class CatalogRow(BaseModel):
     context_window: int | None = None
     benchmark_priors: dict[str, float] = Field(default_factory=dict)
     p50_latency_ms: float | None = None
-    available: bool = True
+    available: bool
     # Proactive quota headroom (design D13). None when the quota probe is off or
     # the provider is uncovered (reactive throttle-triangulation fallback).
     quota_headroom_pct: float | None = None
@@ -98,9 +102,11 @@ class CatalogRow(BaseModel):
 
 
 class BudgetState(BaseModel):
+    status: Literal["available", "not-requested", "unavailable"] | None = None
     exploration_pct_used: float | None = None
     exploration_usd_used: float | None = None
     metered_usd_used: float | None = None
+    degraded_reason: str | None = None
 
 
 class RoutingDecision(BaseModel):
@@ -112,6 +118,7 @@ class RoutingDecision(BaseModel):
     exploration: bool = False
     fallback: bool = False
     policy_version: str
+    excluded: list[ExcludedCandidate] = Field(default_factory=list)
     budget_state: BudgetState = Field(default_factory=BudgetState)
     outcome_ref: str | None = None
 
@@ -135,6 +142,7 @@ class UsageAggregate(BaseModel):
     exploration_usd_used: float = 0.0
     metered_ceiling_usd: float = 0.0
     metered_usd_used: float = 0.0
+    estimated_fraction: float = 0.0
 
 
 class FeedbackMetrics(BaseModel):

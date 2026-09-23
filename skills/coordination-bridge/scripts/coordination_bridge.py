@@ -571,6 +571,144 @@ def _execute_single_endpoint_operation(
     )
 
 
+def _execute_vendor_registry_operation(
+    *,
+    operation: str,
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Execute a registry route without pretending errors are empty success."""
+    state = detect_coordination(http_url=http_url, api_key=api_key)
+    if not state["COORDINATOR_AVAILABLE"]:
+        return _skipped_operation(
+            operation=operation,
+            reason="coordinator_unavailable",
+            state=state,
+        )
+    response = _http_request(
+        method=method,
+        path=path,
+        payload=payload,
+        http_url=state.get("http_url"),
+        api_key=_resolve_api_key(api_key),
+    )
+    data = response.get("data")
+    status_code = response.get("status_code")
+    if isinstance(status_code, int) and status_code >= 500:
+        return {
+            "status": "error",
+            "operation": operation,
+            "reason": "server_error",
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+            "status_code": status_code,
+            "response": data,
+            "error": response.get("error"),
+        }
+    if isinstance(status_code, int) and 200 <= status_code < 300 and not isinstance(
+        data, dict
+    ):
+        return {
+            "status": "error",
+            "operation": operation,
+            "reason": "malformed_response",
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+            "status_code": status_code,
+            "response": data,
+            "error": "Coordinator returned a non-object registry payload",
+        }
+    if status_code == 404 and isinstance(data, dict):
+        detail = data.get("detail")
+        if detail == "unknown_vendor_lane":
+            return {
+                "status": "error",
+                "operation": operation,
+                "COORDINATOR_AVAILABLE": True,
+                "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+                "status_code": 404,
+                "response": data,
+                "error": detail,
+            }
+    return _normalize_operation_response(
+        operation=operation,
+        response=response,
+        state=state,
+    )
+
+
+def try_list_vendors(
+    *,
+    capability: str | None = None,
+    archetype: str | None = None,
+    dispatch_mode: str | None = None,
+    location: str | None = None,
+    available_only: bool = False,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Return configured vendor lanes through the native operation envelope."""
+    params: list[tuple[str, str]] = []
+    for name, value in (
+        ("capability", capability),
+        ("archetype", archetype),
+        ("dispatch_mode", dispatch_mode),
+        ("location", location),
+    ):
+        if value is not None:
+            params.append((name, value))
+    if available_only:
+        params.append(("available_only", "true"))
+    query = url_parse.urlencode(params)
+    path = f"/vendors?{query}" if query else "/vendors"
+    return _execute_vendor_registry_operation(
+        operation="list_vendors",
+        method="GET",
+        path=path,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_get_vendor_availability(
+    agent_id: str,
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Return one exact lane's availability without provider-name inference."""
+    quoted_agent_id = url_parse.quote(agent_id, safe="")
+    return _execute_vendor_registry_operation(
+        operation="get_vendor_availability",
+        method="GET",
+        path=f"/vendors/{quoted_agent_id}/availability",
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_report_vendor_rate_limit(
+    agent_id: str,
+    observation: dict[str, Any],
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Report a capacity observation for an exact configured lane."""
+    quoted_agent_id = url_parse.quote(agent_id, safe="")
+    return _execute_vendor_registry_operation(
+        operation="report_vendor_rate_limit",
+        method="POST",
+        path=f"/vendors/{quoted_agent_id}/rate-limit-observations",
+        payload=observation,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def _execute_multi_endpoint_operation(
     *,
     operation: str,
@@ -745,6 +883,7 @@ def try_submit_work(
     depends_on: list[str] | None = None,
     projection_key: dict[str, Any] | None = None,
     projection_labels: list[str] | None = None,
+    claim_immediately: bool = False,
     http_url: str | None = None,
     api_key: str | None = None,
     _coordination_state: dict[str, Any] | None = None,
@@ -764,6 +903,7 @@ def try_submit_work(
             "input_data": input_data,
             "priority": priority,
             "depends_on": depends_on,
+            **({"claim_immediately": True} if claim_immediately else {}),
             **({"projection_key": projection_key} if projection_key is not None else {}),
             **(
                 {"projection_labels": projection_labels}
@@ -880,8 +1020,8 @@ def try_reconcile_work_projection(
 
 def try_get_work(
     *,
-    agent_id: str,
-    agent_type: str,
+    agent_id: str | None,
+    agent_type: str | None,
     task_types: list[str] | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
@@ -893,8 +1033,8 @@ def try_get_work(
         method="POST",
         path="/work/claim",
         payload={
-            "agent_id": agent_id,
-            "agent_type": agent_type,
+            **({"agent_id": agent_id} if agent_id is not None else {}),
+            **({"agent_type": agent_type} if agent_type is not None else {}),
             "task_types": task_types,
         },
         http_url=http_url,
@@ -905,7 +1045,7 @@ def try_get_work(
 def try_complete_work(
     *,
     task_id: str,
-    agent_id: str,
+    agent_id: str | None,
     success: bool,
     result: dict[str, Any] | None = None,
     error_message: str | None = None,
@@ -920,7 +1060,7 @@ def try_complete_work(
         path="/work/complete",
         payload={
             "task_id": task_id,
-            "agent_id": agent_id,
+            **({"agent_id": agent_id} if agent_id is not None else {}),
             "success": success,
             "result": result,
             "error_message": error_message,
@@ -1896,6 +2036,142 @@ def try_resolve_archetype_for_phase(
         return None
 
     return data
+
+
+_SELECT_MODEL_REQUIRED_FIELDS = ("decision_id", "selected", "fallback")
+
+
+def try_select_model_for_task(
+    task_signals: dict[str, Any],
+    *,
+    routing_profile: dict[str, Any] | None = None,
+    objective_profile: str | None = None,
+    weight_overrides: dict[str, Any] | None = None,
+    allow_exploration: bool = True,
+    static_provider: str | None = None,
+    static_model: str | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    repo_root: Any = None,
+) -> dict[str, Any] | None:
+    """Select a model/lane for a task, falling back to a local static route.
+
+    Tries ``POST /routing/select_model`` first. Local fallback triggers ONLY
+    when the coordinator is genuinely unreachable -- missing/disallowed URL,
+    network error, or timeout, all of which ``_http_request`` reports as
+    ``status_code=None`` -- or when it returns a 200 with a malformed body. A
+    concrete HTTP error the coordinator actually returned (422 for an invalid
+    typed profile, 503 "no feasible candidate", etc.) is its real,
+    authoritative answer: routing locally after one would silently mask a
+    caller error or contradict a semantic "no candidate" verdict with a
+    fabricated local one, defeating the point of the typed validation
+    boundary. Design D8 restricts fallback to "transport timeout/
+    unreachability" for exactly this reason (Codex review on PR #605). This
+    helper never surfaces the coordinator's error body -- callers that need
+    it should call the HTTP API directly.
+
+    Local fallback also requires the caller to have supplied its own
+    already-resolved ``static_provider``/``static_model``. Returns the
+    coordinator's response dict on success; the local
+    ``routing_fallback.local_static_route`` result (``source="local-static"``,
+    ``fallback=True``) only when unreachable; and ``None`` otherwise -- no
+    static provider/model, a concrete coordinator answer, or no exact local
+    lane -- the same "no signal, use harness defaults" contract as
+    ``try_resolve_archetype_for_phase``. Never raises.
+
+    Spec: openspec/changes/implement-the-task-router-vendor-x-location-x-model/
+          specs/task-routing/spec.md -- Requirement: Honest local fallback.
+    Design decisions: D6 (additive assignment/provenance), D8 (local fallback).
+    """
+    payload: dict[str, Any] = {"task_signals": task_signals}
+    if routing_profile is not None:
+        payload["routing_profile"] = routing_profile
+    if objective_profile is not None:
+        payload["objective_profile"] = objective_profile
+    if weight_overrides is not None:
+        payload["weight_overrides"] = weight_overrides
+    payload["allow_exploration"] = allow_exploration
+
+    resolved_url = _resolve_http_url(http_url)
+    if not resolved_url:
+        logger.warning(
+            "try_select_model_for_task failed: missing_http_url; falling back "
+            "to local-static routing when a static provider/model was supplied"
+        )
+    else:
+        response = _http_request(
+            method="POST",
+            path="/routing/select_model",
+            payload=payload,
+            http_url=resolved_url,
+            api_key=_resolve_api_key(api_key),
+            timeout=timeout,
+        )
+        status = response.get("status_code")
+        data = response.get("data")
+        if status == 200 and isinstance(data, dict) and all(
+            k in data for k in _SELECT_MODEL_REQUIRED_FIELDS
+        ):
+            return data
+        if status is not None and status != 200:
+            # The coordinator is reachable and gave a concrete, authoritative
+            # answer -- even an error -- never second-guess it with a locally
+            # fabricated assignment.
+            logger.warning(
+                "try_select_model_for_task coordinator returned HTTP status=%s "
+                "error=%s; treating as authoritative, not falling back to "
+                "local-static routing",
+                status,
+                response.get("error"),
+            )
+            return None
+        if status == 200:
+            # 200 with a malformed body is not an authoritative answer -- it's
+            # a broken response, so it degrades the same as unreachability.
+            logger.warning(
+                "try_select_model_for_task coordinator returned a malformed "
+                "200 response: %r; falling back to local-static routing when "
+                "a static provider/model was supplied",
+                data,
+            )
+        else:
+            logger.warning(
+                "try_select_model_for_task coordinator unreachable: error=%s; "
+                "falling back to local-static routing when a static "
+                "provider/model was supplied",
+                response.get("error"),
+            )
+
+    if not static_provider or not static_model:
+        logger.warning(
+            "try_select_model_for_task: no static_provider/static_model supplied; "
+            "cannot fall back to local-static routing"
+        )
+        return None
+
+    try:
+        import routing_fallback
+    except ImportError:
+        logger.warning("try_select_model_for_task: routing_fallback module unavailable")
+        return None
+
+    try:
+        return routing_fallback.local_static_route(
+            task_signals,
+            static_provider=static_provider,
+            static_model=static_model,
+            routing_profile=routing_profile,
+            repo_root=repo_root,
+        )
+    except routing_fallback.LocalRoutingFallbackError as exc:
+        logger.warning("try_select_model_for_task: local-static fallback failed: %s", exc)
+        return None
+    except (FileNotFoundError, ValueError) as exc:
+        logger.warning(
+            "try_select_model_for_task: local-static config invalid or missing: %s", exc
+        )
+        return None
 
 
 def _main(argv: list[str] | None = None) -> int:

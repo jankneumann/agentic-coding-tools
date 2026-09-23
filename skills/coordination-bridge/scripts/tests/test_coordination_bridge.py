@@ -332,6 +332,76 @@ def test_try_submit_work_passes_payload(monkeypatch) -> None:
     assert payload["task_type"] == "implementation"
     assert payload["priority"] == 3
     assert payload["depends_on"] == ["a", "b"]
+    assert "claim_immediately" not in payload
+
+def test_try_submit_work_passes_atomic_claim_flag_without_client_identity(
+    monkeypatch,
+) -> None:
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        coordination_bridge,
+        "detect_coordination",
+        lambda **_: _state(CAN_QUEUE_WORK=True),
+    )
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        captured.append(kwargs)
+        return {
+            "status_code": 200,
+            "data": {"success": True, "task_id": "t-1", "status": "claimed"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+    result = coordination_bridge.try_submit_work(
+        task_type="vendor-dispatch-correlation",
+        task_description="Track async dispatch",
+        claim_immediately=True,
+    )
+
+    assert result["status"] == "ok"
+    assert captured[0]["payload"]["claim_immediately"] is True
+    assert "agent_id" not in captured[0]["payload"]
+
+def test_work_lifecycle_helpers_allow_server_resolved_identity(monkeypatch) -> None:
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        coordination_bridge,
+        "detect_coordination",
+        lambda **_: _state(CAN_QUEUE_WORK=True),
+    )
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        captured.append(kwargs)
+        return {
+            "status_code": 200,
+            "data": {"success": True, "task_id": "ledger-1"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+
+    coordination_bridge.try_get_work(
+        agent_id=None,
+        agent_type=None,
+        task_types=["vendor-dispatch-correlation"],
+    )
+    coordination_bridge.try_complete_work(
+        task_id="ledger-1",
+        agent_id=None,
+        success=True,
+        result={"vendor_result": {"version": 1, "state": "succeeded"}},
+    )
+
+    assert captured[0]["payload"] == {
+        "task_types": ["vendor-dispatch-correlation"],
+    }
+    assert captured[1]["payload"] == {
+        "task_id": "ledger-1",
+        "success": True,
+        "result": {"vendor_result": {"version": 1, "state": "succeeded"}},
+        "error_message": None,
+    }
 
 
 def test_validate_url_allows_custom_domain(monkeypatch) -> None:
@@ -683,6 +753,101 @@ def test_try_issue_create_unauthorized_returns_skipped(monkeypatch) -> None:
     assert result["status"] == "skipped"
     assert result["reason"] == "unauthorized"
 
+
+def test_vendor_registry_helpers_use_native_response_envelope(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    calls: list[dict[str, Any]] = []
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {"status_code": 200, "data": {"vendors": []}, "error": None}
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+
+    result = coordination_bridge.try_list_vendors(
+        capability="review", available_only=True
+    )
+
+    assert result["status"] == "ok"
+    assert result["operation"] == "list_vendors"
+    assert result["response"] == {"vendors": []}
+    assert calls[0]["path"] == "/vendors?capability=review&available_only=true"
+
+
+def test_vendor_availability_preserves_unknown_lane_problem(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {
+            "status_code": 404,
+            "data": {"detail": "unknown_vendor_lane"},
+            "error": "HTTP 404",
+        },
+    )
+
+    result = coordination_bridge.try_get_vendor_availability("missing")
+
+    assert result["status"] == "error"
+    assert result["operation"] == "get_vendor_availability"
+    assert result["status_code"] == 404
+    assert result["error"] == "unknown_vendor_lane"
+
+
+def test_report_vendor_rate_limit_posts_exact_lane_and_payload(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    calls: list[dict[str, Any]] = []
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {
+            "status_code": 202,
+            "data": {"observation_id": "obs-1", "status": "accepted"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+    payload = {"observation_id": "obs-1", "reason": "capacity"}
+
+    result = coordination_bridge.try_report_vendor_rate_limit("codex-local", payload)
+
+    assert result["status"] == "ok"
+    assert result["operation"] == "report_vendor_rate_limit"
+    assert calls[0]["path"] == "/vendors/codex-local/rate-limit-observations"
+    assert calls[0]["payload"] == payload
+
+
+def test_vendor_registry_malformed_success_is_not_empty_success(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {"status_code": 200, "data": [], "error": None},
+    )
+
+    result = coordination_bridge.try_list_vendors()
+
+    assert result["status"] == "error"
+    assert result["reason"] == "malformed_response"
+
+
+def test_vendor_registry_server_error_remains_distinct_from_timeout(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {
+            "status_code": 503,
+            "data": {"detail": "vendor_registry_unavailable"},
+            "error": "HTTP 503",
+        },
+    )
+
+    result = coordination_bridge.try_list_vendors()
+
+    assert result["status"] == "error"
+    assert result["reason"] == "server_error"
+    assert result["status_code"] == 503
 
 def _refusal() -> dict[str, Any]:
     return {

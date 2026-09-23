@@ -225,6 +225,50 @@ class TestPostgresFilterParsing:
         assert _coerce_filter_value("completed") == "completed"
         assert _coerce_filter_value("2026-08-19") == "2026-08-19"
 
+    @pytest.mark.asyncio
+    async def test_query_decodes_filter_values_before_coercion(self):
+        """PostgREST-escaped values must bind as their original Python values."""
+        from datetime import datetime
+
+        captured: dict = {}
+
+        class FakeConn:
+            async def fetch(self, query, *args):
+                captured["query"] = query
+                captured["args"] = args
+                return []
+
+        class FakeAcquire:
+            async def __aenter__(self):
+                return FakeConn()
+
+            async def __aexit__(self, *exc):
+                return None
+
+        class FakePool:
+            def acquire(self):
+                return FakeAcquire()
+
+        client = DirectPostgresClient()
+        client._pool = FakePool()  # type: ignore[assignment]
+
+        await client.query(
+            "routing_spend_ledger",
+            "model=eq.vendor%2Bmodel%23v1%25"
+            "&lower_bound=gt.alpha%2Bbeta"
+            "&occurred_at=gte.2026-09-16T00:00:00%2B00:00"
+            "&finished_at=lte.2026-09-16T23:59:59%2B00:00"
+            "&state=in.(ready%2Bsoon,blocked%23reason)",
+        )
+
+        args = captured["args"]
+        assert args[:2] == ("vendor+model#v1%", "alpha+beta")
+        assert isinstance(args[2], datetime)
+        assert args[2].isoformat() == "2026-09-16T00:00:00+00:00"
+        assert isinstance(args[3], datetime)
+        assert args[3].isoformat() == "2026-09-16T23:59:59+00:00"
+        assert args[4:] == ("ready+soon", "blocked#reason")
+
 
 @pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
 class TestSerializeForAsyncpg:

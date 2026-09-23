@@ -301,11 +301,12 @@ class DirectPostgresClient:
                     else:
                         _validate_identifier(col, allow_qualified=True)
                         where_clauses.append(f"{col} = ${param_idx}")
-                    values.append(_coerce_filter_value(val))
+                    values.append(_coerce_filter_value(_decode_query_value(val)))
                     param_idx += 1
                 elif "=gt." in part:
                     col, val = part.split("=gt.", 1)
                     _validate_identifier(col, allow_qualified=True)
+                    val = _decode_query_value(val)
                     if val == "now()":
                         where_clauses.append(f"{col} > NOW()")
                     else:
@@ -316,13 +317,13 @@ class DirectPostgresClient:
                     col, val = part.split("=gte.", 1)
                     _validate_identifier(col, allow_qualified=True)
                     where_clauses.append(f"{col} >= ${param_idx}")
-                    values.append(_coerce_filter_value(val))
+                    values.append(_coerce_filter_value(_decode_query_value(val)))
                     param_idx += 1
                 elif "=lte." in part:
                     col, val = part.split("=lte.", 1)
                     _validate_identifier(col, allow_qualified=True)
                     where_clauses.append(f"{col} <= ${param_idx}")
-                    values.append(_coerce_filter_value(val))
+                    values.append(_coerce_filter_value(_decode_query_value(val)))
                     param_idx += 1
                 elif "=in." in part:
                     col, val = part.split("=in.", 1)
@@ -333,7 +334,9 @@ class DirectPostgresClient:
                         f"${param_idx + i}" for i in range(len(in_values))
                     )
                     where_clauses.append(f"{col} IN ({placeholders})")
-                    values.extend(_coerce_filter_value(v) for v in in_values)
+                    values.extend(
+                        _coerce_filter_value(_decode_query_value(v)) for v in in_values
+                    )
                     param_idx += len(in_values)
                 elif "=cs." in part:
                     col, val = part.split("=cs.", 1)

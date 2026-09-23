@@ -1,0 +1,171 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: D6/spec require dispatcher/orchestrator principals to hold `report_vendor_rate_limit` so trust-2 orchestrators can report a dispatched lane that differs from their own. Projected allowlists are derived only from `UNIVERSAL_OPERATIONS` / `CAPABILITY_OPERATIONS` / `TRUST_DERIVED_OPERATIONS` in `agents_config.py`, and unknown operations fall through to that allowlist in `policy_engine.py`. No task names adding the grant, `wp-api-watchdog` cannot write the grant seam, and `change-context` attributes auth only to `coordination_api.py`/`vendor_registry.py`. Without the grant, cross-lane observation POSTs remain 403 for the real collector topology.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Normatively select the grant selector (capability, trust floor, or named profiles), task `wp-registry-core` to add `report_vendor_rate_limit` to the projection, and keep the API matrix as own-lane OR operation OR trust-3.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 67,
+        "end": 74
+      },
+      "evidence_class": "judgment",
+      "existing_code": "Dispatcher/orchestrator profiles explicitly receive the\n`report_vendor_rate_limit` operation; `authorize_operation` permits those principals to report\nthe concrete lane they dispatched even when it differs from the orchestrator lane."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: D7 claims `review_dispatcher.py` already has selected `agent_id` and that its shared collector reports capacity for that lane, but `ReviewResult` and the manifest serializer carry only `vendor`/`error_class`\u2014no `agent_id` or reset metadata\u2014while adapters keep `agent_id` on `ReviewerInfo`. Task 4.3 asks for additive collector fields, yet the design still overstates the existing seam and does not name `ReviewResult` as the required carrier.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Amend D7 to require additive `agent_id` (and optional reset) on `ReviewResult`/shared collector outputs, matching task 4.3 and avoiding vendor-only attribution.",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 80,
+        "end": 86
+      },
+      "evidence_class": "judgment",
+      "existing_code": "`review_dispatcher.py` already has selected `agent_id`; its shared collector reports capacity\nresults exactly once."
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: D2/spec say configured base URL constrains the catalog join, but dg-00 `model_catalog` uniqueness and `CatalogService.get_entry` key only `(vendor, model, endpoint_kind)`, and OpenAPI `CatalogModelPrice` exposes no `base_url`. Implementers cannot use base URL as a join key without inventing a filter rule outside the contract.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Either drop base URL from the join normative text and treat it as optional equality metadata, or extend the projection/contract with the post-key filter semantics.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/specs/vendor-registry/spec.md",
+      "line_range": {
+        "start": 39,
+        "end": 44
+      },
+      "evidence_class": "judgment",
+      "existing_code": "THEN exact model ID SHALL be the primary catalog join, endpoint kind/base URL SHALL constrain it\nwhen configured, optional catalog vendor SHALL further constrain it"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: D1/spec require a deployment test that persists at least one probe snapshot under `SKILLS_ROOT` + `AGENTS_YAML`, but `wp-api-watchdog` verification only runs unit pytest suites and existing Dockerfile/import packaging tests are outside its `write_allow`. The packaging requirement therefore has no executable package gate.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "Add a wp-api-watchdog verification step (or owned packaging test) that builds/loads the image layout and asserts a snapshot write, not merely probe-file presence.",
+      "package_id": "wp-api-watchdog",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 7,
+        "end": 10
+      },
+      "evidence_class": "judgment",
+      "existing_code": "A deployment test must persist at least one snapshot, not merely find the file."
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: D5 and tasks 2.3/2.6 require SQL RPCs for atomic probe upsert, rate-limit insert/replay/conflict, and compaction, and D11 says contracts land before registry/RPC core, but `contracts/db/schema.sql` defines only tables/index. `wp-contracts` has no task to publish function signatures/return codes, so concurrent RPC TDD cannot lock the boundary before migration work.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Add CREATE FUNCTION contracts (or an explicit decision that HTTP+service tests own atomicity and schema.sql remains table-only) and task the chosen owner.",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/db/schema.sql",
+      "line_range": {
+        "start": 1,
+        "end": 31
+      },
+      "evidence_class": "judgment",
+      "existing_code": "SQL RPCs perform atomic probe upsert, rate-limit insert/replay/conflict, and compaction."
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: D6 says Problem codes distinguish `unknown_vendor_lane` from `vendor_registry_unavailable`, and OpenAPI `Problem.code` enumerates both, but every documented 404 response only cites `unknown_vendor_lane`. The emitter of `vendor_registry_unavailable` (API vs bridge synthesis for older coordinators) remains unspecified against the current bridge behavior that maps all 404s to `capability_unavailable`.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Document whether the API ever returns `vendor_registry_unavailable` or the bridge synthesizes it on bare route-404, and require registry helpers to preserve that distinct code.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 187,
+        "end": 192
+      },
+      "evidence_class": "judgment",
+      "existing_code": "code: {type: string, enum: [unknown_vendor_lane, vendor_registry_unavailable, observation_conflict]}"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Optional: D4/spec define model-scoped limits that keep a lane available when another model remains, while D7/tasks require reporting capacity once per result after the dispatcher finishes. Current `review_dispatcher` exhausts model fallbacks then returns one terminal capacity failure, which naturally becomes lane-scoped. No task assigns mid-chain `scope=model` producers, so the alternate-model scenario is only exercisable via direct API POSTs unless that producer is named.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Accept API-only model-scope coverage, or explicitly task mid-fallback model-scoped reports before the terminal lane-scoped failure.",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 46,
+        "end": 47
+      },
+      "evidence_class": "judgment",
+      "existing_code": "A model-scoped limit does not mark the whole lane limited. It removes only that model from\nmodel-aware eligibility; the lane remains available when another eligible model remains."
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "FYI: `work-packages.yaml` declares `plan_revision: 3`, but `change-context.md` remediation still says plan revision 2 incorporated the first panel. Traceability readers can mis-identify the current normative revision.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "resolution": "Update the remediation blurb to revision 3 when convenient.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/change-context.md",
+      "line_range": {
+        "start": 22,
+        "end": 28
+      },
+      "evidence_class": "judgment",
+      "existing_code": "Plan revision 2 incorporates the first panel's repeated findings:"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Revision 3 closes the previously blocking seams for typed lane/provider/policy/catalog identity with explicit location, endpoint-kind-local catalog gating, lane-vs-model limit precedence, legacy provider-scoped exclusion, request-quote/cost_guard behavior, bridge\u2192policy package ordering, compaction ownership, and tier-A executable gates including mypy/DAG/migration/contract re-runs.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Proceed after resolving remaining grant/collector/contract nits.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Probe freshness, first-poll persistence without transitions, no_probe_method snapshots, bounded reset/replay hashing, fail-closed registry defaults, and watchdog-scheduled compaction now have coherent owners across D4\u2013D5/D10 and tasks 2.x/3.x.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Keep failure-first tests aligned to those clauses.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/specs/vendor-registry/spec.md",
+      "evidence_class": "judgment"
+    }
+  ]
+}

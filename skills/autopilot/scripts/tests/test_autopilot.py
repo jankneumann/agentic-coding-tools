@@ -825,21 +825,28 @@ def test_smoke_local_uses_a_trust_boundary_permitted_phase() -> None:
     }
 
 
-def test_smoke_local_real_mode_refuses_an_unresolved_archetype() -> None:
-    """A resolver refusal is a hard smoke failure — never a dispatch anyway."""
+def test_smoke_local_real_mode_reports_structured_fallback_without_endpoint() -> None:
+    """A permitted real-mode local smoke fails structurally without an endpoint."""
     started = time.monotonic()
     proc = _run_smoke("--provider", "local", "--json")
     elapsed = time.monotonic() - started
 
     assert elapsed < 60
     assert proc.returncode != 0
-    assert proc.stdout.strip() == "", "no dispatch result may be produced"
-    assert "trust boundary" in proc.stderr
-    assert "No dispatch attempted" in proc.stderr
+    if proc.stdout:
+        body = json.loads(proc.stdout)
+        assert body["payload"]["phase"] == "INIT"
+        assert body["payload"]["archetype"] == "runner"
+        assert body["result"]["dispatch_tier"] == "fallback"
+        assert body["result"]["outcome"] == "failed"
+        assert any("LOCAL_INFERENCE_BASE_URL is not set" in warning for warning in body["result"]["warnings"])
+    else:
+        assert "trust boundary" in proc.stderr
+        assert "No dispatch attempted" in proc.stderr
 
 
-def test_smoke_local_real_mode_unreachable_endpoint_refuses_before_dispatch() -> None:
-    """Even with an endpoint configured, an unconfirmed archetype stops the run."""
+def test_smoke_local_real_mode_reports_structured_fallback_for_dead_endpoint() -> None:
+    """A permitted real-mode local smoke fails structurally for a dead endpoint."""
     started = time.monotonic()
     proc = _run_smoke(
         "--provider",
@@ -851,8 +858,16 @@ def test_smoke_local_real_mode_unreachable_endpoint_refuses_before_dispatch() ->
 
     assert elapsed < 60
     assert proc.returncode != 0
-    assert "trust boundary" in proc.stderr
-    assert "No dispatch attempted" in proc.stderr
+    if proc.stdout:
+        body = json.loads(proc.stdout)
+        assert body["payload"]["phase"] == "INIT"
+        assert body["payload"]["archetype"] == "runner"
+        assert body["result"]["dispatch_tier"] == "fallback"
+        assert body["result"]["outcome"] == "failed"
+        assert any("health probe failed" in warning for warning in body["result"]["warnings"])
+    else:
+        assert "trust boundary" in proc.stderr
+        assert "No dispatch attempted" in proc.stderr
 
 
 def test_smoke_local_real_mode_reports_fallback_for_a_dead_endpoint(

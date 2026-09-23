@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
@@ -10,6 +12,7 @@ from uuid import UUID
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from src.coordination_api import (
     create_coordination_api,
@@ -153,6 +156,46 @@ def test_local_trust_boundary_returns_403_and_failed_audit(
     assert call["result"]["refusal"] == "local_provider_trust_boundary"
 
 
+@pytest.mark.asyncio
+async def test_phase_resolution_does_not_block_api_event_loop(
+    _api_config: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The sync resolver may self-call this API, so the event loop must stay free."""
+    from src.agents_config import ResolvedArchetype
+
+    loop_progressed = threading.Event()
+    saw_progress_during_resolution = False
+
+    def _resolve(*_args: Any, **_kwargs: Any) -> ResolvedArchetype:
+        nonlocal saw_progress_during_resolution
+        saw_progress_during_resolution = loop_progressed.wait(timeout=0.2)
+        return ResolvedArchetype(
+            model="qwen/qwen3-coder",
+            system_prompt="Implement the task.",
+            archetype="implementer",
+            reasons=["adaptive routing selected"],
+            provider="openrouter",
+            write_capable=True,
+        )
+
+    monkeypatch.setattr("src.agents_config.resolve_archetype_for_phase", _resolve)
+    monkeypatch.setattr("src.audit._audit_service", AsyncMock())
+    app = create_coordination_api()
+
+    asyncio.get_running_loop().call_later(0.01, loop_progressed.set)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as async_client:
+        response = await async_client.post(
+            "/archetypes/resolve_for_phase",
+            headers=_auth_headers(),
+            json={"phase": "IMPLEMENT", "signals": {}},
+        )
+
+    assert response.status_code == 200
+    assert saw_progress_during_resolution is True
+
+
 # =============================================================================
 # Lock endpoint tests
 # =============================================================================
@@ -263,6 +306,84 @@ def test_lock_status_returns_locked(
     assert data["lock"]["locked_by"] == "agent-1"
 
 
+def test_list_locks_by_agent_uses_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_service = AsyncMock()
+    mock_service.check.return_value = []
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.locks
+
+    monkeypatch.setattr(src.locks, "_lock_service", mock_service)
+    response = client.get(
+        "/locks",
+        headers=_auth_headers(),
+        params={"agent_id": "agent-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"locks": []}
+    mock_service.check.assert_awaited_once_with(locked_by="agent-1")
+
+
+def test_release_locks_by_agent_uses_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_service = AsyncMock()
+    mock_service.release_by_agent.return_value = {
+        "success": True,
+        "released_count": 2,
+    }
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.locks
+
+    monkeypatch.setattr(src.locks, "_lock_service", mock_service)
+    response = client.post(
+        "/locks/release-by-agent",
+        headers=_auth_headers(),
+        json={"agent_id": "agent-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["released_count"] == 2
+    mock_service.release_by_agent.assert_awaited_once_with("agent-1")
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "request_kwargs"),
+    [
+        ("get", "/locks", {"params": {"agent_id": "other-agent"}}),
+        (
+            "post",
+            "/locks/release-by-agent",
+            {"json": {"agent_id": "other-agent"}},
+        ),
+    ],
+)
+def test_lock_by_agent_endpoints_reject_bound_identity_mismatch(
+    _api_config: None,
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    path: str,
+    request_kwargs: dict[str, Any],
+) -> None:
+    from src.config import reset_config
+
+    monkeypatch.setenv(
+        "COORDINATION_API_KEY_IDENTITIES",
+        '{"test-key-001":{"agent_id":"bound-agent","agent_type":"codex"}}',
+    )
+    reset_config()
+    with TestClient(create_coordination_api()) as bound_client:
+        response = getattr(bound_client, method)(
+            path, headers=_auth_headers(), **request_kwargs
+        )
+
+    assert response.status_code == 403
+
+
 # =============================================================================
 # Memory endpoint tests
 # =============================================================================
@@ -357,6 +478,33 @@ def test_claim_work_delegates_to_service(
     assert data["task_type"] == "test"
 
 
+def test_claim_work_uses_authenticated_fallback_identity_when_body_omits_it(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import ClaimResult
+
+    mock_service = AsyncMock()
+    mock_service.claim.return_value = ClaimResult(success=False, reason="empty")
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/claim",
+        headers=_auth_headers(),
+        json={"task_types": ["vendor-dispatch-correlation"]},
+    )
+
+    assert response.status_code == 200
+    mock_service.claim.assert_awaited_once_with(
+        agent_id="cloud-agent",
+        agent_type="cloud_agent",
+        task_types=["vendor-dispatch-correlation"],
+    )
+
+
 def test_complete_work_delegates_to_service(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -388,6 +536,53 @@ def test_complete_work_delegates_to_service(
     assert response.json()["status"] == "completed"
 
 
+def test_complete_work_passes_resolved_identity_when_body_omits_agent_id(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import CompleteResult
+
+    task_uuid = UUID("12345678-1234-1234-1234-123456789abc")
+    mock_service = AsyncMock()
+    mock_service.complete.return_value = CompleteResult(
+        success=True, status="completed", task_id=task_uuid
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/complete",
+        headers=_auth_headers(),
+        json={"task_id": str(task_uuid), "success": True, "result": {"ok": True}},
+    )
+
+    assert response.status_code == 200
+    mock_service.complete.assert_awaited_once_with(
+        task_id=task_uuid,
+        success=True,
+        result={"ok": True},
+        error_message=None,
+        agent_id="cloud-agent",
+    )
+
+
+def test_complete_work_rejects_malformed_task_id(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = AsyncMock()
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    monkeypatch.setattr("src.work_queue._work_queue_service", service)
+
+    response = client.post(
+        "/work/complete",
+        headers=_auth_headers(),
+        json={"task_id": "not-a-uuid", "success": False},
+    )
+    assert response.status_code == 400
+
+
 def test_submit_work_delegates_to_service(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -413,6 +608,46 @@ def test_submit_work_delegates_to_service(
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
+
+
+def test_submit_work_atomic_claim_uses_server_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import SubmitResult
+
+    task_uuid = UUID("12345678-1234-1234-1234-123456789abc")
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=True,
+        task_id=task_uuid,
+        status="claimed",
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "vendor-dispatch-correlation",
+            "task_description": "Track async dispatch",
+            "claim_immediately": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "claimed"
+    assert mock_service.submit.await_args.kwargs["claim_immediately"] is True
+    assert (
+        mock_service.submit.await_args.kwargs["claimant_agent_id"]
+        == "cloud-agent"
+    )
+    assert (
+        mock_service.submit.await_args.kwargs["claimant_agent_type"]
+        == "cloud_agent"
+    )
 
 
 def test_projection_submit_exposes_additive_result(

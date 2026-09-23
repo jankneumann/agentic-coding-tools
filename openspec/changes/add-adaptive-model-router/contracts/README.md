@@ -9,8 +9,9 @@ Sub-types evaluated per plan-feature Step 7:
   produced by the refresher; test fixtures live with the integration tests (task 2.1).
 - **Events** — `events/routing-signal.schema.json`: routing signal payloads riding `audit_log` +
   OTel.
-- **Type generation** — deferred to implementation task 1.4 (`contracts/generated/models.py`
-  from the OpenAPI schemas); no hand-written stubs to avoid drift.
+- **Generated models** — `contracts/generated/models.py` is the task 1.3 Pydantic projection
+  of the OpenAPI schemas; focused parity tests guard fields, requiredness, and key scalar types.
 
-These contracts are the coordination boundary: wp-resolver, wp-dispatch, wp-feedback, and
-wp-dashboard all program against them rather than each other's internals.
+These contracts are the coordination boundary for the canonical dg-00 packages:
+`wp-db-catalog`, `wp-resolver`, `wp-dispatch`, and `wp-integration`. Feedback producers
+and the usage dashboard remain deferred consumers recorded in `../deferred-tasks.md`.

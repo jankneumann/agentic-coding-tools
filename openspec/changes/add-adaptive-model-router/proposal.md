@@ -25,6 +25,21 @@ no manual model picks, (b) local models absorb a meaningful share of economy-tie
 
 ## What Changes
 
+### dg-00 recovery boundary (2026-09-16)
+
+The current roadmap item and PR deliver the four dg-00 wiring outcomes: five HTTP paths plus the
+MCP selection tool; additive catalog storage with storage-only reads; default-off adaptive
+delegation with exact static fallback; and dispatcher discovery for `OpenAICompatAdapter`. The
+supporting tranche also schedules the implemented catalog refresher, local health probe, and
+ledger rollup independently. The remaining original vision is preserved in `deferred-tasks.md`
+and `deferred-specs/`; this tranche does not migrate central model ownership from PR 417 and
+does not add ri-18 billing metadata to `CandidateInput`.
+
+### Full proposal vision (preserved, deferred outside dg-00)
+
+The bullets below record the original vision. They are not delivery claims for this PR except
+where the bounded paragraph above names an implemented substrate component.
+
 - **New capability `model-routing`** owning the model catalog, scoring, and selection contract.
 - **Model catalog + signal ledger in coordinator Postgres** (new migrations): per
   `(vendor, model, endpoint_kind, archetype/task-type)` rows carrying benchmark priors
@@ -60,7 +75,7 @@ no manual model picks, (b) local models absorb a meaningful share of economy-tie
   resolver when the routing feature flag is on; `agents.yaml` gains `endpoint_kind`/`base_url`
   fields. *Rollback plan*: feature flag `ROUTING_ADAPTIVE=off` reverts to static archetype tier
   resolution (existing behavior preserved as the fallback path); migrations are additive-only.
-- **Archive the two absorbed draft changes** with pointers to this change.
+- **Full proposal (deferred): archive the two absorbed draft changes** with pointers to this change.
 
 ## Approaches Considered
 
@@ -115,6 +130,28 @@ manageable because the static-tier path remains the fallback and all schema work
 designed in the absorbed proposals.
 
 ## Impact
+
+### Canonical dg-00 impact
+
+| Capability (spec delta) | Nature |
+|---|---|
+| `model-routing` (**new**) | Catalog storage/refresher, local endpoint registry/probes, resolver transport, usage ledger, and bounded static fallback |
+| `agent-coordinator` | Five routing HTTP paths plus MCP selection parity, migration 040, and three independent watchdog jobs |
+| `agent-archetypes` | Default-off adaptive delegation and endpoint metadata |
+| `parallel-infrastructure` | OpenAI-compatible reviewer discovery after CLI and SDK adapters |
+
+**Code**: `agent-coordinator/src/agents_config.py`, `src/coordination_api.py`,
+`src/coordination_mcp.py`, `src/http_proxy.py`, new `src/model_routing/`,
+`database/migrations/040_model_routing.sql`,
+`skills/parallel-infrastructure/scripts/review_dispatcher.py`, and focused tests.
+
+The catalog pricing and scoring core referenced by dg-00 already exists on `main` from PR #237;
+this change wires it into storage and transports rather than creating a second implementation.
+
+### Full-proposal impact (preserved and deferred)
+
+The following table and code list describe the original full proposal. They are retained for
+future roadmap items and are not part of the canonical dg-00 execution scope.
 
 | Capability (spec delta) | Nature |
 |---|---|

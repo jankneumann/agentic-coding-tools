@@ -1,0 +1,84 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "compatibility",
+      "criticality": "high",
+      "description": "Legacy dispatch outcomes emit provider-level names ('vendor_limit:claude:...'), whereas Design D2 and OpenAPI POST /vendors/{agent_id}/rate-limit-observations require exact lane IDs ('agent_id', e.g., 'claude-local'). Design D2 mandates rejecting provider-only observations that match multiple lanes. Without preserving the executed lane ID in dispatch results, rate-limit observations targeting multi-lane provider types like 'claude' will be rejected or return 404 Not Found.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "id": 1,
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "high",
+      "description": "policy.py requires a scalar cost delta between vendors, whereas dg-00 CatalogService returns multi-model input/output token pricing objects (CostProjection.models). In agents.yaml, primary agents specify model: null, leaving model resolution to runtime archetypes. The spec and design fail to define a deterministic conversion formula (model selection rule and input/output token weightings) to derive scalar vendor pricing from catalog model arrays.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/specs/vendor-registry/spec.md",
+      "id": 2,
+      "severity": "critical",
+      "type": "spec_gap",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "architecture",
+      "criticality": "high",
+      "description": "work-packages.yaml omits skills/parallel-infrastructure/scripts/review_dispatcher.py and skills/autopilot/scripts/provider_dispatch.py from all write_allow scopes. Tasks 3.5 and 3.6 require dispatcher-observed rate-limit reporting, but work-package scopes prevent workers from adding rate-limit observation calls to these dispatchers.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/work-packages.yaml",
+      "id": 3,
+      "severity": "critical",
+      "type": "architecture",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "medium",
+      "description": "wp-bridge-policy in work-packages.yaml specifies depends_on: [wp-registry-core] but omits wp-api-producers. wp-bridge-policy implements HTTP bridge helpers in coordination_bridge.py that call GET /vendors and POST /vendors/{agent_id}/rate-limit-observations. Omitting wp-api-producers from depends_on allows parallel execution of bridge code before the HTTP endpoints in coordination_api.py are implemented.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/work-packages.yaml",
+      "id": 4,
+      "severity": "optional",
+      "type": "architecture",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "observability",
+      "criticality": "medium",
+      "description": "WatchdogService._check_vendor_health() currently skips persistence on its first run to establish a baseline without emitting false transition events. Task 3.1 requires persisting probe snapshots on the first run, but the plan does not specify how initial baseline rows are written to vendor_probe_state without triggering false vendor.unavailable pg_notify events for offline vendors on coordinator startup.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "id": 5,
+      "severity": "optional",
+      "type": "behavioral_failure",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "contracts/openapi/v1.yaml Availability schema does not include stale_after, whereas db/schema.sql (vendor_probe_state) and contracts/events/vendor-availability.schema.json include stale_after. Additionally, the plan does not specify the default TTL duration used by WatchdogService when populating stale_after for probe snapshots.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml",
+      "id": 6,
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "medium",
+      "description": "Task 4.4 removes the hardcoded vendor list from orchestrator.py, and spec.md requires using an injected fallback provider or failing closed when the coordinator is unavailable. However, the plan lacks a concrete interface definition or parameter contract for how RoadmapOrchestrator receives and handles the fallback provider when COORDINATION_API_URL is unreachable.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "id": 7,
+      "severity": "optional",
+      "type": "spec_gap",
+      "evidence_class": "judgment"
+    }
+  ]
+}

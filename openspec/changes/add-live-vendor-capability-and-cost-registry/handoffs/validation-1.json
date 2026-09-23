@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-16T22:15:40.317774+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": "dg-01-autopilot-roadmap",
+    "summary": "Validated dg-01 at e5684e8c: coordinator 2,659; required PostgreSQL 33 with zero skips; skills-root 4,873; affected skills 501; contract 19; strict mypy and Ruff green; OpenSpec 93/93; DAG/scope valid. Ready for stacked PR submission.",
+    "completed_work": [
+      "Passed coordinator regression: 2,659 passed, 11 skipped, 132 deselected",
+      "Passed required PostgreSQL gate: 33 passed, 0 skipped; contract parity: 19 passed",
+      "Passed affected skills: 501; configured skills-root suite: 4,873 passed, 15 skipped",
+      "Passed strict mypy across 83 files, Ruff across both trees, strict OpenSpec 93/93, DAG/scope/lock validation, and diff hygiene",
+      "Produced validation-report.md and updated task/traceability evidence"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Correct the skills-wide gate working directory",
+        "rationale": "The skills pytest configuration is rooted at skills; running the same configured suite there avoids unrelated sibling-project collection and passed 4,873 tests.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Stop the line on strict typing",
+        "rationale": "Three dg-01 mypy defects were fixed narrowly and the complete affected validation matrix was rerun at the pushed remediation head.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Create or update the stacked PR against openspec/add-adaptive-model-router, verify CI, then mark dispatch-governance dg-01 complete."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-live-vendor-capability-and-cost-registry/validation-report.md",
+        "description": "canonical gate and acceptance evidence"
+      },
+      {
+        "path": "openspec/changes/add-live-vendor-capability-and-cost-registry/tasks.md",
+        "description": "phase completion checklist"
+      },
+      {
+        "path": "openspec/changes/add-live-vendor-capability-and-cost-registry/change-context.md",
+        "description": "implemented requirement traceability"
+      }
+    ]
+  }
+}

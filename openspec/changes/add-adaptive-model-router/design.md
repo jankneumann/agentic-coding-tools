@@ -156,7 +156,7 @@ further because the pieces share one schema review. Everything else is M or belo
 
 ## Absorption mechanics
 
-`cross-vendor-arbitrage-instrument` and `usage-stats-multi-model` are archived (not deleted) with
-`superseded-by: add-adaptive-model-router` notes in their proposal headers; their unimplemented
-task lists were mined for requirements now expressed in this change's specs. No code exists under
-either change, so no code migration is needed.
+`cross-vendor-arbitrage-instrument` and `usage-stats-multi-model` remain unarchived during
+dg-00. Archival with `superseded-by: add-adaptive-model-router` notes is deferred to DT-7;
+their task lists were mined for the preserved full-proposal requirements. No code exists under
+either change, so that later archival requires no code migration.

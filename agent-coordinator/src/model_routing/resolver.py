@@ -21,8 +21,11 @@ are min-max normalized across the feasible candidate set at scoring time.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Literal
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field, replace
+from typing import Any, Literal
+
+from src.isolation_contract import resolve_isolation
 
 # Sample size at which a task-type posterior is trusted enough to blend in /
 # to use the observed cost-per-completed-task instead of the price prior.
@@ -33,6 +36,30 @@ DEFAULT_COST_SAMPLE_THRESHOLD = 5.0
 _SUCCESS_FLOOR = 0.05
 
 CostSource = Literal["posterior", "prior"]
+
+
+@dataclass(frozen=True)
+class RoutingAssignment:
+    agent_id: str
+    vendor_type: str
+    policy_vendor: str
+    catalog_vendor: str
+    location: str
+    isolation: str
+    dispatch_mode: str
+    model: str
+    endpoint_kind: str
+    base_url: str | None = None
+
+
+@dataclass(frozen=True)
+class ExcludedAssignmentInput:
+    vendor: str
+    model: str
+    endpoint_kind: str
+    reason: str
+    agent_id: str | None = None
+    base_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -78,6 +105,7 @@ class CandidateInput:
     vendor: str
     model: str
     endpoint_kind: str
+    base_url: str | None = None
     benchmark_prior: float = 0.0            # 0..1 prior quality
     prompt_usd_per_mtok: float | None = None
     completion_usd_per_mtok: float | None = None
@@ -87,6 +115,8 @@ class CandidateInput:
     modality_eligible: bool = True          # Cedar verdict (D10)
     exclusion_reason: str | None = None      # pre-computed hard-constraint reason
     posterior: Posterior = field(default_factory=Posterior)
+    stale_catalog: bool = False
+    assignment: RoutingAssignment | None = None
 
 
 @dataclass(frozen=True)
@@ -94,6 +124,7 @@ class ScoredCandidate:
     vendor: str
     model: str
     endpoint_kind: str
+    base_url: str | None
     score: float
     quality: float
     norm_cost: float
@@ -101,6 +132,212 @@ class ScoredCandidate:
     headroom: float
     cost_source: CostSource
     posterior_sample_size: float
+    stale_catalog: bool = False
+    assignment: RoutingAssignment | None = None
+
+
+def build_feasible_assignments(
+    lanes: Sequence[Mapping[str, Any]],
+    catalog_candidates: Sequence[CandidateInput],
+    *,
+    archetype: str,
+    dispatch_mode: str,
+    required_location: str | None = None,
+    required_isolation: str | None = None,
+    roadmap_policy: Mapping[str, Any] | None = None,
+) -> tuple[list[CandidateInput], list[ExcludedAssignmentInput]]:
+    """Exact-join configured lanes to catalog candidates, then filter feasibility."""
+    by_key = {
+        (candidate.vendor, candidate.model, candidate.endpoint_kind, candidate.base_url): candidate
+        for candidate in catalog_candidates
+    }
+    matched_keys: set[tuple[str, str, str, str | None]] = set()
+    feasible: list[CandidateInput] = []
+    excluded: list[ExcludedAssignmentInput] = []
+    policy = roadmap_policy or {}
+    for lane in lanes:
+        lane_agent_id = str(lane.get("agent_id") or "")
+        cost = lane.get("cost")
+        misses = cost.get("misses") if isinstance(cost, Mapping) else None
+        had_misses = False
+        if isinstance(misses, list):
+            for miss in misses:
+                if not isinstance(miss, Mapping):
+                    continue
+                had_misses = True
+                # VendorRegistryService._cost_projection already dropped this
+                # declared-but-unmatched (missing/ambiguous) model before
+                # cost.models was built -- it never reaches the by_key join
+                # below, so it must be excluded here from the registry's own
+                # miss record rather than silently vanishing (spec scenario
+                # "Missing exact projection is excluded"; Codex review on
+                # PR #605).
+                excluded.append(
+                    ExcludedAssignmentInput(
+                        agent_id=lane_agent_id,
+                        vendor=str(miss.get("catalog_vendor") or ""),
+                        model=str(miss.get("model") or ""),
+                        endpoint_kind=str(miss.get("endpoint_kind") or ""),
+                        base_url=miss.get("base_url"),
+                        reason="registry:no-catalog-projection",
+                    )
+                )
+        projections = _lane_models(lane)
+        if not projections:
+            if not had_misses:
+                # A configured lane with no declared models at all (and no
+                # registry misses to explain why) has no unique exact catalog
+                # projection -- excluded, not silently dropped.
+                excluded.append(
+                    ExcludedAssignmentInput(
+                        agent_id=lane_agent_id,
+                        vendor=str(lane.get("catalog_vendor") or ""),
+                        model="",
+                        endpoint_kind="",
+                        base_url=None,
+                        reason="registry:no-catalog-projection",
+                    )
+                )
+            continue
+        for projection in projections:
+            key = (
+                str(projection.get("catalog_vendor") or ""),
+                str(projection.get("model") or ""),
+                str(projection.get("endpoint_kind") or ""),
+                projection.get("base_url"),
+            )
+            candidate = by_key.get(key)
+            if candidate is None:
+                # The registry/lane declares this exact model but the catalog
+                # snapshot has no row for it -- excluded, not silently dropped
+                # (spec scenario "Missing exact projection is excluded").
+                excluded.append(
+                    ExcludedAssignmentInput(
+                        agent_id=lane_agent_id,
+                        vendor=key[0],
+                        model=key[1],
+                        endpoint_kind=key[2],
+                        base_url=key[3],
+                        reason="registry:no-catalog-projection",
+                    )
+                )
+                continue
+            matched_keys.add(key)
+            mode_isolation = lane.get("isolation_by_dispatch_mode")
+            configured_isolation = (
+                mode_isolation[dispatch_mode]
+                if isinstance(mode_isolation, Mapping) and dispatch_mode in mode_isolation
+                else lane.get("isolation")
+            )
+            isolation = resolve_isolation(
+                router_reachable=False,
+                router_value=None,
+                configured_value=configured_isolation,
+            ).value
+            assignment = RoutingAssignment(
+                agent_id=str(lane.get("agent_id") or ""),
+                vendor_type=str(lane.get("vendor_type") or ""),
+                policy_vendor=str(lane.get("policy_vendor") or ""),
+                catalog_vendor=key[0],
+                location=str(lane.get("location") or "unknown"),
+                isolation=isolation,
+                dispatch_mode=dispatch_mode,
+                model=key[1],
+                endpoint_kind=key[2],
+                base_url=key[3],
+            )
+            reason = _lane_exclusion_reason(
+                lane,
+                projection,
+                assignment,
+                archetype=archetype,
+                dispatch_mode=dispatch_mode,
+                required_location=required_location,
+                required_isolation=required_isolation,
+                roadmap_policy=policy,
+            )
+            if reason is not None:
+                excluded.append(_excluded(candidate, reason, assignment.agent_id))
+                continue
+            feasible.append(replace(candidate, assignment=assignment))
+    for key, candidate in by_key.items():
+        if key not in matched_keys:
+            excluded.append(_excluded(candidate, "catalog:no-configured-lane"))
+    return feasible, excluded
+
+
+def _lane_models(lane: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    cost = lane.get("cost")
+    if not isinstance(cost, Mapping) or not isinstance(cost.get("models"), list):
+        return []
+    return [item for item in cost["models"] if isinstance(item, Mapping)]
+
+
+def _lane_exclusion_reason(
+    lane: Mapping[str, Any],
+    projection: Mapping[str, Any],
+    assignment: RoutingAssignment,
+    *,
+    archetype: str,
+    dispatch_mode: str,
+    required_location: str | None,
+    required_isolation: str | None,
+    roadmap_policy: Mapping[str, Any],
+) -> str | None:
+    availability = lane.get("availability")
+    if not isinstance(availability, Mapping) or not availability.get("available"):
+        return "lane:unavailable"
+    if not projection.get("available", True):
+        return "lane:model-rate-limited"
+    if not lane.get("dispatchable"):
+        return "lane:not-dispatchable"
+    if archetype not in _strings(lane.get("archetypes")):
+        return "lane:archetype-ineligible"
+    if dispatch_mode not in _strings(lane.get("dispatch_modes")):
+        return "lane:dispatch-mode-ineligible"
+    if required_location is not None and assignment.location != required_location:
+        return "lane:location-mismatch"
+    if required_isolation is not None and assignment.isolation != required_isolation:
+        return "lane:isolation-mismatch"
+    agent_id = assignment.agent_id
+    vendor_type = assignment.vendor_type
+    allowed_agents = _strings(roadmap_policy.get("allowed_agent_ids"))
+    excluded_agents = _strings(roadmap_policy.get("excluded_agent_ids"))
+    allowed_vendors = _strings(roadmap_policy.get("allowed_vendor_types"))
+    excluded_vendors = _strings(roadmap_policy.get("excluded_vendor_types"))
+    allowed_locations = _strings(roadmap_policy.get("allowed_locations"))
+    if allowed_agents and agent_id not in allowed_agents:
+        return "roadmap:agent-not-allowed"
+    if agent_id in excluded_agents:
+        return "roadmap:agent-excluded"
+    if allowed_vendors and vendor_type not in allowed_vendors:
+        return "roadmap:vendor-not-allowed"
+    if vendor_type in excluded_vendors:
+        return "roadmap:vendor-excluded"
+    if allowed_locations and assignment.location not in allowed_locations:
+        return "roadmap:location-not-allowed"
+    return None
+
+
+def _strings(value: Any) -> set[str]:
+    if not isinstance(value, (list, tuple, set)):
+        return set()
+    return {str(item) for item in value}
+
+
+def _excluded(
+    candidate: CandidateInput,
+    reason: str,
+    agent_id: str | None = None,
+) -> ExcludedAssignmentInput:
+    return ExcludedAssignmentInput(
+        agent_id=agent_id,
+        vendor=candidate.vendor,
+        model=candidate.model,
+        endpoint_kind=candidate.endpoint_kind,
+        base_url=candidate.base_url,
+        reason=reason,
+    )
 
 
 def blend_quality(
@@ -236,6 +473,7 @@ def score_and_rank(
                 vendor=c.vendor,
                 model=c.model,
                 endpoint_kind=c.endpoint_kind,
+                base_url=c.base_url,
                 score=score,
                 quality=q,
                 norm_cost=nc,
@@ -243,7 +481,21 @@ def score_and_rank(
                 headroom=headroom,
                 cost_source=src,
                 posterior_sample_size=c.posterior.sample_size,
+                stale_catalog=c.stale_catalog,
+                assignment=c.assignment,
             )
         )
-    scored.sort(key=lambda s: s.score, reverse=True)
+    if any(item.assignment is not None for item in scored):
+        scored.sort(
+            key=lambda item: (
+                -item.score,
+                item.assignment.agent_id if item.assignment is not None else "",
+                item.vendor,
+                item.model,
+                item.endpoint_kind,
+                item.base_url or "",
+            )
+        )
+    else:
+        scored.sort(key=lambda item: item.score, reverse=True)
     return scored, excluded

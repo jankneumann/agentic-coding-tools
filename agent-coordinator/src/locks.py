@@ -365,6 +365,30 @@ class LockService:
         locks = await self.db.query("file_locks", query)
         return [Lock.from_dict(lock) for lock in locks]
 
+    async def release_by_agent(self, agent_id: str) -> dict[str, Any]:
+        """Release every active lock held by ``agent_id``.
+
+        The operation is intentionally idempotent so cloud-session cleanup may
+        retry it after an interrupted request. Individual releases keep the
+        existing holder-aware authorization and audit semantics.
+        """
+        normalized_agent_id = agent_id.strip()
+        if not normalized_agent_id:
+            return {"released_count": 0, "attempted_paths": []}
+
+        agent_id = normalized_agent_id
+        locks = await self.check(locked_by=agent_id)
+        attempted_paths = [lock.file_path for lock in locks]
+        released_count = 0
+        for file_path in attempted_paths:
+            result = await self.release(file_path, agent_id)
+            if result.success:
+                released_count += 1
+        return {
+            "released_count": released_count,
+            "attempted_paths": attempted_paths,
+        }
+
     async def extend(
         self,
         file_path: str,

@@ -6,6 +6,8 @@ info:
     Adaptive model selection, catalog, decisions, usage, and feedback surface.
     Bearer-authenticated like all coordinator endpoints. MCP tool
     `select_model_for_task` mirrors POST /routing/select_model.
+security:
+  - CoordinatorBearer: []
 paths:
   /routing/select_model:
     post:
@@ -24,8 +26,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SelectModelResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/RoutingUnavailable'
         '422':
-          $ref: '#/components/responses/Problem'
+          $ref: '#/components/responses/ValidationError'
   /routing/catalog:
     get:
       operationId: listCatalog
@@ -45,6 +51,8 @@ paths:
               schema:
                 type: array
                 items: {$ref: '#/components/schemas/CatalogRow'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /routing/decisions/{decision_id}:
     get:
       operationId: getRoutingDecision
@@ -60,6 +68,8 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/RoutingDecision'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/Problem'
   /routing/usage:
@@ -79,10 +89,12 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/UsageAggregate'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /routing/feedback:
     post:
       operationId: postRoutingFeedback
-      summary: Best-effort task-outcome feedback (non-blocking for callers)
+      summary: Accept best-effort task-outcome feedback for audit
       requestBody:
         required: true
         content:
@@ -90,8 +102,15 @@ paths:
             schema: {$ref: '#/components/schemas/FeedbackEvent'}
       responses:
         '202':
-          description: Accepted for aggregation
+          description: Accepted for best-effort audit recording
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
+  securitySchemes:
+    CoordinatorBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
   responses:
     Problem:
       description: RFC 7807 problem
@@ -104,7 +123,53 @@ components:
               title: {type: string}
               status: {type: integer}
               detail: {type: string}
+    ValidationError:
+      # FastAPI's default RequestValidationError handler returns `detail` as an
+      # array of validation-error objects, not the string the Problem/HTTPError
+      # schemas declare. Generated clients validating against those would reject
+      # or fail to deserialize an ordinary 422.
+      description: Request body failed validation
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/HTTPValidationError'}
+    Unauthorized:
+      description: Missing or invalid coordinator API key
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/HTTPError'}
+    RoutingUnavailable:
+      description: No feasible model-routing candidate is available
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/HTTPError'}
   schemas:
+    HTTPError:
+      type: object
+      required: [detail]
+      properties:
+        detail: {type: string}
+    ValidationErrorItem:
+      type: object
+      required: [type, loc, msg]
+      properties:
+        type: {type: string}
+        loc:
+          type: array
+          items:
+            oneOf:
+              - {type: string}
+              - {type: integer}
+        msg: {type: string}
+        input: {}
+        ctx: {type: object}
+        url: {type: string}
+    HTTPValidationError:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: array
+          items: {$ref: '#/components/schemas/ValidationErrorItem'}
     EndpointKind:
       type: string
       enum: [vendor-cli, vendor-sdk, openrouter, local]
@@ -120,18 +185,28 @@ components:
           required: [archetype]
           properties:
             archetype: {type: string, example: implementer}
-            phase: {type: string, example: IMPLEMENT}
-            task_type: {type: string, example: implementer/high-complexity}
-            complexity: {type: string, enum: [low, medium, high]}
+            phase: {type: [string, "null"], default: null, example: IMPLEMENT}
+            task_type: {type: [string, "null"], default: null, example: implementer/high-complexity}
+            complexity:
+              type: [string, "null"]
+              enum: [low, medium, high, null]
+              default: null
             modality: {type: string, enum: [interactive, programmatic], default: programmatic}
           additionalProperties: true
-        objective_profile: {$ref: '#/components/schemas/ObjectiveProfile'}
+        objective_profile:
+          anyOf:
+            - {$ref: '#/components/schemas/ObjectiveProfile'}
+            - {type: "null"}
+          default: null
         weight_overrides:
-          type: object
-          properties:
-            w_quality: {type: number}
-            w_cost: {type: number}
-            w_latency: {type: number}
+          anyOf:
+            - type: object
+              properties:
+                w_quality: {type: [number, "null"], default: null}
+                w_cost: {type: [number, "null"], default: null}
+                w_latency: {type: [number, "null"], default: null}
+            - {type: "null"}
+          default: null
         allow_exploration: {type: boolean, default: true}
       example:
         task_signals: {archetype: implementer, phase: IMPLEMENT, complexity: low, modality: programmatic}
@@ -144,22 +219,25 @@ components:
         model: {type: string, example: qwen/qwen3-coder}
         endpoint_kind: {$ref: '#/components/schemas/EndpointKind'}
         score: {type: number, example: 0.71}
-        quality: {type: number}
-        norm_cost: {type: number}
-        norm_latency: {type: number}
-        posterior_sample_size: {type: integer}
+        quality: {type: [number, "null"], default: null}
+        norm_cost: {type: [number, "null"], default: null}
+        norm_latency: {type: [number, "null"], default: null}
+        posterior_sample_size:
+          type: [number, "null"]
+          default: null
+          description: Effective sample mass after source weighting and time decay; may be fractional.
         stale_catalog: {type: boolean, default: false}
         cost_source:
-          type: string
-          enum: [posterior, prior]
-          nullable: true
+          type: [string, "null"]
+          enum: [posterior, prior, null]
+          default: null
           description: >
             Provenance of the cost estimate used in scoring — `posterior` (learned
             per-task cost cleared the sample threshold) or `prior` (catalog per-Mtok
             proxy). Null when no cost was scored. Mirrors the resolver Candidate.
     SelectModelResponse:
       type: object
-      required: [decision_id, selected, alternatives, fallback]
+      required: [decision_id, selected, alternatives]
       properties:
         decision_id: {type: string, format: uuid}
         selected: {$ref: '#/components/schemas/Candidate'}
@@ -173,9 +251,11 @@ components:
           description: True when static-tier resolution was returned (flag off / error / timeout)
         excluded:
           type: array
+          default: []
           description: Candidates removed pre-scoring by hard constraints, with reasons
           items:
             type: object
+            required: [vendor, model, reason]
             properties:
               vendor: {type: string}
               model: {type: string}
@@ -194,21 +274,22 @@ components:
         vendor: {type: string}
         model: {type: string}
         endpoint_kind: {$ref: '#/components/schemas/EndpointKind'}
-        base_url: {type: string, nullable: true, example: http://localhost:11434/v1}
-        prompt_usd_per_mtok: {type: number, nullable: true}
-        completion_usd_per_mtok: {type: number, nullable: true}
-        context_window: {type: integer, nullable: true}
+        base_url: {type: [string, "null"], default: null, example: http://localhost:11434/v1}
+        prompt_usd_per_mtok: {type: [number, "null"], default: null}
+        completion_usd_per_mtok: {type: [number, "null"], default: null}
+        context_window: {type: [integer, "null"], default: null}
         benchmark_priors:
           type: object
+          default: {}
           additionalProperties: {type: number}
           example: {artificial_analysis_intelligence: 62.5}
-        p50_latency_ms: {type: number, nullable: true}
+        p50_latency_ms: {type: [number, "null"], default: null}
         available: {type: boolean}
-        quota_headroom_pct: {type: number, nullable: true, description: Proactive remaining-window pct (design D13); null when quota probe off/uncovered}
-        quota_reset_at: {type: string, format: date-time, nullable: true}
-        quota_source: {type: string, nullable: true, example: quota-axi}
-        refreshed_at: {type: string, format: date-time}
-        stale: {type: boolean}
+        quota_headroom_pct: {type: [number, "null"], default: null, description: Proactive remaining-window pct (design D13); null when quota probe off/uncovered}
+        quota_reset_at: {type: [string, "null"], format: date-time, default: null}
+        quota_source: {type: [string, "null"], default: null, example: quota-axi}
+        refreshed_at: {type: [string, "null"], format: date-time, default: null}
+        stale: {type: boolean, default: false}
     RoutingDecision:
       type: object
       required: [decision_id, created_at, request, selected, policy_version]
@@ -219,47 +300,73 @@ components:
         selected: {$ref: '#/components/schemas/Candidate'}
         alternatives:
           type: array
+          default: []
           items: {$ref: '#/components/schemas/Candidate'}
-        exploration: {type: boolean}
-        fallback: {type: boolean}
+        exploration: {type: boolean, default: false}
+        fallback: {type: boolean, default: false}
         policy_version: {type: string}
+        excluded:
+          type: array
+          default: []
+          items:
+            type: object
+            required: [vendor, model, reason]
+            properties:
+              vendor: {type: string}
+              model: {type: string}
+              reason: {type: string}
         budget_state:
           type: object
+          default: {}
           properties:
-            exploration_pct_used: {type: number}
-            exploration_usd_used: {type: number}
-            metered_usd_used: {type: number}
+            status:
+              type: [string, "null"]
+              enum: [available, not-requested, unavailable, null]
+              default: null
+            exploration_pct_used: {type: [number, "null"], default: null}
+            exploration_usd_used: {type: [number, "null"], default: null}
+            metered_usd_used: {type: [number, "null"], default: null}
+            degraded_reason: {type: [string, "null"], default: null}
         outcome_ref:
-          type: string
-          nullable: true
+          type: [string, "null"]
+          default: null
           description: Link to realised outcome (feedback event id) once known
     UsageAggregate:
       type: object
+      required: [window]
       properties:
         window: {type: string}
         by_model:
           type: array
+          default: []
           items:
             type: object
+            required: [vendor, model, endpoint_kind]
             properties:
               vendor: {type: string}
               model: {type: string}
               endpoint_kind: {$ref: '#/components/schemas/EndpointKind'}
-              prompt_tokens: {type: integer}
-              completion_tokens: {type: integer}
-              actual_usd: {type: number}
-              counterfactual_usd: {type: number}
-              estimated_fraction: {type: number, description: Share of spend from estimated token counts}
-        net_savings_usd: {type: number}
-        net_savings_usd_excluding_estimates: {type: number}
-        exploration_usd_used: {type: number}
-        metered_ceiling_usd: {type: number}
-        metered_usd_used: {type: number}
+              prompt_tokens: {type: integer, default: 0}
+              completion_tokens: {type: integer, default: 0}
+              actual_usd: {type: number, default: 0}
+              counterfactual_usd: {type: number, default: 0}
+              estimated_fraction: {type: number, default: 0, description: Share of spend from estimated token counts}
+        net_savings_usd: {type: number, default: 0}
+        net_savings_usd_excluding_estimates: {type: number, default: 0}
+        exploration_usd_used: {type: number, default: 0}
+        metered_ceiling_usd: {type: number, default: 0}
+        metered_usd_used: {type: number, default: 0}
+        estimated_fraction: {type: number, default: 0, description: Share of included entries with estimated token counts}
     FeedbackEvent:
       type: object
+      description: >-
+        The dg-00 endpoint accepts and audits this envelope best-effort. It does not
+        associate feedback with a catalog row or update posteriors; vendor and model
+        are the observed dispatch identity, and optional decision_id supplies
+        provenance when available. Endpoint-disambiguated aggregation is deferred.
       required: [source, vendor, model, task_type, metrics]
       properties:
-        decision_id: {type: string, format: uuid, nullable: true}
+        decision_id: {type: [string, "null"], format: uuid, default: null}
         source:
           type: string
           enum: [gen-eval, validation, vendor-switch, procedural-memory, transcript-triage]
@@ -269,9 +376,9 @@ components:
         metrics:
           type: object
           properties:
-            success: {type: boolean, nullable: true}
-            quality_score: {type: number, nullable: true}
-            cost_observed_usd: {type: number, nullable: true}
-            latency_observed_seconds: {type: number, nullable: true}
+            success: {type: [boolean, "null"], default: null}
+            quality_score: {type: [number, "null"], default: null}
+            cost_observed_usd: {type: [number, "null"], default: null}
+            latency_observed_seconds: {type: [number, "null"], default: null}
             tokens_estimated: {type: boolean, default: false}
-        observed_at: {type: string, format: date-time}
+        observed_at: {type: [string, "null"], format: date-time, default: null}

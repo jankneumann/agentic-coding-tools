@@ -8,3 +8,15 @@ The scoring core (`resolver`, `exploration`) is pure and dependency-free so the
 routing intelligence is unit-testable without a database; the catalog/ledger/
 refresher layers (added by wp-db-catalog) provide the DB-backed inputs.
 """
+
+from .catalog import CatalogEntry, CatalogService, get_catalog_service
+from .ledger import LedgerService, UsageRecord, get_routing_ledger
+
+__all__ = [
+    "CatalogEntry",
+    "CatalogService",
+    "LedgerService",
+    "UsageRecord",
+    "get_catalog_service",
+    "get_routing_ledger",
+]

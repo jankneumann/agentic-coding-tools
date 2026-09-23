@@ -37,8 +37,19 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.error import URLError
 from urllib.request import Request, urlopen
+from uuid import uuid4
 
 import line_resolver
+from vendor_limit_reporter import report_vendor_limit_result
+
+_BRIDGE_SCRIPTS = Path(__file__).resolve().parents[2] / "coordination-bridge" / "scripts"
+if str(_BRIDGE_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_BRIDGE_SCRIPTS))
+
+from coordination_bridge import (  # noqa: E402
+    try_complete_work,
+    try_submit_work,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -525,12 +536,10 @@ def classify_error(text: str) -> ErrorClass:
 
 @dataclass
 class PollConfig:
-    """Polling configuration for async dispatch modes."""
+    """Structured-status polling configuration for async dispatch modes."""
 
     command_template: list[str]
-    task_id_pattern: str
-    success_pattern: str
-    failure_pattern: str = "failed|error"
+    result_protocol: str = "vendor-envelope-v1"
     interval_seconds: int = 30
     timeout_seconds: int = 600
 
@@ -542,6 +551,7 @@ class ModeConfig:
     args: list[str]
     async_dispatch: bool = False
     poll: PollConfig | None = None
+    isolation: str | None = None
 
 
 @dataclass
@@ -589,6 +599,99 @@ class ReviewerInfo:
     dispatch_tier: str = "skip"  # "cli", "sdk", or "skip"
 
 
+class VendorResultProtocolError(ValueError):
+    """Raised when a vendor does not emit the contracted result envelope."""
+
+
+@dataclass(frozen=True)
+class VendorResultEnvelope:
+    """Versioned, normalized vendor result returned by CLI adapter commands."""
+
+    version: int
+    state: str
+    vendor_task_id: str | None = None
+    result: dict[str, Any] | None = None
+    error: dict[str, Any] | None = None
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.state in {"succeeded", "failed", "cancelled"}
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return the stable JSON representation persisted in the ledger."""
+        return {
+            "version": self.version,
+            "state": self.state,
+            "vendor_task_id": self.vendor_task_id,
+            "result": self.result,
+            "error": self.error,
+        }
+
+
+def parse_vendor_result_envelope(payload: str) -> VendorResultEnvelope:
+    """Parse one CLI result without a legacy stdout-regex fallback."""
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise VendorResultProtocolError("invalid JSON vendor result envelope") from exc
+    if not isinstance(data, dict):
+        raise VendorResultProtocolError("vendor result envelope must be an object")
+    allowed_fields = {"version", "state", "vendor_task_id", "result", "error"}
+    unexpected_fields = sorted(set(data) - allowed_fields)
+    if unexpected_fields:
+        raise VendorResultProtocolError(
+            f"vendor result envelope has unexpected field: {unexpected_fields[0]}"
+        )
+    version = data.get("version")
+    if isinstance(version, bool) or not isinstance(version, int) or version != 1:
+        raise VendorResultProtocolError("unsupported vendor result envelope version")
+    state = data.get("state")
+    valid_states = {"submitted", "running", "succeeded", "failed", "cancelled"}
+    if state not in valid_states:
+        raise VendorResultProtocolError("vendor result envelope has invalid state")
+    vendor_task_id = data.get("vendor_task_id")
+    if vendor_task_id is not None and not isinstance(vendor_task_id, str):
+        raise VendorResultProtocolError("vendor_task_id must be a string or null")
+    if vendor_task_id == "":
+        raise VendorResultProtocolError("vendor_task_id must not be empty")
+    if state in {"submitted", "running"} and not vendor_task_id:
+        raise VendorResultProtocolError(
+            "nonterminal vendor result envelope requires vendor_task_id"
+        )
+    result = data.get("result")
+    error = data.get("error")
+    if result is not None and not isinstance(result, dict):
+        raise VendorResultProtocolError("vendor result envelope result must be an object")
+    if error is not None and not isinstance(error, dict):
+        raise VendorResultProtocolError("vendor result envelope error must be an object")
+    if state == "succeeded" and result is None:
+        raise VendorResultProtocolError(
+            "succeeded vendor result envelope requires result"
+        )
+    if state in {"failed", "cancelled"} and error is None:
+        raise VendorResultProtocolError(
+            f"{state} vendor result envelope requires error"
+        )
+    if isinstance(error, dict):
+        message = error.get("message")
+        if not isinstance(message, str):
+            raise VendorResultProtocolError(
+                "vendor result envelope error requires a message"
+            )
+        if not message:
+            raise VendorResultProtocolError("error message must not be empty")
+        error_code = error.get("code")
+        if error_code is not None and (not isinstance(error_code, str) or not error_code):
+            raise VendorResultProtocolError("error code must be a non-empty string")
+    return VendorResultEnvelope(
+        version=1,
+        state=state,
+        vendor_task_id=vendor_task_id,
+        result=result,
+        error=error,
+    )
+
+
 @dataclass
 class ReviewResult:
     """Result from a vendor review dispatch."""
@@ -603,6 +706,7 @@ class ReviewResult:
     error_class: ErrorClass | None = None
     async_dispatch: bool = False
     task_id: str | None = None
+    ledger_task_id: str | None = None
     # OpenRouter/OpenAI-compatible generation id for spend reconciliation
     # (OpenSpec add-adaptive-model-router, D7/D10). None for CLI/SDK adapters.
     generation_id: str | None = None
@@ -623,6 +727,29 @@ class ReviewResult:
     coverage_rate: float | None = None
     coverage_eligibility: str = "full"
     coverage_status: str = "unreported"
+    # Exact lane and optional capacity metadata are additive for old callers.
+    agent_id: str | None = None
+    capacity_scope: str | None = None
+    capacity_model: str | None = None
+    capacity_reset_at: str | None = None
+    capacity_retry_after_seconds: int | None = None
+
+
+def _notify_capacity(
+    callback: Callable[[ReviewResult], Any] | None,
+    result: ReviewResult,
+) -> None:
+    """Keep optional reporting failures from changing dispatch outcomes."""
+    if callback is None:
+        return
+    try:
+        callback(result)
+    except Exception as exc:  # noqa: BLE001 — reporting is best-effort
+        logger.warning(
+            "Capacity reporting failed for agent_id=%s: %s",
+            result.agent_id,
+            exc,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -638,11 +765,86 @@ class CliVendorAdapter:
         vendor: str,
         cli_config: CliConfig,
         transport: str = "mcp",
+        ledger_submitter: Callable[..., dict[str, Any]] = try_submit_work,
+        ledger_completer: Callable[..., dict[str, Any]] = try_complete_work,
     ) -> None:
         self.agent_id = agent_id
         self.vendor = vendor
         self.cli_config = cli_config
         self.transport = transport
+        self._ledger_submitter = ledger_submitter
+        self._ledger_completer = ledger_completer
+
+    @staticmethod
+    def _ledger_response_error(response: dict[str, Any]) -> str:
+        data = response.get("data")
+        reason = response.get("reason") or response.get("error")
+        if isinstance(data, dict):
+            reason = data.get("reason") or data.get("error") or reason
+        return str(reason or response.get("status") or "unknown ledger error")
+
+    def _open_completion_ledger(self, mode: str) -> tuple[str | None, str | None]:
+        """Create and claim one queue row before remote work can start."""
+        correlation_id = str(uuid4())
+        task_type = f"vendor-dispatch-{correlation_id}"
+        response = self._ledger_submitter(
+            task_type=task_type,
+            task_description=(
+                f"Track {self.agent_id} {mode} vendor dispatch {correlation_id}"
+            ),
+            input_data={
+                "correlation_id": correlation_id,
+                "vendor": self.vendor,
+                "vendor_agent_id": self.agent_id,
+                "dispatch_mode": mode,
+            },
+            priority=5,
+            claim_immediately=True,
+        )
+        data = response.get("data")
+        ledger_task_id = data.get("task_id") if isinstance(data, dict) else None
+        if (
+            response.get("status") != "ok"
+            or not isinstance(data, dict)
+            or data.get("success") is False
+            or not isinstance(ledger_task_id, str)
+            or not ledger_task_id
+        ):
+            return None, self._ledger_response_error(response)
+
+        if data.get("status") != "claimed":
+            return None, "atomic ledger submission did not return claimed status"
+        return ledger_task_id, None
+
+    def _complete_completion_ledger(
+        self,
+        ledger_task_id: str,
+        *,
+        success: bool,
+        envelope: VendorResultEnvelope | None = None,
+        error_message: str | None = None,
+    ) -> str | None:
+        """Persist terminal state and return an error when it was not recorded."""
+        result = (
+            {"vendor_result": envelope.as_dict()}
+            if envelope is not None
+            else None
+        )
+        response = self._ledger_completer(
+            task_id=ledger_task_id,
+            agent_id=None,
+            success=success,
+            result=result,
+            error_message=error_message,
+        )
+        data = response.get("data")
+        if (
+            response.get("status") != "ok"
+            or not isinstance(data, dict)
+            or data.get("success") is not True
+        ):
+            return self._ledger_response_error(response)
+        return None
 
     def can_dispatch(self, mode: str) -> bool:
         """Check if this adapter can dispatch the given mode.
@@ -748,6 +950,7 @@ class CliVendorAdapter:
         archetype_model: str | None = None,
         thinking: str | None = None,
         repair_attempted: bool = False,
+        capacity_callback: Callable[[ReviewResult], Any] | None = None,
     ) -> ReviewResult:
         """Dispatch a review with model fallback on capacity errors.
 
@@ -761,6 +964,9 @@ class CliVendorAdapter:
             thinking: Optional thinking/effort level from the tier map; when
                 omitted, resolved from archetypes.yaml premium for this vendor.
         """
+        capacity_callback = capacity_callback or getattr(
+            self, "_capacity_callback", None
+        )
         resolved_model, resolved_thinking = _resolve_review_model_spec(self.vendor)
         primary = archetype_model or self.cli_config.model or resolved_model
         effective_thinking = thinking if thinking is not None else resolved_thinking
@@ -777,7 +983,8 @@ class CliVendorAdapter:
         last_error_class = ErrorClass.UNKNOWN
         dispatch_start = time.monotonic()
 
-        for model in models_to_try:
+        for model_index, model in enumerate(models_to_try):
+            has_fallback = model_index < len(models_to_try) - 1
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
@@ -832,6 +1039,16 @@ class CliVendorAdapter:
                     if ingested.error_class == ErrorClass.CAPACITY:
                         last_error = ingested.error or ""
                         last_error_class = ErrorClass.CAPACITY
+                        if has_fallback and capacity_callback is not None:
+                            _notify_capacity(capacity_callback, ReviewResult(
+                                vendor=self.vendor,
+                                success=False,
+                                agent_id=self.agent_id,
+                                error=last_error,
+                                error_class=ErrorClass.CAPACITY,
+                                capacity_scope="model",
+                                capacity_model=model_name,
+                            ))
                         continue
                     if not repair_attempted:
                         repair_prompt = (
@@ -847,6 +1064,7 @@ class CliVendorAdapter:
                             timeout_seconds=timeout_seconds,
                             archetype_model=archetype_model,
                             repair_attempted=True,
+                            capacity_callback=capacity_callback,
                         )
                     return ingested
                 else:
@@ -880,7 +1098,17 @@ class CliVendorAdapter:
                     )
 
                 if last_error_class == ErrorClass.CAPACITY:
-                    # Try next model in fallback chain
+                    # Report this model before fallback; final success must not erase it.
+                    if has_fallback and capacity_callback is not None:
+                        _notify_capacity(capacity_callback, ReviewResult(
+                            vendor=self.vendor,
+                            success=False,
+                            agent_id=self.agent_id,
+                            error=last_error[:500] if last_error else "capacity_exhausted",
+                            error_class=ErrorClass.CAPACITY,
+                            capacity_scope="model",
+                            capacity_model=model_name,
+                        ))
                     logger.info(
                         "%s model %s capacity exhausted, trying fallback",
                         self.vendor, model_name,
@@ -1205,17 +1433,63 @@ class CliVendorAdapter:
         mode: str,
         prompt: str,
         cwd: Path,
+        capacity_callback: Callable[[ReviewResult], Any] | None = None,
     ) -> ReviewResult:
-        """Submit an async dispatch and return immediately with task_id.
-
-        The caller must subsequently call ``poll_for_result()`` to wait
-        for completion.
-        """
+        """Open a ledger lifecycle, submit remote work, and return both IDs."""
+        capacity_callback = capacity_callback or getattr(
+            self, "_capacity_callback", None
+        )
         mode_config = self.cli_config.dispatch_modes[mode]
         if not mode_config.async_dispatch or not mode_config.poll:
             return ReviewResult(
                 vendor=self.vendor, success=False,
                 error="Mode is not configured for async dispatch",
+            )
+        if mode_config.poll.result_protocol != "vendor-envelope-v1":
+            return ReviewResult(
+                vendor=self.vendor,
+                success=False,
+                error=(
+                    "Unsupported result protocol: "
+                    f"{mode_config.poll.result_protocol}"
+                ),
+            )
+
+        ledger_task_id, ledger_error = self._open_completion_ledger(mode)
+        if ledger_task_id is None:
+            return ReviewResult(
+                vendor=self.vendor,
+                success=False,
+                error=f"Completion ledger submission failed: {ledger_error}",
+                error_class=ErrorClass.UNKNOWN,
+            )
+
+        def fail(
+            message: str,
+            *,
+            error_class: ErrorClass = ErrorClass.UNKNOWN,
+            elapsed: float = 0.0,
+            envelope: VendorResultEnvelope | None = None,
+        ) -> ReviewResult:
+            completion_error = self._complete_completion_ledger(
+                ledger_task_id,
+                success=False,
+                envelope=envelope,
+                error_message=message,
+            )
+            if completion_error:
+                message = (
+                    f"{message}; completion ledger update failed: "
+                    f"{completion_error}"
+                )
+            return ReviewResult(
+                vendor=self.vendor,
+                success=False,
+                models_attempted=models_attempted,
+                elapsed_seconds=elapsed,
+                error=message,
+                error_class=error_class,
+                ledger_task_id=ledger_task_id,
             )
 
         # Model fallback: prefer archetype premium, then agents.yaml, then tiers.
@@ -1229,7 +1503,8 @@ class CliVendorAdapter:
 
         models_attempted: list[str] = []
 
-        for model in models_to_try:
+        for model_index, model in enumerate(models_to_try):
+            has_fallback = model_index < len(models_to_try) - 1
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
@@ -1241,12 +1516,8 @@ class CliVendorAdapter:
                 # Same posture as the sync path: fail this vendor loudly rather
                 # than submitting a schema-less async task whose result would
                 # be unparseable for a reason the logs never name.
-                return ReviewResult(
-                    vendor=self.vendor,
-                    success=False,
-                    models_attempted=models_attempted,
-                    error=f"Schema injection failed: {exc}",
-                    error_class=ErrorClass.UNKNOWN,
+                return fail(
+                    f"Schema injection failed: {exc}",
                 )
             stdin_text = prompt if self.cli_config.prompt_via_stdin else None
             start = time.monotonic()
@@ -1261,17 +1532,20 @@ class CliVendorAdapter:
                     cwd=str(cwd),
                 )
             except subprocess.TimeoutExpired:
-                return ReviewResult(
-                    vendor=self.vendor, success=False,
-                    models_attempted=models_attempted,
-                    error="Timeout submitting async task",
+                return fail(
+                    "Timeout submitting async task",
                     error_class=ErrorClass.TRANSIENT,
                 )
+            except OSError as exc:
+                return fail(
+                    f"Async submission command failed: {exc}",
+                    error_class=ErrorClass.UNKNOWN,
+                    elapsed=time.monotonic() - start,
+                )
 
-            combined = result.stdout + "\n" + result.stderr
             elapsed = time.monotonic() - start
 
-            # Check for capacity errors before extracting task ID
+            # Process errors before reading the structured envelope.
             if result.returncode != 0:
                 error_class = classify_error(result.stderr)
                 if error_class == ErrorClass.AUTH:
@@ -1281,63 +1555,70 @@ class CliVendorAdapter:
                         f"auth expired.\n       Run: {relogin}",
                         file=sys.stderr,
                     )
-                    return ReviewResult(
-                        vendor=self.vendor, success=False,
-                        models_attempted=models_attempted,
-                        elapsed_seconds=elapsed,
-                        error=f"Auth expired. Run: {relogin}",
+                    return fail(
+                        f"Auth expired. Run: {relogin}",
                         error_class=ErrorClass.AUTH,
+                        elapsed=elapsed,
                     )
                 if error_class == ErrorClass.CAPACITY:
+                    if has_fallback and capacity_callback is not None:
+                        _notify_capacity(capacity_callback, ReviewResult(
+                            vendor=self.vendor,
+                            success=False,
+                            agent_id=self.agent_id,
+                            error=result.stderr[:500] or "capacity_exhausted",
+                            error_class=ErrorClass.CAPACITY,
+                            capacity_scope="model",
+                            capacity_model=model_name,
+                        ))
                     logger.info(
-                        "%s async model %s capacity exhausted, trying fallback",
-                        self.vendor, model_name,
+                        "%s async model %s capacity exhausted%s",
+                        self.vendor,
+                        model_name,
+                        ", trying fallback" if has_fallback else "",
                     )
                     continue
                 # Non-retryable error
-                return ReviewResult(
-                    vendor=self.vendor, success=False,
-                    models_attempted=models_attempted,
-                    elapsed_seconds=elapsed,
-                    error=result.stderr[:500],
+                return fail(
+                    result.stderr[:500] or "async submission command failed",
                     error_class=error_class,
+                    elapsed=elapsed,
                 )
 
-            # Extract task ID from output
-            match = re.search(mode_config.poll.task_id_pattern, combined)
-            if not match:
-                return ReviewResult(
-                    vendor=self.vendor, success=False,
-                    models_attempted=models_attempted,
-                    elapsed_seconds=elapsed,
-                    error=f"Could not extract task ID from output: {combined[:300]}",
-                    error_class=ErrorClass.UNKNOWN,
+            try:
+                envelope = parse_vendor_result_envelope(result.stdout)
+            except VendorResultProtocolError as exc:
+                return fail(
+                    f"Invalid structured async submission: {exc}",
+                    elapsed=elapsed,
                 )
-
-            # Handle multi-group alternation patterns
-            task_id = next(
-                (g for g in match.groups() if g is not None),
-                match.group(0),
-            )
+            if envelope.is_terminal:
+                return fail(
+                    (envelope.error or {}).get(
+                        "message", "async submission was terminal"
+                    ),
+                    elapsed=elapsed,
+                    envelope=envelope,
+                )
             logger.info(
-                "Async task submitted for %s: task_id=%s", self.vendor, task_id,
+                "Async task submitted for %s: vendor_task_id=%s ledger_task_id=%s",
+                self.vendor,
+                envelope.vendor_task_id,
+                ledger_task_id,
             )
-
             return ReviewResult(
                 vendor=self.vendor,
                 success=True,
                 models_attempted=models_attempted,
                 elapsed_seconds=elapsed,
                 async_dispatch=True,
-                task_id=task_id,
+                task_id=envelope.vendor_task_id,
+                ledger_task_id=ledger_task_id,
             )
 
         # All models exhausted
-        return ReviewResult(
-            vendor=self.vendor,
-            success=False,
-            models_attempted=models_attempted,
-            error="All models exhausted for async dispatch",
+        return fail(
+            "All models exhausted for async dispatch",
             error_class=ErrorClass.CAPACITY,
         )
 
@@ -1348,26 +1629,34 @@ class CliVendorAdapter:
         cwd: Path | None = None,
         *,
         review_started_at: float | None = None,
+        ledger_task_id: str | None = None,
     ) -> ReviewResult:
-        """Poll an async task until completion or timeout.
+        """Poll structured status and persist terminal state before ingestion.
 
         Args:
-            task_id: Task identifier extracted from async dispatch output.
+            task_id: Vendor task identifier from the submission envelope.
             poll_config: Polling configuration from the mode config.
             cwd: Working directory for poll commands (optional).
             review_started_at: Local monotonic timestamp from before submission,
                 when the caller owns the submission lifecycle.
+            ledger_task_id: Coordinator work id created before vendor launch.
 
         Returns:
             ReviewResult with findings if successful, error otherwise.
         """
+        if not ledger_task_id:
+            return ReviewResult(
+                vendor=self.vendor,
+                success=False,
+                error="Completion ledger task id is required for async polling",
+                error_class=ErrorClass.UNKNOWN,
+                task_id=task_id,
+            )
+
         poll_cmd = [
             arg.replace("{task_id}", task_id)
             for arg in poll_config.command_template
         ]
-
-        success_re = re.compile(poll_config.success_pattern, re.IGNORECASE)
-        failure_re = re.compile(poll_config.failure_pattern, re.IGNORECASE)
 
         start = time.monotonic()
         elapsed_start = review_started_at if review_started_at is not None else start
@@ -1392,42 +1681,161 @@ class CliVendorAdapter:
                 logger.warning("Poll command timed out, retrying")
                 time.sleep(poll_config.interval_seconds)
                 continue
-
-            combined = result.stdout + "\n" + result.stderr
-
-            if failure_re.search(combined):
+            except OSError as exc:
+                message = f"Async status command failed: {exc}"
+                ledger_error = self._complete_completion_ledger(
+                    ledger_task_id,
+                    success=False,
+                    error_message=message,
+                )
+                if ledger_error:
+                    message += f"; completion ledger update failed: {ledger_error}"
                 return ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     elapsed_seconds=time.monotonic() - elapsed_start,
-                    error=f"Async task failed: {combined[:300]}",
+                    error=message,
                     error_class=ErrorClass.UNKNOWN,
                     task_id=task_id,
+                    ledger_task_id=ledger_task_id,
                 )
 
-            if success_re.search(combined):
+            if result.returncode != 0:
+                message = result.stderr[:500] or "async status command failed"
+                ledger_error = self._complete_completion_ledger(
+                    ledger_task_id,
+                    success=False,
+                    error_message=message,
+                )
+                if ledger_error:
+                    message += f"; completion ledger update failed: {ledger_error}"
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    elapsed_seconds=time.monotonic() - elapsed_start,
+                    error=message,
+                    error_class=classify_error(result.stderr),
+                    task_id=task_id,
+                    ledger_task_id=ledger_task_id,
+                )
+            try:
+                envelope = parse_vendor_result_envelope(result.stdout)
+            except VendorResultProtocolError as exc:
+                message = f"Invalid structured async status: {exc}"
+                ledger_error = self._complete_completion_ledger(
+                    ledger_task_id,
+                    success=False,
+                    error_message=message,
+                )
+                if ledger_error:
+                    message += f"; completion ledger update failed: {ledger_error}"
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    elapsed_seconds=time.monotonic() - elapsed_start,
+                    error=message,
+                    error_class=ErrorClass.UNKNOWN,
+                    task_id=task_id,
+                    ledger_task_id=ledger_task_id,
+                )
+            if envelope.vendor_task_id != task_id:
+                message = (
+                    "Invalid structured async status: vendor_task_id does not "
+                    "match submitted task"
+                )
+                ledger_error = self._complete_completion_ledger(
+                    ledger_task_id,
+                    success=False,
+                    envelope=envelope,
+                    error_message=message,
+                )
+                if ledger_error:
+                    message += f"; completion ledger update failed: {ledger_error}"
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    elapsed_seconds=time.monotonic() - elapsed_start,
+                    error=message,
+                    error_class=ErrorClass.UNKNOWN,
+                    task_id=task_id,
+                    ledger_task_id=ledger_task_id,
+                )
+            if envelope.state in {"failed", "cancelled"}:
+                message = (envelope.error or {}).get("message", envelope.state)
+                ledger_error = self._complete_completion_ledger(
+                    ledger_task_id,
+                    success=False,
+                    envelope=envelope,
+                    error_message=message,
+                )
+                if ledger_error:
+                    message += f"; completion ledger update failed: {ledger_error}"
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    elapsed_seconds=time.monotonic() - elapsed_start,
+                    error=message,
+                    error_class=ErrorClass.UNKNOWN,
+                    task_id=task_id,
+                    ledger_task_id=ledger_task_id,
+                )
+            if envelope.state == "succeeded":
+                findings_payload = json.dumps(envelope.result)
                 ingested = self._ingest_stdout(
-                    result.stdout,
+                    findings_payload,
                     result.stderr,
                     elapsed=time.monotonic() - elapsed_start,
                     model_name="(async)",
                     models_attempted=[],
                     enforce_empty_findings_grace=review_started_at is not None,
                 )
+                ledger_error = self._complete_completion_ledger(
+                    ledger_task_id,
+                    success=ingested.success,
+                    envelope=envelope,
+                    error_message=None if ingested.success else ingested.error,
+                )
+                if ledger_error:
+                    message = (
+                        "Completion ledger update failed before result "
+                        f"consumption: {ledger_error}"
+                    )
+                    if not ingested.success and ingested.error:
+                        message = f"{ingested.error}; {message}"
+                    return ReviewResult(
+                        vendor=self.vendor,
+                        success=False,
+                        elapsed_seconds=time.monotonic() - elapsed_start,
+                        error=message,
+                        error_class=ErrorClass.UNKNOWN,
+                        task_id=task_id,
+                        ledger_task_id=ledger_task_id,
+                    )
                 ingested.task_id = task_id
+                ingested.ledger_task_id = ledger_task_id
                 return ingested
-
-            # Still running — wait and retry
             time.sleep(poll_config.interval_seconds)
 
         # Timeout
+        message = (
+            f"Polling timed out after {poll_config.timeout_seconds}s "
+            f"({attempts} attempts)"
+        )
+        ledger_error = self._complete_completion_ledger(
+            ledger_task_id,
+            success=False,
+            error_message=message,
+        )
+        if ledger_error:
+            message += f"; completion ledger update failed: {ledger_error}"
         return ReviewResult(
             vendor=self.vendor,
             success=False,
             elapsed_seconds=time.monotonic() - elapsed_start,
-            error=f"Polling timed out after {poll_config.timeout_seconds}s ({attempts} attempts)",
+            error=message,
             error_class=ErrorClass.TRANSIENT,
             task_id=task_id,
+            ledger_task_id=ledger_task_id,
         )
 
 
@@ -1483,8 +1891,18 @@ class SdkVendorAdapter:
         cwd: Path,
         timeout_seconds: int = 300,
         api_key: str | None = None,
+        capacity_callback: Callable[[ReviewResult], Any] | None = None,
     ) -> ReviewResult:
         """Dispatch a review via vendor SDK with model fallback."""
+        if mode != "review":
+            return ReviewResult(
+                vendor=self.vendor,
+                success=False,
+                error=f"SDK dispatch mode {mode!r} is unsupported",
+            )
+        capacity_callback = capacity_callback or getattr(
+            self, "_capacity_callback", None
+        )
         if not api_key:
             return ReviewResult(
                 vendor=self.vendor,
@@ -1497,7 +1915,8 @@ class SdkVendorAdapter:
         last_error = ""
         dispatch_start = time.monotonic()
 
-        for model in models_to_try:
+        for model_index, model in enumerate(models_to_try):
+            has_fallback = model_index < len(models_to_try) - 1
             models_attempted.append(model)
             try:
                 findings = self._call_sdk(
@@ -1533,9 +1952,21 @@ class SdkVendorAdapter:
                     raw_stdout=raw_stdout,
                 )
             except _SdkCapacityError:
+                if has_fallback and capacity_callback is not None:
+                    _notify_capacity(capacity_callback, ReviewResult(
+                        vendor=self.vendor,
+                        success=False,
+                        agent_id=self.agent_id,
+                        error="capacity_exhausted",
+                        error_class=ErrorClass.CAPACITY,
+                        capacity_scope="model",
+                        capacity_model=model,
+                    ))
                 logger.info(
-                    "%s SDK model %s capacity exhausted, trying fallback",
-                    self.vendor, model,
+                    "%s SDK model %s capacity exhausted%s",
+                    self.vendor,
+                    model,
+                    ", trying fallback" if has_fallback else "",
                 )
                 continue
             except _SdkAuthError as exc:
@@ -2061,17 +2492,24 @@ def _dispatch_with_snapshot_fallback(
 class ReviewOrchestrator:
     """Multi-vendor review dispatch orchestrator.
 
-    Supports both CLI and SDK adapters with three-tier dispatch selection:
-    Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 3 (Skip).
+    Supports CLI, SDK, and OpenAI-compatible adapters with ordered selection:
+    Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 2.5 (OpenAI-compatible)
+    → Tier 3 (Skip).
     """
 
     def __init__(
         self,
         adapters: dict[str, CliVendorAdapter],
         sdk_adapters: dict[str, SdkVendorAdapter] | None = None,
+        openai_adapters: dict[str, Any] | None = None,
+        openai_key_envs: dict[str, str] | None = None,
+        openai_role_ids: dict[str, str | None] | None = None,
     ) -> None:
         self.adapters = adapters
         self.sdk_adapters = sdk_adapters or {}
+        self.openai_adapters = openai_adapters or {}
+        self.openai_key_envs = openai_key_envs or {}
+        self.openai_role_ids = openai_role_ids or {}
 
     @classmethod
     def from_config_dict(cls, data: dict[str, Any]) -> "ReviewOrchestrator":
@@ -2083,10 +2521,17 @@ class ReviewOrchestrator:
         """
         adapters: dict[str, CliVendorAdapter] = {}
         sdk_adapters: dict[str, SdkVendorAdapter] = {}
+        openai_adapters: dict[str, Any] = {}
+        openai_key_envs: dict[str, str] = {}
+        openai_role_ids: dict[str, str | None] = {}
         for agent in data.get("agents", []):
             cli = agent.get("cli")
             sdk = agent.get("sdk")
-            if not cli and not sdk:
+            endpoint_kind = agent.get("endpoint_kind")
+            base_url = agent.get("base_url")
+            if not cli and not sdk and not (
+                endpoint_kind in {"openrouter", "local"} and base_url
+            ):
                 continue
 
             # Build CLI adapter
@@ -2096,9 +2541,9 @@ class ReviewOrchestrator:
                     poll_data = mode_data.get("poll")
                     poll_cfg = PollConfig(
                         command_template=poll_data["command_template"],
-                        task_id_pattern=poll_data["task_id_pattern"],
-                        success_pattern=poll_data["success_pattern"],
-                        failure_pattern=poll_data.get("failure_pattern", "failed|error"),
+                        result_protocol=poll_data.get(
+                            "result_protocol", "vendor-envelope-v1"
+                        ),
                         interval_seconds=poll_data.get("interval_seconds", 30),
                         timeout_seconds=poll_data.get("timeout_seconds", 600),
                     ) if poll_data else None
@@ -2106,6 +2551,7 @@ class ReviewOrchestrator:
                         args=mode_data["args"],
                         async_dispatch=mode_data.get("async", False),
                         poll=poll_cfg,
+                        isolation=mode_data.get("isolation"),
                     )
                 adapters[agent["agent_id"]] = CliVendorAdapter(
                     agent_id=agent["agent_id"],
@@ -2139,7 +2585,43 @@ class ReviewOrchestrator:
                     openbao_role_id=agent.get("openbao_role_id"),
                 )
 
-        return cls(adapters, sdk_adapters)
+            if endpoint_kind in {"openrouter", "local"} and base_url:
+                from openai_compat_adapter import OpenAICompatAdapter
+
+                model, _thinking = _resolve_review_model_spec(agent["type"])
+                derived_fallbacks = _derived_tier_fallbacks(agent["type"])
+                configured_model = (
+                    (sdk or {}).get("model")
+                    or (cli or {}).get("model")
+                    or model
+                    or (derived_fallbacks[0] if derived_fallbacks else None)
+                )
+                if configured_model:
+                    agent_id = agent["agent_id"]
+                    openai_adapters[agent_id] = OpenAICompatAdapter(
+                        agent_id=agent_id,
+                        vendor=agent["type"],
+                        model=configured_model,
+                        base_url=base_url,
+                        endpoint_kind=endpoint_kind,
+                        model_fallbacks=(sdk or {}).get("model_fallbacks")
+                        or (cli or {}).get("model_fallbacks", derived_fallbacks[1:]),
+                    )
+                    openai_key_envs[agent_id] = (
+                        agent.get("api_key_env")
+                        or (sdk or {}).get("api_key_env")
+                        or (cli or {}).get("api_key_env")
+                        or (
+                            "OPENROUTER_API_KEY"
+                            if endpoint_kind == "openrouter"
+                            else ""
+                        )
+                    )
+                    openai_role_ids[agent_id] = agent.get("openbao_role_id")
+
+        return cls(
+            adapters, sdk_adapters, openai_adapters, openai_key_envs, openai_role_ids
+        )
 
     @staticmethod
     def _config_from_agents_yaml(path: Path) -> dict[str, Any] | None:
@@ -2164,13 +2646,20 @@ class ReviewOrchestrator:
         for agent_id, agent in (raw.get("agents") or {}).items():
             cli = agent.get("cli")
             sdk = agent.get("sdk")
-            if not cli and not sdk:
+            endpoint_kind = agent.get("endpoint_kind")
+            base_url = agent.get("base_url")
+            if not cli and not sdk and not (
+                endpoint_kind in {"openrouter", "local"} and base_url
+            ):
                 continue
             agents_out.append({
                 "agent_id": agent_id,
                 "type": agent.get("type"),
                 "transport": agent.get("transport", "mcp"),
                 "openbao_role_id": agent.get("openbao_role_id"),
+                "endpoint_kind": endpoint_kind,
+                "base_url": base_url,
+                "api_key_env": agent.get("api_key_env"),
                 "cli": cli,
                 "sdk": sdk,
             })
@@ -2301,10 +2790,11 @@ class ReviewOrchestrator:
         exclude_vendor: str | None = None,
         dispatch_mode: str = "review",
     ) -> list[ReviewerInfo]:
-        """Discover available reviewers with three-tier selection.
+        """Discover available reviewers with ordered transport selection.
 
         For each vendor, selects the best available dispatch method:
-        Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 3 (Skip).
+        Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 2.5
+        (OpenAI-compatible) → Tier 3 (Skip).
         Deduplicates by vendor — at most one reviewer per vendor type.
         """
         # Collect all CLI adapters (local transport only)
@@ -2324,8 +2814,18 @@ class ReviewOrchestrator:
             if adapter.vendor not in sdk_by_vendor:
                 sdk_by_vendor[adapter.vendor] = (agent_id, adapter)
 
-        # Three-tier selection per vendor
-        all_vendors = set(cli_by_vendor.keys()) | set(sdk_by_vendor.keys())
+        openai_by_vendor: dict[str, tuple[str, Any]] = {}
+        for agent_id, adapter in self.openai_adapters.items():
+            if exclude_vendor and adapter.vendor == exclude_vendor:
+                continue
+            if adapter.vendor not in openai_by_vendor:
+                openai_by_vendor[adapter.vendor] = (agent_id, adapter)
+
+        all_vendors = (
+            set(cli_by_vendor.keys())
+            | set(sdk_by_vendor.keys())
+            | set(openai_by_vendor.keys())
+        )
         reviewers: list[ReviewerInfo] = []
 
         for vendor in sorted(all_vendors):
@@ -2359,8 +2859,29 @@ class ReviewOrchestrator:
                     ))
                     continue
 
+            # Tier 2.5: OpenAI-compatible HTTP endpoint. This follows SDK so
+            # existing local/provider-native paths remain the preferred route.
+            if vendor in openai_by_vendor:
+                agent_id, openai_adapter = openai_by_vendor[vendor]
+                if openai_adapter.can_dispatch(dispatch_mode):
+                    logger.info(
+                        "Tier 2.5 (OpenAI-compatible) selected for %s: %s",
+                        vendor,
+                        agent_id,
+                    )
+                    reviewers.append(ReviewerInfo(
+                        vendor=vendor,
+                        agent_id=agent_id,
+                        available=True,
+                        dispatch_tier="openai",
+                    ))
+                    continue
+
             # Tier 3: Skip
-            logger.info("Tier 3 (skip) for %s: no CLI or SDK available", vendor)
+            logger.info(
+                "Tier 3 (skip) for %s: no CLI, SDK, or OpenAI endpoint available",
+                vendor,
+            )
 
         return reviewers
 
@@ -2445,12 +2966,14 @@ class ReviewOrchestrator:
 
         async_jobs: list[dict[str, Any]] = []
         sync_jobs: list[tuple[int, str, int, Callable[[], ReviewResult]]] = []
+        job_agent_ids: dict[int, str] = {}
         next_index = 0
 
         for reviewer in available:
             vendor_timeout = timeout_for_vendor(reviewer.vendor, timeout_seconds)
             if reviewer.dispatch_tier == "cli":
                 adapter = self.adapters[reviewer.agent_id]
+                adapter._capacity_callback = report_vendor_limit_result
                 if not adapter.can_dispatch(dispatch_mode):
                     logger.info(
                         "Skipping %s: dispatch mode '%s' not configured",
@@ -2461,6 +2984,7 @@ class ReviewOrchestrator:
                 mode_config = adapter.cli_config.dispatch_modes[dispatch_mode]
                 idx = next_index
                 next_index += 1
+                job_agent_ids[idx] = reviewer.agent_id
 
                 if mode_config.async_dispatch:
                     logger.info(
@@ -2499,6 +3023,7 @@ class ReviewOrchestrator:
 
             elif reviewer.dispatch_tier == "sdk":
                 sdk_adapter = self.sdk_adapters[reviewer.agent_id]
+                sdk_adapter._capacity_callback = report_vendor_limit_result
                 api_key = api_key_resolver.resolve(
                     sdk_adapter.openbao_role_id,
                     sdk_adapter.sdk_config.api_key_env,
@@ -2510,6 +3035,7 @@ class ReviewOrchestrator:
                 )
                 idx = next_index
                 next_index += 1
+                job_agent_ids[idx] = reviewer.agent_id
                 if not api_key:
                     sync_jobs.append((
                         idx,
@@ -2537,6 +3063,35 @@ class ReviewOrchestrator:
                     ),
                 ))
 
+            elif reviewer.dispatch_tier == "openai":
+                openai_adapter = self.openai_adapters[reviewer.agent_id]
+                api_key = api_key_resolver.resolve(
+                    self.openai_role_ids.get(reviewer.agent_id),
+                    self.openai_key_envs.get(reviewer.agent_id, ""),
+                )
+                logger.info(
+                    "OpenAI-compatible dispatching %s review to %s (key: %s)",
+                    review_type,
+                    reviewer.agent_id,
+                    "resolved" if api_key else "not-required-or-missing",
+                )
+                idx = next_index
+                next_index += 1
+                job_agent_ids[idx] = reviewer.agent_id
+                sync_jobs.append((
+                    idx,
+                    reviewer.vendor,
+                    vendor_timeout,
+                    partial(
+                        openai_adapter.dispatch,
+                        dispatch_mode,
+                        prompt,
+                        cwd,
+                        vendor_timeout,
+                        api_key,
+                    ),
+                ))
+
         job_count = len(async_jobs) + len(sync_jobs)
         if job_count == 0:
             return []
@@ -2544,6 +3099,10 @@ class ReviewOrchestrator:
         collected: dict[int, ReviewResult] = {}
 
         def _collect(index: int, result: ReviewResult) -> None:
+            if result.agent_id is None:
+                result.agent_id = job_agent_ids[index]
+            if result.error_class == ErrorClass.CAPACITY:
+                report_vendor_limit_result(result)
             if result_callback is not None:
                 result_callback(result, job_count)
             collected[index] = result
@@ -2582,15 +3141,18 @@ class ReviewOrchestrator:
                 mode_config = job["mode_config"]
                 adapter = job["adapter"]
                 task_id = submit_result.task_id
+                ledger_task_id = submit_result.ledger_task_id
                 poll_config = mode_config.poll
                 review_started_at = job["review_started_at"]
                 assert task_id is not None
+                assert ledger_task_id is not None
                 assert poll_config is not None
 
                 def _poll_run(
                     run_cwd: Path,
                     a: CliVendorAdapter = adapter,
                     tid: str = task_id,
+                    ledger_id: str = ledger_task_id,
                     pc: PollConfig = poll_config,
                     started: float = review_started_at,
                 ) -> ReviewResult:
@@ -2599,6 +3161,7 @@ class ReviewOrchestrator:
                         pc,
                         cwd=run_cwd,
                         review_started_at=started,
+                        ledger_task_id=ledger_id,
                     )
 
                 poll_futs[pool.submit(
@@ -2690,6 +3253,9 @@ class ReviewOrchestrator:
                 "elapsed_seconds": r.elapsed_seconds,
                 "error": r.error,
                 "error_class": r.error_class.value if r.error_class else None,
+                "async_dispatch": r.async_dispatch,
+                "task_id": r.task_id,
+                "ledger_task_id": r.ledger_task_id,
             }
             for r in results
         ]
@@ -2784,7 +3350,11 @@ def _orchestrator_for_dispatch(
         return ReviewOrchestrator.from_agents_yaml(local)
 
     orchestrator = ReviewOrchestrator.from_coordinator()
-    if not orchestrator.adapters and not orchestrator.sdk_adapters:
+    if (
+        not orchestrator.adapters
+        and not orchestrator.sdk_adapters
+        and not orchestrator.openai_adapters
+    ):
         logger.info("Coordinator unavailable, trying agents.yaml on disk")
         orchestrator = ReviewOrchestrator.from_agents_yaml()
     return orchestrator

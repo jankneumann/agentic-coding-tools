@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "vendor": "antigravity",
+  "review_type": "implementation",
+  "stdout_path": "raw-antigravity-implementation.txt",
+  "byte_length": 3986,
+  "truncated": false,
+  "sha256": "60831001dde107a6b443ab9f0951c12deac139ae1508dd0f0a857f341c8ea207",
+  "repair_attempted": false,
+  "coercions": [],
+  "stderr_path": "raw-antigravity-implementation.stderr.txt"
+}
