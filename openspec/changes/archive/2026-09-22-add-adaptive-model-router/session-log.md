@@ -164,11 +164,11 @@ Implemented the four compute-only packages of the adaptive model router in a clo
 - Accepted Merge commit on main over The repo's rebase-merge convention for agent PRs because The conflict resolutions can survive only in a merge commit.
 
 ### Capability Gaps Observed
-- **stale-base**: worktree.py setup --agent-id cleanup branches from the LOCAL feature branch, which was stale (3966a960) rather than origin/main after merge (skill: cleanup-feature, severity: medium)
+- **stale-base**: worktree.py setup --agent-id cleanup silently reuses a pre-existing branch of the same name — here `openspec/add-adaptive-model-router--cleanup`, left behind by an aborted 2026-08-24 cleanup at 3966a960 — without checking it against origin/main (`_existing_branch_start_point` short-circuits on `existing_same_name`). Caught before any commit; the branch was reset to origin/main. (skill: cleanup-feature / worktree, severity: medium)
 - **silent-truncation**: Coordinator issue_search scans only the first 100 issues by priority, so search-based duplicate checks pass silently (GitHub #618) (skill: agent-coordinator, severity: medium)
 
 ### Open Questions
-- [ ] Local branch openspec/add-adaptive-model-router holds unmerged commit 3966a960 (the superseded plan-only 'centralize model policy ownership', now tracked as DT-8 / #616) — keep it or delete it?
+- [x] ~~Local feature branch holds an unmerged commit~~ — corrected: the local feature branch was at the merged head 65b6cd2e. The superseded plan-only commit 3966a960 ("centralize model policy ownership", now DT-8 / #616) was only on the stale `--cleanup` branch and stays reachable via `refs/tmp/pr-417`.
 
 ### Completed Work
 - merge
