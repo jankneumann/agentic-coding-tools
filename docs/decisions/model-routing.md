@@ -5,6 +5,61 @@
 
 ---
 
+## 2026-09-23 — retain-static-model-until-routing-evidence
+
+### Phase: Plan
+
+**Server-side incumbent retention in select_model (Gate 1, Approach 1)** — Persists every kept-static outcome in the decision ledger and gates all callers (phase resolution, MCP, HTTP) in one place.
+
+- Status: `active`
+- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D1)
+
+---
+
+## 2026-09-23 — retain-static-model-until-routing-evidence
+
+### Phase: Plan
+
+**Evidence = posterior sample_size >= 1 or benchmark_prior > 0; absolute margin 0.05, ties to incumbent** — Exactly the inputs blend_quality reads; with both empty a candidate's score is uninformative. User chose evidence + absolute margin.
+
+- Status: `active`
+- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D2)
+
+---
+
+## 2026-09-23 — retain-static-model-until-routing-evidence
+
+### Phase: Plan
+
+**Infeasible incumbent yields best evidenced challenger, else static; no evidence-free pick ever** — User choice: no arbitrary failover while the catalog is empty; failover remains a dispatch-layer concern.
+
+- Status: `active`
+- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D3)
+
+---
+
+## 2026-09-23 — retain-static-model-until-routing-evidence
+
+### Phase: Plan
+
+**Exploration restricted to evidenced candidates** — Keeps the learning mechanism for every caller while making it inert on an empty catalog.
+
+- Status: `active`
+- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D4)
+
+---
+
+## 2026-09-23 — retain-static-model-until-routing-evidence
+
+### Phase: Plan
+
+**Unresolvable incumbent (no provider, tier name) keeps static with reason incumbent-unresolved and null selected** — No alias table; null selected makes pre-change clients fall back to the exact static result via D2.
+
+- Status: `active`
+- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D5)
+
+---
+
 ## 2026-09-16 — 2026-09-22-add-adaptive-model-router
 
 ### Phase: Recovery Implementation and Validation
