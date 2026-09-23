@@ -838,6 +838,13 @@ class Checkpoint:
         dispatch_attempts = data.get("dispatch_attempts", [])
         serial_indeterminate_items = data.get("serial_indeterminate_items", [])
         routing_attempts = data.get("routing_attempts", [])
+        execution_safety = data.get("execution_safety", {})
+        if not isinstance(routing_attempts, list) or any(
+            not isinstance(attempt, dict) for attempt in routing_attempts
+        ):
+            raise ValueError("routing attempts must be a list of objects")
+        if not isinstance(execution_safety, dict):
+            raise ValueError("execution safety must be an object")
         if (
             not isinstance(serial_indeterminate_items, list)
             or len(serial_indeterminate_items) != len(set(serial_indeterminate_items))
@@ -867,7 +874,7 @@ class Checkpoint:
                 for f in data.get("failed_items", [])
             ],
             routing_attempts=json.loads(json.dumps(routing_attempts)),
-            execution_safety=json.loads(json.dumps(data.get("execution_safety", {}))),
+            execution_safety=json.loads(json.dumps(execution_safety)),
             vendor_state=data.get("vendor_state", {}),
             pause_state=data.get("pause_state", {}),
             serial_indeterminate_items=list(serial_indeterminate_items),

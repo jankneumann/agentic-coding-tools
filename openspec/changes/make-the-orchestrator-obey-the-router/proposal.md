@@ -7,7 +7,7 @@
 
 ## Summary
 
-Resolve a typed routing assignment before every roadmap dispatch, persist its identity before invoking the host dispatcher, and make every submitted/claimed/completed vendor result prove the assignment it executed. On a vendor-limit result, obtain a fresh alternate assignment and resume the same item phase exactly once per durable attempt. Persist loop-safety state so a restarted roadmap cannot spin forever without a durable transition.
+Resolve a typed routing assignment before every synchronous `execute_roadmap` host dispatch, persist its identity before invoking the host dispatcher, and make every submitted/claimed/completed vendor result prove the assignment it executed. When active policy authorizes switching after a vendor-limit result, obtain a fresh alternate assignment and resume the same item phase exactly once per durable attempt. Persist loop-safety state so a restarted roadmap cannot spin forever without a durable transition.
 
 ## Dependencies
 
@@ -17,9 +17,9 @@ Resolve a typed routing assignment before every roadmap dispatch, persist its id
 
 ## Acceptance Outcomes
 
-- No host dispatch runs unless its context carries a validated, durable routing decision and canonical resolved isolation.
-- An induced rate-limit on the preferred lane causes a fresh alternate assignment and ledger-correlated completion for the alternate lane; stale or mismatched results fail closed.
-- Per-item/phase switch retries and global no-progress safeguards survive restart, checkpoint before escalation, and do not duplicate an already submitted attempt.
+- No synchronous `execute_roadmap` host dispatch runs unless its context carries a validated, durable routing decision and canonical resolved isolation.
+- An induced rate-limit on the preferred lane under SWITCH policy causes a fresh alternate assignment and ledger-correlated completion for the alternate lane; stale or mismatched results fail closed.
+- Per-item switch retries and global no-progress safeguards survive restart, checkpoint before escalation, and do not duplicate an already submitted attempt.
 
 ## Rationale
 
@@ -31,3 +31,4 @@ The policy engine can select lanes, but the roadmap state machine currently call
 - Replacing dg-02's ledger lifecycle or expanding VendorResultEnvelope with unrelated fields.
 - Reimplementing catalog-aware pricing or the existing loud missing-loop-state failure.
 - Enforcing the isolation posture; dg-07 owns OS-level sandbox enforcement.
+- Changing the opt-in `prepare_delegated_batch`/`apply_delegated_batch` lifecycle; its routing contract is a separate follow-up because it prepares requests rather than invoking the synchronous `dispatch_fn` seam.

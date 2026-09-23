@@ -794,8 +794,9 @@ def test_injected_routing_resolver_adds_validated_context_and_canonical_isolatio
         assert context["routing"]["assignment"]["isolation"] == "sandbox"
         assert context["isolation"] == "sandbox"
 
-
     assert len(persisted_attempts) == 4
+
+
 def test_none_routing_resolver_result_fails_closed_before_host_dispatch(tmp_path) -> None:
     _write_roadmap(
         tmp_path,
@@ -811,11 +812,12 @@ def test_none_routing_resolver_result_fails_closed_before_host_dispatch(tmp_path
         routing_resolver=lambda _item, _phase, _context: None,
     )
 
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
     assert dispatched == []
     assert result["completed_count"] == 0
-    assert result["failed_count"] == 1
-    assert result["status"] == "blocked_all"
-
+    assert result["failed_count"] == 0
+    assert result["status"] == "paused"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "routing_resolution_failed"
 
 
 def test_routed_success_with_mismatched_ledger_proof_fails_closed(tmp_path) -> None:
@@ -862,6 +864,7 @@ def test_routed_vendor_limit_resolves_fresh_excluded_lane_on_same_phase(tmp_path
     _write_roadmap(
         tmp_path,
         items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.SWITCH),
     )
     resolver_calls: list[tuple[str, dict]] = []
     dispatch_calls: list[tuple[str, dict]] = []
@@ -913,8 +916,9 @@ def test_routed_vendor_limit_resolves_fresh_excluded_lane_on_same_phase(tmp_path
     assert [attempt["status"] for attempt in checkpoint["routing_attempts"][:2]] == [
         "vendor_limit", "completed",
     ]
+    assert checkpoint["routing_attempts"][0]["policy_action"] == "switch"
+    assert result["policy_decisions"][0]["decision"]["action"] == "switch"
     assert result["completed_count"] == 1
-
 
 
 def test_routing_resume_parks_before_duplicate_when_ledger_is_unavailable(tmp_path) -> None:
@@ -970,7 +974,6 @@ def test_global_iteration_cap_checkpoints_before_next_dispatch(tmp_path) -> None
     assert result["status"] == "paused"
 
 
-
 def test_no_progress_cap_checkpoints_before_repeating_same_phase(tmp_path) -> None:
     _write_roadmap(
         tmp_path,
@@ -1016,7 +1019,6 @@ def test_no_progress_cap_checkpoints_before_repeating_same_phase(tmp_path) -> No
     assert result["status"] == "paused"
 
 
-
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -1045,8 +1047,11 @@ def test_invalid_routing_assignment_field_fails_before_dispatch(
         dispatch_fn=lambda _item, phase, _context: dispatched.append(phase) or "success",
     )
 
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
     assert dispatched == []
-    assert result["failed_count"] == 1
+    assert result["failed_count"] == 0
+    assert result["status"] == "paused"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "routing_resolution_failed"
 
 
 def test_routing_resume_parks_when_ledger_reconciler_raises(tmp_path) -> None:
@@ -1073,3 +1078,472 @@ def test_routing_resume_parks_when_ledger_reconciler_raises(tmp_path) -> None:
     checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
     assert checkpoint["execution_safety"]["escalation"]["kind"] == "ledger_reconciliation_required"
     assert result["status"] == "paused"
+
+
+def test_host_cannot_mutate_routing_context_to_forge_completion(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+
+    def mutate_and_forge(_item, _phase, context):
+        context["routing"]["decision_id"] = "decision-forged"
+        context["routing"]["assignment"]["agent_id"] = "forged-agent"
+        return _routed_result(context)
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        dispatch_fn=mutate_and_forge,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert result["completed_count"] == 0
+    assert checkpoint["routing_attempts"][0]["decision_id"] == "decision-1"
+    assert checkpoint["routing_attempts"][0]["status"] == "failed"
+
+
+def test_routed_failed_outcome_closes_prepared_attempt(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+
+    def fail(_item, _phase, context):
+        result = _routed_result(context)
+        result["outcome"] = "failed:implementation failed"
+        result["routing_proof"]["ledger_status"] = "failed"
+        return result
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        dispatch_fn=fail,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    attempt = checkpoint["routing_attempts"][0]
+    assert result["failed_count"] == 1
+    assert attempt["status"] == "failed"
+    assert attempt["failure_reason"] == "implementation failed"
+
+
+def test_explicit_escalation_resume_reconciles_before_continuing(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        execute_roadmap(
+            tmp_path,
+            routing_resolver=lambda *_: _route_decision(),
+            repo_root=Path(__file__).resolve().parents[3],
+            dispatch_fn=lambda *_: (_ for _ in ()).throw(RuntimeError("simulated crash")),
+        )
+
+    parked = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        repo_root=Path(__file__).resolve().parents[3],
+        routing_reconciler=lambda _attempt: None,
+        dispatch_fn=lambda *_: pytest.fail("must not duplicate dispatch"),
+    )
+    assert parked["status"] == "paused"
+
+    dispatched: list[str] = []
+    resumed = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        repo_root=Path(__file__).resolve().parents[3],
+        routing_reconciler=lambda attempt: _routed_result({"routing": attempt}),
+        dispatch_fn=lambda _item, phase, context: (
+            dispatched.append(phase) or _routed_result(context)
+        ),
+        resume_escalation=True,
+    )
+
+    assert "planning" not in dispatched
+    assert dispatched == ["implementing", "reviewing", "validating"]
+    assert resumed["status"] == "completed"
+
+
+def test_routed_switch_budget_and_exclusions_survive_restart(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(
+            default_action=PolicyAction.SWITCH,
+            max_switch_attempts_per_item=1,
+        ),
+    )
+
+    def resolve(_item, _phase, context):
+        excluded = context.get("routing_exclusions", {}).get("agent_ids", [])
+        agent = "codex-alt" if "codex-primary" in excluded else "codex-primary"
+        return _route_decision(agent_id=agent, decision_id=f"decision-{agent}")
+
+    calls = {"count": 0}
+
+    def dispatch(_item, _phase, context):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return _routed_result(context, status="vendor_limit")
+        raise RuntimeError("simulated alternate crash")
+
+    with pytest.raises(RuntimeError, match="simulated alternate crash"):
+        execute_roadmap(
+            tmp_path,
+            routing_resolver=resolve,
+            dispatch_fn=dispatch,
+        )
+
+    resumed = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: pytest.fail("switch cap must park before reroute"),
+        routing_reconciler=lambda attempt: _routed_result(
+            {"routing": attempt}, status="vendor_limit"
+        ),
+        dispatch_fn=lambda *_: pytest.fail("must not submit another attempt"),
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert [attempt["status"] for attempt in checkpoint["routing_attempts"]] == [
+        "vendor_limit",
+        "vendor_limit",
+    ]
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "routing_switch_cap"
+    assert resumed["status"] == "paused"
+
+    acknowledged = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: pytest.fail("unchanged switch cap must re-park"),
+        dispatch_fn=lambda *_: pytest.fail("must not submit after cap acknowledgement"),
+        resume_escalation=True,
+    )
+    assert acknowledged["status"] == "paused"
+
+
+def test_routed_unknown_outcome_closes_prepared_attempt(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        dispatch_fn=lambda *_: {"outcome": "mystery"},
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    attempt = checkpoint["routing_attempts"][0]
+    assert result["failed_count"] == 1
+    assert attempt["status"] == "failed"
+    assert attempt["failure_reason"] == "unknown_outcome:mystery"
+
+
+def test_routed_alternate_rejects_reused_decision_id(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.SWITCH),
+    )
+    dispatched: list[str] = []
+
+    def resolve(_item, _phase, context):
+        excluded = context.get("routing_exclusions", {}).get("agent_ids", [])
+        agent_id = "codex-alt" if excluded else "codex-primary"
+        return _route_decision(agent_id=agent_id, decision_id="decision-reused")
+
+    def dispatch(_item, _phase, context):
+        agent_id = context["routing"]["assignment"]["agent_id"]
+        dispatched.append(agent_id)
+        if agent_id != "codex-primary":
+            pytest.fail("reused decision must fail closed before alternate dispatch")
+        return _routed_result(context, status="vendor_limit")
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=resolve,
+        dispatch_fn=dispatch,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert dispatched == ["codex-primary"]
+    assert result["status"] == "paused"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "routing_resolution_failed"
+
+
+def test_routed_switch_budget_is_per_item_across_phases(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(
+            default_action=PolicyAction.SWITCH,
+            max_switch_attempts_per_item=1,
+        ),
+    )
+    dispatched: list[tuple[str, str]] = []
+    decision_count = {"value": 0}
+
+    def resolve(_item, phase, context):
+        decision_count["value"] += 1
+        excluded = context.get("routing_exclusions", {}).get("agent_ids", [])
+        agent_id = "codex-alt" if excluded else "codex-primary"
+        return _route_decision(
+            agent_id=agent_id,
+            decision_id=f"decision-{phase}-{decision_count['value']}",
+        )
+
+    def dispatch(_item, phase, context):
+        agent_id = context["routing"]["assignment"]["agent_id"]
+        dispatched.append((phase, agent_id))
+        if agent_id == "codex-primary":
+            return _routed_result(context, status="vendor_limit")
+        return _routed_result(context)
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=resolve,
+        dispatch_fn=dispatch,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert dispatched == [
+        ("planning", "codex-primary"),
+        ("planning", "codex-alt"),
+        ("implementing", "codex-primary"),
+    ]
+    assert result["status"] == "paused"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "routing_switch_cap"
+
+
+def test_routed_vendor_limit_honors_wait_policy_and_records_decision(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.WAIT),
+    )
+    dispatched: list[str] = []
+
+    def dispatch(_item, phase, context):
+        dispatched.append(phase)
+        result = _routed_result(context, status="vendor_limit")
+        result["capacity_retry_after_seconds"] = 3600
+        return result
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        dispatch_fn=dispatch,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert dispatched == ["planning"]
+    assert result["status"] == "paused"
+    assert result["policy_decisions"][0]["decision"]["action"] == "wait"
+    assert checkpoint["routing_attempts"][0]["policy_action"] == "wait"
+    assert checkpoint["pause_state"]["blocked_vendor"] == "openai"
+    assert checkpoint["pause_state"]["expected_resume_at"]
+
+
+def test_reconciled_routed_vendor_limit_persists_wait_pause_atomically(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.WAIT),
+    )
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        execute_roadmap(
+            tmp_path,
+            routing_resolver=lambda *_: _route_decision(),
+            dispatch_fn=lambda *_: (_ for _ in ()).throw(RuntimeError("simulated crash")),
+        )
+
+    def reconcile(attempt):
+        result = _routed_result({"routing": attempt}, status="vendor_limit")
+        result["capacity_retry_after_seconds"] = 3600
+        return result
+
+    resumed = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: pytest.fail("WAIT reconciliation must not reroute"),
+        routing_reconciler=reconcile,
+        dispatch_fn=lambda *_: pytest.fail("WAIT reconciliation must not dispatch"),
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert resumed["status"] == "paused"
+    assert checkpoint["routing_attempts"][0]["status"] == "vendor_limit"
+    assert checkpoint["routing_attempts"][0]["policy_action"] == "wait"
+    assert checkpoint["pause_state"]["blocked_vendor"] == "openai"
+    assert checkpoint["pause_state"]["expected_resume_at"]
+
+
+def test_incomplete_vendor_limit_policy_record_parks_before_reroute(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.WAIT),
+    )
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        execute_roadmap(
+            tmp_path,
+            routing_resolver=lambda *_: _route_decision(),
+            dispatch_fn=lambda *_: (_ for _ in ()).throw(RuntimeError("simulated crash")),
+        )
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    checkpoint = json.loads(checkpoint_path.read_text())
+    checkpoint["routing_attempts"][0]["status"] = "vendor_limit"
+    checkpoint["routing_attempts"][0]["resolved_at"] = checkpoint["routing_attempts"][0][
+        "prepared_at"
+    ]
+    checkpoint_path.write_text(json.dumps(checkpoint))
+
+    resumed = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: pytest.fail("incomplete policy must not reroute"),
+        dispatch_fn=lambda *_: pytest.fail("incomplete policy must not dispatch"),
+    )
+
+    checkpoint = json.loads(checkpoint_path.read_text())
+    assert resumed["status"] == "paused"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == (
+        "ledger_reconciliation_required"
+    )
+
+
+def test_prepared_routed_checkpoint_requires_resolver_on_resume(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        execute_roadmap(
+            tmp_path,
+            routing_resolver=lambda *_: _route_decision(),
+            dispatch_fn=lambda *_: (_ for _ in ()).throw(RuntimeError("simulated crash")),
+        )
+
+    resumed = execute_roadmap(
+        tmp_path,
+        dispatch_fn=lambda *_: pytest.fail("routed resume must not use legacy dispatch"),
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert resumed["status"] == "paused"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == (
+        "routing_resolution_failed"
+    )
+
+
+def test_routing_mode_remains_required_across_item_boundaries(tmp_path) -> None:
+    first = RoadmapItem("ri-01", "First", ItemStatus.APPROVED, 1, Effort.S)
+    _write_roadmap(tmp_path, items=[first])
+    completed = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda _item, phase, _context: _route_decision(
+            decision_id=f"first-{phase}"
+        ),
+        dispatch_fn=lambda _item, _phase, context: _routed_result(context),
+    )
+    assert completed["status"] == "completed"
+
+    _write_roadmap(
+        tmp_path,
+        items=[
+            RoadmapItem("ri-01", "First", ItemStatus.COMPLETED, 1, Effort.S),
+            RoadmapItem(
+                "ri-02",
+                "Second",
+                ItemStatus.APPROVED,
+                2,
+                Effort.S,
+                depends_on=["ri-01"],
+            ),
+        ],
+    )
+    resumed = execute_roadmap(
+        tmp_path,
+        dispatch_fn=lambda *_: pytest.fail("router mode must remain sticky"),
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert resumed["status"] == "paused"
+    assert checkpoint["current_item_id"] == "ri-02"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == (
+        "routing_resolution_failed"
+    )
+
+
+def test_routed_wait_without_reset_requires_explicit_resume(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.WAIT),
+    )
+
+    paused = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        dispatch_fn=lambda _item, _phase, context: _routed_result(
+            context, status="vendor_limit"
+        ),
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert paused["status"] == "paused"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == (
+        "routing_wait_resume_required"
+    )
+    assert "expected_resume_at" not in checkpoint["pause_state"]
+
+    resumed = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda _item, phase, _context: _route_decision(
+            decision_id=f"decision-resumed-{phase}"
+        ),
+        dispatch_fn=lambda _item, _phase, context: _routed_result(context),
+        resume_escalation=True,
+    )
+
+    assert resumed["status"] == "completed"
+
+
+def test_routed_switch_fails_closed_when_cost_ceiling_cannot_be_evaluated(tmp_path) -> None:
+    """Cost guards stay fail-closed after an acknowledged resume."""
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(
+            default_action=PolicyAction.SWITCH,
+            cost_ceiling_usd=1.0,
+        ),
+    )
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        dispatch_fn=lambda _item, _phase, context: _routed_result(
+            context, status="vendor_limit"
+        ),
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert result["status"] == "paused"
+    assert result["policy_decisions"][0]["decision"]["action"] == "fail_closed"
+    assert result["policy_decisions"][0]["decision"]["cost_guard"] == "unavailable"
+    assert checkpoint["routing_attempts"][0]["policy_action"] == "fail_closed"
+    assert checkpoint["pause_state"]["blocked_vendor"] == "openai"
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "routing_switch_cap"
+
+    acknowledged = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: pytest.fail("unchanged cost ceiling must re-park"),
+        dispatch_fn=lambda *_: pytest.fail("must not dispatch past cost fail-closed"),
+        resume_escalation=True,
+    )
+    assert acknowledged["status"] == "paused"
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert "cost ceiling" in checkpoint["pause_state"]["reason"].lower()

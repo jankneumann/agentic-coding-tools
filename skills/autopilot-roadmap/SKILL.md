@@ -83,18 +83,39 @@ A roadmap workspace path containing:
 from coordination_bridge import try_select_model_for_task
 from orchestrator import execute_roadmap
 
+PHASE_ARCHETYPE = {
+    "planning": "planner",
+    "implementing": "implementer",
+    "reviewing": "reviewer",
+    "validating": "tester",
+}
+PHASE_DISPATCH_MODE = {
+    "planning": "alternative",
+    "implementing": "alternative",
+    "reviewing": "review",
+    "validating": "review",
+}
+
 def resolve_route(item, phase, context):
+    excluded = context.get("routing_exclusions", {}).get("agent_ids", [])
+    roadmap_policy = {"excluded_agent_ids": excluded}
     return try_select_model_for_task(
-        {"task_id": item.item_id, "phase": phase},
-        routing_profile={
+        {
+            "archetype": PHASE_ARCHETYPE[phase],
             "phase": phase,
-            "archetype": "implementer",
+            "task_type": item.capability or "coding",
+        },
+        routing_profile={
             "scope": "bounded-write",
             "interactivity": "interactive",
             "secret_need": "none",
             "parallelism": 1,
             "repo_shape": "unknown",
+            "roadmap_policy": roadmap_policy,
+            "required_dispatch_mode": PHASE_DISPATCH_MODE[phase],
         },
+        static_provider=configured_static_provider,
+        static_model=configured_static_model,
         repo_root=Path(repo_root),
     )
 
@@ -102,8 +123,16 @@ result = execute_roadmap(
     workspace=Path(workspace_path),
     repo_root=Path(repo_root),
     routing_resolver=resolve_route,
+    routing_reconciler=query_routing_ledger,
+    resume_escalation=approved_resume,
 )
 ```
+
+In this host example, `configured_static_provider` and `configured_static_model`
+come from declared repository configuration, `query_routing_ledger` reads the
+coordinator's correlated work result, and `approved_resume` is true only after an
+operator explicitly acknowledges the checkpointed escalation. Do not infer approval
+from process restart or silently clear a durable pause.
 
 If `checkpoint.json` exists, the orchestrator resumes from the saved position, skipping already-completed items. Otherwise, it creates a fresh checkpoint targeting the first ready item.
 
@@ -114,11 +143,20 @@ attempt before calling `dispatch_fn`. `None`, an exception, or malformed assignm
 fails closed. A static provider/model may be bound by the host only when it comes from
 declared configuration; do not synthesize a fallback lane in the state machine.
 
+For a routed run, `dispatch_fn` is a trusted coordinator-ledger adapter, not a raw
+worker callback. Routed SWITCH is permitted only when no cost ceiling requires
+unavailable cost evidence; otherwise the policy decision fails closed. The adapter may
+return terminal `routing_proof` only after observing the
+correlated VendorResultEnvelope or ledger record. Echoing fields from dispatch context
+without that authoritative observation is invalid host integration.
+
 On resume, the host must also supply a `routing_reconciler` that reads the
 coordinator ledger for any checkpointed `prepared` attempt. An unavailable or
 mismatched result parks with a durable escalation before a new submission. The
 default global guard allows 1000 dispatches and three unchanged durable-progress
-fingerprints; hosts may lower these positive caps for bounded runs.
+fingerprints; hosts may lower these positive caps for bounded runs. A resumed run
+that acknowledges an iteration or no-progress escalation must also supply a larger
+applicable cap or it will correctly park again before dispatch.
 
 ### 2. Select Next Ready Item
 

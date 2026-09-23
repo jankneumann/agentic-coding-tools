@@ -2,15 +2,23 @@
 
 ### Requirement: Executed Routing Decisions
 
-`autopilot-roadmap` SHALL obtain and durably persist a validated routing decision before each host dispatch. The immutable dispatch context SHALL include a decision identifier, selected agent/vendor/model/location, canonical dg-05 isolation, dispatch mode, and ledger work/attempt correlation. The host seam SHALL preserve this context unchanged; the state machine SHALL not call a model SDK or select a vendor locally.
+`autopilot-roadmap` SHALL obtain and durably persist a validated routing decision before each synchronous `execute_roadmap` host dispatch. The immutable dispatch context SHALL include a decision identifier, selected agent/vendor/model/location, canonical dg-05 isolation, dispatch mode, and ledger work/attempt correlation. The host seam SHALL preserve this context unchanged; the state machine SHALL not call a model SDK or select a vendor locally.
 
 #### Scenario: Ledger-verified vendor switch
 
 WHEN a submitted attempt reports a vendor-limit result
+AND active roadmap policy authorizes switching lanes
 THEN the orchestrator SHALL resolve a fresh alternate assignment excluding the observed limited lane
 AND persist a new attempt before redispatching the same item and phase
 AND accept success only when the terminal VendorResultEnvelope/ledger completion matches that attempt's decision identifier and observed lane
 AND reject a stale, mismatched, or unavailable completion without treating the phase as complete.
+
+#### Scenario: Routed vendor limit honors wait policy
+
+WHEN a routed attempt reports a vendor-limit result
+AND active roadmap policy requires waiting
+THEN the orchestrator SHALL close the attempt as vendor-limited and persist `policy_action: wait`
+AND SHALL persist the vendor pause and reset window without resolving or dispatching an alternate lane.
 
 #### Scenario: Router unavailable
 

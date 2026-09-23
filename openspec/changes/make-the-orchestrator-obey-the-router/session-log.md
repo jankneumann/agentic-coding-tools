@@ -28,3 +28,37 @@
 ### Context
 Reconciled the stale dg-06 scaffold with merged dg-02, dg-04, and dg-05 contracts. The plan now specifies pre-dispatch routing, ledger-correlated switching, canonical isolation carriage, and restart-safe loop guards while excluding completed work.
 
+---
+
+## Phase: Implementation and Review (2026-09-23)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Make routed execution sticky and ledger-proven** `architectural: roadmap-orchestration` — Any checkpoint with routing history now requires the resolver on every later item, while terminal policy outcomes and pause state are committed atomically.
+2. **Fail closed when routing cost cannot be evaluated** `architectural: roadmap-orchestration` — A configured cost ceiling without authoritative estimate parks durably and remains parked until the policy changes.
+
+### Alternatives Considered
+- Resume routed checkpoints through the legacy dispatch seam: rejected because it would silently discard the durable route contract across crashes or item boundaries
+- Treat unavailable cost estimates as zero: rejected because it would claim enforcement without evidence
+
+### Trade-offs
+- Accepted conservative fail-closed cost handling over automatic switching under unknown cost because policy compliance and crash safety are stronger requirements than availability
+
+### Completed Work
+- Added validated route injection, immutable dispatch proof, and prepared-attempt reconciliation.
+- Added durable per-item switch accounting, loop/no-progress guards, and explicit escalation resume.
+- Made WAIT and fail-closed outcomes atomic with checkpoint completion and preserved router mode across item boundaries.
+- Passed 5173 configured tests with 17 skipped, 282 focused tests, 114 strict OpenSpec validations, and touched-file Ruff.
+- Converged final review with zero findings from Antigravity, Claude Code, Codex, and Grok; Pi had zero findings in the preceding full round.
+
+### Next Steps
+- Land the dg-06 pull request, then advance dispatch-governance dg-07.
+
+### Relevant Files
+- `skills/autopilot-roadmap/scripts/orchestrator.py` — Router-directed execution and crash-safe policy state machine
+- `openspec/schemas/checkpoint.schema.json` — Durable routing and escalation schema
+- `skills/tests/autopilot-roadmap/test_orchestrator.py` — Routing, crash-resume, and loop-safety regressions
+
+### Context
+Implemented crash-safe router-directed roadmap execution and converged independent implementation review.

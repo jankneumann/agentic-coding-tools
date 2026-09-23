@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-23T21:57:21.465262+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented crash-safe router-directed roadmap execution and converged independent implementation review.",
+    "completed_work": [
+      "Added validated route injection, immutable dispatch proof, and prepared-attempt reconciliation.",
+      "Added durable per-item switch accounting, loop/no-progress guards, and explicit escalation resume.",
+      "Made WAIT and fail-closed outcomes atomic with checkpoint completion and preserved router mode across item boundaries.",
+      "Passed 5173 configured tests with 17 skipped, 282 focused tests, 114 strict OpenSpec validations, and touched-file Ruff.",
+      "Converged final review with zero findings from Antigravity, Claude Code, Codex, and Grok; Pi had zero findings in the preceding full round."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Make routed execution sticky and ledger-proven",
+        "rationale": "Any checkpoint with routing history now requires the resolver on every later item, while terminal policy outcomes and pause state are committed atomically.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Fail closed when routing cost cannot be evaluated",
+        "rationale": "A configured cost ceiling without authoritative estimate parks durably and remains parked until the policy changes.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Land the dg-06 pull request, then advance dispatch-governance dg-07."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+        "description": "Router-directed execution and crash-safe policy state machine"
+      },
+      {
+        "path": "openspec/schemas/checkpoint.schema.json",
+        "description": "Durable routing and escalation schema"
+      },
+      {
+        "path": "skills/tests/autopilot-roadmap/test_orchestrator.py",
+        "description": "Routing, crash-resume, and loop-safety regressions"
+      }
+    ]
+  }
+}
