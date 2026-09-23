@@ -22,4 +22,4 @@
 
 ## 4. Landing
 
-- [ ] 4.1 Record evidence, push, merge, and advance the roadmap checkpoint.
+- [x] 4.1 Record evidence, push, merge, and advance the roadmap checkpoint.
