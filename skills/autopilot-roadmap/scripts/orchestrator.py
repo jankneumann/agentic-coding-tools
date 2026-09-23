@@ -125,6 +125,9 @@ def _normalize_outcome(result: DispatchResult) -> tuple[str, bool]:
 
 
 IsolationResolver = Callable[[RoadmapItem], Mapping[str, Any]]
+RoutingResolver = Callable[
+    [RoadmapItem, str, Mapping[str, Any]], Mapping[str, Any] | None
+]
 _RESULT_REQUIRED = {
     "schema_version",
     "dispatch_id",
@@ -212,6 +215,66 @@ def _validated_isolation(value: Mapping[str, Any]) -> dict[str, str]:
     if not isinstance(isolation["branch"], str) or not isolation["branch"]:
         raise ValueError("isolation branch must be non-empty")
     return isolation  # type: ignore[return-value]
+
+
+def _validated_routing_decision(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a detached routing decision with a canonical dg-05 assignment."""
+    decision = copy.deepcopy(dict(value))
+    decision_id = decision.get("decision_id")
+    assignment = decision.get("assignment")
+    if not isinstance(decision_id, str) or not decision_id:
+        raise ValueError("routing decision_id must be a non-empty string")
+    if not isinstance(assignment, Mapping):
+        raise ValueError("routing assignment must be an object")
+    required = {"agent_id", "vendor_type", "location", "isolation", "dispatch_mode", "model", "endpoint_kind"}
+    if not required.issubset(assignment):
+        raise ValueError("routing assignment is missing required fields")
+    isolation = assignment.get("isolation")
+    if isolation not in {"none", "worktree", "sandbox"}:
+        raise ValueError("routing assignment has invalid isolation")
+    return decision
+def _prepare_routing_attempt(
+    *,
+    roadmap_id: str,
+    item_id: str,
+    phase: str,
+    decision: Mapping[str, Any],
+    checkpoint: Any,
+    manager: CheckpointManager,
+) -> dict[str, Any]:
+    """Persist and return the immutable context for one routed host dispatch."""
+    prior = [
+        attempt
+        for attempt in checkpoint.routing_attempts
+        if attempt.get("item_id") == item_id and attempt.get("phase") == phase
+    ]
+    attempt_number = 1 + max(
+        (int(attempt.get("attempt", 0)) for attempt in prior),
+        default=0,
+    )
+    decision_id = str(decision["decision_id"])
+    digest = hashlib.sha256(
+        f"{roadmap_id}:{item_id}:{phase}:{attempt_number}:{decision_id}".encode()
+    ).hexdigest()[:24]
+    routing = {
+        "schema_version": 1,
+        "decision_id": decision_id,
+        "item_id": item_id,
+        "phase": phase,
+        "attempt": attempt_number,
+        "dispatch_work_id": f"route-{digest}",
+        "assignment": copy.deepcopy(decision["assignment"]),
+    }
+    if isinstance(decision.get("provenance"), Mapping):
+        routing["provenance"] = copy.deepcopy(decision["provenance"])
+    record = copy.deepcopy(routing)
+    record.update(
+        status="prepared",
+        prepared_at=datetime.now(timezone.utc).isoformat(),
+    )
+    checkpoint.routing_attempts.append(record)
+    manager.save(checkpoint)
+    return routing
 
 
 def _next_attempt_number(checkpoint: Any, item_id: str) -> int:
@@ -842,6 +905,7 @@ def execute_roadmap(
     registry_provider: Callable[..., dict[str, Any]] | None = None,
     agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None = None,
     routing_location: str | None = None,
+    routing_resolver: RoutingResolver | None = None,
 ) -> dict[str, Any]:
     """Execute a roadmap from the given workspace.
 
@@ -861,6 +925,10 @@ def execute_roadmap(
         Object with ``evaluate(gate, context)`` used for ``Gate.REPLAN_REQUIRED``.
         Defaults to ``shared.approval_gate.build_default_gate()``, built lazily
         the first time a gate is actually reached.
+    routing_resolver:
+        Host-owned bridge adapter invoked before each dispatch. A supplied
+        resolver must return a durable dg-04 decision with a canonical dg-05
+        assignment; absence or malformed data fails closed before dispatch.
 
     Returns
     -------
@@ -971,6 +1039,7 @@ def execute_roadmap(
             registry_provider=registry,
             agents_yaml_fallback=agents_yaml_fallback,
             routing_location=routing_location,
+            routing_resolver=routing_resolver,
         )
 
         if checkpoint.pause_state.get("paused"):
@@ -1028,9 +1097,11 @@ def _execute_item_phases(
     registry_provider: Callable[..., dict[str, Any]],
     agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None,
     routing_location: str | None,
+    routing_resolver: RoutingResolver | None,
 ) -> bool:
     """Walk an item through its phases. Returns True if item completed."""
     start_idx = _ITEM_PHASES.index(start_phase) if start_phase in _ITEM_PHASES else 0
+    item = next(candidate for candidate in roadmap.items if candidate.item_id == item_id)
 
     def _fail(reason: str, *, replan: bool = False) -> None:
         _handle_failure(
@@ -1066,6 +1137,31 @@ def _execute_item_phases(
                 # agent_id is the additive provider/phase carrier field.
                 context["dispatch_agent_id"] = selected_agent_id
                 context["agent_id"] = selected_agent_id
+
+            if routing_resolver is not None:
+                try:
+                    resolved = routing_resolver(item, phase.value, copy.deepcopy(context))
+                    if resolved is None:
+                        raise ValueError("resolver returned no routing decision")
+                    routing = _validated_routing_decision(resolved)
+                except Exception as exc:
+                    logger.warning(
+                        "item.routing_failed: item=%s phase=%s error=%s",
+                        item_id,
+                        phase.value,
+                        type(exc).__name__,
+                    )
+                    _fail(f"Routing resolution failed: {type(exc).__name__}")
+                    return False
+                context["routing"] = _prepare_routing_attempt(
+                    roadmap_id=roadmap.roadmap_id,
+                    item_id=item_id,
+                    phase=phase.value,
+                    decision=routing,
+                    checkpoint=checkpoint,
+                    manager=mgr,
+                )
+                context["isolation"] = routing["assignment"]["isolation"]
 
             dispatch_result = dispatch(item_id, phase.value, context)
             outcome, replan_signal = _normalize_outcome(dispatch_result)

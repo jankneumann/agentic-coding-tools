@@ -679,3 +679,100 @@ def test_unconfirmed_dispatch_reporting_is_not_claimed_as_persisted(tmp_path) ->
 
     decision = result["policy_decisions"][0]["decision"]
     assert decision["durable_persistence"] == "delegated_unconfirmed"
+
+
+def test_injected_routing_resolver_adds_validated_context_and_canonical_isolation_to_every_dispatch(
+    tmp_path,
+) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    dispatched_contexts: list[tuple[str, dict]] = []
+    persisted_attempts: list[dict] = []
+
+    def resolve_route(_item, phase, _context):
+        assignment = {
+            "agent_id": "codex-cloud",
+            "vendor_type": "openai",
+            "policy_vendor": "codex",
+            "catalog_vendor": "openai",
+            "location": "cloud",
+            "isolation": "sandbox",
+            "dispatch_mode": "sdk",
+            "model": "gpt-test",
+            "endpoint_kind": "vendor-sdk",
+        }
+        return {
+            "decision_id": f"00000000-0000-4000-8000-00000000000{len(phase)}",
+            "selected": {
+                "vendor": "openai",
+                "model": "gpt-test",
+                "endpoint_kind": "vendor-sdk",
+                "score": 1.0,
+                "assignment": assignment,
+            },
+            "alternatives": [],
+            "assignment": assignment,
+            "provenance": {
+                "source": "coordinator",
+                "policy_version": "linear-utility-v1",
+                "policy_checksum": "a" * 64,
+                "matched_rule_ids": [],
+                "rationale": [],
+                "persisted": True,
+                "durable_audit": True,
+                "catalog_key": ["openai", "gpt-test", "vendor-sdk", None],
+            },
+        }
+
+    def dispatch(_item_id, phase, context):
+        checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+        persisted = checkpoint["routing_attempts"][-1]
+        assert persisted["status"] == "prepared"
+        assert persisted["dispatch_work_id"] == context["routing"]["dispatch_work_id"]
+        assert persisted["decision_id"] == context["routing"]["decision_id"]
+        persisted_attempts.append(persisted)
+        dispatched_contexts.append((phase, dict(context)))
+        return "success"
+
+    execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        routing_resolver=resolve_route,
+    )
+
+    assert [phase for phase, _ in dispatched_contexts] == [
+        "planning", "implementing", "reviewing", "validating",
+    ]
+    for _phase, context in dispatched_contexts:
+        assert context["routing"]["assignment"]["agent_id"] == "codex-cloud"
+        assert context["routing"]["schema_version"] == 1
+        assert context["routing"]["item_id"] == "ri-01"
+        assert context["routing"]["phase"] == _phase
+        assert context["routing"]["attempt"] == 1
+        assert context["routing"]["dispatch_work_id"]
+        assert context["routing"]["assignment"]["isolation"] == "sandbox"
+        assert context["isolation"] == "sandbox"
+
+
+    assert len(persisted_attempts) == 4
+def test_none_routing_resolver_result_fails_closed_before_host_dispatch(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    dispatched: list[tuple[str, str]] = []
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=lambda item_id, phase, _context: (
+            dispatched.append((item_id, phase)) or "success"
+        ),
+        routing_resolver=lambda _item, _phase, _context: None,
+    )
+
+    assert dispatched == []
+    assert result["completed_count"] == 0
+    assert result["failed_count"] == 1
+    assert result["status"] == "blocked_all"

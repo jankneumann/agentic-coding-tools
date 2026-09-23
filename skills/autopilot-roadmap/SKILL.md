@@ -80,11 +80,39 @@ A roadmap workspace path containing:
 ### 1. Load or Resume from Checkpoint
 
 ```python
+from coordination_bridge import try_select_model_for_task
 from orchestrator import execute_roadmap
-result = execute_roadmap(workspace=Path(workspace_path), repo_root=Path(repo_root))
+
+def resolve_route(item, phase, context):
+    return try_select_model_for_task(
+        {"task_id": item.item_id, "phase": phase},
+        routing_profile={
+            "phase": phase,
+            "archetype": "implementer",
+            "scope": "bounded-write",
+            "interactivity": "interactive",
+            "secret_need": "none",
+            "parallelism": 1,
+            "repo_shape": "unknown",
+        },
+        repo_root=Path(repo_root),
+    )
+
+result = execute_roadmap(
+    workspace=Path(workspace_path),
+    repo_root=Path(repo_root),
+    routing_resolver=resolve_route,
+)
 ```
 
 If `checkpoint.json` exists, the orchestrator resumes from the saved position, skipping already-completed items. Otherwise, it creates a fresh checkpoint targeting the first ready item.
+
+The host must inject a bridge-backed `routing_resolver` for an executing run. The
+resolver returns the dg-04 response unchanged; the orchestrator validates its dg-05
+assignment, derives the versioned dispatch context, and checkpoints the prepared
+attempt before calling `dispatch_fn`. `None`, an exception, or malformed assignment
+fails closed. A static provider/model may be bound by the host only when it comes from
+declared configuration; do not synthesize a fallback lane in the state machine.
 
 ### 2. Select Next Ready Item
 

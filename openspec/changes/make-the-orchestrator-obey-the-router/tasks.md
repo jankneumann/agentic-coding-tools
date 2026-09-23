@@ -9,7 +9,7 @@
   - Bind immutable `decision_id`, selected lane, canonical isolation, dispatch/ledger work ID, and observed lane; define fail-closed validation and resume idempotency.
   - Depends on: dg-02, dg-04, dg-05.
 
-- [ ] 2. Inject validated route decisions before every host dispatch.
+- [x] 2. Inject validated route decisions before every host dispatch.
   - Add a bridge-backed resolver protocol; preserve host-assisted execution and never make model SDK calls from the state machine.
   - Persist the prepared attempt before dispatch and carry the opaque context unchanged to the host seam.
   - Depends on: 1.
