@@ -145,3 +145,42 @@ Implemented the four compute-only packages of the adaptive model router in a clo
 - Live quick-task E2E and deployment are outside the four dg-00 roadmap outcomes.
 - OpenRouter removed-model reconciliation remains DT-9.
 - Final vendor advisories remain recorded in `reviews/consensus-impl.json`.
+
+---
+
+## Phase: Cleanup (2026-09-23)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Merge commit instead of rebase-merge** — The branch contained a merge commit carrying nine conflict resolutions (including a JSON-unioned supervisor-record.json ledger). A rebase would replay the 78 original commits and discard those resolutions, producing untested code; the merge commit lands exactly what CI tested.
+2. **Deferred items migrated to coordinator issues, one per DT item** — DT-1 to DT-9 are unrelated (benchmark, Cedar, dashboard, probes, config ownership); one follow-up proposal would bundle them into a change that would have to be split. Per-item issues let each become its own change. The user approved GitHub Issues as a backup mirror.
+3. **No staged rollout performed at cleanup** — The adaptive router is gated by ROUTING_ADAPTIVE, which defaults off (agents_config.py). Merging changes no live routing; turning it off again means unsetting the variable. Enabling it is a separate, operator-owned decision.
+
+### Alternatives Considered
+- Squash merge: rejected because Would lose 79 commits of per-commit history and hide the conflict resolutions.
+
+### Trade-offs
+- Accepted Merge commit on main over The repo's rebase-merge convention for agent PRs because The conflict resolutions can survive only in a merge commit.
+
+### Capability Gaps Observed
+- **stale-base**: worktree.py setup --agent-id cleanup branches from the LOCAL feature branch, which was stale (3966a960) rather than origin/main after merge (skill: cleanup-feature, severity: medium)
+- **silent-truncation**: Coordinator issue_search scans only the first 100 issues by priority, so search-based duplicate checks pass silently (GitHub #618) (skill: agent-coordinator, severity: medium)
+
+### Open Questions
+- [ ] Local branch openspec/add-adaptive-model-router holds unmerged commit 3966a960 (the superseded plan-only 'centralize model policy ownership', now tracked as DT-8 / #616) — keep it or delete it?
+
+### Completed Work
+- merge
+- task-migration
+- archive
+- decision-index-regen
+
+### Next Steps
+- DT follow-ups: GitHub #609-#617
+- Fix coordinator issue search truncation (#618)
+- dispatch-governance next item: dg-06 make-the-orchestrator-obey-the-router
+
+### Context
+PR #417 was merged with a merge commit (ed6ce01f) after conflict resolution unblocked CI (25/25 green, 1 skipped). All tasks.md items were complete; the nine deferred-tasks.md items were migrated to coordinator issues with GitHub backups #609-#617. The change was archived post-merge; ROUTING_ADAPTIVE stays default-off, so no traffic rollout happened here.
+

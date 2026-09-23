@@ -59,3 +59,6 @@
   flows, and schema-valid multi-vendor plan/implementation consensus with quorum and zero
   blocking findings [S]
   **Dependencies**: 8.1
+
+## Migration Notes
+All `tasks.md` items are complete. The nine deferred items in `deferred-tasks.md` (DT-1 to DT-9) were migrated on 2026-09-22 to coordinator issues labeled `openspec:add-adaptive-model-router` (primary tracker), with GitHub backups #609-#617 (DT-1 → #609 … DT-9 → #617; DT-9 depends on DT-4 and DT-5).

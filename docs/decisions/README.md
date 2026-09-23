@@ -39,6 +39,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [gen-eval-framework](./gen-eval-framework.md)
 - [merge-infrastructure](./merge-infrastructure.md)
 - [merge-pull-requests](./merge-pull-requests.md)
+- [model-routing](./model-routing.md)
 - [observability](./observability.md)
 - [project-context-refresh](./project-context-refresh.md)
 - [project-context-refresh-orchestration](./project-context-refresh-orchestration.md)
