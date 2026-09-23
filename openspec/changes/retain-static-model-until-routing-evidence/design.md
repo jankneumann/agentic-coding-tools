@@ -104,6 +104,28 @@ delta) and a revised `contracts/events/routing-decision-record.schema.json` unde
 directory. Tests locate them with `change_dir()`, so there are no literal `openspec/changes/<id>/`
 paths (a guard test enforces this). The archived `add-adaptive-model-router` contract stays untouched.
 
+### D8: Persist retention in a new column (migration 044), added during implementation
+
+Planning assumed decisions are stored as a free-form JSON document. They are not.
+`routing_decisions` (migration 040) has fixed columns, with no `retention` and with
+`selected JSONB NOT NULL`, and the assignment-path RPC `record_routing_decision_with_audit`
+(migration 042) inserts named columns and derives its audit link from `selected`. The user chose
+a migration over nesting the data in `budget_state` (2026-09-23, during implementation).
+
+`044_routing_decision_retention.sql`:
+- `ALTER TABLE routing_decisions ADD COLUMN retention JSONB` (nullable).
+- `ALTER COLUMN selected DROP NOT NULL`, plus `CHECK (selected IS NOT NULL OR retention IS NOT NULL)`,
+  so a null selection is only representable when it carries a retention record.
+- `CREATE OR REPLACE FUNCTION record_routing_decision_with_audit`, which also inserts `retention`.
+  When `selected` is null, the audit link's policy version and checksum fall back to the decision's
+  top-level `provenance`, and `CatalogService.record_decision_and_audit` builds the matching link
+  with a null agent and model.
+
+Deployment order is safe both ways. A decision without an incumbent never writes the `retention`
+key, so it works before and after 044. A decision with an incumbent that reaches an un-migrated
+database fails its insert, and the client falls back to the exact static result through D2. After
+044, pre-change code keeps working, because every change is additive.
+
 ## Risks
 
 - **Harbor rebase**: `add-harbor-benchmark-routing` (plan only) will need its "flag on ranks by

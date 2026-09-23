@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: retain-static-model-until-routing-evidence
   title: "Retain the static model until routing evidence exists"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude_code
   created_at: "2026-09-23T00:00:00Z"
   deployable: true
@@ -16,6 +16,10 @@ contracts:
       - "openspec/changes/retain-static-model-until-routing-evidence/contracts/openapi/v1.2.yaml"
       - "openspec/changes/retain-static-model-until-routing-evidence/contracts/events/routing-decision-record.schema.json"
       - "openspec/changes/retain-static-model-until-routing-evidence/contracts/generated/models.py"
+  db:
+    primary: "openspec/changes/retain-static-model-until-routing-evidence/contracts/db/schema.sql"
+    files:
+      - "openspec/changes/retain-static-model-until-routing-evidence/contracts/db/schema.sql"
 
 defaults:
   priority: 5
@@ -49,7 +53,9 @@ packages:
         - "agent-coordinator/src/agents_config.py"
         - "agent-coordinator/src/coordination_mcp.py"
         - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/src/model_routing/catalog.py"
       keys:
+        - "db:schema:routing_decisions"
         - "api:POST /routing/select_model"
       ttl_minutes: 180
       reason: "Incumbent retention changes select_model request/response and phase delegation"
@@ -59,6 +65,7 @@ packages:
         - "agent-coordinator/src/agents_config.py"
         - "agent-coordinator/src/coordination_mcp.py"
         - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/database/migrations/044_routing_decision_retention.sql"
         - "agent-coordinator/tests/**"
         - "agent-coordinator/CLAUDE.md"
         - "openspec/changes/retain-static-model-until-routing-evidence/**"

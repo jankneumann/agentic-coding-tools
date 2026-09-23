@@ -147,7 +147,9 @@ Approaches 2 and 3 were rejected. Approach 2 records false provenance and leaves
 - **Code**: `agent-coordinator/src/model_routing/api.py` (request, response, `select_model`,
   `resolve_phase_model`), `model_routing/exploration.py` (evidenced-only exploration),
   `model_routing/resolver.py` (evidence predicate), `agents_config.py` (incumbent
-  identity), `coordination_mcp.py` and `http_proxy.py` (parity), and the contracts:
+  identity), `coordination_mcp.py` and `http_proxy.py` (parity), `database/migrations/044_routing_decision_retention.sql`
+  (nullable `retention` column, nullable `selected` guarded by a CHECK, updated audit RPC; design D8,
+  added during implementation), and the contracts:
   OpenAPI routing contract plus generated models and the routing decision record schema.
 - **Related changes**:
   - `add-harbor-benchmark-routing` (plan only) contains a "flag on ranks by priors" scenario.
@@ -156,6 +158,7 @@ Approaches 2 and 3 were rejected. Approach 2 records false provenance and leaves
   - `implement-the-task-router-vendor-x-location-x-model` (merged in #605, not yet archived)
     owns the separate `task-routing` capability. There is no delta collision, and retention runs
     after its feasibility and assignment step.
-- **Rollback**: set `ROUTING_INCUMBENT_MARGIN` very high so challengers effectively never win, or
+- **Rollback**: migration 044 is additive (a nullable column, a relaxed NOT NULL guarded by a CHECK, and a
+  replaced RPC), so it can stay in place after a code revert. To neutralize at runtime, set `ROUTING_INCUMBENT_MARGIN` very high so challengers effectively never win, or
   leave `ROUTING_ADAPTIVE` off. Reverting the change restores the pre-change behavior, because
   the new fields are optional.
