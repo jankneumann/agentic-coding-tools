@@ -1,0 +1,592 @@
+openapi: 3.1.0
+info:
+  title: Coordinator Model Routing API — incumbent-retention overlay
+  version: 1.2.0
+  description: 'Additive over v1.1 (implement-the-task-router-vendor-x-location-x-model): optional request
+    `incumbent`, optional response `retention`, and `selected` nullable only when retention kept a static
+    incumbent that has no feasible catalog row (design D5).'
+security:
+- CoordinatorBearer: []
+paths:
+  /routing/select_model:
+    post:
+      operationId: selectModelForTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectModelRequest'
+      responses:
+        '200':
+          description: Model selection with exact lane assignment and provenance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelectModelResponse'
+        '401':
+          description: Missing or invalid coordinator API key
+        '422':
+          description: Invalid typed task-routing profile
+        '503':
+          description: 'Registry unavailable, no feasible exact lane/model assignment, or atomic decision/audit
+            durability unavailable. New failure details are routing-registry-unavailable and routing-durability-unavailable;
+            an empty feasible set preserves dg-00 detail `no feasible model-routing candidate`.
+
+            '
+components:
+  securitySchemes:
+    CoordinatorBearer:
+      type: http
+      scheme: bearer
+  schemas:
+    Location:
+      type: string
+      enum:
+      - local
+      - cloud
+      - unknown
+    Isolation:
+      type: string
+      enum:
+      - none
+      - worktree
+      - sandbox
+    DispatchMode:
+      type: string
+      enum:
+      - review
+      - alternative
+      - quick
+      - sdk
+    RoadmapRoutingPolicy:
+      type: object
+      additionalProperties: false
+      properties:
+        allowed_agent_ids:
+          type: array
+          maxItems: 64
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+          uniqueItems: true
+        excluded_agent_ids:
+          type: array
+          maxItems: 64
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+          uniqueItems: true
+        allowed_vendor_types:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+          uniqueItems: true
+        excluded_vendor_types:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+          uniqueItems: true
+        allowed_locations:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/Location'
+          uniqueItems: true
+    TaskRoutingProfile:
+      type: object
+      additionalProperties: false
+      properties:
+        expected_duration_seconds:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 31536000
+          default: null
+        scope:
+          type: string
+          enum:
+          - read-only
+          - bounded-write
+          - broad-write
+          default: read-only
+        interactivity:
+          type: string
+          enum:
+          - interactive
+          - headless
+          default: headless
+        secret_need:
+          type: string
+          enum:
+          - none
+          - brokered
+          - direct
+          default: none
+        parallelism:
+          type: integer
+          minimum: 1
+          maximum: 1024
+          default: 1
+        repo_shape:
+          type: string
+          enum:
+          - single-package
+          - monorepo
+          - unknown
+          default: unknown
+        roadmap_policy:
+          anyOf:
+          - $ref: '#/components/schemas/RoadmapRoutingPolicy'
+          - type: 'null'
+          default: null
+        required_location:
+          anyOf:
+          - $ref: '#/components/schemas/Location'
+          - type: 'null'
+          default: null
+        required_isolation:
+          anyOf:
+          - $ref: '#/components/schemas/Isolation'
+          - type: 'null'
+          default: null
+        required_dispatch_mode:
+          anyOf:
+          - $ref: '#/components/schemas/DispatchMode'
+          - type: 'null'
+          default: null
+    WeightOverrides:
+      type: object
+      additionalProperties: false
+      properties:
+        w_quality:
+          type:
+          - number
+          - 'null'
+          default: null
+        w_cost:
+          type:
+          - number
+          - 'null'
+          default: null
+        w_latency:
+          type:
+          - number
+          - 'null'
+          default: null
+    SelectModelRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - task_signals
+      properties:
+        task_signals:
+          type: object
+          required:
+          - archetype
+          properties:
+            archetype:
+              type: string
+              minLength: 1
+              maxLength: 128
+            phase:
+              type:
+              - string
+              - 'null'
+              maxLength: 128
+              default: null
+            task_type:
+              type:
+              - string
+              - 'null'
+              maxLength: 128
+              default: null
+            complexity:
+              type:
+              - string
+              - 'null'
+              enum:
+              - low
+              - medium
+              - high
+              - null
+            modality:
+              type: string
+              enum:
+              - interactive
+              - programmatic
+              default: programmatic
+          additionalProperties: true
+        routing_profile:
+          anyOf:
+          - $ref: '#/components/schemas/TaskRoutingProfile'
+          - type: 'null'
+          default: null
+        objective_profile:
+          type:
+          - string
+          - 'null'
+          enum:
+          - quality-first
+          - balanced
+          - cost-first
+          - resilience
+          - null
+          default: null
+        weight_overrides:
+          anyOf:
+          - $ref: '#/components/schemas/WeightOverrides'
+          - type: 'null'
+          default: null
+        allow_exploration:
+          type: boolean
+          default: true
+        incumbent:
+          anyOf:
+          - $ref: '#/components/schemas/Incumbent'
+          - type: 'null'
+          default: null
+    Candidate:
+      type: object
+      required:
+      - vendor
+      - model
+      - endpoint_kind
+      - score
+      - assignment
+      properties:
+        vendor:
+          type: string
+        model:
+          type: string
+        endpoint_kind:
+          type: string
+          enum:
+          - vendor-cli
+          - vendor-sdk
+          - openrouter
+          - local
+        base_url:
+          type:
+          - string
+          - 'null'
+          default: null
+        score:
+          type: number
+        quality:
+          type:
+          - number
+          - 'null'
+          default: null
+        norm_cost:
+          type:
+          - number
+          - 'null'
+          default: null
+        norm_latency:
+          type:
+          - number
+          - 'null'
+          default: null
+        posterior_sample_size:
+          type:
+          - number
+          - 'null'
+          default: null
+        stale_catalog:
+          type: boolean
+          default: false
+        cost_source:
+          type:
+          - string
+          - 'null'
+          enum:
+          - posterior
+          - prior
+          - null
+        assignment:
+          $ref: '#/components/schemas/RoutingAssignment'
+    RoutingAssignment:
+      type: object
+      additionalProperties: false
+      required:
+      - agent_id
+      - vendor_type
+      - policy_vendor
+      - location
+      - isolation
+      - dispatch_mode
+      - catalog_vendor
+      - model
+      - endpoint_kind
+      properties:
+        agent_id:
+          type: string
+        vendor_type:
+          type: string
+        policy_vendor:
+          type: string
+        catalog_vendor:
+          type: string
+        location:
+          $ref: '#/components/schemas/Location'
+        isolation:
+          $ref: '#/components/schemas/Isolation'
+        dispatch_mode:
+          $ref: '#/components/schemas/DispatchMode'
+        model:
+          type: string
+        endpoint_kind:
+          type: string
+        base_url:
+          type:
+          - string
+          - 'null'
+          default: null
+    RoutingProvenance:
+      type: object
+      additionalProperties: false
+      required:
+      - source
+      - policy_version
+      - policy_checksum
+      - matched_rule_ids
+      - rationale
+      - persisted
+      - durable_audit
+      - catalog_key
+      properties:
+        source:
+          type: string
+          enum:
+          - coordinator
+          - local-static
+        policy_version:
+          type: string
+        policy_checksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        matched_rule_ids:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            maxLength: 64
+        rationale:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            maxLength: 256
+        persisted:
+          type: boolean
+        durable_audit:
+          type: boolean
+        catalog_key:
+          anyOf:
+          - type: array
+            prefixItems:
+            - type: string
+            - type: string
+            - type: string
+            - type:
+              - string
+              - 'null'
+            minItems: 4
+            maxItems: 4
+          - type: 'null'
+    ExcludedAssignment:
+      type: object
+      additionalProperties: false
+      required:
+      - vendor
+      - model
+      - endpoint_kind
+      - reason
+      properties:
+        agent_id:
+          type:
+          - string
+          - 'null'
+          default: null
+        vendor:
+          type: string
+        model:
+          type: string
+        endpoint_kind:
+          type: string
+        base_url:
+          type:
+          - string
+          - 'null'
+          default: null
+        reason:
+          type: string
+          maxLength: 128
+          pattern: ^(unavailable|quota:exhausted|(lane|policy|catalog|roadmap|registry|cedar):[a-z0-9-]+)$
+    SelectModelResponse:
+      type: object
+      required:
+      - decision_id
+      - selected
+      - alternatives
+      - assignment
+      - provenance
+      allOf:
+      - if:
+          required:
+          - fallback
+          properties:
+            fallback:
+              const: true
+        then:
+          properties:
+            provenance:
+              type: object
+              properties:
+                source:
+                  const: local-static
+                persisted:
+                  const: false
+                durable_audit:
+                  const: false
+                catalog_key:
+                  type: 'null'
+      - if:
+          properties:
+            provenance:
+              type: object
+              required:
+              - source
+              properties:
+                source:
+                  const: local-static
+        then:
+          required:
+          - fallback
+          properties:
+            fallback:
+              const: true
+      - if:
+          properties:
+            selected:
+              type: 'null'
+        then:
+          required:
+          - retention
+          properties:
+            retention:
+              properties:
+                reason:
+                  enum:
+                  - incumbent-unresolved
+                  - incumbent-infeasible-no-evidenced-alternative
+      properties:
+        decision_id:
+          type: string
+          format: uuid
+        selected:
+          anyOf:
+          - $ref: '#/components/schemas/Candidate'
+          - type: 'null'
+        alternatives:
+          type: array
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/Candidate'
+        exploration:
+          type: boolean
+          default: false
+        fallback:
+          type: boolean
+          default: false
+        excluded:
+          type: array
+          maxItems: 256
+          default: []
+          items:
+            $ref: '#/components/schemas/ExcludedAssignment'
+        assignment:
+          $ref: '#/components/schemas/RoutingAssignment'
+        provenance:
+          $ref: '#/components/schemas/RoutingProvenance'
+        retention:
+          $ref: '#/components/schemas/Retention'
+    Incumbent:
+      type: object
+      additionalProperties: false
+      required:
+      - model
+      description: Static resolution offered as the incumbent. vendor is the provider's catalog_vendor,
+        or null when the provider is unknown (a tier name then never matches, giving incumbent-unresolved).
+      properties:
+        vendor:
+          type:
+          - string
+          - 'null'
+          maxLength: 128
+        model:
+          type: string
+          minLength: 1
+          maxLength: 256
+      example:
+        vendor: claude_code
+        model: fable
+    Retention:
+      type: object
+      additionalProperties: false
+      required:
+      - retained
+      - reason
+      - margin
+      properties:
+        retained:
+          type: boolean
+        reason:
+          type: string
+          enum:
+          - challenger-evidenced-above-margin
+          - no-evidence
+          - below-margin
+          - incumbent-unresolved
+          - incumbent-infeasible-evidenced-alternative
+          - incumbent-infeasible-no-evidenced-alternative
+          - exploration-evidenced
+        margin:
+          type: number
+          minimum: 0
+        incumbent_score:
+          type:
+          - number
+          - 'null'
+      allOf:
+      - if:
+          properties:
+            reason:
+              enum:
+              - no-evidence
+              - below-margin
+              - incumbent-unresolved
+              - incumbent-infeasible-no-evidenced-alternative
+        then:
+          properties:
+            retained:
+              const: true
+        else:
+          properties:
+            retained:
+              const: false
+      example:
+        retained: true
+        reason: no-evidence
+        margin: 0.05
+        incumbent_score: 0.1
