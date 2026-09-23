@@ -49,10 +49,19 @@ except ModuleNotFoundError:
     from dataclasses import field as _field
 
     @dataclass(frozen=True)
+    class _FallbackPosture:
+        filesystem: bool = False
+        network: bool = False
+
+    @dataclass(frozen=True)
     class _FallbackProfile:
-        isolation_provided: bool = False
+        posture: _FallbackPosture = _field(default_factory=_FallbackPosture)
         source: str = "unavailable"
         details: dict = _field(default_factory=dict)
+
+        @property
+        def isolation_provided(self) -> bool:
+            return self.posture.filesystem
 
     def _detect_env(agent_id: str | None = None, **_kw: object) -> _FallbackProfile:  # type: ignore[no-redef]
         return _FallbackProfile()
@@ -300,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
     # cloud mode runs in its own container and pushes its own branch;
     # integration happens via PR, not local git-merge.
     profile = _detect_env()
-    if profile.isolation_provided:
+    if profile.posture.filesystem:
         print(
             f"merge_worktrees: skipped (isolation_provided=true, "
             f"source={profile.source}); use PR-based integration "

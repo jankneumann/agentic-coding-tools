@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-23T23:48:56.831912Z",
+  "coordinator_error": null,
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented independent isolation posture detection with backward compatibility and converged all-vendor review.",
+    "completed_work": [
+      "Added independent filesystem and network posture with per-dimension precedence and provenance.",
+      "Preserved keyword and positional isolation_provided compatibility in canonical and stripped-install fallback profiles.",
+      "Added exact Claude and Codex harness detection with malformed coordinator fail-safe behavior.",
+      "Migrated worktree and merge entrypoints to the explicit filesystem dimension.",
+      "Passed 5200 configured tests with 17 skipped, 243 affected tests with 5 skipped, 114 strict OpenSpec validations, and touched-file Ruff.",
+      "Converged round 5 with zero findings from Antigravity, Claude Code, Codex, Grok, and Pi."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Resolve isolation precedence per dimension",
+        "rationale": "A higher filesystem decision must not suppress authoritative network evidence, while each dimension still honors env, coordinator, heuristic, and default precedence.",
+        "capability": "worktree",
+        "supersedes": null
+      },
+      {
+        "title": "Treat Codex harness markers as exact empirical signals",
+        "rationale": "Exact paired values close the observed cloud gap without promoting generic CI or permission variables into filesystem-isolation claims.",
+        "capability": "worktree",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Land the dg-03 pull request, advance dispatch-governance to dg-07, and use the posture contract in sandbox enforcement."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/shared/environment_profile.py",
+        "description": "Canonical posture model and per-dimension detector"
+      },
+      {
+        "path": "skills/worktree/scripts/worktree.py",
+        "description": "Filesystem-dimension worktree decisions and fallback compatibility"
+      },
+      {
+        "path": "openspec/changes/add-isolation-posture-detection/specs/worktree/spec.md",
+        "description": "Normative independent posture and precedence contract"
+      }
+    ]
+  }
+}

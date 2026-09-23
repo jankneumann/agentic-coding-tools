@@ -1,6 +1,6 @@
 """Execution-environment detection shared across OpenSpec skills.
 
-Answers a single question: does the caller already have filesystem isolation?
+Reports filesystem workspace isolation and network restriction independently.
 Used by worktree.py and merge_worktrees.py to short-circuit git-worktree
 operations when the harness (e.g. a cloud ephemeral container) is the
 isolation boundary rather than a local .git-worktrees/ tree.
@@ -10,9 +10,8 @@ Detection precedence (highest to lowest):
      Legacy CLAUDE_CODE_CLOUD=1 is accepted as cloud.
   2. Coordinator discovery query (only when agent_id is provided). 500ms
      timeout, falls through to heuristic on any error.
-  3. Container heuristic: /.dockerenv exists OR KUBERNETES_SERVICE_HOST set
-     OR CODESPACES=true.
-  4. Default: isolation_provided=False (preserves legacy worktree behavior).
+  3. Conservative container and cloud-harness heuristics.
+  4. Default: neither dimension is provided.
 
 The helper is pure and side-effect-free apart from stderr diagnostics when
 WORKTREE_DEBUG=1 is set. Callers should treat the result as a single
@@ -43,20 +42,56 @@ _COORDINATOR_TIMEOUT_SECONDS = 0.5
 
 
 @dataclass(frozen=True)
+class IsolationPosture:
+    """Factual isolation supplied by the current execution environment."""
+
+    filesystem: bool
+    network: bool
+
+
+@dataclass(frozen=True, init=False)
 class EnvironmentProfile:
     """Result of environment detection.
 
-    ``isolation_provided=True`` means the caller is running inside an
-    environment that already provides filesystem isolation (container,
-    ephemeral VM, etc.) and skills should NOT create additional git
-    worktrees. ``source`` records which precedence layer produced the
-    decision so operators can debug detection. ``details`` carries
-    layer-specific metadata (env var name, agent id, heuristic marker).
+    ``posture`` reports filesystem workspace and network isolation as
+    independent facts. ``isolation_provided`` remains the compatibility
+    alias for the filesystem dimension. ``source`` records the filesystem
+    source, or the network source when filesystem falls through to default.
     """
 
-    isolation_provided: bool
+    posture: IsolationPosture
     source: Source
     details: dict[str, Any] = field(default_factory=dict)
+
+    def __init__(
+        self,
+        posture: IsolationPosture | bool | None = None,
+        source: Source = "default",
+        details: dict[str, Any] | None = None,
+        *,
+        isolation_provided: bool | None = None,
+    ) -> None:
+        """Build a profile, accepting the legacy filesystem-only keyword."""
+        if isinstance(posture, bool):
+            if isolation_provided is not None:
+                raise TypeError("pass positional legacy value or isolation_provided, not both")
+            isolation_provided = posture
+            posture = None
+        if posture is not None and isolation_provided is not None:
+            raise TypeError("pass posture or isolation_provided, not both")
+        if posture is None:
+            posture = IsolationPosture(
+                filesystem=False if isolation_provided is None else isolation_provided,
+                network=False,
+            )
+        object.__setattr__(self, "posture", posture)
+        object.__setattr__(self, "source", source)
+        object.__setattr__(self, "details", {} if details is None else details)
+
+    @property
+    def isolation_provided(self) -> bool:
+        """Compatibility alias for filesystem workspace isolation."""
+        return self.posture.filesystem
 
 
 # ---------------------------------------------------------------------------
@@ -72,13 +107,21 @@ def _env_var_layer() -> EnvironmentProfile | None:
             return EnvironmentProfile(
                 isolation_provided=True,
                 source="env_var",
-                details={"var": _AGENT_EXECUTION_ENV, "value": "cloud"},
+                details={
+                    "var": _AGENT_EXECUTION_ENV,
+                    "value": "cloud",
+                    "dimension_sources": {"filesystem": _AGENT_EXECUTION_ENV},
+                },
             )
         if primary == "local":
             return EnvironmentProfile(
                 isolation_provided=False,
                 source="env_var",
-                details={"var": _AGENT_EXECUTION_ENV, "value": "local"},
+                details={
+                    "var": _AGENT_EXECUTION_ENV,
+                    "value": "local",
+                    "dimension_sources": {"filesystem": _AGENT_EXECUTION_ENV},
+                },
             )
         # Unrecognized value — warn and fall through so detection still
         # has a chance via coordinator/heuristic layers.
@@ -94,7 +137,11 @@ def _env_var_layer() -> EnvironmentProfile | None:
         return EnvironmentProfile(
             isolation_provided=True,
             source="env_var",
-            details={"var": _LEGACY_CLOUD_VAR, "value": legacy},
+            details={
+                "var": _LEGACY_CLOUD_VAR,
+                "value": legacy,
+                "dimension_sources": {"filesystem": _LEGACY_CLOUD_VAR},
+            },
         )
     return None
 
@@ -146,13 +193,59 @@ def _coordinator_layer(agent_id: str) -> EnvironmentProfile | None:
         )
         return None
 
-    if record is None or "isolation_provided" not in record:
+    if not isinstance(record, dict):
+        return None
+
+    if "isolation_posture" in record:
+        posture_record = record["isolation_posture"]
+        if not isinstance(posture_record, dict):
+            print(
+                "environment_profile: coordinator returned malformed "
+                "isolation_posture — ignoring, falling through",
+                file=sys.stderr,
+            )
+            return None
+        filesystem = posture_record.get("filesystem")
+        network = posture_record.get("network")
+        if isinstance(filesystem, bool) and isinstance(network, bool):
+            return EnvironmentProfile(
+                posture=IsolationPosture(filesystem=filesystem, network=network),
+                source="coordinator",
+                details={
+                    "agent_id": agent_id,
+                    "url": url,
+                    "dimension_sources": {
+                        "filesystem": "coordinator",
+                        "network": "coordinator",
+                    },
+                },
+            )
+        print(
+            "environment_profile: coordinator returned malformed "
+            "isolation_posture — ignoring, falling through",
+            file=sys.stderr,
+        )
+        return None
+
+    if "isolation_provided" not in record:
+        return None
+    isolation_provided = record["isolation_provided"]
+    if not isinstance(isolation_provided, bool):
+        print(
+            "environment_profile: coordinator returned non-boolean "
+            "isolation_provided — ignoring, falling through",
+            file=sys.stderr,
+        )
         return None
 
     return EnvironmentProfile(
-        isolation_provided=bool(record["isolation_provided"]),
+        isolation_provided=isolation_provided,
         source="coordinator",
-        details={"agent_id": agent_id, "url": url},
+        details={
+            "agent_id": agent_id,
+            "url": url,
+            "dimension_sources": {"filesystem": "coordinator"},
+        },
     )
 
 
@@ -173,9 +266,12 @@ def _heuristic_layer() -> EnvironmentProfile | None:
     try:
         if os.path.exists(_DOCKERENV_PATH):
             return EnvironmentProfile(
-                isolation_provided=True,
+                posture=IsolationPosture(
+                    filesystem=True,
+                    network=_network_heuristic_provided(),
+                ),
                 source="heuristic",
-                details={"marker": "dockerenv", "path": _DOCKERENV_PATH},
+                details=_heuristic_details("dockerenv", path=_DOCKERENV_PATH),
             )
     except OSError:
         pass
@@ -184,20 +280,120 @@ def _heuristic_layer() -> EnvironmentProfile | None:
     k8s = os.environ.get("KUBERNETES_SERVICE_HOST", "").strip()
     if k8s:
         return EnvironmentProfile(
-            isolation_provided=True,
+            posture=IsolationPosture(
+                filesystem=True,
+                network=_network_heuristic_provided(),
+            ),
             source="heuristic",
-            details={"marker": "kubernetes", "host": k8s},
+            details=_heuristic_details("kubernetes", host=k8s),
         )
 
     # Marker 3: GitHub Codespaces
     if os.environ.get("CODESPACES", "").strip().lower() == "true":
         return EnvironmentProfile(
-            isolation_provided=True,
+            posture=IsolationPosture(
+                filesystem=True,
+                network=_network_heuristic_provided(),
+            ),
             source="heuristic",
-            details={"marker": "codespaces"},
+            details=_heuristic_details("codespaces"),
+        )
+
+    if _exact_env("CLAUDE_CODE_REMOTE", "true"):
+        return EnvironmentProfile(
+            posture=IsolationPosture(
+                filesystem=True,
+                network=_network_heuristic_provided(),
+            ),
+            source="heuristic",
+            details=_heuristic_details("claude_code_remote"),
+        )
+
+    if _exact_env("CODEX_CI", "1") and (
+        os.environ.get("CODEX_PERMISSION_PROFILE", "") == ":workspace"
+    ):
+        return EnvironmentProfile(
+            posture=IsolationPosture(
+                filesystem=True,
+                network=_network_heuristic_provided(),
+            ),
+            source="heuristic",
+            details=_heuristic_details("codex_workspace"),
+        )
+
+    if _network_heuristic_provided():
+        return EnvironmentProfile(
+            posture=IsolationPosture(filesystem=False, network=True),
+            source="heuristic",
+            details={
+                "marker": "codex_network_disabled",
+                "dimension_sources": {"network": "codex_network_disabled"},
+            },
         )
 
     return None
+
+
+def _exact_env(name: str, value: str) -> bool:
+    return os.environ.get(name, "") == value
+
+
+def _network_heuristic_provided() -> bool:
+    return _exact_env("CODEX_SANDBOX_NETWORK_DISABLED", "1")
+
+
+def _heuristic_details(marker: str, **extra: Any) -> dict[str, Any]:
+    details: dict[str, Any] = {
+        "marker": marker,
+        "dimension_sources": {"filesystem": marker},
+    }
+    details.update(extra)
+    if _network_heuristic_provided():
+        details["dimension_sources"]["network"] = "codex_network_disabled"
+    return details
+
+
+def _combine_layers(layers: list[EnvironmentProfile]) -> EnvironmentProfile:
+    """Resolve each dimension from its first definitive layer."""
+    values = {"filesystem": False, "network": False}
+    dimension_sources: dict[str, str] = {}
+    layer_sources: dict[str, Source] = {}
+    details: dict[str, Any] = {}
+
+    for layer in layers:
+        reported = layer.details.get("dimension_sources", {})
+        if not isinstance(reported, dict):
+            continue
+        selected = False
+        for dimension in ("filesystem", "network"):
+            if dimension in dimension_sources or dimension not in reported:
+                continue
+            values[dimension] = getattr(layer.posture, dimension)
+            dimension_sources[dimension] = str(reported[dimension])
+            layer_sources[dimension] = layer.source
+            selected = True
+        if selected:
+            for key, value in layer.details.items():
+                if key != "dimension_sources":
+                    details.setdefault(key, value)
+
+    for dimension in ("filesystem", "network"):
+        if dimension not in dimension_sources:
+            dimension_sources[dimension] = "default"
+            layer_sources[dimension] = "default"
+    details["dimension_sources"] = dimension_sources
+
+    source = layer_sources["filesystem"]
+    if source == "default":
+        source = layer_sources["network"]
+    return EnvironmentProfile(
+        posture=IsolationPosture(
+            filesystem=values["filesystem"],
+            network=values["network"],
+        ),
+        source=source,
+        details=details,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -224,29 +420,24 @@ def detect(
 
     Returns:
         An EnvironmentProfile. Never raises; detection errors fall
-        through to the default (``isolation_provided=False``).
+        through to ``IsolationPosture(filesystem=False, network=False)``.
     """
+    layers: list[EnvironmentProfile] = []
     layer = _env_var_layer()
     if layer is not None:
-        return _emit_debug(layer)
+        layers.append(layer)
 
     if not _skip_coordinator and agent_id:
         layer = _coordinator_layer(agent_id)
         if layer is not None:
-            return _emit_debug(layer)
+            layers.append(layer)
 
     if not _skip_heuristic:
         layer = _heuristic_layer()
         if layer is not None:
-            return _emit_debug(layer)
+            layers.append(layer)
 
-    return _emit_debug(
-        EnvironmentProfile(
-            isolation_provided=False,
-            source="default",
-            details={},
-        )
-    )
+    return _emit_debug(_combine_layers(layers))
 
 
 def _emit_debug(profile: EnvironmentProfile) -> EnvironmentProfile:
@@ -254,6 +445,8 @@ def _emit_debug(profile: EnvironmentProfile) -> EnvironmentProfile:
     if os.environ.get("WORKTREE_DEBUG", "").strip() in ("1", "true", "yes"):
         print(
             f"environment_profile: isolation_provided={profile.isolation_provided} "
+            f"filesystem={profile.posture.filesystem} "
+            f"network={profile.posture.network} "
             f"source={profile.source} details={profile.details}",
             file=sys.stderr,
         )

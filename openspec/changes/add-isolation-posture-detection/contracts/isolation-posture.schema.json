@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/isolation-posture.schema.json",
+  "title": "IsolationPosture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["filesystem", "network"],
+  "properties": {
+    "filesystem": {"type": "boolean"},
+    "network": {"type": "boolean"}
+  }
+}

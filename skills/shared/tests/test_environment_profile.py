@@ -11,6 +11,23 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from shared import environment_profile as ep
 
+
+@pytest.fixture(autouse=True)
+def _clear_harness_markers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep host harness signals from leaking into detector unit tests."""
+    for name in (
+        "AGENT_EXECUTION_ENV",
+        "CLAUDE_CODE_CLOUD",
+        "KUBERNETES_SERVICE_HOST",
+        "CODESPACES",
+        "COORDINATOR_URL",
+        "CLAUDE_CODE_REMOTE",
+        "CODEX_CI",
+        "CODEX_PERMISSION_PROFILE",
+        "CODEX_SANDBOX_NETWORK_DISABLED",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
 # ---------------------------------------------------------------------------
 # Env-var layer
 # ---------------------------------------------------------------------------
@@ -120,6 +137,101 @@ class TestCoordinatorLayer:
 
         assert profile.isolation_provided is False
         assert profile.source == "coordinator"
+
+    def test_coordinator_structured_posture_reports_both_dimensions(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("AGENT_EXECUTION_ENV", raising=False)
+        with patch.object(
+            ep,
+            "_query_coordinator",
+            return_value={
+                "isolation_posture": {
+                    "filesystem": False,
+                    "network": True,
+                }
+            },
+        ):
+            profile = ep.detect(agent_id="agent-42", _skip_heuristic=True)
+
+        assert profile.posture == ep.IsolationPosture(filesystem=False, network=True)
+        assert profile.source == "coordinator"
+
+    def test_coordinator_non_boolean_legacy_value_falls_through(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.delenv("AGENT_EXECUTION_ENV", raising=False)
+        with patch.object(
+            ep,
+            "_query_coordinator",
+            return_value={"isolation_provided": "false"},
+        ):
+            profile = ep.detect(
+                agent_id="agent-42",
+                _skip_heuristic=True,
+            )
+
+        assert profile.source == "default"
+        assert "non-boolean" in capsys.readouterr().err
+
+    def test_coordinator_non_object_body_falls_through(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("AGENT_EXECUTION_ENV", raising=False)
+        with patch.object(ep, "_query_coordinator", return_value=["unexpected"]):
+            profile = ep.detect(
+                agent_id="agent-42",
+                _skip_heuristic=True,
+            )
+
+        assert profile.source == "default"
+
+    def test_coordinator_malformed_structured_posture_falls_through(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("AGENT_EXECUTION_ENV", raising=False)
+        with patch.object(
+            ep,
+            "_query_coordinator",
+            return_value={
+                "isolation_posture": {
+                    "filesystem": "false",
+                    "network": True,
+                }
+            },
+        ):
+            profile = ep.detect(
+                agent_id="agent-42",
+                _skip_heuristic=True,
+            )
+
+        assert profile.source == "default"
+
+    def test_malformed_canonical_posture_does_not_use_legacy_fallback(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        with patch.object(
+            ep,
+            "_query_coordinator",
+            return_value={
+                "isolation_posture": {
+                    "filesystem": "false",
+                    "network": True,
+                },
+                "isolation_provided": True,
+            },
+        ):
+            profile = ep.detect(
+                agent_id="agent-42",
+                _skip_heuristic=True,
+            )
+
+        assert profile.source == "default"
+        assert "malformed isolation_posture" in capsys.readouterr().err
 
     def test_coordinator_missing_field_falls_through_to_heuristic(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -237,6 +349,132 @@ class TestHeuristicLayer:
         assert profile.isolation_provided is False
         assert profile.source == "default"
 
+    def test_claude_remote_reports_filesystem_without_network(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_REMOTE", "true")
+        monkeypatch.setattr(ep, "_DOCKERENV_PATH", str(tmp_path / "nope"))
+
+        profile = ep.detect(_skip_coordinator=True)
+
+        assert profile.posture == ep.IsolationPosture(filesystem=True, network=False)
+        assert profile.isolation_provided is True
+        assert profile.source == "heuristic"
+        assert profile.details["marker"] == "claude_code_remote"
+
+    def test_codex_workspace_pair_reports_filesystem_isolation(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("CODEX_CI", "1")
+        monkeypatch.setenv("CODEX_PERMISSION_PROFILE", ":workspace")
+        monkeypatch.setattr(ep, "_DOCKERENV_PATH", str(tmp_path / "nope"))
+
+        profile = ep.detect(_skip_coordinator=True)
+
+        assert profile.posture.filesystem is True
+        assert profile.posture.network is False
+        assert profile.source == "heuristic"
+        assert profile.details["marker"] == "codex_workspace"
+
+    def test_codex_ci_without_workspace_profile_does_not_prove_filesystem(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("CODEX_CI", "1")
+        monkeypatch.setattr(ep, "_DOCKERENV_PATH", str(tmp_path / "nope"))
+
+        profile = ep.detect(_skip_coordinator=True)
+
+        assert profile.posture.filesystem is False
+
+    def test_codex_network_marker_is_independent(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
+        monkeypatch.setattr(ep, "_DOCKERENV_PATH", str(tmp_path / "nope"))
+
+        profile = ep.detect(_skip_coordinator=True)
+
+        assert profile.posture == ep.IsolationPosture(filesystem=False, network=True)
+        assert profile.isolation_provided is False
+
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [
+            ("CLAUDE_CODE_REMOTE", "1"),
+            ("CLAUDE_CODE_REMOTE", "yes"),
+            ("CLAUDE_CODE_REMOTE", " true "),
+            ("CODEX_SANDBOX_NETWORK_DISABLED", "true"),
+            ("CODEX_SANDBOX_NETWORK_DISABLED", "yes"),
+            ("CODEX_SANDBOX_NETWORK_DISABLED", " 1 "),
+        ],
+    )
+    def test_harness_markers_require_exact_values(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        name: str,
+        value: str,
+    ) -> None:
+        monkeypatch.setenv(name, value)
+        monkeypatch.setattr(ep, "_DOCKERENV_PATH", str(tmp_path / "nope"))
+
+        profile = ep.detect(_skip_coordinator=True)
+
+        assert profile.source == "default"
+
+    @pytest.mark.parametrize("value", ["true", "yes", " 1 "])
+    def test_codex_ci_requires_exact_one(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        value: str,
+    ) -> None:
+        monkeypatch.setenv("CODEX_CI", value)
+        monkeypatch.setenv("CODEX_PERMISSION_PROFILE", ":workspace")
+        monkeypatch.setattr(ep, "_DOCKERENV_PATH", str(tmp_path / "nope"))
+
+        profile = ep.detect(_skip_coordinator=True)
+
+        assert profile.source == "default"
+
+    def test_codex_permission_profile_requires_exact_value(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("CODEX_CI", "1")
+        monkeypatch.setenv("CODEX_PERMISSION_PROFILE", " :workspace ")
+        monkeypatch.setattr(ep, "_DOCKERENV_PATH", str(tmp_path / "nope"))
+
+        profile = ep.detect(_skip_coordinator=True)
+
+        assert profile.source == "default"
+
+
+class TestPostureCompatibility:
+    def test_legacy_constructor_maps_to_filesystem_only(self) -> None:
+        profile = ep.EnvironmentProfile(
+            isolation_provided=True,
+            source="env_var",
+            details={},
+        )
+
+        assert profile.posture == ep.IsolationPosture(filesystem=True, network=False)
+        assert profile.isolation_provided is True
+
+    def test_explicit_posture_exposes_legacy_property(self) -> None:
+        profile = ep.EnvironmentProfile(
+            posture=ep.IsolationPosture(filesystem=False, network=True),
+            source="heuristic",
+            details={},
+        )
+
+        assert profile.isolation_provided is False
+
+    def test_legacy_positional_constructor_remains_supported(self) -> None:
+        profile = ep.EnvironmentProfile(True, "env_var", {})
+
+        assert profile.posture == ep.IsolationPosture(filesystem=True, network=False)
+        assert profile.isolation_provided is True
+
 
 # ---------------------------------------------------------------------------
 # Precedence — integration across layers
@@ -261,6 +499,60 @@ class TestPrecedence:
 
         assert profile.isolation_provided is False
         assert profile.source == "env_var"
+
+    def test_explicit_local_filesystem_keeps_independent_network_signal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")
+        monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
+
+        profile = ep.detect(_skip_coordinator=True)
+
+        assert profile.source == "env_var"
+        assert profile.posture == ep.IsolationPosture(filesystem=False, network=True)
+
+    def test_explicit_filesystem_continues_to_coordinator_for_network(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")
+        monkeypatch.setenv("COORDINATOR_URL", "http://fake-coordinator.test")
+        with patch.object(
+            ep,
+            "_query_coordinator",
+            return_value={
+                "isolation_posture": {
+                    "filesystem": True,
+                    "network": True,
+                }
+            },
+        ):
+            profile = ep.detect(agent_id="agent-42")
+
+        assert profile.posture == ep.IsolationPosture(filesystem=False, network=True)
+        assert profile.details["dimension_sources"] == {
+            "filesystem": "AGENT_EXECUTION_ENV",
+            "network": "coordinator",
+        }
+
+    def test_coordinator_network_false_blocks_lower_network_heuristic(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("COORDINATOR_URL", "http://fake-coordinator.test")
+        monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
+        with patch.object(
+            ep,
+            "_query_coordinator",
+            return_value={
+                "isolation_posture": {
+                    "filesystem": True,
+                    "network": False,
+                }
+            },
+        ):
+            profile = ep.detect(agent_id="agent-42")
+
+        assert profile.posture == ep.IsolationPosture(filesystem=True, network=False)
+        assert profile.details["dimension_sources"]["network"] == "coordinator"
 
     def test_coordinator_overrides_heuristic(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

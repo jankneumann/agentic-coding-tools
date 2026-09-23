@@ -22,6 +22,11 @@ if str(SKILL_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SKILL_SCRIPTS))
 
 
+@pytest.fixture(autouse=True)
+def _default_to_local_worktree_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")
+
+
 @pytest.fixture
 def git_repo(tmp_path: Path) -> Path:
     """Create a minimal git repo for testing.

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -71,6 +72,51 @@ class TestMergeCloudShortCircuit:
         assert payload["source"] == "env_var"
         assert payload["change_id"] == "feature-x"
         assert payload["package_ids"] == ["wp-backend"]
+
+    def test_merge_reads_filesystem_dimension_not_network(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.setattr(
+            merge_worktrees,
+            "_detect_env",
+            lambda: SimpleNamespace(
+                posture=SimpleNamespace(filesystem=True, network=False),
+                source="test",
+            ),
+        )
+        monkeypatch.setattr(
+            merge_worktrees,
+            "merge_packages",
+            lambda **_: pytest.fail("filesystem isolation must short-circuit"),
+        )
+
+        assert merge_worktrees.main(["feature-x", "wp-backend"]) == 0
+        assert "skipped" in capsys.readouterr().err
+
+    def test_network_only_posture_allows_merge(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            merge_worktrees,
+            "_detect_env",
+            lambda: SimpleNamespace(
+                posture=SimpleNamespace(filesystem=False, network=True),
+                source="test",
+            ),
+        )
+        called: list[str] = []
+        monkeypatch.setattr(
+            merge_worktrees,
+            "merge_packages",
+            lambda **_: called.append("merge") or {"success": True},
+        )
+        monkeypatch.setattr(merge_worktrees, "resolve_repo_root", lambda: ".")
+        monkeypatch.setattr(merge_worktrees, "format_human", lambda _: "OK")
+
+        assert merge_worktrees.main(["feature-x", "wp-backend"]) == 0
+        assert called == ["merge"]
 
 
 class TestMergeLocalBackwardCompat:
