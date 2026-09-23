@@ -490,6 +490,16 @@ components:
                   enum:
                   - incumbent-unresolved
                   - incumbent-infeasible-no-evidenced-alternative
+      - if:
+          required:
+          - selected
+          properties:
+            selected:
+              type: object
+        then:
+          properties:
+            assignment: &id001
+              $ref: '#/components/schemas/RoutingAssignment'
       properties:
         decision_id:
           type: string
@@ -516,7 +526,9 @@ components:
           items:
             $ref: '#/components/schemas/ExcludedAssignment'
         assignment:
-          $ref: '#/components/schemas/RoutingAssignment'
+          anyOf:
+          - *id001
+          - type: 'null'
         provenance:
           $ref: '#/components/schemas/RoutingProvenance'
         retention:

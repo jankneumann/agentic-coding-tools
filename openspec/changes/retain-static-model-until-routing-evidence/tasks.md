@@ -8,14 +8,14 @@
 
 ## 1. Contracts
 
-- [ ] 1.1 Write failing contract tests for the v1.2 overlay: optional `incumbent` on the request,
+- [x] 1.1 Write failing contract tests for the v1.2 overlay: optional `incumbent` on the request,
   optional `retention` on the response, `selected` nullable only alongside `retention.retained`,
   and the decision-record schema accepting `retention`. Resolve paths with `change_dir()`. [S]
   **Spec scenarios**: model-routing.5, model-routing.7, model-routing.9
   **Contracts**: contracts/openapi/v1.2.yaml, contracts/events/routing-decision-record.schema.json
   **Design decisions**: D5, D7
   **Dependencies**: None
-- [ ] 1.2 Finalize `contracts/openapi/v1.2.yaml`, the decision-record schema and
+- [x] 1.2 Finalize `contracts/openapi/v1.2.yaml`, the decision-record schema and
   `contracts/generated/models.py` so that 1.1 passes. [S]
   **Dependencies**: 1.1
 
