@@ -4,7 +4,7 @@
 
 ## Ordered work packages
 
-- [ ] 1. Define the versioned routing-dispatch context contract and checkpoint safety state.
+- [x] 1. Define the versioned routing-dispatch context contract and checkpoint safety state.
   - Add `contracts/routing-dispatch-context.schema.json`, `design.md`, and package metadata.
   - Bind immutable `decision_id`, selected lane, canonical isolation, dispatch/ledger work ID, and observed lane; define fail-closed validation and resume idempotency.
   - Depends on: dg-02, dg-04, dg-05.
