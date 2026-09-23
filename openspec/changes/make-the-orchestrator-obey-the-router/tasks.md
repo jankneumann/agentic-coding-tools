@@ -14,7 +14,7 @@
   - Persist the prepared attempt before dispatch and carry the opaque context unchanged to the host seam.
   - Depends on: 1.
 
-- [ ] 3. Execute ledger-verified alternate-lane retries.
+- [x] 3. Execute ledger-verified alternate-lane retries.
   - On capacity failure, exclude the observed lane, resolve a fresh decision, and redispatch the same item phase only through a new durable attempt.
   - Require terminal ledger completion to echo the active decision/attempt/lane; reject mismatches and unavailable ledger states.
   - Depends on: 1, 2.

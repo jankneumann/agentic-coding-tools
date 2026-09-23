@@ -734,7 +734,15 @@ def test_injected_routing_resolver_adds_validated_context_and_canonical_isolatio
         assert persisted["decision_id"] == context["routing"]["decision_id"]
         persisted_attempts.append(persisted)
         dispatched_contexts.append((phase, dict(context)))
-        return "success"
+        return {
+            "outcome": "success",
+            "routing_proof": {
+                "routing_decision_id": context["routing"]["decision_id"],
+                "dispatch_work_id": context["routing"]["dispatch_work_id"],
+                "observed_agent_id": context["routing"]["assignment"]["agent_id"],
+                "ledger_status": "completed",
+            },
+        }
 
     execute_roadmap(
         tmp_path,
@@ -776,3 +784,102 @@ def test_none_routing_resolver_result_fails_closed_before_host_dispatch(tmp_path
     assert result["completed_count"] == 0
     assert result["failed_count"] == 1
     assert result["status"] == "blocked_all"
+
+
+
+def test_routed_success_with_mismatched_ledger_proof_fails_closed(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+
+    def resolve_route(_item, _phase, _context):
+        return {
+            "decision_id": "decision-active",
+            "assignment": {
+                "agent_id": "codex-cloud",
+                "vendor_type": "openai",
+                "location": "cloud",
+                "isolation": "sandbox",
+                "dispatch_mode": "sdk",
+                "model": "gpt-test",
+                "endpoint_kind": "vendor-sdk",
+            },
+        }
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=resolve_route,
+        dispatch_fn=lambda _item, _phase, context: {
+            "outcome": "success",
+            "routing_proof": {
+                "routing_decision_id": "decision-stale",
+                "dispatch_work_id": context["routing"]["dispatch_work_id"],
+                "observed_agent_id": "codex-cloud",
+                "ledger_status": "completed",
+            },
+        },
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert result["completed_count"] == 0
+    assert result["failed_count"] == 1
+    assert checkpoint["routing_attempts"][-1]["status"] == "failed"
+
+
+def test_routed_vendor_limit_resolves_fresh_excluded_lane_on_same_phase(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    resolver_calls: list[tuple[str, dict]] = []
+    dispatch_calls: list[tuple[str, dict]] = []
+
+    def resolve_route(_item, phase, context):
+        resolver_calls.append((phase, dict(context)))
+        excluded = context.get("routing_exclusions", {}).get("agent_ids", [])
+        agent_id = "codex-alt" if "codex-primary" in excluded else "codex-primary"
+        return {
+            "decision_id": f"decision-{len(resolver_calls)}",
+            "assignment": {
+                "agent_id": agent_id,
+                "vendor_type": "openai",
+                "location": "cloud",
+                "isolation": "sandbox",
+                "dispatch_mode": "sdk",
+                "model": "gpt-test",
+                "endpoint_kind": "vendor-sdk",
+            },
+        }
+
+    def dispatch(_item, phase, context):
+        dispatch_calls.append((phase, dict(context)))
+        routing = context["routing"]
+        agent_id = routing["assignment"]["agent_id"]
+        proof = {
+            "routing_decision_id": routing["decision_id"],
+            "dispatch_work_id": routing["dispatch_work_id"],
+            "observed_agent_id": agent_id,
+            "ledger_status": "completed",
+        }
+        if phase == "planning" and agent_id == "codex-primary":
+            proof["ledger_status"] = "vendor_limit"
+            return {"outcome": "vendor_limit:openai:capacity", "routing_proof": proof}
+        return {"outcome": "success", "routing_proof": proof}
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=resolve_route,
+        dispatch_fn=dispatch,
+    )
+
+    planning = [context for phase, context in dispatch_calls if phase == "planning"]
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert [context["routing"]["assignment"]["agent_id"] for context in planning] == [
+        "codex-primary", "codex-alt",
+    ]
+    assert resolver_calls[1][1]["routing_exclusions"]["agent_ids"] == ["codex-primary"]
+    assert [attempt["status"] for attempt in checkpoint["routing_attempts"][:2]] == [
+        "vendor_limit", "completed",
+    ]
+    assert result["completed_count"] == 1

@@ -138,7 +138,12 @@ result = execute_roadmap(
 )
 ```
 
-The `dispatch_fn` receives `(item_id, phase, context)` and returns an outcome string. The SKILL.md layer implements this by invoking `/implement-feature`, `/validate-feature`, etc.
+The `dispatch_fn` receives `(item_id, phase, context)`. For routed execution it
+returns an outcome mapping with `routing_proof` echoing the active decision ID,
+dispatch work ID, observed agent ID, and terminal ledger status. Bare outcome strings
+remain supported only for legacy calls that did not supply `routing_resolver`. The
+SKILL.md layer implements dispatch by invoking `/implement-feature`,
+`/validate-feature`, etc.
 
 #### Opt-in delegated lifecycle
 

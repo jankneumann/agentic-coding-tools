@@ -50,7 +50,7 @@
       },
       "additionalProperties": true
     },
-    "completion_proof": {
+    "routing_proof": {
       "type": "object",
       "required": [
         "routing_decision_id",
@@ -62,7 +62,7 @@
         "routing_decision_id": { "type": "string", "minLength": 1 },
         "dispatch_work_id": { "type": "string", "minLength": 1 },
         "observed_agent_id": { "type": "string", "minLength": 1 },
-        "ledger_status": { "const": "completed" }
+        "ledger_status": { "enum": ["completed", "vendor_limit"] }
       },
       "additionalProperties": false
     }

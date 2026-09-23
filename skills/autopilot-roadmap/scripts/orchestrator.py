@@ -275,6 +275,42 @@ def _prepare_routing_attempt(
     checkpoint.routing_attempts.append(record)
     manager.save(checkpoint)
     return routing
+def _finish_routing_attempt(
+    *,
+    checkpoint: Any,
+    manager: CheckpointManager,
+    routing: Mapping[str, Any],
+    result: Mapping[str, Any],
+    expected_ledger_status: str,
+) -> str:
+    """Verify routed result identity and durably close its prepared record."""
+    proof = result.get("routing_proof")
+    assignment = routing["assignment"]
+    expected = {
+        "routing_decision_id": routing["decision_id"],
+        "dispatch_work_id": routing["dispatch_work_id"],
+        "observed_agent_id": assignment["agent_id"],
+        "ledger_status": expected_ledger_status,
+    }
+    valid = isinstance(proof, Mapping) and all(
+        proof.get(key) == value for key, value in expected.items()
+    )
+    record = next(
+        attempt
+        for attempt in reversed(checkpoint.routing_attempts)
+        if attempt.get("dispatch_work_id") == routing["dispatch_work_id"]
+    )
+    record["status"] = expected_ledger_status if valid else "failed"
+    record["resolved_at"] = datetime.now(timezone.utc).isoformat()
+    if not valid:
+        record["failure_reason"] = "routing_proof_mismatch"
+    manager.save(checkpoint)
+    if not valid:
+        raise ValueError("routing result does not match the active durable attempt")
+    return str(expected["observed_agent_id"])
+
+
+
 
 
 def _next_attempt_number(checkpoint: Any, item_id: str) -> int:
@@ -1125,6 +1161,7 @@ def _execute_item_phases(
 
         mgr.advance_phase(checkpoint, phase)
         selected_agent_id: str | None = None
+        routed_exclusions: list[str] = []
 
         while True:
             context = {
@@ -1137,6 +1174,10 @@ def _execute_item_phases(
                 # agent_id is the additive provider/phase carrier field.
                 context["dispatch_agent_id"] = selected_agent_id
                 context["agent_id"] = selected_agent_id
+            if routed_exclusions:
+                context["routing_exclusions"] = {
+                    "agent_ids": list(routed_exclusions),
+                }
 
             if routing_resolver is not None:
                 try:
@@ -1144,6 +1185,9 @@ def _execute_item_phases(
                     if resolved is None:
                         raise ValueError("resolver returned no routing decision")
                     routing = _validated_routing_decision(resolved)
+                    routed_agent_id = str(routing["assignment"]["agent_id"])
+                    if routed_agent_id in routed_exclusions:
+                        raise ValueError("resolver returned an excluded routing lane")
                 except Exception as exc:
                     logger.warning(
                         "item.routing_failed: item=%s phase=%s error=%s",
@@ -1173,6 +1217,33 @@ def _execute_item_phases(
                 or dispatch_metadata.get("agent_id")
             )
             capacity_reset_at = _capacity_reset_at(dispatch_metadata)
+            if routing_resolver is not None and (
+                outcome == "success" or outcome.startswith("vendor_limit:")
+            ):
+                expected_status = (
+                    "completed" if outcome == "success" else "vendor_limit"
+                )
+                try:
+                    observed_agent_id = _finish_routing_attempt(
+                        checkpoint=checkpoint,
+                        manager=mgr,
+                        routing=context["routing"],
+                        result=dispatch_metadata,
+                        expected_ledger_status=expected_status,
+                    )
+                except (StopIteration, ValueError) as exc:
+                    _fail(f"Routing completion rejected: {type(exc).__name__}")
+                    return False
+
+                if outcome.startswith("vendor_limit:"):
+                    attempts = switch_attempts.get(item_id, 0)
+                    if attempts >= roadmap.policy.max_switch_attempts_per_item:
+                        _fail("Routing switch retry cap exhausted")
+                        return False
+                    switch_attempts[item_id] = attempts + 1
+                    routed_exclusions.append(observed_agent_id)
+                    continue
+
 
             if outcome == "success":
                 logger.info(
