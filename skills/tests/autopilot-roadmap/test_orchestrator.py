@@ -1014,3 +1014,62 @@ def test_no_progress_cap_checkpoints_before_repeating_same_phase(tmp_path) -> No
     assert checkpoint["execution_safety"]["consecutive_no_progress"] == 1
     assert checkpoint["execution_safety"]["escalation"]["kind"] == "no_progress_cap"
     assert result["status"] == "paused"
+
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("agent_id", ""),
+        ("vendor_type", None),
+        ("location", 7),
+        ("dispatch_mode", ""),
+        ("model", None),
+        ("endpoint_kind", []),
+    ],
+)
+def test_invalid_routing_assignment_field_fails_before_dispatch(
+    tmp_path, field, value
+) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    decision = _route_decision()
+    decision["assignment"][field] = value
+    dispatched: list[str] = []
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: decision,
+        dispatch_fn=lambda _item, phase, _context: dispatched.append(phase) or "success",
+    )
+
+    assert dispatched == []
+    assert result["failed_count"] == 1
+
+
+def test_routing_resume_parks_when_ledger_reconciler_raises(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        execute_roadmap(
+            tmp_path,
+            routing_resolver=lambda *_: _route_decision(),
+            dispatch_fn=lambda *_: (_ for _ in ()).throw(RuntimeError("simulated crash")),
+        )
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(decision_id="decision-new"),
+        routing_reconciler=lambda _attempt: (_ for _ in ()).throw(
+            RuntimeError("ledger unavailable")
+        ),
+        dispatch_fn=lambda *_: pytest.fail("must not duplicate dispatch"),
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "ledger_reconciliation_required"
+    assert result["status"] == "paused"
