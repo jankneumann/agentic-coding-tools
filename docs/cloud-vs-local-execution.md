@@ -10,13 +10,16 @@ Defined in `skills/shared/environment_profile.py`. Returns a dataclass:
 
 ```python
 EnvironmentProfile(
-    isolation_provided: bool,
+    posture=IsolationPosture(filesystem: bool, network: bool),
     source: Literal["env_var", "coordinator", "heuristic", "default"],
     details: dict[str, Any],
 )
 ```
 
-`isolation_provided=True` means "this environment already isolates agents, skip worktree creation." It is consumed by `worktree.py` (setup/teardown/pin/unpin/heartbeat/gc) and `merge_worktrees.py` (full short-circuit with PR-guidance).
+`posture.filesystem=True` means the harness already supplies a per-session workspace,
+so worktree creation is skipped. `posture.network=True` independently means egress is
+restricted. The compatibility property `isolation_provided` remains exactly equal to
+`posture.filesystem`.
 
 ## Local CLI mutation policy
 
@@ -43,16 +46,21 @@ and active-agent checks after passing `--sync-point`.
 
 ## Detection precedence
 
-Evaluated top-down; the first definitive answer wins.
+Filesystem is evaluated top-down; the first definitive answer wins. Network evidence is
+resolved independently and never inferred from a container alone.
 
 | Priority | Layer | Signal |
 |---|---|---|
-| 1 | **Env var** | `AGENT_EXECUTION_ENV=cloud` (force cloud) or `AGENT_EXECUTION_ENV=local` (force local). Legacy `CLAUDE_CODE_CLOUD=1` accepted as cloud. |
-| 2 | **Coordinator** | When `agent_id` is known AND `COORDINATOR_URL` is set, `GET /agents/<agent-id>` returns `isolation_provided`. 500ms timeout; errors fall through. |
-| 3 | **Heuristic** | Any of: `/.dockerenv` exists, `KUBERNETES_SERVICE_HOST` set, `CODESPACES=true`. |
-| 4 | **Default** | `isolation_provided=false` — the legacy behavior. |
+| 1 | **Env var** | `AGENT_EXECUTION_ENV=cloud` (force cloud) or `AGENT_EXECUTION_ENV=local` (force local). Legacy `CLAUDE_CODE_CLOUD=1` accepted as cloud. These resolve filesystem only. |
+| 2 | **Coordinator** | When `agent_id` is known and `COORDINATOR_URL` is set, accept a boolean `isolation_provided` or structured boolean `isolation_posture`. Errors and malformed values fall through. |
+| 3 | **Heuristic** | Filesystem: existing container markers, `CLAUDE_CODE_REMOTE=true`, or the pair `CODEX_CI=1` + `CODEX_PERMISSION_PROFILE=:workspace`. Network: `CODEX_SANDBOX_NETWORK_DISABLED=1`. |
+| 4 | **Default** | `filesystem=false, network=false` — the legacy worktree behavior and conservative network assumption. |
 
 Unrecognized values of `AGENT_EXECUTION_ENV` (e.g. typos) emit a stderr warning and fall through to the next layer rather than defaulting to no-isolation. This keeps detection useful when operators fat-finger the env var.
+
+The Codex markers are narrowly matched empirical harness signals, not a public provider
+API: `CODEX_CI` alone is insufficient, and every value must match exactly. Prefer
+`AGENT_EXECUTION_ENV` for harness integrations under operator control.
 
 ## What changes when `isolation_provided=true`
 
@@ -99,10 +107,13 @@ They're read-only. They continue to function normally and report the in-place ch
 
 If you're building a cloud harness that provides its own isolation, the recommended integration is:
 
-1. Set `AGENT_EXECUTION_ENV=cloud` in the container's environment (fastest, zero coordinator coupling).
+1. Set `AGENT_EXECUTION_ENV=cloud` in the container's environment (the strongest
+   filesystem override). When an agent id and coordinator URL are present, detection
+   still queries the coordinator for the unresolved network dimension.
 2. Optionally register each agent with the coordinator and set `isolation_provided=true` on the agent record (falls-through cleanly if the coordinator is unreachable).
 
-The `/.dockerenv` heuristic means the fix works for vanilla Docker containers even without a harness-side change — but explicit signaling is more reliable and documents your intent.
+Do not use container presence to assert network restriction. Harness-specific network
+enforcement needs its own signal.
 
 ## See also
 

@@ -46,8 +46,10 @@ _OID_PATTERN = re.compile(r"^[0-9a-f]{40,64}$")
 
 
 class EnvironmentProfile(Protocol):
-    isolation_provided: bool
     source: str
+
+    @property
+    def isolation_provided(self) -> bool: ...
 
 
 class DirtyValidationSourceError(RuntimeError):

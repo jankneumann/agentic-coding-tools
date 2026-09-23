@@ -1,0 +1,13 @@
+{
+  "change_id": "add-isolation-posture-detection",
+  "validator_vendors": [
+    "antigravity",
+    "claude_code",
+    "codex",
+    "grok",
+    "pi"
+  ],
+  "worker_vendors": [
+    "codex"
+  ]
+}

@@ -23,6 +23,11 @@ from validation_worktree import (  # noqa: E402
 )
 
 
+@pytest.fixture(autouse=True)
+def _default_to_local_worktree_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")
+
+
 def _git(repo: Path, *args: str, input_text: str | None = None) -> str:
     result = subprocess.run(
         ["git", *args],

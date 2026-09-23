@@ -31,6 +31,11 @@ CHANGE_ID = "add-branch-local-context-checkpoints"
 PACKAGE_ID = "wp-checkpoint"
 REPORT_PATH = f"openspec/changes/{CHANGE_ID}/context-checkpoints/{PACKAGE_ID}.json"
 
+
+@pytest.fixture(autouse=True)
+def _local_checkout_policy_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")
+
 RULES_YAML = """\
 schema_version: 1
 rules:

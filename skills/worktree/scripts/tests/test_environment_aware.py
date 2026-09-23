@@ -10,14 +10,49 @@ Covers spec scenarios:
 
 from __future__ import annotations
 
+import builtins
+import importlib.util
 import subprocess
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import worktree  # noqa: E402
+
+
+def test_missing_shared_fallback_preserves_legacy_construction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stripped installation keeps the canonical compatibility surface."""
+    original_import = builtins.__import__
+
+    def blocked_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "shared.environment_profile":
+            raise ModuleNotFoundError(name)
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", blocked_import)
+    module_path = Path(worktree.__file__)
+    spec = importlib.util.spec_from_file_location("worktree_fallback_probe", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+        keyword = module.EnvironmentProfile(
+            isolation_provided=True,
+            source="test",
+        )
+        positional = module.EnvironmentProfile(True, "test", {})
+    finally:
+        sys.modules.pop(spec.name, None)
+
+    assert keyword.posture.filesystem is True
+    assert keyword.posture.network is False
+    assert positional.isolation_provided is True
 
 
 @pytest.fixture
@@ -74,6 +109,39 @@ class TestSetupShortCircuit:
 
         # Crucially: no .git-worktrees/ was created
         assert not (git_repo / ".git-worktrees").exists()
+
+    def test_short_circuit_reads_filesystem_dimension_not_network(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.setattr(
+            worktree,
+            "detect",
+            lambda **_: SimpleNamespace(
+                posture=SimpleNamespace(filesystem=True, network=False),
+                source="test",
+            ),
+        )
+
+        profile = worktree._short_circuit_if_isolated("setup")
+
+        assert profile is not None
+        assert "skipped setup" in capsys.readouterr().err
+
+    def test_network_only_posture_does_not_short_circuit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            worktree,
+            "detect",
+            lambda **_: SimpleNamespace(
+                posture=SimpleNamespace(filesystem=False, network=True),
+                source="test",
+            ),
+        )
+
+        assert worktree._short_circuit_if_isolated("setup") is None
 
     def test_cloud_setup_survives_branch_already_checked_out(
         self,

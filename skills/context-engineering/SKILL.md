@@ -430,8 +430,9 @@ For parallel agents, the override composes with `--agent-id` as
 
 ### Cloud-vs-Local Decision Layer
 
-`skills/shared/environment_profile.py` exposes `detect() -> EnvironmentProfile` with an
-`isolation_provided: bool` flag. The orchestrator should consult this before deciding
+`skills/shared/environment_profile.py` exposes `detect() -> EnvironmentProfile` with
+independent `posture.filesystem` and `posture.network` flags. The orchestrator should
+consult the filesystem dimension before deciding
 whether to set up worktrees at all — in cloud-harness containers, isolation is provided
 by the container itself, so worktree write operations short-circuit to no-ops. The
 context block passed to a cloud-harness worker MUST NOT contain instructions to run
@@ -441,7 +442,7 @@ context block passed to a cloud-harness worker MUST NOT contain instructions to 
 from skills.shared.environment_profile import detect
 
 profile = detect()
-if profile.isolation_provided:
+if profile.posture.filesystem:
     # Cloud / harness / Codespaces / K8s pod — skip worktree setup
     context["worktree_setup_required"] = False
 else:

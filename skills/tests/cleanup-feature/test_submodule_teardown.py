@@ -27,6 +27,11 @@ from worktree import (
     worktree_path,
 )
 
+
+@pytest.fixture(autouse=True)
+def _local_worktree_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

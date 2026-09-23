@@ -40,13 +40,50 @@ try:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
     from shared.environment_profile import EnvironmentProfile, detect  # noqa: E402
 except ModuleNotFoundError:
-    from dataclasses import dataclass, field
+    from dataclasses import dataclass
 
     @dataclass(frozen=True)
+    class IsolationPosture:
+        filesystem: bool = False
+        network: bool = False
+
+    @dataclass(frozen=True, init=False)
     class EnvironmentProfile:  # type: ignore[no-redef]
-        isolation_provided: bool = False
-        source: str = "unavailable"
-        details: dict = field(default_factory=dict)
+        posture: IsolationPosture
+        source: str
+        details: dict
+
+        def __init__(
+            self,
+            posture: IsolationPosture | bool | None = None,
+            source: str = "unavailable",
+            details: dict | None = None,
+            *,
+            isolation_provided: bool | None = None,
+        ) -> None:
+            if isinstance(posture, bool):
+                if isolation_provided is not None:
+                    raise TypeError(
+                        "pass positional legacy value or isolation_provided, not both"
+                    )
+                isolation_provided = posture
+                posture = None
+            if posture is not None and isolation_provided is not None:
+                raise TypeError("pass posture or isolation_provided, not both")
+            if posture is None:
+                posture = IsolationPosture(
+                    filesystem=(
+                        False if isolation_provided is None else isolation_provided
+                    ),
+                    network=False,
+                )
+            object.__setattr__(self, "posture", posture)
+            object.__setattr__(self, "source", source)
+            object.__setattr__(self, "details", {} if details is None else details)
+
+        @property
+        def isolation_provided(self) -> bool:
+            return self.posture.filesystem
 
     def detect(agent_id: str | None = None, **_kw: object) -> EnvironmentProfile:  # type: ignore[no-redef]
         return EnvironmentProfile()
@@ -67,7 +104,7 @@ def _short_circuit_if_isolated(op: str, agent_id: str | None = None) -> Environm
         agent_id: Optional agent ID to pass to coordinator detection layer.
     """
     profile = detect(agent_id=agent_id)
-    if profile.isolation_provided:
+    if profile.posture.filesystem:
         print(
             f"worktree: skipped {op} (isolation_provided=true, "
             f"source={profile.source})",

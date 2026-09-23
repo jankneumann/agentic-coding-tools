@@ -13,6 +13,11 @@ from registry import Producer, ProducerError, ProducerSpec, list_producers, regi
 FULL_SHA = "a" * 40
 
 
+@pytest.fixture(autouse=True)
+def _local_checkout_policy_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")
+
+
 class _FreshProducer(Producer):
     def __init__(self, pid: str, owner: str = "owner"):
         self.spec = ProducerSpec(
