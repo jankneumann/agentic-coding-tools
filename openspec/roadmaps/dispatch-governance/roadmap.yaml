@@ -79,7 +79,7 @@ items:
   - Cloud sessions no longer leak locks
 - item_id: dg-03
   title: Widen execution-environment detection to an isolation posture
-  status: candidate
+  status: approved
   priority: 1
   effort: S
   depends_on: []
@@ -157,7 +157,7 @@ items:
   - A coordinator-unreachable path yields a defined decision rather than an error
 - item_id: dg-06
   title: Make the orchestrator obey the router
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on:
@@ -258,4 +258,4 @@ items:
     recording why, rather than deploying a bypassable proxy
   external_depends_on:
   - principal-credential-architecture:pca-02
-updated_at: '2026-09-22T04:32:13.870127+00:00'
+updated_at: '2026-09-23T22:17:27.713199+00:00'
