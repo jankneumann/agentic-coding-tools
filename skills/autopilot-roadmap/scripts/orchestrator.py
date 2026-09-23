@@ -239,6 +239,8 @@ def _validated_routing_decision(value: Mapping[str, Any]) -> dict[str, Any]:
     if isolation not in {"none", "worktree", "sandbox"}:
         raise ValueError("routing assignment has invalid isolation")
     return decision
+
+
 def _prepare_routing_attempt(
     *,
     roadmap_id: str,
@@ -281,6 +283,8 @@ def _prepare_routing_attempt(
     checkpoint.routing_attempts.append(record)
     manager.save(checkpoint)
     return routing
+
+
 def _finish_routing_attempt(
     *,
     checkpoint: Any,
@@ -288,13 +292,21 @@ def _finish_routing_attempt(
     routing: Mapping[str, Any],
     result: Mapping[str, Any],
     expected_ledger_status: str,
+    failure_reason: str | None = None,
+    policy_decision: PolicyDecision | None = None,
+    policy_resume_at: str | None = None,
 ) -> str:
     """Verify routed result identity and durably close its prepared record."""
     proof = result.get("routing_proof")
-    assignment = routing["assignment"]
+    record = next(
+        attempt
+        for attempt in reversed(checkpoint.routing_attempts)
+        if attempt.get("dispatch_work_id") == routing["dispatch_work_id"]
+    )
+    assignment = record["assignment"]
     expected = {
-        "routing_decision_id": routing["decision_id"],
-        "dispatch_work_id": routing["dispatch_work_id"],
+        "routing_decision_id": record["decision_id"],
+        "dispatch_work_id": record["dispatch_work_id"],
         "observed_agent_id": assignment["agent_id"],
         "ledger_status": expected_ledger_status,
     }
@@ -303,19 +315,105 @@ def _finish_routing_attempt(
         and set(proof) == set(expected)
         and all(proof.get(key) == value for key, value in expected.items())
     )
+    record["status"] = expected_ledger_status if valid else "failed"
+    record["resolved_at"] = datetime.now(timezone.utc).isoformat()
+    if not valid:
+        record["failure_reason"] = "routing_proof_mismatch"
+    elif failure_reason:
+        record["failure_reason"] = failure_reason
+    elif policy_decision is not None:
+        record["policy_action"] = policy_decision.action
+        if policy_decision.action in {"wait", "fail_closed"}:
+            now = datetime.now(timezone.utc).isoformat()
+            pause_state: dict[str, Any] = {
+                "paused": True,
+                "reason": policy_decision.reason,
+                "paused_at": now,
+                "blocked_vendor": policy_decision.from_vendor,
+            }
+            if policy_resume_at is not None:
+                pause_state["expected_resume_at"] = policy_resume_at
+            checkpoint.pause_state = sanitize_dict(pause_state)
+            escalation_kind = None
+            if policy_decision.action == "fail_closed":
+                escalation_kind = "routing_switch_cap"
+            elif policy_resume_at is None:
+                escalation_kind = "routing_wait_resume_required"
+            if escalation_kind is not None:
+                safety = dict(checkpoint.execution_safety)
+                safety["escalation"] = {
+                    "kind": escalation_kind,
+                    "reason": policy_decision.reason,
+                    "item_id": record["item_id"],
+                    "phase": record["phase"],
+                    "created_at": now,
+                }
+                checkpoint.execution_safety = safety
+    manager.save(checkpoint)
+
+    if not valid:
+        raise ValueError("routing result does not match the active durable attempt")
+    return str(expected["observed_agent_id"])
+
+
+def _reject_routing_attempt(
+    *,
+    checkpoint: Any,
+    manager: CheckpointManager,
+    routing: Mapping[str, Any],
+    reason: str,
+) -> None:
     record = next(
         attempt
         for attempt in reversed(checkpoint.routing_attempts)
         if attempt.get("dispatch_work_id") == routing["dispatch_work_id"]
     )
-    record["status"] = expected_ledger_status if valid else "failed"
+    record["status"] = "failed"
+    record["failure_reason"] = reason
     record["resolved_at"] = datetime.now(timezone.utc).isoformat()
-    if not valid:
-        record["failure_reason"] = "routing_proof_mismatch"
     manager.save(checkpoint)
-    if not valid:
-        raise ValueError("routing result does not match the active durable attempt")
-    return str(expected["observed_agent_id"])
+
+
+def _routing_policy_decision(
+    roadmap: Roadmap,
+    *,
+    vendor: str,
+    reason: str,
+    switch_count: int,
+) -> PolicyDecision:
+    if roadmap.policy.default_action == PolicyAction.WAIT:
+        return PolicyDecision(
+            action="wait",
+            reason=f"Policy requires waiting for limited vendor {vendor}: {reason}",
+            from_vendor=vendor,
+        )
+    if switch_count >= roadmap.policy.max_switch_attempts_per_item:
+        return PolicyDecision(
+            action="fail_closed",
+            reason=(
+                "Routing switch retry cap exhausted "
+                f"({switch_count} >= {roadmap.policy.max_switch_attempts_per_item})"
+            ),
+            from_vendor=vendor,
+            cost_guard="not_applicable",
+        )
+    if roadmap.policy.cost_ceiling_usd is not None:
+        return PolicyDecision(
+            action="fail_closed",
+            reason="Routed switch has no authoritative cost estimate for configured ceiling",
+            from_vendor=vendor,
+            cost_guard="unavailable",
+        )
+    return PolicyDecision(
+        action="switch",
+        reason="Roadmap policy authorizes a fresh router decision",
+        from_vendor=vendor,
+        cost_guard="not_configured",
+    )
+
+
+
+
 def _durable_progress_fingerprint(checkpoint: Any) -> str:
     payload = {
         "current_item_id": checkpoint.current_item_id,
@@ -394,12 +492,6 @@ def _before_host_dispatch(
         return False
     manager.save(checkpoint)
     return True
-
-
-
-
-
-
 
 
 def _next_attempt_number(checkpoint: Any, item_id: str) -> int:
@@ -1032,6 +1124,7 @@ def execute_roadmap(
     routing_location: str | None = None,
     routing_resolver: RoutingResolver | None = None,
     routing_reconciler: RoutingReconciler | None = None,
+    resume_escalation: bool = False,
     max_iterations: int = 1000,
     max_no_progress: int = 3,
 ) -> dict[str, Any]:
@@ -1064,6 +1157,9 @@ def execute_roadmap(
         Positive global host-dispatch cap persisted in checkpoint safety state.
     max_no_progress:
         Positive cap for unchanged item/phase/correlated-ledger fingerprints.
+    resume_escalation:
+        Explicit host acknowledgement that clears a durable execution pause so
+        its prepared attempt can be reconciled before any new dispatch.
 
     Returns
     -------
@@ -1104,6 +1200,16 @@ def execute_roadmap(
     else:
         checkpoint = mgr.create(roadmap)
         logger.info("Created new checkpoint for %s", roadmap.roadmap_id)
+
+    if (
+        resume_escalation
+        and checkpoint.pause_state.get("paused")
+        and checkpoint.execution_safety.get("escalation")
+    ):
+        checkpoint.pause_state = {}
+        checkpoint.execution_safety.pop("escalation", None)
+        mgr.save(checkpoint)
+
 
     if _pause_is_active(checkpoint.pause_state):
         logger.info(
@@ -1272,8 +1378,54 @@ def _execute_item_phases(
 
         mgr.advance_phase(checkpoint, phase)
         selected_agent_id: str | None = None
-        routed_exclusions: list[str] = []
+        if routing_resolver is None and checkpoint.routing_attempts:
+            _park_execution(
+                checkpoint=checkpoint,
+                manager=mgr,
+                kind="routing_resolution_failed",
+                reason="Routed checkpoint requires routing_resolver before resume",
+            )
+            return False
+        prior_phase_limits = [
+            attempt
+            for attempt in checkpoint.routing_attempts
+            if attempt.get("item_id") == item_id
+            and attempt.get("phase") == phase.value
+            and attempt.get("status") == "vendor_limit"
+            and attempt.get("policy_action") == "switch"
+        ]
+        routed_exclusions = [
+            str(attempt["assignment"]["agent_id"])
+            for attempt in prior_phase_limits
+        ]
+        routed_switch_count = sum(
+            1
+            for attempt in checkpoint.routing_attempts
+            if attempt.get("item_id") == item_id
+            and attempt.get("status") == "vendor_limit"
+            and attempt.get("policy_action") == "switch"
+        )
+        prior_routing_fail_closed = any(
+            attempt.get("item_id") == item_id
+            and attempt.get("status") == "vendor_limit"
+            and attempt.get("policy_action") == "fail_closed"
+            for attempt in checkpoint.routing_attempts
+        )
+        incomplete_routing_policy = any(
+            attempt.get("item_id") == item_id
+            and attempt.get("status") == "vendor_limit"
+            and attempt.get("policy_action") is None
+            for attempt in checkpoint.routing_attempts
+        )
         if routing_resolver is not None:
+            if incomplete_routing_policy:
+                _park_execution(
+                    checkpoint=checkpoint,
+                    manager=mgr,
+                    kind="ledger_reconciliation_required",
+                    reason="Vendor-limit attempt is missing a durable policy action",
+                )
+                return False
             prepared = [
                 attempt
                 for attempt in checkpoint.routing_attempts
@@ -1306,7 +1458,9 @@ def _execute_item_phases(
                     )
                     return False
                 outcome, _ = _normalize_outcome(reconciled)
-                if outcome != "success" and not outcome.startswith("vendor_limit:"):
+                is_vendor_limit = outcome.startswith("vendor_limit:")
+                is_failed = outcome.startswith("failed:")
+                if outcome != "success" and not is_vendor_limit and not is_failed:
                     _park_execution(
                         checkpoint=checkpoint,
                         manager=mgr,
@@ -1314,9 +1468,25 @@ def _execute_item_phases(
                         reason="Prepared routed attempt has no terminal ledger result",
                     )
                     return False
-                expected_status = (
-                    "completed" if outcome == "success" else "vendor_limit"
-                )
+                expected_status = "completed"
+                failure_reason = None
+                policy_decision = None
+                policy_resume_at = None
+                if is_vendor_limit:
+                    expected_status = "vendor_limit"
+                    parts = outcome.split(":", 2)
+                    vendor = parts[1] if len(parts) > 1 else "unknown"
+                    reason = parts[2] if len(parts) > 2 else "rate limit"
+                    policy_decision = _routing_policy_decision(
+                        roadmap,
+                        vendor=vendor,
+                        reason=reason,
+                        switch_count=routed_switch_count,
+                    )
+                    policy_resume_at = _capacity_reset_at(reconciled)
+                elif is_failed:
+                    expected_status = "failed"
+                    failure_reason = outcome[len("failed:"):]
                 try:
                     observed_agent_id = _finish_routing_attempt(
                         checkpoint=checkpoint,
@@ -1324,6 +1494,9 @@ def _execute_item_phases(
                         routing=attempt,
                         result=reconciled,
                         expected_ledger_status=expected_status,
+                        failure_reason=failure_reason,
+                        policy_decision=policy_decision,
+                        policy_resume_at=policy_resume_at,
                     )
                 except (StopIteration, ValueError):
                     _park_execution(
@@ -1335,18 +1508,82 @@ def _execute_item_phases(
                     return False
                 if outcome == "success":
                     continue
-                attempts = switch_attempts.get(item_id, 0)
-                if attempts >= roadmap.policy.max_switch_attempts_per_item:
+                if is_failed:
+                    _fail(failure_reason or "Routed attempt failed")
+                    return False
+                decision = policy_decision
+                if decision is None:
                     _park_execution(
                         checkpoint=checkpoint,
                         manager=mgr,
-                        kind="routing_switch_cap",
-                        reason="Routing switch retry cap exhausted during resume",
+                        kind="ledger_reconciliation_mismatch",
+                        reason="Vendor-limit result has no policy decision",
                     )
                     return False
-                switch_attempts[item_id] = attempts + 1
+                policy_decisions.append({
+                    "item_id": item_id,
+                    "phase": phase.value,
+                    "decision": {
+                        "action": decision.action,
+                        "reason": decision.reason,
+                        "from_vendor": decision.from_vendor,
+                        "to_vendor": decision.to_vendor,
+                        "to_agent_id": decision.to_agent_id,
+                        "expected_cost_delta_usd": decision.expected_cost_delta_usd,
+                        "cost_guard": decision.cost_guard,
+                        "legacy_provider_scope": False,
+                        "durable_persistence": "routing_attempt_ledger",
+                    },
+                })
+                if on_policy_decision:
+                    on_policy_decision(decision)
+                logger.info(
+                    "policy.applied: item=%s action=%s vendor=%s reason=%s cost_delta=%s",
+                    item_id,
+                    decision.action,
+                    decision.from_vendor,
+                    decision.reason,
+                    decision.expected_cost_delta_usd,
+                )
+
+                if decision.action == "wait":
+                    return False
+                if decision.action == "fail_closed":
+                    # _finish_routing_attempt committed the pause and
+                    # escalation atomically with the terminal ledger record.
+                    return False
+
+                routed_switch_count += 1
                 routed_exclusions.append(observed_agent_id)
 
+            if (
+                routed_switch_count > roadmap.policy.max_switch_attempts_per_item
+                or (
+                    prior_routing_fail_closed
+                    and (
+                        roadmap.policy.cost_ceiling_usd is not None
+                        or routed_switch_count
+                        >= roadmap.policy.max_switch_attempts_per_item
+                    )
+                )
+            ):
+                reason = (
+                    "Configured routing cost ceiling still cannot be evaluated; "
+                    "remove or change the ceiling before resuming"
+                    if prior_routing_fail_closed
+                    and roadmap.policy.cost_ceiling_usd is not None
+                    else (
+                        "Routing switch retry cap remains exhausted; "
+                        "increase the item policy limit before resuming"
+                    )
+                )
+                _park_execution(
+                    checkpoint=checkpoint,
+                    manager=mgr,
+                    kind="routing_switch_cap",
+                    reason=reason,
+                )
+                return False
 
         while True:
             if not _before_host_dispatch(
@@ -1378,6 +1615,16 @@ def _execute_item_phases(
                     if resolved is None:
                         raise ValueError("resolver returned no routing decision")
                     routing = _validated_routing_decision(resolved)
+                    prior_decision_ids = {
+                        str(attempt.get("decision_id"))
+                        for attempt in checkpoint.routing_attempts
+                        if attempt.get("item_id") == item_id
+                        and attempt.get("phase") == phase.value
+                    }
+                    if routing["decision_id"] in prior_decision_ids:
+                        raise ValueError(
+                            "resolver reused a routing decision for the same item phase"
+                        )
                     routed_agent_id = str(routing["assignment"]["agent_id"])
                     if routed_agent_id in routed_exclusions:
                         raise ValueError("resolver returned an excluded routing lane")
@@ -1388,7 +1635,12 @@ def _execute_item_phases(
                         phase.value,
                         type(exc).__name__,
                     )
-                    _fail(f"Routing resolution failed: {type(exc).__name__}")
+                    _park_execution(
+                        checkpoint=checkpoint,
+                        manager=mgr,
+                        kind="routing_resolution_failed",
+                        reason=f"Routing resolution failed: {type(exc).__name__}",
+                    )
                     return False
                 context["routing"] = _prepare_routing_attempt(
                     roadmap_id=roadmap.roadmap_id,
@@ -1400,7 +1652,7 @@ def _execute_item_phases(
                 )
                 context["isolation"] = routing["assignment"]["isolation"]
 
-            dispatch_result = dispatch(item_id, phase.value, context)
+            dispatch_result = dispatch(item_id, phase.value, copy.deepcopy(context))
             outcome, replan_signal = _normalize_outcome(dispatch_result)
             dispatch_metadata = (
                 dispatch_result if isinstance(dispatch_result, Mapping) else {}
@@ -1411,11 +1663,27 @@ def _execute_item_phases(
             )
             capacity_reset_at = _capacity_reset_at(dispatch_metadata)
             if routing_resolver is not None and (
-                outcome == "success" or outcome.startswith("vendor_limit:")
+                outcome == "success"
+                or outcome.startswith("vendor_limit:")
+                or outcome.startswith("failed:")
             ):
-                expected_status = (
-                    "completed" if outcome == "success" else "vendor_limit"
-                )
+                expected_status = "completed"
+                failure_reason = None
+                policy_decision = None
+                if outcome.startswith("vendor_limit:"):
+                    expected_status = "vendor_limit"
+                    parts = outcome.split(":", 2)
+                    vendor = parts[1] if len(parts) > 1 else "unknown"
+                    reason = parts[2] if len(parts) > 2 else "rate limit"
+                    policy_decision = _routing_policy_decision(
+                        roadmap,
+                        vendor=vendor,
+                        reason=reason,
+                        switch_count=routed_switch_count,
+                    )
+                elif outcome.startswith("failed:"):
+                    expected_status = "failed"
+                    failure_reason = outcome[len("failed:"):]
                 try:
                     observed_agent_id = _finish_routing_attempt(
                         checkpoint=checkpoint,
@@ -1423,19 +1691,72 @@ def _execute_item_phases(
                         routing=context["routing"],
                         result=dispatch_metadata,
                         expected_ledger_status=expected_status,
+                        failure_reason=failure_reason,
+                        policy_decision=policy_decision,
+                        policy_resume_at=capacity_reset_at,
                     )
                 except (StopIteration, ValueError) as exc:
                     _fail(f"Routing completion rejected: {type(exc).__name__}")
                     return False
 
                 if outcome.startswith("vendor_limit:"):
-                    attempts = switch_attempts.get(item_id, 0)
-                    if attempts >= roadmap.policy.max_switch_attempts_per_item:
-                        _fail("Routing switch retry cap exhausted")
+                    decision = policy_decision
+                    if decision is None:
+                        _fail("Vendor-limit result has no policy decision")
                         return False
-                    switch_attempts[item_id] = attempts + 1
+                    policy_decisions.append({
+                        "item_id": item_id,
+                        "phase": phase.value,
+                        "decision": {
+                            "action": decision.action,
+                            "reason": decision.reason,
+                            "from_vendor": decision.from_vendor,
+                            "to_vendor": decision.to_vendor,
+                            "to_agent_id": decision.to_agent_id,
+                            "expected_cost_delta_usd": decision.expected_cost_delta_usd,
+                            "cost_guard": decision.cost_guard,
+                            "legacy_provider_scope": False,
+                            "durable_persistence": "routing_attempt_ledger",
+                        },
+                    })
+                    if on_policy_decision:
+                        on_policy_decision(decision)
+                    logger.info(
+                        "policy.applied: item=%s action=%s vendor=%s reason=%s cost_delta=%s",
+                        item_id,
+                        decision.action,
+                        decision.from_vendor,
+                        decision.reason,
+                        decision.expected_cost_delta_usd,
+                    )
+
+                    if decision.action == "wait":
+                        return False
+                    if decision.action == "fail_closed":
+                        # _finish_routing_attempt committed the pause and
+                        # escalation atomically with the terminal ledger record.
+                        return False
+
+                    routed_switch_count += 1
                     routed_exclusions.append(observed_agent_id)
                     continue
+
+
+            if routing_resolver is not None and not (
+                outcome == "success"
+                or outcome.startswith("vendor_limit:")
+                or outcome.startswith("failed:")
+            ):
+                try:
+                    _reject_routing_attempt(
+                        checkpoint=checkpoint,
+                        manager=mgr,
+                        routing=context["routing"],
+                        reason=f"unknown_outcome:{outcome}",
+                    )
+                except StopIteration:
+                    _fail("Routing attempt record missing")
+                    return False
 
 
             if outcome == "success":

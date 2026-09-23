@@ -62,7 +62,7 @@
         "routing_decision_id": { "type": "string", "minLength": 1 },
         "dispatch_work_id": { "type": "string", "minLength": 1 },
         "observed_agent_id": { "type": "string", "minLength": 1 },
-        "ledger_status": { "enum": ["completed", "vendor_limit"] }
+        "ledger_status": { "enum": ["completed", "vendor_limit", "failed"] }
       },
       "additionalProperties": false
     }

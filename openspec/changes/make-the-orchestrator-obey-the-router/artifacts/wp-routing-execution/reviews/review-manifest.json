@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-23T21:55:58Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.8-flash-high",
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 320.8273329590447,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 67.45722721097991,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 125.73780707782134,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 70.99207564070821,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 360.0149959712289,
+      "error": "Timeout after 360s",
+      "error_class": "transient",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 4,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-implementation.json",
+      "finding_count": 0,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 0,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 0,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 0,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    }
+  ]
+}

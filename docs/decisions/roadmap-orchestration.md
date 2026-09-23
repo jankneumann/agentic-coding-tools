@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-23 — make-the-orchestrator-obey-the-router
+
+### Phase: Implementation and Review
+
+**Make routed execution sticky and ledger-proven** — Any checkpoint with routing history now requires the resolver on every later item, while terminal policy outcomes and pause state are committed atomically.
+
+- Status: `active`
+- Source: [openspec/changes/make-the-orchestrator-obey-the-router/session-log.md](/openspec/changes/make-the-orchestrator-obey-the-router/session-log.md) (D1)
+
+---
+
+## 2026-09-23 — make-the-orchestrator-obey-the-router
+
+### Phase: Implementation and Review
+
+**Fail closed when routing cost cannot be evaluated** — A configured cost ceiling without authoritative estimate parks durably and remains parked until the policy changes.
+
+- Status: `active`
+- Source: [openspec/changes/make-the-orchestrator-obey-the-router/session-log.md](/openspec/changes/make-the-orchestrator-obey-the-router/session-log.md) (D2)
+
+---
+
 ## 2026-09-10 — 2026-09-10-add-cross-roadmap-readiness-resolver
 
 ### Phase: Cleanup

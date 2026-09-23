@@ -216,7 +216,9 @@
                 "no_progress_cap",
                 "ledger_reconciliation_required",
                 "ledger_reconciliation_mismatch",
-                "routing_switch_cap"
+                "routing_switch_cap",
+                "routing_resolution_failed",
+                "routing_wait_resume_required"
               ]
             },
             "reason": { "type": "string", "minLength": 1 },
@@ -231,6 +233,7 @@
       "default": {}
     }
   },
+  "$defs": {
     "routing_dispatch_attempt": {
       "type": "object",
       "required": [
@@ -281,11 +284,11 @@
         },
         "prepared_at": { "type": "string", "format": "date-time" },
         "resolved_at": { "type": "string", "format": "date-time" },
-        "failure_reason": { "type": "string", "minLength": 1 }
+        "failure_reason": { "type": "string", "minLength": 1 },
+        "policy_action": { "enum": ["wait", "switch", "fail_closed"] }
       },
       "additionalProperties": false
     },
-  "$defs": {
     "delegated_dispatch_attempt": {
       "type": "object",
       "additionalProperties": false,

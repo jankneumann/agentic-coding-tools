@@ -24,7 +24,7 @@
   - Reset only on a durable item/phase/ledger transition; cover restart behavior and bounded switch retries.
   - Depends on: 1, 3.
 
-- [ ] 5. Validate the contract end to end and update evidence.
+- [x] 5. Validate the contract end to end and update evidence.
   - Add focused unit and integration coverage for decision injection, isolation preservation, alternate completion, mismatch/ledger failure, cap/no-progress, and restart idempotency.
   - Run strict OpenSpec, package/context validation, focused and full relevant suites, then independent implementation review.
   - Depends on: 2, 3, 4.
