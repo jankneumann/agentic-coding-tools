@@ -37,3 +37,8 @@
 ### Context
 Plan to make ROUTING_ADAPTIVE safe to enable: the live catalog has no priors/prices/latency, so every candidate ties and sort order plus unbudgeted 10% exploration would replace tuned static models with arbitrary ones. Selected server-side incumbent retention in select_model: the static model is kept unless an evidenced challenger beats it by ROUTING_INCUMBENT_MARGIN (default 0.05); exploration is evidenced-only; every outcome is persisted as a retention reason.
 
+
+### Plan Approval (2026-09-23)
+
+- Gate 1: Approach 1 (server-side incumbent retention) selected without modification.
+- Gate 2: plan approved as committed in bf751e9e; 16 coordinator task issues seeded (label `change:retain-static-model-until-routing-evidence`).
