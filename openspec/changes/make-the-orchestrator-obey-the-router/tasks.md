@@ -19,7 +19,7 @@
   - Require terminal ledger completion to echo the active decision/attempt/lane; reject mismatches and unavailable ledger states.
   - Depends on: 1, 2.
 
-- [ ] 4. Add resumable loop-safety guards.
+- [x] 4. Add resumable loop-safety guards.
   - Persist global iteration count, durable-progress fingerprint, consecutive no-progress count, and escalation record; checkpoint before parking/escalating.
   - Reset only on a durable item/phase/ledger transition; cover restart behavior and bounded switch retries.
   - Depends on: 1, 3.

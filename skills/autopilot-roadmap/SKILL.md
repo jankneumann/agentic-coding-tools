@@ -114,6 +114,12 @@ attempt before calling `dispatch_fn`. `None`, an exception, or malformed assignm
 fails closed. A static provider/model may be bound by the host only when it comes from
 declared configuration; do not synthesize a fallback lane in the state machine.
 
+On resume, the host must also supply a `routing_reconciler` that reads the
+coordinator ledger for any checkpointed `prepared` attempt. An unavailable or
+mismatched result parks with a durable escalation before a new submission. The
+default global guard allows 1000 dispatches and three unchanged durable-progress
+fingerprints; hosts may lower these positive caps for bounded runs.
+
 ### 2. Select Next Ready Item
 
 The orchestrator queries `roadmap.ready_items()` to find items whose dependencies are all completed and whose status is `approved`. Items are processed in priority order (lower number = higher priority).

@@ -189,8 +189,102 @@
         "$ref": "#/$defs/delegated_dispatch_attempt"
       },
       "default": []
+    },
+    "routing_attempts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/routing_dispatch_attempt"
+      },
+      "default": []
+    },
+    "execution_safety": {
+      "type": "object",
+      "properties": {
+        "iteration_count": { "type": "integer", "minimum": 0 },
+        "durable_progress_fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "consecutive_no_progress": { "type": "integer", "minimum": 0 },
+        "escalation": {
+          "type": "object",
+          "required": ["kind", "reason", "item_id", "phase", "created_at"],
+          "properties": {
+            "kind": {
+              "enum": [
+                "iteration_cap",
+                "no_progress_cap",
+                "ledger_reconciliation_required",
+                "ledger_reconciliation_mismatch",
+                "routing_switch_cap"
+              ]
+            },
+            "reason": { "type": "string", "minLength": 1 },
+            "item_id": { "type": "string", "minLength": 1 },
+            "phase": { "type": "string", "minLength": 1 },
+            "created_at": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "default": {}
     }
   },
+    "routing_dispatch_attempt": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "decision_id",
+        "item_id",
+        "phase",
+        "attempt",
+        "dispatch_work_id",
+        "assignment",
+        "status",
+        "prepared_at"
+      ],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "decision_id": { "type": "string", "minLength": 1 },
+        "item_id": { "type": "string", "minLength": 1 },
+        "phase": {
+          "enum": ["planning", "implementing", "reviewing", "validating"]
+        },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "dispatch_work_id": { "type": "string", "minLength": 1 },
+        "assignment": {
+          "type": "object",
+          "required": [
+            "agent_id",
+            "vendor_type",
+            "location",
+            "isolation",
+            "dispatch_mode",
+            "model",
+            "endpoint_kind"
+          ],
+          "properties": {
+            "agent_id": { "type": "string", "minLength": 1 },
+            "vendor_type": { "type": "string", "minLength": 1 },
+            "location": { "type": "string", "minLength": 1 },
+            "isolation": { "enum": ["none", "worktree", "sandbox"] },
+            "dispatch_mode": { "type": "string", "minLength": 1 },
+            "model": { "type": "string", "minLength": 1 },
+            "endpoint_kind": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": true
+        },
+        "provenance": { "type": "object", "additionalProperties": true },
+        "status": {
+          "enum": ["prepared", "completed", "vendor_limit", "failed"]
+        },
+        "prepared_at": { "type": "string", "format": "date-time" },
+        "resolved_at": { "type": "string", "format": "date-time" },
+        "failure_reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
   "$defs": {
     "delegated_dispatch_attempt": {
       "type": "object",

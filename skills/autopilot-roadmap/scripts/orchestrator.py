@@ -128,6 +128,7 @@ IsolationResolver = Callable[[RoadmapItem], Mapping[str, Any]]
 RoutingResolver = Callable[
     [RoadmapItem, str, Mapping[str, Any]], Mapping[str, Any] | None
 ]
+RoutingReconciler = Callable[[Mapping[str, Any]], Mapping[str, Any] | None]
 _RESULT_REQUIRED = {
     "schema_version",
     "dispatch_id",
@@ -308,6 +309,87 @@ def _finish_routing_attempt(
     if not valid:
         raise ValueError("routing result does not match the active durable attempt")
     return str(expected["observed_agent_id"])
+def _durable_progress_fingerprint(checkpoint: Any) -> str:
+    payload = {
+        "current_item_id": checkpoint.current_item_id,
+        "phase": checkpoint.phase.value,
+        "completed_items": sorted(checkpoint.completed_items),
+        "failed_items": sorted(item.item_id for item in checkpoint.failed_items),
+        "routing_attempts": [
+            [attempt.get("dispatch_work_id"), attempt.get("status")]
+            for attempt in checkpoint.routing_attempts
+        ],
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _park_execution(
+    *,
+    checkpoint: Any,
+    manager: CheckpointManager,
+    kind: str,
+    reason: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    safety = dict(checkpoint.execution_safety)
+    safety["escalation"] = {
+        "kind": kind,
+        "reason": reason,
+        "item_id": checkpoint.current_item_id,
+        "phase": checkpoint.phase.value,
+        "created_at": now,
+    }
+    checkpoint.execution_safety = safety
+    checkpoint.pause_state = {
+        "paused": True,
+        "reason": reason,
+        "paused_at": now,
+    }
+    manager.save(checkpoint)
+
+
+def _before_host_dispatch(
+    *,
+    checkpoint: Any,
+    manager: CheckpointManager,
+    max_iterations: int,
+    max_no_progress: int,
+) -> bool:
+    safety = dict(checkpoint.execution_safety)
+    iterations = int(safety.get("iteration_count", 0))
+    if iterations >= max_iterations:
+        _park_execution(
+            checkpoint=checkpoint,
+            manager=manager,
+            kind="iteration_cap",
+            reason=f"Global dispatch iteration cap reached ({max_iterations})",
+        )
+        return False
+
+    fingerprint = _durable_progress_fingerprint(checkpoint)
+    previous = safety.get("durable_progress_fingerprint")
+    no_progress = int(safety.get("consecutive_no_progress", 0))
+    no_progress = no_progress + 1 if previous == fingerprint else 0
+    safety.update(
+        iteration_count=iterations + 1,
+        durable_progress_fingerprint=fingerprint,
+        consecutive_no_progress=no_progress,
+    )
+    checkpoint.execution_safety = safety
+    if no_progress >= max_no_progress:
+        _park_execution(
+            checkpoint=checkpoint,
+            manager=manager,
+            kind="no_progress_cap",
+            reason=f"Consecutive no-progress cap reached ({max_no_progress})",
+        )
+        return False
+    manager.save(checkpoint)
+    return True
+
+
+
 
 
 
@@ -942,6 +1024,9 @@ def execute_roadmap(
     agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None = None,
     routing_location: str | None = None,
     routing_resolver: RoutingResolver | None = None,
+    routing_reconciler: RoutingReconciler | None = None,
+    max_iterations: int = 1000,
+    max_no_progress: int = 3,
 ) -> dict[str, Any]:
     """Execute a roadmap from the given workspace.
 
@@ -965,6 +1050,13 @@ def execute_roadmap(
         Host-owned bridge adapter invoked before each dispatch. A supplied
         resolver must return a durable dg-04 decision with a canonical dg-05
         assignment; absence or malformed data fails closed before dispatch.
+    routing_reconciler:
+        Host-owned ledger lookup for a prepared routed attempt found on resume.
+        Missing, nonterminal, or mismatched evidence parks before redispatch.
+    max_iterations:
+        Positive global host-dispatch cap persisted in checkpoint safety state.
+    max_no_progress:
+        Positive cap for unchanged item/phase/correlated-ledger fingerprints.
 
     Returns
     -------
@@ -974,6 +1066,12 @@ def execute_roadmap(
     ``replan_requested`` and ``replan_request`` describes the handoff file.
     """
     dispatch = dispatch_fn or _default_dispatch
+    for name, value in (
+        ("max_iterations", max_iterations),
+        ("max_no_progress", max_no_progress),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ValueError(f"{name} must be a positive integer")
     registry = registry_provider or try_list_vendors
     policy_decisions: list[dict[str, Any]] = []
     gate_decisions: list[dict[str, Any]] = []
@@ -1076,6 +1174,9 @@ def execute_roadmap(
             agents_yaml_fallback=agents_yaml_fallback,
             routing_location=routing_location,
             routing_resolver=routing_resolver,
+            routing_reconciler=routing_reconciler,
+            max_iterations=max_iterations,
+            max_no_progress=max_no_progress,
         )
 
         if checkpoint.pause_state.get("paused"):
@@ -1134,6 +1235,9 @@ def _execute_item_phases(
     agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None,
     routing_location: str | None,
     routing_resolver: RoutingResolver | None,
+    routing_reconciler: RoutingReconciler | None,
+    max_iterations: int,
+    max_no_progress: int,
 ) -> bool:
     """Walk an item through its phases. Returns True if item completed."""
     start_idx = _ITEM_PHASES.index(start_phase) if start_phase in _ITEM_PHASES else 0
@@ -1162,8 +1266,81 @@ def _execute_item_phases(
         mgr.advance_phase(checkpoint, phase)
         selected_agent_id: str | None = None
         routed_exclusions: list[str] = []
+        if routing_resolver is not None:
+            prepared = [
+                attempt
+                for attempt in checkpoint.routing_attempts
+                if attempt.get("item_id") == item_id
+                and attempt.get("phase") == phase.value
+                and attempt.get("status") == "prepared"
+            ]
+            if prepared:
+                attempt = prepared[-1]
+                reconciled = (
+                    routing_reconciler(copy.deepcopy(attempt))
+                    if routing_reconciler is not None
+                    else None
+                )
+                if not isinstance(reconciled, Mapping):
+                    _park_execution(
+                        checkpoint=checkpoint,
+                        manager=mgr,
+                        kind="ledger_reconciliation_required",
+                        reason="Prepared routed attempt has no authoritative ledger result",
+                    )
+                    return False
+                outcome, _ = _normalize_outcome(reconciled)
+                if outcome != "success" and not outcome.startswith("vendor_limit:"):
+                    _park_execution(
+                        checkpoint=checkpoint,
+                        manager=mgr,
+                        kind="ledger_reconciliation_required",
+                        reason="Prepared routed attempt has no terminal ledger result",
+                    )
+                    return False
+                expected_status = (
+                    "completed" if outcome == "success" else "vendor_limit"
+                )
+                try:
+                    observed_agent_id = _finish_routing_attempt(
+                        checkpoint=checkpoint,
+                        manager=mgr,
+                        routing=attempt,
+                        result=reconciled,
+                        expected_ledger_status=expected_status,
+                    )
+                except (StopIteration, ValueError):
+                    _park_execution(
+                        checkpoint=checkpoint,
+                        manager=mgr,
+                        kind="ledger_reconciliation_mismatch",
+                        reason="Prepared routed attempt ledger proof did not match",
+                    )
+                    return False
+                if outcome == "success":
+                    continue
+                attempts = switch_attempts.get(item_id, 0)
+                if attempts >= roadmap.policy.max_switch_attempts_per_item:
+                    _park_execution(
+                        checkpoint=checkpoint,
+                        manager=mgr,
+                        kind="routing_switch_cap",
+                        reason="Routing switch retry cap exhausted during resume",
+                    )
+                    return False
+                switch_attempts[item_id] = attempts + 1
+                routed_exclusions.append(observed_agent_id)
+
 
         while True:
+            if not _before_host_dispatch(
+                checkpoint=checkpoint,
+                manager=mgr,
+                max_iterations=max_iterations,
+                max_no_progress=max_no_progress,
+            ):
+                return False
+
             context = {
                 "item_id": item_id,
                 "roadmap_id": roadmap.roadmap_id,
