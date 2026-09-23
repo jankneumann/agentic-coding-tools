@@ -42,14 +42,14 @@
 
 ## 3. Exploration gating
 
-- [ ] 3.1 Write failing tests: with an incumbent and fewer than 2 evidenced candidates, exploration
+- [x] 3.1 Write failing tests: with an incumbent and fewer than 2 evidenced candidates, exploration
   never fires across many seeded draws. With 2 or more evidenced candidates, every explored pick is
   evidenced and has reason `exploration-evidenced`. Without an incumbent, `choose()` output is
   unchanged for a fixed seed. [S]
   **Spec scenarios**: model-routing.8, model-routing.9
   **Design decisions**: D4
   **Dependencies**: 2.4
-- [ ] 3.2 Add an evidenced-only exploration pool to the `choose()` call path in
+- [x] 3.2 Add an evidenced-only exploration pool to the `choose()` call path in
   `model_routing/exploration.py`, without changing it when no incumbent is present. [S]
   **Dependencies**: 3.1
 
