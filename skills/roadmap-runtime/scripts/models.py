@@ -793,6 +793,7 @@ class Checkpoint:
     serial_indeterminate_items: list[str] = field(default_factory=list)
     dispatch_attempts: list[dict[str, Any]] = field(default_factory=list)
     routing_attempts: list[dict[str, Any]] = field(default_factory=list)
+    execution_safety: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -828,6 +829,8 @@ class Checkpoint:
             d["dispatch_attempts"] = json.loads(json.dumps(self.dispatch_attempts))
         if self.routing_attempts:
             d["routing_attempts"] = json.loads(json.dumps(self.routing_attempts))
+        if self.execution_safety:
+            d["execution_safety"] = json.loads(json.dumps(self.execution_safety))
         return d
 
     @classmethod
@@ -864,6 +867,7 @@ class Checkpoint:
                 for f in data.get("failed_items", [])
             ],
             routing_attempts=json.loads(json.dumps(routing_attempts)),
+            execution_safety=json.loads(json.dumps(data.get("execution_safety", {}))),
             vendor_state=data.get("vendor_state", {}),
             pause_state=data.get("pause_state", {}),
             serial_indeterminate_items=list(serial_indeterminate_items),

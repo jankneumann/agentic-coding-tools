@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import pytest
 
 import yaml
 from models import (
@@ -37,6 +38,36 @@ def _write_roadmap(workspace: Path, items: list[RoadmapItem] | None = None, **kw
     roadmap_path = workspace / "roadmap.yaml"
     roadmap_path.write_text(yaml.dump(roadmap.to_dict(), default_flow_style=False, sort_keys=False))
     return roadmap
+
+
+def _route_decision(agent_id: str = "codex-cloud", decision_id: str = "decision-1") -> dict:
+    return {
+        "decision_id": decision_id,
+        "assignment": {
+            "agent_id": agent_id,
+            "vendor_type": "openai",
+            "location": "cloud",
+            "isolation": "sandbox",
+            "dispatch_mode": "sdk",
+            "model": "gpt-test",
+            "endpoint_kind": "vendor-sdk",
+        },
+    }
+
+
+def _routed_result(context: dict, *, status: str = "completed") -> dict:
+    routing = context["routing"]
+    outcome = "success" if status == "completed" else "vendor_limit:openai:capacity"
+    return {
+        "outcome": outcome,
+        "routing_proof": {
+            "routing_decision_id": routing["decision_id"],
+            "dispatch_work_id": routing["dispatch_work_id"],
+            "observed_agent_id": routing["assignment"]["agent_id"],
+            "ledger_status": status,
+        },
+    }
+
 
 class TestExecutionOrder:
     """Verify items execute in dependency and priority order."""
@@ -883,3 +914,103 @@ def test_routed_vendor_limit_resolves_fresh_excluded_lane_on_same_phase(tmp_path
         "vendor_limit", "completed",
     ]
     assert result["completed_count"] == 1
+
+
+
+def test_routing_resume_parks_before_duplicate_when_ledger_is_unavailable(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        execute_roadmap(
+            tmp_path,
+            routing_resolver=lambda *_: _route_decision(),
+            dispatch_fn=lambda *_: (_ for _ in ()).throw(RuntimeError("simulated crash")),
+        )
+
+    dispatched: list[str] = []
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(decision_id="decision-new"),
+        routing_reconciler=lambda _attempt: None,
+        dispatch_fn=lambda _item, phase, _context: dispatched.append(phase) or "success",
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert dispatched == []
+    assert len(checkpoint["routing_attempts"]) == 1
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "ledger_reconciliation_required"
+    assert result["status"] == "paused"
+
+
+def test_global_iteration_cap_checkpoints_before_next_dispatch(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    dispatched: list[str] = []
+
+    def dispatch(_item, phase, context):
+        dispatched.append(phase)
+        return _routed_result(context)
+
+    result = execute_roadmap(
+        tmp_path,
+        routing_resolver=lambda *_: _route_decision(),
+        dispatch_fn=dispatch,
+        max_iterations=1,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert dispatched == ["planning"]
+    assert checkpoint["execution_safety"]["iteration_count"] == 1
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "iteration_cap"
+    assert result["status"] == "paused"
+
+
+
+def test_no_progress_cap_checkpoints_before_repeating_same_phase(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[
+            RoadmapItem(
+                "ri-01",
+                "Item",
+                ItemStatus.APPROVED,
+                1,
+                Effort.S,
+                capability="queue",
+            )
+        ],
+        policy=Policy(default_action=PolicyAction.SWITCH, preferred_vendor="codex"),
+    )
+    dispatched: list[str] = []
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=lambda _item, phase, _context: (
+            dispatched.append(phase)
+            or ("success" if phase == "planning" else {
+                "outcome": "vendor_limit:codex:capacity",
+                "agent_id": "codex-primary",
+            })
+        ),
+        registry_provider=lambda **_: {
+            "status": "ok",
+            "response": {
+                "vendors": [
+                    _registry_lane("codex-primary", "codex"),
+                    _registry_lane("codex-alt", "codex"),
+                ]
+            },
+        },
+        max_no_progress=1,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert dispatched == ["planning", "implementing"]
+    assert checkpoint["execution_safety"]["consecutive_no_progress"] == 1
+    assert checkpoint["execution_safety"]["escalation"]["kind"] == "no_progress_cap"
+    assert result["status"] == "paused"
