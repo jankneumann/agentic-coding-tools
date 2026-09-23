@@ -6,8 +6,11 @@ Pure unit tests over the resolver's evidence predicate (D1) and retention rule
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
+from src.model_routing.exploration import ExplorationBudget, choose, choose_evidenced
 from src.model_routing.resolver import (
     CandidateInput,
     IncumbentIdentity,
@@ -186,3 +189,71 @@ def test_duplicate_incumbent_rows_use_the_best_score() -> None:
     # Against the SDK row's 0.6 prior the challenger's 0.62 is inside the margin.
     assert decision.reason == "below-margin"
     assert decision.selected is not None and decision.selected.endpoint_kind == "vendor-sdk"
+
+
+# ── D4: exploration restricted to evidenced candidates ───────────────────────
+
+def _ranked(*candidates: CandidateInput):
+    ranked, _ = score_and_rank(list(candidates))
+    return ranked
+
+
+def _find(ranked, model: str):
+    return next(c for c in ranked if c.model == model)
+
+
+@pytest.mark.parametrize(
+    "candidates",
+    [
+        # nothing evidenced
+        (_cand("claude_code", "fable"), _cand("codex", "terra"), _cand("grok", "grok-5")),
+        # exactly one evidenced candidate
+        (
+            _cand("claude_code", "fable"),
+            _cand("codex", "terra", prior=0.3),
+            _cand("grok", "grok-5"),
+        ),
+    ],
+)
+def test_exploration_never_fires_with_fewer_than_two_evidenced(candidates) -> None:
+    ranked = _ranked(*candidates)
+    base = _find(ranked, "fable")
+    for seed in range(200):
+        selection = choose_evidenced(base, ranked, epsilon=1.0, rng=random.Random(seed))
+        assert selection.exploration is False
+        assert selection.selected == base
+
+
+def test_exploration_picks_only_evidenced_non_base_candidates() -> None:
+    ranked = _ranked(
+        _cand("claude_code", "fable"),
+        _cand("codex", "terra", prior=0.2),
+        _cand("antigravity", "gemini", prior=0.1),
+        _cand("grok", "grok-5"),
+    )
+    base = _find(ranked, "fable")
+    picks = set()
+    for seed in range(200):
+        selection = choose_evidenced(base, ranked, epsilon=1.0, rng=random.Random(seed))
+        assert selection.exploration is True
+        assert selection.selected.evidenced and selection.selected != base
+        picks.add(selection.selected.model)
+    assert picks == {"terra", "gemini"}
+
+
+def test_evidenced_exploration_respects_the_existing_gates() -> None:
+    ranked = _ranked(
+        _cand("claude_code", "fable", prior=0.5), _cand("codex", "terra", prior=0.2)
+    )
+    base = _find(ranked, "fable")
+    assert choose_evidenced(base, ranked, allow_exploration=False, epsilon=1.0).exploration is False
+    exhausted = ExplorationBudget(pct_used=0.2, pct_cap=0.1)
+    assert choose_evidenced(base, ranked, budget=exhausted, epsilon=1.0).exploration is False
+
+
+def test_choose_is_unchanged_without_an_incumbent() -> None:
+    # choose() itself is untouched: same pool, same seed, same outcome as before.
+    ranked = _ranked(_cand("antigravity", "a"), _cand("codex", "b"), _cand("grok", "c"))
+    outcomes = [choose(ranked, epsilon=0.5, rng=random.Random(s)) for s in range(50)]
+    assert any(o.exploration for o in outcomes)
+    assert all(o.selected in ranked for o in outcomes)
