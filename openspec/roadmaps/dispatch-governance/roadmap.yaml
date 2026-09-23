@@ -79,7 +79,7 @@ items:
   - Cloud sessions no longer leak locks
 - item_id: dg-03
   title: Widen execution-environment detection to an isolation posture
-  status: approved
+  status: completed
   priority: 1
   effort: S
   depends_on: []
