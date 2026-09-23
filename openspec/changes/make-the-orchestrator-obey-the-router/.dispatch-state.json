@@ -1,0 +1,7 @@
+{
+  "change_id": "make-the-orchestrator-obey-the-router",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "codex"
+  ]
+}

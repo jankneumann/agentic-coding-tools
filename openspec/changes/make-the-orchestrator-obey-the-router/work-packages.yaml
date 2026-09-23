@@ -1,0 +1,72 @@
+schema_version: 1
+feature:
+  id: make-the-orchestrator-obey-the-router
+  title: "Router-governed roadmap execution"
+  plan_revision: 1
+  created_by: codex
+  deployable: false
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/make-the-orchestrator-obey-the-router/contracts/routing-dispatch-context.schema.json"
+    files:
+      - "openspec/changes/make-the-orchestrator-obey-the-router/contracts/routing-dispatch-context.schema.json"
+      - "openspec/schemas/checkpoint.schema.json"
+defaults:
+  priority: 1
+  lock_ttl_minutes: 180
+  timeout_minutes: 240
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+  - package_id: wp-routing-execution
+    title: "Route-bound dispatch, retries, and loop safety"
+    task_type: integration
+    description: "Wire validated router decisions through host dispatch, require ledger-correlated completion, and persist bounded-loop safety state."
+    role: backend-implementer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "openspec/schemas/checkpoint.schema.json"
+      keys:
+        - "feature:autopilot_roadmap:routing"
+        - "contract:roadmap-checkpoint:execution-safety"
+      ttl_minutes: 240
+      reason: "The dispatch state machine and checkpoint counters must evolve atomically"
+    scope:
+      write_allow:
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json"
+        - "skills/tests/autopilot-roadmap/**"
+        - "skills/tests/roadmap-runtime/**"
+        - "openspec/schemas/checkpoint.schema.json"
+        - "openspec/changes/make-the-orchestrator-obey-the-router/**"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities, documentation, semantic_code]}
+    worktree: {name: make-the-orchestrator-obey-the-router, mode: isolated}
+    timeout_minutes: 240
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Roadmap orchestrator and runtime tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap skills/tests/roadmap-runtime -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [roadmap_routing_tests]}
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate make-the-orchestrator-obey-the-router --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [openspec_validation]}
+    outputs: {result_keys: [roadmap_routing_tests, openspec_validation]}

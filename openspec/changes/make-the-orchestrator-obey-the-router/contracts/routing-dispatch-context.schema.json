@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/routing-dispatch-context.schema.json",
+  "title": "RoutingDispatchContext",
+  "description": "Immutable router decision and completion-proof contract for one roadmap host dispatch.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "decision_id",
+    "item_id",
+    "phase",
+    "attempt",
+    "dispatch_work_id",
+    "assignment"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "decision_id": { "type": "string", "minLength": 1 },
+    "item_id": { "type": "string", "minLength": 1 },
+    "phase": {
+      "enum": ["planning", "implementing", "reviewing", "validating"]
+    },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "dispatch_work_id": { "type": "string", "minLength": 1 },
+    "assignment": { "$ref": "#/$defs/assignment" },
+    "provenance": { "type": "object", "additionalProperties": true }
+  },
+  "$defs": {
+    "assignment": {
+      "type": "object",
+      "required": [
+        "agent_id",
+        "vendor_type",
+        "location",
+        "isolation",
+        "dispatch_mode",
+        "model",
+        "endpoint_kind"
+      ],
+      "properties": {
+        "agent_id": { "type": "string", "minLength": 1 },
+        "vendor_type": { "type": "string", "minLength": 1 },
+        "policy_vendor": { "type": ["string", "null"] },
+        "catalog_vendor": { "type": ["string", "null"] },
+        "location": { "type": "string", "minLength": 1 },
+        "isolation": { "enum": ["none", "worktree", "sandbox"] },
+        "dispatch_mode": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "endpoint_kind": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "completion_proof": {
+      "type": "object",
+      "required": [
+        "routing_decision_id",
+        "dispatch_work_id",
+        "observed_agent_id",
+        "ledger_status"
+      ],
+      "properties": {
+        "routing_decision_id": { "type": "string", "minLength": 1 },
+        "dispatch_work_id": { "type": "string", "minLength": 1 },
+        "observed_agent_id": { "type": "string", "minLength": 1 },
+        "ledger_status": { "const": "completed" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
