@@ -230,6 +230,11 @@ def _validated_routing_decision(value: Mapping[str, Any]) -> dict[str, Any]:
     required = {"agent_id", "vendor_type", "location", "isolation", "dispatch_mode", "model", "endpoint_kind"}
     if not required.issubset(assignment):
         raise ValueError("routing assignment is missing required fields")
+    if any(
+        not isinstance(assignment[field], str) or not assignment[field]
+        for field in required
+    ):
+        raise ValueError("routing assignment fields must be non-empty strings")
     isolation = assignment.get("isolation")
     if isolation not in {"none", "worktree", "sandbox"}:
         raise ValueError("routing assignment has invalid isolation")
@@ -293,8 +298,10 @@ def _finish_routing_attempt(
         "observed_agent_id": assignment["agent_id"],
         "ledger_status": expected_ledger_status,
     }
-    valid = isinstance(proof, Mapping) and all(
-        proof.get(key) == value for key, value in expected.items()
+    valid = (
+        isinstance(proof, Mapping)
+        and set(proof) == set(expected)
+        and all(proof.get(key) == value for key, value in expected.items())
     )
     record = next(
         attempt
@@ -1276,11 +1283,20 @@ def _execute_item_phases(
             ]
             if prepared:
                 attempt = prepared[-1]
-                reconciled = (
-                    routing_reconciler(copy.deepcopy(attempt))
-                    if routing_reconciler is not None
-                    else None
-                )
+                try:
+                    reconciled = (
+                        routing_reconciler(copy.deepcopy(attempt))
+                        if routing_reconciler is not None
+                        else None
+                    )
+                except Exception:
+                    logger.warning(
+                        "item.routing_reconciliation_failed: item=%s phase=%s",
+                        item_id,
+                        phase.value,
+                        exc_info=True,
+                    )
+                    reconciled = None
                 if not isinstance(reconciled, Mapping):
                     _park_execution(
                         checkpoint=checkpoint,
