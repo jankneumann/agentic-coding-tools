@@ -120,6 +120,17 @@ updates:
     labels:
       - "dependencies"
 
+  # Pinned SRT wrapper used by the dispatch-sandbox runtime.
+  - package-ecosystem: "npm"
+    directory: "/tools/sandbox-runtime"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "security"
+
   # packages/* Python distributions
   #
   # These four grew after the pip entries above were written, and inherited
@@ -188,4 +199,3 @@ updates:
     labels:
       - "dependencies"
       - "rust"
-

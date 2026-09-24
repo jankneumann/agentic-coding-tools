@@ -154,7 +154,7 @@ def _grok_adapter() -> CliVendorAdapter:
     )
 
 
-@patch("review_dispatcher.subprocess.run")
+@patch("review_dispatcher._run_cli_process")
 def test_dispatch_conforming_findings_succeed(mock_run: MagicMock, tmp_path: Path) -> None:
     import subprocess as _sp
 
@@ -167,7 +167,7 @@ def test_dispatch_conforming_findings_succeed(mock_run: MagicMock, tmp_path: Pat
     assert len(result.findings["findings"]) == 1
 
 
-@patch("review_dispatcher.subprocess.run")
+@patch("review_dispatcher._run_cli_process")
 def test_dispatch_missing_required_field_fails(mock_run: MagicMock, tmp_path: Path) -> None:
     import subprocess as _sp
 
@@ -182,7 +182,7 @@ def test_dispatch_missing_required_field_fails(mock_run: MagicMock, tmp_path: Pa
     assert "schema validation" in (result.error or "")
 
 
-@patch("review_dispatcher.subprocess.run")
+@patch("review_dispatcher._run_cli_process")
 def test_dispatch_wrong_enum_fails(mock_run: MagicMock, tmp_path: Path) -> None:
     import subprocess as _sp
 
