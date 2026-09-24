@@ -96,14 +96,14 @@
 
 ## 5. Client delegation
 
-- [ ] 5.1 Write failing delegation tests in `tests/model_routing/test_delegation.py`: the incumbent
+- [x] 5.1 Write failing delegation tests in `tests/model_routing/test_delegation.py`: the incumbent
   is forwarded with `catalog_vendor` (including pi → `openrouter`) or `vendor: null` when the provider
   is unknown. Retention returns the identical static object (`is`), and a non-retained selection
   builds the adaptive result. The existing flag-off, error and timeout tests stay green. [S]
   **Spec scenarios**: agent-archetypes.1, agent-archetypes.2, agent-archetypes.4, agent-archetypes.5
   **Design decisions**: D2, D6
   **Dependencies**: 4.2
-- [ ] 5.2 Forward the incumbent in `resolve_phase_model` (`model_routing/api.py`) and
+- [x] 5.2 Forward the incumbent in `resolve_phase_model` (`model_routing/api.py`) and
   `resolve_archetype_for_phase` (`agents_config.py`), and return the static object on retention. [S]
   **Dependencies**: 5.1
 - [ ] 5.3 Write an end-to-end "empty evidence changes no phase" test: an in-process service with a

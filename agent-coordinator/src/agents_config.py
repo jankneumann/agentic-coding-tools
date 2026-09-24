@@ -2698,12 +2698,36 @@ def _adaptive_task_signals(
     }
 
 
+def _catalog_vendor_for_provider(provider: str) -> str:
+    """The model-catalog vendor name for an agent type (e.g. ``pi`` → ``openrouter``).
+
+    Falls back to the provider string itself when no configured agent of that
+    type declares one; a wrong guess can only fail to match a catalog row, which
+    the router treats as ``incumbent-unresolved`` and keeps the static model.
+    """
+    declared = {
+        agent.catalog_vendor
+        for agent in get_agents_config()
+        if agent.type == provider and agent.catalog_vendor
+    }
+    return declared.pop() if len(declared) == 1 else provider
+
+
+def _static_incumbent(static: ResolvedArchetype, provider: str | None) -> dict[str, Any]:
+    """The static resolution, as the router's incumbent (design D2)."""
+    return {
+        "vendor": _catalog_vendor_for_provider(provider) if provider else None,
+        "model": static.model,
+    }
+
+
 def _bounded_adaptive_resolution(
     *,
     task_signals: dict[str, Any],
     static_model: str,
     provider: str | None,
     timeout_seconds: float,
+    incumbent: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Call the synchronous adaptive seam without exceeding the fallback SLA."""
     import queue
@@ -2723,6 +2747,7 @@ def _bounded_adaptive_resolution(
                         static_model=static_model,
                         provider=provider,
                         timeout_seconds=timeout_seconds,
+                        incumbent=incumbent,
                     ),
                 )
             )
@@ -2768,7 +2793,12 @@ def resolve_archetype_for_phase(
             static_model=static.model,
             provider=provider,
             timeout_seconds=timeout_seconds,
+            incumbent=_static_incumbent(static, provider),
         )
+        retention = routed.get("retention")
+        if isinstance(retention, dict) and retention.get("retained") is True:
+            # The router kept the incumbent: a normal outcome, not a fallback.
+            return static
         selected = routed.get("selected")
         if not isinstance(selected, dict):
             raise ValueError("adaptive response has no selected candidate")
