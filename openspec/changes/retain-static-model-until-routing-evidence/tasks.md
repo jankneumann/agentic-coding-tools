@@ -68,11 +68,11 @@
   field, margin knob, retention step, `retention` payload, nullable `selected`, and decision
   persistence on both the plain and assignment paths. [M]
   **Dependencies**: 4.1
-- [ ] 4.3 Write failing MCP and HTTP parity tests for `incumbent` on `select_model_for_task`
+- [x] 4.3 Write failing MCP and HTTP parity tests for `incumbent` on `select_model_for_task`
   (`coordination_mcp.py`) and `proxy_select_model_for_task` (`http_proxy.py`). [S]
   **Spec scenarios**: model-routing.1
   **Dependencies**: 4.2
-- [ ] 4.4 Add the `incumbent` parameter to the MCP tool and the HTTP proxy. [S]
+- [x] 4.4 Add the `incumbent` parameter to the MCP tool and the HTTP proxy. [S]
   **Dependencies**: 4.3
 - [ ] 4.5 Write a failing static test for migration 044: it adds nullable `retention`, drops
   NOT NULL on `selected` behind the `selected IS NOT NULL OR retention IS NOT NULL` CHECK, and

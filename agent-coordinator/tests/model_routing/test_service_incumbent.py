@@ -314,3 +314,71 @@ def test_http_select_model_serializes_null_selected_with_retention(client: TestC
     assert payload["retention"]["reason"] == "incumbent-unresolved"
     request = service.select_model.await_args.args[0]
     assert request.incumbent.model == "premium"
+
+
+# ── MCP / HTTP-proxy parity (task 4.3) ───────────────────────────────────────
+
+_SELECTION = {
+    "decision_id": "3f1b7c1e-9a3d-4f9d-8b1a-2c6e5d4a9b0c",
+    "selected": None,
+    "alternatives": [],
+    "exploration": False,
+    "fallback": False,
+    "excluded": [],
+}
+
+
+@pytest.mark.asyncio
+async def test_mcp_threads_incumbent_in_db_mode() -> None:
+    from src import coordination_mcp
+
+    service = AsyncMock()
+    service.select_model.return_value = _SELECTION
+    with (
+        patch.object(coordination_mcp, "_transport", "db"),
+        patch("src.model_routing.api.get_routing_service", return_value=service),
+    ):
+        await coordination_mcp.select_model_for_task(
+            task_signals={"archetype": "architect"}, incumbent=_INCUMBENT
+        )
+
+    request = service.select_model.await_args.args[0]
+    assert request.incumbent is not None
+    assert (request.incumbent.vendor, request.incumbent.model) == ("claude_code", "fable")
+
+
+@pytest.mark.asyncio
+async def test_mcp_threads_incumbent_in_proxy_mode() -> None:
+    from src import coordination_mcp
+
+    with (
+        patch.object(coordination_mcp, "_transport", "http"),
+        patch(
+            "src.coordination_mcp.http_proxy.proxy_select_model_for_task",
+            new=AsyncMock(return_value=_SELECTION),
+        ) as proxy,
+    ):
+        await coordination_mcp.select_model_for_task(
+            task_signals={"archetype": "architect"}, incumbent=_INCUMBENT
+        )
+
+    assert proxy.await_args.kwargs["incumbent"] == _INCUMBENT
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("incumbent", [None, _INCUMBENT])
+async def test_proxy_sends_incumbent_only_when_supplied(incumbent) -> None:
+    # An older coordinator's SelectModelRequest forbids unknown keys, so an
+    # absent incumbent must not appear in the body even as null.
+    from src import http_proxy
+
+    with patch.object(http_proxy, "_request", new=AsyncMock(return_value=_SELECTION)) as sent:
+        await http_proxy.proxy_select_model_for_task(
+            task_signals={"archetype": "architect"}, incumbent=incumbent
+        )
+
+    body = sent.await_args.kwargs["json_body"]
+    if incumbent is None:
+        assert "incumbent" not in body
+    else:
+        assert body["incumbent"] == _INCUMBENT
