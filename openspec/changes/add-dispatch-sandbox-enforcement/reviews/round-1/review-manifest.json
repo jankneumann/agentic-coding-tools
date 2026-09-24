@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-09-24T00:39:01Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.8-flash-high",
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 452.74554070085287,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 388.83353077294305,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 572.5223718229681,
+      "error": "{\n  \"findings\": [\n    {\n      \"id\": \"DSE-001\",\n      \"type\": \"spec_gap\",\n      \"criticality\": \"critical\",\n      \"description\": \"The change is not an implementation plan yet. `openspec/changes/add-dispatch-sandbox-enforcement/` contains only `proposal.md` and `specs/vendor-dispatch/spec.md`; `design.md`, `contracts/`, `tasks.md`, and `work-packages.yaml` are absent. The repository independently records this as \u201cdesign-ish / no tasks\u201d and \u201cmissing task decomposition\u201d at `openspec/priorities/latest",
+      "error_class": "vendor_unavailable",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 268.68237734306604,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 77.97001646319404,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a0d0ca-458a-7726-a370-3c0488601fb1\",\"timestamp\":\"2026-09-24T00:21:52.138Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/.review-snapshots/default/pi\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Review the implementation plan for OpenSpec change `add-dispatch-sandbox-enforcement`.\\n\\nRead every artifact under:\\n\\n- `openspec/changes/add-dispatch-sandbox",
+      "error_class": "vendor_unavailable",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-plan.json",
+      "finding_count": 4,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 13,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-plan.json",
+      "finding_count": 14,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    }
+  ]
+}

@@ -1,0 +1,163 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "architecture",
+      "disposition": "fix",
+      "file_path": "skills/autopilot/scripts/provider_dispatch.py",
+      "line_range": "39-66",
+      "description": "The plan never names the seam that carries the dg-06 routing decision into the two execution sinks, so the scenario 'Routed execution is not re-resolved' (specs/vendor-dispatch/spec.md:28-32) cannot be satisfied as tasked. PhaseDispatchPayload (provider_dispatch.py:39-66) has no decision_id, worktree_root, dispatch_mode, location, or source, yet DispatchExecutionContext requires worktree_root and source and is keyed by decision_id (contracts/dispatch-execution-context.schema.json:7-24). CliVendorAdapter.dispatch()/dispatch_async() (review_dispatcher.py:944-948, 1431-1435) accept no execution context at all. dg-06 attaches routing only to the roadmap host context (autopilot-roadmap/scripts/orchestrator.py:1653-1661), which the SKILL.md layer consumes, not these Python sinks. Tasks 4.2/4.3 say 'using its immutable payload' without a payload schema bump or an adapter kwarg. Specify: (a) PhaseDispatchPayload schema_version 2 carrying an embedded DispatchExecutionContext, (b) an explicit `execution_context` parameter on dispatch/dispatch_async/poll_for_result and the review CLI entry points, and (c) the rule for isolation=none passthrough when worktree_root is absent (today _run_local_agent_cli inherits cwd, provider_dispatch.py:497-504).",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md",
+      "line_range": "40-50",
+      "description": "Review mode renders `filesystem.allowWrite: []` and the only behavioral evidence (tasks.md:38-39) uses a controlled fixture, so real vendor CLIs are never exercised under the sandbox before rollout. SRT 0.0.77 leaves only /tmp/claude, ~/.npm/_logs and ~/.claude/debug writable by default; `claude -p` writes ~/.claude/projects and ~/.claude.json, `codex exec` writes ~/.codex/sessions and ~/.codex/log, `pi` writes ~/.pi. Under the planned review policy every real vendor lane will fail or degrade for a reason the plan does not anticipate, and the roadmap acceptance outcome (openspec/roadmaps/dispatch-governance/roadmap.yaml, dg-07 'observable restriction on a dispatched vendor CLI') requires a real CLI. Add a per-vendor writable-state inventory (authored in agents.yaml, not hard-coded in the renderer, consistent with D4), extend 5.1/5.2 with at least one real vendor CLI run, and state whether those state directories are writable in review mode or whether vendors must be launched with an isolated HOME/XDG state root under the runtime temp directory.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "compatibility",
+      "disposition": "escalate",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": "34-44",
+      "description": "D3 confines write-capable modes to the canonical worktree root and denies common Git metadata, but the per-worktree gitdir (<common>/.git/worktrees/<name>/ holding index, HEAD, ORIG_HEAD, logs) also lives outside the root. With bubblewrap read-only mounts, `git add`, `git commit`, `git stash`, and index refresh fail inside the sandbox. The repo's own conventions require implementers to make save-point commits (AGENTS.md git conventions; implement-feature/autopilot prompts), and the review snapshot fallback in review_dispatcher.py:2416-2458 assumes vendors can at least read a linked worktree whose `.git` file points outside the root. The plan says 'the host owns commit/merge' without changing any skill prompt or defining a host-side commit step. Decide explicitly: either grant the per-worktree gitdir plus objects/refs (accepting the shared-object risk D3 names) or add tasks to update implement-feature/autopilot/iterate prompts and the roadmap dispatch loop so sandboxed write-mode agents never attempt commits and the host commits after collection. Also note that `.git` inside a linked worktree root is a plain file the child can rewrite; add it to denyWrite.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json",
+      "line_range": "25-30",
+      "description": "The export grammar admits only a leading `*.` wildcard, but the authored table accepts `*` anywhere and matches via LIKE (agent-coordinator/database/migrations/009_network_policies.sql:12, 85-88), e.g. `*github.com` also matches `evilgithub.com`. The plan says a malformed snapshot renders deny-all (design.md:53-54) but does not say whether 'malformed' is per-rule or per-document. Dropping an unrenderable deny rule widens policy; failing the whole document on one unrenderable allow blocks every lane. Specify per-rule handling: unrenderable deny => deny-all (fail closed); unrenderable allow => omitted with a warning recorded in the export; and add a coordinator-side validation on write so new rules cannot enter the non-exportable grammar. Also define `policy_revision` concretely: network_policies has no updated_at or version column (009:9-18), so a revision string cannot detect enabled/priority edits; state that the digest is the only change detector or add a migration.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "resilience",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": "62-75",
+      "description": "Two environment questions are unresolved. (a) Which environment runs the fail-open 'original command'? D5 strips inherited HTTP(S)_PROXY/ALL_PROXY and loader variables; in a managed cloud harness the platform proxy is mandatory for egress, and SRT will always fail preflight there (no user namespaces, nested sandbox not configurable per D2). If the fallback reuses the sanitized env it breaks egress; the compatibility scenario (spec.md:16-20) requires byte-identical behavior. State that sanitization applies only when SRT is applied. (b) PATH policy: the pinned `srt` bin is a `#!/usr/bin/env node` shim (package.json bin -> dist/cli.js), vendor CLIs are node shims, and SRT locates bwrap/socat/rg via PATH. 'Absolute executable paths' plus a sanitized env is underspecified: either preserve a validated PATH or have preflight record absolute node/bwrap/socat/rg paths and launch `node /abs/dist/cli.js`. Note this host resolves node only from ~/.local/share/pi-node.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "resilience",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": "70-78",
+      "description": "Durable audit lacks idempotency. The outbox drain retries older entries on later calls, and a crash between a coordinator acknowledgement and the outbox entry removal replays the same event. audit_log has no uniqueness on an event id, and AuditService.log_operation with async_logging (agent-coordinator/src/audit.py:154-160) returns success before insertion, so task 2.4 must bypass it and define its own durability. Specify: the endpoint treats `event_id` (contracts/sandbox-execution-event.schema.json:20) as an idempotency key (unique index, 200 on replay), the outbox removes an entry only after acknowledgement, and the acknowledgement contract names the persisted row id. Also name the outbox location and its ownership: it must sit outside any worktree root a write-capable sandboxed child can reach and outside the repo checkout so it is never committed.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "skills/autopilot/scripts/provider_dispatch.py",
+      "line_range": "104-107",
+      "description": "The autopilot `local` provider is one of the two sinks the plan wraps, but its endpoint is env-authored (LOCAL_INFERENCE_BASE_URL, often a `.local` mDNS host, a private IP, or loopback, provider_dispatch.py:247-258) and never exists in coordinator policy. SRT's proxies additionally resolve hostnames and drop loopback/link-local/metadata addresses before dialing. Under isolation=sandbox the Pi harness can therefore never reach its model endpoint, and D4 (design.md:57-60) only discusses public vendor API domains. State either that `local` + sandbox fails closed with a named degradation reason until an authored private-endpoint rule (hostname:port, optional deniedResolvedAddresses exemption) exists, or add the authored-endpoint path for private hosts to the rollout inventory in 5.3.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "resilience",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": "1703-1719",
+      "description": "Async poll and cancel are required to go through the backend (spec.md:5-14), so a cold-start deny-all policy or coordinator outage makes every poll command fail. poll_for_result treats a nonzero poll exit as terminal and closes the completion ledger as failed (review_dispatcher.py:1703-1719), abandoning a vendor task that is still running remotely and cannot be collected. Either classify poll/cancel as control-plane (like discovery and health probes, spec.md:7-8) with a stated justification, or require the backend to distinguish 'sandbox denied egress' from a vendor status failure and have the poller retry until its deadline instead of finalizing the ledger.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "architecture",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "line_range": "150-186",
+      "description": "Work-package scope and verification do not cover tasks 5.1 and 5.2. wp-validation-docs may write only docs/** and openspec (166-171) but task 5.1 requires a controlled vendor fixture under skills/; its only verification step is `openspec validate --strict` (177-186), so no behavioral evidence is checked. wp-runtime's write_allow includes test_sandbox_profile_integration.py but its verification runs only test_sandbox_profile.py (96-105). The design requires 'at least one recorded capable-host pass' (design.md:121-123) yet CI is ubuntu-latest only (.github/workflows/ci.yml, all runs-on entries) with no macOS runner, and Ubuntu 24.04 restricts unprivileged user namespaces. Name the runner (or a self-hosted/manual job), the evidence artifact path the roadmap gate reads, and move the fixture into wp-runtime or widen wp-validation-docs scope.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "architecture",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": "80-86",
+      "description": "Runtime discovery is underspecified for the repo's runtime layout. The pin lives under tools/sandbox-runtime/** (work-packages.yaml:78, 87) but skills execute from copied runtime trees (.claude/skills/, .agents/skills/ per AGENTS.md), where a Path(__file__)-relative lookup resolves to a different root; the plan also does not name the explicit override variable, how integrity is checked at dispatch time (package.json version plus package-lock integrity hash of the installed tree), or how `npm ci` for the pin is wired into install.sh/CI. Define the resolution order (explicit absolute override -> repo root via `git rev-parse --show-toplevel` of the dispatcher's own checkout -> unavailable), the metadata checks, and the install step; otherwise every runtime copy will silently take the fail-open path.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "observability",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json",
+      "line_range": "18-45",
+      "description": "The execution context carries `location` (dispatch-execution-context.schema.json:20) and the proposal warns that wrapping a submission CLI does not sandbox the remote worker (proposal.md:93-94), but the audit event has no `location` or scope field, so consumers cannot distinguish 'local work sandboxed' from 'cloud submission command sandboxed'. Add `location` and an explicit `enforcement_scope` (execution | submission) to the event and to result metadata.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "architecture",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/tasks.md",
+      "line_range": "33",
+      "description": "The AST guard (task 4.4, design.md:118-119) has no definition of 'vendor subprocess sink'. 79 non-test skill files call subprocess, and review_dispatcher.py itself has legitimate non-vendor launches (git snapshot handling at 2376-2456, coordinator config query at 2751). Without a precise rule the guard is either noisy or trivially bypassed. Specify the rule: any subprocess/os.exec/asyncio subprocess call in review_dispatcher.py or provider_dispatch.py whose argv derives from cli_config.command, build_command(), poll command_template, or a vendor binary name, outside the backend module, plus an explicit allowlist for the git and coordinator helpers.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md",
+      "line_range": "46-50",
+      "description": "The scenario 'an attempted write inside or outside the worktree SHALL fail' is not literally achievable with SRT 0.0.77: /tmp/claude, ~/.npm/_logs and ~/.claude/debug remain writable unless denyRead covers them, and the plan grants the runtime temp directory for write modes. Narrow the scenario to the worktree root, HOME credential paths, and a sibling checkout, and have 5.3 document the always-writable paths so the behavioral fixture does not assert a false negative.",
+      "evidence_class": "judgment"
+    }
+  ]
+}

@@ -1,0 +1,271 @@
+{
+  "text": "{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: DispatchExecutionContext requires worktree_root, but the plan never specifies who resolves and attaches that canonical root. dg-06 RoutingDispatchContext has no worktree_root field, and autopilot PhaseDispatchPayload only carries isolation (no root, no decision_id). Design D1 says routed callers merely copy the dg-06 assignment, which cannot populate the required root, so implementers cannot build a valid execution context for routed, standalone, or local-provider launches.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"architecture\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Specify the producer of worktree_root for each caller (router/orchestrator, review adapter, autopilot local provider), extend PhaseDispatchPayload or an adjacent carriage field as needed, and document validation against git rev-parse --show-toplevel plus the existing managed-worktree/shared-checkout rules before sandbox preparation.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json\",\n      \"line_range\": {\"start\": 7, \"end\": 25},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"\\\"worktree_root\\\"\\n  ],\\n  \\\"properties\\\": {\\n    \\\"schema_version\\\": {\\\"const\\\": 1},\\n    \\\"decision_id\\\": {\\\"type\\\": [\\\"string\\\", \\\"null\\\"], \\\"minLength\\\": 1},\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"security\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: Design D5 only says the child environment strips proxy variables, but SRT 0.0.77 skips its resolved-address/domain allowlist checks for connections routed through parentProxy, including HTTP_PROXY/HTTPS_PROXY inherited by the srt process itself. If implementers strip proxies only for the vendor argv after SRT starts, or leave ambient proxies on the env passed to absolute_srt, authored network policy can be bypassed while still reporting applied=true.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"security\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Require that the environment passed to the SRT executable itself excludes HTTP_PROXY, HTTPS_PROXY, ALL_PROXY, http_proxy, https_proxy, all_proxy, and related parentProxy inputs unless an explicitly approved chaining mode is defined; add a RED test that ambient proxy env cannot widen egress under an allowlisted settings file.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/design.md\",\n      \"line_range\": {\"start\": 62, \"end\": 68},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"The child environment removes inherited proxy variables, loader/startup injection variables,\\nGit path/config overrides, and untrusted temp settings that can alter SRT or its child.\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"architecture\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: Tasks 5.1-5.2 require a controlled vendor fixture and a real capable-host SRT probe with persisted evidence, and design/roadmap acceptance require observable FS/network restriction plus recorded capable-host proof. wp-validation-docs write_allow is only docs/** and openspec trees, so fixture/probe code cannot be landed there, and its verification step only runs openspec validate — a green package does not prove the dg-07 acceptance outcomes.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"architecture\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Move 5.1-5.2 implementation into wp-runtime/wp-integration write scopes (or widen wp-validation-docs write_allow accordingly), and add a verification/evidence gate that either records a capable-host pass artifact or fails closed with the exact missing prerequisites rather than treating openspec validate as sufficient.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml\",\n      \"line_range\": {\"start\": 150, \"end\": 186},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"write_allow:\\n        - \\\"docs/**\\\"\\n        - \\\"openspec/changes/add-dispatch-sandbox-enforcement/**\\\"\\n        - \\\"openspec/changes/add-sandboxed-harness-execution/**\\\"\"\n    },\n    {\n      \"id\": 4,\n      \"type\": \"architecture\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: wp-policy-audit and wp-runtime are parallel (both depends_on: []) yet both include openspec/changes/add-dispatch-sandbox-enforcement/** in write_allow. Parallel packages therefore have overlapping mutable scope for tasks.md/contracts/specs, which the work-package validity rules disallow and which will race during coordinated implementation.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"architecture\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Remove the shared openspec write_allow from one or both parallel packages, or serialize them; keep OpenSpec checkbox/doc updates in a single non-parallel package.\",\n      \"package_id\": \"wp-policy-audit\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml\",\n      \"line_range\": {\"start\": 24, \"end\": 90},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"depends_on: []\\n...\\n        - \\\"openspec/changes/add-dispatch-sandbox-enforcement/**\\\"\"\n    },\n    {\n      \"id\": 5,\n      \"type\": \"resilience\",\n      \"criticality\": \"high\",\n      \"description\": \"Nit: Fail-open durability depends on a mode-0600 local outbox with fsync and later drain, but proposal/design/specs never define the outbox directory, filename scheme, ownership, retention, or crash recovery. Without a fixed path outside the mutable worktree and world-writable temp races, the durable-before-fallback guarantee is not implementable consistently across hosts.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Pin an absolute outbox location (for example under XDG_STATE_HOME/agentic-coding-tools/sandbox-outbox), directory mode 0700, file mode 0600, atomic append+fsync semantics, and drain ordering; add tests for coordinator-down then later drain.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/design.md\",\n      \"line_range\": {\"start\": 70, \"end\": 78},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"The backend first writes a durable coordinator event; if unavailable,\\nit appends and fsyncs a mode-0600 local outbox. Failure of both blocks dispatch.\"\n    },\n    {\n      \"id\": 6,\n      \"type\": \"resilience\",\n      \"criticality\": \"high\",\n      \"description\": \"Nit: Sandbox audit SHALL not acknowledge durable success until the audit row is inserted, but the existing AuditService.log_operation path returns success=True under async_logging before the insert runs. The plan says synchronous durable audit in tasks 2.4 without explicitly forbidding reuse of that fire-and-forget API, so implementers can satisfy the task text while violating the durable-before-fallback scenario.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Specify a dedicated synchronous sandbox-event persistence path that awaits/commits the row (or equivalent durable store) before ack; explicitly ban AuditService async fire-and-forget for applied=false fail-open gating.\",\n      \"file_path\": \"agent-coordinator/src/audit.py\",\n      \"line_range\": {\"start\": 154, \"end\": 160},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"if config.audit.async_logging:\\n            # Fire-and-forget: don't block the caller. `success=True` here means\\n            # \\\"accepted for writing\\\", not \\\"written\\\" — the insert has not run yet.\\n            task = asyncio.create_task(self._insert_audit_entry(data))\\n            self._pending.add(task)\\n            task.add_done_callback(self._pending.discard)\\n            return AuditResult(success=True)\"\n    },\n    {\n      \"id\": 7,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: vendor-dispatch and design D8 require cancellation to pass through the shared process backend, but CliVendorAdapter has no cancel subprocess sink today — cancelled appears only as an async envelope state observed by poll. The plan therefore over-claims a lifecycle command that does not exist, which will confuse AST-guard and RED/GREEN coverage for cancel.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Either narrow the requirement/scenarios to sync, async submit, and poll (with cancelled as a polled terminal state), or add an explicit cancel command path and tests before claiming backend ownership of cancel.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md\",\n      \"line_range\": {\"start\": 3, \"end\": 14},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"includes synchronous execution, asynchronous submission, asynchronous polling/cancellation, and\\nthe autopilot local-provider harness.\"\n    },\n    {\n      \"id\": 8,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: DispatchExecutionContext allows decision_id null for every source, including source=router, while the routed-execution scenario requires the same decision identifier to appear in execution audit and dg-06 contexts require a non-empty decision_id. The schema therefore admits router-sourced contexts that cannot satisfy the immutability acceptance scenario.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Add a schema constraint or explicit validation rule: when source is router, decision_id MUST be a non-empty string; keep null only for agents_yaml/default standalone fallback.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json\",\n      \"line_range\": {\"start\": 17, \"end\": 24},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"\\\"decision_id\\\": {\\\"type\\\": [\\\"string\\\", \\\"null\\\"], \\\"minLength\\\": 1},\\n...\\n    \\\"source\\\": {\\\"enum\\\": [\\\"router\\\", \\\"agents_yaml\\\", \\\"default\\\"]},\"\n    },\n    {\n      \"id\": 9,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: The agent-coordinator sandbox-event requirement says events SHALL include routing correlation, requested/applied isolation, runtime/preflight outcome, policy revision/digest, canonical root, executable paths, environment key names, and degradation reason, but sandbox-execution-event.schema.json leaves decision_id, preflight_status, policy_revision, policy_digest, worktree_root, executable_paths, and degradation_reason optional. Producers can emit schema-valid events that fail the SHALL clause and weaken fail-open observability.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"observability\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Make the SHALL fields required for sandbox execution events (or define a discriminated applied=true/false subset where each required field is mandatory), and align tests to reject sparse degraded events.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json\",\n      \"line_range\": {\"start\": 7, \"end\": 44},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"\\\"required\\\": [\\n    \\\"schema_version\\\",\\n    \\\"event_id\\\",\\n    \\\"agent_id\\\",\\n    \\\"dispatch_mode\\\",\\n    \\\"requested_isolation\\\",\\n    \\\"sandbox_applied\\\",\\n    \\\"backend\\\",\\n    \\\"platform\\\",\\n    \\\"environment_keys\\\"\\n  ],\"\n    },\n    {\n      \"id\": 10,\n      \"type\": \"architecture\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: Design D3 rejects roots that are the shared checkout, but does not bind that check to the already-landed skills/shared/checkout_policy.py managed-worktree detector (.git-worktrees/...). Leaving shared-checkout detection unspecified invites a second, divergent heuristic and false accepts/rejects for linked worktrees versus the primary checkout.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"architecture\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Require sandbox root validation to reuse classify_checkout/_managed_worktree_root (or an extracted pure helper) so managed linked worktrees are accepted and the shared checkout is rejected consistently.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/design.md\",\n      \"line_range\": {\"start\": 32, \"end\": 44},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"The root must exist, equal `git rev-parse\\n--show-toplevel`, and must not be `/`, the user's home, or the shared checkout.\"\n    },\n    {\n      \"id\": 11,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Optional: network-policy-export.schema.json accepts optional ports via [1-9][0-9]{0,4}, which allows values above 65535 (for example 99999). SRT port suffixes are real TCP ports; invalid ports can either fail closed late or be dropped inconsistently during rendering.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"optional\",\n      \"resolution\": \"Tighten the port portion to 1-65535 (and add a unit test for 65536 rejected).\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json\",\n      \"line_range\": {\"start\": 26, \"end\": 30},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"\\\"pattern\\\": \\\"^(?:\\\\\\\\*\\\\\\\\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\\\\\\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?::(?:[1-9][0-9]{0,4}))?$\\\"\"\n    },\n    {\n      \"id\": 12,\n      \"type\": \"compatibility\",\n      \"criticality\": \"low\",\n      \"description\": \"FYI: Coordinator SQL matching in is_domain_allowed replaces '*' with SQL LIKE '%' (multi-label), while exported patterns are enforced under SRT wildcard semantics. Operators may see advisory check_domain and sandboxed egress disagree for the same authored pattern; the plan covers deny-first narrowing but not this wildcard-depth mismatch.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"fyi\",\n      \"resolution\": \"Document that export/SRT is authoritative for sandbox enforcement, and add a renderer/export note or normalization test if LIKE-depth equivalence is desired later.\",\n      \"file_path\": \"agent-coordinator/database/migrations/009_network_policies.sql\",\n      \"line_range\": {\"start\": 80, \"end\": 92},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"AND (\\n              p_domain = np.domain_pattern\\n              OR p_domain LIKE REPLACE(np.domain_pattern, '*', '%')\\n          )\"\n    },\n    {\n      \"id\": 13,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Post-SRT-start failures correctly fail closed with no unsandboxed retry, and missing/incompatible runtime fail-open only after durable audit/outbox evidence. That closes the double-execution hazard called out in the proposal and matches the Runtime failure never duplicates work scenario.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"resilience\",\n      \"severity\": \"none\",\n      \"resolution\": \"Retain this invariant through implementation review; do not add unsandboxed retry paths in timeout or nonzero-exit handling.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md\",\n      \"line_range\": {\"start\": 106, \"end\": 110},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"WHEN SRT has started and exits nonzero or times out\\nTHEN the backend SHALL return that failure\\nAND SHALL NOT retry the vendor command without the sandbox.\"\n    },\n    {\n      \"id\": 14,\n      \"type\": \"security\",\n      \"criticality\": \"low\",\n      \"description\": \"The plan pins @anthropic-ai/sandbox-runtime 0.0.77 with lockfile integrity, forbids dispatch-time install, rejects pre-0.0.16 network-escape versions, and requires a no-op launch preflight before applied=true. That is the right dependency posture for a pre-1.0 enforcement backend.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"security\",\n      \"severity\": \"none\",\n      \"resolution\": \"Keep the pin/preflight tests as merge gates; do not relax to PATH-discovered unmarked srt binaries.\",\n      \"file_path\": \"openspec/changes/add-dispatch-sandbox-enforcement/design.md\",\n      \"line_range\": {\"start\": 80, \"end\": 91},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"The repository pins `@anthropic-ai/sandbox-runtime` 0.0.77 with lockfile integrity and Node\\n>=20.11.0. Dispatch performs no installation.\"\n    }\n  ]\n}",
+  "stopReason": "end_turn",
+  "sessionId": "01a0d0c8-f06e-7ba3-91ec-c2af1c2db587",
+  "requestId": "8934c553-d2b8-4ddb-a47a-4929e5de6c0f",
+  "thought": "I am examining the current network policy SQL and schema, specifically `is_domain_allowed`, default allow behavior, and wildcard handling.\n\nI am now reviewing dispatcher subprocess isolation, landed contracts, SRT 0.0.77 documentation, and linked-worktree Git metadata. I will also check for gaps between the plan and code reality. Key concerns include immutable routing-decision consumption, SRT lifecycle, policy precedence, fail-open durability, subprocess coverage, environment handling, and real-runtime validation.\n\n`network_policies.py` currently fail-opens to the default policy on error, which may conflict with the plan's default-deny export and deny-all malformed rules. `check_domain` likely retains its existing behavior.\n\n`audit.py` acknowledges durable success before writing sandbox events, violating the plan's requirement to wait for the audit row insertion.\n\nThe plan requires synchronous durable coordinator audit, so reusing `AuditService.log_operation` with async logging would violate the spec. The design mentions a sync path, but it is unclear if it explicitly forbids fire-and-forget AuditService.\n\n`DispatchExecutionContext` marks `decision_id` as optional, yet the spec requires routed execution to include a decision identifier in audit.\n\n`worktree_root` may be required even when isolation is disabled, which could complicate standalone calls without a worktree.\n\n`PhaseDispatchPayload` currently lacks `decision_id`, `worktree_root`, and `source`. The plan's autopilot immutable payload requirement may need a schema extension.\n\nThe network policy pattern regex has potential issues.Reviewing the SRT README for context on the OpenSpec change.\n\nThe plan's export schema correctly includes both allow and deny actions. A critical SRT behavior was identified: connections routed through `parentProxy` (including those from `HTTP_PROXY` / `HTTPS_PROXY`) bypass the sandbox check entirely. Design D5 strips proxy variables from child environments, but SRT may still inherit these variables from the parent process environment.\n\nThe design's claim that the child environment removes inherited proxy variables is ambiguous. It is unclear whether this applies to the `srt` process itself or only the vendor child, since the environment is passed to the entire process tree.\n\nStripping proxy variables from the environment passed to `srt` itself is critical, since SRT reads `HTTP_PROXY` from its own process environment for parentProxy routing. The design's phrasing \"child environment\" remains ambiguous.\n\nA pattern grammar gap was also noted: SRT accepts IP literals, IPv6 bracketed literals, bare `*` for deny-all, and `*:22` for port-specific denials.An important finding regarding SQL wildcard matching was identified.\n\nSQL LIKE wildcard matching is naive: `*.github.com` becomes `%.github.com`, which correctly matches subdomains but could misbehave with wildcards in the middle. SRT rendering follows a deny-first policy, checking denied domains before allowed domains. Profile-specific rules take higher priority than global ones.\n\nThe plan keeps every applicable deny rule and only authored allow rules. Conflicts resolve to a narrower policy. SQL first-match behavior can produce a wider result than SRT deny-first logic, but the renderer must reconstruct an equivalent or narrower policy from the exported dump. This narrowing is intentional.\n\nThe export schema regex correctly validates wildcard patterns like `*.github.com` and seed domains such as `files.pythonhosted.org`. A critical semantic mismatch between SQL and SRT wildcard behavior was flagged.The design omits a cancel subprocess method in CliVendorAdapter. Cancellation is only an envelope state.\n\nThe spec claims a \"cancelled\" backend path that has no corresponding implementation. Design D8 conflates poll and cancel, so implementers may invent a cancel command or break the AST and tests. The design also requires worktree_root for every execution context, but isolation=none may not have one.\n\nDesign D3 validates root only for sandbox write modes, yet the schema requires worktree_root unconditionally. A standalone review might fall back to cwd, which is ambiguous.\n\nThe mapping from RoutingDispatchContext to DispatchExecutionContext is also unclear. Design D1 cites dg-06's nested assignment, but dg-07 uses a flat structure with different fields.\n\nPhaseDispatchPayload carries isolation but lacks worktree_root and decision_id, which the autopilot local provider needs for sandboxing.\n\nThe SRT README reveals a security gap: domain allowlist checks are skipped when parentProxy is set from HTTP_PROXY in srt's environment.\n\nDesign D5's instruction to strip proxy variables from the \"child environment\" is ambiguous. If SRT inherits parent proxy settings, network policy could be bypassed. The plan should explicitly require that the SRT process itself receives no proxy variables.\n\nThe `is_domain_allowed` function uses a naive SQL wildcard replacement (`REPLACE('*','%')`). This causes `*github.com` to incorrectly match `evilgithub.com`.A key finding concerns ModeConfig isolation projection.\n\n`review_dispatcher.py` stores only mode-level isolation when building from config dict. It never falls back to entry-level isolation from agents.yaml. The standalone review path therefore misses agent-level isolation.Confirmed that `project_dispatch_configs` emits mode isolation only under a specific `mc` condition around line 1867.\n\nEntry-level agent isolation is absent from the projected agents_out dict when mode overrides are missing. Standalone review adapters therefore never receive it. Task 4.1 addresses this gap. The design also raises a question about who supplies the canonical root, since DispatchExecutionContext requires it but RoutingDispatchContext and PhaseDispatchPayload do not.\n\nThe plan never specifies the producer of `worktree_root` for routed autopilot dispatch, standalone review panels, or local providers. This leaves a critical implementation gap.\n\nFor sandbox review, the design defers production lane isolation and keeps standalone review with agents.yaml isolation=none or worktree unsandboxed. Controlled acceptance CLI exercises this behavior independently.\n\nThe plan asserts cancel as a backend-owned lifecycle command, but the current CLI adapter has no cancel subprocess. Only poll observes cancellation state. This overclaims against reality. The requirement should be narrowed to submit, poll, and sync, or an explicit cancel command path must be added.\n\nThe outbox path is unspecified. This risks durability failures if it lands in a world-writable or sandboxed directory. The plan should require an absolute path under XDG_STATE_HOME with mode 0700 for the directory and mode 0600 for files.\n\nThe spec requires durable logging before acknowledgment. However, AuditService.log_operation uses async fire-and-forget logging that returns success before the database insert completes. The plan calls for synchronous durable writes in tasks 2.4 but never explicitly forbids reusing this existing fire-and-forget audit service.\n\nThe plan should mandate a synchronous insert path that waits for row persistence, or a distinct table and endpoint separate from the existing AuditService hot path.\n\nA high security finding concerns proxy variables. The design strips them from the child environment, but the SRT README indicates resolved-address checks are skipped when HTTP_PROXY is present in the parent process environment. The plan must require that the environment passed to the SRT executable itself has proxy variables removed.\n\nSQL LIKE wildcard semantics differ from SRT wildcard matching. The `is_domain_allowed` function converts `*` to `%`, so `*.github.com` matches any number of labels. Exported patterns must be interpreted under SRT semantics, or the plan should normalize them at export. The `check_domain` advisory check remains acceptable because enforcement is handled by SRT.I noticed an existing `skills/shared/checkout_policy.py` file that defines shared checkout versus managed worktree behavior.\n\nDesign D3 forbids the shared checkout but omits `checkout_policy.py`, creating an architecture gap. The plan should reuse `_managed_worktree_root` from that helper instead of inventing a parallel detector. Linked worktrees under `.git-worktrees/` are managed; the common git directory sits outside. The plan must wire `DispatchExecutionContext.worktree_root` from this existing helper or from the validated dispatch working directory.\n\nThe network policy export schema's port regex is being checked against valid SRT patterns that seeds might need. Seed does not use ports. The regex pattern for single-label hosts like `localhost` is being analyzed to verify it matches correctly.\n\nThe regex permits purely numeric labels, so `127.0.0.1` would match as a hostname. SRT treats IP literals specially, making this ambiguous but acceptable. IPv6 is correctly rejected because the schema does not support brackets.Enough information has been gathered to begin the review.\n\nA potential conflict exists between `check_domain` fail-open behavior and the export default-deny rule. The schema correctly restricts `default_action` to `deny`, but `NetworkPolicyService.check_domain` still falls back to `config.network_policy.default_policy`, which may allow on error.\n\nThe plan should explicitly prohibit export from invoking `check_domain`'s error fallback. The spec already restricts exports to enabled rules, so implementers can build them by iterating database rules directly. A port validation allowing values above 65535 is a minor issue.\n\nThree critical and high severity issues have been identified.\n\n- The worktree_root producer is unspecified. DispatchExecutionContext requires this field, but the routing dispatch context and phase payload lack it, with no mapping defined.\n- HTTP_PROXY and parentProxy environment variables are ambiguous. D5's child environment description is insufficient because the SRT skips allowlisting for parentProxy from its own environment.\n- Work-package validation documentation cannot land items 5.1 and 5.2. Verification does not require capable-host evidence, creating a gap against acceptance outcomes.\n\n- Two parallel work packages both write to the openspec tree with empty dependencies, risking overlapping writes.\n- The outbox path is unspecified, creating a resilience and security gap.\n- The cancel lifecycle is overclaimed because no cancel subprocess exists.\n- decision_id is nullable when source is router, which contradicts the contract.\n- Sandbox event SHALL fields are optional in the schema, which contradicts the contract.The wp-validation lock key differs from earlier expectations.Confirmed that the parallel packages wp-policy-audit and wp-runtime both have openspec write_allow and empty depends_on arrays.\n\nThe wp-runtime lock key is `feature:add-dispatch-sandbox-enforcement:runtime`. PhaseDispatchPayload in provider_dispatch.py lacks worktree_root and decision_id. The vendor-dispatch spec and design D8 both omit cancel details. Design D5 lines 64-65 conflict with the SRT README parentProxy behavior.",
+  "usage": {
+    "input_tokens": 113139,
+    "cache_read_input_tokens": 1170304,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 16662,
+    "reasoning_tokens": 9307,
+    "total_tokens": 1300105
+  },
+  "num_turns": 17,
+  "total_cost_usd": 0.235296008,
+  "total_cost_usd_ticks": 2352960080,
+  "modelUsage": {
+    "grok-4.5-build": {
+      "inputTokens": 113139,
+      "outputTokens": 16662,
+      "cacheReadInputTokens": 1170304,
+      "cacheCreationInputTokens": 0,
+      "modelCalls": 17,
+      "costUSD": 0.235296008
+    }
+  },
+  "structuredOutput": {
+    "findings": [
+      {
+        "id": 1,
+        "type": "spec_gap",
+        "criticality": "high",
+        "description": "Critical: DispatchExecutionContext requires worktree_root, but the plan never specifies who resolves and attaches that canonical root. dg-06 RoutingDispatchContext has no worktree_root field, and autopilot PhaseDispatchPayload only carries isolation (no root, no decision_id). Design D1 says routed callers merely copy the dg-06 assignment, which cannot populate the required root, so implementers cannot build a valid execution context for routed, standalone, or local-provider launches.",
+        "disposition": "fix",
+        "axis": "architecture",
+        "severity": "critical",
+        "resolution": "Specify the producer of worktree_root for each caller (router/orchestrator, review adapter, autopilot local provider), extend PhaseDispatchPayload or an adjacent carriage field as needed, and document validation against git rev-parse --show-toplevel plus the existing managed-worktree/shared-checkout rules before sandbox preparation.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json",
+        "line_range": {
+          "start": 7,
+          "end": 25
+        },
+        "evidence_class": "judgment",
+        "existing_code": "\"worktree_root\"\n  ],\n  \"properties\": {\n    \"schema_version\": {\"const\": 1},\n    \"decision_id\": {\"type\": [\"string\", \"null\"], \"minLength\": 1},"
+      },
+      {
+        "id": 2,
+        "type": "security",
+        "criticality": "high",
+        "description": "Critical: Design D5 only says the child environment strips proxy variables, but SRT 0.0.77 skips its resolved-address/domain allowlist checks for connections routed through parentProxy, including HTTP_PROXY/HTTPS_PROXY inherited by the srt process itself. If implementers strip proxies only for the vendor argv after SRT starts, or leave ambient proxies on the env passed to absolute_srt, authored network policy can be bypassed while still reporting applied=true.",
+        "disposition": "fix",
+        "axis": "security",
+        "severity": "critical",
+        "resolution": "Require that the environment passed to the SRT executable itself excludes HTTP_PROXY, HTTPS_PROXY, ALL_PROXY, http_proxy, https_proxy, all_proxy, and related parentProxy inputs unless an explicitly approved chaining mode is defined; add a RED test that ambient proxy env cannot widen egress under an allowlisted settings file.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+        "line_range": {
+          "start": 62,
+          "end": 68
+        },
+        "evidence_class": "judgment",
+        "existing_code": "The child environment removes inherited proxy variables, loader/startup injection variables,\nGit path/config overrides, and untrusted temp settings that can alter SRT or its child."
+      },
+      {
+        "id": 3,
+        "type": "architecture",
+        "criticality": "high",
+        "description": "Critical: Tasks 5.1-5.2 require a controlled vendor fixture and a real capable-host SRT probe with persisted evidence, and design/roadmap acceptance require observable FS/network restriction plus recorded capable-host proof. wp-validation-docs write_allow is only docs/** and openspec trees, so fixture/probe code cannot be landed there, and its verification step only runs openspec validate — a green package does not prove the dg-07 acceptance outcomes.",
+        "disposition": "fix",
+        "axis": "architecture",
+        "severity": "critical",
+        "resolution": "Move 5.1-5.2 implementation into wp-runtime/wp-integration write scopes (or widen wp-validation-docs write_allow accordingly), and add a verification/evidence gate that either records a capable-host pass artifact or fails closed with the exact missing prerequisites rather than treating openspec validate as sufficient.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+        "line_range": {
+          "start": 150,
+          "end": 186
+        },
+        "evidence_class": "judgment",
+        "existing_code": "write_allow:\n        - \"docs/**\"\n        - \"openspec/changes/add-dispatch-sandbox-enforcement/**\"\n        - \"openspec/changes/add-sandboxed-harness-execution/**\""
+      },
+      {
+        "id": 4,
+        "type": "architecture",
+        "criticality": "medium",
+        "description": "Nit: wp-policy-audit and wp-runtime are parallel (both depends_on: []) yet both include openspec/changes/add-dispatch-sandbox-enforcement/** in write_allow. Parallel packages therefore have overlapping mutable scope for tasks.md/contracts/specs, which the work-package validity rules disallow and which will race during coordinated implementation.",
+        "disposition": "fix",
+        "axis": "architecture",
+        "severity": "nit",
+        "resolution": "Remove the shared openspec write_allow from one or both parallel packages, or serialize them; keep OpenSpec checkbox/doc updates in a single non-parallel package.",
+        "package_id": "wp-policy-audit",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+        "line_range": {
+          "start": 24,
+          "end": 90
+        },
+        "evidence_class": "judgment",
+        "existing_code": "depends_on: []\n...\n        - \"openspec/changes/add-dispatch-sandbox-enforcement/**\""
+      },
+      {
+        "id": 5,
+        "type": "resilience",
+        "criticality": "high",
+        "description": "Nit: Fail-open durability depends on a mode-0600 local outbox with fsync and later drain, but proposal/design/specs never define the outbox directory, filename scheme, ownership, retention, or crash recovery. Without a fixed path outside the mutable worktree and world-writable temp races, the durable-before-fallback guarantee is not implementable consistently across hosts.",
+        "disposition": "fix",
+        "axis": "resilience",
+        "severity": "nit",
+        "resolution": "Pin an absolute outbox location (for example under XDG_STATE_HOME/agentic-coding-tools/sandbox-outbox), directory mode 0700, file mode 0600, atomic append+fsync semantics, and drain ordering; add tests for coordinator-down then later drain.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+        "line_range": {
+          "start": 70,
+          "end": 78
+        },
+        "evidence_class": "judgment",
+        "existing_code": "The backend first writes a durable coordinator event; if unavailable,\nit appends and fsyncs a mode-0600 local outbox. Failure of both blocks dispatch."
+      },
+      {
+        "id": 6,
+        "type": "resilience",
+        "criticality": "high",
+        "description": "Nit: Sandbox audit SHALL not acknowledge durable success until the audit row is inserted, but the existing AuditService.log_operation path returns success=True under async_logging before the insert runs. The plan says synchronous durable audit in tasks 2.4 without explicitly forbidding reuse of that fire-and-forget API, so implementers can satisfy the task text while violating the durable-before-fallback scenario.",
+        "disposition": "fix",
+        "axis": "resilience",
+        "severity": "nit",
+        "resolution": "Specify a dedicated synchronous sandbox-event persistence path that awaits/commits the row (or equivalent durable store) before ack; explicitly ban AuditService async fire-and-forget for applied=false fail-open gating.",
+        "file_path": "agent-coordinator/src/audit.py",
+        "line_range": {
+          "start": 154,
+          "end": 160
+        },
+        "evidence_class": "judgment",
+        "existing_code": "if config.audit.async_logging:\n            # Fire-and-forget: don't block the caller. `success=True` here means\n            # \"accepted for writing\", not \"written\" — the insert has not run yet.\n            task = asyncio.create_task(self._insert_audit_entry(data))\n            self._pending.add(task)\n            task.add_done_callback(self._pending.discard)\n            return AuditResult(success=True)"
+      },
+      {
+        "id": 7,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Nit: vendor-dispatch and design D8 require cancellation to pass through the shared process backend, but CliVendorAdapter has no cancel subprocess sink today — cancelled appears only as an async envelope state observed by poll. The plan therefore over-claims a lifecycle command that does not exist, which will confuse AST-guard and RED/GREEN coverage for cancel.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "nit",
+        "resolution": "Either narrow the requirement/scenarios to sync, async submit, and poll (with cancelled as a polled terminal state), or add an explicit cancel command path and tests before claiming backend ownership of cancel.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md",
+        "line_range": {
+          "start": 3,
+          "end": 14
+        },
+        "evidence_class": "judgment",
+        "existing_code": "includes synchronous execution, asynchronous submission, asynchronous polling/cancellation, and\nthe autopilot local-provider harness."
+      },
+      {
+        "id": 8,
+        "type": "contract_mismatch",
+        "criticality": "medium",
+        "description": "Nit: DispatchExecutionContext allows decision_id null for every source, including source=router, while the routed-execution scenario requires the same decision identifier to appear in execution audit and dg-06 contexts require a non-empty decision_id. The schema therefore admits router-sourced contexts that cannot satisfy the immutability acceptance scenario.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "nit",
+        "resolution": "Add a schema constraint or explicit validation rule: when source is router, decision_id MUST be a non-empty string; keep null only for agents_yaml/default standalone fallback.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json",
+        "line_range": {
+          "start": 17,
+          "end": 24
+        },
+        "evidence_class": "judgment",
+        "existing_code": "\"decision_id\": {\"type\": [\"string\", \"null\"], \"minLength\": 1},\n...\n    \"source\": {\"enum\": [\"router\", \"agents_yaml\", \"default\"]},"
+      },
+      {
+        "id": 9,
+        "type": "contract_mismatch",
+        "criticality": "medium",
+        "description": "Nit: The agent-coordinator sandbox-event requirement says events SHALL include routing correlation, requested/applied isolation, runtime/preflight outcome, policy revision/digest, canonical root, executable paths, environment key names, and degradation reason, but sandbox-execution-event.schema.json leaves decision_id, preflight_status, policy_revision, policy_digest, worktree_root, executable_paths, and degradation_reason optional. Producers can emit schema-valid events that fail the SHALL clause and weaken fail-open observability.",
+        "disposition": "fix",
+        "axis": "observability",
+        "severity": "nit",
+        "resolution": "Make the SHALL fields required for sandbox execution events (or define a discriminated applied=true/false subset where each required field is mandatory), and align tests to reject sparse degraded events.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json",
+        "line_range": {
+          "start": 7,
+          "end": 44
+        },
+        "evidence_class": "judgment",
+        "existing_code": "\"required\": [\n    \"schema_version\",\n    \"event_id\",\n    \"agent_id\",\n    \"dispatch_mode\",\n    \"requested_isolation\",\n    \"sandbox_applied\",\n    \"backend\",\n    \"platform\",\n    \"environment_keys\"\n  ],"
+      },
+      {
+        "id": 10,
+        "type": "architecture",
+        "criticality": "medium",
+        "description": "Nit: Design D3 rejects roots that are the shared checkout, but does not bind that check to the already-landed skills/shared/checkout_policy.py managed-worktree detector (.git-worktrees/...). Leaving shared-checkout detection unspecified invites a second, divergent heuristic and false accepts/rejects for linked worktrees versus the primary checkout.",
+        "disposition": "fix",
+        "axis": "architecture",
+        "severity": "nit",
+        "resolution": "Require sandbox root validation to reuse classify_checkout/_managed_worktree_root (or an extracted pure helper) so managed linked worktrees are accepted and the shared checkout is rejected consistently.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+        "line_range": {
+          "start": 32,
+          "end": 44
+        },
+        "evidence_class": "judgment",
+        "existing_code": "The root must exist, equal `git rev-parse\n--show-toplevel`, and must not be `/`, the user's home, or the shared checkout."
+      },
+      {
+        "id": 11,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Optional: network-policy-export.schema.json accepts optional ports via [1-9][0-9]{0,4}, which allows values above 65535 (for example 99999). SRT port suffixes are real TCP ports; invalid ports can either fail closed late or be dropped inconsistently during rendering.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "optional",
+        "resolution": "Tighten the port portion to 1-65535 (and add a unit test for 65536 rejected).",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json",
+        "line_range": {
+          "start": 26,
+          "end": 30
+        },
+        "evidence_class": "judgment",
+        "existing_code": "\"pattern\": \"^(?:\\\\*\\\\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?::(?:[1-9][0-9]{0,4}))?$\""
+      },
+      {
+        "id": 12,
+        "type": "compatibility",
+        "criticality": "low",
+        "description": "FYI: Coordinator SQL matching in is_domain_allowed replaces '*' with SQL LIKE '%' (multi-label), while exported patterns are enforced under SRT wildcard semantics. Operators may see advisory check_domain and sandboxed egress disagree for the same authored pattern; the plan covers deny-first narrowing but not this wildcard-depth mismatch.",
+        "disposition": "accept",
+        "axis": "compatibility",
+        "severity": "fyi",
+        "resolution": "Document that export/SRT is authoritative for sandbox enforcement, and add a renderer/export note or normalization test if LIKE-depth equivalence is desired later.",
+        "file_path": "agent-coordinator/database/migrations/009_network_policies.sql",
+        "line_range": {
+          "start": 80,
+          "end": 92
+        },
+        "evidence_class": "judgment",
+        "existing_code": "AND (\n              p_domain = np.domain_pattern\n              OR p_domain LIKE REPLACE(np.domain_pattern, '*', '%')\n          )"
+      },
+      {
+        "id": 13,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Post-SRT-start failures correctly fail closed with no unsandboxed retry, and missing/incompatible runtime fail-open only after durable audit/outbox evidence. That closes the double-execution hazard called out in the proposal and matches the Runtime failure never duplicates work scenario.",
+        "disposition": "accept",
+        "axis": "resilience",
+        "severity": "none",
+        "resolution": "Retain this invariant through implementation review; do not add unsandboxed retry paths in timeout or nonzero-exit handling.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md",
+        "line_range": {
+          "start": 106,
+          "end": 110
+        },
+        "evidence_class": "judgment",
+        "existing_code": "WHEN SRT has started and exits nonzero or times out\nTHEN the backend SHALL return that failure\nAND SHALL NOT retry the vendor command without the sandbox."
+      },
+      {
+        "id": 14,
+        "type": "security",
+        "criticality": "low",
+        "description": "The plan pins @anthropic-ai/sandbox-runtime 0.0.77 with lockfile integrity, forbids dispatch-time install, rejects pre-0.0.16 network-escape versions, and requires a no-op launch preflight before applied=true. That is the right dependency posture for a pre-1.0 enforcement backend.",
+        "disposition": "accept",
+        "axis": "security",
+        "severity": "none",
+        "resolution": "Keep the pin/preflight tests as merge gates; do not relax to PATH-discovered unmarked srt binaries.",
+        "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+        "line_range": {
+          "start": 80,
+          "end": 91
+        },
+        "evidence_class": "judgment",
+        "existing_code": "The repository pins `@anthropic-ai/sandbox-runtime` 0.0.77 with lockfile integrity and Node\n>=20.11.0. Dispatch performs no installation."
+      }
+    ]
+  }
+}
