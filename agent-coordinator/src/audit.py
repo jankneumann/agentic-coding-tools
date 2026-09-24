@@ -5,11 +5,14 @@ Audit entries are append-only — the database enforces immutability via trigger
 """
 
 import asyncio
+import hashlib
+import json
 import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 from .config import get_config
 from .db import DatabaseClient, get_db
@@ -70,6 +73,43 @@ class AuditResult:
             entry_id=data.get("entry_id") or data.get("id"),
             error=data.get("error"),
         )
+
+
+@dataclass(frozen=True)
+class SandboxAuditResult:
+    """Durable result for an idempotent sandbox event write."""
+
+    entry_id: str
+    replayed: bool
+
+
+class SandboxAuditError(RuntimeError):
+    """The sandbox event could not be committed durably."""
+
+
+def sandbox_endpoint_digest(endpoint_kind: str, base_url: str | None) -> str:
+    """Return the secret-free canonical digest carried by sandbox events.
+
+    ``base_url`` is the normalized dg-06 assignment value.  This boundary
+    additionally rejects URI forms that could conceal credentials or a
+    client-side fragment before hashing the exact contract document.
+    """
+
+    if not endpoint_kind:
+        raise ValueError("endpoint_kind must not be empty")
+    if base_url is not None:
+        parsed = urlsplit(base_url)
+        if parsed.username is not None or parsed.password is not None or parsed.fragment:
+            raise ValueError("base_url cannot contain userinfo or a fragment")
+    document = {"base_url": base_url, "endpoint_kind": endpoint_kind}
+    encoded = json.dumps(
+        document,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class AuditService:
@@ -218,6 +258,29 @@ class AuditService:
                 exc_info=True,
             )
             return AuditResult(success=False, error=str(e))
+
+    async def record_sandbox_event(
+        self,
+        *,
+        actor_agent_id: str,
+        event: dict[str, Any],
+    ) -> SandboxAuditResult:
+        """Synchronously commit a narrow event; ``event_id`` is idempotent."""
+
+        try:
+            result = await self.db.rpc(
+                "record_sandbox_execution_event",
+                {"p_actor_agent_id": actor_agent_id, "p_event": event},
+            )
+        except Exception as exc:
+            logger.error("Durable sandbox audit write failed: %s", exc, exc_info=True)
+            raise SandboxAuditError("durable audit storage unavailable") from exc
+        if not isinstance(result, dict) or not result.get("success"):
+            raise SandboxAuditError("durable audit storage returned an invalid result")
+        entry_id = result.get("audit_entry_id")
+        if not isinstance(entry_id, str) or not entry_id:
+            raise SandboxAuditError("durable audit storage omitted audit_entry_id")
+        return SandboxAuditResult(entry_id=entry_id, replayed=result.get("replayed") is True)
 
     async def query(
         self,
