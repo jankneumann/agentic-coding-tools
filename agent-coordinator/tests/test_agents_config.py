@@ -613,8 +613,13 @@ agents:
       dispatch_modes:
         review:
           args: ["exec", "-s", "read-only"]
+          enforcement_scope: execution
+          write_capable: false
         alternative:
           args: ["exec", "-s", "workspace-write"]
+          enforcement_scope: execution
+          write_capable: true
+      state_env_keys: []
       model_flag: "-m"
       model: null
       model_fallbacks: ["o3", "gpt-4.1"]
@@ -715,6 +720,9 @@ agents:
       dispatch_modes:
         review:
           args: ["exec", "-s", "read-only"]
+          enforcement_scope: execution
+          write_capable: false
+      state_env_keys: []
       model_flag: "-m"
       model: "o3"
       model_fallbacks: []

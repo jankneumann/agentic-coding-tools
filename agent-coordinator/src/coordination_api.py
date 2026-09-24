@@ -16,6 +16,7 @@ import os
 import sys
 import time
 from datetime import UTC, datetime
+from pathlib import PurePosixPath
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -148,6 +149,22 @@ class VendorRateLimitObservationRequest(BaseModel):
         return self
 
 
+SandboxDegradationReason = Literal[
+    "unsupported_platform",
+    "runtime_missing",
+    "runtime_incompatible",
+    "capability_failed",
+    "policy_unavailable",
+    "policy_invalid",
+    "authorization_failed",
+]
+EnvironmentKey = Annotated[
+    str,
+    Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128),
+]
+AbsolutePath = Annotated[str, Field(min_length=1, max_length=4096)]
+
+
 class SandboxExecutionEventRequest(BaseModel):
     """Secret-free, contract-exact event accepted from a dispatch host."""
 
@@ -156,29 +173,29 @@ class SandboxExecutionEventRequest(BaseModel):
     schema_version: Literal[1]
     event_id: UUID
     context_source: Literal["router", "agents_yaml"]
-    decision_id: str | None
-    item_id: str | None
+    decision_id: str | None = Field(min_length=1, max_length=200)
+    item_id: str | None = Field(min_length=1, max_length=200)
     phase: Literal["planning", "implementing", "reviewing", "validating"] | None
     attempt: StrictInt | None = Field(ge=1)
-    dispatch_work_id: str | None
+    dispatch_work_id: str | None = Field(min_length=1, max_length=200)
     routing_context_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
     workspace_content_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
-    agent_id: str = Field(min_length=1)
-    vendor_type: str = Field(min_length=1)
-    policy_vendor: str | None
-    catalog_vendor: str | None
-    assignment_location: str = Field(min_length=1)
+    agent_id: str = Field(min_length=1, max_length=200)
+    vendor_type: str = Field(min_length=1, max_length=200)
+    policy_vendor: str | None = Field(max_length=200)
+    catalog_vendor: str | None = Field(max_length=200)
+    assignment_location: str = Field(min_length=1, max_length=200)
     execution_location: Literal["local"]
     enforcement_scope: Literal["execution", "submission"]
     write_capable: bool
-    dispatch_mode: str = Field(min_length=1)
-    model: str = Field(min_length=1)
-    endpoint_kind: str = Field(min_length=1)
+    dispatch_mode: str = Field(min_length=1, max_length=200)
+    model: str = Field(min_length=1, max_length=500)
+    endpoint_kind: str = Field(min_length=1, max_length=200)
     endpoint_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     requested_isolation: Literal["sandbox"]
     sandbox_applied: bool
     backend: Literal["local-process", "srt"]
-    runtime_version: str | None
+    runtime_version: str | None = Field(max_length=200)
     platform: Literal["linux", "darwin", "unsupported"]
     preflight_status: Literal[
         "passed",
@@ -193,12 +210,12 @@ class SandboxExecutionEventRequest(BaseModel):
     policy_revision: str | None = Field(pattern=r"^v1:.+:[0-9]+$")
     policy_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
     settings_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
-    worktree_root: str | None
-    executable_paths: list[str]
-    environment_keys: list[str]
-    degradation_reason: str | None
+    worktree_root: AbsolutePath | None
+    executable_paths: list[AbsolutePath] = Field(min_length=1, max_length=64)
+    environment_keys: list[EnvironmentKey] = Field(max_length=64)
+    degradation_reason: SandboxDegradationReason | None
     cleanup_status: Literal["not_started", "succeeded", "failed"]
-    cleanup_residual_paths: list[str]
+    cleanup_residual_paths: list[AbsolutePath] = Field(max_length=64)
 
     @model_validator(mode="after")
     def truthful_cross_fields(self) -> SandboxExecutionEventRequest:
@@ -240,12 +257,19 @@ class SandboxExecutionEventRequest(BaseModel):
             raise ValueError("applied sandbox fields are not truthful")
         if not self.sandbox_applied and not self.degradation_reason:
             raise ValueError("degraded execution requires a reason")
+        if not self.sandbox_applied and self.degradation_reason != self.preflight_status:
+            raise ValueError("degradation reason must match the typed preflight status")
         if self.cleanup_status == "failed" and not self.cleanup_residual_paths:
             raise ValueError("failed cleanup requires residual paths")
         if len(self.executable_paths) != len(set(self.executable_paths)) or len(
             self.environment_keys
         ) != len(set(self.environment_keys)):
             raise ValueError("event arrays must contain unique values")
+        paths = [*self.executable_paths, *self.cleanup_residual_paths]
+        if self.worktree_root is not None:
+            paths.append(self.worktree_root)
+        if any(not PurePosixPath(path).is_absolute() or "\x00" in path for path in paths):
+            raise ValueError("sandbox event paths must be absolute POSIX paths")
         return self
 
 
@@ -1978,7 +2002,11 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Synchronously and idempotently commit a sandbox execution event."""
-        from .audit import SandboxAuditError, get_audit_service
+        from .audit import (
+            SandboxAuditConflictError,
+            SandboxAuditError,
+            get_audit_service,
+        )
 
         actor_id, actor_type = resolve_identity(principal, None, None)
         if actor_id != request.agent_id and await resolve_trust_level(actor_id, actor_type) < 3:
@@ -1991,6 +2019,8 @@ def create_coordination_api() -> FastAPI:
                 actor_agent_id=actor_id,
                 event=event,
             )
+        except SandboxAuditConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except SandboxAuditError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         response.status_code = 200 if recorded.replayed else 201

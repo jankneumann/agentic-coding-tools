@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import stat
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -23,13 +25,22 @@ from shared.sandbox_profile import (
 )
 
 
+def _signed_policy(policy: dict) -> dict:
+    unsigned = {key: value for key, value in policy.items() if key != "policy_digest"}
+    policy["policy_digest"] = hashlib.sha256(
+        json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return policy
+
+
 def _policy(*, rules=None):
-    return {
+    return _signed_policy({
         "schema_version": 1,
         "agent_id": "codex-local",
         "default_action": "deny",
         "rules": rules
-        or [
+        if rules is not None
+        else [
             {
                 "destination_kind": "dns",
                 "destination_pattern": "api.example.com",
@@ -50,8 +61,7 @@ def _policy(*, rules=None):
             },
         ],
         "policy_revision": "v1:now:2",
-        "policy_digest": "a" * 64,
-    }
+    })
 
 
 def _launch(tmp_path: Path, *, write_capable: bool = False) -> SandboxLaunch:
@@ -75,6 +85,7 @@ def _launch(tmp_path: Path, *, write_capable: bool = False) -> SandboxLaunch:
         vendor_executable=executable,
         vendor_install_root=vendor_root,
         policy=_policy(),
+        agent_id="codex-local",
         write_capable=write_capable,
         credential_env_key="VENDOR_TOKEN",
         state_env_keys=("VENDOR_HOME",),
@@ -151,6 +162,105 @@ def test_renderer_rejects_private_literal_allow(tmp_path: Path) -> None:
     )
     with pytest.raises(SandboxProfileError, match="private IP literal"):
         render_sandbox_settings(launch, state_root=tmp_path / "state", platform="linux")
+
+
+def test_renderer_rejects_policy_digest_tampering(tmp_path: Path) -> None:
+    launch = _launch(tmp_path)
+    tampered = dict(launch.policy)
+    tampered["policy_revision"] = "v1:later:2"
+
+    with pytest.raises(SandboxProfileError, match="policy digest mismatch"):
+        render_sandbox_settings(
+            launch.with_policy(tampered),
+            state_root=tmp_path / "state",
+            platform="linux",
+        )
+
+
+def test_renderer_rejects_policy_for_another_agent(tmp_path: Path) -> None:
+    launch = replace(_launch(tmp_path), agent_id="claude-local")
+
+    with pytest.raises(SandboxProfileError, match="agent_id"):
+        render_sandbox_settings(launch, state_root=tmp_path / "state", platform="linux")
+
+
+def test_renderer_rejects_noncanonical_rule_order(tmp_path: Path) -> None:
+    launch = _launch(tmp_path)
+    policy = _policy(rules=list(reversed(launch.policy["rules"])))
+
+    with pytest.raises(SandboxProfileError, match="canonical order"):
+        render_sandbox_settings(
+            launch.with_policy(policy),
+            state_root=tmp_path / "state",
+            platform="linux",
+        )
+
+
+def test_renderer_rejects_unknown_snapshot_and_rule_fields(tmp_path: Path) -> None:
+    launch = _launch(tmp_path)
+    snapshot = dict(launch.policy)
+    snapshot["unexpected"] = "field"
+    _signed_policy(snapshot)
+    with pytest.raises(SandboxProfileError, match="snapshot has malformed fields"):
+        render_sandbox_settings(
+            launch.with_policy(snapshot),
+            state_root=tmp_path / "snapshot-state",
+            platform="linux",
+        )
+
+    rule = dict(launch.policy["rules"][0])
+    rule["unexpected"] = "field"
+    with pytest.raises(SandboxProfileError, match="rule has malformed fields"):
+        render_sandbox_settings(
+            launch.with_policy(_policy(rules=[rule])),
+            state_root=tmp_path / "rule-state",
+            platform="linux",
+        )
+
+
+def test_renderer_rejects_unbracketed_ipv6_destination(tmp_path: Path) -> None:
+    launch = _launch(tmp_path)
+    rule = dict(launch.policy["rules"][0])
+    rule.update(
+        destination_kind="ipv6",
+        destination_pattern="2001:db8::1",
+        action="deny",
+    )
+
+    with pytest.raises(SandboxProfileError, match="IP literal"):
+        render_sandbox_settings(
+            launch.with_policy(_policy(rules=[rule])),
+            state_root=tmp_path / "state",
+            platform="linux",
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("destination_pattern", "bad host", "DNS destination"),
+        ("destination_pattern", "-bad.example.com", "DNS destination"),
+        ("priority", True, "priority"),
+        ("port", True, "port"),
+    ],
+)
+def test_renderer_rejects_malformed_network_rule(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    launch = _launch(tmp_path)
+    rules = [dict(launch.policy["rules"][0])]
+    rules[0][field] = value
+    policy = _policy(rules=rules)
+
+    with pytest.raises(SandboxProfileError, match=message):
+        render_sandbox_settings(
+            launch.with_policy(policy),
+            state_root=tmp_path / "state",
+            platform="linux",
+        )
 
 
 def test_positive_child_environment_keeps_only_selected_credential(tmp_path: Path) -> None:

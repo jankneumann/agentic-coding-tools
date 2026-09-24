@@ -6,6 +6,7 @@ import asyncio
 import os
 import shutil
 import subprocess
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Mapping
@@ -16,6 +17,12 @@ from .local_process_backend import (
     run_local_process,
 )
 from .sandbox_audit import SandboxAuditPort
+from .sandbox_activation import (
+    SandboxActivationContext,
+    SandboxActivationError,
+    SandboxDegradation,
+    activate_sandbox,
+)
 from .sandbox_profile import RuntimePaths, SandboxLaunch
 
 
@@ -80,6 +87,7 @@ class VendorProcessInvocation:
     runtime: RuntimePaths | None = None
     audit_port: SandboxAuditPort | None = None
     audit_event: dict[str, Any] | None = None
+    activation_context: SandboxActivationContext | None = None
 
 
 def _absolute_argv(argv: tuple[str, ...], env: Mapping[str, str]) -> tuple[str, ...]:
@@ -102,21 +110,121 @@ def run_vendor_process(invocation: VendorProcessInvocation) -> LocalProcessResul
 
     if invocation.surface not in PRODUCTION_VENDOR_SURFACES:
         raise ValueError(f"unregistered vendor process surface: {invocation.surface}")
-    return run_local_process(
+    argv = _absolute_argv(invocation.argv, invocation.env)
+    launch = invocation.sandbox_launch
+    runtime = invocation.runtime
+    audit_port = invocation.audit_port
+    audit_event = invocation.audit_event
+    if invocation.isolation == "sandbox" and launch is None:
+        if invocation.activation_context is None:
+            return LocalProcessResult(
+                status="prelaunch_enforcement_blocked",
+                returncode=None,
+                stdout="",
+                stderr="",
+                timed_out=False,
+                sandbox_applied=False,
+                degradation_reason="sandbox_context_missing",
+                cleanup_status="not_started",
+            )
+        try:
+            activated = activate_sandbox(
+                context=invocation.activation_context,
+                vendor_executable=Path(argv[0]),
+                env=invocation.env,
+            )
+        except (SandboxActivationError, OSError, ValueError) as exc:
+            return LocalProcessResult(
+                status="prelaunch_enforcement_blocked",
+                returncode=None,
+                stdout="",
+                stderr="",
+                timed_out=False,
+                sandbox_applied=False,
+                degradation_reason=getattr(exc, "reason", str(exc)),
+                cleanup_status="not_started",
+            )
+        if isinstance(activated, SandboxDegradation):
+            try:
+                activated.audit_port.record(activated.audit_event)
+            except Exception:  # noqa: BLE001 - fail-open requires durable evidence
+                return LocalProcessResult(
+                    status="prelaunch_enforcement_blocked",
+                    returncode=None,
+                    stdout="",
+                    stderr="",
+                    timed_out=False,
+                    sandbox_applied=False,
+                    degradation_reason="audit_unavailable",
+                    cleanup_status="not_started",
+                )
+            warnings.warn(
+                f"sandbox degraded after durable audit: {activated.reason}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            result = run_local_process(
+                LocalProcessRequest(
+                    argv=argv,
+                    cwd=invocation.cwd,
+                    env=invocation.env,
+                    timeout_seconds=invocation.timeout_seconds,
+                    isolation="none",
+                    stdin_text=invocation.stdin_text,
+                    terminate_grace_seconds=invocation.terminate_grace_seconds,
+                )
+            )
+            degraded = LocalProcessResult(
+                status=result.status,
+                returncode=result.returncode,
+                stdout=result.stdout,
+                stderr=result.stderr,
+                timed_out=result.timed_out,
+                sandbox_applied=False,
+                degradation_reason=activated.reason,
+                cleanup_status=result.cleanup_status,
+                cleanup_residual_paths=result.cleanup_residual_paths,
+            )
+            object.__setattr__(degraded, "sandbox_metadata", activated.audit_event)
+            return degraded
+        launch = activated.launch
+        runtime = activated.runtime
+        audit_port = activated.audit_port
+        audit_event = activated.audit_event
+    if invocation.isolation == "sandbox" and (
+        launch is None
+        or runtime is None
+        or audit_port is None
+        or audit_event is None
+    ):
+        return LocalProcessResult(
+            status="prelaunch_enforcement_blocked",
+            returncode=None,
+            stdout="",
+            stderr="",
+            timed_out=False,
+            sandbox_applied=False,
+            degradation_reason="sandbox_context_incomplete",
+            cleanup_status="not_started",
+        )
+    result = run_local_process(
         LocalProcessRequest(
-            argv=_absolute_argv(invocation.argv, invocation.env),
+            argv=argv,
             cwd=invocation.cwd,
             env=invocation.env,
             timeout_seconds=invocation.timeout_seconds,
             isolation=invocation.isolation,
             stdin_text=invocation.stdin_text,
             terminate_grace_seconds=invocation.terminate_grace_seconds,
-            sandbox_launch=invocation.sandbox_launch,
-            runtime=invocation.runtime,
-            audit_port=invocation.audit_port,
-            audit_event=invocation.audit_event,
+            sandbox_launch=launch,
+            runtime=runtime,
+            audit_port=audit_port,
+            audit_event=audit_event,
         )
     )
+    if audit_event:
+        object.__setattr__(result, "sandbox_metadata", audit_event)
+    return result
 
 
 async def run_vendor_process_async(
@@ -148,10 +256,22 @@ def as_completed_process(
         result.stdout,
         result.stderr,
     )
-    evidence = dict(invocation.audit_event or {})
+    result_evidence = getattr(result, "sandbox_metadata", {})
+    evidence = dict(result_evidence if isinstance(result_evidence, dict) else {})
+    evidence.update(invocation.audit_event or {})
+    if "routing_digest" not in evidence and isinstance(
+        evidence.get("routing_context_digest"), str
+    ):
+        evidence["routing_digest"] = evidence["routing_context_digest"]
     evidence.update(
         requested_isolation=invocation.isolation,
-        applied_isolation="sandbox" if result.sandbox_applied else "none",
+        applied_isolation=(
+            "sandbox"
+            if result.sandbox_applied
+            else invocation.isolation
+            if invocation.isolation in {"none", "worktree"}
+            else "none"
+        ),
         cleanup_status=result.cleanup_status,
         cleanup_residual_paths=list(result.cleanup_residual_paths),
     )

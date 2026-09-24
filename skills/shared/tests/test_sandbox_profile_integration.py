@@ -7,7 +7,12 @@ import platform as platform_module
 import shutil
 import subprocess
 import sys
+import threading
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib import error as url_error
+from urllib import request as url_request
 
 import pytest
 import yaml
@@ -59,10 +64,10 @@ def _configured_python_install_root(executable: Path) -> Path:
     return install_root
 
 
-def _deny_all_policy() -> dict:
+def _deny_all_policy(agent_id: str = "fixture") -> dict:
     policy = {
         "schema_version": 1,
-        "agent_id": "fixture",
+        "agent_id": agent_id,
         "default_action": "deny",
         "rules": [],
         "policy_revision": "v1:none:0",
@@ -73,8 +78,8 @@ def _deny_all_policy() -> dict:
     return policy
 
 
-def _allow_policy(hostname: str, port: int) -> dict:
-    policy = _deny_all_policy()
+def _allow_policy(hostname: str, port: int, agent_id: str = "fixture") -> dict:
+    policy = _deny_all_policy(agent_id)
     policy["rules"] = [{
         "destination_kind": "dns",
         "destination_pattern": hostname,
@@ -92,6 +97,37 @@ def _allow_policy(hostname: str, port: int) -> dict:
     return policy
 
 
+@contextmanager
+def _reachable_private_http_fixture():
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"controlled-private-baseline")
+
+        def log_message(self, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    direct_url = f"http://127.0.0.1:{server.server_port}"
+    dns_url = f"http://127.0.0.1.nip.io:{server.server_port}"
+    opener = url_request.build_opener(url_request.ProxyHandler({}))
+    try:
+        for label, url in (("private IP", direct_url), ("DNS-private", dns_url)):
+            try:
+                with opener.open(url, timeout=5) as response:
+                    assert response.status == 200
+            except (url_error.URLError, TimeoutError, OSError) as exc:
+                pytest.skip(f"controlled {label} baseline unavailable: {exc}")
+        yield direct_url, dns_url, server.server_port
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 class _RecordingAudit:
     def __init__(self) -> None:
         self.events = []
@@ -107,6 +143,7 @@ def _build_probe_evidence(
     executable_version: str,
     event: dict,
     network_outcomes: dict[str, str],
+    filesystem_outcomes: dict[str, str],
 ) -> dict:
     required_digests = (
         "routing_context_digest", "endpoint_digest", "policy_digest", "settings_digest"
@@ -120,6 +157,11 @@ def _build_probe_evidence(
         value != "passed" for value in network_outcomes.values()
     ):
         raise ValueError("controlled network evidence is incomplete")
+    required_filesystem = {"write_inside", "write_escape", "review_write", "credential_read"}
+    if set(filesystem_outcomes) != required_filesystem or any(
+        value != "passed" for value in filesystem_outcomes.values()
+    ):
+        raise ValueError("controlled filesystem evidence is incomplete")
     if event.get("sandbox_applied") is not True:
         raise ValueError("sandbox was not applied")
     workspace_digest = event.get("workspace_content_digest")
@@ -143,6 +185,7 @@ def _build_probe_evidence(
         "workspace_content_digest": workspace_digest,
         **{key: event[key] for key in required_digests},
         "controlled_network": network_outcomes,
+        "controlled_filesystem": filesystem_outcomes,
     }
 
 
@@ -220,12 +263,17 @@ def test_probe_evidence_requires_complete_digest_and_network_identity() -> None:
             "allowed": "passed", "denied": "passed", "private": "passed",
             "dns_resolved_private": "passed",
         },
+        filesystem_outcomes={
+            "write_inside": "passed", "write_escape": "passed",
+            "review_write": "passed", "credential_read": "passed",
+        },
     )
     assert evidence["settings_digest"] == "3" * 64
     assert evidence["endpoint_digest"] == "4" * 64
     assert evidence["runtime_version"] == "0.0.77"
     assert evidence["cleanup_status"] == "succeeded"
     assert evidence["controlled_network"]["dns_resolved_private"] == "passed"
+    assert evidence["controlled_filesystem"]["credential_read"] == "passed"
 
 
 def test_configured_vendor_command_is_resolved_from_vendor_panel() -> None:
@@ -274,6 +322,7 @@ def test_real_srt_controlled_vendor_enforces_filesystem_and_network(tmp_path: Pa
         vendor_executable=Path(sys.executable),
         vendor_install_root=Path(sys.executable).resolve().parent,
         policy=_deny_all_policy(),
+        agent_id="fixture",
         write_capable=False,
         credential_env_key="VENDOR_TOKEN",
         state_env_keys=(),
@@ -316,20 +365,21 @@ def test_real_srt_controlled_vendor_enforces_filesystem_and_network(tmp_path: Pa
     assert credential.returncode != 0
     assert "do-not-read" not in credential.stdout
 
-    private_network = run_local_process(
-        LocalProcessRequest(
-            argv=(sys.executable, str(fixture), "fetch", "http://127.0.0.1:9"),
-            cwd=repo,
-            env={"VENDOR_TOKEN": "fixture-token"},
-            timeout_seconds=15,
-            isolation="sandbox",
-            sandbox_launch=launch,
-            runtime=runtime,
-            audit_port=audit,
-            audit_event={"event_id": "private-network"},
+    with _reachable_private_http_fixture() as (direct_url, _dns_url, _port):
+        private_network = run_local_process(
+            LocalProcessRequest(
+                argv=(sys.executable, str(fixture), "fetch", direct_url),
+                cwd=repo,
+                env={"VENDOR_TOKEN": "fixture-token"},
+                timeout_seconds=15,
+                isolation="sandbox",
+                sandbox_launch=launch,
+                runtime=runtime,
+                audit_port=audit,
+                audit_event={"event_id": "private-network"},
+            )
         )
-    )
-    assert private_network.returncode != 0
+        assert private_network.returncode != 0
 
 
 def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
@@ -353,6 +403,7 @@ def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
     secret = tmp_path / "credential.txt"
     secret.write_text("do-not-read")
     audit = _RecordingAudit()
+    agent_id = "ocr-local"
 
     def launch(policy: dict, *, write_capable: bool) -> SandboxLaunch:
         return SandboxLaunch(
@@ -364,6 +415,7 @@ def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
             vendor_executable=configured_executable,
             vendor_install_root=configured_install_root,
             policy=policy,
+            agent_id=policy["agent_id"],
             write_capable=write_capable,
             credential_env_key="VENDOR_TOKEN",
             state_env_keys=(),
@@ -398,31 +450,60 @@ def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
         )
 
     inside = repo / "sandbox-runtime-write-evidence.tmp"
+    review_write = repo / "sandbox-runtime-review-write-evidence.tmp"
     outside = tmp_path / "sandbox-runtime-escape.tmp"
     inside.unlink(missing_ok=True)
+    review_write.unlink(missing_ok=True)
     outside.unlink(missing_ok=True)
     try:
-        written = run(("write", str(inside)), _deny_all_policy(), write_capable=True)
+        written = run(
+            ("write", str(inside)),
+            _deny_all_policy(agent_id),
+            write_capable=True,
+        )
         assert written.sandbox_applied is True and written.returncode == 0, written.stderr
         assert inside.read_text() == "sandbox-write\n"
-        escaped = run(("write", str(outside)), _deny_all_policy(), write_capable=True)
+        escaped = run(
+            ("write", str(outside)),
+            _deny_all_policy(agent_id),
+            write_capable=True,
+        )
         assert escaped.returncode != 0
         assert not outside.exists()
+        review_denied = run(
+            ("write", str(review_write)),
+            _deny_all_policy(agent_id),
+        )
+        assert review_denied.returncode != 0
+        assert not review_write.exists()
+        credential_denied = run(
+            ("read", str(secret)),
+            _deny_all_policy(agent_id),
+        )
+        assert credential_denied.returncode != 0
+        assert "do-not-read" not in credential_denied.stdout
 
-        allowed = run(("fetch", "https://example.com"), _allow_policy("example.com", 443))
+        allowed = run(
+            ("fetch", "https://example.com"),
+            _allow_policy("example.com", 443, agent_id),
+        )
         assert allowed.returncode == 0
         assert "200" in allowed.stdout
-        denied = run(("fetch", "https://example.com"), _deny_all_policy())
+        denied = run(("fetch", "https://example.com"), _deny_all_policy(agent_id))
         assert denied.returncode != 0
-        private = run(("fetch", "http://127.0.0.1:9"), _allow_policy("example.com", 443))
-        assert private.returncode != 0
-        dns_private = run(
-            ("fetch", "http://127.0.0.1.nip.io:9"),
-            _allow_policy("127.0.0.1.nip.io", 9),
-        )
-        assert dns_private.returncode != 0
+        with _reachable_private_http_fixture() as (direct_url, dns_url, port):
+            private = run(
+                ("fetch", direct_url),
+                _allow_policy("example.com", 443, agent_id),
+            )
+            assert private.returncode != 0
+            dns_private = run(
+                ("fetch", dns_url),
+                _allow_policy("127.0.0.1.nip.io", port, agent_id),
+            )
+            assert dns_private.returncode != 0
 
-        version_policy = _deny_all_policy()
+        version_policy = _deny_all_policy(agent_id)
         version_result = run_local_process(
             LocalProcessRequest(
                 argv=(str(configured_executable), "--version"),
@@ -450,12 +531,16 @@ def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
         assert final_event["policy_digest"] == version_policy["policy_digest"]
         evidence = _build_probe_evidence(
             platform="darwin" if platform_module.system() == "Darwin" else "linux",
-                executable=str(configured_executable),
+            executable=str(configured_executable),
             executable_version=version,
             event=final_event,
             network_outcomes={
                 "allowed": "passed", "denied": "passed", "private": "passed",
                 "dns_resolved_private": "passed",
+            },
+            filesystem_outcomes={
+                "write_inside": "passed", "write_escape": "passed",
+                "review_write": "passed", "credential_read": "passed",
             },
         )
         if output := os.environ.get("SANDBOX_RUNTIME_PROBE_OUTPUT"):
@@ -464,3 +549,4 @@ def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
             )
     finally:
         inside.unlink(missing_ok=True)
+        review_write.unlink(missing_ok=True)

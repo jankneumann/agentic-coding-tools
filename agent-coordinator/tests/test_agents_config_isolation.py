@@ -6,6 +6,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+import yaml
 from jsonschema import ValidationError
 
 from src.agents_config import (
@@ -316,6 +317,48 @@ def test_mode_enforcement_and_cli_state_keys_are_parsed(
     assert local.cli.dispatch_modes["review"].enforcement_scope == "execution"
     assert local.cli.dispatch_modes["review"].write_capable is False
     assert local.cli.dispatch_modes["alternative"].write_capable is True
+
+
+@pytest.mark.parametrize(
+    "missing_field",
+    [
+        "enforcement_scope",
+        "write_capable",
+        "state_env_keys",
+    ],
+)
+def test_cli_sandbox_contract_fields_are_explicitly_required(
+    tmp_path: Path,
+    dummy_secrets: Path,
+    missing_field: str,
+) -> None:
+    path = _mode_aware_agents_yaml(tmp_path)
+    data = yaml.safe_load(path.read_text())
+    cli = data["agents"]["codex-local"]["cli"]
+    if missing_field == "state_env_keys":
+        del cli[missing_field]
+    else:
+        del cli["dispatch_modes"]["review"][missing_field]
+    path.write_text(yaml.safe_dump(data))
+
+    with pytest.raises(ValidationError, match="required property"):
+        load_agents_config(path, secrets_path=dummy_secrets)
+
+
+def test_dispatch_config_projects_full_standalone_assignment(
+    tmp_path: Path,
+    dummy_secrets: Path,
+) -> None:
+    agents = load_agents_config(
+        _mode_aware_agents_yaml(tmp_path), secrets_path=dummy_secrets
+    )
+
+    output = get_dispatch_configs(agents)
+    local = next(agent for agent in output["agents"] if agent["agent_id"] == "codex-local")
+    assert local["location"] == "unknown"
+    assert local["isolation"] == "worktree"
+    assert local["policy_vendor"] == "codex"
+    assert local["catalog_vendor"] is None
 
 
 @pytest.mark.parametrize("state_keys", ["[VENDOR_HOME, VENDOR_HOME]", "[not-valid]"])

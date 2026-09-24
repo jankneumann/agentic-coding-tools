@@ -36,6 +36,7 @@ from shared.vendor_process_surfaces import (  # noqa: E402
     as_completed_process,
     run_vendor_process,
 )
+from shared.sandbox_activation import resolve_activation_context  # noqa: E402
 
 # Per system_one_decisions.testing's documented stubbing rule: import the
 # module, never a pre-bound name, so a monkeypatched `decide` attribute is
@@ -549,6 +550,7 @@ def build_default_caller(
     cli_config: Any,
     vendor: str,
     *,
+    agent_id: str | None = None,
     cwd: Path,
     timeout_seconds: int = 120,
 ) -> Caller | None:
@@ -587,6 +589,7 @@ def build_default_caller(
     model = resolve_economy_model(vendor)
     model_flag = getattr(cli_config, "model_flag", None)
     prompt_via_stdin = getattr(cli_config, "prompt_via_stdin", True)
+    isolation = getattr(mode_config, "isolation", None) or "none"
 
     def _caller(system_prompt: str, user_prompt: str) -> str:
         full_prompt = system_prompt + "\n\n" + user_prompt
@@ -596,14 +599,27 @@ def build_default_caller(
         stdin_text = full_prompt if prompt_via_stdin else None
         if not prompt_via_stdin:
             cmd.append(full_prompt)
+        activation_context = None
+        if isolation == "sandbox" and agent_id is not None:
+            activation_context = resolve_activation_context(
+                agent_id=agent_id,
+                dispatch_mode=(
+                    "alternative"
+                    if dispatch_modes.get("alternative") is mode_config
+                    else "quick"
+                ),
+                model=model or "vendor-default",
+                worktree_root=cwd,
+            )
         invocation = VendorProcessInvocation(
             surface="fact_check",
             argv=tuple(cmd),
             cwd=cwd,
             env=os.environ.copy(),
             timeout_seconds=timeout_seconds,
-            isolation=getattr(mode_config, "isolation", None) or "none",
+            isolation=isolation,
             stdin_text=stdin_text,
+            activation_context=activation_context,
         )
         result = as_completed_process(
             invocation, run_vendor_process(invocation)

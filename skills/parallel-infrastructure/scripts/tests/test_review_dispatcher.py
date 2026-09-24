@@ -459,6 +459,33 @@ class TestCanDispatch:
 # ---------------------------------------------------------------------------
 
 class TestDispatch:
+    @patch("review_dispatcher.resolve_activation_context")
+    @patch("review_dispatcher._run_cli_process")
+    def test_sandbox_dispatch_prepares_exact_agent_activation_context(
+        self,
+        mock_run: MagicMock,
+        mock_resolve: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        activation_context = object()
+        mock_resolve.return_value = activation_context
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr="",
+        )
+        config = _cli_config()
+        config.dispatch_modes["review"].isolation = "sandbox"
+        adapter = CliVendorAdapter(
+            agent_id="codex-local", vendor="codex", cli_config=config,
+        )
+
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+
+        assert result.success is True
+        mock_resolve.assert_called_once()
+        assert mock_resolve.call_args.kwargs["agent_id"] == "codex-local"
+        assert mock_resolve.call_args.kwargs["dispatch_mode"] == "review"
+        assert mock_run.call_args.kwargs["activation_context"] is activation_context
+
     @patch("review_dispatcher._run_cli_process")
     def test_successful_dispatch(self, mock_run: MagicMock, tmp_path: Path) -> None:
         mock_run.return_value = subprocess.CompletedProcess(

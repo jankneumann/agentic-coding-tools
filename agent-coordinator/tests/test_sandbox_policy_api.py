@@ -7,7 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src import coordination_api as api_module
-from src.audit import AuditService, sandbox_endpoint_digest
+from src.audit import (
+    AuditService,
+    SandboxAuditConflictError,
+    sandbox_endpoint_digest,
+)
 from src.config import reset_config
 from src.network_policies import NetworkPolicyExportError
 
@@ -116,6 +120,30 @@ def test_sandbox_event_rejects_secret_or_truthful_cross_field_violation(client, 
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("environment_keys", ["OPENAI_API_KEY=secret"]),
+        ("executable_paths", ["relative/vendor"]),
+        ("cleanup_residual_paths", ["relative/residual"]),
+        ("worktree_root", "relative/worktree"),
+        ("degradation_reason", "capability_failed: bwrap unavailable"),
+    ],
+)
+def test_sandbox_event_rejects_noncanonical_or_secret_shaped_metadata(
+    client, monkeypatch, field, value
+):
+    monkeypatch.setattr(api_module, "resolve_trust_level", AsyncMock(return_value=3))
+
+    response = client.post(
+        "/dispatch/sandbox-events",
+        headers={"X-API-Key": "dispatcher-key"},
+        json=_event(**{field: value}),
+    )
+
+    assert response.status_code == 422
+
+
 def test_sandbox_event_rejects_untruthful_applied_fields(client, monkeypatch):
     monkeypatch.setattr(api_module, "resolve_trust_level", AsyncMock(return_value=3))
     response = client.post(
@@ -145,6 +173,39 @@ async def test_durable_audit_service_returns_idempotent_replay_identity():
         "record_sandbox_execution_event",
         {"p_actor_agent_id": "dispatch-host", "p_event": event},
     )
+
+
+@pytest.mark.asyncio
+async def test_durable_audit_service_raises_typed_event_id_conflict():
+    db = AsyncMock()
+    db.rpc.return_value = {
+        "success": False,
+        "reason": "event_id_conflict",
+    }
+
+    with pytest.raises(SandboxAuditConflictError, match="event_id_conflict"):
+        await AuditService(db).record_sandbox_event(
+            actor_agent_id="dispatch-host",
+            event=_event(),
+        )
+
+
+def test_sandbox_event_maps_replay_content_conflict_to_409(client, monkeypatch):
+    monkeypatch.setattr(api_module, "resolve_trust_level", AsyncMock(return_value=3))
+    audit = AsyncMock()
+    audit.record_sandbox_event.side_effect = SandboxAuditConflictError(
+        "event_id_conflict"
+    )
+    monkeypatch.setattr("src.audit.get_audit_service", lambda: audit)
+
+    response = client.post(
+        "/dispatch/sandbox-events",
+        headers={"X-API-Key": "dispatcher-key"},
+        json=_event(),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "event_id_conflict"
 
 
 def test_endpoint_digest_golden_parity_and_unsafe_url_rejection():

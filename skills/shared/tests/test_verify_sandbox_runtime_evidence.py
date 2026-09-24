@@ -40,6 +40,12 @@ def _write_artifact(root: Path, platform: str, *, run_id: int = 42, job_id: int 
             "private": "passed",
             "dns_resolved_private": "passed",
         },
+        "controlled_filesystem": {
+            "write_inside": "passed",
+            "write_escape": "passed",
+            "review_write": "passed",
+            "credential_read": "passed",
+        },
     }
     payload = json.dumps(probe, sort_keys=True, separators=(",", ":")).encode()
     (artifact / "probe.json").write_bytes(payload)
@@ -175,6 +181,33 @@ def test_rejects_incomplete_runtime_audit_identity(tmp_path: Path) -> None:
     evidence_path.write_text(json.dumps(evidence))
 
     with pytest.raises(verifier.EvidenceError, match="endpoint_digest"):
+        verifier.verify_downloaded_evidence(
+            run=_run_metadata(), artifacts_root=tmp_path,
+            workflow_path=".github/workflows/sandbox-runtime.yml",
+            head_sha="a" * 40, required_platforms={"linux"},
+        )
+
+
+@pytest.mark.parametrize("mutation", ["missing", "tampered"])
+def test_rejects_missing_or_tampered_filesystem_evidence(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    _write_artifact(tmp_path, "linux")
+    artifact = tmp_path / "sandbox-runtime-linux"
+    payload = artifact / "probe.json"
+    probe = json.loads(payload.read_text())
+    if mutation == "missing":
+        del probe["controlled_filesystem"]
+    else:
+        probe["controlled_filesystem"]["credential_read"] = "failed"
+    payload.write_text(json.dumps(probe, sort_keys=True, separators=(",", ":")))
+    evidence_path = artifact / "evidence.json"
+    evidence = json.loads(evidence_path.read_text())
+    evidence["artifact_digest"] = hashlib.sha256(payload.read_bytes()).hexdigest()
+    evidence_path.write_text(json.dumps(evidence))
+
+    with pytest.raises(verifier.EvidenceError, match="controlled filesystem"):
         verifier.verify_downloaded_evidence(
             run=_run_metadata(), artifacts_root=tmp_path,
             workflow_path=".github/workflows/sandbox-runtime.yml",

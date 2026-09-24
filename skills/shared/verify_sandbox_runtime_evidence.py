@@ -85,6 +85,17 @@ def _verify_probe(probe: Mapping[str, Any], platform: str) -> None:
     required = {"allowed", "denied", "private", "dns_resolved_private"}
     if set(network) != required or any(network[key] != "passed" for key in required):
         raise EvidenceError(f"{platform}: controlled network probe did not pass")
+    filesystem = _object(probe.get("controlled_filesystem"), "controlled filesystem")
+    required_filesystem = {
+        "write_inside",
+        "write_escape",
+        "review_write",
+        "credential_read",
+    }
+    if set(filesystem) != required_filesystem or any(
+        filesystem[key] != "passed" for key in required_filesystem
+    ):
+        raise EvidenceError(f"{platform}: controlled filesystem probe did not pass")
 
 
 def verify_downloaded_evidence(

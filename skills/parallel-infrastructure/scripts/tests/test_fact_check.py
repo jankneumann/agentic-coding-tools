@@ -412,9 +412,10 @@ class TestBuildDefaultCaller:
 
 
 class _ModeConfig:
-    def __init__(self, args, async_dispatch=False) -> None:
+    def __init__(self, args, async_dispatch=False, isolation=None) -> None:
         self.args = args
         self.async_dispatch = async_dispatch
+        self.isolation = isolation
 
 
 class _FakeCliConfig:
@@ -431,6 +432,45 @@ class TestBuildDefaultCallerVendorFlags:
     """Each vendor's own alternative/quick mode drives the caller's flags —
     not a single Claude-shaped hard-coded command (regression coverage for
     the fact-check pass silently no-opping on every non-Claude vendor)."""
+
+    def test_sandbox_mode_prepares_exact_agent_activation_context(
+        self, tmp_path, monkeypatch,
+    ) -> None:
+        activation_context = object()
+        captured: dict = {}
+        cli_config = _FakeCliConfig(
+            command=sys.executable,
+            dispatch_modes={
+                "alternative": _ModeConfig(["--plain"], isolation="sandbox"),
+            },
+        )
+
+        def resolve(**kwargs):
+            captured["resolved"] = kwargs
+            return activation_context
+
+        monkeypatch.setattr(fact_check, "resolve_activation_context", resolve)
+
+        def record(invocation):
+            captured["invocation"] = invocation
+            return type("Result", (), {
+                "status": "completed", "returncode": 0, "stdout": "ok",
+                "stderr": "", "timed_out": False, "sandbox_applied": True,
+                "degradation_reason": None, "cleanup_status": "succeeded",
+                "cleanup_residual_paths": (),
+            })()
+
+        monkeypatch.setattr(fact_check, "run_vendor_process", record)
+        caller = fact_check.build_default_caller(
+            cli_config, "some-vendor", agent_id="codex-local", cwd=tmp_path,
+        )
+        assert caller is not None
+
+        caller("system", "user")
+
+        assert captured["resolved"]["agent_id"] == "codex-local"
+        assert captured["resolved"]["dispatch_mode"] == "alternative"
+        assert captured["invocation"].activation_context is activation_context
 
     def test_uses_alternative_mode_args_not_claude_flags(
         self, tmp_path, monkeypatch,

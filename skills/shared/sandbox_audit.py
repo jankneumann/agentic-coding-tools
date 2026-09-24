@@ -71,6 +71,11 @@ def _canonical_line(event: dict[str, Any]) -> bytes:
         raise AuditDeliveryError(f"event is not canonical JSON: {exc}") from exc
 
 
+class _NoRedirectHandler(url_request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
+        return None
+
+
 class CoordinatorAuditSender:
     """Small stdlib transport for ``POST /dispatch/sandbox-events``."""
 
@@ -97,6 +102,7 @@ class CoordinatorAuditSender:
         self._url = f"{base_url.rstrip('/')}/dispatch/sandbox-events"
         self._api_key = api_key
         self._timeout_seconds = timeout_seconds
+        self._opener = url_request.build_opener(_NoRedirectHandler())
 
     def __call__(self, event: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         body = _canonical_line(event).rstrip(b"\n")
@@ -111,12 +117,16 @@ class CoordinatorAuditSender:
             method="POST",
         )
         try:
-            with url_request.urlopen(request, timeout=self._timeout_seconds) as response:
+            with self._opener.open(request, timeout=self._timeout_seconds) as response:
                 status = response.getcode()
-                raw = response.read()
+                raw = response.read(MAX_RECORD_BYTES + 1)
         except url_error.HTTPError as exc:
             status = exc.code
-            raw = exc.read()
+            if 300 <= status < 400:
+                raise AuditDeliveryError(
+                    f"coordinator sandbox audit redirect refused: HTTP {status}"
+                ) from exc
+            raw = exc.read(MAX_RECORD_BYTES + 1)
         except (url_error.URLError, TimeoutError, OSError) as exc:
             raise OSError("coordinator sandbox audit endpoint unavailable") from exc
         try:
@@ -329,6 +339,21 @@ class SandboxAuditPort:
         records.append(metadata)
         self._atomic_write(self.dead_letter_path, records)
 
+    def _file_telemetry(self, path: Path) -> tuple[int, int]:
+        fd = self._open_secure(path, os.O_RDONLY)
+        try:
+            byte_count = os.fstat(fd).st_size
+            record_count = 0
+            last_byte = b""
+            while chunk := os.read(fd, 64 * 1024):
+                record_count += chunk.count(b"\n")
+                last_byte = chunk[-1:]
+            if byte_count and last_byte != b"\n":
+                record_count += 1
+            return byte_count, record_count
+        finally:
+            os.close(fd)
+
     def drain(self) -> OutboxTelemetry:
         lock_fd = self._locked()
         failures = 0
@@ -358,15 +383,16 @@ class SandboxAuditPort:
             if records:
                 self._atomic_write(self.outbox_path, remaining)
             active_bytes = sum(len(_canonical_line(record)) for record in remaining)
-            dead_bytes = (
-                self.dead_letter_path.stat().st_size if self.dead_letter_path.exists() else 0
-            )
+            dead_bytes = 0
             dead_records = 0
             if self.dead_letter_path.exists():
-                dead_records = len(self.dead_letter_path.read_text(encoding="utf-8").splitlines())
+                file_bytes, file_records = self._file_telemetry(self.dead_letter_path)
+                dead_bytes += file_bytes
+                dead_records += file_records
             for path in self.state_root.glob("dead-letter.*.jsonl"):
-                dead_bytes += path.stat().st_size
-                dead_records += len(path.read_text(encoding="utf-8").splitlines())
+                file_bytes, file_records = self._file_telemetry(path)
+                dead_bytes += file_bytes
+                dead_records += file_records
             oldest_age = None
             if remaining and self.outbox_path.exists():
                 oldest_age = max(0.0, time.time() - self.outbox_path.stat().st_mtime)

@@ -13,6 +13,7 @@ without invoking the real CLIs.
 
 from __future__ import annotations
 
+import importlib
 import json
 
 import pytest
@@ -26,7 +27,7 @@ from evaluation.backends import (
     UnknownBackendError,
     build_backend,
 )
-from evaluation.config import AgentBackendConfig
+from evaluation.config import AblationFlags, AgentBackendConfig
 
 
 class TestBackendIdentity:
@@ -39,6 +40,60 @@ class TestBackendIdentity:
         assert AntigravityBackend()._command == "agy"
         assert GrokBackend()._command == "grok"
         assert PiBackend()._command == "pi"
+
+
+@pytest.mark.parametrize(
+    ("module_name", "backend_cls", "agent_id"),
+    [
+        ("claude_code", ClaudeCodeBackend, "claude-local"),
+        ("codex", CodexBackend, "codex-local"),
+        ("antigravity", AntigravityBackend, "antigravity-local"),
+        ("grok", GrokBackend, "grok-local"),
+        ("pi", PiBackend, "pi-local"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_evaluation_backend_resolves_exact_alternative_lane_isolation(
+    module_name: str,
+    backend_cls: type,
+    agent_id: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    module = importlib.import_module(f"evaluation.backends.{module_name}")
+    activation_context = object()
+    captured: dict[str, object] = {}
+
+    def resolve_isolation(
+        actual_agent_id: str, mode: str, *, worktree_root,
+    ) -> str:
+        captured.update(agent_id=actual_agent_id, mode=mode)
+        captured["worktree_root"] = worktree_root
+        return "sandbox"
+
+    monkeypatch.setattr(module, "resolve_requested_isolation", resolve_isolation)
+    monkeypatch.setattr(
+        module,
+        "resolve_activation_context",
+        lambda **kwargs: activation_context,
+    )
+
+    async def run(invocation):
+        captured["invocation"] = invocation
+        raise FileNotFoundError
+
+    monkeypatch.setattr(module, "run_vendor_process_async", run)
+
+    await backend_cls().execute_task(
+        "task", [], str(tmp_path), AblationFlags(),
+    )
+
+    invocation = captured["invocation"]
+    assert captured["agent_id"] == agent_id
+    assert captured["mode"] == "alternative"
+    assert captured["worktree_root"] == tmp_path
+    assert invocation.isolation == "sandbox"
+    assert invocation.activation_context is activation_context
 
 
 class TestBuildBackendFactory:
