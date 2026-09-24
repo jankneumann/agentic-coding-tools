@@ -2,6 +2,8 @@
 
 import json
 import os
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -134,6 +136,85 @@ def test_dead_letters_rotate_and_enforce_retained_file_cap(tmp_path):
         port.drain()
 
 
+def test_dead_letter_telemetry_streams_without_read_text(tmp_path, monkeypatch):
+    root = tmp_path / "state"
+    port = SandboxAuditPort(
+        state_root=root,
+        checkout_roots=[],
+        sender=lambda _event: (_ for _ in ()).throw(OSError("down")),
+    )
+    port.record(_event())
+    port.sender = lambda _event: (422, {"detail": "bad"})
+    assert port.drain().dead_letter_records == 1
+
+    original = Path.read_text
+
+    def refuse_dead_letter_read_text(path, *args, **kwargs):
+        if path.name.startswith("dead-letter"):
+            raise AssertionError("dead-letter telemetry must stream bounded chunks")
+        return original(path, *args, **kwargs)
+
+    read_sizes = []
+    original_read = os.read
+
+    def bounded_read(fd, size):
+        read_sizes.append(size)
+        return original_read(fd, size)
+
+    monkeypatch.setattr(Path, "read_text", refuse_dead_letter_read_text)
+    monkeypatch.setattr("shared.sandbox_audit.os.read", bounded_read)
+    assert port.drain().dead_letter_records == 1
+    assert read_sizes
+    assert max(read_sizes) <= 64 * 1024
+
+
+def test_stdlib_sender_refuses_redirect_without_reaching_target():
+    target_reached = threading.Event()
+
+    class TargetHandler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            target_reached.set()
+            self.send_response(201)
+            self.end_headers()
+            self.wfile.write(b'{"success":true}')
+
+        def log_message(self, *_args):
+            return
+
+    target = ThreadingHTTPServer(("127.0.0.1", 0), TargetHandler)
+    target_thread = threading.Thread(target=target.serve_forever, daemon=True)
+    target_thread.start()
+    target_url = f"http://127.0.0.1:{target.server_port}/events"
+
+    class RedirectHandler(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            self.send_response(302)
+            self.send_header("Location", target_url)
+            self.end_headers()
+
+        def log_message(self, *_args):
+            return
+
+    redirect = ThreadingHTTPServer(("127.0.0.1", 0), RedirectHandler)
+    redirect_thread = threading.Thread(target=redirect.serve_forever, daemon=True)
+    redirect_thread.start()
+    try:
+        sender = CoordinatorAuditSender(
+            base_url=f"http://127.0.0.1:{redirect.server_port}",
+            api_key="test-key",
+        )
+        with pytest.raises(AuditDeliveryError, match="redirect"):
+            sender(_event())
+        assert not target_reached.is_set()
+    finally:
+        redirect.shutdown()
+        target.shutdown()
+        redirect.server_close()
+        target.server_close()
+        redirect_thread.join(timeout=2)
+        target_thread.join(timeout=2)
+
+
 def test_stdlib_sender_posts_api_key_and_event(monkeypatch):
     captured = {}
 
@@ -147,15 +228,19 @@ def test_stdlib_sender_posts_api_key_and_event(monkeypatch):
         def getcode(self):
             return 201
 
-        def read(self):
+        def read(self, _size=-1):
             return b'{"success":true}'
 
-    def urlopen(request, timeout):
-        captured["request"] = request
-        captured["timeout"] = timeout
-        return Response()
+    class Opener:
+        def open(self, request, timeout):
+            captured["request"] = request
+            captured["timeout"] = timeout
+            return Response()
 
-    monkeypatch.setattr("shared.sandbox_audit.url_request.urlopen", urlopen)
+    monkeypatch.setattr(
+        "shared.sandbox_audit.url_request.build_opener",
+        lambda *_handlers: Opener(),
+    )
     sender = CoordinatorAuditSender(
         base_url="http://127.0.0.1:3000",
         api_key="test-key",

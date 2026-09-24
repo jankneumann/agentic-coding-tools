@@ -322,3 +322,42 @@ def test_migration_044_freezes_atomic_export_and_idempotent_audit_contract():
     assert "network_policies_updated_at" in migration
     assert "event_id UUID NOT NULL UNIQUE" in migration
     assert "ON CONFLICT (event_id) DO NOTHING" in migration
+    assert "existing.actor_agent_id = p_actor_agent_id" in migration
+    assert "existing.target_agent_id = p_event->>'agent_id'" in migration
+    assert "existing.event = p_event" in migration
+    assert "'reason', 'event_id_conflict'" in migration
+
+
+def test_migration_044_restricts_policy_export_and_audit_evidence_to_service_role():
+    migration = (
+        Path(__file__).parents[1]
+        / "database"
+        / "migrations"
+        / "044_dispatch_sandbox.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "REVOKE ALL ON FUNCTION export_network_policy(TEXT) FROM PUBLIC" in migration
+    assert "REVOKE ALL ON FUNCTION export_network_policy(TEXT) FROM anon" in migration
+    assert "REVOKE ALL ON FUNCTION export_network_policy(TEXT) FROM authenticated" in migration
+    assert "GRANT EXECUTE ON FUNCTION export_network_policy(TEXT) TO service_role" in migration
+    assert "FOR SELECT USING (current_setting('role') = 'service_role')" in migration
+    assert "REVOKE ALL ON TABLE sandbox_execution_events FROM PUBLIC" in migration
+    assert "REVOKE ALL ON TABLE sandbox_execution_events FROM anon" in migration
+    assert "REVOKE ALL ON TABLE sandbox_execution_events FROM authenticated" in migration
+    assert "GRANT ALL ON TABLE sandbox_execution_events TO service_role" in migration
+    assert (
+        "REVOKE ALL ON FUNCTION record_sandbox_execution_event(TEXT, JSONB) FROM PUBLIC"
+        in migration
+    )
+    assert (
+        "REVOKE ALL ON FUNCTION record_sandbox_execution_event(TEXT, JSONB) FROM anon"
+        in migration
+    )
+    assert (
+        "REVOKE ALL ON FUNCTION record_sandbox_execution_event(TEXT, JSONB) FROM authenticated"
+        in migration
+    )
+    assert (
+        "GRANT EXECUTE ON FUNCTION record_sandbox_execution_event(TEXT, JSONB) TO service_role"
+        in migration
+    )

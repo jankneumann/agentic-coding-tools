@@ -174,6 +174,11 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION export_network_policy(TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION export_network_policy(TEXT) FROM anon;
+REVOKE ALL ON FUNCTION export_network_policy(TEXT) FROM authenticated;
+GRANT EXECUTE ON FUNCTION export_network_policy(TEXT) TO service_role;
+
 CREATE TABLE IF NOT EXISTS sandbox_execution_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id UUID NOT NULL UNIQUE,
@@ -186,10 +191,15 @@ CREATE TABLE IF NOT EXISTS sandbox_execution_events (
 ALTER TABLE sandbox_execution_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS sandbox_execution_events_read ON sandbox_execution_events;
 CREATE POLICY sandbox_execution_events_read ON sandbox_execution_events
-    FOR SELECT USING (true);
+    FOR SELECT USING (current_setting('role') = 'service_role');
 DROP POLICY IF EXISTS sandbox_execution_events_write ON sandbox_execution_events;
 CREATE POLICY sandbox_execution_events_write ON sandbox_execution_events
     FOR ALL USING (current_setting('role') = 'service_role');
+
+REVOKE ALL ON TABLE sandbox_execution_events FROM PUBLIC;
+REVOKE ALL ON TABLE sandbox_execution_events FROM anon;
+REVOKE ALL ON TABLE sandbox_execution_events FROM authenticated;
+GRANT ALL ON TABLE sandbox_execution_events TO service_role;
 
 CREATE OR REPLACE FUNCTION record_sandbox_execution_event(
     p_actor_agent_id TEXT,
@@ -233,8 +243,20 @@ BEGIN
     GET DIAGNOSTICS v_inserted = ROW_COUNT;
 
     IF v_inserted = 0 THEN
-        SELECT id INTO v_id FROM sandbox_execution_events
-         WHERE event_id = (p_event->>'event_id')::uuid;
+        SELECT existing.id
+          INTO v_id
+          FROM sandbox_execution_events AS existing
+         WHERE existing.event_id = (p_event->>'event_id')::uuid
+           AND existing.actor_agent_id = p_actor_agent_id
+           AND existing.target_agent_id = p_event->>'agent_id'
+           AND existing.event = p_event;
+        IF v_id IS NULL THEN
+            RETURN jsonb_build_object(
+                'success', false,
+                'reason', 'event_id_conflict',
+                'event_id', p_event->>'event_id'
+            );
+        END IF;
     END IF;
     RETURN jsonb_build_object(
         'success', true,
@@ -244,3 +266,8 @@ BEGIN
     );
 END;
 $$;
+
+REVOKE ALL ON FUNCTION record_sandbox_execution_event(TEXT, JSONB) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_sandbox_execution_event(TEXT, JSONB) FROM anon;
+REVOKE ALL ON FUNCTION record_sandbox_execution_event(TEXT, JSONB) FROM authenticated;
+GRANT EXECUTE ON FUNCTION record_sandbox_execution_event(TEXT, JSONB) TO service_role;

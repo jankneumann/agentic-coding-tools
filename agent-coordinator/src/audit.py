@@ -87,6 +87,10 @@ class SandboxAuditError(RuntimeError):
     """The sandbox event could not be committed durably."""
 
 
+class SandboxAuditConflictError(SandboxAuditError):
+    """An event id was replayed with different actor, target, or content."""
+
+
 def sandbox_endpoint_digest(endpoint_kind: str, base_url: str | None) -> str:
     """Return the secret-free canonical digest carried by sandbox events.
 
@@ -275,6 +279,8 @@ class AuditService:
         except Exception as exc:
             logger.error("Durable sandbox audit write failed: %s", exc, exc_info=True)
             raise SandboxAuditError("durable audit storage unavailable") from exc
+        if isinstance(result, dict) and result.get("reason") == "event_id_conflict":
+            raise SandboxAuditConflictError("event_id_conflict")
         if not isinstance(result, dict) or not result.get("success"):
             raise SandboxAuditError("durable audit storage returned an invalid result")
         entry_id = result.get("audit_entry_id")

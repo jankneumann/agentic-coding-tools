@@ -49,6 +49,9 @@ agents:
       dispatch_modes:
         review:
           args: ["--print"]
+          enforcement_scope: execution
+          write_capable: false
+      state_env_keys: []
       model_flag: "--model"
   omega-remote:
     type: omega

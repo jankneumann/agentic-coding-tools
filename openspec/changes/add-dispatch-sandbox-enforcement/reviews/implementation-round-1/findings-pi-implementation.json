@@ -1,0 +1,147 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "low",
+      "description": "Nit: CoordinatorAuditSender uses urllib.request.urlopen which follows HTTP redirects by default. If the configured coordinator base URL redirects (e.g., via 302), audit metadata (event IDs, digests, policy revisions) could be sent to an unintended endpoint. The URL is validated at construction but redirect-following is not disabled.",
+      "resolution": "Configure urllib opener with a no-redirect handler or explicitly check response URL matches expected host.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "axis": "security",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: discover_sandbox_runtime determines the primary checkout as `common_git.parent if common_git.name == '.git' else toplevel`. This assumes standard Git worktree layout where `--git-common-dir` returns the main repo's `.git` directory. Bare repositories or non-standard Git configurations (e.g., `gitdir` file pointing elsewhere) could resolve the primary checkout incorrectly, causing runtime discovery to look in the wrong `tools/sandbox-runtime` location.",
+      "resolution": "Add a fallback verification that the resolved primary checkout contains the expected `tools/sandbox-runtime/package-lock.json`; if not, try `toplevel` as alternative before failing.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "description": "FYI: SandboxAuditPort.drain acquires an advisory file lock with a 5-second timeout (LOCK_TIMEOUT_SECONDS). Under high-concurrency dispatch where many processes simultaneously attempt to drain the outbox, legitimate events may fail closed with 'sandbox audit lock timeout' rather than queue. The design documents a 5-second lock wait but does not specify expected contention characteristics.",
+      "resolution": "Document expected concurrency limits; consider exponential backoff or a brief retry before failing closed.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: The structural guard in skills/parallel-infrastructure/scripts/tests/test_no_vendor_subprocess_bypass.py uses AST parsing to enumerate all registered PRODUCTION_VENDOR_SURFACES and verify zero direct subprocess/os.system calls outside the single shared backend (skills/shared/local_process_backend.py) and explicit exemptions. This is a strong defense-in-depth measure that prevents vendor CLI subprocess bypass at the configuration/structural level and runs in CI.",
+      "resolution": "No action required; this is a positive architectural control.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "Optional: build_child_environment creates state subdirectories (home, tmp, xdg/*) with `mkdir(mode=0o700, parents=True, exist_ok=True)`. While each launch uses a unique `state_root` from `tempfile.mkdtemp` making pre-existing directories extremely unlikely, a defense-in-depth `chmod(0o700)` after `mkdir` would guarantee permissions even against theoretical TOCTOU or directory-reuse scenarios.",
+      "resolution": "Add `path.chmod(0o700)` after each `mkdir` call for explicit permission enforcement.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "axis": "security",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "FYI: The local provider's concurrency gate (_local_gate) uses a 1800-second (30-minute) acquire timeout (_LOCAL_GATE_ACQUIRE_TIMEOUT_SECONDS). A wedged dispatch slot holder could block waiters for an extended period before the waiter degrades to the structured fallback. The design states 'a wedged slot holder degrades the waiter to the structured fallback instead of parking the phase forever' but 30 minutes is a long 'forever' for a phase deadline.",
+      "resolution": "Reduce the gate acquire timeout to align with typical phase timeouts (e.g., 300-600 seconds) or make it configurable with a lower default.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "axis": "resilience",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Payload v1 sandbox requests correctly fail closed with `upgrade_required` error_class in provider_dispatch.py:dispatch_phase, ensuring no legacy caller can claim sandbox enforcement without the immutable v2 execution context carrying the dg-06 routing digest. The schema validation in PhaseDispatchPayload._validate_v2 rejects v1 payloads that carry execution_context, and the dispatch path rejects v1 isolation=sandbox before any backend invocation.",
+      "resolution": "No action required; version gating is correctly enforced.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "FYI: The sandbox-execution-event.schema.json contract requires `event_id` as UUID format, but the SQL function `record_sandbox_execution_event` extracts it via `(p_event->>'event_id')::uuid` without validating the format beforehand. A malformed UUID string would cause a PostgreSQL cast error (22P02) rather than a clean 422 validation error. The Pydantic model in coordination_api.py validates the format, but direct database callers bypass this.",
+      "resolution": "Add a PL/pgSQL UUID format check before the cast, or rely on the API layer as the sole writer (documented).",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "low",
+      "description": "Optional: The network policy export's canonical JSON digest excludes the `policy_digest` field itself (per schema), but the SQL function `export_network_policy` computes the revision from `max(updated_at)` and `count(*)` over the filtered rules. If two exports occur within the same microsecond with identical rule sets, they produce the same `policy_revision` and `policy_digest`. This is functionally correct (same policy = same digest) but the microsecond-precision timestamp in the revision could collide under extreme load, making the revision non-unique. The design accepts this as 'policy_revision is v1:<maximum-updated-at-UTC>:<row-count>'.",
+      "resolution": "No code change; document that revision uniqueness relies on updated_at granularity and row count.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "axis": "security",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Nit: The sandbox integration test (test_sandbox_profile_integration.py) writes probe evidence to a file path from `SANDBOX_RUNTIME_PROBE_OUTPUT` env var, but the GitHub Actions workflow expects this at `${{ runner.temp }}/probe.json`. The test validates the probe structure in `_build_probe_evidence` but the controlled network outcomes (`allowed`, `denied`, `private`, `dns_resolved_private`) are asserted as 'passed' without showing how the test fixture actually exercises each. The fixture `sandbox_vendor.py` is not visible in the reviewed diff.",
+      "resolution": "Verify the sandbox_vendor.py fixture exercises all four network outcome categories; add inline comments linking each probe to its outcome.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ],
+  "coverage": {
+    "proposal_read": true,
+    "design_read": true,
+    "contracts_read": true,
+    "specs_read": true,
+    "tasks_read": true,
+    "work_packages_read": true,
+    "production_diff_inspected": true,
+    "test_diff_inspected": true,
+    "axes_covered": [
+      "correctness",
+      "readability",
+      "architecture",
+      "security",
+      "performance",
+      "observability",
+      "resilience",
+      "compatibility"
+    ]
+  }
+}

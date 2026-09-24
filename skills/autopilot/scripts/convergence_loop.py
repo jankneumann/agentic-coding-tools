@@ -426,7 +426,10 @@ def _resolve_fact_check_caller(
                 and getattr(adapter, "transport", None) == "mcp"
             ):
                 return fact_check_module.build_default_caller(
-                    adapter.cli_config, vendor, cwd=cwd,
+                    adapter.cli_config,
+                    vendor,
+                    agent_id=adapter.agent_id,
+                    cwd=cwd,
                 )
     except Exception:  # noqa: BLE001 — see docstring
         return None

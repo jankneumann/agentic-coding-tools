@@ -82,6 +82,7 @@ def test_fail_open_requires_durable_audit_before_original_command(
         vendor_executable=Path(sys.executable),
         vendor_install_root=Path(sys.executable).resolve().parent,
         policy={},
+        agent_id="fixture",
         write_capable=False,
         credential_env_key="TOKEN",
         state_env_keys=(),

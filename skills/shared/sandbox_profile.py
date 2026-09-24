@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import ipaddress
 import json
 import os
@@ -52,6 +53,27 @@ BASELINE_DENIED_RESOLVED_ADDRESSES = (
 )
 _SAFE_ENV_NAMES = frozenset({"LANG", "TERM", "TZ"})
 _ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_DNS_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+_DNS_PATTERN = re.compile(rf"^(?:\*\.)?(?:{_DNS_LABEL}\.)+{_DNS_LABEL}$")
+_POLICY_REVISION = re.compile(r"^v1:.+:[0-9]+$")
+_POLICY_DIGEST = re.compile(r"^[a-f0-9]{64}$")
+_POLICY_KEYS = {
+    "schema_version",
+    "agent_id",
+    "default_action",
+    "rules",
+    "policy_revision",
+    "policy_digest",
+}
+_RULE_KEYS = {
+    "destination_kind",
+    "destination_pattern",
+    "port",
+    "action",
+    "priority",
+    "scope",
+    "policy_id",
+}
 
 
 class SandboxProfileError(RuntimeError):
@@ -99,6 +121,7 @@ class SandboxLaunch:
     vendor_executable: Path
     vendor_install_root: Path
     policy: Mapping[str, Any]
+    agent_id: str
     write_capable: bool
     credential_env_key: str
     state_env_keys: tuple[str, ...]
@@ -142,13 +165,16 @@ def _canonical_bytes(value: Any) -> bytes:
                 reject_float(child)
 
     reject_float(value)
-    return json.dumps(
-        value,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        allow_nan=False,
-    ).encode("utf-8")
+    try:
+        return json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise SandboxProfileError(f"sandbox value is not canonical JSON: {exc}") from exc
 
 
 def _unique_paths(paths: Sequence[Path]) -> list[str]:
@@ -156,19 +182,28 @@ def _unique_paths(paths: Sequence[Path]) -> list[str]:
 
 
 def _network_entry(rule: Mapping[str, Any]) -> str:
-    destination = str(rule.get("destination_pattern", ""))
+    destination = rule.get("destination_pattern")
     kind = rule.get("destination_kind")
-    if kind not in {"dns", "ipv4", "ipv6"} or not destination:
+    if kind not in {"dns", "ipv4", "ipv6"} or not isinstance(destination, str):
         raise SandboxProfileError("invalid typed network destination")
+    if kind == "dns" and not _DNS_PATTERN.fullmatch(destination):
+        raise SandboxProfileError("invalid DNS destination")
     port = rule.get("port")
     if port is not None and (type(port) is not int or not 1 <= port <= 65535):
         raise SandboxProfileError("invalid network destination port")
     if kind in {"ipv4", "ipv6"}:
+        if kind == "ipv6" and not (
+            destination.startswith("[") and destination.endswith("]")
+        ):
+            raise SandboxProfileError("invalid IP literal")
         literal = (
             destination[1:-1] if kind == "ipv6" and destination.startswith("[") else destination
         )
         try:
             address = ipaddress.ip_address(literal)
+            expected_version = 4 if kind == "ipv4" else 6
+            if address.version != expected_version:
+                raise ValueError
         except ValueError as exc:
             raise SandboxProfileError("invalid IP literal") from exc
         if rule.get("action") == "allow" and (
@@ -183,6 +218,61 @@ def _network_entry(rule: Mapping[str, Any]) -> str:
     return f"{destination}:{port}" if port is not None else destination
 
 
+def _validate_policy_snapshot(launch: SandboxLaunch) -> list[Mapping[str, Any]]:
+    policy = launch.policy
+    if not isinstance(policy, Mapping) or set(policy) != _POLICY_KEYS:
+        raise SandboxProfileError("sandbox policy snapshot has malformed fields")
+    if (
+        type(policy["schema_version"]) is not int
+        or policy["schema_version"] != 1
+        or policy["default_action"] != "deny"
+    ):
+        raise SandboxProfileError("sandbox requires a version-1 default-deny policy")
+    if not isinstance(launch.agent_id, str) or not launch.agent_id:
+        raise SandboxProfileError("sandbox launch agent_id is required")
+    if policy["agent_id"] != launch.agent_id:
+        raise SandboxProfileError("sandbox policy agent_id does not match launch agent_id")
+    revision = policy["policy_revision"]
+    if not isinstance(revision, str) or not _POLICY_REVISION.fullmatch(revision):
+        raise SandboxProfileError("invalid sandbox policy revision")
+    digest = policy["policy_digest"]
+    if not isinstance(digest, str) or not _POLICY_DIGEST.fullmatch(digest):
+        raise SandboxProfileError("invalid sandbox policy digest")
+    unsigned = {key: value for key, value in policy.items() if key != "policy_digest"}
+    expected_digest = hashlib.sha256(_canonical_bytes(unsigned)).hexdigest()
+    if not hmac.compare_digest(digest, expected_digest):
+        raise SandboxProfileError("sandbox policy digest mismatch")
+
+    rules = policy["rules"]
+    if not isinstance(rules, list):
+        raise SandboxProfileError("sandbox policy rules must be a list")
+    validated: list[Mapping[str, Any]] = []
+    for rule in rules:
+        if not isinstance(rule, Mapping) or set(rule) != _RULE_KEYS:
+            raise SandboxProfileError("sandbox policy rule has malformed fields")
+        _network_entry(rule)
+        if rule["action"] not in {"allow", "deny"}:
+            raise SandboxProfileError("sandbox policy action must be allow or deny")
+        if type(rule["priority"]) is not int:
+            raise SandboxProfileError("invalid sandbox policy priority")
+        if rule["scope"] not in {"agent_profile", "global"}:
+            raise SandboxProfileError("invalid sandbox policy scope")
+        if not isinstance(rule["policy_id"], str) or not rule["policy_id"]:
+            raise SandboxProfileError("invalid sandbox policy id")
+        validated.append(rule)
+
+    def sort_key(rule: Mapping[str, Any]) -> tuple[int, int, int, str]:
+        return (
+            0 if rule["scope"] == "agent_profile" else 1,
+            rule["priority"],
+            0 if rule["action"] == "deny" else 1,
+            rule["policy_id"],
+        )
+    if validated != sorted(validated, key=sort_key):
+        raise SandboxProfileError("sandbox policy rules are not in canonical order")
+    return validated
+
+
 def render_sandbox_settings(
     launch: SandboxLaunch,
     *,
@@ -192,17 +282,10 @@ def render_sandbox_settings(
 ) -> RenderedSettings:
     """Render deterministic, conservative SRT settings without side effects."""
 
-    policy = launch.policy
-    if policy.get("schema_version") != 1 or policy.get("default_action") != "deny":
-        raise SandboxProfileError("sandbox requires a version-1 default-deny policy")
-    rules = policy.get("rules")
-    if not isinstance(rules, list):
-        raise SandboxProfileError("sandbox policy rules must be a list")
+    rules = _validate_policy_snapshot(launch)
     allowed: list[str] = []
     denied: list[str] = []
     for rule in rules:
-        if not isinstance(rule, Mapping):
-            raise SandboxProfileError("sandbox policy rule must be an object")
         entry = _network_entry(rule)
         action = rule.get("action")
         if action == "allow":

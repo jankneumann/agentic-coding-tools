@@ -397,6 +397,132 @@ async def test_every_migration_applies_to_an_empty_database(migrated_database) -
     )
 
 
+async def test_sandbox_audit_objects_are_service_role_only(migrated_database) -> None:
+    dsn, _applied = migrated_database
+    conn = await _connect(dsn)
+    try:
+        # Role privilege checks include privileges inherited from PUBLIC, so
+        # both false results also prove the default PUBLIC execute/read grants
+        # were removed.
+        for role in ("anon", "authenticated"):
+            assert not await conn.fetchval(
+                "SELECT has_function_privilege($1, "
+                "'export_network_policy(text)', 'EXECUTE')",
+                role,
+            )
+            assert not await conn.fetchval(
+                "SELECT has_function_privilege($1, "
+                "'record_sandbox_execution_event(text,jsonb)', 'EXECUTE')",
+                role,
+            )
+            assert not await conn.fetchval(
+                "SELECT has_table_privilege($1, 'sandbox_execution_events', 'SELECT')",
+                role,
+            )
+        assert await conn.fetchval(
+            "SELECT has_function_privilege("
+            "'service_role', 'export_network_policy(text)', 'EXECUTE')"
+        )
+        assert await conn.fetchval(
+            "SELECT has_function_privilege("
+            "'service_role', 'record_sandbox_execution_event(text,jsonb)', 'EXECUTE')"
+        )
+        assert await conn.fetchval(
+            "SELECT has_table_privilege("
+            "'service_role', 'sandbox_execution_events', 'SELECT')"
+        )
+    finally:
+        await conn.close()
+
+
+async def test_sandbox_event_replay_rejects_actor_target_or_content_drift(
+    migrated_database,
+) -> None:
+    dsn, _applied = migrated_database
+    conn = await _connect(dsn)
+    event_id = str(uuid.uuid4())
+    event = {
+        "schema_version": 1,
+        "event_id": event_id,
+        "context_source": "agents_yaml",
+        "decision_id": None,
+        "item_id": None,
+        "phase": None,
+        "attempt": 1,
+        "dispatch_work_id": None,
+        "routing_context_digest": None,
+        "workspace_content_digest": None,
+        "agent_id": "target",
+        "vendor_type": "codex",
+        "policy_vendor": "openai",
+        "catalog_vendor": "openai",
+        "assignment_location": "local",
+        "execution_location": "local",
+        "enforcement_scope": "execution",
+        "write_capable": False,
+        "dispatch_mode": "review",
+        "model": "gpt-5.6-sol",
+        "endpoint_kind": "openai",
+        "endpoint_digest": "1" * 64,
+        "requested_isolation": "sandbox",
+        "sandbox_applied": False,
+        "backend": "local-process",
+        "runtime_version": None,
+        "platform": "unsupported",
+        "preflight_status": "unsupported_platform",
+        "policy_revision": None,
+        "policy_digest": None,
+        "settings_digest": None,
+        "worktree_root": None,
+        "executable_paths": ["/usr/bin/codex"],
+        "environment_keys": ["OPENAI_API_KEY"],
+        "degradation_reason": "unsupported_platform",
+        "cleanup_status": "not_started",
+        "cleanup_residual_paths": [],
+    }
+    try:
+        created = json.loads(
+            await conn.fetchval(
+                "SELECT record_sandbox_execution_event($1, $2::jsonb)",
+                "actor",
+                json.dumps(event),
+            )
+        )
+        assert created["success"] is True
+        assert created["replayed"] is False
+
+        replayed = json.loads(
+            await conn.fetchval(
+                "SELECT record_sandbox_execution_event($1, $2::jsonb)",
+                "actor",
+                json.dumps(event),
+            )
+        )
+        assert replayed["success"] is True
+        assert replayed["replayed"] is True
+        assert replayed["audit_entry_id"] == created["audit_entry_id"]
+
+        for actor, conflicting_event in (
+            ("other-actor", event),
+            ("actor", {**event, "agent_id": "other-target"}),
+            ("actor", {**event, "model": "gpt-5.6-terra"}),
+        ):
+            conflict = json.loads(
+                await conn.fetchval(
+                    "SELECT record_sandbox_execution_event($1, $2::jsonb)",
+                    actor,
+                    json.dumps(conflicting_event),
+                )
+            )
+            assert conflict == {
+                "event_id": event_id,
+                "reason": "event_id_conflict",
+                "success": False,
+            }
+    finally:
+        await conn.close()
+
+
 async def test_reserved_projection_rows_are_database_owned_and_issue_immutable(
     migrated_database,
 ) -> None:

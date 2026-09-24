@@ -42,6 +42,7 @@ from shared.vendor_process_surfaces import (  # noqa: E402
     as_completed_process,
     run_vendor_process,
 )
+from shared.sandbox_activation import resolve_activation_context  # noqa: E402
 
 
 class PhaseDispatchPayloadError(ValueError):
@@ -124,8 +125,18 @@ class PhaseDispatchPayload:
             raise PhaseDispatchPayloadError(
                 f"execution_context missing fields: {', '.join(missing)}"
             )
+        unexpected = sorted(context.keys() - required)
+        if unexpected:
+            raise PhaseDispatchPayloadError(
+                f"execution_context has unexpected fields: {', '.join(unexpected)}"
+            )
+        _reject_floats(context, "execution_context")
         if context["schema_version"] != 1:
             raise PhaseDispatchPayloadError("execution_context schema_version must be 1")
+        if context["source"] not in {"router", "agents_yaml", "default"}:
+            raise PhaseDispatchPayloadError("invalid execution_context source")
+        if context["execution_location"] != "local":
+            raise PhaseDispatchPayloadError("invalid execution_location")
         if context["isolation"] not in {"none", "worktree", "sandbox"}:
             raise PhaseDispatchPayloadError("invalid execution_context isolation")
         if context["source"] == "default" and context["isolation"] != "none":
@@ -157,6 +168,9 @@ class PhaseDispatchPayload:
                 "assignment_location": "location", "dispatch_mode": "dispatch_mode",
                 "isolation": "isolation", "model": "model",
                 "endpoint_kind": "endpoint_kind",
+                "base_url": "base_url",
+                "enforcement_scope": "enforcement_scope",
+                "write_capable": "write_capable",
             }
             for context_key, assignment_key in assignment_fields.items():
                 if context[context_key] != assignment.get(assignment_key):
@@ -621,6 +635,19 @@ def _run_local_agent_cli(
         str(_LOCAL_PI_EXTENSION),
         _local_harness_prompt(payload),
     ]
+    activation_context = None
+    if payload.effective_isolation == "sandbox":
+        if payload.schema_version != 2 or payload.execution_context is None:
+            raise LocalAdapterError("sandbox dispatch requires execution_context")
+        if payload.agent_id is None:
+            raise LocalAdapterError("sandbox dispatch requires agent_id")
+        activation_context = resolve_activation_context(
+            agent_id=payload.agent_id,
+            dispatch_mode=str(payload.execution_context["dispatch_mode"]),
+            model=payload.model or "local-default",
+            worktree_root=Path(str(payload.execution_context["worktree_root"])),
+            execution_context=payload.execution_context,
+        )
     invocation = VendorProcessInvocation(
         surface="autopilot_provider",
         argv=tuple(command),
@@ -628,6 +655,7 @@ def _run_local_agent_cli(
         env=env,
         timeout_seconds=_LOCAL_DISPATCH_TIMEOUT_SECONDS,
         isolation=payload.effective_isolation,  # type: ignore[arg-type]
+        activation_context=activation_context,
     )
     return as_completed_process(invocation, run_vendor_process(invocation))
 

@@ -61,6 +61,11 @@ from shared.vendor_process_surfaces import (  # noqa: E402
     as_completed_process,
     run_vendor_process,
 )
+from shared.sandbox_activation import (  # noqa: E402
+    SandboxActivationContext,
+    SandboxActivationError,
+    resolve_activation_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +80,7 @@ def _run_cli_process(
     cwd: str | None = None,
     env: dict[str, str] | None = None,
     isolation: str = "none",
+    activation_context: SandboxActivationContext | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Compatibility adapter over the one registered vendor-process backend."""
 
@@ -88,6 +94,7 @@ def _run_cli_process(
         timeout_seconds=timeout,
         isolation=isolation,  # type: ignore[arg-type]
         stdin_text=input,
+        activation_context=activation_context,
     )
     return as_completed_process(invocation, run_vendor_process(invocation))
 
@@ -829,6 +836,22 @@ class CliVendorAdapter:
         self._ledger_submitter = ledger_submitter
         self._ledger_completer = ledger_completer
 
+    def _sandbox_activation_context(
+        self,
+        mode: str,
+        cwd: Path,
+        model: str | None,
+    ) -> SandboxActivationContext | None:
+        mode_config = self.cli_config.dispatch_modes[mode]
+        if (mode_config.isolation or "none") != "sandbox":
+            return None
+        return resolve_activation_context(
+            agent_id=self.agent_id,
+            dispatch_mode=mode,
+            model=model or self.cli_config.model or "vendor-default",
+            worktree_root=cwd,
+        )
+
     @staticmethod
     def _ledger_response_error(response: dict[str, Any]) -> str:
         data = response.get("data")
@@ -1073,6 +1096,9 @@ class CliVendorAdapter:
                     isolation=(
                         self.cli_config.dispatch_modes[mode].isolation or "none"
                     ),
+                    activation_context=self._sandbox_activation_context(
+                        mode, cwd, model,
+                    ),
                 )
                 elapsed = time.monotonic() - start
 
@@ -1187,6 +1213,15 @@ class CliVendorAdapter:
                     error=f"Timeout after {timeout_seconds}s",
                     error_class=ErrorClass.TRANSIENT,
                     raw_stdout=timed_out_stdout,
+                )
+            except (OSError, SandboxActivationError) as exc:
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    models_attempted=models_attempted,
+                    elapsed_seconds=time.monotonic() - start,
+                    error=f"Sandbox enforcement blocked dispatch: {exc}",
+                    error_class=ErrorClass.UNKNOWN,
                 )
 
         # All models exhausted or non-retryable error
@@ -1619,13 +1654,16 @@ class CliVendorAdapter:
                     timeout=120,  # submit timeout (not execution timeout)
                     cwd=str(cwd),
                     isolation=mode_config.isolation or "none",
+                    activation_context=self._sandbox_activation_context(
+                        mode, cwd, model,
+                    ),
                 )
             except subprocess.TimeoutExpired:
                 return fail(
                     "Timeout submitting async task",
                     error_class=ErrorClass.TRANSIENT,
                 )
-            except OSError as exc:
+            except (OSError, SandboxActivationError) as exc:
                 return fail(
                     f"Async submission command failed: {exc}",
                     error_class=ErrorClass.UNKNOWN,
@@ -1776,12 +1814,21 @@ class CliVendorAdapter:
                     timeout=30,
                     cwd=str(cwd) if cwd else None,
                     isolation=isolation,
+                    activation_context=(
+                        self._sandbox_activation_context(
+                            poll_mode,
+                            cwd or Path.cwd(),
+                            self.cli_config.model,
+                        )
+                        if isolation == "sandbox"
+                        else None
+                    ),
                 )
             except subprocess.TimeoutExpired:
                 logger.warning("Poll command timed out, retrying")
                 time.sleep(poll_config.interval_seconds)
                 continue
-            except VendorProcessBlocked as exc:
+            except (VendorProcessBlocked, SandboxActivationError) as exc:
                 enforcement_block = str(exc)
                 logger.warning("Poll enforcement blocked, retrying: %s", exc)
                 time.sleep(poll_config.interval_seconds)

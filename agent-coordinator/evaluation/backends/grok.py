@@ -26,10 +26,17 @@ from .base import BackendResult
 _SKILLS_ROOT = Path(__file__).resolve().parents[3] / "skills"
 if str(_SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(_SKILLS_ROOT))
+from shared.sandbox_activation import (  # noqa: E402
+    resolve_activation_context,
+    resolve_requested_isolation,
+)
 from shared.vendor_process_surfaces import (  # noqa: E402
     VendorProcessInvocation,
     run_vendor_process_async,
 )
+
+_AGENT_ID = "grok-local"
+_DISPATCH_MODE = "alternative"
 
 
 class GrokBackend:
@@ -127,14 +134,29 @@ class GrokBackend:
 
         try:
             env = {**os.environ, **self._env}
+            worktree_root = Path(working_dir)
+            isolation = resolve_requested_isolation(
+                _AGENT_ID, _DISPATCH_MODE, worktree_root=worktree_root,
+            )
+            activation_context = (
+                resolve_activation_context(
+                    agent_id=_AGENT_ID,
+                    dispatch_mode=_DISPATCH_MODE,
+                    model="evaluation-default",
+                    worktree_root=worktree_root,
+                )
+                if isolation == "sandbox"
+                else None
+            )
             result = await run_vendor_process_async(VendorProcessInvocation(
                 surface="evaluation_grok",
                 argv=tuple(cmd),
-                cwd=Path(working_dir),
+                cwd=worktree_root,
                 env=env,
                 timeout_seconds=timeout,
-                isolation="none",
+                isolation=isolation,
                 stdin_text=self._stdin_input(prompt),
+                activation_context=activation_context,
             ))
             wall_clock = time.time() - start_time
             if result.timed_out:

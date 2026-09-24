@@ -474,7 +474,12 @@ AGENTS_SCHEMA: dict[str, Any] = {
                     },
                     "cli": {
                         "type": "object",
-                        "required": ["command", "dispatch_modes", "model_flag"],
+                        "required": [
+                            "command",
+                            "dispatch_modes",
+                            "model_flag",
+                            "state_env_keys",
+                        ],
                         "properties": {
                             "command": {"type": "string", "minLength": 1},
                             "dispatch_modes": {
@@ -482,7 +487,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                 "minProperties": 1,
                                 "additionalProperties": {
                                     "type": "object",
-                                    "required": ["args"],
+                                    "required": [
+                                        "args",
+                                        "enforcement_scope",
+                                        "write_capable",
+                                    ],
                                     "properties": {
                                         "args": {
                                             "type": "array",
@@ -913,10 +922,8 @@ def load_agents_config(
                     args=mode_data["args"],
                     async_dispatch=mode_data.get("async", False),
                     isolation=mode_data.get("isolation"),
-                    enforcement_scope=mode_data.get(
-                        "enforcement_scope", "execution"
-                    ),
-                    write_capable=mode_data.get("write_capable", False),
+                    enforcement_scope=mode_data["enforcement_scope"],
+                    write_capable=mode_data["write_capable"],
                     poll=poll_config,
                 )
 
@@ -932,7 +939,7 @@ def load_agents_config(
                 prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
                 prompt_via_flag=raw_cli.get("prompt_via_flag", ""),
                 api_key_env=raw_cli.get("api_key_env", ""),
-                state_env_keys=list(raw_cli.get("state_env_keys", [])),
+                state_env_keys=list(raw_cli["state_env_keys"]),
             )
 
         sdk_config: SdkConfig | None = None
@@ -1922,6 +1929,10 @@ def get_dispatch_configs(
             "agent_id": entry.name,
             "type": entry.type,
             "transport": entry.transport,
+            "location": entry.location,
+            "isolation": entry.isolation,
+            "policy_vendor": entry.policy_vendor,
+            "catalog_vendor": entry.catalog_vendor,
             "openbao_role_id": entry.openbao_role_id,
             "endpoint_kind": entry.endpoint_kind,
             "base_url": entry.base_url,

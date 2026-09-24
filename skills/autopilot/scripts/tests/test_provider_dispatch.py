@@ -73,7 +73,9 @@ def _v2_payload_dict(**overrides: Any) -> dict[str, Any]:
             "policy_vendor": "openai", "catalog_vendor": "openai",
             "location": "local", "isolation": "sandbox",
             "dispatch_mode": "alternative", "model": "gpt-5.6",
-            "endpoint_kind": "vendor_default", "extension": {"lossless": True},
+            "endpoint_kind": "vendor_default", "base_url": None,
+            "enforcement_scope": "execution", "write_capable": True,
+            "extension": {"lossless": True},
         },
         "provenance": {"router": "dg-06", "extension": ["preserved"]},
     }
@@ -136,6 +138,90 @@ def test_v2_rejects_digest_mismatch_and_floats() -> None:
     data["execution_context"]["routing_context_digest"] = "0" * 64
     with pytest.raises(PhaseDispatchPayloadError, match="digest"):
         PhaseDispatchPayload.from_dict(data)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("enforcement_scope", "submission"),
+        ("write_capable", False),
+        ("base_url", "https://different.example/v1"),
+    ],
+)
+def test_v2_rejects_enforcement_projection_mismatch(field: str, value: object) -> None:
+    data = _v2_payload_dict()
+    assignment = data["execution_context"]["routing_context"]["assignment"]
+    assignment.update(
+        enforcement_scope="execution",
+        write_capable=True,
+        base_url=None,
+    )
+    data["execution_context"]["routing_context_digest"] = (
+        canonical_routing_context_digest(data["execution_context"]["routing_context"])
+    )
+    data["execution_context"][field] = value
+
+    with pytest.raises(PhaseDispatchPayloadError, match=field):
+        PhaseDispatchPayload.from_dict(data)
+
+
+def test_v2_rejects_unknown_execution_context_fields() -> None:
+    data = _v2_payload_dict()
+    data["execution_context"]["untrusted_extension"] = "ignored-before-fix"
+
+    with pytest.raises(PhaseDispatchPayloadError, match="unexpected"):
+        PhaseDispatchPayload.from_dict(data)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("source", "forged"), ("execution_location", "cloud")],
+)
+def test_v2_rejects_invalid_closed_context_values(field: str, value: str) -> None:
+    data = _v2_payload_dict()
+    data["execution_context"][field] = value
+
+    with pytest.raises(PhaseDispatchPayloadError, match=field):
+        PhaseDispatchPayload.from_dict(data)
+
+
+def test_local_sandbox_launch_uses_router_activation_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data = _v2_payload_dict(provider="local", agent_id="local-agent")
+    context = data["execution_context"]
+    context["agent_id"] = "local-agent"
+    context["vendor_type"] = "local"
+    assignment = context["routing_context"]["assignment"]
+    assignment["agent_id"] = "local-agent"
+    assignment["vendor_type"] = "local"
+    context["routing_context_digest"] = canonical_routing_context_digest(
+        context["routing_context"]
+    )
+    payload = PhaseDispatchPayload.from_dict(data)
+    activation_context = object()
+    captured: dict[str, Any] = {}
+
+    def resolve(**kwargs: Any) -> object:
+        captured["resolved"] = kwargs
+        return activation_context
+
+    def run(invocation: Any) -> SimpleNamespace:
+        captured["invocation"] = invocation
+        return SimpleNamespace(
+            status="completed", timed_out=False, returncode=0, stdout="",
+            stderr="", sandbox_applied=True, cleanup_status="succeeded",
+            cleanup_residual_paths=(),
+        )
+
+    monkeypatch.setattr(provider_dispatch, "resolve_activation_context", resolve)
+    monkeypatch.setattr(provider_dispatch, "run_vendor_process", run)
+
+    provider_dispatch._run_local_agent_cli(payload)
+
+    assert captured["resolved"]["execution_context"] is context
+    assert captured["resolved"]["agent_id"] == "local-agent"
+    assert captured["invocation"].activation_context is activation_context
 
 
 def _harness_result(content: str, *, returncode: int = 0) -> SimpleNamespace:
