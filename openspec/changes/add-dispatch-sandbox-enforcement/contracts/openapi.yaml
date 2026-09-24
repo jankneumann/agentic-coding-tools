@@ -7,6 +7,8 @@ paths:
     get:
       operationId: exportNetworkPolicy
       summary: Export the active default-deny network policy for one exact agent
+      description: Uses the existing coordinator trust vocabulary (integer 0-4); cross-agent export requires level 3.
+      x-cross-agent-min-trust-level: 3
       security:
         - apiKey: []
       parameters:
@@ -24,10 +26,13 @@ paths:
         "401": {description: Unauthenticated}
         "403": {description: Caller is neither the target agent nor a trust-level-3 dispatcher}
         "422": {description: Invalid or unrenderable policy}
+        "503": {description: Policy storage unavailable; caller must fail closed before vendor launch}
   /dispatch/sandbox-events:
     post:
       operationId: recordSandboxExecutionEvent
       summary: Durably append a narrow sandbox execution audit event
+      description: The server derives actor and created_at; event_id is the idempotency key. Cross-agent writes use the existing 0-4 trust vocabulary and require level 3.
+      x-cross-agent-min-trust-level: 3
       security:
         - apiKey: []
       requestBody:
@@ -44,11 +49,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [success, event_id, audit_entry_id]
+                required: [success, event_id, audit_entry_id, replayed]
                 properties:
                   success: {const: true}
                   event_id: {type: string, format: uuid}
                   audit_entry_id: {type: string, minLength: 1}
+                  replayed: {const: true}
         "201":
           description: Event durably inserted
           content:
@@ -56,11 +62,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [success, event_id, audit_entry_id]
+                required: [success, event_id, audit_entry_id, replayed]
                 properties:
                   success: {const: true}
                   event_id: {type: string, format: uuid}
                   audit_entry_id: {type: string, minLength: 1}
+                  replayed: {const: false}
         "401": {description: Unauthenticated}
         "403": {description: Caller lacks trust to record an event for the target agent}
         "422": {description: Invalid event}

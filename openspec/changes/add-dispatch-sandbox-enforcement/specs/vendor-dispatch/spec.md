@@ -22,14 +22,16 @@ AND no sandbox settings file SHALL be created.
 
 ### Requirement: Enforcement SHALL consume the immutable routing decision
 
-The backend SHALL consume the dg-06 routing decision attached to dispatch context and SHALL NOT
-call routing again. A standalone caller without routed context SHALL resolve dg-05's exact-lane
-fallback once at the adapter boundary and record that provenance.
+The backend SHALL consume the dg-06 enforcement projection and canonical full-context digest
+attached to dispatch context and SHALL NOT call routing again. Payload v2 SHALL have one isolation
+authority: the embedded context. A standalone caller without routed context SHALL resolve dg-05's
+exact-lane fallback once at the adapter boundary and record that provenance.
 
 #### Scenario: Routed execution is not re-resolved
 
 WHEN dispatch context carries a validated routing decision and isolation assignment
-THEN the same decision identifier and assignment SHALL appear in the execution audit
+THEN the same decision identifier, enforcement projection, and full-context digest SHALL appear in
+the execution audit
 AND no router request SHALL occur during rendering, preparation, or process execution.
 
 #### Scenario: Standalone dispatch resolves the exact lane
@@ -42,9 +44,10 @@ AND an entry-level value SHALL be inherited only when that mode has no override.
 
 The SRT renderer SHALL be deterministic and side-effect free. Review mode SHALL receive no project
 worktree write access. Write-capable modes MAY write only beneath a strictly resolved canonical Git
-worktree root. Per-launch vendor state SHALL be isolated from the operator's home. Reads of named
-credential locations SHALL be denied except for explicit per-vendor credential inputs pending
-dg-08.
+worktree root. Per-launch vendor state SHALL be isolated from the operator's home. The user-home
+region SHALL be read-denied with narrow read-only worktree/common-Git/tool carve-outs. Credential
+files and sibling checkout reads SHALL remain denied; dg-07 sandbox rollout requires
+environment-backed authentication pending dg-08.
 
 #### Scenario: Review is read-only
 
@@ -60,6 +63,12 @@ WHEN a `sandbox` decision is rendered for an alternative or quick dispatch
 THEN the only project write root SHALL be the canonical worktree root
 AND the worktree `.git` pointer and common Git metadata SHALL be denied for writes
 AND writes through path or symlink escapes SHALL fail.
+
+#### Scenario: User-home reads are confined
+
+WHEN a sandboxed vendor process reads the canonical worktree and linked-worktree Git metadata
+THEN those reads SHALL succeed
+AND reads of a credential fixture, sibling checkout, or unrelated user-home file SHALL fail.
 
 #### Scenario: Rendering has no effects
 
@@ -93,10 +102,13 @@ AND the dispatch SHALL NOT describe itself as sandboxed.
 
 ### Requirement: Degradation SHALL be narrow, durable, and pre-launch
 
-Unsandboxed fallback SHALL occur only for a preflight-proven unsupported platform, absent or
+Sandbox execution events SHALL be emitted only for requested `sandbox` isolation. Unsandboxed
+fallback SHALL occur only for a preflight-proven unsupported platform, absent or
 incompatible pinned runtime, or failed platform capability probe. A warning and durable audit or
 outbox event SHALL exist before launch. Unsafe roots, malformed policies, and audit persistence
-failure SHALL fail closed. No post-launch sandbox failure SHALL be retried unsandboxed.
+failure SHALL fail closed. Malformed or unavailable policy SHALL fail before process start; an
+authored valid empty-allow policy remains a usable deny-all sandbox. No post-launch sandbox
+failure SHALL be retried unsandboxed.
 
 #### Scenario: Missing runtime degrades visibly
 
@@ -113,7 +125,8 @@ THEN the unsandboxed vendor command SHALL NOT start.
 
 WHEN an asynchronous poll is blocked before its vendor process starts by sandbox enforcement
 THEN the collector SHALL retain the remote task and retry until its existing deadline
-AND SHALL NOT classify the remote vendor task itself as failed.
+AND SHALL NOT classify the remote vendor task itself as failed
+AND deadline exhaustion SHALL record `remote_state_unknown`, not terminal vendor failure.
 
 #### Scenario: Runtime failure never duplicates work
 

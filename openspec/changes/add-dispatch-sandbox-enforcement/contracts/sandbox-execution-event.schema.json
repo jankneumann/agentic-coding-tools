@@ -5,59 +5,87 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version",
-    "event_id",
-    "decision_id",
-    "agent_id",
-    "location",
-    "enforcement_scope",
-    "dispatch_mode",
-    "requested_isolation",
-    "sandbox_applied",
-    "backend",
-    "runtime_version",
-    "platform",
-    "preflight_status",
-    "policy_revision",
-    "policy_digest",
-    "worktree_root",
-    "executable_paths",
-    "environment_keys",
-    "degradation_reason"
+    "schema_version", "event_id", "context_source", "decision_id", "item_id",
+    "phase", "attempt", "dispatch_work_id", "routing_context_digest", "agent_id",
+    "vendor_type", "policy_vendor", "catalog_vendor", "assignment_location",
+    "execution_location", "enforcement_scope", "dispatch_mode", "model", "endpoint_kind",
+    "requested_isolation", "sandbox_applied", "backend", "runtime_version",
+    "platform", "preflight_status", "policy_revision", "policy_digest",
+    "settings_digest", "worktree_root", "executable_paths", "environment_keys",
+    "degradation_reason", "cleanup_status", "cleanup_residual_paths"
   ],
   "properties": {
     "schema_version": {"const": 1},
     "event_id": {"type": "string", "format": "uuid"},
+    "context_source": {"enum": ["router", "agents_yaml", "default"]},
     "decision_id": {"type": ["string", "null"], "minLength": 1},
+    "item_id": {"type": ["string", "null"], "minLength": 1},
+    "phase": {"type": ["string", "null"], "enum": ["planning", "implementing", "reviewing", "validating", null]},
+    "attempt": {"type": ["integer", "null"], "minimum": 1},
+    "dispatch_work_id": {"type": ["string", "null"], "minLength": 1},
+    "routing_context_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
     "agent_id": {"type": "string", "minLength": 1},
-    "location": {"enum": ["local", "cloud"]},
+    "vendor_type": {"type": "string", "minLength": 1},
+    "policy_vendor": {"type": ["string", "null"]},
+    "catalog_vendor": {"type": ["string", "null"]},
+    "assignment_location": {"type": "string", "minLength": 1},
+    "execution_location": {"const": "local"},
     "enforcement_scope": {"enum": ["execution", "submission"]},
     "dispatch_mode": {"type": "string", "minLength": 1},
-    "requested_isolation": {"enum": ["none", "worktree", "sandbox"]},
+    "model": {"type": "string", "minLength": 1},
+    "endpoint_kind": {"type": "string", "minLength": 1},
+    "requested_isolation": {"const": "sandbox"},
     "sandbox_applied": {"type": "boolean"},
     "backend": {"enum": ["local-process", "srt"]},
     "runtime_version": {"type": ["string", "null"]},
-    "platform": {"type": "string", "minLength": 1},
-    "preflight_status": {"type": ["string", "null"]},
-    "policy_revision": {"type": ["string", "null"]},
+    "platform": {"enum": ["linux", "darwin", "unsupported"]},
+    "preflight_status": {"enum": ["passed", "unsupported_platform", "runtime_missing", "runtime_incompatible", "capability_failed", "policy_unavailable", "policy_invalid"]},
+    "policy_revision": {"type": ["string", "null"], "pattern": "^v1:.+:[0-9]+$"},
     "policy_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "settings_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
     "worktree_root": {"type": ["string", "null"]},
-    "executable_paths": {
-      "type": "array",
-      "items": {"type": "string", "minLength": 1},
-      "uniqueItems": true
-    },
-    "environment_keys": {
-      "type": "array",
-      "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
-      "uniqueItems": true
-    },
-    "degradation_reason": {"type": ["string", "null"], "minLength": 1}
+    "executable_paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "environment_keys": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}, "uniqueItems": true},
+    "degradation_reason": {"type": ["string", "null"], "minLength": 1},
+    "cleanup_status": {"enum": ["not_started", "succeeded", "failed"]},
+    "cleanup_residual_paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
   },
   "allOf": [
     {
-      "if": {"properties": {"sandbox_applied": {"const": false}}},
+      "if": {"properties": {"context_source": {"const": "router"}}, "required": ["context_source"]},
+      "then": {
+        "properties": {
+          "decision_id": {"type": "string", "minLength": 1},
+          "item_id": {"type": "string", "minLength": 1},
+          "phase": {"enum": ["planning", "implementing", "reviewing", "validating"]},
+          "attempt": {"type": "integer", "minimum": 1},
+          "dispatch_work_id": {"type": "string", "minLength": 1},
+          "routing_context_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"sandbox_applied": {"const": true}}, "required": ["sandbox_applied"]},
+      "then": {
+        "properties": {
+          "backend": {"const": "srt"},
+          "runtime_version": {"type": "string", "minLength": 1},
+          "preflight_status": {"const": "passed"},
+          "policy_revision": {"type": "string", "minLength": 1},
+          "policy_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "settings_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "worktree_root": {"type": "string", "minLength": 1},
+          "degradation_reason": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"sandbox_applied": {"const": false}}, "required": ["sandbox_applied"]},
       "then": {"properties": {"degradation_reason": {"type": "string", "minLength": 1}}}
+    },
+    {
+      "if": {"properties": {"cleanup_status": {"const": "failed"}}, "required": ["cleanup_status"]},
+      "then": {"properties": {"cleanup_residual_paths": {"minItems": 1}}}
     }
   ]
 }

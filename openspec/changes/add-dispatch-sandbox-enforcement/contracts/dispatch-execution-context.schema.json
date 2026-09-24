@@ -5,32 +5,46 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version",
-    "decision_id",
-    "agent_id",
-    "location",
-    "enforcement_scope",
-    "dispatch_mode",
-    "isolation",
-    "source",
-    "worktree_root"
+    "schema_version", "decision_id", "item_id", "phase", "attempt",
+    "dispatch_work_id", "routing_context_digest", "agent_id", "vendor_type",
+    "policy_vendor", "catalog_vendor", "assignment_location", "execution_location", "dispatch_mode", "isolation",
+    "model", "endpoint_kind", "enforcement_scope", "source", "worktree_root"
   ],
   "properties": {
     "schema_version": {"const": 1},
     "decision_id": {"type": ["string", "null"], "minLength": 1},
+    "item_id": {"type": ["string", "null"], "minLength": 1},
+    "phase": {"type": ["string", "null"], "enum": ["planning", "implementing", "reviewing", "validating", null]},
+    "attempt": {"type": ["integer", "null"], "minimum": 1},
+    "dispatch_work_id": {"type": ["string", "null"], "minLength": 1},
+    "routing_context_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
     "agent_id": {"type": "string", "minLength": 1},
-    "vendor": {"type": ["string", "null"], "minLength": 1},
-    "location": {"type": ["string", "null"], "enum": ["local", "cloud", null]},
-    "enforcement_scope": {"enum": ["execution", "submission"]},
+    "vendor_type": {"type": "string", "minLength": 1},
+    "policy_vendor": {"type": ["string", "null"]},
+    "catalog_vendor": {"type": ["string", "null"]},
+    "assignment_location": {"type": "string", "minLength": 1},
+    "execution_location": {"const": "local"},
     "dispatch_mode": {"type": "string", "minLength": 1},
     "isolation": {"enum": ["none", "worktree", "sandbox"]},
+    "model": {"type": "string", "minLength": 1},
+    "endpoint_kind": {"type": "string", "minLength": 1},
+    "enforcement_scope": {"enum": ["execution", "submission"]},
     "source": {"enum": ["router", "agents_yaml", "default"]},
     "worktree_root": {"type": "string", "minLength": 1}
   },
   "allOf": [
     {
-      "if": {"properties": {"source": {"const": "router"}}},
-      "then": {"properties": {"decision_id": {"type": "string", "minLength": 1}}}
+      "if": {"properties": {"source": {"const": "router"}}, "required": ["source"]},
+      "then": {
+        "properties": {
+          "decision_id": {"type": "string", "minLength": 1},
+          "item_id": {"type": "string", "minLength": 1},
+          "phase": {"enum": ["planning", "implementing", "reviewing", "validating"]},
+          "attempt": {"type": "integer", "minimum": 1},
+          "dispatch_work_id": {"type": "string", "minLength": 1},
+          "routing_context_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
     }
   ]
 }
