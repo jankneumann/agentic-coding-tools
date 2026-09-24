@@ -360,6 +360,7 @@ async def test_mcp_select_model_threads_routing_profile_in_proxy_mode() -> None:
         objective_profile=None,
         weight_overrides=None,
         allow_exploration=True,
+        incumbent=None,
     )
 
 
@@ -462,4 +463,5 @@ async def test_mcp_select_model_uses_http_proxy_in_proxy_mode() -> None:
         objective_profile=None,
         weight_overrides={"w_quality": 1.0, "w_cost": 0.0, "w_latency": 0.0},
         allow_exploration=True,
+        incumbent=None,
     )
