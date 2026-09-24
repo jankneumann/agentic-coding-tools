@@ -78,7 +78,7 @@ class TestExtractDiffFromPrompt:
 
 
 class TestDispatchResolvesLines:
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_existing_code_resolves_to_a_line_range(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -94,7 +94,7 @@ class TestDispatchResolvesLines:
         assert finding["line_resolution"] == "hunk_new"
         assert result.unanchored_findings == 0
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_unmatched_snippet_counts_as_unanchored_but_is_kept(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -110,7 +110,7 @@ class TestDispatchResolvesLines:
         assert finding["line_resolution"] == "unresolved"
         assert result.unanchored_findings == 1
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_no_diff_fence_in_prompt_skips_resolution_without_failing(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -128,7 +128,7 @@ class TestDispatchResolvesLines:
         assert "line_resolution" not in finding
         assert result.unanchored_findings == 0
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_finding_without_existing_code_is_unaffected(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:

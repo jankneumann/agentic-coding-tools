@@ -61,6 +61,7 @@ class CodexBackend:
         """Execute a task via codex CLI."""
         timeout = timeout_seconds if timeout_seconds is not None else self._timeout
         start_time = time.time()
+        sandbox_metadata = {}
 
         files_context = "\n".join(f"- {f}" for f in affected_files)
         prompt = f"{task_description}\n\nFiles to work on:\n{files_context}"
@@ -92,29 +93,34 @@ class CodexBackend:
                 isolation=isolation,
                 activation_context=activation_context,
             ))
+            sandbox_metadata = dict(result.sandbox_metadata)
             wall_clock = time.time() - start_time
             if result.timed_out:
                 raise TimeoutError
             output = result.stdout
             err_output = result.stderr
+            process_error = getattr(result, "degradation_reason", None) or err_output
 
             return BackendResult(
                 success=result.returncode == 0,
                 output=output,
                 wall_clock_seconds=wall_clock,
                 token_usage=TokenUsage(),
-                error=err_output if result.returncode != 0 else None,
+                error=process_error if result.returncode != 0 else None,
+                metadata=sandbox_metadata,
             )
         except TimeoutError:
             return BackendResult(
                 success=False,
                 wall_clock_seconds=time.time() - start_time,
                 error=f"Timeout after {timeout}s",
+                metadata=sandbox_metadata,
             )
         except FileNotFoundError:
             return BackendResult(
                 success=False,
                 error=f"Command not found: {self._command}",
+                metadata=sandbox_metadata,
             )
 
     async def health_check(self) -> bool:

@@ -3,12 +3,66 @@
 from __future__ import annotations
 
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import coordination_bridge
+
+
+def test_http_request_refuses_redirect_without_forwarding_credentials(monkeypatch) -> None:
+    received: list[dict[str, str]] = []
+
+    class SinkHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            received.append(dict(self.headers.items()))
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *_args) -> None:
+            return
+
+    sink = ThreadingHTTPServer(("127.0.0.1", 0), SinkHandler)
+
+    class RedirectHandler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            self.send_response(302)
+            self.send_header("Location", f"http://127.0.0.1:{sink.server_port}/sink")
+            self.end_headers()
+
+        def log_message(self, *_args) -> None:
+            return
+
+    redirect = ThreadingHTTPServer(("127.0.0.1", 0), RedirectHandler)
+    threads = [
+        threading.Thread(target=server.serve_forever, daemon=True)
+        for server in (sink, redirect)
+    ]
+    for thread in threads:
+        thread.start()
+    monkeypatch.setenv("CF_ACCESS_CLIENT_ID", "cf-id")
+    monkeypatch.setenv("CF_ACCESS_CLIENT_SECRET", "cf-secret")
+    try:
+        response = coordination_bridge._http_request(
+            method="POST",
+            path="/events",
+            payload={"event": "one"},
+            http_url=f"http://127.0.0.1:{redirect.server_port}",
+            api_key="coordinator-secret",
+        )
+    finally:
+        redirect.shutdown()
+        sink.shutdown()
+        redirect.server_close()
+        sink.server_close()
+        for thread in threads:
+            thread.join(timeout=2)
+
+    assert response["status_code"] == 302
+    assert received == []
 
 
 def _state(**overrides: Any) -> dict[str, Any]:

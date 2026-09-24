@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
-from dataclasses import dataclass
+import warnings
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Mapping
 
@@ -44,6 +45,7 @@ class LocalProcessResult:
     degradation_reason: str | None
     cleanup_status: Literal["not_started", "succeeded", "failed"]
     cleanup_residual_paths: tuple[str, ...] = ()
+    sandbox_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def _run_process(
@@ -79,11 +81,14 @@ def _run_process(
         return process.returncode, stdout, stderr, True
 
 
-def _record_audit(request: LocalProcessRequest, changes: Mapping[str, Any]) -> None:
+def _record_audit(
+    request: LocalProcessRequest, changes: Mapping[str, Any]
+) -> dict[str, Any] | None:
     if request.audit_port is None or request.audit_event is None:
-        return
+        return None
     event = {**request.audit_event, **changes}
     request.audit_port.record(event)
+    return event
 
 
 def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
@@ -155,9 +160,14 @@ def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
                     cleanup_status="not_started",
                 )
             try:
-                _record_audit(
+                finalized_event = _record_audit(
                     request,
-                    {"sandbox_applied": False, "degradation_reason": exc.reason},
+                    {
+                        "sandbox_applied": False,
+                        "backend": "local-process",
+                        "preflight_status": exc.reason,
+                        "degradation_reason": exc.reason,
+                    },
                 )
             except Exception:  # noqa: BLE001 - evidence failure must block launch
                 return LocalProcessResult(
@@ -170,6 +180,11 @@ def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
                     degradation_reason="audit_unavailable",
                     cleanup_status="not_started",
                 )
+            warnings.warn(
+                f"sandbox degraded after durable audit: {exc.reason}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             returncode, stdout, stderr, timed_out = _run_process(
                 request.argv,
                 cwd=request.cwd,
@@ -187,6 +202,7 @@ def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
                 sandbox_applied=False,
                 degradation_reason=exc.reason,
                 cleanup_status="succeeded",
+                sandbox_metadata=finalized_event or {},
             )
         return LocalProcessResult(
             status="prelaunch_enforcement_blocked",
@@ -199,7 +215,7 @@ def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
             cleanup_status="not_started",
         )
     assert prepared is not None
-    _record_audit(
+    finalized_event = _record_audit(
         request,
         {
             "sandbox_applied": True,
@@ -219,4 +235,5 @@ def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
         degradation_reason=None,
         cleanup_status=prepared.cleanup_status,
         cleanup_residual_paths=tuple(prepared.cleanup_residual_paths),
+        sandbox_metadata=finalized_event or {},
     )

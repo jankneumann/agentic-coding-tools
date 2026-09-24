@@ -448,7 +448,7 @@ async def test_sandbox_event_replay_rejects_actor_target_or_content_drift(
         "decision_id": None,
         "item_id": None,
         "phase": None,
-        "attempt": 1,
+        "attempt": None,
         "dispatch_work_id": None,
         "routing_context_digest": None,
         "workspace_content_digest": None,

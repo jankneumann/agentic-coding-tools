@@ -61,6 +61,106 @@ agents:
     assert context.write_capable is False
 
 
+@pytest.mark.parametrize(
+    ("extra_lane", "state_keys"),
+    [
+        ("    base_url: https://user:secret@example.test/v1\n", "[CODEX_HOME]"),
+        ("    base_url: https://example.test/v1#secret\n", "[CODEX_HOME]"),
+        ("    base_url: https://EXAMPLE.test:443/v1\n", "[CODEX_HOME]"),
+        ("    base_url: https://example.test/v1/../v1\n", "[CODEX_HOME]"),
+        ("    endpoint_kind: totally-unknown\n", "[CODEX_HOME]"),
+        ("", "[CODEX_HOME, CODEX_HOME]"),
+        ("", "[OPENAI_API_KEY]"),
+    ],
+)
+def test_standalone_context_rejects_noncanonical_lane_configuration(
+    tmp_path: Path, extra_lane: str, state_keys: str,
+) -> None:
+    agents = tmp_path / "agents.yaml"
+    endpoint_line = (
+        "    endpoint_kind: vendor-cli\n"
+        if "endpoint_kind:" not in extra_lane
+        else ""
+    )
+    agents.write_text(
+        "agents:\n"
+        "  codex-local:\n"
+        "    type: codex\n"
+        "    location: local\n"
+        "    isolation: sandbox\n"
+        f"{endpoint_line}"
+        f"{extra_lane}"
+        "    cli:\n"
+        "      command: codex\n"
+        "      api_key_env: OPENAI_API_KEY\n"
+        f"      state_env_keys: {state_keys}\n"
+        "      dispatch_modes:\n"
+        "        review:\n"
+        "          args: []\n"
+        "          enforcement_scope: execution\n"
+        "          write_capable: false\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SandboxActivationError, match="sandbox_(endpoint|state_keys)_invalid"):
+        resolve_activation_context(
+            agent_id="codex-local",
+            dispatch_mode="review",
+            model="gpt-5.6-sol",
+            worktree_root=tmp_path,
+            agents_path=agents,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "yaml_value", "reason"),
+    [
+        ("type", "[codex]", "sandbox_vendor_type_invalid"),
+        ("policy_vendor", "[openai]", "sandbox_policy_vendor_invalid"),
+        ("catalog_vendor", "''", "sandbox_catalog_vendor_invalid"),
+    ],
+)
+def test_standalone_context_rejects_invalid_consumed_vendor_projection(
+    tmp_path: Path, field: str, yaml_value: str, reason: str,
+) -> None:
+    agents = tmp_path / "agents.yaml"
+    fields = {
+        "type": "codex",
+        "policy_vendor": "openai",
+        "catalog_vendor": "codex",
+    }
+    fields[field] = yaml_value
+    agents.write_text(
+        "agents:\n"
+        "  codex-local:\n"
+        f"    type: {fields['type']}\n"
+        "    location: local\n"
+        "    isolation: sandbox\n"
+        f"    policy_vendor: {fields['policy_vendor']}\n"
+        f"    catalog_vendor: {fields['catalog_vendor']}\n"
+        "    endpoint_kind: vendor-cli\n"
+        "    cli:\n"
+        "      command: codex\n"
+        "      api_key_env: OPENAI_API_KEY\n"
+        "      state_env_keys: [CODEX_HOME]\n"
+        "      dispatch_modes:\n"
+        "        review:\n"
+        "          args: []\n"
+        "          enforcement_scope: execution\n"
+        "          write_capable: false\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SandboxActivationError, match=reason):
+        resolve_activation_context(
+            agent_id="codex-local",
+            dispatch_mode="review",
+            model="gpt-5.6-sol",
+            worktree_root=tmp_path,
+            agents_path=agents,
+        )
+
+
 def _write_discovery_agents(path: Path, *, isolation: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(

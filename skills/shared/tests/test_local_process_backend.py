@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 from shared import local_process_backend as backend
 from shared.local_process_backend import LocalProcessRequest, run_local_process
 from shared.sandbox_profile import SandboxLaunch, SandboxProfileError
@@ -116,3 +118,43 @@ def test_fail_open_requires_durable_audit_before_original_command(
     assert result.status == "prelaunch_enforcement_blocked"
     assert result.degradation_reason == "audit_unavailable"
     assert not marker.exists()
+
+
+def test_fail_open_second_preflight_records_typed_event_before_warning_and_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        backend,
+        "prepare_sandbox_command",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            SandboxProfileError("capability_failed", fail_open=True)
+        ),
+    )
+    monkeypatch.setattr(backend, "_run_process", lambda *_a, **_k: (0, "ok", "", False))
+    launch = SandboxLaunch(
+        worktree_root=tmp_path, common_repo=tmp_path,
+        common_git_dir=tmp_path / ".git", git_toplevel=tmp_path,
+        git_common_dir=tmp_path / ".git", vendor_executable=Path(sys.executable),
+        vendor_install_root=Path(sys.executable).resolve().parent, policy={},
+        agent_id="fixture", write_capable=False, credential_env_key="TOKEN",
+        state_env_keys=(),
+    )
+    audit = type("Audit", (), {"record": lambda self, event: events.append(event)})()
+    request = LocalProcessRequest(
+        argv=(sys.executable, "-c", "pass"), cwd=tmp_path, env={}, timeout_seconds=1,
+        isolation="sandbox", sandbox_launch=launch, runtime=object(),  # type: ignore[arg-type]
+        audit_port=audit,  # type: ignore[arg-type]
+        audit_event={"preflight_status": "passed", "backend": "srt"},
+    )
+
+    with pytest.warns(RuntimeWarning, match="capability_failed"):
+        result = run_local_process(request)
+
+    assert result.status == "completed"
+    assert events == [{
+        "preflight_status": "capability_failed",
+        "backend": "local-process",
+        "sandbox_applied": False,
+        "degradation_reason": "capability_failed",
+    }]

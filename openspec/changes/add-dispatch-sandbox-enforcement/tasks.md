@@ -77,7 +77,7 @@
   and verify the authoritative GitHub run/artifacts without checking in self-referential evidence.
 - [x] 5.3 Document installation, policy authoring/endpoint inventory, rollout, degradation outbox,
   threat boundary, and recovery.
-- [ ] 5.4 Run focused/full tests, coordinator mypy, Ruff, install-manifest check, dependency-
+- [x] 5.4 Run focused/full tests, coordinator mypy, Ruff, install-manifest check, dependency-
   direction lint, strict OpenSpec validation, and multi-vendor implementation review to convergence.
 
 <!-- CHECKPOINT: implementation-ready -->

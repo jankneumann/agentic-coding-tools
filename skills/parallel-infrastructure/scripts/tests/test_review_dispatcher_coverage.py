@@ -139,7 +139,7 @@ class TestScoreCoverage:
 
 
 class TestDispatchScoresCoverage:
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_partial_coverage_reflected_on_result(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -154,7 +154,7 @@ class TestDispatchScoresCoverage:
         assert result.coverage_eligibility == "partial"
         assert result.coverage_rate == 1 / 3
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_missing_coverage_block_is_unreported(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -168,7 +168,7 @@ class TestDispatchScoresCoverage:
         assert result.coverage_eligibility == "full"
         assert result.coverage_rate is None
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_skipped_entry_without_reason_is_coerced_not_rejected(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:

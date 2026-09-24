@@ -39,6 +39,7 @@ if str(_SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(_SKILLS_ROOT))
 from shared.vendor_process_surfaces import (  # noqa: E402
     VendorProcessInvocation,
+    VendorProcessBlocked,
     as_completed_process,
     run_vendor_process,
 )
@@ -179,6 +180,13 @@ class PhaseDispatchPayload:
             raise PhaseDispatchPayloadError(
                 "standalone execution_context cannot carry routing context"
             )
+        elif any(
+            context[field] is not None
+            for field in ("decision_id", "item_id", "phase", "attempt", "dispatch_work_id")
+        ):
+            raise PhaseDispatchPayloadError(
+                "standalone execution_context cannot carry router correlation"
+            )
         duplicates = {
             "provider": (self.provider, context["vendor_type"]),
             "model": (self.model, context["model"]),
@@ -225,6 +233,7 @@ class PhaseDispatchResult:
     capacity_model: str | None = None
     capacity_reset_at: str | None = None
     capacity_retry_after_seconds: int | None = None
+    sandbox_metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -529,6 +538,7 @@ def normalize_dispatch_result(
     capacity_model: str | None = None
     capacity_reset_at: str | None = None
     capacity_retry_after_seconds: int | None = None
+    sandbox_metadata: dict[str, Any] = {}
 
     if isinstance(raw, tuple) and len(raw) == 2:
         outcome, handoff_id = raw
@@ -541,6 +551,9 @@ def normalize_dispatch_result(
         capacity_model = raw.get("capacity_model")
         capacity_reset_at = raw.get("capacity_reset_at")
         capacity_retry_after_seconds = raw.get("capacity_retry_after_seconds")
+        raw_sandbox_metadata = raw.get("sandbox_metadata")
+        if isinstance(raw_sandbox_metadata, dict):
+            sandbox_metadata = dict(raw_sandbox_metadata)
         raw_warnings = raw.get("warnings")
         if isinstance(raw_warnings, list):
             warnings = [str(item) for item in raw_warnings]
@@ -568,12 +581,16 @@ def normalize_dispatch_result(
         capacity_model=capacity_model,
         capacity_reset_at=capacity_reset_at,
         capacity_retry_after_seconds=capacity_retry_after_seconds,
+        sandbox_metadata=sandbox_metadata,
     )
 
 
 def _fallback_result(
     payload: PhaseDispatchPayload,
     warning: str,
+    *,
+    sandbox_metadata: dict[str, Any] | None = None,
+    error_class: str | None = None,
 ) -> PhaseDispatchResult:
     """The structured degradation every unconfigured adapter returns."""
     return PhaseDispatchResult(
@@ -584,6 +601,8 @@ def _fallback_result(
         dispatch_tier="fallback",
         warnings=[warning],
         agent_id=payload.agent_id,
+        sandbox_metadata=dict(sandbox_metadata or {}),
+        error_class=error_class,
     )
 
 
@@ -648,10 +667,15 @@ def _run_local_agent_cli(
             worktree_root=Path(str(payload.execution_context["worktree_root"])),
             execution_context=payload.execution_context,
         )
+    dispatch_root = (
+        Path(str(payload.execution_context["worktree_root"])).resolve()
+        if payload.schema_version == 2 and payload.execution_context is not None
+        else Path.cwd()
+    )
     invocation = VendorProcessInvocation(
         surface="autopilot_provider",
         argv=tuple(command),
-        cwd=Path.cwd(),
+        cwd=dispatch_root,
         env=env,
         timeout_seconds=_LOCAL_DISPATCH_TIMEOUT_SECONDS,
         isolation=payload.effective_isolation,  # type: ignore[arg-type]
@@ -722,10 +746,12 @@ def _local_runner(payload: PhaseDispatchPayload) -> dict[str, Any]:
     finally:
         gate.release()
 
+    sandbox_metadata = dict(getattr(completed, "sandbox_metadata", {}) or {})
     if completed.returncode != 0:
         return {
             "outcome": "failed",
             "warnings": ["local agent harness exited non-zero"],
+            "sandbox_metadata": sandbox_metadata,
         }
     if len(completed.stdout.encode("utf-8")) > _LOCAL_MAX_RESPONSE_BYTES:
         raise LocalResponseTooLarge("local agent harness output exceeded byte budget")
@@ -736,12 +762,15 @@ def _local_runner(payload: PhaseDispatchPayload) -> dict[str, Any]:
             "warnings": [
                 "local agent harness returned no explicit outcome and real handoff_id"
             ],
+            "sandbox_metadata": sandbox_metadata,
         }
     if payload.expected_outcomes and result["outcome"] not in payload.expected_outcomes:
         return {
             "outcome": "failed",
             "warnings": ["local agent harness returned an unexpected outcome"],
+            "sandbox_metadata": sandbox_metadata,
         }
+    result["sandbox_metadata"] = sandbox_metadata
     return result
 
 
@@ -809,6 +838,14 @@ def _dispatch_local(payload: PhaseDispatchPayload) -> PhaseDispatchResult:
             payload,
             "adapter unavailable for provider 'local': dispatch failed "
             f"({type(exc).__name__})",
+            sandbox_metadata=getattr(exc, "sandbox_metadata", {}),
+            error_class=(
+                "sandbox_enforcement_blocked"
+                if isinstance(exc, VendorProcessBlocked)
+                else "timeout"
+                if isinstance(exc, subprocess.TimeoutExpired)
+                else None
+            ),
         )
     return normalize_dispatch_result(raw, payload, "harness")
 

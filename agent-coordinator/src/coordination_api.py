@@ -235,6 +235,7 @@ class SandboxExecutionEventRequest(BaseModel):
                 self.decision_id,
                 self.item_id,
                 self.phase,
+                self.attempt,
                 self.dispatch_work_id,
                 self.routing_context_digest,
             )
@@ -2002,6 +2003,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Synchronously and idempotently commit a sandbox execution event."""
+        from .agents_config import get_agent_config
         from .audit import (
             SandboxAuditConflictError,
             SandboxAuditError,
@@ -2012,6 +2014,24 @@ def create_coordination_api() -> FastAPI:
         if actor_id != request.agent_id and await resolve_trust_level(actor_id, actor_type) < 3:
             raise HTTPException(
                 status_code=403, detail="cross-agent sandbox audit requires trust level 3"
+            )
+        configured_agent = get_agent_config(request.agent_id)
+        configured_cli = configured_agent.cli if configured_agent is not None else None
+        configured_mode = (
+            configured_cli.dispatch_modes.get(request.dispatch_mode)
+            if configured_cli is not None
+            else None
+        )
+        allowed_environment_keys = (
+            {configured_cli.api_key_env, *configured_cli.state_env_keys}
+            if configured_cli is not None
+            else set()
+        )
+        allowed_environment_keys.discard("")
+        if configured_mode is None or set(request.environment_keys) != allowed_environment_keys:
+            raise HTTPException(
+                status_code=422,
+                detail="sandbox event environment keys do not match the configured lane",
             )
         event = request.model_dump(mode="json")
         try:

@@ -89,7 +89,35 @@ def test_partially_prepared_sandbox_invocation_fails_closed(
     result = run_vendor_process(invocation)
 
     assert result.status == "prelaunch_enforcement_blocked"
-    assert result.degradation_reason == "sandbox_context_incomplete"
+    assert result.degradation_reason == "sandbox_context_missing"
+
+
+def test_fully_prepared_sandbox_invocation_cannot_bypass_activation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        surfaces,
+        "run_local_process",
+        lambda _request: pytest.fail("caller-supplied sandbox objects must not launch"),
+    )
+    invocation = VendorProcessInvocation(
+        surface="review",
+        argv=("/bin/true",),
+        cwd=tmp_path,
+        env={},
+        timeout_seconds=1,
+        isolation="sandbox",
+        sandbox_launch=SimpleNamespace(),  # type: ignore[arg-type]
+        runtime=SimpleNamespace(),  # type: ignore[arg-type]
+        audit_port=SimpleNamespace(record=lambda _event: None),  # type: ignore[arg-type]
+        audit_event={"sandbox_applied": True},
+        activation_context=None,
+    )
+
+    result = run_vendor_process(invocation)
+
+    assert result.status == "prelaunch_enforcement_blocked"
+    assert result.degradation_reason == "sandbox_context_missing"
 
 
 def test_permitted_degradation_is_audited_before_unsandboxed_launch(
@@ -166,3 +194,54 @@ def test_completed_process_aliases_routing_context_digest_for_result_contract(
     completed = as_completed_process(invocation, _result(applied=False))
 
     assert completed.sandbox_metadata["routing_digest"] == "a" * 64
+
+
+def test_direct_result_uses_normalized_metadata_vocabulary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _result(applied=False)
+    object.__setattr__(
+        raw,
+        "sandbox_metadata",
+        {"routing_context_digest": "a" * 64, "workspace_content_digest": "b" * 64},
+    )
+    monkeypatch.setattr(surfaces, "run_local_process", lambda _request: raw)
+    invocation = VendorProcessInvocation(
+        surface="review", argv=("/bin/true",), cwd=tmp_path, env={},
+        timeout_seconds=1, isolation="worktree",
+    )
+
+    result = run_vendor_process(invocation)
+
+    assert result.sandbox_metadata["requested_isolation"] == "worktree"
+    assert result.sandbox_metadata["applied_isolation"] == "worktree"
+    assert result.sandbox_metadata["routing_digest"] == "a" * 64
+    assert result.sandbox_metadata["snapshot_content_digest"] == "b" * 64
+
+
+def test_completed_process_prefers_backend_finalized_sandbox_metadata(tmp_path: Path) -> None:
+    invocation = VendorProcessInvocation(
+        surface="review",
+        argv=("/bin/true",),
+        cwd=tmp_path,
+        env={},
+        timeout_seconds=1,
+        isolation="sandbox",
+        audit_event={"sandbox_applied": False, "settings_digest": None},
+    )
+    result = LocalProcessResult(
+        status="completed",
+        returncode=0,
+        stdout="ok",
+        stderr="",
+        timed_out=False,
+        sandbox_applied=True,
+        degradation_reason=None,
+        cleanup_status="succeeded",
+        sandbox_metadata={"sandbox_applied": True, "settings_digest": "a" * 64},
+    )
+
+    completed = as_completed_process(invocation, result)
+
+    assert completed.sandbox_metadata["sandbox_applied"] is True
+    assert completed.sandbox_metadata["settings_digest"] == "a" * 64
