@@ -106,7 +106,7 @@
 - [x] 5.2 Forward the incumbent in `resolve_phase_model` (`model_routing/api.py`) and
   `resolve_archetype_for_phase` (`agents_config.py`), and return the static object on retention. [S]
   **Dependencies**: 5.1
-- [ ] 5.3 Write an end-to-end "empty evidence changes no phase" test: an in-process service with a
+- [x] 5.3 Write an end-to-end "empty evidence changes no phase" test: an in-process service with a
   catalog that has no priors, and every phase in the phase mapping resolved with `ROUTING_ADAPTIVE=on`
   and compared with static. [S]
   **Spec scenarios**: agent-archetypes.6, model-routing.1
