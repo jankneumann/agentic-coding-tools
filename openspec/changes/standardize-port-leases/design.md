@@ -148,6 +148,59 @@ time, and otherwise records the obligation in `deferred-tasks.md`.
 `gate-drift-with-mirrors-hooks-and-blocking-ci` gate. Runtime copies under `.claude/skills` and
 `.agents/skills` are never edited directly.
 
+### D12. `host_id` is client-asserted and bound on first use, enforced like `resolve_identity`
+
+`host_id` scopes `POST /ports/reconcile` so one client's report cannot release another host's
+leases. The open question was its provenance: the client supplies it, so on its own nothing stops a
+client asserting a host it is not on — and reconcile's blast radius is every lease on the host it
+names.
+
+**Decision.** Keep the client assertion, and bind it. The first lease an `agent_id` allocates fixes
+that agent's `host_id`. Every later `allocate_ports` or `reconcile` from the same `agent_id` MUST
+present the same value; a mismatch is refused with 403 and the operation does not proceed.
+
+This is deliberately the existing pattern rather than a new one. `resolve_identity`
+(`coordination_api.py:712`) already does exactly this for `agent_id` and `agent_type`: the caller
+may state an identity, and the coordinator refuses when the stated value contradicts the binding on
+the key —
+
+```
+if bound_agent_id and request_agent_id and request_agent_id != bound_agent_id:
+    raise HTTPException(403, "API key is not permitted to act as requested agent_id")
+```
+
+`host_id` gets the same treatment, with the binding established on first use rather than from
+config, because no host binding exists to read.
+
+**Alternatives rejected.**
+
+*Derive `host_id` from the authenticated principal.* Strictly better if it were available, and it
+is not: `_principal_for_api_key` returns only `api_key`, `agent_id` and `agent_type`
+(`coordination_api.py:665-675`), and `agents.yaml` declares no host for any agent. Adopting this
+means first inventing a principal-to-host registry and keeping it correct as agents move hosts —
+a new concept, with its own drift failure mode, to close a narrower gap than the binding does.
+
+*Require the caller to hold a live lease on the host it reports.* Proves presence rather than
+asserting it, but it cannot bootstrap: reconcile's most valuable moment is exactly when the ledger
+holds leases and the client holds none — after a crash, before anything is re-acquired. A rule that
+is unavailable in its primary use case is not a rule.
+
+*Leave it unbound (the state before this decision).* Any key may name any host, so a single
+compromised key can release every lease on every host in the fleet.
+
+**What this does and does not buy.**
+
+Binding shrinks the blast radius from *every lease on any host* to *leases on the one host this key
+has already used*. It does not make the first assertion unforgeable: a key that has never allocated
+still chooses its own `host_id` once. That residual is the inherent limit of trust-on-first-use, and
+it is the same exposure the repository already accepts for `agent_id`, which is likewise
+key-asserted when `api_key_identities` leaves it unbound.
+
+If a deployment wants the first assertion pinned too, the binding SHALL be overridable by an
+explicit `host_id` in that agent's `api_key_identities` entry, which then wins over first use. That
+hook is specified but not required; it costs one optional field and makes the stronger posture
+available without forcing a registry on deployments that do not want one.
+
 ### Fitness Functions
 
 | NFR (from proposal.md) | Verifying check | Status |

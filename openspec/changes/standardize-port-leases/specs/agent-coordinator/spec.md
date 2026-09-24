@@ -204,6 +204,45 @@ leases SHALL carry the equivalent `AND agent_id = p_agent_id` guard.
 - **THEN** no authenticated caller SHALL release it through `release_ports`
 - **AND** it SHALL be reclaimed only by TTL expiry or stale-session cleanup
 
+### Requirement: Host binding for lease scoping
+
+An agent's `host_id` SHALL be bound on its first port-lease allocation and SHALL be immutable
+thereafter. Every subsequent `allocate_ports` and `POST /ports/reconcile` from that `agent_id`
+SHALL present the bound value, and the coordinator SHALL refuse a mismatch rather than acting on it.
+
+This mirrors `resolve_identity`, which already refuses a request whose stated `agent_id` or
+`agent_type` contradicts the binding on the API key. `host_id` is asserted the same way and refused
+the same way; only the source of the binding differs, because no host is declared in the registry.
+
+Binding is what makes `host_id` a control rather than a label. Unbound, any key may name any host,
+and since reconcile releases every lease it does not see, one request could clear the fleet.
+
+#### Scenario: First allocation binds the host
+- **WHEN** an `agent_id` with no bound host calls `allocate_ports` with `host_id`
+- **THEN** the allocation SHALL succeed
+- **AND** that `host_id` SHALL be recorded as the agent's binding
+
+#### Scenario: Later allocation with a different host is refused
+- **WHEN** an `agent_id` with a bound host calls `allocate_ports` with a different `host_id`
+- **THEN** the service SHALL return 403
+- **AND** no lease SHALL be allocated
+
+#### Scenario: Reconcile with a different host is refused
+- **WHEN** an `agent_id` with a bound host calls `POST /ports/reconcile` with a different `host_id`
+- **THEN** the service SHALL return 403
+- **AND** no lease SHALL be released, blocked, or otherwise modified
+- **AND** this SHALL hold even for leases that genuinely are orphaned
+
+#### Scenario: Configured binding wins over first use
+- **WHEN** an agent's `api_key_identities` entry declares a `host_id`
+- **THEN** that value SHALL be the binding from the first request onward
+- **AND** a first allocation asserting a different `host_id` SHALL be refused rather than binding
+
+#### Scenario: Binding does not leak across agents
+- **WHEN** two `agent_id`s bind different hosts
+- **THEN** each SHALL reconcile only its own host's leases
+- **AND** neither SHALL be able to affect the other's
+
 ### Requirement: Port lease persistence
 
 When a database backend is configured, the port allocator SHALL persist leases in a `port_leases` table so that leases survive a coordinator process restart.
