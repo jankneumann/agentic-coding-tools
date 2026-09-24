@@ -3,35 +3,12 @@ info:
   title: Coordinator Dispatch Governance Additions
   version: "1.0.0"
   description: >
-    Coordinator surface added by change add-sandboxed-harness-execution: an export of
-    the authored network policy in renderer-consumable shape (single-source
-    constraint), and per-dispatch API identities for remote execution backends.
-    Inference key issuance is NOT here — see add-coordinator-llm-gateway.
+    Coordinator surface added by change add-sandboxed-harness-execution:
+    per-dispatch API identities for remote execution backends. Network-policy
+    export is imported from add-dispatch-sandbox-enforcement (dg-07), not
+    redefined here. Inference key issuance is owned by add-coordinator-llm-gateway.
 
 paths:
-  /policies/network/export:
-    get:
-      operationId: exportNetworkPolicy
-      summary: Export the active network policy as a rendering input (read-only)
-      description: >
-        Serializes the authored network policy for execution-backend renderers
-        (srt settings, cloud sandbox egress rules). Enforced allowlists MUST be
-        renderings of this export; renderers falling back on unreachability MUST
-        narrow, never widen (spec: agent-coordinator, "export unavailable narrows").
-      parameters:
-        - name: agent_type
-          in: query
-          required: false
-          schema: { type: string }
-          description: Narrow the export to one agent profile's policy.
-      responses:
-        "200":
-          description: Active policy in renderer shape
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/NetworkPolicyExport" }
-        "401": { description: Missing or invalid coordinator identity }
-
   /dispatch/identities:
     post:
       operationId: issueDispatchIdentity
@@ -77,26 +54,6 @@ paths:
 
 components:
   schemas:
-    NetworkPolicyExport:
-      type: object
-      required: [policy_version, default_policy, allowed_domains]
-      properties:
-        policy_version:
-          type: string
-          description: Monotonic version for narrower-never-wider fallback checks.
-        default_policy:
-          type: string
-          enum: [allow, deny]
-        allowed_domains:
-          type: array
-          items: { type: string }
-        denied_domains:
-          type: array
-          items: { type: string }
-        exported_at:
-          type: string
-          format: date-time
-
     IssueDispatchIdentityRequest:
       type: object
       required: [dispatch_id, agent_type, ttl_seconds]

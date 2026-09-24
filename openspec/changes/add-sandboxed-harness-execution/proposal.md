@@ -29,6 +29,10 @@ Phased; each phase is independently landable and independently valuable.
   with one amendment made **now, while the vocabulary is being pinned**: admit
   `container` to `VALID_ISOLATION_MODES` and carry the router's `location` axis
   (`local | cloud`) through the contract.
+- `add-dispatch-sandbox-enforcement` (dg-07) — authoritative exact-agent network
+  policy export, durable sandbox audit/outbox, local process lifecycle, SRT renderer,
+  and registered vendor-process front door. This change consumes those surfaces and
+  does not create a parallel local sandbox backend or policy-export contract.
 
 **Phase 1 — Execution backend seam + local sandbox lane**
 - New `ExecutionBackend` protocol (`run`/`poll`/`cancel` over a `DispatchSpec`) behind
@@ -36,8 +40,8 @@ Phased; each phase is independently landable and independently valuable.
   `agent-runner-port`. Backend selection is a pure function of the routing decision's
   `(location, isolation)` pair — no second decision point.
 - The `(local, none|worktree)` backend is byte-identical to today's subprocess path.
-- `(local, sandbox)` lands via `add-dispatch-sandbox-enforcement` (dg-07) exactly as
-  designed (srt renderer + `wrap_command()`), expressed as a backend.
+- `(local, sandbox)` is a thin `ExecutionBackend` adapter over dg-07's existing
+  `local_process_backend`; it does not wrap argv or own timeout/cleanup again.
 
 **Phase 2 — Credential brokering (from ambient to brokered)**
 - **Explicit child environments everywhere.** Every backend — including the local
@@ -164,9 +168,9 @@ min-isolation gate coupling), Governance (posture file schema, audit events).
 
 - `vendor-dispatch` → `specs/vendor-dispatch/spec.md`: ExecutionBackend seam,
   explicit env allowlist requirement, backend selection from routing decision.
-- `agent-coordinator` → `specs/agent-coordinator/spec.md`: network-policy export
-  rendering, per-dispatch API identities, completion-ledger as sole dispatch state
-  for remote backends.
+- `agent-coordinator` → `specs/agent-coordinator/spec.md`: per-dispatch API
+  identities and completion-ledger as sole dispatch state for remote backends;
+  network-policy export remains dg-07-owned input.
 - `agent-archetypes` → `specs/agent-archetypes/spec.md`: isolation vocabulary gains
   `container` + `location` axis (coordinated with `pin-isolation-contract`).
 - New capability `credential-brokering` → `specs/credential-brokering/spec.md`:
@@ -178,7 +182,8 @@ min-isolation gate coupling), Governance (posture file schema, audit events).
 
 **Code touchpoints**: `skills/parallel-infrastructure/scripts/review_dispatcher.py`
 (backend selection; sequenced after dg-02's rewrite of the same methods),
-`skills/shared/sandbox_profile.py` (new, shared with dg-07),
+dg-07's `skills/shared/local_process_backend.py` and `sandbox_profile.py` (consumed
+read-only by the local adapter),
 `skills/shared/environment_profile.py` (dg-03), `agent-coordinator/src/agents_config.py`
 (isolation vocabulary, env allowlist helper), `agent-coordinator/src/network_policies.py`
 (export path), `skills/parallel-infrastructure/scripts/api_key_resolver.py`

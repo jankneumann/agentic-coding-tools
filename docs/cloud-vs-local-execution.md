@@ -44,6 +44,17 @@ It rejects `shared_checkout_blocked`, which means a local CLI caller is trying
 to mutate the shared checkout. Sync-point skills still need their own clean-tree
 and active-agent checks after passing `--sync-point`.
 
+`isolation_provided` describes harness/workspace placement only. It does not prove
+credential confinement or network enforcement and therefore never satisfies a
+routed `isolation=sandbox` assignment. Local sandbox dispatch instead passes the
+immutable routing context through the shared process backend, which applies the
+pinned SRT policy. Cloud/container backends remain downstream consumers with their
+own enforcement evidence.
+
+For sandboxed write-capable work, common Git metadata is read-only: the worker edits
+inside the managed worktree and returns `sandbox_host_commit_required=true`. The
+host validates the collected diff and creates the commit outside the sandbox.
+
 ## Detection precedence
 
 Filesystem is evaluated top-down; the first definitive answer wins. Network evidence is

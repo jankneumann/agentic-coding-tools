@@ -1,0 +1,116 @@
+name: Sandbox runtime evidence
+
+on:
+  push:
+    branches:
+      - "openspec/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  sandbox-runtime:
+    name: sandbox-runtime (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux
+          - runner: macos-14
+            platform: darwin
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+      - run: uv python install 3.12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Create managed evidence worktree
+        run: |
+          evidence_root="$GITHUB_WORKSPACE/.git-worktrees/runtime-evidence"
+          git worktree add --detach "$evidence_root" "$GITHUB_SHA"
+          echo "EVIDENCE_ROOT=$evidence_root" >> "$GITHUB_ENV"
+
+      - name: Install Linux sandbox prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bubblewrap socat ripgrep
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Install macOS sandbox prerequisites
+        if: runner.os == 'macOS'
+        run: brew install socat ripgrep
+
+      - name: Install pinned runtime and Python dependencies
+        run: |
+          uv sync --project "$EVIDENCE_ROOT/skills" --all-extras
+          npm ci --ignore-scripts --prefix "$GITHUB_WORKSPACE/tools/sandbox-runtime"
+
+      - name: Run controlled real-runtime probes
+        env:
+          SANDBOX_RUNTIME_PROBE_OUTPUT: ${{ runner.temp }}/probe.json
+        run: |
+          cd "$EVIDENCE_ROOT"
+          skills/.venv/bin/python -m pytest \
+            skills/shared/tests/test_sandbox_profile_integration.py \
+            --junitxml="$RUNNER_TEMP/sandbox-runtime.xml" -q -rs
+          skills/.venv/bin/python -c \
+            'import sys, xml.etree.ElementTree as ET; r=ET.parse(sys.argv[1]).getroot(); assert int(r.attrib.get("tests", 0)) >= 4 and int(r.attrib.get("skipped", 0)) == 0, r.attrib' \
+            "$RUNNER_TEMP/sandbox-runtime.xml"
+          test -s "$SANDBOX_RUNTIME_PROBE_OUTPUT"
+
+      - name: Materialize immutable evidence payload
+        env:
+          EVIDENCE_PLATFORM: ${{ matrix.platform }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$EVIDENCE_ROOT"
+          artifact_dir="$RUNNER_TEMP/sandbox-runtime-${EVIDENCE_PLATFORM}"
+          mkdir -p "$artifact_dir"
+          job_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" --paginate --jq ".jobs[] | select(.name == \"sandbox-runtime (${EVIDENCE_PLATFORM})\") | .id" | tail -1)"
+          test -n "$job_id"
+          cp "$RUNNER_TEMP/probe.json" "$artifact_dir/probe.json"
+          skills/.venv/bin/python - "$artifact_dir" "$job_id" <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          artifact_dir = Path(sys.argv[1])
+          platform = os.environ["EVIDENCE_PLATFORM"]
+          probe_bytes = (artifact_dir / "probe.json").read_bytes()
+          probe = json.loads(probe_bytes)
+          assert probe["platform"] == platform
+          assert probe["sandbox_applied"] is True
+          evidence = {
+              "schema_version": 1,
+              "workflow_path": ".github/workflows/sandbox-runtime.yml",
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "job_id": int(sys.argv[2]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "platform": platform,
+              "conclusion": "success",
+              "artifact_name": f"sandbox-runtime-{platform}",
+              "artifact_digest": hashlib.sha256(probe_bytes).hexdigest(),
+          }
+          (artifact_dir / "evidence.json").write_text(json.dumps(evidence))
+          PY
+
+      - name: Upload immutable runtime evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: sandbox-runtime-${{ matrix.platform }}
+          path: ${{ runner.temp }}/sandbox-runtime-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 30

@@ -249,9 +249,9 @@ packages:
     task_type: backend
     description: |
       Tasks 2.1–2.5. skills/shared/execution_backends/ (DispatchSpec, ExecutionBackend
-      protocol, SUPPORTED_BACKENDS-style registry, local_process delegating to today's
-      subprocess path unchanged, local_sandbox wrapping argv via dg-07's
-      sandbox_profile.wrap_command). Route CliVendorAdapter through the seam and attach the
+      protocol, SUPPORTED_BACKENDS-style registry). Local adapters delegate to dg-07's
+      shared local_process_backend; this package does not re-render SRT settings or own a
+      second process lifecycle. Route CliVendorAdapter through the seam and attach the
       routing decision to the dispatch context.
       ORDERING: must not run concurrently with build-structured-vendor-result-channel —
       same CliVendorAdapter methods.
@@ -305,32 +305,28 @@ packages:
         - "pass_count"
 
   - package_id: wp-coordinator-surfaces
-    title: "Coordinator — network-policy export and per-dispatch identities"
+    title: "Coordinator — per-dispatch identities"
     task_type: backend
     description: |
-      Tasks 3.9–3.12. GET /policies/network/export (policy_version for narrower-never-wider
-      fallback checks) and /dispatch/identities issue+revoke wired into
+      Tasks 3.9–3.10. /dispatch/identities issue+revoke wired into
       COORDINATION_API_KEY_IDENTITIES. Revocation marks the in-flight dispatch failed in the
-      ledger and leaves sibling dispatches untouched.
+      ledger and leaves sibling dispatches untouched. The exact-agent network-policy export
+      and sandbox-event audit are upstream dg-07 contracts and are read-only dependencies.
     role: backend-implementer
     priority: 2
     depends_on: [wp-contracts, wp-vocabulary]
     locks:
       files:
         - "agent-coordinator/src/coordination_api.py"
-        - "agent-coordinator/src/network_policies.py"
       keys:
-        - "api:GET /policies/network/export"
         - "api:POST /dispatch/identities"
       ttl_minutes: 150
       reason: "Coordinator HTTP surface additions"
     scope:
       write_allow:
         - "agent-coordinator/src/coordination_api.py"
-        - "agent-coordinator/src/network_policies.py"
         - "agent-coordinator/src/agents_config.py"
         - "agent-coordinator/tests/test_dispatch_identities.py"
-        - "agent-coordinator/tests/test_network_policy_export.py"
       read_allow:
         - "**"
       deny:
@@ -350,7 +346,7 @@ packages:
       steps:
         - name: "Coordinator surface tests"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_dispatch_identities.py agent-coordinator/tests/test_network_policy_export.py -v"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_dispatch_identities.py -v"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -395,7 +391,6 @@ packages:
         - "skills/shared/dispatch_env.py"
         - "skills/shared/github_app_tokens.py"
         - "skills/shared/execution_backends/local_process.py"
-        - "skills/shared/execution_backends/local_sandbox.py"
         - "skills/tests/shared/test_dispatch_env.py"
         - "skills/tests/shared/test_credential_broker.py"
         - "skills/tests/shared/test_github_app_tokens.py"
@@ -452,8 +447,9 @@ packages:
     description: |
       Tasks 4.2–4.4 and 4.7. cloud_sandbox.py behind the backend protocol
       (create-from-snapshot, shallow-clone at branch, broker-material injection, exec,
-      auto-stop bound, teardown, ledger integration); render_<provider>_egress() at dg-07's
-      renderer seam from the exported policy; routing.yaml cloud-lane rules; pilot on review
+      auto-stop bound, teardown, ledger integration); cloud-specific
+      render_<provider>_egress() consumes dg-07's exported policy without modifying its
+      local SRT renderer; routing.yaml cloud-lane rules; pilot on review
       fan-out. Zero-inbound invariant: config naming a tailnet address or credential fails
       validation before any sandbox is created.
     role: backend-implementer
@@ -461,7 +457,6 @@ packages:
     depends_on: [wp-provider-spike, wp-credential-broker]
     locks:
       files:
-        - "skills/shared/sandbox_profile.py"
         - "agent-coordinator/routing.yaml"
       keys:
         - "feature:cloud-sandbox-backend"
@@ -471,7 +466,6 @@ packages:
     scope:
       write_allow:
         - "skills/shared/execution_backends/cloud_sandbox.py"
-        - "skills/shared/sandbox_profile.py"
         - "skills/tests/shared/test_cloud_sandbox_backend.py"
         - "agent-coordinator/routing.yaml"
       read_allow:

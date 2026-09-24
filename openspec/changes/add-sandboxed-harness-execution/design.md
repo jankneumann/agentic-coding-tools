@@ -48,7 +48,8 @@ Full narrative: `docs/proposals/sandboxed-harness-execution.md`.
    a `DispatchSpec`) registered in a `SUPPORTED_BACKENDS`-style registry
    (precedent: `agent-coordinator/evaluation/backends/registry.py`), selected
    inside `CliVendorAdapter` after `build_command()`. The srt path (dg-07) is the
-   `(local, sandbox)` backend; symphony's `agent-runner-port` remains the future
+   `(local, sandbox)` implementation and is called through a thin adapter, never
+   wrapped by another local lifecycle; symphony's `agent-runner-port` remains the future
    session-lifecycle abstraction if one-shot argv stops sufficing.
 2. **Push-model secrets (broker), not pull-model (vault access).** The dispatcher
    resolves secrets against OpenBao locally and injects leaves at workspace
@@ -66,8 +67,8 @@ Full narrative: `docs/proposals/sandboxed-harness-execution.md`.
    `CliVendorAdapter` methods this change touches, and remote backends cannot
    exist without ledger-based state anyway; dg-02 lands first, converting a merge
    conflict into an ordering.
-6. **Egress enforcement provider-first.** Sandbox egress is a rendering of the
-   exported coordinator policy into provider network controls; an adjacent cloud
+6. **Egress enforcement provider-first.** Sandbox egress is a rendering of dg-07's
+   exact-agent exported coordinator policy into provider network controls; an adjacent cloud
    egress proxy only if the spike shows provider granularity insufficient; never
    proxied through the tailnet host (residential bandwidth coupling + turns the
    tailnet-only box into an internet-facing proxy).
@@ -106,9 +107,9 @@ Full narrative: `docs/proposals/sandboxed-harness-execution.md`.
 
 1. **Phase 0**: dg-02 lands (or is sequenced ahead); dg-03 posture; dg-05 pinned
    with widened vocabulary. No behavior change.
-2. **Phase 1**: Backend seam introduced with only the legacy backend registered —
-   a pure refactor, verified byte-identical by the existing dispatch tests — then
-   the srt backend behind `isolation: sandbox`.
+2. **Phase 1**: Backend seam introduced with adapters for the existing dg-07 local
+   process backend. The seam adds no subprocess or SRT lifecycle and is verified
+   byte-identical for `none`/`worktree` plus single-delegation for `sandbox`.
 3. **Phase 2**: Env allowlist on (flagged), broker AppRole provisioned, OpenBao
    hardening verified, GitHub App created and key stored, gateway virtual keys for
    capable CLIs. Each independently revertible by flag or by unregistering the
