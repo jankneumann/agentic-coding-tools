@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-09-24 — retain-static-model-until-routing-evidence
+
+### Phase: Implementation
+
+**Add migration 044 instead of nesting retention in budget_state** — User choice mid-implementation; structured column plus CHECK makes a null selection representable only with its reason. Additive and safe in either deploy order.
+
+- Status: `active`
+- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D1)
+
+---
+
+## 2026-09-24 — retain-static-model-until-routing-evidence
+
+### Phase: Implementation
+
+**Proxy and seam omit incumbent when absent** — A coordinator predating the field forbids unknown request keys even as null; omitting keeps new clients compatible with old servers.
+
+- Status: `active`
+- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D2)
+
+---
+
+## 2026-09-24 — retain-static-model-until-routing-evidence
+
+### Phase: Implementation
+
+**evidenced flag on ScoredCandidate (not serialized)** — Exact D1 predicate needs benchmark_prior, which ScoredCandidate lacked; _candidate_payload copies explicit fields so the flag cannot leak.
+
+- Status: `active`
+- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D4)
+
+---
+
 ## 2026-09-23 — retain-static-model-until-routing-evidence
 
 ### Phase: Plan
