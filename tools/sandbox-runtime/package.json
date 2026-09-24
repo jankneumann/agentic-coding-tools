@@ -1,0 +1,11 @@
+{
+  "name": "agentic-coding-tools-sandbox-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.77"
+  }
+}

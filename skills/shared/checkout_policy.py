@@ -202,6 +202,61 @@ def _managed_worktree_root(cwd: Path, repo_root: Path) -> Path | None:
     return marker.joinpath(*parts[:depth]).resolve()
 
 
+def is_managed_execution_root(
+    root: Path | str,
+    common_repo: Path | str,
+    *,
+    git_toplevel: Path | str,
+    git_common_dir: Path | str,
+    read_only: bool,
+) -> bool:
+    """Validate a sandbox execution root without consulting environment posture.
+
+    Git identity is supplied by the caller so the predicate stays deterministic
+    and testable.  Normal managed worktrees may be writable; review snapshots
+    are accepted only for read-only execution.
+    """
+
+    lexical_root = Path(root).absolute()
+    lexical_repo = Path(common_repo).absolute()
+    if lexical_root in {Path("/"), Path.home().absolute(), lexical_repo}:
+        return False
+    try:
+        relative = lexical_root.relative_to(lexical_repo / ".git-worktrees")
+    except ValueError:
+        return False
+    if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+        return False
+    if relative.parts[0] == ".review-snapshots":
+        if not read_only or len(relative.parts) != 2:
+            return False
+    elif len(relative.parts) not in {1, 2}:
+        return False
+
+    cursor = lexical_root
+    while cursor != lexical_repo:
+        if cursor.is_symlink():
+            return False
+        if cursor.parent == cursor:
+            return False
+        cursor = cursor.parent
+
+    try:
+        resolved_root = lexical_root.resolve(strict=True)
+        resolved_repo = lexical_repo.resolve(strict=True)
+        resolved_toplevel = Path(git_toplevel).resolve(strict=True)
+        resolved_common_git = Path(git_common_dir).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return False
+    git_marker = resolved_root / ".git"
+    if not resolved_root.is_dir() or not git_marker.exists() or git_marker.is_symlink():
+        return False
+    return (
+        resolved_toplevel == resolved_root
+        and resolved_common_git == (resolved_repo / ".git").resolve(strict=True)
+    )
+
+
 def _looks_like_agent_worktree(path_part: str) -> bool:
     return path_part.startswith(("wp-", "v")) or path_part in {
         "cleanup",

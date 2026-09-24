@@ -166,3 +166,76 @@ def test_script_path_cli_rejects_local_shared_checkout(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "shared checkout" in result.stderr
+
+
+def test_execution_root_requires_registered_git_identity(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    root = repo / ".git-worktrees" / "change-a"
+    root.mkdir(parents=True)
+    (repo / ".git").mkdir()
+    (root / ".git").write_text("gitdir: elsewhere\n")
+
+    assert cp.is_managed_execution_root(
+        root,
+        repo,
+        git_toplevel=root,
+        git_common_dir=repo / ".git",
+        read_only=False,
+    )
+    assert not cp.is_managed_execution_root(
+        root,
+        repo,
+        git_toplevel=repo,
+        git_common_dir=repo / ".git",
+        read_only=False,
+    )
+
+
+def test_review_snapshot_is_read_only_only(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    snapshot = repo / ".git-worktrees" / ".review-snapshots" / "attempt-1"
+    snapshot.mkdir(parents=True)
+    (repo / ".git").mkdir()
+    (snapshot / ".git").write_text("gitdir: elsewhere\n")
+
+    common = repo / ".git"
+    assert cp.is_managed_execution_root(
+        snapshot,
+        repo,
+        git_toplevel=snapshot,
+        git_common_dir=common,
+        read_only=True,
+    )
+    assert not cp.is_managed_execution_root(
+        snapshot,
+        repo,
+        git_toplevel=snapshot,
+        git_common_dir=common,
+        read_only=False,
+    )
+
+
+def test_execution_root_rejects_shared_home_and_symlink(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    target = repo / ".git-worktrees" / "change-a"
+    target.mkdir(parents=True)
+    (repo / ".git").mkdir()
+    (target / ".git").write_text("gitdir: elsewhere\n")
+    link = repo / ".git-worktrees" / "change-link"
+    link.symlink_to(target, target_is_directory=True)
+
+    common = repo / ".git"
+    assert not cp.is_managed_execution_root(
+        repo,
+        repo,
+        git_toplevel=repo,
+        git_common_dir=common,
+        read_only=False,
+    )
+    assert not cp.is_managed_execution_root(
+        link,
+        repo,
+        git_toplevel=target,
+        git_common_dir=common,
+        read_only=False,
+    )

@@ -228,6 +228,8 @@ while IFS= read -r library_name; do
   [[ -n "$library_name" ]] && shared_libraries+=("$library_name")
 done < <(python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); print("\n".join(sorted(data["shared_libraries"])))' "$INSTALL_MANIFEST")
 
+SANDBOX_RUNTIME_ENABLED="$(python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); print("1" if "sandbox_runtime" in data.get("runtime_dependencies", {}) else "0")' "$INSTALL_MANIFEST")"
+
 if [[ ${#skills[@]} -eq 0 ]]; then
   echo "No skills found in $SCRIPT_DIR" >&2
   exit 1
@@ -291,11 +293,59 @@ check_install_payload() {
     fi
   done
 
+  if [[ "$SANDBOX_RUNTIME_ENABLED" == "1" ]]; then
+    local runtime_source="$SCRIPT_DIR/../tools/sandbox-runtime"
+    local runtime_target="$TARGET_ROOT/tools/sandbox-runtime"
+    local runtime_file
+    for runtime_file in package.json package-lock.json; do
+      if [[ ! -f "$runtime_target/$runtime_file" ]]; then
+        echo "Sandbox runtime payload missing: $runtime_target/$runtime_file" >&2
+        drift=1
+      elif ! cmp -s "$runtime_source/$runtime_file" "$runtime_target/$runtime_file"; then
+        echo "Sandbox runtime payload differs: $runtime_target/$runtime_file" >&2
+        drift=1
+      fi
+    done
+  fi
+
   if [[ $drift -ne 0 ]]; then
     echo "Installed skill mirror validation failed" >&2
     return 1
   fi
   echo "Installed skill mirrors match canonical payload"
+}
+
+sync_sandbox_runtime() {
+  local mode="$1"
+  if [[ "$SANDBOX_RUNTIME_ENABLED" != "1" ]]; then
+    return 0
+  fi
+  local source="$SCRIPT_DIR/../tools/sandbox-runtime"
+  local target="$TARGET_ROOT/tools/sandbox-runtime"
+  local source_real target_real
+  [[ -f "$source/package.json" && -f "$source/package-lock.json" ]] || {
+    echo "Pinned sandbox runtime package files are missing from $source" >&2
+    return 1
+  }
+  mkdir -p "$target"
+  source_real="$(canonicalize_existing_dir "$source")"
+  target_real="$(canonicalize_existing_dir "$target")"
+  if [[ "$source_real" != "$target_real" ]]; then
+    cp "$source/package.json" "$target/package.json"
+    cp "$source/package-lock.json" "$target/package-lock.json"
+  fi
+  if [[ "$mode" == "apply" ]]; then
+    command -v npm >/dev/null 2>&1 || {
+      echo "npm not found; cannot install pinned sandbox runtime" >&2
+      return 1
+    }
+    echo "Installing @anthropic-ai/sandbox-runtime@0.0.77 in $target"
+    npm ci --ignore-scripts --prefix "$target"
+  elif [[ "$mode" == "print" ]]; then
+    echo "Pinned sandbox runtime: npm ci --ignore-scripts --prefix \"$target\""
+  else
+    echo "Pinned sandbox runtime dependency install skipped (--deps none)"
+  fi
 }
 
 if [[ $CHECK_ONLY -eq 1 ]]; then
@@ -965,6 +1015,7 @@ validate_related_keys
 python_venv_path="$(resolve_target_relative_path "$PYTHON_VENV")"
 sync_skill_openspec_assets "$OPENSPEC_ASSETS_MODE"
 check_openspec_cli "$OPENSPEC_CLI_MODE"
+sync_sandbox_runtime "$DEPS_MODE"
 run_skill_dependency_hooks "$DEPS_MODE"
 install_python_tools "$PYTHON_TOOLS_MODE" "$PYTHON_PACKAGES" "$python_venv_path"
 
