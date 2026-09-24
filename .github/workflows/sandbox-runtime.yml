@@ -11,6 +11,12 @@ permissions:
   actions: read
   contents: read
 
+# Supersede only pull-request runs. Push runs use their unique run id because
+# exact-head evidence must never be cancelled by a later branch update.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   sandbox-runtime:
     name: sandbox-runtime (${{ matrix.platform }})

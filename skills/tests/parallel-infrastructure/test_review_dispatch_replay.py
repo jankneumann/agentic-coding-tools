@@ -45,7 +45,7 @@ def test_completeness_blob_coerces_to_valid_type() -> None:
     assert notes
 
 
-@patch("review_dispatcher.subprocess.run")
+@patch("review_dispatcher._run_cli_process")
 def test_timeout_does_not_count_as_successful_empty(
     mock_run: MagicMock, tmp_path: Path,
 ) -> None:
