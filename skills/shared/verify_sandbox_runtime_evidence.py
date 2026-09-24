@@ -38,12 +38,13 @@ def _load_object(path: Path, label: str) -> dict[str, Any]:
 def select_authoritative_run(
     runs: Iterable[Mapping[str, Any]], head_sha: str
 ) -> dict[str, Any]:
-    """Choose the newest successful run whose source is the exact requested SHA."""
+    """Choose the newest exact-head push run, never a synthetic PR merge run."""
     matches = [
         dict(run)
         for run in runs
         if run.get("headSha") == head_sha
         and run.get("conclusion") == "success"
+        and run.get("event") == "push"
         and isinstance(run.get("databaseId"), int)
         and not isinstance(run.get("databaseId"), bool)
     ]
@@ -111,6 +112,8 @@ def verify_downloaded_evidence(
         raise EvidenceError("run head SHA does not match requested exact head SHA")
     if run.get("conclusion") != "success":
         raise EvidenceError("run conclusion is not success")
+    if run.get("event") != "push":
+        raise EvidenceError("run is not push-triggered exact-head evidence")
     if run.get("workflowPath") != workflow_path:
         raise EvidenceError("run workflow path does not match requested workflow path")
     run_id = run.get("databaseId")
@@ -216,7 +219,7 @@ def discover_and_verify(
         _run_gh([
             "run", "list", "--workflow", workflow_path, "--commit", head_sha,
             "--status", "success", "--limit", "20", "--json",
-            "databaseId,headSha,conclusion", *repo_args,
+            "databaseId,headSha,conclusion,event", *repo_args,
         ])
     )
     if not isinstance(listed, list):
@@ -226,7 +229,7 @@ def discover_and_verify(
     viewed = _object(
         json.loads(_run_gh([
             "run", "view", str(run_id), "--json",
-            "databaseId,headSha,conclusion,jobs", *repo_args,
+            "databaseId,headSha,conclusion,event,jobs", *repo_args,
         ])),
         "workflow run metadata",
     )
