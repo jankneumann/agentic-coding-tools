@@ -105,7 +105,7 @@ def _absolute_argv(argv: tuple[str, ...], env: Mapping[str, str]) -> tuple[str, 
     return (str(Path(resolved).resolve()), *argv[1:])
 
 
-def run_vendor_process(invocation: VendorProcessInvocation) -> LocalProcessResult:
+def _run_vendor_process(invocation: VendorProcessInvocation) -> LocalProcessResult:
     """Run one registered process attempt through the shared lifecycle owner."""
 
     if invocation.surface not in PRODUCTION_VENDOR_SURFACES:
@@ -115,7 +115,7 @@ def run_vendor_process(invocation: VendorProcessInvocation) -> LocalProcessResul
     runtime = invocation.runtime
     audit_port = invocation.audit_port
     audit_event = invocation.audit_event
-    if invocation.isolation == "sandbox" and launch is None:
+    if invocation.isolation == "sandbox":
         if invocation.activation_context is None:
             return LocalProcessResult(
                 status="prelaunch_enforcement_blocked",
@@ -184,8 +184,8 @@ def run_vendor_process(invocation: VendorProcessInvocation) -> LocalProcessResul
                 degradation_reason=activated.reason,
                 cleanup_status=result.cleanup_status,
                 cleanup_residual_paths=result.cleanup_residual_paths,
+                sandbox_metadata=activated.audit_event,
             )
-            object.__setattr__(degraded, "sandbox_metadata", activated.audit_event)
             return degraded
         launch = activated.launch
         runtime = activated.runtime
@@ -222,9 +222,58 @@ def run_vendor_process(invocation: VendorProcessInvocation) -> LocalProcessResul
             audit_event=audit_event,
         )
     )
-    if audit_event:
+    if audit_event and not result.sandbox_metadata:
         object.__setattr__(result, "sandbox_metadata", audit_event)
     return result
+
+
+def _normalize_result_metadata(
+    invocation: VendorProcessInvocation,
+    result: LocalProcessResult,
+) -> LocalProcessResult:
+    """Attach one task-4.5 vocabulary before any caller can return or raise."""
+
+    evidence = dict(invocation.audit_event or {})
+    result_metadata = getattr(result, "sandbox_metadata", {})
+    if isinstance(result_metadata, dict):
+        evidence.update(result_metadata)
+    if "routing_digest" not in evidence and isinstance(
+        evidence.get("routing_context_digest"), str
+    ):
+        evidence["routing_digest"] = evidence["routing_context_digest"]
+    if "snapshot_content_digest" not in evidence and isinstance(
+        evidence.get("workspace_content_digest"), str
+    ):
+        evidence["snapshot_content_digest"] = evidence["workspace_content_digest"]
+    evidence.update(
+        process_status=result.status,
+        degradation_reason=getattr(result, "degradation_reason", None),
+        requested_isolation=invocation.isolation,
+        applied_isolation=(
+            "sandbox"
+            if result.sandbox_applied
+            else invocation.isolation
+            if invocation.isolation in {"none", "worktree"}
+            else "none"
+        ),
+        collection_state=(
+            "failed"
+            if result.status == "prelaunch_enforcement_blocked"
+            else "timeout"
+            if result.timed_out
+            else "collected"
+        ),
+        cleanup_status=result.cleanup_status,
+        cleanup_residual_paths=list(result.cleanup_residual_paths),
+    )
+    object.__setattr__(result, "sandbox_metadata", evidence)
+    return result
+
+
+def run_vendor_process(invocation: VendorProcessInvocation) -> LocalProcessResult:
+    """Run and normalize one process attempt before any transport adaptation."""
+
+    return _normalize_result_metadata(invocation, _run_vendor_process(invocation))
 
 
 async def run_vendor_process_async(
@@ -242,38 +291,24 @@ def as_completed_process(
     """Adapt the shared result for legacy callers without losing enforcement."""
 
     if result.status == "prelaunch_enforcement_blocked":
-        raise VendorProcessBlocked(result.degradation_reason or result.status)
+        blocked = VendorProcessBlocked(result.degradation_reason or result.status)
+        blocked.sandbox_metadata = dict(result.sandbox_metadata)  # type: ignore[attr-defined]
+        raise blocked
     if result.timed_out:
-        raise subprocess.TimeoutExpired(
+        timed_out = subprocess.TimeoutExpired(
             list(invocation.argv),
             invocation.timeout_seconds,
             output=result.stdout,
             stderr=result.stderr,
         )
+        timed_out.sandbox_metadata = dict(result.sandbox_metadata)  # type: ignore[attr-defined]
+        raise timed_out
     completed = subprocess.CompletedProcess(
         list(invocation.argv),
         result.returncode or 0,
         result.stdout,
         result.stderr,
     )
-    result_evidence = getattr(result, "sandbox_metadata", {})
-    evidence = dict(result_evidence if isinstance(result_evidence, dict) else {})
-    evidence.update(invocation.audit_event or {})
-    if "routing_digest" not in evidence and isinstance(
-        evidence.get("routing_context_digest"), str
-    ):
-        evidence["routing_digest"] = evidence["routing_context_digest"]
-    evidence.update(
-        requested_isolation=invocation.isolation,
-        applied_isolation=(
-            "sandbox"
-            if result.sandbox_applied
-            else invocation.isolation
-            if invocation.isolation in {"none", "worktree"}
-            else "none"
-        ),
-        cleanup_status=result.cleanup_status,
-        cleanup_residual_paths=list(result.cleanup_residual_paths),
-    )
-    setattr(completed, "sandbox_metadata", evidence)
+    normalized = _normalize_result_metadata(invocation, result)
+    setattr(completed, "sandbox_metadata", dict(normalized.sandbox_metadata))
     return completed

@@ -278,6 +278,13 @@ def _decode_payload(raw_body: bytes) -> Any:
         return {"raw": text}
 
 
+class _NoRedirectHandler(url_request.HTTPRedirectHandler):
+    """Keep coordinator credentials bound to the configured origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
+        return None
+
+
 def _http_request(
     *,
     method: str,
@@ -312,7 +319,8 @@ def _http_request(
     )
 
     try:
-        with url_request.urlopen(request_obj, timeout=timeout) as response:
+        opener = url_request.build_opener(_NoRedirectHandler())
+        with opener.open(request_obj, timeout=timeout) as response:
             response_body = response.read()
             return {
                 "status_code": response.getcode(),

@@ -1058,6 +1058,7 @@ class CliVendorAdapter:
         models_attempted: list[str] = []
         last_error = ""
         last_error_class = ErrorClass.UNKNOWN
+        last_process: Any | None = None
         dispatch_start = time.monotonic()
 
         for model_index, model in enumerate(models_to_try):
@@ -1100,6 +1101,7 @@ class CliVendorAdapter:
                         mode, cwd, model,
                     ),
                 )
+                last_process = result
                 elapsed = time.monotonic() - start
 
                 if result.returncode == 0:
@@ -1172,7 +1174,7 @@ class CliVendorAdapter:
                         f"{last_error_class.value}.\n       {summary}"
                     )
                     print(msg, file=sys.stderr)
-                    return ReviewResult(
+                    failed = ReviewResult(
                         vendor=self.vendor,
                         success=False,
                         models_attempted=models_attempted,
@@ -1180,6 +1182,7 @@ class CliVendorAdapter:
                         error=summary,
                         error_class=last_error_class,
                     )
+                    return self._stamp_process_metadata(failed, result, mode=mode)
 
                 if last_error_class == ErrorClass.CAPACITY:
                     # Report this model before fallback; final success must not erase it.
@@ -1205,7 +1208,7 @@ class CliVendorAdapter:
             except subprocess.TimeoutExpired as exc:
                 elapsed = time.monotonic() - start
                 timed_out_stdout = exc.output if isinstance(exc.output, str) else None
-                return ReviewResult(
+                failed = ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     models_attempted=models_attempted,
@@ -1214,8 +1217,9 @@ class CliVendorAdapter:
                     error_class=ErrorClass.TRANSIENT,
                     raw_stdout=timed_out_stdout,
                 )
+                return self._stamp_process_metadata(failed, exc, mode=mode)
             except (OSError, SandboxActivationError) as exc:
-                return ReviewResult(
+                failed = ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     models_attempted=models_attempted,
@@ -1223,9 +1227,10 @@ class CliVendorAdapter:
                     error=f"Sandbox enforcement blocked dispatch: {exc}",
                     error_class=ErrorClass.UNKNOWN,
                 )
+                return self._stamp_process_metadata(failed, exc, mode=mode)
 
         # All models exhausted or non-retryable error
-        return ReviewResult(
+        exhausted = ReviewResult(
             vendor=self.vendor,
             success=False,
             models_attempted=models_attempted,
@@ -1233,15 +1238,18 @@ class CliVendorAdapter:
             error=last_error[:500] if last_error else "Unknown error",
             error_class=last_error_class,
         )
+        return self._stamp_process_metadata(exhausted, last_process, mode=mode)
 
     def _stamp_process_metadata(
         self,
         review: ReviewResult,
-        process: subprocess.CompletedProcess[str],
+        process: Any,
         *,
         mode: str,
+        collection_state: str | None = None,
+        host_commit_eligible: bool = True,
     ) -> ReviewResult:
-        metadata = getattr(process, "sandbox_metadata", {})
+        metadata = getattr(process, "sandbox_metadata", {}) if process is not None else {}
         if not isinstance(metadata, dict):
             return review
         for field_name in (
@@ -1255,10 +1263,13 @@ class CliVendorAdapter:
         residual = metadata.get("cleanup_residual_paths")
         if isinstance(residual, list) and all(isinstance(path, str) for path in residual):
             review.cleanup_residual_paths = list(residual)
-        review.collection_state = "collected" if review.success else "failed"
+        review.collection_state = collection_state or (
+            "collected" if review.success else "failed"
+        )
         mode_config = self.cli_config.dispatch_modes[mode]
         review.sandbox_host_commit_required = bool(
-            mode_config.write_capable
+            host_commit_eligible
+            and mode_config.write_capable
             and review.requested_isolation == "sandbox"
             and review.success
         )
@@ -1587,6 +1598,8 @@ class CliVendorAdapter:
                 error_class=ErrorClass.UNKNOWN,
             )
 
+        last_process: Any | None = None
+
         def fail(
             message: str,
             *,
@@ -1605,7 +1618,7 @@ class CliVendorAdapter:
                     f"{message}; completion ledger update failed: "
                     f"{completion_error}"
                 )
-            return ReviewResult(
+            failed = ReviewResult(
                 vendor=self.vendor,
                 success=False,
                 models_attempted=models_attempted,
@@ -1614,6 +1627,7 @@ class CliVendorAdapter:
                 error_class=error_class,
                 ledger_task_id=ledger_task_id,
             )
+            return self._stamp_process_metadata(failed, last_process, mode=mode)
 
         # Model fallback: prefer archetype premium, then agents.yaml, then tiers.
         resolved_model, resolved_thinking = _resolve_review_model_spec(self.vendor)
@@ -1658,7 +1672,9 @@ class CliVendorAdapter:
                         mode, cwd, model,
                     ),
                 )
-            except subprocess.TimeoutExpired:
+                last_process = result
+            except subprocess.TimeoutExpired as exc:
+                last_process = exc
                 return fail(
                     "Timeout submitting async task",
                     error_class=ErrorClass.TRANSIENT,
@@ -1733,7 +1749,7 @@ class CliVendorAdapter:
                 envelope.vendor_task_id,
                 ledger_task_id,
             )
-            return ReviewResult(
+            submitted = ReviewResult(
                 vendor=self.vendor,
                 success=True,
                 models_attempted=models_attempted,
@@ -1741,6 +1757,13 @@ class CliVendorAdapter:
                 async_dispatch=True,
                 task_id=envelope.vendor_task_id,
                 ledger_task_id=ledger_task_id,
+            )
+            return self._stamp_process_metadata(
+                submitted,
+                result,
+                mode=mode,
+                collection_state="submitted",
+                host_commit_eligible=False,
             )
 
         # All models exhausted
@@ -1799,6 +1822,10 @@ class CliVendorAdapter:
         deadline = start + poll_config.timeout_seconds
         attempts = 0
         enforcement_block: str | None = None
+        last_process: Any | None = None
+
+        def terminal(review: ReviewResult) -> ReviewResult:
+            return self._stamp_process_metadata(review, last_process, mode=poll_mode)
 
         while time.monotonic() < deadline:
             attempts += 1
@@ -1824,11 +1851,14 @@ class CliVendorAdapter:
                         else None
                     ),
                 )
-            except subprocess.TimeoutExpired:
+                last_process = result
+            except subprocess.TimeoutExpired as exc:
+                last_process = exc
                 logger.warning("Poll command timed out, retrying")
                 time.sleep(poll_config.interval_seconds)
                 continue
             except (VendorProcessBlocked, SandboxActivationError) as exc:
+                last_process = exc
                 enforcement_block = str(exc)
                 logger.warning("Poll enforcement blocked, retrying: %s", exc)
                 time.sleep(poll_config.interval_seconds)
@@ -1842,7 +1872,7 @@ class CliVendorAdapter:
                 )
                 if ledger_error:
                     message += f"; completion ledger update failed: {ledger_error}"
-                return ReviewResult(
+                return terminal(ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     elapsed_seconds=time.monotonic() - elapsed_start,
@@ -1850,7 +1880,7 @@ class CliVendorAdapter:
                     error_class=ErrorClass.UNKNOWN,
                     task_id=task_id,
                     ledger_task_id=ledger_task_id,
-                )
+                ))
 
             if result.returncode != 0:
                 message = result.stderr[:500] or "async status command failed"
@@ -1861,7 +1891,7 @@ class CliVendorAdapter:
                 )
                 if ledger_error:
                     message += f"; completion ledger update failed: {ledger_error}"
-                return ReviewResult(
+                return terminal(ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     elapsed_seconds=time.monotonic() - elapsed_start,
@@ -1869,7 +1899,7 @@ class CliVendorAdapter:
                     error_class=classify_error(result.stderr),
                     task_id=task_id,
                     ledger_task_id=ledger_task_id,
-                )
+                ))
             try:
                 envelope = parse_vendor_result_envelope(result.stdout)
             except VendorResultProtocolError as exc:
@@ -1881,7 +1911,7 @@ class CliVendorAdapter:
                 )
                 if ledger_error:
                     message += f"; completion ledger update failed: {ledger_error}"
-                return ReviewResult(
+                return terminal(ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     elapsed_seconds=time.monotonic() - elapsed_start,
@@ -1889,7 +1919,7 @@ class CliVendorAdapter:
                     error_class=ErrorClass.UNKNOWN,
                     task_id=task_id,
                     ledger_task_id=ledger_task_id,
-                )
+                ))
             if envelope.vendor_task_id != task_id:
                 message = (
                     "Invalid structured async status: vendor_task_id does not "
@@ -1903,7 +1933,7 @@ class CliVendorAdapter:
                 )
                 if ledger_error:
                     message += f"; completion ledger update failed: {ledger_error}"
-                return ReviewResult(
+                return terminal(ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     elapsed_seconds=time.monotonic() - elapsed_start,
@@ -1911,7 +1941,7 @@ class CliVendorAdapter:
                     error_class=ErrorClass.UNKNOWN,
                     task_id=task_id,
                     ledger_task_id=ledger_task_id,
-                )
+                ))
             if envelope.state in {"failed", "cancelled"}:
                 message = (envelope.error or {}).get("message", envelope.state)
                 ledger_error = self._complete_completion_ledger(
@@ -1922,7 +1952,7 @@ class CliVendorAdapter:
                 )
                 if ledger_error:
                     message += f"; completion ledger update failed: {ledger_error}"
-                return ReviewResult(
+                return terminal(ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     elapsed_seconds=time.monotonic() - elapsed_start,
@@ -1930,7 +1960,7 @@ class CliVendorAdapter:
                     error_class=ErrorClass.UNKNOWN,
                     task_id=task_id,
                     ledger_task_id=ledger_task_id,
-                )
+                ))
             if envelope.state == "succeeded":
                 findings_payload = json.dumps(envelope.result)
                 ingested = self._ingest_stdout(
@@ -1955,7 +1985,7 @@ class CliVendorAdapter:
                     )
                     if not ingested.success and ingested.error:
                         message = f"{ingested.error}; {message}"
-                    return ReviewResult(
+                    return terminal(ReviewResult(
                         vendor=self.vendor,
                         success=False,
                         elapsed_seconds=time.monotonic() - elapsed_start,
@@ -1963,7 +1993,7 @@ class CliVendorAdapter:
                         error_class=ErrorClass.UNKNOWN,
                         task_id=task_id,
                         ledger_task_id=ledger_task_id,
-                    )
+                    ))
                 ingested.task_id = task_id
                 ingested.ledger_task_id = ledger_task_id
                 return ingested
@@ -1971,7 +2001,7 @@ class CliVendorAdapter:
 
         # Timeout
         if enforcement_block is not None:
-            return ReviewResult(
+            return terminal(ReviewResult(
                 vendor=self.vendor,
                 success=False,
                 elapsed_seconds=time.monotonic() - elapsed_start,
@@ -1979,7 +2009,7 @@ class CliVendorAdapter:
                 error_class=ErrorClass.TRANSIENT,
                 task_id=task_id,
                 ledger_task_id=ledger_task_id,
-            )
+            ))
         message = (
             f"Polling timed out after {poll_config.timeout_seconds}s "
             f"({attempts} attempts)"
@@ -1991,7 +2021,7 @@ class CliVendorAdapter:
         )
         if ledger_error:
             message += f"; completion ledger update failed: {ledger_error}"
-        return ReviewResult(
+        return terminal(ReviewResult(
             vendor=self.vendor,
             success=False,
             elapsed_seconds=time.monotonic() - elapsed_start,
@@ -1999,7 +2029,7 @@ class CliVendorAdapter:
             error_class=ErrorClass.TRANSIENT,
             task_id=task_id,
             ledger_task_id=ledger_task_id,
-        )
+        ))
 
 
 # ---------------------------------------------------------------------------
@@ -2738,7 +2768,10 @@ def _dispatch_with_snapshot_fallback(
     snapshot: Path | None = None
     try:
         snapshot = create_review_snapshot(cwd, round_id, vendor)
-        return run(snapshot)
+        snapshot_digest = workspace_content_digest(snapshot)
+        retry_result = run(snapshot)
+        retry_result.snapshot_content_digest = snapshot_digest
+        return retry_result
     except Exception as exc:  # noqa: BLE001 — keep the original vendor error
         logger.warning("Snapshot fallback failed for %s: %s", vendor, exc)
         return result

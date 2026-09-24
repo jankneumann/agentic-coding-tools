@@ -909,6 +909,8 @@ class TestAsyncDispatch:
         assert result.task_id == "abc123"
         assert result.ledger_task_id == "ledger-123"
         assert result.async_dispatch is True
+        assert result.collection_state == "submitted"
+        assert result.sandbox_host_commit_required is False
         assert len(ledger.submissions) == 1
         assert ledger.submissions[0]["claim_immediately"] is True
         assert ledger.completions == []
@@ -2290,6 +2292,10 @@ class TestConcurrentGitSnapshotFallback:
                 "review_dispatcher.create_review_snapshot",
                 return_value=snapshot,
             ) as mock_create,
+            patch(
+                "review_dispatcher.workspace_content_digest",
+                return_value="a" * 64,
+            ),
             patch("review_dispatcher.destroy_review_snapshot") as mock_destroy,
         ):
             results = orch.dispatch_and_wait(
@@ -2303,6 +2309,7 @@ class TestConcurrentGitSnapshotFallback:
 
         assert len(results) == 1
         assert results[0].success is True
+        assert results[0].snapshot_content_digest == "a" * 64
         assert cwds[0] == tmp_path
         assert cwds[1] == snapshot
         mock_create.assert_called_once()

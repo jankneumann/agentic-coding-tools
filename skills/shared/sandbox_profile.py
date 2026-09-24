@@ -609,7 +609,7 @@ def prepare_sandbox_command(
         preflight = preflight_runtime(runtime)
         if not preflight.ok:
             raise SandboxProfileError(
-                f"{preflight.status}: {', '.join(preflight.missing)}",
+                preflight.status,
                 fail_open=True,
             )
     parent = (temp_parent or Path(tempfile.gettempdir())).resolve(strict=True)

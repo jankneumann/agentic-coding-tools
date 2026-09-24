@@ -178,6 +178,7 @@ class PiBackend:
         """Execute a task via the `pi` CLI and stream-parse the NDJSON output."""
         timeout = timeout_seconds if timeout_seconds is not None else self._timeout
         start_time = time.time()
+        sandbox_metadata = {}
 
         files_context = "\n".join(f"- {f}" for f in affected_files)
         prompt = f"{task_description}\n\nFiles to work on:\n{files_context}"
@@ -209,18 +210,21 @@ class PiBackend:
                 isolation=isolation,
                 activation_context=activation_context,
             ))
+            sandbox_metadata = dict(result.sandbox_metadata)
             wall_clock = time.time() - start_time
             if result.timed_out:
                 raise TimeoutError
             raw = result.stdout
             err_output = result.stderr
+            process_error = getattr(result, "degradation_reason", None) or err_output
 
             if result.returncode != 0:
                 return BackendResult(
                     success=False,
                     output=raw,
                     wall_clock_seconds=wall_clock,
-                    error=err_output or f"pi exited {result.returncode}",
+                    error=process_error or f"pi exited {result.returncode}",
+                    metadata=sandbox_metadata,
                 )
 
             output, usage = self._parse_ndjson(raw)
@@ -229,17 +233,20 @@ class PiBackend:
                 output=output,
                 wall_clock_seconds=wall_clock,
                 token_usage=usage,
+                metadata=sandbox_metadata,
             )
         except TimeoutError:
             return BackendResult(
                 success=False,
                 wall_clock_seconds=time.time() - start_time,
                 error=f"Timeout after {timeout}s",
+                metadata=sandbox_metadata,
             )
         except FileNotFoundError:
             return BackendResult(
                 success=False,
                 error=f"Command not found: {self._command}",
+                metadata=sandbox_metadata,
             )
 
     async def health_check(self) -> bool:

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -94,6 +95,94 @@ async def test_evaluation_backend_resolves_exact_alternative_lane_isolation(
     assert captured["worktree_root"] == tmp_path
     assert invocation.isolation == "sandbox"
     assert invocation.activation_context is activation_context
+
+
+@pytest.mark.parametrize(
+    ("module_name", "backend_cls"),
+    [
+        ("claude_code", ClaudeCodeBackend),
+        ("codex", CodexBackend),
+        ("antigravity", AntigravityBackend),
+        ("grok", GrokBackend),
+        ("pi", PiBackend),
+    ],
+)
+@pytest.mark.asyncio
+async def test_evaluation_backend_preserves_sandbox_metadata(
+    module_name: str,
+    backend_cls: type,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    module = importlib.import_module(f"evaluation.backends.{module_name}")
+    metadata = {"requested_isolation": "sandbox", "settings_digest": "a" * 64}
+    monkeypatch.setattr(module, "resolve_requested_isolation", lambda *_a, **_k: "none")
+
+    async def run(_invocation):
+        return SimpleNamespace(
+            timed_out=False,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+            sandbox_metadata=metadata,
+        )
+
+    monkeypatch.setattr(module, "run_vendor_process_async", run)
+    backend = backend_cls()
+    if module_name == "grok":
+        monkeypatch.setattr(backend, "_parse_envelope", lambda _raw: ("ok", module.TokenUsage()))
+    elif module_name == "pi":
+        monkeypatch.setattr(backend, "_parse_ndjson", lambda _raw: ("ok", module.TokenUsage()))
+
+    result = await backend.execute_task(
+        "task", [], str(tmp_path), AblationFlags(),
+    )
+
+    assert result.metadata == metadata
+
+
+@pytest.mark.parametrize(
+    ("module_name", "backend_cls"),
+    [
+        ("claude_code", ClaudeCodeBackend),
+        ("codex", CodexBackend),
+        ("antigravity", AntigravityBackend),
+        ("grok", GrokBackend),
+        ("pi", PiBackend),
+    ],
+)
+@pytest.mark.asyncio
+async def test_evaluation_backend_preserves_typed_prelaunch_failure(
+    module_name: str,
+    backend_cls: type,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    module = importlib.import_module(f"evaluation.backends.{module_name}")
+    metadata = {
+        "process_status": "prelaunch_enforcement_blocked",
+        "degradation_reason": "capability_failed",
+    }
+    monkeypatch.setattr(module, "resolve_requested_isolation", lambda *_a, **_k: "none")
+
+    async def run(_invocation):
+        return SimpleNamespace(
+            timed_out=False,
+            returncode=None,
+            stdout="",
+            stderr="",
+            degradation_reason="capability_failed",
+            sandbox_metadata=metadata,
+        )
+
+    monkeypatch.setattr(module, "run_vendor_process_async", run)
+    result = await backend_cls().execute_task(
+        "task", [], str(tmp_path), AblationFlags(),
+    )
+
+    assert result.success is False
+    assert result.error == "capability_failed"
+    assert result.metadata == metadata
 
 
 class TestBuildBackendFactory:

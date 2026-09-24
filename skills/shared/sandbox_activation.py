@@ -6,12 +6,14 @@ import hashlib
 import json
 import os
 import platform as platform_module
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping
 from uuid import uuid4
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -27,6 +29,9 @@ from .sandbox_profile import (
 
 
 Isolation = Literal["none", "worktree", "sandbox"]
+_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_ENDPOINT_KINDS = {"vendor-cli", "vendor-sdk", "openrouter", "local"}
+_LOCATIONS = {"local", "cloud", "unknown"}
 
 
 class SandboxActivationError(RuntimeError):
@@ -179,13 +184,80 @@ def resolve_activation_context(
     if not isinstance(mode, dict):
         raise SandboxActivationError(f"sandbox_mode_unavailable:{agent_id}:{dispatch_mode}")
     api_key_env = cli.get("api_key_env")
-    if not isinstance(api_key_env, str) or not api_key_env:
+    if (
+        not isinstance(api_key_env, str)
+        or not api_key_env
+        or _ENV_KEY_RE.fullmatch(api_key_env) is None
+    ):
         raise SandboxActivationError(f"sandbox_credential_unavailable:{agent_id}")
     state_keys = cli.get("state_env_keys", [])
-    if not isinstance(state_keys, list) or not all(isinstance(key, str) for key in state_keys):
+    if (
+        not isinstance(state_keys, list)
+        or not all(
+            isinstance(key, str) and _ENV_KEY_RE.fullmatch(key) is not None
+            for key in state_keys
+        )
+        or len(state_keys) != len(set(state_keys))
+        or api_key_env in state_keys
+    ):
         raise SandboxActivationError(f"sandbox_state_keys_invalid:{agent_id}")
+    endpoint_kind = lane.get("endpoint_kind") or "vendor-cli"
+    base_url = lane.get("base_url")
+    if endpoint_kind not in _ENDPOINT_KINDS:
+        raise SandboxActivationError(f"sandbox_endpoint_invalid:{agent_id}")
+    location = lane.get("location") or "local"
+    if location not in _LOCATIONS:
+        raise SandboxActivationError(f"sandbox_location_invalid:{agent_id}")
+    if base_url is not None:
+        if not isinstance(base_url, str):
+            raise SandboxActivationError(f"sandbox_endpoint_invalid:{agent_id}")
+        parsed_endpoint = urlsplit(base_url)
+        if (
+            parsed_endpoint.scheme not in {"http", "https"}
+            or not parsed_endpoint.hostname
+            or parsed_endpoint.username is not None
+            or parsed_endpoint.password is not None
+            or parsed_endpoint.fragment
+        ):
+            raise SandboxActivationError(f"sandbox_endpoint_invalid:{agent_id}")
+        normalized_host = (parsed_endpoint.hostname or "").lower()
+        try:
+            normalized_port = parsed_endpoint.port
+        except ValueError as exc:
+            raise SandboxActivationError(f"sandbox_endpoint_invalid:{agent_id}") from exc
+        if (parsed_endpoint.scheme.lower(), normalized_port) in {
+            ("http", 80), ("https", 443),
+        }:
+            normalized_port = None
+        normalized_authority = normalized_host + (
+            f":{normalized_port}" if normalized_port is not None else ""
+        )
+        raw_segments = parsed_endpoint.path.split("/")
+        if any(segment in {".", ".."} for segment in raw_segments):
+            raise SandboxActivationError(f"sandbox_endpoint_invalid:{agent_id}")
+        normalized_url = parsed_endpoint._replace(
+            scheme=parsed_endpoint.scheme.lower(),
+            netloc=normalized_authority,
+        ).geturl()
+        if base_url != normalized_url:
+            raise SandboxActivationError(f"sandbox_endpoint_invalid:{agent_id}")
 
     if execution_context is None:
+        vendor_type = lane.get("type")
+        if not isinstance(vendor_type, str) or not vendor_type.strip():
+            raise SandboxActivationError(
+                f"sandbox_vendor_type_invalid:{agent_id}"
+            )
+        vendor_projection: dict[str, str | None] = {}
+        for field in ("policy_vendor", "catalog_vendor"):
+            value = lane.get(field)
+            if value is not None and (
+                not isinstance(value, str) or not value.strip()
+            ):
+                raise SandboxActivationError(
+                    f"sandbox_{field}_invalid:{agent_id}"
+                )
+            vendor_projection[field] = value
         isolation = mode.get("isolation", lane.get("isolation", "none"))
         if isolation not in {"none", "worktree", "sandbox"}:
             raise SandboxActivationError(f"sandbox_isolation_invalid:{agent_id}")
@@ -195,15 +267,15 @@ def resolve_activation_context(
             raise SandboxActivationError(f"sandbox_mode_projection_invalid:{agent_id}")
         return SandboxActivationContext(
             agent_id=agent_id,
-            vendor_type=str(lane.get("type") or "unknown"),
+            vendor_type=vendor_type,
             dispatch_mode=dispatch_mode,
             model=model,
             isolation=isolation,
-            policy_vendor=lane.get("policy_vendor"),
-            catalog_vendor=lane.get("catalog_vendor"),
-            assignment_location=str(lane.get("location") or "local"),
-            endpoint_kind=str(lane.get("endpoint_kind") or "vendor-cli"),
-            base_url=lane.get("base_url"),
+            policy_vendor=vendor_projection["policy_vendor"],
+            catalog_vendor=vendor_projection["catalog_vendor"],
+            assignment_location=location,
+            endpoint_kind=endpoint_kind,
+            base_url=base_url,
             enforcement_scope=enforcement_scope,
             write_capable=write_capable,
             source="agents_yaml",
@@ -377,6 +449,18 @@ def _git_path(cwd: Path, flag: str) -> Path:
 
 
 def _endpoint_digest(endpoint_kind: str, base_url: str | None) -> str:
+    if not endpoint_kind:
+        raise SandboxActivationError("sandbox_endpoint_invalid")
+    if base_url is not None:
+        parsed = urlsplit(base_url)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.fragment
+        ):
+            raise SandboxActivationError("sandbox_endpoint_invalid")
     document = {"base_url": base_url, "endpoint_kind": endpoint_kind}
     return hashlib.sha256(
         json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()

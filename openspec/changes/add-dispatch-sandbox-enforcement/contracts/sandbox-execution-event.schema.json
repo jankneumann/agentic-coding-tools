@@ -74,6 +74,7 @@
           "decision_id": {"type": "null"},
           "item_id": {"type": "null"},
           "phase": {"type": "null"},
+          "attempt": {"type": "null"},
           "dispatch_work_id": {"type": "null"},
           "routing_context_digest": {"type": "null"}
         }

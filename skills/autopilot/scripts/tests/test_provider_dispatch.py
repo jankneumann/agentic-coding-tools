@@ -173,6 +173,18 @@ def test_v2_rejects_unknown_execution_context_fields() -> None:
         PhaseDispatchPayload.from_dict(data)
 
 
+def test_v2_standalone_context_rejects_router_attempt_correlation() -> None:
+    data = _v2_payload_dict()
+    context = data["execution_context"]
+    context.update(
+        source="agents_yaml", routing_context=None, routing_context_digest=None,
+        decision_id=None, item_id=None, phase=None, dispatch_work_id=None, attempt=7,
+    )
+
+    with pytest.raises(PhaseDispatchPayloadError, match="router correlation"):
+        PhaseDispatchPayload.from_dict(data)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [("source", "forged"), ("execution_location", "cloud")],
@@ -222,6 +234,7 @@ def test_local_sandbox_launch_uses_router_activation_context(
     assert captured["resolved"]["execution_context"] is context
     assert captured["resolved"]["agent_id"] == "local-agent"
     assert captured["invocation"].activation_context is activation_context
+    assert captured["invocation"].cwd == Path(str(context["worktree_root"])).resolve()
 
 
 def _harness_result(content: str, *, returncode: int = 0) -> SimpleNamespace:
