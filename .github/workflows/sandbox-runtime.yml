@@ -65,7 +65,7 @@ jobs:
             skills/shared/tests/test_sandbox_profile_integration.py \
             --junitxml="$RUNNER_TEMP/sandbox-runtime.xml" -q -rs
           skills/.venv/bin/python -c \
-            'import sys, xml.etree.ElementTree as ET; r=ET.parse(sys.argv[1]).getroot(); assert int(r.attrib.get("tests", 0)) >= 4 and int(r.attrib.get("skipped", 0)) == 0, r.attrib' \
+            'import sys, xml.etree.ElementTree as ET; r=ET.parse(sys.argv[1]).getroot(); s=list(r.iter("testsuite")); a={"tests": sum(int(x.attrib.get("tests", 0)) for x in s), "skipped": sum(int(x.attrib.get("skipped", 0)) for x in s)}; assert a["tests"] >= 4 and a["skipped"] == 0, a' \
             "$RUNNER_TEMP/sandbox-runtime.xml"
           test -s "$SANDBOX_RUNTIME_PROBE_OUTPUT"
 
