@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-24 — restructure-openbao-per-agent-secrets
+
+### Phase: Plan Handoff
+
+**Declare vendor credential scope in the registry** — The operator approved explicit vendor_credentials on agent entries instead of inference from policy vendor or CLI configuration.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D2)
+
+---
+
+## 2026-09-24 — restructure-openbao-per-agent-secrets
+
+### Phase: Plan Handoff
+
+**Keep the pca-02 to dg-08 boundary narrow** — pca-02 supplies the egress-gateway AppRole, vendor-only policy, and wrapped bootstrap; iron-proxy and per-dispatch proxy-token authorization remain dg-08 and pca-04 work.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D4)
+
+---
+
 ## 2026-08-16 — 2026-09-08-derive-agent-identity-from-registry
 
 ### Phase: Validate

@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-24 — restructure-openbao-per-agent-secrets
+
+### Phase: Plan Handoff
+
+**Deliver wrapped bootstrap bundles as protected files** — The operator approved one atomically written mode-0600 bundle per principal under an explicit mode-0700 directory, never stdout or git.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D3)
+
+---
+
 ## 2026-08-29 — 2026-08-30-add-prime-agent-harness
 
 ### Phase: Plan Iteration 1
