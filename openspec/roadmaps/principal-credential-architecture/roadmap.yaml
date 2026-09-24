@@ -1,12 +1,12 @@
 schema_version: 1
 roadmap_id: principal-credential-architecture
 source_proposal: openspec/roadmaps/principal-credential-architecture/proposal.md
-status: planning
+status: in_progress
 items:
 - item_id: pca-01
   title: Registry-derived identity and trust
   change_id: derive-agent-identity-from-registry
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on: []
@@ -36,7 +36,7 @@ items:
 - item_id: pca-02
   title: Per-agent OpenBao secrets done right
   change_id: restructure-openbao-per-agent-secrets
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on:
