@@ -11,6 +11,15 @@
     "shared/**",
     "references/**"
   ],
+  "runtime_dependencies": {
+    "sandbox_runtime": {
+      "package": "@anthropic-ai/sandbox-runtime",
+      "version": "0.0.77",
+      "node": ">=20.11.0",
+      "source": "../tools/sandbox-runtime",
+      "install": "npm ci --ignore-scripts"
+    }
+  },
   "installed_assets": [
     {
       "source_glob": "*/install_assets/openspec/**",
