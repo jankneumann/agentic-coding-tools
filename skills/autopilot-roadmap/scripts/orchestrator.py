@@ -238,7 +238,67 @@ def _validated_routing_decision(value: Mapping[str, Any]) -> dict[str, Any]:
     isolation = assignment.get("isolation")
     if isolation not in {"none", "worktree", "sandbox"}:
         raise ValueError("routing assignment has invalid isolation")
+    if assignment.get("location") == "local":
+        local_required = {"enforcement_scope", "write_capable"}
+        if not local_required.issubset(assignment):
+            raise ValueError(
+                "local routing assignment is missing enforcement projection"
+            )
     return decision
+
+
+def _routing_context_digest(value: Mapping[str, Any]) -> str:
+    def reject_floats(item: Any) -> None:
+        if isinstance(item, float):
+            raise ValueError("routing context cannot contain floats")
+        if isinstance(item, Mapping):
+            for child in item.values():
+                reject_floats(child)
+        elif isinstance(item, list):
+            for child in item:
+                reject_floats(child)
+
+    reject_floats(value)
+    encoded = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _dispatch_execution_context(
+    routing: Mapping[str, Any], *, worktree_root: Path
+) -> dict[str, Any]:
+    """Project one lossless local dg-06 decision for payload-v2 dispatch."""
+    assignment = routing["assignment"]
+    assert isinstance(assignment, Mapping)
+    detached = copy.deepcopy(dict(routing))
+    return {
+        "schema_version": 1,
+        "routing_context": detached,
+        "workspace_content_digest": None,
+        "decision_id": routing["decision_id"],
+        "item_id": routing["item_id"],
+        "phase": routing["phase"],
+        "attempt": routing["attempt"],
+        "dispatch_work_id": routing["dispatch_work_id"],
+        "routing_context_digest": _routing_context_digest(detached),
+        "agent_id": assignment["agent_id"],
+        "vendor_type": assignment["vendor_type"],
+        "policy_vendor": assignment.get("policy_vendor"),
+        "catalog_vendor": assignment.get("catalog_vendor"),
+        "assignment_location": assignment["location"],
+        "execution_location": "local",
+        "dispatch_mode": assignment["dispatch_mode"],
+        "isolation": assignment["isolation"],
+        "model": assignment["model"],
+        "base_url": assignment.get("base_url"),
+        "endpoint_kind": assignment["endpoint_kind"],
+        "enforcement_scope": assignment["enforcement_scope"],
+        "write_capable": assignment["write_capable"],
+        "source": "router",
+        "worktree_root": str(worktree_root.resolve()),
+    }
 
 
 def _prepare_routing_attempt(
@@ -1651,6 +1711,10 @@ def _execute_item_phases(
                     manager=mgr,
                 )
                 context["isolation"] = routing["assignment"]["isolation"]
+                if routing["assignment"]["location"] == "local":
+                    context["execution_context"] = _dispatch_execution_context(
+                        context["routing"], worktree_root=repo_root or workspace
+                    )
 
             dispatch_result = dispatch(item_id, phase.value, copy.deepcopy(context))
             outcome, replan_signal = _normalize_outcome(dispatch_result)

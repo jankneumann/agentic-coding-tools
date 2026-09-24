@@ -20,13 +20,17 @@ from review_dispatcher import (
     PollConfig,
     ReviewOrchestrator,
     _orchestrator_for_dispatch,
+    _dispatch_with_snapshot_fallback,
     ReviewResult,
     SdkConfig,
     SdkVendorAdapter,
     VendorResultProtocolError,
+    VendorProcessBlocked,
     parse_vendor_result_envelope,
     classify_error,
     create_review_snapshot,
+    destroy_review_snapshot,
+    workspace_content_digest,
     review_snapshot_path,
 )
 
@@ -455,7 +459,7 @@ class TestCanDispatch:
 # ---------------------------------------------------------------------------
 
 class TestDispatch:
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_successful_dispatch(self, mock_run: MagicMock, tmp_path: Path) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr="",
@@ -466,7 +470,7 @@ class TestDispatch:
         assert result.findings is not None
         assert len(result.findings["findings"]) == 1
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_capacity_error_triggers_fallback(self, mock_run: MagicMock, tmp_path: Path) -> None:
         """429 on primary model → retry with fallback → succeed."""
         mock_run.side_effect = [
@@ -486,7 +490,7 @@ class TestDispatch:
         assert result.models_attempted == [_resolved_primary(), "o3"]
         assert result.model_used == "o3"
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_all_models_fail(self, mock_run: MagicMock, tmp_path: Path) -> None:
         """All models in fallback chain fail."""
         mock_run.return_value = subprocess.CompletedProcess(
@@ -499,7 +503,7 @@ class TestDispatch:
         assert result.models_attempted == [_resolved_primary(), "o3", "gpt-4.1"]
         assert result.error_class == ErrorClass.CAPACITY
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_auth_error_no_fallback(self, mock_run: MagicMock, tmp_path: Path) -> None:
         """Auth errors skip model fallback."""
         mock_run.return_value = subprocess.CompletedProcess(
@@ -512,7 +516,7 @@ class TestDispatch:
         assert result.error_class == ErrorClass.AUTH
         assert result.models_attempted == [_resolved_primary()]  # No fallback attempted
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_timeout(self, mock_run: MagicMock, tmp_path: Path) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired(cmd=[], timeout=10)
         adapter = _adapter()
@@ -520,7 +524,7 @@ class TestDispatch:
         assert result.success is False
         assert "Timeout" in (result.error or "")
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_invalid_json_output(self, mock_run: MagicMock, tmp_path: Path) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="Not valid JSON at all", stderr="",
@@ -530,7 +534,7 @@ class TestDispatch:
         assert result.success is False
         assert "Invalid JSON" in (result.error or "")
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_invalid_json_error_carries_stdout_excerpt(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -544,7 +548,7 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert "Not valid JSON at all" in (result.error or "")
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_pi_exit_zero_with_402_body_on_stdout(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -565,7 +569,7 @@ class TestDispatch:
         assert result.models_attempted == [_resolved_primary()]  # account-scoped: no fallback
         assert "Insufficient credits" in (result.error or "")
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_unavailable_nonzero_exit_no_fallback(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -579,7 +583,7 @@ class TestDispatch:
         assert result.error_class == ErrorClass.UNAVAILABLE
         assert result.models_attempted == [_resolved_primary()]
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_json_embedded_in_text(self, mock_run: MagicMock, tmp_path: Path) -> None:
         """Vendor outputs text around JSON — parser extracts it."""
         output = f"Here are my findings:\n{VALID_FINDINGS_JSON}\nDone."
@@ -591,7 +595,7 @@ class TestDispatch:
         assert result.success is True
         assert result.findings is not None
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_grok_structured_output_dict(self, mock_run: MagicMock, tmp_path: Path) -> None:
         """grok --output-format json nests the object under structuredOutput (E6)."""
         envelope = json.dumps({
@@ -608,7 +612,7 @@ class TestDispatch:
         assert result.findings is not None
         assert len(result.findings["findings"]) == 1
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_grok_structured_output_json_string(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -626,7 +630,7 @@ class TestDispatch:
         assert result.findings is not None
         assert len(result.findings["findings"]) == 1
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_antigravity_response_json_string(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -641,7 +645,7 @@ class TestDispatch:
         assert result.findings is not None
         assert len(result.findings["findings"]) == 1
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_antigravity_structured_output_dict(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -657,7 +661,7 @@ class TestDispatch:
         assert result.findings is not None
         assert len(result.findings["findings"]) == 1
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_grok_envelope_missing_findings_key(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -673,7 +677,7 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_pi_ndjson_event_stream(self, mock_run: MagicMock, tmp_path: Path) -> None:
         """pi --mode json emits an NDJSON event stream (E8); the findings live
         in the final assistant message_end event, not as a single JSON blob."""
@@ -697,7 +701,7 @@ class TestDispatch:
         assert result.findings is not None
         assert len(result.findings["findings"]) == 1
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_pi_ndjson_findings_object_on_own_line(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -862,7 +866,7 @@ def _vendor_envelope(
 
 
 class TestAsyncDispatch:
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_async_submit_reads_task_id_from_structured_envelope(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -882,7 +886,7 @@ class TestAsyncDispatch:
         assert ledger.submissions[0]["claim_immediately"] is True
         assert ledger.completions == []
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_async_submit_rejects_ledger_row_not_atomically_claimed(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -903,7 +907,7 @@ class TestAsyncDispatch:
         assert "did not return claimed status" in (result.error or "")
         mock_run.assert_not_called()
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_async_submit_does_not_launch_when_completion_ledger_is_unavailable(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -920,7 +924,7 @@ class TestAsyncDispatch:
         assert "completion ledger" in (result.error or "").lower()
         mock_run.assert_not_called()
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_async_submit_oserror_completes_claimed_ledger(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -936,7 +940,7 @@ class TestAsyncDispatch:
         assert ledger.completions[0]["success"] is False
 
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_async_submit_rejects_unknown_result_protocol_before_ledger_or_launch(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -955,7 +959,7 @@ class TestAsyncDispatch:
         mock_run.assert_not_called()
 
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_async_capacity_callback_fires_before_successful_fallback(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -985,7 +989,7 @@ class TestAsyncDispatch:
         assert observations[0].capacity_scope == "model"
         assert observations[0].capacity_model == "gpt-primary"
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_async_submit_rejects_text_without_regex_fallback(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -999,7 +1003,7 @@ class TestAsyncDispatch:
         assert result.success is False
         assert "Invalid structured async submission" in (result.error or "")
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_async_not_configured(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1008,7 +1012,7 @@ class TestAsyncDispatch:
         assert result.success is False
         assert "not configured for async" in (result.error or "")
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     @patch("review_dispatcher.time.sleep")
     def test_poll_success_completes_ledger_before_consuming_findings(
         self, mock_sleep: MagicMock, mock_run: MagicMock, monkeypatch: pytest.MonkeyPatch,
@@ -1049,7 +1053,7 @@ class TestAsyncDispatch:
             }
         }
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_poll_does_not_rewrite_empty_result_as_clean_findings(
         self, mock_run: MagicMock,
     ) -> None:
@@ -1074,7 +1078,7 @@ class TestAsyncDispatch:
         assert result.error is not None
         assert ledger.completions[0]["success"] is False
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_poll_placeholder_is_unsuccessful(
         self, mock_run: MagicMock,
     ) -> None:
@@ -1104,7 +1108,7 @@ class TestAsyncDispatch:
         assert ledger.completions[0]["success"] is False
         assert ledger.completions[0]["error_message"] == result.error
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_poll_preserves_ingestion_error_when_ledger_completion_fails(
         self, mock_run: MagicMock,
     ) -> None:
@@ -1136,7 +1140,7 @@ class TestAsyncDispatch:
         assert "completion ledger update failed" in (result.error or "").lower()
 
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_poll_accepts_clean_findings_when_remote_runtime_is_unknown(
         self, mock_run: MagicMock,
     ) -> None:
@@ -1159,7 +1163,7 @@ class TestAsyncDispatch:
         assert result.success is True
         assert result.findings == {"findings": []}
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_poll_rejects_clean_findings_when_submission_runtime_is_fast(
         self, mock_run: MagicMock,
     ) -> None:
@@ -1186,7 +1190,7 @@ class TestAsyncDispatch:
         assert result.error == "empty_findings_too_fast"
         assert result.task_id == "abc123"
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_poll_oserror_completes_claimed_ledger(
         self, mock_run: MagicMock,
     ) -> None:
@@ -1208,8 +1212,37 @@ class TestAsyncDispatch:
         assert len(ledger.completions) == 1
         assert ledger.completions[0]["success"] is False
 
+    @patch("review_dispatcher._run_cli_process")
+    @patch("review_dispatcher.time.sleep")
+    @patch("review_dispatcher.time.monotonic")
+    def test_poll_enforcement_block_retries_then_reports_remote_state_unknown(
+        self,
+        mock_time: MagicMock,
+        mock_sleep: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        mock_time.side_effect = [0, 0, 2, 2]
+        mock_run.side_effect = VendorProcessBlocked("policy_unavailable")
+        ledger = _LedgerStub()
+        adapter = _async_adapter(ledger=ledger)
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            interval_seconds=1,
+            timeout_seconds=1,
+        )
 
-    @patch("review_dispatcher.subprocess.run")
+        result = adapter.poll_for_result(
+            "abc123", poll_cfg, ledger_task_id="ledger-123", isolation="sandbox"
+        )
+
+        assert result.success is False
+        assert result.error == "remote_state_unknown: policy_unavailable"
+        assert result.error_class == ErrorClass.TRANSIENT
+        assert ledger.completions == []
+        mock_sleep.assert_called_once_with(1)
+
+
+    @patch("review_dispatcher._run_cli_process")
     @patch("review_dispatcher.time.sleep")
     def test_poll_terminal_failure_completes_ledger(
         self, mock_sleep: MagicMock, mock_run: MagicMock,
@@ -1238,7 +1271,7 @@ class TestAsyncDispatch:
         assert "something broke" in (result.error or "").lower()
         assert ledger.completions[0]["success"] is False
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_poll_rejects_status_for_a_different_vendor_task(
         self, mock_run: MagicMock,
     ) -> None:
@@ -1274,7 +1307,7 @@ class TestAsyncDispatch:
         assert "does not match submitted task" in (result.error or "")
         assert ledger.completions[0]["success"] is False
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     @patch("review_dispatcher.time.sleep")
     @patch("review_dispatcher.time.monotonic")
     def test_poll_timeout(
@@ -1299,7 +1332,7 @@ class TestAsyncDispatch:
         assert result.success is False
         assert "timed out" in (result.error or "").lower()
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_terminal_result_is_not_consumed_when_ledger_completion_fails(
         self, mock_run: MagicMock,
     ) -> None:
@@ -1647,7 +1680,7 @@ class TestThreeTierSelection:
 class TestDispatchRobustness:
     """Coerce, repair, judgment ingest, fast-empty, sidecars."""
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_bug_type_is_coerced_to_valid_findings(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1673,7 +1706,7 @@ class TestDispatchRobustness:
         assert result.findings["findings"][0]["type"] == "correctness"
         assert result.coercions
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_schema_repair_retry_succeeds(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1689,7 +1722,7 @@ class TestDispatchRobustness:
         assert result.success is True
         assert mock_run.call_count == 2
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_schema_repair_is_not_unbounded(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1700,7 +1733,7 @@ class TestDispatchRobustness:
         assert result.success is False
         assert mock_run.call_count == 2
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_cli_findings_are_stamped_judgment(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1712,7 +1745,7 @@ class TestDispatchRobustness:
         assert result.findings is not None
         assert result.findings["findings"][0]["evidence_class"] == "judgment"
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_payload_cannot_self_promote_to_deterministic(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1725,7 +1758,7 @@ class TestDispatchRobustness:
         assert result.findings is not None
         assert result.findings["findings"][0]["evidence_class"] == "judgment"
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_fast_empty_findings_are_unsuccessful(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1826,7 +1859,7 @@ class TestDispatchRobustness:
 
         assert result.success is True
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_placeholder_does_not_trigger_schema_repair(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1842,7 +1875,7 @@ class TestDispatchRobustness:
         assert result.error == "non_substantive_placeholder"
         assert mock_run.call_count == 1
 
-    @patch("review_dispatcher.subprocess.run")
+    @patch("review_dispatcher._run_cli_process")
     def test_raw_stdout_is_kept_on_success(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1996,6 +2029,7 @@ class TestConcurrentDispatch:
             *,
             review_started_at: float | None = None,
             ledger_task_id: str | None = None,
+            isolation: str = "none",
         ) -> ReviewResult:
             assert review_started_at is not None
             assert ledger_task_id == f"ledger-{self.vendor}"
@@ -2288,17 +2322,65 @@ class TestConcurrentGitSnapshotFallback:
         assert cwds == [tmp_path]
         mock_create.assert_not_called()
 
+    def test_write_capable_attempt_never_retries_on_disposable_snapshot(
+        self, tmp_path: Path,
+    ) -> None:
+        original = ReviewResult(
+            vendor="codex",
+            success=False,
+            error="fatal: Unable to create '.git/index.lock': File exists",
+        )
+        with patch("review_dispatcher.create_review_snapshot") as create:
+            result = _dispatch_with_snapshot_fallback(
+                vendor="codex",
+                cwd=tmp_path,
+                round_id="round-1",
+                run=lambda _cwd: original,
+                write_capable=True,
+            )
+        assert result is original
+        create.assert_not_called()
+
+    def test_snapshot_preserves_index_worktree_and_untracked_content(
+        self, tmp_path: Path,
+    ) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"], cwd=repo, check=True
+        )
+        tracked = repo / "tracked.txt"
+        tracked.write_text("base\n")
+        subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=repo, check=True)
+        tracked.write_text("staged\n")
+        subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+        tracked.write_text("worktree\n")
+        (repo / "untracked.txt").write_text("untracked\n")
+
+        snapshot = create_review_snapshot(repo, "round-1", "codex")
+        try:
+            assert workspace_content_digest(repo) == workspace_content_digest(snapshot)
+            assert (snapshot / "tracked.txt").read_text() == "worktree\n"
+            assert (snapshot / "untracked.txt").read_text() == "untracked\n"
+        finally:
+            destroy_review_snapshot(snapshot, repo)
+
     def test_review_snapshot_path_layout(self, tmp_path: Path) -> None:
         with patch("review_dispatcher._main_repo_from_cwd", return_value=tmp_path):
             dest = review_snapshot_path(tmp_path, "round-1", "codex")
         assert dest == (
-            tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1" / "codex"
+            tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1--codex"
         )
 
     def test_create_review_snapshot_uses_detached_worktree(
         self, tmp_path: Path,
     ) -> None:
-        dest = tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1" / "codex"
+        dest = tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1--codex"
         with (
             patch("review_dispatcher._main_repo_from_cwd", return_value=tmp_path),
             patch("review_dispatcher.subprocess.run") as mock_run,
@@ -2308,7 +2390,11 @@ class TestConcurrentGitSnapshotFallback:
             )
             result = create_review_snapshot(tmp_path, "round-1", "codex")
         assert result == dest
-        cmd = mock_run.call_args.args[0]
+        cmd = next(
+            call.args[0]
+            for call in mock_run.call_args_list
+            if call.args[0][:3] == ["git", "worktree", "add"]
+        )
         assert cmd[:4] == ["git", "worktree", "add", "--detach"]
         assert str(dest) in cmd
         assert "HEAD" in cmd
@@ -2424,7 +2510,7 @@ def test_repo_antigravity_schema_review_uses_json_output_mode() -> None:
     assert command[command.index("--prompt") + 1] == "review"
 
 
-@patch("review_dispatcher.subprocess.run")
+@patch("review_dispatcher._run_cli_process")
 def test_repo_antigravity_live_dispatch_pairs_json_mode_and_schema(
     mock_run: MagicMock, tmp_path: Path,
 ) -> None:
@@ -2512,7 +2598,7 @@ def test_model_capacity_callback_fires_before_successful_fallback(
     ]
     observations: list[ReviewResult] = []
 
-    with patch("subprocess.run", side_effect=attempts):
+    with patch("review_dispatcher._run_cli_process", side_effect=attempts):
         result = adapter.dispatch(
             "review",
             "Review this packet",
@@ -2544,7 +2630,7 @@ def test_capacity_reporting_failure_does_not_mask_successful_fallback(
     def broken_reporter(_result: ReviewResult) -> None:
         raise RuntimeError("coordinator unavailable")
 
-    with patch("subprocess.run", side_effect=attempts):
+    with patch("review_dispatcher._run_cli_process", side_effect=attempts):
         result = adapter.dispatch(
             "review",
             "Review this packet",
@@ -2570,7 +2656,7 @@ def test_all_models_exhausted_reports_intermediate_models_and_terminal_lane_once
     with (
         patch("shutil.which", return_value="/usr/bin/codex"),
         patch(
-            "subprocess.run",
+                "review_dispatcher._run_cli_process",
             return_value=MagicMock(returncode=1, stdout="", stderr="429 capacity"),
         ),
         patch("review_dispatcher.report_vendor_limit_result") as report,
@@ -2601,7 +2687,7 @@ def test_single_model_exhaustion_is_reported_only_by_collector(
         patch("shutil.which", return_value="/usr/bin/codex"),
         patch("review_dispatcher._derived_tier_fallbacks", return_value=[]),
         patch(
-            "subprocess.run",
+                "review_dispatcher._run_cli_process",
             return_value=MagicMock(returncode=1, stdout="", stderr="429 capacity"),
         ),
         patch("review_dispatcher.report_vendor_limit_result") as report,

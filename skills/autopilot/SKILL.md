@@ -592,6 +592,12 @@ In local CLI execution, the shared checkout is read-only. Every autopilot phase
 that may create, modify, delete, format, commit, push, or persist artifacts runs
 with `isolation="worktree"` from `runner.py build-dispatch`.
 
+When the routed execution context requests `isolation="sandbox"`, the worker
+edits only and MUST NOT run `git commit` or `git push`. It returns
+`sandbox_host_commit_required=true`; after collection the host validates the
+worktree diff and creates the save-point commit. Git object/ref writes remain a
+host responsibility because the sandbox receives common Git metadata read-only.
+
 Write-capable phases are `PLAN`, `PLAN_ITERATE`, checkpoint-writing
 `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`,
 checkpoint-writing `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, artifact-writing
@@ -632,8 +638,10 @@ The full sequence, so both orchestrator and sub-agent share the same model:
    `.git-worktrees/<change-id>/<agent-id>/` on branch
    `openspec/<change-id>--<agent-id>` — branched from the feature branch, so
    the change directory and all prior slices are present.
-3. All edits and commits happen in that managed agent worktree (absolute
-   path), never in the harness launchpad checkout.
+3. All edits happen in that managed agent worktree (absolute path), never in
+   the harness launchpad checkout. For sandbox routing the host validates and
+   commits after collection; non-sandbox worktree routing keeps the existing
+   agent-commit flow.
 4. On completion, agent branches merge back into the feature branch via
    `merge_worktrees.py <change-id> <pkg-id>...`; SUBMIT_PR later opens the PR
    from the feature branch to main.

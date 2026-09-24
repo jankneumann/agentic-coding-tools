@@ -19,12 +19,23 @@ parse its response, or match a finding id removes nothing — see :func:`run`.
 from __future__ import annotations
 
 import json
+import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
 
 import file_selection
+
+_SKILLS_ROOT = Path(__file__).resolve().parents[2]
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+from shared.vendor_process_surfaces import (  # noqa: E402
+    VendorProcessInvocation,
+    as_completed_process,
+    run_vendor_process,
+)
 
 # Per system_one_decisions.testing's documented stubbing rule: import the
 # module, never a pre-bound name, so a monkeypatched `decide` attribute is
@@ -564,7 +575,6 @@ def build_default_caller(
     review-mode dispatch (see agents.yaml's comments on those vendors).
     """
     import shutil
-    import subprocess
 
     command = getattr(cli_config, "command", None)
     if not command or shutil.which(command) is None:
@@ -586,13 +596,17 @@ def build_default_caller(
         stdin_text = full_prompt if prompt_via_stdin else None
         if not prompt_via_stdin:
             cmd.append(full_prompt)
-        result = subprocess.run(
-            cmd,
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            cwd=str(cwd),
+        invocation = VendorProcessInvocation(
+            surface="fact_check",
+            argv=tuple(cmd),
+            cwd=cwd,
+            env=os.environ.copy(),
+            timeout_seconds=timeout_seconds,
+            isolation=getattr(mode_config, "isolation", None) or "none",
+            stdin_text=stdin_text,
+        )
+        result = as_completed_process(
+            invocation, run_vendor_process(invocation)
         )
         if result.returncode != 0 and not result.stdout.strip():
             raise RuntimeError(

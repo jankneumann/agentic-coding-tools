@@ -304,6 +304,11 @@ Do NOT commit - the orchestrator handles commits.",
 )
 ```
 
+If the routed worker uses `isolation="sandbox"`, it edits only and returns
+`sandbox_host_commit_required=true`. The host must collect and validate the
+diff before creating the iteration save-point commit; never ask the sandboxed
+worker to write shared Git objects or refs.
+
 **Rules:**
 - Only parallelize fixes targeting different files
 - Fixes to the same file must be sequential

@@ -435,15 +435,7 @@ class TestBuildDefaultCallerVendorFlags:
     def test_uses_alternative_mode_args_not_claude_flags(
         self, tmp_path, monkeypatch,
     ) -> None:
-        import subprocess
-
         captured: dict = {}
-
-        def fake_run(cmd, **kwargs):
-            captured["cmd"] = cmd
-            return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
         cli_config = _FakeCliConfig(
             command=sys.executable,
             dispatch_modes={
@@ -453,6 +445,16 @@ class TestBuildDefaultCallerVendorFlags:
         )
         caller = fact_check.build_default_caller(cli_config, "some-vendor", cwd=tmp_path)
         assert caller is not None
+
+        def record(invocation):
+            captured["cmd"] = list(invocation.argv)
+            return type("Result", (), {
+                "status": "completed", "returncode": 0, "stdout": "ok",
+                "stderr": "", "timed_out": False, "sandbox_applied": False,
+                "degradation_reason": None, "cleanup_status": "succeeded",
+                "cleanup_residual_paths": (),
+            })()
+        monkeypatch.setattr(fact_check, "run_vendor_process", record)
         caller("system", "user")
         cmd = captured["cmd"]
         assert cmd[0] == sys.executable
@@ -464,15 +466,17 @@ class TestBuildDefaultCallerVendorFlags:
     def test_falls_back_to_quick_mode_when_no_alternative(
         self, tmp_path, monkeypatch,
     ) -> None:
-        import subprocess
-
         captured: dict = {}
 
-        def fake_run(cmd, **kwargs):
-            captured["cmd"] = cmd
-            return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        def record(invocation):
+            captured["cmd"] = list(invocation.argv)
+            return type("Result", (), {
+                "status": "completed", "returncode": 0, "stdout": "ok",
+                "stderr": "", "timed_out": False, "sandbox_applied": False,
+                "degradation_reason": None, "cleanup_status": "succeeded",
+                "cleanup_residual_paths": (),
+            })()
+        monkeypatch.setattr(fact_check, "run_vendor_process", record)
         cli_config = _FakeCliConfig(
             command=sys.executable,
             dispatch_modes={"quick": _ModeConfig(["--quick-only"])},

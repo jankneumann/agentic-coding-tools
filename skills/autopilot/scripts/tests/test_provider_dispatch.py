@@ -23,7 +23,9 @@ if _SCRIPTS_DIR not in sys.path:
 import provider_dispatch  # noqa: E402
 from provider_dispatch import (  # noqa: E402
     PhaseDispatchPayload,
+    PhaseDispatchPayloadError,
     PhaseDispatchResult,
+    canonical_routing_context_digest,
     dispatch_phase,
     local_endpoint_available,
 )
@@ -60,6 +62,80 @@ def _payload(**overrides: Any) -> PhaseDispatchPayload:
     }
     data.update(overrides)
     return PhaseDispatchPayload(**data)
+
+
+def _v2_payload_dict(**overrides: Any) -> dict[str, Any]:
+    routing_context = {
+        "schema_version": 1, "decision_id": "decision-1", "item_id": "ri-1",
+        "phase": "implementing", "attempt": 1, "dispatch_work_id": "work-1",
+        "assignment": {
+            "agent_id": "codex-local", "vendor_type": "codex",
+            "policy_vendor": "openai", "catalog_vendor": "openai",
+            "location": "local", "isolation": "sandbox",
+            "dispatch_mode": "alternative", "model": "gpt-5.6",
+            "endpoint_kind": "vendor_default", "extension": {"lossless": True},
+        },
+        "provenance": {"router": "dg-06", "extension": ["preserved"]},
+    }
+    execution_context = {
+        "schema_version": 1, "routing_context": routing_context,
+        "workspace_content_digest": None, "decision_id": "decision-1",
+        "item_id": "ri-1", "phase": "implementing", "attempt": 1,
+        "dispatch_work_id": "work-1",
+        "routing_context_digest": canonical_routing_context_digest(routing_context),
+        "agent_id": "codex-local", "vendor_type": "codex",
+        "policy_vendor": "openai", "catalog_vendor": "openai",
+        "assignment_location": "local", "execution_location": "local",
+        "dispatch_mode": "alternative", "isolation": "sandbox",
+        "model": "gpt-5.6", "base_url": None,
+        "endpoint_kind": "vendor_default", "enforcement_scope": "execution",
+        "write_capable": True, "source": "router",
+        "worktree_root": "/repo/.git-worktrees/change/agent",
+    }
+    data: dict[str, Any] = {
+        "schema_version": 2, "change_id": "demo", "phase": "IMPLEMENT",
+        "provider": "codex", "archetype": "runner", "model": "gpt-5.6",
+        "prompt": "do work", "system_prompt": None, "isolation": "sandbox",
+        "expected_outcomes": ["complete", "failed"], "agent_id": "codex-local",
+        "execution_context": execution_context,
+    }
+    data.update(overrides)
+    return data
+
+
+def test_v1_sandbox_requires_payload_upgrade() -> None:
+    result = dispatch_phase(_payload(isolation="sandbox"))
+    assert result.error_class == "upgrade_required"
+    assert result.outcome == "failed"
+
+
+def test_v2_preserves_lossless_context_and_embedded_isolation() -> None:
+    payload = PhaseDispatchPayload.from_dict(_v2_payload_dict())
+    assert payload.effective_isolation == "sandbox"
+    assert payload.to_dict()["execution_context"]["routing_context"]["provenance"] == {
+        "router": "dg-06", "extension": ["preserved"]
+    }
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("provider", "claude_code"), ("model", "substituted-model"),
+     ("agent_id", "different-agent"), ("isolation", "worktree")],
+)
+def test_v2_rejects_authoritative_identity_mismatch(field: str, value: str) -> None:
+    with pytest.raises(PhaseDispatchPayloadError, match=field):
+        PhaseDispatchPayload.from_dict(_v2_payload_dict(**{field: value}))
+
+
+def test_v2_rejects_digest_mismatch_and_floats() -> None:
+    data = _v2_payload_dict()
+    data["execution_context"]["routing_context"]["provenance"]["score"] = 0.5
+    with pytest.raises(PhaseDispatchPayloadError, match="float"):
+        PhaseDispatchPayload.from_dict(data)
+    data = _v2_payload_dict()
+    data["execution_context"]["routing_context_digest"] = "0" * 64
+    with pytest.raises(PhaseDispatchPayloadError, match="digest"):
+        PhaseDispatchPayload.from_dict(data)
 
 
 def _harness_result(content: str, *, returncode: int = 0) -> SimpleNamespace:
@@ -688,12 +764,17 @@ def test_reachable_endpoint_dispatches_through_pi_and_normalizes(
     )
     captured: dict[str, Any] = {}
 
-    def _run(command: list[str], **kwargs: Any) -> SimpleNamespace:
-        captured["command"] = command
-        captured["kwargs"] = kwargs
-        return _harness_success()
+    def _run(invocation: Any) -> SimpleNamespace:
+        captured["invocation"] = invocation
+        harness = _harness_success()
+        return SimpleNamespace(
+            status="completed", timed_out=False,
+            returncode=harness.returncode, stdout=harness.stdout, stderr=harness.stderr,
+            sandbox_applied=False, cleanup_status="succeeded",
+            cleanup_residual_paths=(),
+        )
 
-    monkeypatch.setattr(provider_dispatch.subprocess, "run", _run)
+    monkeypatch.setattr(provider_dispatch, "run_vendor_process", _run)
 
     result = dispatch_phase(_payload())
 
@@ -704,8 +785,8 @@ def test_reachable_endpoint_dispatches_through_pi_and_normalizes(
     assert result.dispatch_tier == "harness"
     assert result.warnings == []
 
-    command = captured["command"]
-    kwargs = captured["kwargs"]
+    invocation = captured["invocation"]
+    command = list(invocation.argv)
     assert command[0] == "pi"
     assert command[1:3] == ["-p", "--provider"]
     assert command[3] == "local"
@@ -713,12 +794,12 @@ def test_reachable_endpoint_dispatches_through_pi_and_normalizes(
     assert "--mode" in command and "json" in command
     assert "--extension" in command
     assert "secret-token" not in command
-    assert kwargs["env"]["LOCAL_INFERENCE_BASE_URL"].endswith("/v1/")
-    assert kwargs["env"]["LOCAL_INFERENCE_API_KEY"] == "secret-token"
+    assert invocation.env["LOCAL_INFERENCE_BASE_URL"].endswith("/v1/")
+    assert invocation.env["LOCAL_INFERENCE_API_KEY"] == "secret-token"
     assert "You are a focused runner." in command[-1]
     assert "do work" in command[-1]
     assert "handoff_id" in command[-1]
-    assert kwargs["timeout"] > 0
+    assert invocation.timeout_seconds > 0
 
 
 def test_no_api_key_is_added_to_the_harness_environment(
@@ -730,11 +811,17 @@ def test_no_api_key_is_added_to_the_harness_environment(
     )
     captured: dict[str, Any] = {}
 
-    def _run(command: list[str], **kwargs: Any) -> SimpleNamespace:
-        captured["env"] = kwargs["env"]
-        return _harness_success()
+    def _run(invocation: Any) -> SimpleNamespace:
+        captured["env"] = invocation.env
+        harness = _harness_success()
+        return SimpleNamespace(
+            status="completed", timed_out=False,
+            returncode=harness.returncode, stdout=harness.stdout, stderr=harness.stderr,
+            sandbox_applied=False, cleanup_status="succeeded",
+            cleanup_residual_paths=(),
+        )
 
-    monkeypatch.setattr(provider_dispatch.subprocess, "run", _run)
+    monkeypatch.setattr(provider_dispatch, "run_vendor_process", _run)
 
     result = dispatch_phase(_payload())
 

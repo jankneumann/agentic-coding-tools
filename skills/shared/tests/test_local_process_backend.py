@@ -24,6 +24,22 @@ def test_unsandboxed_path_preserves_environment_and_output(tmp_path: Path) -> No
     assert result.sandbox_applied is False
 
 
+def test_unsandboxed_path_preserves_optional_stdin(tmp_path: Path) -> None:
+    request = LocalProcessRequest(
+        argv=(sys.executable, "-c", "import sys; print(sys.stdin.read())"),
+        cwd=tmp_path,
+        env={},
+        timeout_seconds=2,
+        isolation="none",
+        stdin_text="vendor prompt",
+    )
+
+    result = run_local_process(request)
+
+    assert result.status == "completed"
+    assert result.stdout.strip() == "vendor prompt"
+
+
 def test_timeout_terminates_process_group(tmp_path: Path) -> None:
     request = LocalProcessRequest(
         argv=(sys.executable, "-c", "import time; time.sleep(30)"),

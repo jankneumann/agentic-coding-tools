@@ -6,14 +6,23 @@ and captures output, timing, and token usage.
 
 from __future__ import annotations
 
-import asyncio
 import os
 import shutil
+import sys
 import time
+from pathlib import Path
 
 from ..config import AblationFlags, AgentBackendConfig
 from ..metrics import TokenUsage
 from .base import BackendResult
+
+_SKILLS_ROOT = Path(__file__).resolve().parents[3] / "skills"
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+from shared.vendor_process_surfaces import (  # noqa: E402
+    VendorProcessInvocation,
+    run_vendor_process_async,
+)
 
 
 class ClaudeCodeBackend:
@@ -64,27 +73,26 @@ Coordination config:
 
         try:
             env = {**os.environ, **self._env}
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=working_dir,
+            result = await run_vendor_process_async(VendorProcessInvocation(
+                surface="evaluation_claude_code",
+                argv=tuple(cmd),
+                cwd=Path(working_dir),
                 env=env,
-            )
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=timeout
-            )
+                timeout_seconds=timeout,
+                isolation="none",
+            ))
             wall_clock = time.time() - start_time
-
-            output = stdout.decode("utf-8", errors="replace")
-            err_output = stderr.decode("utf-8", errors="replace")
+            if result.timed_out:
+                raise TimeoutError
+            output = result.stdout
+            err_output = result.stderr
 
             return BackendResult(
-                success=process.returncode == 0,
+                success=result.returncode == 0,
                 output=output,
                 wall_clock_seconds=wall_clock,
                 token_usage=TokenUsage(),  # CLI doesn't report tokens directly
-                error=err_output if process.returncode != 0 else None,
+                error=err_output if result.returncode != 0 else None,
             )
         except TimeoutError:
             return BackendResult(

@@ -25,6 +25,7 @@ class LocalProcessRequest:
     env: Mapping[str, str]
     timeout_seconds: float
     isolation: Literal["none", "worktree", "sandbox"]
+    stdin_text: str | None = None
     terminate_grace_seconds: float = 2.0
     sandbox_launch: SandboxLaunch | None = None
     runtime: RuntimePaths | None = None
@@ -52,11 +53,13 @@ def _run_process(
     env: Mapping[str, str],
     timeout: float,
     grace: float,
+    stdin_text: str | None,
 ) -> tuple[int, str, str, bool]:
     process = subprocess.Popen(
         argv,
         cwd=str(cwd),
         env=dict(env),
+        stdin=subprocess.PIPE if stdin_text is not None else None,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -64,7 +67,7 @@ def _run_process(
         close_fds=True,
     )
     try:
-        stdout, stderr = process.communicate(timeout=timeout)
+        stdout, stderr = process.communicate(input=stdin_text, timeout=timeout)
         return process.returncode, stdout, stderr, False
     except subprocess.TimeoutExpired:
         os.killpg(process.pid, signal.SIGTERM)
@@ -97,6 +100,7 @@ def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
             env=request.env,
             timeout=request.timeout_seconds,
             grace=request.terminate_grace_seconds,
+            stdin_text=request.stdin_text,
         )
         return LocalProcessResult(
             status="timeout" if timed_out else "completed",
@@ -135,6 +139,7 @@ def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
                 env=prepared.env,
                 timeout=request.timeout_seconds,
                 grace=request.terminate_grace_seconds,
+                stdin_text=request.stdin_text,
             )
     except SandboxProfileError as exc:
         if exc.fail_open:
@@ -171,6 +176,7 @@ def run_local_process(request: LocalProcessRequest) -> LocalProcessResult:
                 env=request.env,
                 timeout=request.timeout_seconds,
                 grace=request.terminate_grace_seconds,
+                stdin_text=request.stdin_text,
             )
             return LocalProcessResult(
                 status="timeout" if timed_out else "completed",

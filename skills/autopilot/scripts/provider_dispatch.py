@@ -34,6 +34,43 @@ if str(_PARALLEL_INFRA_SCRIPTS) not in sys.path:
 
 from vendor_limit_reporter import report_vendor_limit_result  # noqa: E402
 
+_SKILLS_ROOT = Path(__file__).resolve().parents[2]
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+from shared.vendor_process_surfaces import (  # noqa: E402
+    VendorProcessInvocation,
+    as_completed_process,
+    run_vendor_process,
+)
+
+
+class PhaseDispatchPayloadError(ValueError):
+    """Payload cannot be trusted as an immutable dispatch decision."""
+
+
+def _reject_floats(value: Any, path: str = "routing_context") -> None:
+    if isinstance(value, float):
+        raise PhaseDispatchPayloadError(f"float is forbidden at {path}")
+    if isinstance(value, dict):
+        for key, child in value.items():
+            _reject_floats(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _reject_floats(child, f"{path}[{index}]")
+
+
+def canonical_routing_context_digest(routing_context: dict[str, Any]) -> str:
+    """Hash the lossless dg-06 context using its normative canonical JSON."""
+    _reject_floats(routing_context)
+    canonical = json.dumps(
+        routing_context,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
 
 @dataclass
 class PhaseDispatchPayload:
@@ -48,6 +85,95 @@ class PhaseDispatchPayload:
     isolation: str | None
     expected_outcomes: list[str]
     agent_id: str | None = None
+    execution_context: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        if self.schema_version not in {1, 2}:
+            raise PhaseDispatchPayloadError(
+                f"unsupported schema_version {self.schema_version!r}"
+            )
+        if self.schema_version == 1:
+            if self.execution_context is not None:
+                raise PhaseDispatchPayloadError(
+                    "schema v1 cannot carry execution_context"
+                )
+            return
+        self._validate_v2()
+
+    @property
+    def effective_isolation(self) -> str:
+        if self.schema_version == 2:
+            assert self.execution_context is not None
+            return str(self.execution_context["isolation"])
+        return self.isolation or "none"
+
+    def _validate_v2(self) -> None:
+        context = self.execution_context
+        if not isinstance(context, dict):
+            raise PhaseDispatchPayloadError("schema v2 requires execution_context")
+        required = {
+            "schema_version", "routing_context", "workspace_content_digest",
+            "decision_id", "item_id", "phase", "attempt", "dispatch_work_id",
+            "routing_context_digest", "agent_id", "vendor_type", "policy_vendor",
+            "catalog_vendor", "assignment_location", "execution_location",
+            "dispatch_mode", "isolation", "model", "base_url", "endpoint_kind",
+            "enforcement_scope", "write_capable", "source", "worktree_root",
+        }
+        missing = sorted(required - context.keys())
+        if missing:
+            raise PhaseDispatchPayloadError(
+                f"execution_context missing fields: {', '.join(missing)}"
+            )
+        if context["schema_version"] != 1:
+            raise PhaseDispatchPayloadError("execution_context schema_version must be 1")
+        if context["isolation"] not in {"none", "worktree", "sandbox"}:
+            raise PhaseDispatchPayloadError("invalid execution_context isolation")
+        if context["source"] == "default" and context["isolation"] != "none":
+            raise PhaseDispatchPayloadError("default source requires isolation none")
+        routing_context = context["routing_context"]
+        source = context["source"]
+        if source == "router":
+            if not isinstance(routing_context, dict):
+                raise PhaseDispatchPayloadError(
+                    "router execution_context requires routing_context"
+                )
+            digest = canonical_routing_context_digest(routing_context)
+            if context["routing_context_digest"] != digest:
+                raise PhaseDispatchPayloadError("routing_context digest mismatch")
+            assignment = routing_context.get("assignment")
+            if not isinstance(assignment, dict):
+                raise PhaseDispatchPayloadError("routing_context assignment is required")
+            duplicate_fields = {
+                "decision_id": "decision_id", "item_id": "item_id",
+                "phase": "phase", "attempt": "attempt",
+                "dispatch_work_id": "dispatch_work_id",
+            }
+            for context_key, routing_key in duplicate_fields.items():
+                if context[context_key] != routing_context.get(routing_key):
+                    raise PhaseDispatchPayloadError(f"{context_key} mismatch")
+            assignment_fields = {
+                "agent_id": "agent_id", "vendor_type": "vendor_type",
+                "policy_vendor": "policy_vendor", "catalog_vendor": "catalog_vendor",
+                "assignment_location": "location", "dispatch_mode": "dispatch_mode",
+                "isolation": "isolation", "model": "model",
+                "endpoint_kind": "endpoint_kind",
+            }
+            for context_key, assignment_key in assignment_fields.items():
+                if context[context_key] != assignment.get(assignment_key):
+                    raise PhaseDispatchPayloadError(f"{context_key} mismatch")
+        elif routing_context is not None or context["routing_context_digest"] is not None:
+            raise PhaseDispatchPayloadError(
+                "standalone execution_context cannot carry routing context"
+            )
+        duplicates = {
+            "provider": (self.provider, context["vendor_type"]),
+            "model": (self.model, context["model"]),
+            "agent_id": (self.agent_id, context["agent_id"]),
+            "isolation": (self.isolation, context["isolation"]),
+        }
+        for name, (legacy, authoritative) in duplicates.items():
+            if legacy is not None and legacy != authoritative:
+                raise PhaseDispatchPayloadError(f"{name} mismatch")
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PhaseDispatchPayload":
@@ -63,6 +189,7 @@ class PhaseDispatchPayload:
             isolation=data.get("isolation"),
             expected_outcomes=list(data.get("expected_outcomes") or []),
             agent_id=data.get("agent_id"),
+            execution_context=data.get("execution_context"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -494,14 +621,15 @@ def _run_local_agent_cli(
         str(_LOCAL_PI_EXTENSION),
         _local_harness_prompt(payload),
     ]
-    return subprocess.run(  # noqa: S603 -- fixed executable and list-form args
-        command,
-        capture_output=True,
-        text=True,
-        timeout=_LOCAL_DISPATCH_TIMEOUT_SECONDS,
+    invocation = VendorProcessInvocation(
+        surface="autopilot_provider",
+        argv=tuple(command),
+        cwd=Path.cwd(),
         env=env,
-        check=False,
+        timeout_seconds=_LOCAL_DISPATCH_TIMEOUT_SECONDS,
+        isolation=payload.effective_isolation,  # type: ignore[arg-type]
     )
+    return as_completed_process(invocation, run_vendor_process(invocation))
 
 
 def _assistant_text(message: Any) -> str | None:
@@ -735,7 +863,18 @@ def dispatch_phase(
     through inline execution. Terminal capacity reporting is best effort and
     never replaces the dispatch result.
     """
-    if dry_run:
+    if payload.schema_version == 1 and payload.isolation == "sandbox":
+        result = PhaseDispatchResult(
+            outcome="failed",
+            handoff_id=f"upgrade-required:{payload.provider}:{payload.phase}",
+            provider=payload.provider,
+            model_used=payload.model,
+            dispatch_tier="fallback",
+            warnings=["sandbox dispatch requires PhaseDispatchPayload schema v2"],
+            agent_id=payload.agent_id,
+            error_class="upgrade_required",
+        )
+    elif dry_run:
         result = _dry_run_result(payload)
     elif payload.provider not in _SUPPORTED_PROVIDERS:
         result = _fallback_result(

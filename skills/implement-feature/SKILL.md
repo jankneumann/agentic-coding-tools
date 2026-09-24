@@ -305,6 +305,11 @@ Do NOT commit - the orchestrator will handle commits.",
 )
 ```
 
+For any routed worker with `isolation="sandbox"`, this no-commit rule is a
+security boundary, not merely task coordination. The worker edits only and
+returns `sandbox_host_commit_required=true`; the host collects the result, runs
+the declared verification and scope checks, and creates the save-point commit.
+
 **When to parallelize:** 3+ independent tasks with no file overlap.
 **When NOT to:** Tasks that share files/state or have logical dependencies.
 

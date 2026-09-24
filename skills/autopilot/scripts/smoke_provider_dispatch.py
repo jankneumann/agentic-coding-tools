@@ -7,6 +7,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 _THIS_DIR = Path(__file__).resolve().parent
 for candidate in (
@@ -80,7 +81,15 @@ def _build_payload(
     model_override: str | None,
     *,
     dry_run: bool = False,
+    execution_context: dict[str, Any] | None = None,
 ) -> PhaseDispatchPayload:
+    if execution_context is not None:
+        if provider != execution_context.get("vendor_type"):
+            raise ProviderModelMappingError(
+                provider, str(execution_context.get("model") or "")
+            )
+        if model_override is not None and model_override != execution_context.get("model"):
+            raise ProviderModelMappingError(provider, model_override)
     if provider != "claude_code" and model_override in _CLAUDE_ALIASES:
         raise ProviderModelMappingError(provider, model_override or "")
 
@@ -113,7 +122,11 @@ def _build_payload(
                 f"{', '.join(sorted(_LOCAL_TRUSTED_ARCHETYPES))}. No dispatch attempted."
             )
 
-    model = model_override or options.get("model")
+    model = (
+        execution_context.get("model")
+        if execution_context is not None
+        else model_override or options.get("model")
+    )
     if not model:
         if provider == _LOCAL_PROVIDER and not dry_run:
             # Unreachable in practice (a resolved archetype carries a model), but
@@ -153,7 +166,7 @@ def _build_payload(
         prompt = f"{system_prompt}{phase_agent._PROMPT_SEPARATOR}{prompt}"  # noqa: SLF001
 
     return PhaseDispatchPayload(
-        schema_version=1,
+        schema_version=2 if execution_context is not None else 1,
         change_id="vendor-neutral-autopilot-smoke",
         phase=phase,
         provider=provider,
@@ -161,8 +174,14 @@ def _build_payload(
         model=model,
         prompt=prompt,
         system_prompt=system_prompt,
-        isolation=options.get("isolation"),
+        isolation=(
+            execution_context.get("isolation")
+            if execution_context is not None
+            else options.get("isolation")
+        ),
         expected_outcomes=["complete", "failed"],
+        agent_id=(execution_context.get("agent_id") if execution_context else None),
+        execution_context=execution_context,
     )
 
 
