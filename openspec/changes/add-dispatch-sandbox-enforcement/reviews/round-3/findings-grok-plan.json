@@ -1,0 +1,159 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: Fail-open durability is split across two parallel packages with no seam or dependency edge. Design D6 requires `local_process_backend` to persist a coordinator event or JSONL outbox before any unsandboxed launch (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:128-136`), and tasks 2.3\u20132.4 place outbox/drain/dead-letter work under the coordinator/bridge package (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:15-19`). `wp-policy-audit` and `wp-runtime` both have `depends_on: []` (`openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:32-33,76-77`); policy-audit may write only coordinator/bridge paths (`work-packages.yaml:44-51`) while the backend lives under `skills/shared/local_process_backend.py` (`work-packages.yaml:90-92`). In isolated worktrees neither package can land a complete pre-launch audit path without inventing an undocumented port or cross-importing unfinished code.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "resolution": "Either make `wp-runtime` depend on `wp-policy-audit`, move the outbox client into `skills/shared` under `wp-runtime`, or specify a frozen audit-port Protocol in contracts with fakes in runtime tests and the real bridge client only wired in `wp-integration`.",
+      "package_id": "wp-policy-audit",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "line_range": {
+        "start": 25,
+        "end": 119
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The plan requires a backend-owned ephemeral vendor state root and a user-home `denyRead`, but never places that state root in the read/write carve-outs or names its location. Spec review allows only the ephemeral state root (plus SRT internals) to remain writable (`openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:52-58`), while D3\u2019s allowRead list is only worktree, common Git, tools, and credential-free inputs (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:54-71`). If the state root is created under `/home` or `/Users`, home denyRead hides it unless it is also allowRead/allowWrite; if it is under the worktree, review mode gains a project write path. Implementers cannot satisfy both constraints as written.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Normatively locate the per-launch state root outside the user-home region and outside the project worktree (for example under a backend-owned directory in `/tmp`), and require it in both `filesystem.allowWrite` and `filesystem.allowRead` with RED tests that vendor HOME/XDG writes succeed while sibling home paths stay denied.",
+      "package_id": "wp-runtime",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 50,
+        "end": 74
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: Linked-worktree `git status` is required to succeed while Git metadata stays write-denied, but no mechanism makes that possible. D3 denies writes to the worktree `.git` pointer and common Git metadata and covers `git status` readability in tests (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:62-74`); the write-capable scenario also denies those writes (`openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:60-65`). For a linked worktree the index lives under `<common>/.git/worktrees/<name>/`, outside the only project `allowWrite` root, so index refresh/`index.lock` fails. D5 strips Git override variables and does not set `GIT_OPTIONAL_LOCKS=0` (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:112-116`). Real vendor CLIs that run `git status` will fail the stated acceptance scenario.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Pick one enforceable policy: set `GIT_OPTIONAL_LOCKS=0` (and document it) so status works read-only; or allowWrite only the per-worktree gitdir (not shared objects/refs) with explicit tests; then pin the chosen behavior in task 3.1/5.1.",
+      "package_id": "wp-runtime",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 62,
+        "end": 74
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Read-only snapshot retries cannot satisfy D3 root validation against the landed `checkout_policy` helper. D8 retargets sandbox retries to the snapshot execution root (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:180-183`); D3 requires the root to equal `git rev-parse --show-toplevel` and pass the managed-worktree check (`design.md:58-60`). Snapshots are created at `<main>/.git-worktrees/.review-snapshots/<round>/<vendor>/` (`skills/parallel-infrastructure/scripts/review_dispatcher.py:2410-2430`), whose toplevel is the vendor snapshot path, but `_managed_worktree_root` returns `.git-worktrees/.review-snapshots` because `.review-snapshots` is not treated as an agent worktree segment (`skills/shared/checkout_policy.py:189-209`). Under a strict equality reading every sandboxed snapshot retry fails closed; under a loose `allowed=True` reading the policy root is the wrong directory.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Extend `checkout_policy` to treat `.review-snapshots/<round>/<vendor>` as its own managed root, or define snapshot validation as `show-toplevel` plus `allowed=True` without requiring `worktree_root == toplevel`, and add a RED test for sandboxed snapshot retry.",
+      "package_id": "wp-runtime",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 58,
+        "end": 60
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Immutable routing-decision consumption depends on `routing_context_digest`, but the plan never defines how that digest is computed. D1 requires a canonical digest of the full persisted routing context and router correlation via that digest (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:14-22`); contracts only constrain `^[a-f0-9]{64}$` (`openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json:20`; `sandbox-execution-event.schema.json:26`). By contrast, `policy_digest` has an explicit canonical-JSON algorithm (`design.md:82-84`). Without a byte-stable digest over the dg-06 `RoutingDispatchContext` (`openspec/changes/make-the-orchestrator-obey-the-router/contracts/routing-dispatch-context.schema.json:7-50`), producers and audit consumers can disagree while still appearing to satisfy \u201csame digest in the execution audit\u201d.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Specify the exact payload (full persisted routing context including assignment/provenance), canonical UTF-8 JSON rules, and SHA-256 procedure for `routing_context_digest`, mirroring `policy_digest`, and add a cross-artifact equality test in tasks 4.3/4.5.",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 12,
+        "end": 22
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: D3 says per-lane state variables and credential environment keys are authored in `agents.yaml` with no vendor hard-coding (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:55-58`), and task 4.1 only says to \u201cpreserve\u201d that configuration (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:35-36`). Landed `CliConfig` exposes only `api_key_env` (`agent-coordinator/src/agents_config.py:574-595`, `agents.yaml:139,205,406`); there is no schema, task, or fail-closed rule for additional state-root env vars or for rejecting sandbox lanes that lack environment-backed auth. Rollout-ineligible language alone does not give implementers a testable gate.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Add agents.yaml schema fields (or explicitly reuse only `api_key_env`), define dispatch-time fail-closed behavior when a sandbox lane lacks env auth, and extend task 4.1 with RED/GREEN coverage for missing keys and per-lane state env projection into the ephemeral root.",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 55,
+        "end": 58
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The export contract claims an SRT-compatible DNS grammar (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:78-79`) but accepts patterns SRT 0.0.77 rejects. `network-policy-export.schema.json` allows `*.com` because the label after `*.` may be a single DNS label (`openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json:28-29`), while SRT requires at least two labels after a wildcard (for example `*.example.com`) and rejects overly broad forms like `*.com`. A schema-valid export can therefore be unrenderable at cold start, collapsing to fail-closed for an authored rule the contract itself permitted.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Tighten the DNS pattern to SRT\u2019s validator (wildcard requires \u22652 labels after `*.`; reject `*.com`/`*`), and add task 2.1 cases that prove illegal patterns fail at export/write time rather than at SRT launch.",
+      "package_id": "wp-policy-audit",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json",
+      "line_range": {
+        "start": 28,
+        "end": 29
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: D6 moves permanently rejected outbox records to \u201ca mode-0600 dead-letter file\u201d with response metadata (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:142-145`; `openspec/changes/add-dispatch-sandbox-enforcement/specs/agent-coordinator/spec.md:59-64`) but never names the path, rotation, or retention relative to `outbox.jsonl`. Parallel drain implementations can diverge on filename and atomicity details even though task 2.3 requires dead-letter tests (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:15-18`).",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "resolution": "Pin the dead-letter path (for example `${state_root}/dead-letter.jsonl` beside the outbox), require the same lock/fsync/replace rules as compaction, and name those constants in task 2.3.",
+      "package_id": "wp-policy-audit",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 142,
+        "end": 145
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "style",
+      "criticality": "low",
+      "description": "Immutable decision consumption, fail-closed policy export, env-backed-only sandbox auth, git-common-dir runtime discovery, PR-triggered Linux/macOS evidence, and host-owned commits after sandboxed edits are coherently specified across proposal, design, specs, and contracts, and prior review gaps on payload dual-isolation authority, false applied attestations, and outbox compaction appear resolved in the current revision.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No change; preserve these as non-negotiable implementation invariants.",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 12,
+        "end": 24
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

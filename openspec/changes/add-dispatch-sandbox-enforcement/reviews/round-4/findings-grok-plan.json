@@ -1,0 +1,67 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "D1 requires the backend to recompute and compare `routing_context_digest` before launch (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:27-33`), and the digest source is the full dg-06 `RoutingDispatchContext` including optional provenance and assignment extension fields (`design.md:27-29`; `openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:31-32`; `openspec/changes/make-the-orchestrator-obey-the-router/contracts/routing-dispatch-context.schema.json:7-27,29-51`). Task 4.3 only embeds the closed `DispatchExecutionContext` projection plus digest (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:44-47`), and that schema forbids additional properties and omits provenance (`openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json:5-37`). The process backend therefore cannot reconstruct the digest input bytes from the carried context, so the immutability check is unimplementable as written. Carry the full digest-source document (or its canonical bytes) with the projection, or redefine the digest over only projection-carried fields and drop provenance/unprojected extensions from the digest contract.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment",
+      "existing_code": "The digest source document is exactly the validated dg-06 `RoutingDispatchContext` contract:\n`schema_version`, `decision_id`, `item_id`, `phase`, `attempt`, `dispatch_work_id`, the complete\nassignment object (including extension fields and normalized `base_url`), and optional provenance.\nMutable lifecycle fields such as status and `prepared_at` are excluded. It is SHA-256 over UTF-8\ncanonical JSON with lexicographically sorted object keys, compact separators, and no floats. The\nhost computes it immediately after dg-06 validation; the backend recomputes and compares it before\nlaunch.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Local CLI process registration is still incomplete. `specs/vendor-dispatch/spec.md:3-11` requires every coordinator evaluation backend lifecycle command to use the shared backend and a maintained production-surface registry; D10 names only Claude Code, Codex, and Pi (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:262-266`); and `wp-vendor-wiring` write scope lists only those three modules (`openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:179-181`). The landed evaluation roster also launches vendor CLIs from `agent-coordinator/evaluation/backends/antigravity.py:71-77` and `agent-coordinator/evaluation/backends/grok.py:121-128`, registered in `agent-coordinator/evaluation/backends/registry.py:25-31`. Those sinks remain outside package ownership, so either the AST/config guard fails on unowned files or the surfaces stay unsandboxed bypasses. Add antigravity and grok evaluation backends to D10, task 4.x coverage, and `wp-vendor-wiring` locks/write_allow, or explicitly classify them out of dg-07 with a matching registry exemption.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment",
+      "existing_code": "The production process-surface registry includes review dispatcher submit/poll/repair/snapshot,\nautopilot providers, `fact_check.py`, evaluation backends for Claude Code, Codex, and Pi,\nquick-task, and phase-fixer mutation flows. Configuration validation requires every local CLI\nsurface to register.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "D3 requires backend-authored `GIT_OPTIONAL_LOCKS=0` so linked-worktree `git status` works under write-denied Git metadata (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:94-97`), but D5's positive child-environment allowlist enumerates only locale/terminal/time, HOME/XDG/temporary/PATH/proxy, and the lane credential (`design.md:148-151`) and does not include `GIT_OPTIONAL_LOCKS`. Task 3.1 pins Git read/write behavior without naming the env var in the allowlist contract (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:24-27`). As written, a strict allowlist implementation drops the variable D3 depends on, so the Git status acceptance path fails after sandbox start. Add `GIT_OPTIONAL_LOCKS` to the normative allowlist and to the child-env tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "existing_code": "System/runtime reads outside the user-home region are a documented residual. Tests cover `git\nstatus` readability with backend-authored `GIT_OPTIONAL_LOCKS=0`, denied Git mutation,\ncredential/sibling/arbitrary-home reads, and the\nread-only common-git carve-out.\n\nThe child environment is constructed from a positive allowlist rather than copied from the\ncoordinator. It contains only safe locale/terminal/time variables (`LANG`, `LC_*`, `TERM`, `TZ`),\nbackend-authored `HOME`, XDG, temporary, `PATH`, and proxy variables, and the selected lane's\nsingle authored credential key.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "D3 and task 4.1 treat per-lane `state_env_keys` as authored configuration that the backend projects into the ephemeral state root (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:73-74`; `openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:37-40`), but the landed `agents.yaml` CLI schema has no such field and rejects unknown keys (`agent-coordinator/src/agents_config.py:476-539`, `CliConfig` at `574-595`). Task 4.1 says to \"preserve\" `state_env_keys` rather than add and validate it, so implementers have no schema, loader field, or fail-closed shape for the state-env projection D3 requires. Extend the CLI schema/`CliConfig` with `state_env_keys`, require it (or an explicit empty list) for sandbox-eligible lanes, and replace \"preserve\" with RED/GREEN coverage for missing keys and projection into the ephemeral root.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "existing_code": "Per-lane `state_env_keys` and credential environment keys are authored in `agents.yaml`; the\nbackend points only those state keys into the ephemeral root and no renderer hard-codes a vendor.\n\n- [ ] 4.1 Test and fix config projection so effective mode isolation is mode override then entry,\n  only for standalone calls; require each mode's explicit enforcement scope/write capability and\n  preserve per-vendor `state_env_keys`/`api_key_env`/proxy-compatibility configuration; sandbox\n  lanes with missing environment-backed auth fail closed as rollout-ineligible.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "D4 claims a closed SRT-compatible DNS grammar and renderer tests that pin SRT 0.0.77 wildcard multi-label behavior (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:101-103,127-128`), but `network-policy-export.schema.json:28` uses a wildcard lookahead `(?=[^.]+\\.[^.]+$)` that accepts only exactly two labels after `*.`. SRT 0.0.77 accepts any wildcard whose domain has `parts.length >= 2` (e.g. `*.foo.example.com`, `*.api.github.com`). Schema-valid exports therefore cannot carry SRT-valid multi-label wildcards, and an authored SRT-valid rule becomes unrenderable/fail-closed at the contract boundary. Widen the DNS pattern to SRT's `>= 2` parts rule (while still rejecting `*.com`), or document and test an intentional stricter subset.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "existing_code": "{\"if\": {\"properties\": {\"destination_kind\": {\"const\": \"dns\"}}}, \"then\": {\"properties\": {\"destination_pattern\": {\"pattern\": \"^(?:\\\\*\\\\.(?=[^.]+\\\\.[^.]+$))?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$\"}}}}",
+      "line_resolution": "vendor"
+    }
+  ]
+}

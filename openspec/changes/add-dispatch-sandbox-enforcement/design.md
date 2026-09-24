@@ -12,8 +12,9 @@ dispatcher and autopilot's local Pi provider.
 ### D1 — Consume one immutable execution context
 
 `DispatchExecutionContext` is a normative enforcement projection of dg-06: decision id, item id,
-phase, attempt, dispatch work id, every assignment field, and a canonical digest of the full
-persisted routing context, plus enforcement scope and canonical root. The roadmap host constructs
+phase, attempt, dispatch work id, every assignment field (including nullable normalized
+`base_url`), and a canonical digest of the full persisted routing context, plus authored
+`enforcement_scope`, authored `write_capable`, and canonical root. The roadmap host constructs
 it at the dispatch boundary and passes it through `PhaseDispatchPayload.execution_context`.
 Payload v2 removes the legacy top-level isolation authority; a compatibility reader rejects any
 legacy isolation value that disagrees with the embedded context. `CliVendorAdapter.dispatch()`,
@@ -22,6 +23,21 @@ callers construct one context at their adapter boundary from the exact lane's mo
 entry value. A router-sourced context requires router correlation and the assignment digest. No
 renderer or backend calls routing or derives a sandbox root from ambient process cwd. Root safety
 checks apply only while preparing `sandbox`; `none` and `worktree` preserve legacy cwd behavior.
+
+The digest source document is exactly the validated dg-06 `RoutingDispatchContext` contract:
+`schema_version`, `decision_id`, `item_id`, `phase`, `attempt`, `dispatch_work_id`, the complete
+assignment object (including extension fields and normalized `base_url`), and optional provenance.
+Mutable lifecycle fields such as status and `prepared_at` are excluded. It is SHA-256 over UTF-8
+canonical JSON with lexicographically sorted object keys, compact separators, and no floats.
+Payload v2 carries that validated lossless routing-context object alongside the flattened
+enforcement projection. The host computes the digest immediately after dg-06 validation; the
+backend canonicalizes the carried object, recomputes the digest, and verifies every duplicated
+flattened field against it before launch. Any float in the digest source is a typed host-side
+validation error. Payload-v2 `provider`, `model`, `agent_id`, and isolation duplicates are removed
+where compatible or must exactly equal the embedded context before any selection or launch. A
+router-sourced capacity fallback returns `vendor_limit` for a new router decision and
+never silently substitutes a model. A standalone retry may create a new standalone per-attempt
+context.
 
 Context producers are explicit:
 
@@ -51,12 +67,20 @@ isolation are never project-configurable.
 
 Review and validation-shaped commands receive no project write roots. Alternative, quick,
 implementation, and documentation-shaped commands may write only the strict canonical worktree
-root. Every sandboxed command receives a backend-owned, per-launch state root used for HOME,
+root. `agents.yaml` authors `enforcement_scope` and `write_capable` per mode; these properties are
+never inferred from assignment location. Autopilot maps each phase explicitly. Every sandboxed
+command receives a backend-owned, per-launch state root beneath a secure OS temporary parent
+outside both the user-home region and every checkout. That root is explicitly allowed for reads
+and writes and is used for HOME,
 XDG state/config/cache, and runtime temporary files. dg-07 sandbox lanes are eligible only when
-authentication is environment-backed; file-backed login state is denied and remains rollout-
-ineligible until dg-08 can broker it safely. Per-lane state variables and credential environment
-keys are authored in `agents.yaml`; no renderer hard-codes a vendor. The root must exist, equal `git
-rev-parse --show-toplevel`, pass the existing `checkout_policy.py` managed-worktree check, and
+authentication is environment-backed; a sandbox lane with no authored `api_key_env`, or whose
+selected key is absent, fails closed as rollout-ineligible until dg-08 can broker it safely.
+Per-lane `state_env_keys` and credential environment keys are authored in `agents.yaml`; the
+backend points only those state keys into the ephemeral root and no renderer hard-codes a vendor.
+The root must exist, equal `git rev-parse --show-toplevel`, and pass a new pure
+`is_managed_execution_root(root, common_repo)` predicate independent of environment posture. It
+accepts only registered `.git-worktrees/<change>[/<agent>]` roots and the read-only snapshot shape
+defined in D8, and
 must not be `/`, the user's home, or the shared checkout.
 
 The worktree `.git` pointer and linked-worktree common Git metadata are explicitly denied for
@@ -68,9 +92,15 @@ same-user risk rather than overstated as contained.
 
 Reads deny the platform user-home region (`/home` on Linux, `/Users` on macOS) and explicitly
 re-allow only the canonical worktree, read-only common Git metadata, pinned runtime/tool paths,
-and authored credential-free inputs. Named credential paths and sibling checkouts remain denied.
+the realpath-resolved vendor executable and deterministic install root, and authored
+credential-free inputs. Preflight proves those executable/install roots are readable before start.
+Named credential paths and direct sibling-checkout filesystem reads remain denied. Because linked
+worktrees share a common object database, committed objects and refs belonging to sibling branches
+remain readable through the required read-only common-Git carve-out; this is an explicit residual,
+not a claim of branch-content confidentiality.
 System/runtime reads outside the user-home region are a documented residual. Tests cover `git
-status` readability, denied Git mutation, credential/sibling/arbitrary-home reads, and the
+status` readability with backend-authored `GIT_OPTIONAL_LOCKS=0`, denied Git mutation,
+credential/sibling/arbitrary-home reads, and the
 read-only common-git carve-out.
 
 ### D4 — Exact-agent, default-deny network export
@@ -79,10 +109,20 @@ The coordinator exports a snapshot from the exact agent's profile assignment plu
 The snapshot uses a closed SRT-compatible hostname plus separately range-checked port grammar,
 explicit scope and priority, schema revision, and canonical SHA-256 digest. Migration 044 adds
 `updated_at` and an atomic exact-agent export function; `policy_revision` is
-`v1:<maximum-updated-at-UTC>:<row-count>`. `policy_digest` is SHA-256 over UTF-8 canonical JSON
+`v1:<maximum-updated-at-UTC>:<row-count>`; an empty snapshot uses the stable sentinel
+`v1:none:0`. Migration 044 backfills `updated_at` from `created_at` and installs an update trigger.
+`policy_digest` is SHA-256 over UTF-8 canonical JSON
 (lexicographically sorted object keys, preserved rule-array order, no insignificant whitespace,
 no floats), excluding the digest field itself.
 Disabled rules are absent.
+
+Only an enabled exact profile assignment is exportable. Unknown, disabled, or unassigned agents
+receive a typed 404/409 response and never a global-only snapshot. Export ordering is total and
+stable: agent-profile before global, legacy priority ascending (lower number is higher priority),
+deny before allow on ties, then
+`policy_id` ascending. Migration 044 adds constrained `destination_kind`,
+`destination_pattern`, `port`, and `updated_at` columns, parses/backfills legacy rows, and validates
+all new writes; any malformed applicable legacy row fails the whole export.
 
 SRT's deny-first semantics cannot represent every ordered SQL policy exactly. Rendering therefore
 keeps every applicable deny and only authored allows; conflicts become narrower. New writes are
@@ -107,13 +147,26 @@ and port are exportable, its Node client is proven to use SRT's proxy path, and 
 destination class. Loopback, link-local, private-IP, or mDNS rejection is a fail-closed
 policy/capability outcome, never a fail-open reason.
 
+The renderer always supplies `deniedResolvedAddresses` for loopback, link-local, cloud metadata,
+RFC1918, CGNAT, and IPv6 ULA ranges. An explicit allow whose literal target is private is
+unrenderable and fails closed. DNS resolution into any baseline-denied range remains denied.
+
 ### D5 — Sanitize boundary-shaping environment, do not claim secret brokering
 
-The environment passed to SRT itself removes uppercase/lowercase `HTTP_PROXY`, `HTTPS_PROXY`,
+The child environment is constructed from a positive allowlist rather than copied from the
+coordinator. It contains only safe locale/terminal/time variables (`LANG`, `LC_*`, `TERM`, `TZ`),
+backend-authored `HOME`, XDG, temporary and `PATH` variables, `GIT_OPTIONAL_LOCKS=0`, and the
+selected lane's single authored credential key. Proxy variables are set exclusively by SRT for a
+sandboxed child; the backend never injects them. Coordinator/API/database/Cloudflare variables and credentials for
+other vendors are absent. As defense in depth, the environment passed to SRT itself removes
+uppercase/lowercase `HTTP_PROXY`, `HTTPS_PROXY`,
 `ALL_PROXY`, and `NO_PROXY`; `NODE_OPTIONS`; `LD_PRELOAD`, `LD_LIBRARY_PATH`,
 `DYLD_INSERT_LIBRARIES`, `DYLD_LIBRARY_PATH`; `PYTHONPATH`, `PYTHONHOME`, `PYTHONSTARTUP`,
 `RUBYOPT`, `RUBYLIB`, `PERL5OPT`, `PERL5LIB`, `BASH_ENV`, and `ENV`; Git directory, worktree,
-index, object, alternate-object, and config override variables; and `TMPDIR`, `TEMP`, and `TMP`.
+index, object, alternate-object, and config override variables; and ambient `TMPDIR`, `TEMP`, and
+`TMP`. After stripping, the backend replaces only those temporary variables with paths inside the
+per-launch state root before SRT starts, so SRT and its descendant see trusted values rather than
+the parent's values.
 SRT may then author the proxy variables its child needs. This prevents an ambient parent proxy
 from bypassing address checks. The unsandboxed compatibility path retains the caller's original
 environment byte for byte. Runtime discovery records absolute Node, SRT entrypoint, `bwrap`,
@@ -139,11 +192,30 @@ Each later event attempt drains older outbox entries before writing the new one,
 only after the endpoint acknowledges its `event_id`. Compaction holds the lock, writes a
 same-directory 0600 temporary file, fsyncs it, atomically replaces the outbox, and fsyncs the
 directory. Migration 044 makes `event_id` unique; replay returns the original durable audit row id.
-Only connection failures, timeouts, and 5xx responses may use or retain the outbox. Authentication,
+The shared `skills/shared/sandbox_audit.py` client/outbox is the frozen audit port consumed by the
+process backend; `skills/shared` owns both modules, `wp-policy-audit` implements the port, and
+`wp-runtime` depends on it rather than inventing a second persistence path. It uses a small stdlib
+HTTP transport compatible with the coordinator API, so it creates no dependency on coordinator
+source or the coordination-bridge skill. Coordinator evaluation backends load the shared process
+backend through the existing explicit `SKILLS_ROOT` file-loader pattern. Only connection failures,
+timeouts, and 5xx responses
+may use or retain the outbox. Authentication,
 authorization, and schema 4xx failures on a live event fail closed. A permanently rejected queued
-record moves atomically to a mode-0600 dead-letter file with its response metadata, then drain
+record moves atomically to `${state_root}/dead-letter.jsonl` with mode 0600 and response metadata,
+using the same lock, temporary-file, fsync, replace, and directory-fsync rules, then drain
 continues; it is never silently deleted or allowed to block all later evidence. Audit payloads
-contain key names and digests, never prompt/argv bodies, settings bodies, or secret values.
+contain key names and digests, never prompt/argv bodies, settings bodies, or secret values. The
+dispatch-host service principal must have coordinator trust level 3 or greater for cross-agent
+export/audit. Rejection is reported distinctly as `authorization_failed`; if the endpoint rejects
+the event, no audit row is claimed and the vendor process does not start.
+
+Outbox resource use is bounded: each canonical record is at most 64 KiB; the active outbox is at
+most 10,000 records or 64 MiB; one launch drains at most 100 records or five seconds with explicit
+connect/read deadlines and a five-second lock wait. Reaching an active-outbox bound fails closed.
+Dead letters rotate at 64 MiB, are retained for 30 days, and are capped at 16 rotated files or 1
+GiB aggregate, whichever comes first; reaching the aggregate ceiling fails closed until an
+operator archives or removes retained evidence. Structured counters/logs report active
+record count/bytes, oldest age, drain failures, permanent rejections, and dead-letter count/bytes.
 
 ### D7 — Pin and probe SRT
 
@@ -179,8 +251,12 @@ actual invocation cwd is the policy root. The backend returns a typed
 failure is a retryable collection condition until the existing poll deadline and then becomes
 `remote_state_unknown`; it must not close a still-running remote task as a vendor failure. Snapshot
 fallback is forbidden for write-capable modes because cleanup would discard edits. Read-only
-snapshot retries construct a new attempt context with the same routing digest and the snapshot
-execution root. On timeout the backend starts a new session, sends TERM to the
+snapshot retries are accepted only when the root is a registered Git worktree beneath
+`.git-worktrees/.review-snapshots`, belongs to the same common repository, and equals its own Git
+toplevel. Snapshot materialization must include the exact tracked/index/worktree and eligible
+untracked review inputs; source and snapshot content digests must match or fallback is rejected.
+The attempt records that content digest and constructs a new context with the same routing digest
+and the snapshot execution root. On timeout the backend starts a new session, sends TERM to the
 process group, waits a bounded grace period, sends KILL if required, waits, and then cleans owned
 material. It never replays unsandboxed after process start. Cleanup failures emit durable
 `cleanup_status=failed` metadata with owned residual paths and block reuse of those paths; cleanup
@@ -204,6 +280,27 @@ Sandbox execution events are emitted only when
 path. `enforcement_scope=execution` means the wrapped process performs the work locally;
 `submission` covers local submit and poll CLIs for remote work.
 
+Payload v1 continues legacy `none`/`worktree` behavior but fails closed with `upgrade_required`
+when it requests `sandbox`; only payload v2 can carry the embedded immutable execution context.
+`source=default` is valid only with `isolation=none`; every non-router source has null router
+correlation fields. Sandbox events therefore never carry `context_source=default`.
+
+The production process-surface registry includes review dispatcher submit/poll/repair/snapshot,
+autopilot providers, `fact_check.py`, evaluation backends for Antigravity, Claude Code, Codex,
+Grok, and Pi,
+quick-task, and phase-fixer mutation flows. Configuration validation requires every local CLI
+surface to register. The AST guard rejects process APIs in registered production surfaces except
+the shared backend, exact named Git/coordinator control-plane helpers, and the exact
+`(ocr_adapter.py, run_ocr)` inherited-sandbox descendant described below.
+`ocr_adapter.py` is registered as a nested vendor process whose parent Python command is launched
+through the backend; tests prove the nested process inherits the applied SRT boundary rather than
+granting it a second unsandboxed launch.
+
+`endpoint_digest` is SHA-256 over canonical UTF-8 JSON
+`{"base_url": <normalized-string-or-null>, "endpoint_kind": <string>}` using sorted keys and compact
+separators. URI userinfo and fragments are rejected during normalization. Null base URLs therefore
+produce a stable non-null digest without exposing an endpoint in audit data.
+
 ## Validation strategy
 
 Tests begin RED at each contract boundary. Unit and integration tests cover decision immutability,
@@ -212,15 +309,19 @@ argv, durable degradation, cleanup, and every subprocess sink. A static AST guar
 vendor process launches outside the backend.
 
 A capability-gated real-runtime test must demonstrate read/write and egress restrictions from a
-linked worktree and run at least one configured real vendor executable through the same backend.
-A pull-request-triggered GitHub Actions matrix uses `ubuntu-24.04` (with the documented AppArmor
+linked worktree and run at least one pinned configured vendor executable (`--version`) through the
+same backend with a controlled network fixture. Authenticated per-lane real network-client success
+is a rollout precondition, not a generic pull-request secret dependency.
+A push/pull-request-triggered GitHub Actions matrix uses `ubuntu-24.04` (with the documented AppArmor
 user-namespace setup) and `macos-14`; each supported backend family must pass before its lanes are
-rollout-eligible. Jobs upload `sandbox-runtime-evidence.json`; the validator uses `gh run view` and
-`gh run download` and verifies conclusion, workflow path, head SHA, platform, artifact digest, and
-run id before the checked-in completion record is accepted at
-at `openspec/changes/add-dispatch-sandbox-enforcement/evidence/sandbox-runtime-evidence.json` and
-includes workflow/run identity. The gate reports `unsupported` with exact prerequisites on an
-incapable host; roadmap completion requires both supported backend-family passes.
+rollout-eligible. Jobs upload immutable evidence containing executable/version, event id, applied
+status, all digests, controlled network outcome, platform, and run/job/head/artifact identity. The
+GitHub workflow or check result is authoritative: no run-specific evidence bound to its own final
+commit is checked in. The landing step, after push, uses `gh run view`/`gh run download` to verify
+conclusion, workflow path, exact head SHA, both platforms, artifact digest, and run id through the
+checked-in verifier; the terminal integration command fails unless that verifier succeeds. The gate
+reports `unsupported` with exact prerequisites on an incapable host; roadmap completion requires
+both supported backend-family passes.
 
 ## Residual risks
 

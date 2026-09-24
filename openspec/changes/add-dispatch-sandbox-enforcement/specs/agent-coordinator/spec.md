@@ -12,6 +12,11 @@ itself, and applied execution events SHALL copy the exact revision and digest th
 The authenticated principal MAY export its own policy. Exporting another agent's policy requires
 trust level 3 or greater so the dispatch host can prepare a child without granting arbitrary agents
 cross-agent policy discovery.
+The exact agent SHALL have an enabled profile assignment; unknown, disabled, or unassigned agents
+SHALL return a typed 404/409 and SHALL NOT receive a global-only export. Ordering SHALL be total:
+profile before global, priority ascending (preserving legacy lower-is-higher semantics), deny before
+allow on ties, then policy id ascending.
+The empty revision SHALL be `v1:none:0`.
 
 #### Scenario: Exact-agent export preserves authored rules
 
@@ -36,10 +41,11 @@ AND SHALL NOT synthesize a destination list or treat the outage as fail-open.
 The coordinator SHALL accept a narrow sandbox execution event and SHALL not acknowledge durable
 success until the audit row is inserted. `event_id` SHALL be generated once by the caller, remain
 stable through outbox replay, and be an idempotency key; replay SHALL return the original audit row
-id and `replayed=true`. Events SHALL include routing correlation and full-context digest, execution location and
-scope, requested and applied isolation, runtime/preflight outcome, policy revision/digest,
-canonical root, executable paths, allowed environment key names, and degradation reason without
-secret values.
+id and `replayed=true`. Events SHALL include routing correlation and full-context digest, execution
+location and authored scope/write capability, requested and applied isolation, runtime/preflight
+outcome, policy revision/digest and endpoint digest (never raw endpoint credentials), canonical
+root, executable paths, allowed environment key names, and degradation reason without secret
+values.
 
 The server SHALL author `created_at`. `sandbox_applied=true` SHALL require the SRT backend,
 successful preflight, non-null runtime/policy/settings/root evidence, and no degradation reason.

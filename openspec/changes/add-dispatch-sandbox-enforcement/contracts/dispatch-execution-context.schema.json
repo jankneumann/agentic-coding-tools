@@ -5,13 +5,19 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "decision_id", "item_id", "phase", "attempt",
+    "schema_version", "routing_context", "workspace_content_digest", "decision_id", "item_id", "phase", "attempt",
     "dispatch_work_id", "routing_context_digest", "agent_id", "vendor_type",
     "policy_vendor", "catalog_vendor", "assignment_location", "execution_location", "dispatch_mode", "isolation",
-    "model", "endpoint_kind", "enforcement_scope", "source", "worktree_root"
+    "model", "base_url", "endpoint_kind", "enforcement_scope", "write_capable",
+    "source", "worktree_root"
   ],
   "properties": {
     "schema_version": {"const": 1},
+    "routing_context": {
+      "anyOf": [{"$ref": "#/$defs/routing_context"}, {"type": "null"}],
+      "description": "Lossless validated dg-06 RoutingDispatchContext digest source, including assignment extensions and provenance"
+    },
+    "workspace_content_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
     "decision_id": {"type": ["string", "null"], "minLength": 1},
     "item_id": {"type": ["string", "null"], "minLength": 1},
     "phase": {"type": ["string", "null"], "enum": ["planning", "implementing", "reviewing", "validating", null]},
@@ -27,8 +33,10 @@
     "dispatch_mode": {"type": "string", "minLength": 1},
     "isolation": {"enum": ["none", "worktree", "sandbox"]},
     "model": {"type": "string", "minLength": 1},
+    "base_url": {"type": ["string", "null"], "format": "uri"},
     "endpoint_kind": {"type": "string", "minLength": 1},
     "enforcement_scope": {"enum": ["execution", "submission"]},
+    "write_capable": {"type": "boolean"},
     "source": {"enum": ["router", "agents_yaml", "default"]},
     "worktree_root": {"type": "string", "minLength": 1}
   },
@@ -42,9 +50,60 @@
           "phase": {"enum": ["planning", "implementing", "reviewing", "validating"]},
           "attempt": {"type": "integer", "minimum": 1},
           "dispatch_work_id": {"type": "string", "minLength": 1},
-          "routing_context_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+          "routing_context_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "routing_context": {"$ref": "#/$defs/routing_context"}
         }
       }
+    },
+    {
+      "if": {"properties": {"source": {"enum": ["agents_yaml", "default"]}}, "required": ["source"]},
+      "then": {
+        "properties": {
+          "decision_id": {"type": "null"},
+          "item_id": {"type": "null"},
+          "phase": {"type": "null"},
+          "dispatch_work_id": {"type": "null"},
+          "routing_context_digest": {"type": "null"},
+          "routing_context": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"source": {"const": "default"}}, "required": ["source"]},
+      "then": {"properties": {"isolation": {"const": "none"}}}
     }
-  ]
+  ],
+  "$defs": {
+    "routing_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "decision_id", "item_id", "phase", "attempt", "dispatch_work_id", "assignment"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "decision_id": {"type": "string", "minLength": 1},
+        "item_id": {"type": "string", "minLength": 1},
+        "phase": {"enum": ["planning", "implementing", "reviewing", "validating"]},
+        "attempt": {"type": "integer", "minimum": 1},
+        "dispatch_work_id": {"type": "string", "minLength": 1},
+        "assignment": {"$ref": "#/$defs/assignment"},
+        "provenance": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "assignment": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["agent_id", "vendor_type", "location", "isolation", "dispatch_mode", "model", "endpoint_kind"],
+      "properties": {
+        "agent_id": {"type": "string", "minLength": 1},
+        "vendor_type": {"type": "string", "minLength": 1},
+        "policy_vendor": {"type": ["string", "null"]},
+        "catalog_vendor": {"type": ["string", "null"]},
+        "location": {"type": "string", "minLength": 1},
+        "isolation": {"enum": ["none", "worktree", "sandbox"]},
+        "dispatch_mode": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "endpoint_kind": {"type": "string", "minLength": 1}
+      }
+    }
+  }
 }

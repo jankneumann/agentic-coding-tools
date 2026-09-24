@@ -3,10 +3,12 @@
 ### Requirement: Local vendor CLI execution SHALL use one enforcement backend
 
 Every local vendor CLI lifecycle command SHALL pass through one shared process backend. This
-includes synchronous execution, asynchronous submission, asynchronous polling, and the autopilot
-local-provider harness. Discovery and health probes are control-plane operations and are explicitly
-excluded. No cancellation subprocess exists today; any future configured vendor cancellation
-command SHALL use the same backend.
+includes synchronous execution, asynchronous submission/polling, fact-check CLIs, coordinator
+evaluation backends, quick-task, phase-fixer mutations, and the autopilot local-provider harness.
+Discovery and health probes are control-plane operations and are explicitly excluded. A maintained
+production-surface registry SHALL make new local CLI surfaces fail configuration/structural tests
+until classified. No cancellation subprocess exists today; any future configured vendor
+cancellation command SHALL use the same backend.
 
 #### Scenario: Every vendor lifecycle command uses the backend
 
@@ -26,6 +28,12 @@ The backend SHALL consume the dg-06 enforcement projection and canonical full-co
 attached to dispatch context and SHALL NOT call routing again. Payload v2 SHALL have one isolation
 authority: the embedded context. A standalone caller without routed context SHALL resolve dg-05's
 exact-lane fallback once at the adapter boundary and record that provenance.
+The canonical digest source SHALL be the complete dg-06 routing contract, including every
+assignment extension and nullable normalized base URL, but excluding mutable lifecycle state.
+Payload v2 SHALL carry that lossless source and SHALL reject any mismatch between its flattened
+projection and duplicated provider/model/agent/isolation fields before selection or launch.
+Router-sourced capacity fallback SHALL request a new routing decision rather than substitute a
+model locally.
 
 #### Scenario: Routed execution is not re-resolved
 
@@ -43,8 +51,9 @@ AND an entry-level value SHALL be inherited only when that mode has no override.
 ### Requirement: Sandbox rendering SHALL be pure and mode-aware
 
 The SRT renderer SHALL be deterministic and side-effect free. Review mode SHALL receive no project
-worktree write access. Write-capable modes MAY write only beneath a strictly resolved canonical Git
-worktree root. Per-launch vendor state SHALL be isolated from the operator's home. The user-home
+worktree write access. Each mode SHALL explicitly author enforcement scope and write capability;
+these SHALL NOT be inferred from assignment location. Write-capable modes MAY write only beneath a
+strictly resolved canonical Git worktree root. Per-launch vendor state SHALL be isolated from the operator's home. The user-home
 region SHALL be read-denied with narrow read-only worktree/common-Git/tool carve-outs. Credential
 files and sibling checkout reads SHALL remain denied; dg-07 sandbox rollout requires
 environment-backed authentication pending dg-08.
@@ -53,7 +62,7 @@ environment-backed authentication pending dg-08.
 
 WHEN a `sandbox` decision is rendered for review
 THEN `filesystem.allowWrite` SHALL contain no project path
-AND an attempted project write inside or outside the worktree SHALL fail
+AND an attempted project write SHALL leave no persistent host mutation
 AND only the backend-owned ephemeral state root and SRT's documented internal paths MAY remain
 writable.
 
@@ -81,6 +90,12 @@ AND rendering SHALL NOT write files, spawn processes, or contact a service.
 The impure preparation layer SHALL own a unique mode-0600 settings file, sanitized child
 environment, absolute executable paths, process group, applied/degraded metadata, and cleanup.
 The wrapped argv SHALL separate SRT options from the vendor argv with `--`.
+The child environment SHALL be built from a positive safe baseline plus backend-authored state,
+temporary and PATH variables, `GIT_OPTIONAL_LOCKS=0`, and exactly the selected lane credential;
+unrelated parent secrets SHALL not be inherited. Ambient proxy variables SHALL be stripped and
+proxy variables SHALL be authored exclusively by SRT. The renderer SHALL deny private, loopback, link-local, metadata, CGNAT, and ULA
+resolved addresses even when a hostname resolves to them.
+The backend SHALL inject `GIT_OPTIONAL_LOCKS=0`; it SHALL not inherit that variable from the parent.
 
 #### Scenario: Concurrent launches do not share policy material
 
@@ -99,6 +114,12 @@ AND no child process, listener, settings file, or owned mount artifact SHALL rem
 WHEN a sandbox was requested but not applied
 THEN result and audit metadata SHALL report `requested=sandbox` and `applied=false`
 AND the dispatch SHALL NOT describe itself as sandboxed.
+
+#### Scenario: Legacy payload cannot claim sandbox enforcement
+
+WHEN a payload-v1 caller requests `sandbox`
+THEN dispatch SHALL fail closed with `upgrade_required`
+AND only payload v2 with an embedded validated context MAY proceed.
 
 ### Requirement: Degradation SHALL be narrow, durable, and pre-launch
 

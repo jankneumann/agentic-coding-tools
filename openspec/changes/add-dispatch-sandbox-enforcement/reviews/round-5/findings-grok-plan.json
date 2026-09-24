@@ -1,0 +1,39 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Round-4 fixed design D5 so sandboxed proxy variables are SRT-authored only and the backend never injects them (`design.md` D5), but the normative vendor-dispatch requirement still says the child environment SHALL include backend-composed `path/proxy variables` (`specs/vendor-dispatch/spec.md` Prepared-sandbox requirement). An implementer following the OpenSpec SHALL statement would reintroduce backend-authored HTTP(S)_PROXY/ALL_PROXY/NO_PROXY on the sandboxed child, which D5 and the earlier GHSA/proxy-bypass rationale forbid. Align the spec with D5: backend authors PATH/state/credential/`GIT_OPTIONAL_LOCKS=0` only; proxy variables are exclusively SRT-authored after the backend strips them from the environment passed to SRT.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md",
+      "line_range": {
+        "start": 93,
+        "end": 97
+      },
+      "evidence_class": "judgment",
+      "existing_code": "The child environment SHALL be built from a positive safe baseline plus backend-authored state,\npath/proxy variables and exactly the selected lane credential; unrelated parent secrets SHALL not\nbe inherited."
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "The OCR nested-launch classification is still mechanically inconsistent with the AST-guard exemption rule. D10 and task 4.4 register `ocr_adapter.py` as an explicitly inherited-sandbox nested vendor process that must keep launching the `ocr` binary (`skills/parallel-infrastructure/scripts/ocr_adapter.py` `subprocess.run`), while both also say process APIs in registered production surfaces are rejected except the shared backend and an exact `(file,function)` Git/coordinator control-plane allowlist. As written, `test_no_vendor_subprocess_bypass.py` either fails on the required OCR nested launch or must invent an exemption the task\u2019s \u201cexempting only \u2026\u201d clause forbids. Extend the allowlist/registry semantics so the inherited-sandbox OCR nested launcher is an explicit permitted `(file,function)` exception (or otherwise carve nested-inside-parent-SRT launches out of the bypass guard without dropping OCR from the registry).",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 284,
+        "end": 291
+      },
+      "evidence_class": "judgment",
+      "existing_code": "The AST guard rejects process APIs in registered production surfaces except\nthe shared backend and exact named Git/coordinator control-plane helpers.\n`ocr_adapter.py` is registered as a nested vendor process whose parent Python command is launched\nthrough the backend; tests prove the nested process inherits the applied SRT boundary rather than\ngranting it a second unsandboxed launch."
+    }
+  ]
+}
