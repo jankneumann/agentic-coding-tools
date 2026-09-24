@@ -1,0 +1,47 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: The work-package context-impact declarations fail the repository\u2019s blocking validator for files the packages are explicitly required to change. `wp-policy-audit` omits `semantic_code`, `wp-vendor-wiring` omits `documentation` for its `SKILL.md` edits, and `wp-validation-docs` omits `semantic_code` for `verify_sandbox_runtime_evidence.py`. `validate_context_impact.py` reports all three packages as `undeclared` and exits 1, so their implementation checkpoints cannot complete without revising `work-packages.yaml`.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The OCR inheritance design conflicts with the structural guard contract. Design D10 and task 4.4 require `ocr_adapter.py` to retain its nested vendor `subprocess.run` under an outer backend-applied sandbox, but the same task permits process-API exemptions only for the shared backend and exact Git/coordinator helpers. A conforming guard must therefore reject the required OCR subprocess. Define a narrow inherited-sandbox OCR exemption with tests, or route that child through the backend.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: Design D5 requires backend-authored temporary variables in the vendor child environment while also requiring the environment passed to SRT to remove `TMPDIR`, `TEMP`, and `TMP`. SRT 0.0.77 launches the POSIX wrapped process with inherited environment and no separate child-environment argument, as shown by the [pinned CLI implementation](https://raw.githubusercontent.com/anthropics/sandbox-runtime/v0.0.77/src/cli.ts). Both requirements cannot hold simultaneously. Specify that ambient values are removed and then replaced with backend-authored state-root values before SRT starts, or define another executable descendant-environment mechanism.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: Durable audit storage is not fully size-bounded. D6 limits each rotated dead-letter file to 64 MiB and retains files for 30 days, but sets no maximum rotated-file count or aggregate dead-letter bytes. Repeated permanent rejections can therefore exhaust disk within the retention window despite the bounded-resource requirement. Add an aggregate byte or file-count ceiling and define the fail-closed behavior at that ceiling.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

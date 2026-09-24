@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "vendor": "grok",
+  "review_type": "plan",
+  "stdout_path": "raw-grok-plan.txt",
+  "byte_length": 40900,
+  "truncated": false,
+  "sha256": "cc475056bf06a76c253d4ae52fc7780475f0289d1613feadace8c5ed250fb1c0",
+  "repair_attempted": false,
+  "coercions": []
+}

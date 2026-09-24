@@ -25,6 +25,8 @@ polling, and the autopilot local-provider harness.
 Dispatch receives a versioned execution context containing the complete dg-06 enforcement
 projection, canonical digest of the persisted routing context, one authoritative isolation,
 canonical worktree root, and provenance.
+The projection includes the complete assignment (including normalized base URL), authored
+enforcement scope/write capability, and an exactly defined canonical digest document.
 The enforcement layer never re-runs routing. Standalone review-panel calls that have no routed
 context resolve the already-landed dg-05 fallback once from the exact `agents.yaml` lane.
 Routed callers carry the complete context in phase payload v2; every adapter lifecycle method
@@ -50,8 +52,9 @@ allowed only after either the coordinator event or the durable outbox record suc
 - pure, deterministic SRT settings rendering;
 - mode-aware filesystem policy (`review` has no project write roots; write-capable modes are
   confined to the canonical worktree root; user-home reads are denied with narrow worktree/tool
-  carve-outs; every lane gets an ephemeral vendor-state root);
-- a prepared-command lifecycle that owns a unique mode-0600 settings file, sanitized environment,
+  and executable-install-root carve-outs; every lane gets an ephemeral vendor-state root);
+- a prepared-command lifecycle that owns a unique mode-0600 settings file, positive-allowlist child
+  environment with one lane credential,
   runtime identity, policy digest, process group, and cleanup;
 - an additive renderer seam for future runtimes.
 
@@ -73,7 +76,8 @@ Official runtime sources:
 ### One local command backend
 
 The shared backend replaces direct vendor subprocess launches in `CliVendorAdapter` sync submit,
-async submit and poll paths, and in `autopilot/scripts/provider_dispatch.py`. Poll enforcement
+async submit and poll paths, fact-check/evaluation backends, quick-task, phase-fixer, and
+`autopilot/scripts/provider_dispatch.py`. Poll enforcement
 failures are collection failures retried to the existing deadline, not terminal remote-task
 failures. A structural guard
 prevents future vendor CLI subprocess sinks outside the backend. Non-sandbox decisions preserve
@@ -122,13 +126,14 @@ dg-07 supplies the local backend and renderer seam it consumes.
 ## Impact
 
 - New shared runtime: `skills/shared/sandbox_profile.py` and local process backend helpers.
-- Modified execution sinks: review dispatcher and autopilot local-provider dispatch.
+- Modified execution sinks: review/fact-check/OCR dispatchers, all coordinator CLI evaluation
+  backends, quick-task/phase-fixer flows, and autopilot local-provider dispatch.
 - Modified coordinator: exact-agent policy export and durable sandbox audit endpoint.
 - Modified config projection: effective per-mode isolation reaches standalone adapters.
 - New pinned optional tool dependency: SRT 0.0.77.
 - New contracts, tests, operational documentation, and real-runtime probes.
-- New PR-triggered Ubuntu/macOS GitHub Actions evidence gate, with linked-worktree and configured-
-  vendor CLI passes bound to the tested SHA.
+- New push/PR-triggered Ubuntu/macOS GitHub Actions evidence gate, with linked-worktree and pinned
+  configured-vendor executable passes bound to the exact tested SHA and verified after push.
 
 ## Rollback
 

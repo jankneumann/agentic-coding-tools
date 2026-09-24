@@ -25,7 +25,7 @@
           "policy_id": {"type": "string", "minLength": 1}
         },
         "allOf": [
-          {"if": {"properties": {"destination_kind": {"const": "dns"}}}, "then": {"properties": {"destination_pattern": {"pattern": "^(?:\\*\\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"}}}},
+          {"if": {"properties": {"destination_kind": {"const": "dns"}}}, "then": {"properties": {"destination_pattern": {"pattern": "^(?:\\*\\.(?=[^.]+(?:\\.[^.]+)+$))?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"}}}},
           {"if": {"properties": {"destination_kind": {"const": "ipv4"}}}, "then": {"properties": {"destination_pattern": {"pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"}}}},
           {"if": {"properties": {"destination_kind": {"const": "ipv6"}}}, "then": {"properties": {"destination_pattern": {"pattern": "^\\[[0-9A-Fa-f:]+\\]$"}}}}
         ]

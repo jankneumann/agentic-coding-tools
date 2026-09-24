@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "vendor": "codex",
+  "review_type": "plan",
+  "stdout_path": "raw-codex-plan.txt",
+  "byte_length": 2661,
+  "truncated": false,
+  "sha256": "3bcb32a2d1a85c9c61892edd61681db14b2692b9926c2815ea91f45fa16a3919",
+  "repair_attempted": false,
+  "coercions": [],
+  "stderr_path": "raw-codex-plan.stderr.txt"
+}

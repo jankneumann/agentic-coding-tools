@@ -36,6 +36,7 @@ packages:
         - "agent-coordinator/src/network_policies.py"
         - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/src/audit.py"
+        - "skills/shared/sandbox_audit.py"
         - "skills/coordination-bridge/scripts/coordination_bridge.py"
       keys: ["contract:dispatch-sandbox-policy-audit"]
       ttl_minutes: 180
@@ -49,18 +50,20 @@ packages:
         - "agent-coordinator/tests/**"
         - "skills/coordination-bridge/scripts/coordination_bridge.py"
         - "skills/tests/coordination-bridge/**"
+        - "skills/shared/sandbox_audit.py"
+        - "skills/shared/tests/test_sandbox_audit.py"
       read_allow: ["**"]
-    context_impact: {surfaces: [apis, capabilities]}
+    context_impact: {surfaces: [apis, semantic_code, capabilities]}
     worktree: {name: add-dispatch-sandbox-enforcement--policy-audit, mode: isolated}
     timeout_minutes: 180
     retry_budget: 1
-    min_trust_level: 2
+    min_trust_level: 3
     verification:
       tier_required: B
       steps:
         - name: "Policy and audit tests"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_network_policies.py agent-coordinator/tests/test_sandbox_policy_api.py -q && skills/.venv/bin/python -m pytest skills/tests/coordination-bridge/test_sandbox_policy.py -q"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_network_policies.py agent-coordinator/tests/test_sandbox_policy_api.py -q && skills/.venv/bin/python -m pytest skills/tests/coordination-bridge/test_sandbox_policy.py skills/shared/tests/test_sandbox_audit.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [policy_audit_tests]}
@@ -73,7 +76,7 @@ packages:
     role: security-implementer
     archetype: implementer
     priority: 1
-    depends_on: []
+    depends_on: [wp-policy-audit]
     locks:
       files:
         - "skills/shared/sandbox_profile.py"
@@ -118,9 +121,9 @@ packages:
           evidence: {artifacts: [], result_keys: [sandbox_profile_tests]}
     outputs: {result_keys: [sandbox_profile_tests]}
 
-  - package_id: wp-integration
+  - package_id: wp-vendor-wiring
     title: "Vendor CLI backend integration"
-    task_type: integration
+    task_type: backend
     description: "Implement tasks 4.1-4.6 across all vendor CLI lifecycle commands."
     role: backend-implementer
     archetype: implementer
@@ -130,10 +133,20 @@ packages:
       files:
         - "agent-coordinator/src/agents_config.py"
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/fact_check.py"
+        - "skills/shared/vendor_process_surfaces.py"
         - "skills/autopilot/scripts/provider_dispatch.py"
         - "skills/autopilot/scripts/smoke_provider_dispatch.py"
+        - "skills/autopilot/scripts/phase_fixer.py"
         - "skills/autopilot/scripts/phase_agent.py"
         - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/quick-task/scripts/quick_task.py"
+        - "agent-coordinator/evaluation/backends/claude_code.py"
+        - "agent-coordinator/evaluation/backends/codex.py"
+        - "agent-coordinator/evaluation/backends/antigravity.py"
+        - "agent-coordinator/evaluation/backends/grok.py"
+        - "agent-coordinator/evaluation/backends/pi.py"
+        - "skills/parallel-infrastructure/scripts/ocr_adapter.py"
         - "skills/tests/autopilot-roadmap/test_orchestrator.py"
         - "agent-coordinator/agents.yaml"
         - "skills/parallel-infrastructure/scripts/tests/test_no_vendor_subprocess_bypass.py"
@@ -149,33 +162,48 @@ packages:
         - "agent-coordinator/src/agents_config.py"
         - "agent-coordinator/tests/test_agents_config_isolation.py"
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/fact_check.py"
         - "skills/parallel-infrastructure/scripts/tests/**"
+        - "skills/shared/vendor_process_surfaces.py"
         - "skills/autopilot/scripts/provider_dispatch.py"
         - "skills/autopilot/scripts/tests/test_provider_dispatch.py"
         - "skills/autopilot/scripts/smoke_provider_dispatch.py"
+        - "skills/autopilot/scripts/phase_fixer.py"
+        - "skills/tests/autopilot/test_phase_fixer.py"
         - "skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py"
         - "skills/autopilot/scripts/phase_agent.py"
         - "skills/tests/phase-record-compaction/test_phase_agent.py"
         - "skills/tests/vendor-neutral-autopilot/test_dispatch_adapter.py"
         - "skills/autopilot-roadmap/scripts/orchestrator.py"
         - "skills/tests/autopilot-roadmap/test_orchestrator.py"
+        - "skills/quick-task/SKILL.md"
+        - "skills/quick-task/scripts/quick_task.py"
+        - "skills/quick-task/tests/**"
+        - "skills/tests/quick-task/**"
+        - "agent-coordinator/evaluation/backends/claude_code.py"
+        - "agent-coordinator/evaluation/backends/codex.py"
+        - "agent-coordinator/evaluation/backends/antigravity.py"
+        - "agent-coordinator/evaluation/backends/grok.py"
+        - "agent-coordinator/evaluation/backends/pi.py"
+        - "agent-coordinator/tests/test_evaluation/**"
+        - "skills/parallel-infrastructure/scripts/ocr_adapter.py"
         - "agent-coordinator/agents.yaml"
         - "skills/implement-feature/SKILL.md"
         - "skills/iterate-on-implementation/SKILL.md"
         - "skills/autopilot/SKILL.md"
         - "skills/autopilot-roadmap/SKILL.md"
       read_allow: ["**"]
-    context_impact: {surfaces: [apis, semantic_code, capabilities]}
+    context_impact: {surfaces: [apis, semantic_code, documentation, capabilities]}
     worktree: {name: add-dispatch-sandbox-enforcement--integration, mode: isolated}
     timeout_minutes: 240
     retry_budget: 1
-    min_trust_level: 2
+    min_trust_level: 3
     verification:
       tier_required: B
       steps:
         - name: "Dispatcher and provider tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/parallel-infrastructure/scripts/tests/test_no_vendor_subprocess_bypass.py skills/autopilot/scripts/tests/test_provider_dispatch.py skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py skills/tests/phase-record-compaction/test_phase_agent.py skills/tests/vendor-neutral-autopilot/test_dispatch_adapter.py skills/tests/autopilot-roadmap/test_orchestrator.py -q && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config_isolation.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/parallel-infrastructure/scripts/tests/test_no_vendor_subprocess_bypass.py skills/parallel-infrastructure/scripts/tests/test_fact_check.py skills/parallel-infrastructure/scripts/tests/test_ocr_adapter.py skills/autopilot/scripts/tests/test_provider_dispatch.py skills/tests/autopilot/test_phase_fixer.py skills/quick-task/tests/test_quick_task.py skills/tests/quick-task skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py skills/tests/phase-record-compaction/test_phase_agent.py skills/tests/vendor-neutral-autopilot/test_dispatch_adapter.py skills/tests/autopilot-roadmap/test_orchestrator.py -q && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_evaluation -q"
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [integration_tests]}
@@ -188,7 +216,7 @@ packages:
     role: validator
     archetype: validator
     priority: 3
-    depends_on: [wp-integration]
+    depends_on: [wp-vendor-wiring]
     locks:
       files:
         - "docs/guides/vendor-dispatch-capabilities.md"
@@ -196,6 +224,7 @@ packages:
         - "openspec/changes/add-sandboxed-harness-execution/**"
         - ".github/workflows/sandbox-runtime.yml"
         - "skills/shared/verify_sandbox_runtime_evidence.py"
+        - "skills/shared/tests/test_verify_sandbox_runtime_evidence.py"
       keys: ["feature:add-dispatch-sandbox-enforcement:validation"]
       ttl_minutes: 180
       reason: "One final evidence and ownership reconciliation pass"
@@ -206,8 +235,9 @@ packages:
         - "openspec/changes/add-sandboxed-harness-execution/**"
         - ".github/workflows/sandbox-runtime.yml"
         - "skills/shared/verify_sandbox_runtime_evidence.py"
+        - "skills/shared/tests/test_verify_sandbox_runtime_evidence.py"
       read_allow: ["**"]
-    context_impact: {surfaces: [documentation, decisions, capabilities]}
+    context_impact: {surfaces: [semantic_code, documentation, decisions, capabilities]}
     worktree: {name: add-dispatch-sandbox-enforcement--validation, mode: isolated}
     timeout_minutes: 180
     retry_budget: 1
@@ -217,12 +247,11 @@ packages:
       steps:
         - name: "Behavioral and strict validation"
           kind: command
-          command: "skills/.venv/bin/python skills/shared/verify_sandbox_runtime_evidence.py --github-run openspec/changes/add-dispatch-sandbox-enforcement/evidence/sandbox-runtime-evidence.json && skills/.venv/bin/python -m pytest skills/shared/tests/test_sandbox_profile_integration.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests/test_sandbox_profile_integration.py skills/shared/tests/test_verify_sandbox_runtime_evidence.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
-            artifacts:
-              - "openspec/changes/add-dispatch-sandbox-enforcement/evidence/sandbox-runtime-evidence.json"
+            artifacts: []
             result_keys: [behavioral_validation]
         - name: "Full Python suites"
           kind: command
@@ -232,8 +261,46 @@ packages:
           evidence: {artifacts: [], result_keys: [full_python_suites]}
         - name: "Repository quality gates"
           kind: command
-          command: "skills/.venv/bin/python -m ruff check skills/shared skills/parallel-infrastructure/scripts/review_dispatcher.py skills/autopilot/scripts/provider_dispatch.py skills/autopilot/scripts/phase_agent.py agent-coordinator/src agent-coordinator/tests && agent-coordinator/.venv/bin/python -m mypy agent-coordinator/src && bash skills/install.sh --check && skills/.venv/bin/python skills/validate-feature/scripts/linters/dependency_direction.py && openspec validate --strict --all"
+          command: "skills/.venv/bin/python -m ruff check skills/shared skills/parallel-infrastructure/scripts skills/autopilot/scripts agent-coordinator/src agent-coordinator/tests && cd agent-coordinator && .venv/bin/python -m mypy src && cd .. && bash skills/install.sh --check && skills/.venv/bin/python skills/validate-feature/scripts/linters/dependency_direction.py --skills-root skills && openspec validate --strict --all"
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [quality_gates, openspec_validation]}
     outputs: {result_keys: [behavioral_validation, openspec_validation, full_python_suites, quality_gates]}
+
+  - package_id: wp-integration
+    title: "Terminal sandbox integration gate"
+    task_type: integrate
+    description: "Integrate all package results, run combined gates, and prove the exact pushed SHA in GitHub Actions."
+    role: integrator
+    archetype: integrator
+    priority: 4
+    depends_on: [wp-policy-audit, wp-runtime, wp-vendor-wiring, wp-validation-docs]
+    locks:
+      files: ["openspec/changes/add-dispatch-sandbox-enforcement/**"]
+      keys: ["feature:add-dispatch-sandbox-enforcement:terminal"]
+      ttl_minutes: 180
+      reason: "Single terminal integration and evidence authority"
+    scope:
+      write_allow: ["openspec/changes/add-dispatch-sandbox-enforcement/**"]
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, semantic_code, documentation, decisions, capabilities]}
+    worktree: {name: add-dispatch-sandbox-enforcement--terminal-integration, mode: isolated}
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Combined local gates"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests skills/shared/tests skills/parallel-infrastructure/scripts/tests skills/autopilot/scripts/tests -q && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q && skills/.venv/bin/python -m ruff check skills agent-coordinator && openspec validate --strict --all"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [combined_local_gates]}
+        - name: "Exact pushed SHA runtime evidence"
+          kind: manual
+          manual_instructions: "After the host pushes the final branch HEAD, run: skills/.venv/bin/python skills/shared/verify_sandbox_runtime_evidence.py --workflow-path .github/workflows/sandbox-runtime.yml --head-sha $(git rev-parse HEAD) --require-platform linux --require-platform darwin. The verifier must discover the GitHub run, download both artifacts, and fail on workflow, conclusion, SHA, platform, run/job identity, or artifact-digest mismatch. Record its successful output as exact_head_runtime_evidence."
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [exact_head_runtime_evidence]}
+    outputs: {result_keys: [combined_local_gates, exact_head_runtime_evidence]}

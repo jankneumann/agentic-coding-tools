@@ -1,0 +1,187 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The DAG has no executable terminal integration package. `openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:121-182` names the vendor-wiring package `wp-integration` but assigns `task_type: integration`; the coordinator recognizes only `task_type == \"integrate\"` as a merge package (`skills/parallel-infrastructure/scripts/integration_orchestrator.py:69-83`). A further isolated package, `wp-validation-docs`, then depends on it and writes the workflow, verifier, documentation, and evidence (`openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:184-239`), leaving no package that merges and validates the complete result. Rename the implementation package and add a terminal `wp-integration` with `task_type: integrate`, dependencies on every implementation and validation package, and the combined verification gates.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The subprocess inventory is incomplete. `openspec/changes/add-dispatch-sandbox-enforcement/design.md:5-8` identifies only the review dispatcher and autopilot local provider, while `openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:3-15` requires every local vendor CLI lifecycle command to use the backend. Production paths also launch vendor CLIs directly in `skills/parallel-infrastructure/scripts/fact_check.py:540-596`, `agent-coordinator/evaluation/backends/claude_code.py:38-75`, `agent-coordinator/evaluation/backends/codex.py:37-64`, and `agent-coordinator/evaluation/backends/pi.py:154-182`. These paths are absent from `openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:121-182`, so they remain unsandboxed or cause the planned AST guard to fail on files outside package scope. Add these sinks and their lifecycle tests, or explicitly narrow the normative requirement and structural guard.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: The environment design remains denylist-based and can expose unrelated orchestration credentials to an untrusted vendor process. `openspec/changes/add-dispatch-sandbox-enforcement/design.md:110-124` removes proxy, injection, Git, and temporary-directory variables but otherwise preserves the environment and vendor credentials; the existing provider starts from `os.environ.copy()` (`skills/autopilot/scripts/provider_dispatch.py:474-504`). That environment can include coordinator and Cloudflare credentials named in `skills/coordination-bridge/scripts/coordination_bridge.py:30-41,243-249`, as well as database or operator tokens, which an allowed vendor endpoint could receive. Define a positive child-environment allowlist containing only safe baseline variables, the selected lane credential, and renderer-authored state/proxy variables; explicitly exclude coordinator, database, Cloudflare, and unrelated vendor credentials, with leakage tests.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: The linked-worktree read boundary is internally contradictory. `openspec/changes/add-dispatch-sandbox-enforcement/design.md:62-74` requires sibling-checkout reads to fail but re-allows the shared Git common directory and metadata. In a linked worktree, that grants access to the shared object database and refs, allowing committed content from sibling branches to be recovered with Git plumbing even when the sibling filesystem path is hidden, contradicting `openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:67-71` if sibling content is intended to be confidential. Either project only the minimal metadata needed by tools, deny shared objects/refs, or narrow the acceptance scenario explicitly to direct filesystem reads and document that committed repository objects remain readable.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The execution and audit contracts cannot carry the complete immutable dg-06 assignment. D1 promises every assignment field (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:14-17`), but both schemas omit `base_url` and forbid additional properties (`openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json:5-33`; `openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json:5-51`). The landed router includes `base_url` (`agent-coordinator/src/model_routing/resolver.py:41-52`) and persists the complete assignment (`skills/autopilot-roadmap/scripts/orchestrator.py:263-277`). Add a nullable normalized endpoint field or endpoint digest to both contracts, verify the launched endpoint against it, and add router-contract parity tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: `routing_context_digest` is required to bind the complete persisted dg-06 context, but its canonical bytes and included fields are undefined. `openspec/changes/add-dispatch-sandbox-enforcement/design.md:14-17` states only the goal, `openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json:15-20` validates only a hexadecimal shape, and `openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:40-42` merely says to embed it. This is ambiguous because the persisted context gains mutable `status` and `prepared_at` fields (`skills/autopilot-roadmap/scripts/orchestrator.py:267-284`) and dg-06 permits extension fields. Define the exact field set, lifecycle exclusions, canonical JSON rules, normalization, recomputation boundary, and golden tamper-test vectors, as D4 already does for policy digests at `openspec/changes/add-dispatch-sandbox-enforcement/design.md:80-84`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The plan does not reconcile immutable router decisions with the review dispatcher's local model fallback. D1 forbids re-resolving or altering the routed assignment (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:12-24`), but the current synchronous and asynchronous paths silently try alternate models after capacity failures (`skills/parallel-infrastructure/scripts/review_dispatcher.py:970-994,1495-1533`). Tasks 4.2-4.3 require per-attempt context and audit carriage (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:37-42`) without specifying whether router-sourced fallback is disabled or re-routed, so the launched model can disagree with the immutable context and digest. Require router-sourced attempts to return for a fresh routing decision, or define a new routed assignment and digest for every fallback attempt.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: Exact-agent policy export has no fail-closed behavior for an unknown agent or one without a profile assignment. The current SQL leaves the profile null and exports global rules alone (`agent-coordinator/database/migrations/009_network_policies.sql:73-91`), potentially dropping profile-specific denies. The new requirement promises the exact agent's assigned profile plus globals (`openspec/changes/add-dispatch-sandbox-enforcement/specs/agent-coordinator/spec.md:3-14`), while `openspec/changes/add-dispatch-sandbox-enforcement/contracts/openapi.yaml:15-29` defines no unknown-or-unassigned-agent response. Require a valid enabled assignment and profile, specify its 4xx or 5xx failure response, and test that an unassigned target never receives a global-only snapshot.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The proposed policy persistence work cannot represent the typed export contract. The current table stores only a free-form `domain_pattern`, action, and priority (`agent-coordinator/database/migrations/009_network_policies.sql:9-17`), while the new contract separates destination kind, host/address, and optional port (`openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json:17-30`). D4 describes migration 044 as adding `updated_at` and an export function (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:78-85`) but does not add typed or port storage, parsing rules, database constraints, or a validated authoring boundary. Define the persistence migration and round-trip rules for DNS, IPv4, IPv6, wildcards, and ports, including validation of new writes and malformed legacy rows.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: The plan promises fail-closed private-address rejection without specifying the SRT setting that enforces it. `openspec/changes/add-dispatch-sandbox-enforcement/design.md:87-108` supports hostname wildcards and says private-IP rejection fails closed, but `openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json:17-30` carries only destination rules and the renderer requirements do not mandate a denied-resolved-address baseline. Under pinned SRT 0.0.77, private resolved addresses must be supplied through the runtime network configuration; allowing a hostname or wildcard alone does not establish that boundary. Require renderer-owned RFC1918, CGNAT, ULA, loopback, link-local, and metadata-service deny ranges, define handling of private IP literals, and add real-runtime DNS-rebinding/private-resolution tests.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Deterministic policy ordering is underspecified. The export and digest preserve rule-array order (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:78-84`; `openspec/changes/add-dispatch-sandbox-enforcement/specs/agent-coordinator/spec.md:3-20`), but the current matcher orders only by profile precedence and priority (`agent-coordinator/database/migrations/009_network_policies.sql:78-92`), and existing global rows already share priorities (`agent-coordinator/database/migrations/009_network_policies.sql:44-52`). Specify a total stable order such as scope rank, priority, then policy ID; define equal-priority allow-versus-deny behavior; and add tied-rule and overlapping-wildcard fixtures to task 2.1.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The outside-worktree write acceptance scenario is not implementable as written with the selected Linux SRT filesystem strategy. `openspec/changes/add-dispatch-sandbox-enforcement/design.md:69-74` denies the surrounding home region and re-allows selected paths, while `openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:52-58` requires the attempted outside-worktree write itself to fail. SRT 0.0.77 represents a denied Linux directory using an isolated writable tmpfs view, so a process can recreate a hidden sibling path and successfully write ephemeral data even though the host path remains unchanged. Rewrite the scenario to require no persistent host mutation and test both the in-sandbox result and post-exit host state, or select an enforcement mechanism that guarantees a write error.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: The checked-in real-runtime evidence cannot be bound to the exact final head SHA as required. `openspec/changes/add-dispatch-sandbox-enforcement/design.md:214-223` and `openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:57-60` require workflow evidence whose recorded SHA equals the branch head, while `openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:218-226` requires that run-specific evidence to be checked into the same branch. A workflow can attest commit A only after A exists; committing its evidence creates commit B, whose head SHA no longer matches the record. Store the attestation as an immutable workflow artifact or check/status, bind it to a content digest that excludes the evidence file, or explicitly attest the parent commit and teach the verifier that rule.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 14,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The host-commit conversion is not scoped to every mutating consumer. Task 4.6 requires mutating skills to keep Git mutation outside sandboxed agents (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:48-49`), but the integration package write scope lists only selected autopilot and implementation skills (`openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:148-167`). `skills/quick-task/SKILL.md:19-35,49-69` supports write tasks that must commit and push, and `skills/quick-task/scripts/quick_task.py:62-108` dispatches them through the review orchestration path, yet neither path is owned by a package. Add all mutating consumers, including quick-task and phase-fixer flows, to package scope and test that agents cannot run Git mutations while the host still commits intended changes.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 15,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: The revision algorithm has no value for a valid zero-rule export. `openspec/changes/add-dispatch-sandbox-enforcement/design.md:80-84` defines `policy_revision` using the maximum `updated_at` and row count, while `openspec/changes/add-dispatch-sandbox-enforcement/design.md:87-93` permits an empty exported allow policy and `openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json:34-35` requires a nonempty revision component. With no applicable enabled rows, the maximum timestamp is null. Define a canonical zero-row sentinel or use an always-present snapshot version, and add a zero-rule export test.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 16,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: The configured-vendor real-runtime gate is not objectively specified. `openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:53-60` requires a real vendor executable and actual network client to enter the backend, and `openspec/changes/add-dispatch-sandbox-enforcement/design.md:214-223` requires Linux/macOS evidence, but `openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:218-226` leaves the evidence JSON and verifier contract undefined. Pin the CI vendor CLI and version, installation and environment-backed authentication path, safe request, and evidence fields proving SRT traversal: executable/version, event ID, applied status, context and policy/settings digests, network outcome, platform, workflow/run/job identity, artifact digest, and source SHA.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 17,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: The planned mypy gate will not reliably use the coordinator's strict configuration. `openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:233-236` invokes mypy from the repository root, but the configuration is in `agent-coordinator/pyproject.toml:173-175`; CI deliberately changes to that directory before running mypy (`.github/workflows/ci.yml:54-74`). Run the work-package gate from `agent-coordinator` or pass the configuration file explicitly so package validation cannot pass with weaker defaults.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 18,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The new schemas admit provenance combinations that dg-05 cannot produce. The resolver returns `source=default` only with `value=none` (`agent-coordinator/src/isolation_contract.py:50-63`), but `openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json:28-33` validates source and isolation independently, and `openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json:20-37` permits `context_source=default` despite requiring sandbox isolation. Add cross-field conditions so default implies none, router requires correlation, non-router sources reject router-correlation fields, and sandbox-only events cannot claim default provenance.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

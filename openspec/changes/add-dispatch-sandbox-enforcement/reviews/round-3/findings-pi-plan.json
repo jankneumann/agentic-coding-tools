@@ -1,0 +1,720 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "The DispatchExecutionContext schema drops required dg-06 assignment fields (model, endpoint_kind, attempt, dispatch_work_id) and makes vendor_type optional. The sandbox-execution-event schema drops the assignment entirely. This violates the spec requirement that 'the same decision identifier, enforcement projection, and full-context digest SHALL appear in the execution audit' (vendor-dispatch spec.md:29-33). The contracts cannot represent the complete immutable dg-06 assignment from routing-dispatch-context.schema.json.",
+      "evidence": {
+        "contracts/dispatch-execution-context.schema.json": "lines 7-28 (missing model, endpoint_kind, attempt, dispatch_work_id; vendor_type optional)",
+        "contracts/sandbox-execution-event.schema.json": "lines 28-55 (no assignment fields)",
+        "openspec/changes/make-the-orchestrator-obey-the-router/contracts/routing-dispatch-context.schema.json": "lines 7-26, 29-50 (has complete assignment)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "PhaseDispatchPayload v2 would retain two independent isolation authorities. Task 4.3 embeds DispatchExecutionContext but the current payload and deserializer independently carry PhaseDispatchPayload.isolation (provider_dispatch.py:38-66). The plan does not remove the legacy field or require equality, so a v2 payload can say 'worktree' in one field and 'sandbox' in the immutable context. Remove the legacy field for v2 or reject any mismatch before dispatch.",
+      "evidence": {
+        "skills/autopilot/scripts/provider_dispatch.py": "lines 38-66 (PhaseDispatchPayload with isolation field)",
+        "tasks.md": "lines 36-38 (task 4.3 mentions embedding but not removing legacy)",
+        "design.md": "D1 (no mention of legacy field removal)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "description": "Standalone context construction applies managed-worktree validation even to compatibility paths that must preserve arbitrary cwd. Design D1 validates every standalone invocation cwd through checkout_policy.py, and D3 requires every root to pass its managed-worktree check, but that policy intentionally rejects a local shared checkout while current standalone dispatch accepts its supplied cwd (review_dispatcher.py:944-1019). This contradicts byte-compatible none/worktree behavior (vendor-dispatch spec.md:17-21). Restrict the managed-worktree/root rejection to sandboxed write-capable execution and preserve legacy cwd handling elsewhere.",
+      "evidence": {
+        "design.md": "lines 18-22, 55-57 (D1/D3 managed-worktree validation)",
+        "skills/shared/checkout_policy.py": "lines 123-135 (rejects shared checkout)",
+        "skills/parallel-infrastructure/scripts/review_dispatcher.py": "lines 944-1019 (accepts supplied cwd)",
+        "specs/vendor-dispatch/spec.md": "lines 17-21 (byte-compatible requirement)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "Write-capable snapshot fallback destroys the worker's edits before the planned host commit can occur. _dispatch_with_snapshot_fallback() reruns every dispatch mode in a detached snapshot and unconditionally removes that snapshot in finally (review_dispatcher.py:2461-2485), while the plan denies worker Git writes and requires the host to validate and commit only after collection (design.md:59-62; tasks.md:41-43). For alternative or quick, successful edits therefore disappear before the host sees them. Limit snapshot fallback to read-only modes, or return/preserve the snapshot and reconcile its edits into the canonical managed worktree before cleanup and host commit.",
+      "evidence": {
+        "skills/parallel-infrastructure/scripts/review_dispatcher.py": "lines 2461-2485 (snapshot fallback destroys worktree)",
+        "design.md": "lines 59-62 (host owns commit/merge)",
+        "tasks.md": "lines 41-43 (task 4.6 host commits after collection)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "observability",
+      "disposition": "fix",
+      "description": "The sandbox-execution-event schema accepts false enforcement attestations. Its only conditional constrains sandbox_applied=false; a schema-valid event may set sandbox_applied=true, requested_isolation=none, backend=local-process, and null runtime, preflight, policy, and root values (sandbox-execution-event.schema.json:28-61). This violates truthful-state requirements (vendor-dispatch spec.md:88-92) and required coordinator evidence (agent-coordinator spec.md:32-39). Add cross-field constraints so applied means requested sandbox, SRT backend, non-null runtime/preflight/policy/root, and no degradation reason.",
+      "evidence": {
+        "contracts/sandbox-execution-event.schema.json": "lines 28-61 (insufficient constraints)",
+        "specs/vendor-dispatch/spec.md": "lines 88-92 (truthful metadata requirement)",
+        "specs/agent-coordinator/spec.md": "lines 32-39 (audit event requirements)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "security",
+      "disposition": "fix",
+      "description": "The plan does not close the unrestricted-read gap stated as a reason for this change. Proposal.md identifies reads outside the checkout as an existing exposure (proposal.md:9-14), but D3 defines write restrictions and Git-metadata write denial only (design.md:48-64), and the specification protects only named credential locations (vendor-dispatch spec.md:41-47). Because SRT otherwise permits broad reads, unrelated host files remain accessible. Define and test an explicit read policy with read-only worktree/common-Git carve-outs and denial of unrelated host and credential files.",
+      "evidence": {
+        "proposal.md": "lines 9-14 (read exposure reason)",
+        "design.md": "lines 48-64 (D3 write-only restrictions)",
+        "specs/vendor-dispatch/spec.md": "lines 41-47 (only named credential protection)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "resilience",
+      "disposition": "fix",
+      "description": "Durable JSONL replay is not crash-safe when acknowledged records are removed. The design specifies locked append, file/directory fsync, and removal after acknowledgement (design.md:104-117), but no atomic compaction protocol protects later unacknowledged records from a crash during truncate/rewrite. That can erase evidence whose successful fsync previously authorized fail-open, violating agent-coordinator spec.md:45-49. Require same-directory mode-0600 temporary rewrite, temp fsync, atomic replace, directory fsync under the lock, plus interruption tests around acknowledgement and each compaction boundary.",
+      "evidence": {
+        "design.md": "lines 104-117 (outbox description missing atomic compaction)",
+        "specs/agent-coordinator/spec.md": "lines 45-49 (durable audit requirements)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "security",
+      "disposition": "fix",
+      "description": "The durable outbox path derives from caller-controlled XDG_STATE_HOME, but the plan does not require absolute-path, ownership, symlink, or checkout-containment validation. The design uses ${XDG_STATE_HOME:-~/.local/state} and promises the outbox is outside every checkout and never sandbox-writable (design.md:106-111); tasks cover locking and modes but not hostile path resolution (tasks.md:14-17). Require a canonical operator-owned root, no-follow creation, and fail-closed tests for relative, symlinked, wrong-owner, and checkout-contained state paths.",
+      "evidence": {
+        "design.md": "lines 106-111 (outbox location promise without validation)",
+        "tasks.md": "lines 14-17 (tasks cover locking/modes not path validation)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "The required capable-host evidence cannot be collected pre-merge through the newly introduced manual workflow. Tasks require a manual macos-14 workflow to upload and record evidence (tasks.md:50-52), and the validation package creates .github/workflows/sandbox-runtime.yml while requiring that evidence before completion (work-packages.yaml:171-213). GitHub manual dispatch requires the workflow file to exist on the default branch, so a workflow first added by this unmerged change cannot provide its own merge gate. Add a PR/push trigger, use a pre-existing default-branch reusable workflow, or define an external capable-runner evidence path.",
+      "evidence": {
+        "tasks.md": "lines 50-52 (manual macos-14 workflow requirement)",
+        "work-packages.yaml": "lines 171-213 (wp-validation-docs requires evidence before completion)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "architecture",
+      "disposition": "fix",
+      "description": "The payload-v2 work package cannot update all affected producers or their tests. wp-integration may write the provider, phase, dispatcher, and selected tests only (work-packages.yaml:124-168), but skills/autopilot/scripts/smoke_provider_dispatch.py:155-166 directly constructs schema-version-1 payloads and its test is outside the package scope (skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py). Either add the smoke producer and its test to locks/write scope/verification, or explicitly specify and test a v1 compatibility adapter.",
+      "evidence": {
+        "work-packages.yaml": "lines 124-168 (wp-integration scope)",
+        "skills/autopilot/scripts/smoke_provider_dispatch.py": "lines 155-166 (constructs v1 payloads)",
+        "skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py": "outside scope"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "description": "The completion gate may validate only one OS while declaring two materially different SRT backends supported. Linux requires bwrap, seccomp, and user-namespace behavior (design.md:129-133), but the gate accepts one Ubuntu-or-macOS pass and makes macos-14 canonical (design.md:166-172; tasks.md:50-52; work-packages.yaml:202-213). Require real-runtime evidence for each supported backend family, including Linux namespace/seccomp/filesystem/egress behavior, or narrow supported rollout to the evidenced platform.",
+      "evidence": {
+        "design.md": "lines 129-133 (Linux preflight), 166-172 (evidence gate)",
+        "tasks.md": "lines 50-52 (macos-14 canonical)",
+        "work-packages.yaml": "lines 202-213 (verification step)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "OpenAPI spec defines identical response schemas for 200 (idempotent replay) and 201 (new insert) on /dispatch/sandbox-events, but the contract requires distinguishable semantics. The sandbox-execution-event.schema.json doesn't include a field to differentiate replay vs new insert in the response. Implementation will be unable to signal which occurred without adding a response field (already has replayed field but response schema doesn't distinguish).",
+      "evidence": {
+        "contracts/openapi.yaml": "lines 48-60 (200 and 201 both return same schema)",
+        "contracts/sandbox-execution-event.schema.json": "no replayed field in response schema"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "network-policy-export.schema.json requires policy_digest as SHA-256 hex (64 chars) but neither the design nor proposal specifies the canonical serialization format for computing the digest (e.g., JSON canonicalization, field ordering, included fields). Without a specified serialization, different implementations will produce different digests, breaking the 'deterministic digest' guarantee. Design D4 says 'canonical SHA-256 digest' but doesn't define canonicalization.",
+      "evidence": {
+        "contracts/network-policy-export.schema.json": "line 25 (policy_digest pattern ^[a-f0-9]{64}$)",
+        "design.md": "D4 mentions 'canonical SHA-256 digest' without definition",
+        "proposal.md": "no canonicalization definition"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 14,
+      "type": "architecture",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "description": "The openapi.yaml 403 descriptions reference 'trust-level-3 dispatcher' but trust levels are not defined in the contract schemas. The coordinator uses a 0-4 scale (MIN_TRUST=0, MAX_TRUST=4 in trust_levels.py) but the API contract doesn't expose this vocabulary. Consumers cannot programmatically determine what trust level 3 means.",
+      "evidence": {
+        "contracts/openapi.yaml": "lines 30, 55 (trust-level-3 references)",
+        "agent-coordinator/src/trust_levels.py": "MIN_TRUST=0, MAX_TRUST=4"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 15,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "architecture",
+      "disposition": "fix",
+      "description": "The sandbox-execution-event schema requires policy_revision and policy_digest as optional strings, but the design states 'Migration 044 makes event_id unique; replay returns the original durable audit row id' and 'policy_revision is the maximum included row update timestamp plus row count'. The schema doesn't enforce the format of policy_revision (timestamp+count) or link it to the network-policy-export's policy_revision. The audit table for sandbox events doesn't exist in current migrations (044 is planned).",
+      "evidence": {
+        "contracts/sandbox-execution-event.schema.json": "lines 39-40 (policy_revision, policy_digest optional, no format)",
+        "design.md": "D6 describes migration 044 and policy_revision format",
+        "agent-coordinator/database/migrations/": "no 044 migration exists yet"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 16,
+      "type": "security",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "security",
+      "disposition": "fix",
+      "description": "Design D5 states environment sanitization 'removes inherited proxy variables, loader/startup injection variables, Git path/config overrides, and untrusted temp settings' but provides no exhaustive list. The implementation must define exactly which variables are stripped (e.g., HTTP_PROXY, HTTPS_PROXY, NO_PROXY, LD_PRELOAD, NODE_OPTIONS, GIT_CONFIG_GLOBAL, GIT_CONFIG_SYSTEM, TMPDIR, TEMP, TMP). Without an exhaustive list in the spec, implementations will differ and security boundary may leak.",
+      "evidence": {
+        "design.md": "D5 (non-exhaustive list of stripped variables)",
+        "proposal.md": "mentions stripping but no exhaustive list"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 17,
+      "type": "architecture",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "architecture",
+      "disposition": "fix",
+      "description": "Design D3 states 'The worktree .git pointer and linked-worktree common Git metadata are explicitly denied for writes' but SRT's deny-first semantics with hostname-pattern allow-rules cannot express 'deny writes to .git directory but allow reads'. The renderer must either use SRT's filesystem API to deny write access to specific paths (if supported) or this requirement is unachievable with the stated SRT 0.0.77 capabilities.",
+      "evidence": {
+        "design.md": "D3 (deny .git writes requirement)",
+        "SRT 0.0.77 capabilities": "hostname-pattern allow-rules only, no path-specific write deny"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 18,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "Task 4.2 states 'poll enforcement failures are collection failures retried to the existing deadline, not terminal remote-task failures' but review_dispatcher.py poll_for_result() calls _complete_completion_ledger() with success=False on ANY pre-launch error (including sandbox enforcement denial). The ledger completion marks the remote task as failed. The plan doesn't specify how to distinguish 'sandbox pre-launch denial' from other poll errors to avoid completing the ledger.",
+      "evidence": {
+        "tasks.md": "line 32 (poll enforcement failures retryable)",
+        "skills/parallel-infrastructure/scripts/review_dispatcher.py": "lines 1703-1719 (poll_for_result closes ledger on any error)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 19,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "Task 4.4 requires 'an AST guard rejecting subprocess calls whose argv derives from vendor command templates/binaries outside the shared backend, with explicit Git/coordinator-helper allowlists' but the plan doesn't specify: (a) the exact AST patterns to flag (subprocess.run, Popen, etc.), (b) the allowlist patterns for Git/coordinator helpers, (c) whether it runs in CI or as a pre-commit hook, (d) how it handles dynamic command construction. Without this, the guard cannot be implemented testably.",
+      "evidence": {
+        "tasks.md": "line 39 (task 4.4 AST guard requirement)",
+        "design.md": "lines 118-119 (mentions guard but no implementation details)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 20,
+      "type": "compatibility",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "architecture",
+      "disposition": "fix",
+      "description": "Work-package wp-integration locks files across three separate skill directories (parallel-infrastructure, autopilot, autopilot-roadmap) and agent-coordinator. The scope.write_allow includes skills/implement-feature/SKILL.md, skills/iterate-on-implementation/SKILL.md, skills/autopilot/SKILL.md, skills/autopilot-roadmap/SKILL.md - these are skill definition files, not implementation files. Modifying SKILL.md files is outside the scope of a backend integration change and risks breaking skill contracts.",
+      "evidence": {
+        "work-packages.yaml": "lines 136-141 (SKILL.md files in write_allow)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 21,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "dispatch-execution-context.schema.json has enforcement_scope enum ['execution', 'submission'] but the design mentions 'execution' and 'polling' as scopes. The autopilot local provider uses the context for the full lifecycle (dispatch + poll). The schema should include 'polling' or clarify that 'submission' covers async submit+poll.",
+      "evidence": {
+        "contracts/dispatch-execution-context.schema.json": "line 22 (enforcement_scope enum)",
+        "design.md": "D10 mentions 'execution' and 'polling' as scopes"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 22,
+      "type": "resilience",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "resilience",
+      "disposition": "fix",
+      "description": "Design D6 states 'Each later event attempt drains older outbox entries before writing the new one, removing a record only after the endpoint acknowledges its event_id' but the outbox is JSONL with advisory locking. If the process crashes after writing to outbox but before fsync, or after fsync but before coordinator acknowledgment, the record may be duplicated or lost. The plan doesn't specify idempotency key handling for outbox writes (event_id is generated by caller, not coordinator).",
+      "evidence": {
+        "design.md": "lines 114-117 (outbox drain description)",
+        "contracts/sandbox-execution-event.schema.json": "line 20 (event_id generated by caller)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 23,
+      "type": "observability",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "observability",
+      "disposition": "fix",
+      "description": "The sandbox-execution-event schema includes environment_keys (array of key names) but the design D5 says 'Environment metadata SHALL contain key names only AND argv prompt bodies, credential values, and settings-file contents SHALL be absent.' However, the schema doesn't forbid secret-like key names (e.g., API_KEY, SECRET, TOKEN) from appearing in environment_keys. An auditor could infer credential presence from key names. The spec should require filtering of sensitive key patterns.",
+      "evidence": {
+        "contracts/sandbox-execution-event.schema.json": "line 45 (environment_keys array)",
+        "design.md": "D5 (secret exclusion requirement)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 24,
+      "type": "architecture",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "architecture",
+      "disposition": "fix",
+      "description": "provider_dispatch.py _dispatch_local() constructs argv directly via subprocess.run() with ['pi', '-p', '--provider', 'local', ...] and passes env=os.environ.copy(). This bypasses the shared backend entirely. Task 4.3 requires 'autopilot local-provider passthrough without cwd inference' but the current code doesn't accept an execution_context parameter. The plan must specify how the local provider integrates with the backend's argv/environment construction.",
+      "evidence": {
+        "skills/autopilot/scripts/provider_dispatch.py": "lines 497-504 (_dispatch_local direct subprocess.run)",
+        "tasks.md": "line 36 (task 4.3 local-provider passthrough)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 25,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "Design D7 states Linux preflight checks 'bwrap, socat, rg, supported architecture/seccomp conditions, user-namespace/AppArmor viability, and a no-op sandbox launch' but macOS only checks 'supported native backend and a no-op launch'. SRT 0.0.77 on macOS uses a different sandboxing mechanism (Seatbelt/App Sandbox) - the plan doesn't specify what 'native backend' means or what capability checks are needed. The macOS preflight is underspecified.",
+      "evidence": {
+        "design.md": "lines 129-133 (Linux preflight), lines 134-135 (macOS underspecified)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 26,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "description": "network-policy-export.schema.json rules require hostname_pattern with regex ^(?:\\\\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$ which doesn't allow CIDR notation (e.g., 10.0.0.0/8) or IP ranges. The design D4 mentions 'SRT-compatible hostname plus separately range-checked port grammar' but the schema only allows hostname patterns. IP-based rules cannot be expressed.",
+      "evidence": {
+        "contracts/network-policy-export.schema.json": "lines 14-15 (hostname_pattern regex)",
+        "design.md": "D4 mentions 'separately range-checked port grammar' but schema only has hostname"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 27,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "Task 3.2 requires 'runtime discovery and capability preflight' with 'package version and lockfile integrity metadata match' but the work-package wp-runtime locks tools/sandbox-runtime/** without specifying how integrity is verified. The plan mentions 'lockfile integrity' but there's no package-lock.json or npm-shrinkwrap.json in the locked paths. The SRT pin requires both package.json version AND integrity hash verification - the implementation needs a declared integrity source.",
+      "evidence": {
+        "tasks.md": "line 25 (task 3.2 lockfile integrity)",
+        "work-packages.yaml": "lines 78, 87 (tools/sandbox-runtime/** locked, no package-lock.json)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 28,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "observability",
+      "disposition": "fix",
+      "description": "The sandbox-execution-event schema includes executable_paths and environment_keys but the design says 'Audit payloads contain key names and digests, never prompt/argv bodies, settings bodies, or secret values.' The schema doesn't include a field for the SRT settings file digest or the rendered policy digest (policy_digest is optional). Without the settings digest, post-hoc verification that the applied settings match the exported policy is impossible.",
+      "evidence": {
+        "contracts/sandbox-execution-event.schema.json": "lines 43-45 (executable_paths, environment_keys, optional policy_digest)",
+        "design.md": "D6 (audit payload requirements)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 29,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "resilience",
+      "disposition": "fix",
+      "description": "Design D8 states 'On timeout the backend starts a new session, sends TERM to the process group, waits a bounded grace period, sends KILL if required, waits, and then cleans owned material.' But if the process group cleanup fails (e.g., zombie processes, permission issues), the backend has no specified fallback. The settings file (mode 0600) and any mount artifacts may leak. The plan needs a guaranteed cleanup strategy or at minimum a leak-reporting mechanism.",
+      "evidence": {
+        "design.md": "lines 141-143 (timeout handling without cleanup fallback)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 30,
+      "type": "compatibility",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "agents.yaml cli.dispatch_modes entries have optional 'isolation' field (string enum of ISOLATION_MODES). The plan says 'config projection so effective mode isolation is mode override then entry' but agents_config.py ModeConfig.isolation is already IsolationMode | None. The precedence isn't documented: does agents.yaml mode.isolation override the router decision? The design D1 says 'The backend SHALL consume the dg-06 routing decision... and SHALL NOT call routing again' - but standalone callers use agents.yaml. The precedence between router decision and agents.yaml mode.isolation for routed callers is not specified.",
+      "evidence": {
+        "agent-coordinator/src/agents_config.py": "lines 247-262 (ModeConfig.isolation field)",
+        "design.md": "D1 (router decision precedence)",
+        "tasks.md": "line 34 (task 4.1 config projection)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 31,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "resilience",
+      "disposition": "fix",
+      "description": "D4 renders an unavailable policy snapshot as deny-all and launches (design.md:78-79; agent-coordinator spec.md:26-30). D8 and the poll scenario protect only against a pre-launch denial (design.md:145-148; vendor-dispatch spec.md:112-116). During a coordinator outage the poll command is launched inside SRT with no egress, exits nonzero after start, and poll_for_result treats nonzero exit as terminal and closes the completion ledger. The 'Poll enforcement failure does not abandon remote work' scenario cannot be met for the most likely failure (policy outage). Classify an outage-derived deny-all snapshot as a pre-launch retryable condition for submission-scope polls; keep authored deny-all fail-closed.",
+      "evidence": {
+        "design.md": "lines 78-79, 145-148 (D4/D8 conflict)",
+        "specs/vendor-dispatch/spec.md": "lines 112-116 (poll scenario)",
+        "specs/agent-coordinator/spec.md": "lines 26-30 (policy export behavior)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 32,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "observability",
+      "disposition": "fix",
+      "description": "Audit persistence failure SHALL fail closed (vendor-dispatch spec.md:97-98; design.md:110-111), but nothing states that sandbox events are emitted only when requested_isolation=sandbox; the event schema allows none/worktree (sandbox-execution-event.schema.json:36). An implementer emitting one event per launch adds a coordinator round-trip to every non-sandbox dispatch and, when coordinator and outbox both fail, blocks plain review dispatch that today never contacts the coordinator, contradicting 'Non-sandbox behavior remains compatible' (spec.md:17-21) and the byte-compatible rollback (proposal.md:130-131).",
+      "evidence": {
+        "specs/vendor-dispatch/spec.md": "lines 97-98, 17-21",
+        "design.md": "lines 110-111",
+        "contracts/sandbox-execution-event.schema.json": "line 36 (requested_isolation const: sandbox missing)",
+        "proposal.md": "lines 130-131"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 33,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "observability",
+      "disposition": "fix",
+      "description": "The routed path is narrower than D1 implies. The roadmap host dispatches by invoking /implement-feature and /validate-feature through SKILL.md (autopilot-roadmap/SKILL.md:189-190); dispatch_phase has no production caller besides the smoke script (smoke_provider_dispatch.py:200). Claude Code lanes run as in-harness Agent-tool sub-agents, and codex-remote/grok-remote already declare isolation: sandbox with no CLI section (agents.yaml:179-206, 326-348). None of these pass through the backend, so a sandbox decision for them is neither enforced nor recorded as applied=false, violating 'Execution metadata is truthful' (vendor-dispatch spec.md:88-92) for most real dispatches. State who records applied=false with a reason such as backend_not_applicable for non-CLI sinks, or that the router never assigns sandbox to lanes without a CLI backend.",
+      "evidence": {
+        "design.md": "D1 (routed path scope)",
+        "skills/autopilot/scripts/smoke_provider_dispatch.py": "line 200 (only smoke caller)",
+        "agent-coordinator/agents.yaml": "lines 179-206, 326-348 (remote lanes with sandbox but no CLI)",
+        "specs/vendor-dispatch/spec.md": "lines 88-92 (truthful metadata)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 34,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "description": "D5 builds 'a minimal trusted PATH from their parent directories' of Node, SRT, bwrap, socat, and rg (design.md:98-100), and SRT forwards the environment to the child. Write-capable modes (codex exec -s workspace-write, claude --allowedTools ... Bash, agents.yaml:129, 172-174) shell out to git, bash, python3, gh, uv, and test runners; with /usr/bin and /usr/local/bin absent every alternative/quick dispatch fails inside the sandbox for a reason unrelated to policy. Define PATH explicitly: runtime binary parents plus a fixed system allowlist plus original absolute, non-user-writable entries.",
+      "evidence": {
+        "design.md": "lines 98-100 (PATH policy)",
+        "agent-coordinator/agents.yaml": "lines 129, 172-174 (vendor commands needing git/bash/python)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 35,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "description": "D3 redirects HOME/XDG to a per-launch ephemeral root and treats credentials as read-only inputs (design.md:50-55, 98-101) but never says how a vendor CLI finds them once HOME moves. SRT has no bind mounts (upstream README: only read/write allow/deny on the real filesystem), so the two possible mechanisms differ materially: pointing a vendor config-dir variable at the real directory requires it to be writable (claude writes ~/.claude/projects, codex writes ~/.codex/sessions); copying the credential file into the ephemeral root breaks OAuth refresh-token rotation. Task 5.1 requires only that a real vendor 'enters the backend', so this is never exercised before rollout.",
+      "evidence": {
+        "design.md": "lines 50-55, 98-101 (HOME/XDG redirection without credential strategy)",
+        "tasks.md": "lines 46-49 (task 5.1 only requires vendor enters backend)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 36,
+      "type": "compatibility",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "description": "The upstream SRT README states that on Linux the sandboxed process has no network namespace, all traffic must go through the host proxies via HTTP_PROXY/HTTPS_PROXY, and this 'may be ignored by programs that don't respect these variables'. Node's built-in fetch (undici) does not honor those variables by default, and pi and the autopilot local provider are Node programs. D4's rollout precondition is an endpoint inventory plus a no-op preflight (design.md:83-86), so a lane whose CLI ignores proxy variables passes both gates and then loses all egress under sandbox.",
+      "evidence": {
+        "design.md": "lines 83-86 (D4 rollout precondition)",
+        "SRT README": "proxy variables may be ignored by programs"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 37,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "The execution context permits location: null (dispatch-execution-context.schema.json:23) for standalone lanes, but the derived event requires location in local|cloud with no null (sandbox-execution-event.schema.json:33). No mapping rule exists, so a standalone dispatch for a lane whose agents.yaml entry omits location cannot produce a schema-valid event and would fail closed on the audit step.",
+      "evidence": {
+        "contracts/dispatch-execution-context.schema.json": "line 23 (location nullable)",
+        "contracts/sandbox-execution-event.schema.json": "line 33 (location non-null enum)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 38,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "security",
+      "disposition": "fix",
+      "description": "'Rendering never widens policy' (agent-coordinator spec.md:20-24) is argued only from deny-first precedence. The SQL matcher treats *.github.com as LIKE '%.github.com', which never matches the apex, and the upstream SRT README does not state whether *.example.com matches the apex. If SRT's wildcard is apex-inclusive, an authored *.example.com allow renders wider than the coordinator's own matcher, contradicting the scenario. Task 3.1 tests should pin the apex and multi-label semantics observed from SRT 0.0.77 and enforce the subset property or document the divergence.",
+      "evidence": {
+        "specs/agent-coordinator/spec.md": "lines 20-24 (rendering never widens)",
+        "agent-coordinator/database/migrations/009_network_policies.sql": "lines 85-88 (LIKE matching)",
+        "SRT README": "wildcard apex behavior unspecified"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 39,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "architecture",
+      "disposition": "fix",
+      "description": "Task 5.1 places the controlled vendor fixture 'under the runtime package' (tasks.md:46), while the only package allowed to write it puts it at skills/shared/tests/fixtures/sandbox_vendor.py (work-packages.yaml:94) and scopes itself to tasks 3.1-3.4 (work-packages.yaml:72). wp-validation-docs is described as 'Collect task 5.1 evidence' (work-packages.yaml:174) but cannot write under skills/ (189-196). No package owns writing task 5.1, and the location contradiction will surface as a scope-check rejection during coordinated execution.",
+      "evidence": {
+        "tasks.md": "line 46 (task 5.1 fixture location)",
+        "work-packages.yaml": "lines 72, 94, 174, 189-196 (scope mismatch)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 40,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "architecture",
+      "disposition": "fix",
+      "description": "Work-package scope and verification do not cover tasks 5.1 and 5.2. wp-validation-docs may write only docs/** and openspec (166-171) but task 5.1 requires a controlled vendor fixture under skills/; its only verification step is openspec validate --strict (177-186), so no behavioral evidence is checked. wp-runtime's write_allow includes test_sandbox_profile_integration.py but its verification runs only test_sandbox_profile.py (96-105). The design requires 'at least one recorded capable-host pass' (design.md:121-123) yet CI is ubuntu-latest only (.github/workflows/ci.yml) with no macOS runner, and Ubuntu 24.04 restricts unprivileged user namespaces.",
+      "evidence": {
+        "work-packages.yaml": "lines 166-186 (wp-validation-docs scope/verification)",
+        "design.md": "lines 121-123 (capable-host pass requirement)",
+        ".github/workflows/ci.yml": "ubuntu-latest only"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 41,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "resilience",
+      "disposition": "fix",
+      "description": "Runtime discovery is underspecified for the repo's runtime layout. The pin lives under tools/sandbox-runtime/** (work-packages.yaml:78, 87) but skills execute from copied runtime trees (.claude/skills/, .agents/skills/ per AGENTS.md), where a Path(__file__)-relative lookup resolves to a different root; the plan also does not name the explicit override variable, how integrity is checked at dispatch time (package.json version plus package-lock integrity hash of the installed tree), or how npm ci for the pin is wired into install.sh/CI. Define the resolution order (explicit absolute override -> repo root via git rev-parse --show-toplevel of the dispatcher's own checkout -> unavailable), the metadata checks, and the install step; otherwise every runtime copy will silently take the fail-open path.",
+      "evidence": {
+        "work-packages.yaml": "lines 78, 87 (tools/sandbox-runtime/** pin)",
+        "AGENTS.md": "worktree management with .claude/skills/ copies",
+        "design.md": "D7 (runtime discovery underspecified)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 42,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "architecture",
+      "disposition": "fix",
+      "description": "The AST guard (task 4.4, design.md:118-119) has no definition of 'vendor subprocess sink'. 79 non-test skill files call subprocess, and review_dispatcher.py itself has legitimate non-vendor launches (git snapshot handling at 2376-2456, coordinator config query at 2751). Without a precise rule the guard is either noisy or trivially bypassed. Specify the rule: any subprocess/os.exec/asyncio subprocess call in review_dispatcher.py or provider_dispatch.py whose argv derives from cli_config.command, build_command(), poll command_template, or a vendor binary name, outside the backend module, plus an explicit allowlist for the git and coordinator helpers.",
+      "evidence": {
+        "tasks.md": "line 39 (task 4.4 AST guard)",
+        "design.md": "lines 118-119 (guard mention)",
+        "skills/parallel-infrastructure/scripts/review_dispatcher.py": "lines 2376-2456, 2751 (legitimate non-vendor subprocess)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 43,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "The scenario 'an attempted write inside or outside the worktree SHALL fail' is not literally achievable with SRT 0.0.77: /tmp/claude, ~/.npm/_logs and ~/.claude/debug remain writable unless denyRead covers them, and the plan grants the runtime temp directory for write modes. Narrow the scenario to the worktree root, HOME credential paths, and a sibling checkout, and have 5.3 document the always-writable paths so the behavioral fixture does not assert a false negative.",
+      "evidence": {
+        "specs/vendor-dispatch/spec.md": "lines 46-50 (write-fail scenario)",
+        "SRT 0.0.77": "default writable paths"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 44,
+      "type": "architecture",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "compatibility",
+      "disposition": "escalate",
+      "description": "D3 confines write-capable modes to the canonical worktree root and denies common Git metadata, but the per-worktree gitdir (<common>/.git/worktrees/<name>/ holding index, HEAD, ORIG_HEAD, logs) also lives outside the root. With bubblewrap read-only mounts, git add, git commit, git stash, and index refresh fail inside the sandbox. The repo's own conventions require implementers to make save-point commits (AGENTS.md git conventions; implement-feature/autopilot prompts), and the review snapshot fallback assumes vendors can at least read a linked worktree whose .git file points outside the root. The plan says 'the host owns commit/merge' without changing any skill prompt or defining a host-side commit step. Decide explicitly: either grant the per-worktree gitdir plus objects/refs (accepting the shared-object risk D3 names) or add tasks to update implement-feature/autopilot/iterate prompts and the roadmap dispatch loop so sandboxed write-mode agents never attempt commits and the host commits after collection. Also note that .git inside a linked worktree root is a plain file the child can rewrite; add it to denyWrite.",
+      "evidence": {
+        "design.md": "lines 34-44 (D3 gitdir problem)",
+        "AGENTS.md": "git conventions require save-point commits",
+        "skills/parallel-infrastructure/scripts/review_dispatcher.py": "lines 2416-2458 (snapshot fallback)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 45,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "description": "The export grammar admits only a leading *. wildcard, but the authored table accepts * anywhere and matches via LIKE (agent-coordinator/database/migrations/009_network_policies.sql:12, 85-88), e.g. *github.com also matches evilgithub.com. The plan says a malformed snapshot renders deny-all (design.md:53-54) but does not say whether 'malformed' is per-rule or per-document. Dropping an unrenderable deny rule widens policy; failing the whole document on one unrenderable allow blocks every lane. Specify per-rule handling: unrenderable deny => deny-all (fail closed); unrenderable allow => omitted with a warning recorded in the export; and add a coordinator-side validation on write so new rules cannot enter the non-exportable grammar. Also define policy_revision concretely: network_policies has no updated_at or version column (009:9-18), so a revision string cannot detect enabled/priority edits; state that the digest is the only change detector or add a migration.",
+      "evidence": {
+        "contracts/network-policy-export.schema.json": "lines 25-30 (wildcard pattern)",
+        "agent-coordinator/database/migrations/009_network_policies.sql": "lines 12, 85-88 (LIKE matching)",
+        "design.md": "lines 53-54 (malformed snapshot handling)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 46,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "resilience",
+      "disposition": "fix",
+      "description": "Two environment questions are unresolved. (a) Which environment runs the fail-open 'original command'? D5 strips inherited HTTP(S)_PROXY/ALL_PROXY and loader variables; in a managed cloud harness the platform proxy is mandatory for egress, and SRT will always fail preflight there (no user namespaces, nested sandbox not configurable per D2). If the fallback reuses the sanitized env it breaks egress; the compatibility scenario (spec.md:16-20) requires byte-identical behavior. State that sanitization applies only when SRT is applied. (b) PATH policy: the pinned srt bin is a #!/usr/bin/env node shim (package.json bin -> dist/cli.js), vendor CLIs are node shims, and SRT locates bwrap/socat/rg via PATH. 'Absolute executable paths' plus a sanitized env is underspecified: either preserve a validated PATH or have preflight record absolute node/bwrap/socat/rg paths and launch node /abs/dist/cli.js. Note this host resolves node only from ~/.local/share/pi-node.",
+      "evidence": {
+        "design.md": "lines 62-75 (D5 environment questions)",
+        "specs/vendor-dispatch/spec.md": "lines 16-20 (compatibility scenario)"
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 47,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "resilience",
+      "disposition": "fix",
+      "description": "Durable audit lacks idempotency. The outbox drain retries older entries on later calls, and a crash between a coordinator acknowledgement and the outbox entry removal replays the same event. audit_log has no uniqueness on an event id, and AuditService.log_operation with async_logging (agent-coordinator/src/audit.py:154-160) returns success before insertion, so task 2.4 must bypass it and define its own durability. Specify: the endpoint treats event_id (contracts/sandbox-execution-event.schema.json:20) as an idempotency key (unique index, 200 on replay), the outbox removes an entry only after acknowledgement, and the acknowledgement contract names the persisted row id. Also name the outbox location and its ownership: it must sit outside any worktree root a write-capable sandboxed child can reach and outside the repo checkout so it is never committed.",
+      "evidence": {
+        "design.md": "lines 70-78 (durable audit)",
+        "agent-coordinator/src/audit.py": "lines 154-160 (async_logging returns success before insertion)",
+        "contracts/sandbox-execution-event.schema.json": "line 20 (event_id)"
+      },
+      "evidence_class": "judgment"
+    }
+  ],
+  "coverage": {
+    "reviewed": [
+      "openspec/changes/add-dispatch-sandbox-enforcement/proposal.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/tasks.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/specs/agent-coordinator/spec.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/README.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/openapi.yaml",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json",
+      "agent-coordinator/src/network_policies.py",
+      "agent-coordinator/src/audit.py",
+      "agent-coordinator/src/agents_config.py",
+      "agent-coordinator/src/coordination_api.py",
+      "agent-coordinator/database/migrations/008_audit_log.sql",
+      "agent-coordinator/database/migrations/009_network_policies.sql",
+      "agent-coordinator/agents.yaml",
+      "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "skills/autopilot/scripts/provider_dispatch.py",
+      "skills/autopilot/scripts/phase_agent.py",
+      "skills/autopilot/scripts/smoke_provider_dispatch.py",
+      "skills/coordination-bridge/scripts/coordination_bridge.py",
+      "skills/shared/environment_profile.py",
+      "skills/shared/checkout_policy.py",
+      "skills/shared/archetype_roster.py",
+      "agent-coordinator/src/isolation_contract.py",
+      "skills/shared/tests/test_checkout_policy.py",
+      ".github/workflows/ci.yml"
+    ],
+    "skipped": []
+  }
+}
