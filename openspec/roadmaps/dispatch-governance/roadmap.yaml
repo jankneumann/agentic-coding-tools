@@ -181,7 +181,7 @@ items:
   - The roadmap loop cannot spin indefinitely without progress
 - item_id: dg-07
   title: Enforce isolation at dispatch with an OS-level sandbox
-  status: candidate
+  status: in_progress
   priority: 1
   effort: M
   depends_on:
