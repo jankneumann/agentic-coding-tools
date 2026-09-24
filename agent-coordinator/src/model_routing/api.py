@@ -831,23 +831,36 @@ def resolve_phase_model(
     static_model: str,
     provider: str | None,
     timeout_seconds: float,
+    incumbent: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Synchronous HTTP seam used by the synchronous archetype resolver."""
+    """Synchronous HTTP seam used by the synchronous archetype resolver.
+
+    ``incumbent`` is sent only when given, so this client still works against a
+    coordinator that predates the field. A null ``selected`` is valid only when
+    the router reports the incumbent as retained.
+    """
     from ..http_proxy import HttpProxyConfig
 
     config = HttpProxyConfig.from_env()
     if config is None:
         raise RoutingUnavailableError("COORDINATION_API_URL is not configured")
     headers = {"Authorization": f"Bearer {config.api_key}"} if config.api_key else {}
+    body: dict[str, Any] = {"task_signals": task_signals}
+    if incumbent is not None:
+        body["incumbent"] = incumbent
     response = httpx.post(
         f"{config.base_url}/routing/select_model",
-        json={"task_signals": task_signals},
+        json=body,
         headers=headers,
         timeout=timeout_seconds,
     )
     response.raise_for_status()
     result = response.json()
-    if not isinstance(result, dict) or not isinstance(result.get("selected"), dict):
+    if not isinstance(result, dict):
+        raise RoutingUnavailableError("adaptive router returned an invalid selection")
+    retention = result.get("retention")
+    retained = isinstance(retention, dict) and retention.get("retained") is True
+    if not isinstance(result.get("selected"), dict) and not retained:
         raise RoutingUnavailableError("adaptive router returned an invalid selection")
     return result
 

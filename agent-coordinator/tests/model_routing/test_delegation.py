@@ -136,3 +136,153 @@ def test_adaptive_timeout_is_bounded_and_returns_static_result(
 
     assert time.monotonic() - started < 0.15
     assert actual == expected
+
+
+# ── incumbent forwarding (retain-static-model-until-routing-evidence) ────────
+
+def _capture(monkeypatch: pytest.MonkeyPatch, response: dict[str, Any]) -> dict[str, Any]:
+    captured: dict[str, Any] = {}
+
+    def _adaptive(**kwargs: Any) -> dict[str, Any]:
+        captured.update(kwargs)
+        return response
+
+    monkeypatch.setenv("ROUTING_ADAPTIVE", "true")
+    monkeypatch.setattr("src.model_routing.api.resolve_phase_model", _adaptive)
+    return captured
+
+
+_RETAINED = {
+    "selected": None,
+    "retention": {"retained": True, "reason": "incumbent-unresolved", "margin": 0.05},
+}
+
+
+@pytest.mark.parametrize(
+    ("provider", "catalog_vendor"),
+    [("codex", "codex"), ("claude_code", "claude_code"), ("pi", "openrouter")],
+)
+def test_static_resolution_is_forwarded_as_the_incumbent(
+    monkeypatch: pytest.MonkeyPatch, provider: str, catalog_vendor: str
+) -> None:
+    monkeypatch.setenv("ROUTING_ADAPTIVE", "off")
+    static = resolve_archetype_for_phase("PLAN", {}, provider=provider)
+    captured = _capture(monkeypatch, _RETAINED)
+
+    resolve_archetype_for_phase("PLAN", {}, provider=provider)
+
+    assert captured["incumbent"] == {"vendor": catalog_vendor, "model": static.model}
+
+
+def test_unknown_provider_forwards_a_vendorless_incumbent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ROUTING_ADAPTIVE", "off")
+    static = resolve_archetype_for_phase("PLAN", {})
+    captured = _capture(monkeypatch, _RETAINED)
+
+    resolve_archetype_for_phase("PLAN", {})
+
+    assert captured["incumbent"] == {"vendor": None, "model": static.model}
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        _RETAINED,
+        {
+            # A retained incumbent that has a catalog row still returns static.
+            "selected": {"vendor": "codex", "model": "catalog-name", "score": 0.1},
+            "retention": {"retained": True, "reason": "no-evidence", "margin": 0.05},
+        },
+    ],
+)
+def test_retention_returns_the_identical_static_object(
+    monkeypatch: pytest.MonkeyPatch, response: dict[str, Any]
+) -> None:
+    import src.agents_config as agents_config
+
+    sentinel = agents_config._resolve_archetype_for_phase_static("PLAN", {}, provider="codex")
+    monkeypatch.setattr(
+        agents_config, "_resolve_archetype_for_phase_static", lambda *_a, **_k: sentinel
+    )
+    _capture(monkeypatch, response)
+
+    assert resolve_archetype_for_phase("PLAN", {}, provider="codex") is sentinel
+
+
+def test_non_retained_selection_still_routes_adaptively(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _capture(
+        monkeypatch,
+        {
+            "selected": {"vendor": "codex", "model": "gpt-5.6-terra", "score": 0.9},
+            "retention": {
+                "retained": False,
+                "reason": "challenger-evidenced-above-margin",
+                "margin": 0.05,
+            },
+        },
+    )
+
+    resolved = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
+
+    assert (resolved.provider, resolved.model) == ("codex", "gpt-5.6-terra")
+
+
+def test_seam_sends_the_incumbent_and_accepts_a_retained_null_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.model_routing import api
+
+    sent: dict[str, Any] = {}
+
+    class _Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return _RETAINED
+
+    def _post(url: str, *, json: dict[str, Any], **_kw: Any) -> _Response:
+        sent.update(json)
+        return _Response()
+
+    monkeypatch.setenv("COORDINATION_API_URL", "http://localhost:8081")
+    monkeypatch.setattr(api.httpx, "post", _post)
+
+    result = api.resolve_phase_model(
+        task_signals={"archetype": "architect"},
+        static_model="fable",
+        provider="claude_code",
+        timeout_seconds=1.0,
+        incumbent={"vendor": "claude_code", "model": "fable"},
+    )
+
+    assert sent["incumbent"] == {"vendor": "claude_code", "model": "fable"}
+    assert result["retention"]["retained"] is True
+
+
+def test_seam_still_rejects_a_null_selection_without_retention(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.model_routing import api
+
+    class _Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return {"selected": None}
+
+    monkeypatch.setenv("COORDINATION_API_URL", "http://localhost:8081")
+    monkeypatch.setattr(api.httpx, "post", lambda *_a, **_k: _Response())
+
+    with pytest.raises(api.RoutingUnavailableError):
+        api.resolve_phase_model(
+            task_signals={"archetype": "architect"},
+            static_model="fable",
+            provider=None,
+            timeout_seconds=1.0,
+        )
