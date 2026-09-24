@@ -1,0 +1,88 @@
+openapi: 3.1.0
+info:
+  title: Coordinator principal and readiness delta
+  version: 1.0.0
+  description: The pca-02 additions to GET /ready and GET /agents/dispatch-configs.
+paths:
+  /agents/dispatch-configs:
+    get:
+      operationId: getAgentDispatchConfigs
+      summary: Return public dispatch configuration and principal scope
+      responses:
+        '200':
+          description: Registry dispatch configs without credential material
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [agents]
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DispatchConfig'
+  /ready:
+    get:
+      operationId: getReadiness
+      summary: Return component readiness without credential material
+      responses:
+        '200':
+          description: Database is ready and identity is ready, disabled, or within last-known-good grace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+              example:
+                status: degraded
+                db: connected
+                identity: degraded
+                version: 0.2.0
+        '503':
+          description: Database is unreachable or identity has no usable snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+              example:
+                status: degraded
+                db: connected
+                identity: degraded
+                version: 0.2.0
+components:
+  schemas:
+    DispatchConfig:
+      type: object
+      additionalProperties: false
+      required: [agent_id, type, transport, principal_id, vendor_credentials, endpoint_kind, base_url, cli, sdk]
+      properties:
+        agent_id: {type: string}
+        type: {type: string}
+        transport: {type: string}
+        principal_id:
+          type: [string, 'null']
+          pattern: '^spiffe://coordinator\.rotkohl\.ai/agent/[a-z][a-z0-9-]*$'
+        vendor_credentials:
+          type: array
+          uniqueItems: true
+          items: {type: string, pattern: '^[a-z][a-z0-9-]*$'}
+        endpoint_kind: {type: [string, 'null']}
+        base_url: {type: [string, 'null']}
+        cli: {type: [object, 'null']}
+        sdk: {type: [object, 'null']}
+    Readiness:
+      type: object
+      additionalProperties: false
+      required: [status, db, identity, version]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        db:
+          type: string
+          enum: [connected, unreachable]
+        identity:
+          type: string
+          enum: [ready, degraded, disabled]
+        version:
+          type: string

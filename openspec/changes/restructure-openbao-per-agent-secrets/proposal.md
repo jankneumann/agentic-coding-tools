@@ -26,6 +26,9 @@ static-key bypass.
   principal that can read vendor paths and cannot read any agent path. This is the complete
   pca-02 dependency delivered to dg-08; iron-proxy and per-dispatch proxy-token authorization
   remain out of scope.
+- Provision a separate `spiffe://coordinator.rotkohl.ai/service/identity-reader` principal
+  with read access only to declared agent paths so the coordinator can refresh all identities
+  without borrowing an agent bootstrap.
 - Generate a unique AppRole SecretID for each principal with one permitted use, request a
   short-lived response-wrapped result, and atomically write one mode-0600 bootstrap bundle per
   principal beneath an explicit mode-0700 output directory. Plain SecretIDs and wrapping
@@ -40,19 +43,26 @@ static-key bypass.
 - Load API-key identities into an immutable snapshot and atomically hot-reload it every 30
   seconds. A failed refresh retains the last-known-good snapshot for at most 120 seconds,
   emits a sanitized audit event, marks readiness degraded, and then denies new authentication
-  until a valid snapshot is installed.
+  until a valid snapshot is installed. In configured Bao mode, that snapshot is also the
+  sole API-key allowlist, so a rotated or unbound static key cannot bypass it.
 - Reconcile retired agent roles, policies, and paths deterministically and audit every
   mutation; unrelated dynamic-database and coordinator-internal secrets remain unchanged.
+- Require an explicit key-name-only migration map from the flat secrets file to each agent
+  and vendor document. Preserve the coordinator-internal `secret/coordinator` path under
+  separate internal authentication inputs. A protected renewable token cache permits
+  repeated short-lived dispatches after a one-use bootstrap.
 - Add a pinned dev-mode OpenBao integration matrix proving own-path allow, cross-agent and
   unrelated-vendor denial, gateway vendor-only access, single-use wrapping, rotation without
   restart, and fail-loud audited errors.
-- **BREAKING**: remove shared `BAO_SECRET_ID`, shared `secret/coordinator` agent access,
-  manually authored `openbao_role_id` identity overrides, and configured-agent fallback to
-  `.secrets.yaml` or ambient vendor-key environment variables. Static X-API-Key HTTP
+- **BREAKING**: remove shared `BAO_SECRET_ID` from agent and vendor access, shared
+  `secret/coordinator` agent access,
+  manually authored `openbao_role_id` identity overrides (the dispatch-config wire now carries `principal_id` and `vendor_credentials`), and configured SDK/OpenAI-compatible dispatch fallback to
+  `.secrets.yaml` or ambient vendor-key environment variables. CLI vendor processes retain their existing environment delivery until pca-04. Static X-API-Key HTTP
   authentication remains until pca-03, but its values live only in per-agent OpenBao paths.
+  The internal profile loader migrates to `BAO_INTERNAL_ROLE_ID` and
+  `BAO_INTERNAL_SECRET_ID` while retaining its existing path.
 - Rollback is release-level, not dual-read: restore the prior release and its backed-up
-  `secret/coordinator` data. The migration provides dry-run output and does not delete the old
-  path until the operator explicitly confirms cutover.
+  `secret/coordinator` data. The migration provides dry-run output and does not retire legacy agent access until the operator explicitly confirms cutover. The `secret/coordinator` data path remains for coordinator-internal settings.
 
 ## Non-Functional Requirements
 
@@ -131,7 +141,16 @@ current topology cannot justify.
 
 ### Selected Approach
 
-Pending Gate 1 direction approval.
+Approach 1, approved by the operator at Plan Gate 1 on 2026-09-24. The detailed
+plan uses one registry-derived topology contract and typed OpenBao adapters for
+provisioning, coordinator identity reload, and dispatch lookup.
+
+The coordinator needs its own identity-reader service principal to refresh all
+agent API keys. Its policy reads only agent data paths; it is distinct from the
+egress-gateway principal, whose policy reads only vendor data paths. Both are
+explicit projections of the topology contract. This service principal is a
+necessary authorization boundary for the approved hot-reload behavior and is
+subject to Gate 2 review.
 
 ## Impact
 

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coordinator.rotkohl.ai/contracts/openbao/session-cache.schema.json",
+  "title": "Protected renewable OpenBao client-token cache",
+  "description": "Sensitive runtime artifact, atomically written mode 0600 beneath a mode 0700 directory. Never print, log, or commit. A consumed bootstrap bundle is not a fallback when this short-period renewable token expires.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "principal_id", "client_token", "renewable", "period_seconds", "lease_expires_at"],
+  "properties": {
+    "version": { "const": 1 },
+    "principal_id": { "type": "string", "pattern": "^spiffe://coordinator\\.rotkohl\\.ai/(agent|service)/[a-z][a-z0-9-]*$" },
+    "client_token": { "type": "string", "minLength": 1, "x-sensitive": true },
+    "renewable": { "const": true },
+    "period_seconds": { "type": "integer", "minimum": 1 },
+    "lease_expires_at": { "type": "string", "format": "date-time" }
+  }
+}

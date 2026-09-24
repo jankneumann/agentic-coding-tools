@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coordinator.rotkohl.ai/contracts/openbao/principal-topology.schema.json",
+  "title": "OpenBao principal topology projection",
+  "description": "A deterministic projection of the canonical agents.yaml registry. The projection must additionally reject duplicate principal IDs, Bao names, and paths; the JSON Schema cannot express cross-entry uniqueness.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "mount", "vendors", "principals"],
+  "properties": {
+    "version": { "const": 1 },
+    "mount": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "default": "secret" },
+    "vendors": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
+    "principals": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/principal" }
+    }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+    "principal": {
+      "oneOf": [
+        { "$ref": "#/$defs/agent" },
+        { "$ref": "#/$defs/identityReader" },
+        { "$ref": "#/$defs/egressGateway" }
+      ]
+    },
+    "common": {
+      "type": "object",
+      "required": ["kind", "principal_id", "role_name", "policy_name", "read_paths", "token_period_seconds"],
+      "properties": {
+        "principal_id": { "type": "string" },
+        "role_name": { "$ref": "#/$defs/slug" },
+        "policy_name": { "$ref": "#/$defs/slug" },
+        "token_period_seconds": { "type": "integer", "minimum": 60, "maximum": 86400 },
+        "read_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*/data/(agents|vendors)/[a-z][a-z0-9-]*$" }
+        }
+      }
+    },
+    "agent": {
+      "allOf": [{ "$ref": "#/$defs/common" }],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "principal_id", "role_name", "policy_name", "agent_kv_path", "vendor_credentials", "read_paths", "token_period_seconds"],
+      "properties": {
+        "kind": { "const": "agent" },
+        "name": { "$ref": "#/$defs/slug" },
+        "principal_id": { "type": "string", "pattern": "^spiffe://coordinator\\.rotkohl\\.ai/agent/[a-z][a-z0-9-]*$" },
+        "role_name": { "type": "string", "pattern": "^agent-[a-z][a-z0-9-]*$" },
+        "policy_name": { "type": "string", "pattern": "^agent-[a-z][a-z0-9-]*$" },
+        "token_period_seconds": { "type": "integer", "minimum": 60, "maximum": 86400 },
+        "agent_kv_path": { "type": "string", "pattern": "^agents/[a-z][a-z0-9-]*$" },
+        "vendor_credentials": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
+        "read_paths": { "$ref": "#/$defs/common/properties/read_paths" }
+      }
+    },
+    "identityReader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "principal_id", "role_name", "policy_name", "read_paths", "token_period_seconds"],
+      "properties": {
+        "kind": { "const": "identity_reader" },
+        "principal_id": { "const": "spiffe://coordinator.rotkohl.ai/service/identity-reader" },
+        "role_name": { "const": "service-identity-reader" },
+        "policy_name": { "const": "service-identity-reader" },
+        "token_period_seconds": { "type": "integer", "minimum": 60, "maximum": 86400 },
+        "read_paths": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*/data/agents/[a-z][a-z0-9-]*$" } }
+      }
+    },
+    "egressGateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "principal_id", "role_name", "policy_name", "read_paths", "token_period_seconds"],
+      "properties": {
+        "kind": { "const": "egress_gateway" },
+        "principal_id": { "const": "spiffe://coordinator.rotkohl.ai/service/egress-gateway" },
+        "role_name": { "const": "service-egress-gateway" },
+        "policy_name": { "const": "service-egress-gateway" },
+        "token_period_seconds": { "type": "integer", "minimum": 60, "maximum": 86400 },
+        "read_paths": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*/data/vendors/[a-z][a-z0-9-]*$" } }
+      }
+    }
+  }
+}

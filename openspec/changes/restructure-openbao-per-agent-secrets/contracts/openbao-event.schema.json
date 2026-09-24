@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coordinator.rotkohl.ai/contracts/openbao/openbao-event.schema.json",
+  "title": "Sanitized OpenBao audit event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "event", "occurred_at", "action", "outcome"],
+  "properties": {
+    "version": { "const": 1 },
+    "event": {
+      "enum": [
+        "openbao.principal.created",
+        "openbao.principal.updated",
+        "openbao.principal.retired",
+        "openbao.bootstrap.issued",
+        "openbao.bootstrap.rejected",
+        "openbao.identity.refresh_succeeded",
+        "openbao.identity.refresh_failed",
+        "openbao.identity.snapshot_expired",
+        "openbao.credential.lookup_failed"
+      ]
+    },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "action": { "enum": ["create", "update", "retire", "issue", "reject", "refresh", "expire", "lookup"] },
+    "outcome": { "enum": ["success", "failure"] },
+    "principal_id": { "type": "string", "pattern": "^spiffe://coordinator\\.rotkohl\\.ai/(agent|service)/[a-z][a-z0-9-]*$" },
+    "resource": { "type": "string", "pattern": "^(role|policy|agent_path|vendor_path|identity_snapshot|bootstrap|credential)$" },
+    "error_code": { "$ref": "#/$defs/errorCode" },
+    "correlation_id": { "type": "string", "maxLength": 128 },
+    "vendor_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "snapshot_age_seconds": { "type": "number", "minimum": 0 }
+  },
+  "$defs": {
+    "errorCode": {
+      "type": "string",
+      "enum": [
+        "CONFIGURATION_INVALID",
+        "BOOTSTRAP_INVALID",
+        "AUTHENTICATION_FAILED",
+        "AUTHORIZATION_DENIED",
+        "SECRET_NOT_FOUND",
+        "SECRET_MALFORMED",
+        "TIMEOUT",
+        "BACKEND_UNAVAILABLE",
+        "TOKEN_EXPIRED"
+      ]
+    }
+  }
+}

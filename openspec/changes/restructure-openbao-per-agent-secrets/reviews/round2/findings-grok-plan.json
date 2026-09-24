@@ -1,0 +1,75 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Archiving the MODIFIED `OpenBao Secret Backend` and `OpenBao Configuration Dataclass` requirements deletes the base-spec `_load_secrets()` / `OpenBaoConfig` contract that still authenticates with `BAO_ROLE_ID`+`BAO_SECRET_ID` (and is used by `profile_loader._load_secrets_openbao` and `resolve_dynamic_dsn`). The ADDED CFG-19 only renames inputs to `BAO_INTERNAL_*` in one thin scenario and does not restate auth-failure/missing-credential/unreachable behaviors or redefine `OpenBaoConfig.from_env`/`create_client`. Tasks 3.7\u20133.8 mention only `profile_loader.py`, so implementers can satisfy the task text while leaving `config.py` on legacy env vars\u2014or repurpose `OpenBaoConfig` for bootstrap bundles and strand internal+DB loading.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Split the contracts: keep a MODIFIED/ADDED requirement that `OpenBaoConfig` (or a dedicated internal config) reads `BAO_INTERNAL_ROLE_ID`/`BAO_INTERNAL_SECRET_ID` and preserves the existing `_load_secrets` failure scenarios under those names; keep the bootstrap-dir dataclass as a separately named adapter requirement. Extend tasks 3.7\u20133.8 to update `agent-coordinator/src/config.py` and `tests/test_openbao_config.py` explicitly.",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/specs/configuration/spec.md",
+      "line_range": {
+        "start": 19,
+        "end": 133
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: `wp-projection` owns `packages/openbao-credentials/**` and both `agent-coordinator/pyproject.toml` path dependency manifests, but `agent-coordinator/Dockerfile` COPY of that package is deferred to `wp-integration` tasks 5.5\u20135.6. Existing packages (`gen-eval`, etc.) are COPY'd into `/packages/...` during the image build so `uv sync` can resolve path deps; CI `check-docker-imports` / `docker-smoke-import` will fail as soon as coordinator code depends on the new package before integration lands.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "resolution": "Move the Dockerfile (builder+runtime) COPY for `packages/openbao-credentials/`\u2014and any smoke-import module updates\u2014into `wp-projection` write_allow/tasks (or make `wp-coordinator` depend on a packaging package that owns the Dockerfile) so the first merge that adds the path dependency keeps the container build green.",
+      "package_id": "wp-projection",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml",
+      "line_range": {
+        "start": 56,
+        "end": 94
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: Removing `openbao_role_id` from the registry/`get_dispatch_configs` export (agents_config.py:1891) will break `agent-coordinator/tests/model_routing/test_agent_endpoints.py`, which asserts `\"openbao_role_id\": None` in the dispatch config payload. That test file is not in any package `write_allow`, so the owning package cannot land the schema/export change without an out-of-scope edit or a red suite.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Add `agent-coordinator/tests/model_routing/test_agent_endpoints.py` to `wp-projection` write_allow (and verification), or keep a transitional dispatch-config field until a listed package updates the assertion.",
+      "package_id": "wp-projection",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml",
+      "line_range": {
+        "start": 67,
+        "end": 78
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: `contracts/README.md` states the agent KV logical path is `<mount>/agents/<name>`, but `principal-topology.schema.json` `agent_kv_path` is mount-relative (`^agents/[a-z]...$`), CFG-03/`design.md` D1 require hvac to receive `agents/<name>` at the configured mount, and the same README later correctly says adapters pass mount-relative logical paths. Implementers following the first sentence will generate wrong hvac paths.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Change the README projection rule to: logical KV path `agents/<name>` (mount-relative); policy API path `<mount>/data/agents/<name>`.",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/README.md",
+      "line_range": {
+        "start": 8,
+        "end": 8
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}
