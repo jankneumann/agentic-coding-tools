@@ -54,9 +54,9 @@
   **Dependencies**: 2.3; external: build-structured-vendor-result-channel (ordering)
   **Files**: skills/parallel-infrastructure/scripts/review_dispatcher.py
 
-- [ ] 2.5 Register the `(local, sandbox)` backend wrapping argv via
-  `sandbox_profile.wrap_command()` (consumes dg-07's renderer; degradation
-  semantics stay dg-07's)
+- [ ] 2.5 Register the `(local, sandbox)` backend as a thin adapter over dg-07's
+  `skills/shared/local_process_backend.py`; do not wrap argv, render policy, or
+  own process lifecycle a second time
   **Dependencies**: 2.2; external: add-dispatch-sandbox-enforcement (dg-07)
   **Files**: skills/shared/execution_backends/local_sandbox.py
 
@@ -133,17 +133,14 @@
   **Files**: agent-coordinator/src/coordination_api.py,
   agent-coordinator/src/agents_config.py
 
-- [ ] 3.11 Write coordinator tests for network-policy export — rendering derives
-  from export; unreachable export falls back narrower-never-wider with audit
-  **Spec scenarios**: agent-coordinator.1 (both scenarios)
-  **Contracts**: contracts/openapi/v1.yaml (`/policies/network/export`)
-  **Dependencies**: None
-  **Files**: agent-coordinator/tests/test_network_policy_export.py
+- [x] 3.11 Consume dg-07's exact-agent, default-deny network-policy export and
+  its authenticated bridge client; cloud renderers do not define another export
+  shape or fallback policy
+  **External owner**: add-dispatch-sandbox-enforcement (dg-07 tasks 2.1–2.2)
 
-- [ ] 3.12 Implement the export path in `network_policies.py` + API route
-  **Dependencies**: 3.11
-  **Files**: agent-coordinator/src/network_policies.py,
-  agent-coordinator/src/coordination_api.py
+- [x] 3.12 Consume dg-07's durable sandbox-event API/outbox for local execution;
+  this change adds only cloud/backend-specific audit fields where required
+  **External owner**: add-dispatch-sandbox-enforcement (dg-07 tasks 2.3–2.4)
 
 - [ ] 3.13 Document the OpenBao hardening runbook (persistence, TLS, audit
   device, broker AppRole policy, CIDR binding) and the broker's verification
@@ -179,12 +176,12 @@
   **Dependencies**: 4.1, 4.2, 3.4; external: build-structured-vendor-result-channel
   **Files**: skills/shared/execution_backends/cloud_sandbox.py
 
-- [ ] 4.4 Implement egress rendering for the chosen provider in the dg-07 renderer
-  seam (`render_<provider>_egress()` from the exported policy; adjacent-proxy
+- [ ] 4.4 Implement provider-specific cloud egress rendering in the cloud backend
+  (`render_<provider>_egress()` from dg-07's exported policy; adjacent-proxy
   fallback per spike outcome)
   **Spec scenarios**: cloud-sandbox-execution.3 (both scenarios)
-  **Dependencies**: 4.1, 3.12; external: add-dispatch-sandbox-enforcement (dg-07)
-  **Files**: skills/shared/sandbox_profile.py
+  **Dependencies**: 4.1; external: add-dispatch-sandbox-enforcement (dg-07)
+  **Files**: skills/shared/execution_backends/cloud_sandbox.py
 
 - [ ] 4.5 Write tests for the `min_isolation` gate coupling — sufficient isolation
   honors `auto` and audits the authorizing posture; insufficient degrades to

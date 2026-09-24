@@ -4,7 +4,7 @@ Frozen interface definitions for work-package execution.
 
 | Artifact | Defines | Consumed by |
 |---|---|---|
-| `openapi/v1.yaml` | Coordinator additions: network-policy export (rendering input), per-dispatch identity issue/revoke | Tasks 3.9–3.12, backend renderers |
+| `openapi/v1.yaml` | Coordinator additions: per-dispatch identity issue/revoke | Tasks 3.9–3.10, remote backends |
 | `schemas/dispatch-spec.schema.json` | `DispatchSpec` — the single argument to `ExecutionBackend.run()` | Tasks 2.1–2.5, 4.2–4.3 |
 | `schemas/dispatch-audit-event.schema.json` | Audit payload for every loud degradation and refusal on the dispatch path | All groups (D7: degradation is loud, never silent) |
 
@@ -19,5 +19,8 @@ Deliberately **not** defined here:
   `dispatch-spec.schema.json` mirror it and dg-05 remains authoritative.
 - **Completion-ledger records** — owned by `build-structured-vendor-result-channel`
   (dg-02).
+- **Exact-agent network-policy export and sandbox execution audit** — owned by
+  `add-dispatch-sandbox-enforcement` (dg-07). Cloud renderers consume its frozen
+  OpenAPI/JSON-schema contracts; this change does not mirror them.
 - **Provider APIs** (Daytona/E2B) — external; the backend adapter wraps the
   provider SDK and is bounded by `dispatch-spec.schema.json` on our side.
