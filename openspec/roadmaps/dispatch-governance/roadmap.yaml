@@ -181,7 +181,7 @@ items:
   - The roadmap loop cannot spin indefinitely without progress
 - item_id: dg-07
   title: Enforce isolation at dispatch with an OS-level sandbox
-  status: in_progress
+  status: completed
   priority: 1
   effort: M
   depends_on:
@@ -258,4 +258,4 @@ items:
     recording why, rather than deploying a bypassable proxy
   external_depends_on:
   - principal-credential-architecture:pca-02
-updated_at: '2026-09-23T22:17:27.713199+00:00'
+updated_at: '2026-09-24T09:45:51.549385+00:00'

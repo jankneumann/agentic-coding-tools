@@ -84,4 +84,4 @@
 
 ## 6. Landing
 
-- [ ] 6.1 Record evidence, push, merge, and advance the roadmap checkpoint.
+- [x] 6.1 Record evidence, push, merge, and advance the roadmap checkpoint.
