@@ -356,6 +356,60 @@ def _probe_capability(
     return False
 
 
+def export_network_policy(
+    agent_id: str,
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Fetch the coordinator's exact-agent sandbox policy snapshot."""
+    resolved_url = _resolve_http_url(http_url)
+    if not resolved_url:
+        return {"status_code": None, "error_kind": "unavailable", "error": "missing_http_url"}
+    response = _http_request(
+        method="GET",
+        path=f"/policies/network/export?{url_parse.urlencode({'agent_id': agent_id})}",
+        http_url=resolved_url,
+        api_key=_resolve_api_key(api_key),
+    )
+    if response["status_code"] == 200 and isinstance(response["data"], dict):
+        return response["data"]
+    return {
+        **response,
+        "error_kind": "unavailable"
+        if response["status_code"] is None or response["status_code"] >= 500
+        else "permanent_rejection",
+    }
+
+
+def record_sandbox_event(
+    event: dict[str, Any],
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Post one idempotent sandbox event without masking permanent errors."""
+    resolved_url = _resolve_http_url(http_url)
+    if not resolved_url:
+        return {"status_code": None, "error_kind": "unavailable", "error": "missing_http_url"}
+    response = _http_request(
+        method="POST",
+        path="/dispatch/sandbox-events",
+        payload=event,
+        http_url=resolved_url,
+        api_key=_resolve_api_key(api_key),
+    )
+    status = response["status_code"]
+    return {
+        **response,
+        "error_kind": None
+        if status in (200, 201)
+        else "unavailable"
+        if status is None or status >= 500
+        else "permanent_rejection",
+    }
+
+
 def _is_code_search_ready(payload: object) -> bool:
     """Validate the exact ready variant of the v2 code-search status contract."""
     if not isinstance(payload, dict) or set(payload) != _CODE_SEARCH_STATUS_FIELDS:

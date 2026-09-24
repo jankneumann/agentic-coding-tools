@@ -148,6 +148,107 @@ class VendorRateLimitObservationRequest(BaseModel):
         return self
 
 
+class SandboxExecutionEventRequest(BaseModel):
+    """Secret-free, contract-exact event accepted from a dispatch host."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[1]
+    event_id: UUID
+    context_source: Literal["router", "agents_yaml"]
+    decision_id: str | None
+    item_id: str | None
+    phase: Literal["planning", "implementing", "reviewing", "validating"] | None
+    attempt: StrictInt | None = Field(ge=1)
+    dispatch_work_id: str | None
+    routing_context_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
+    workspace_content_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
+    agent_id: str = Field(min_length=1)
+    vendor_type: str = Field(min_length=1)
+    policy_vendor: str | None
+    catalog_vendor: str | None
+    assignment_location: str = Field(min_length=1)
+    execution_location: Literal["local"]
+    enforcement_scope: Literal["execution", "submission"]
+    write_capable: bool
+    dispatch_mode: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    endpoint_kind: str = Field(min_length=1)
+    endpoint_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    requested_isolation: Literal["sandbox"]
+    sandbox_applied: bool
+    backend: Literal["local-process", "srt"]
+    runtime_version: str | None
+    platform: Literal["linux", "darwin", "unsupported"]
+    preflight_status: Literal[
+        "passed",
+        "unsupported_platform",
+        "runtime_missing",
+        "runtime_incompatible",
+        "capability_failed",
+        "policy_unavailable",
+        "policy_invalid",
+        "authorization_failed",
+    ]
+    policy_revision: str | None = Field(pattern=r"^v1:.+:[0-9]+$")
+    policy_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
+    settings_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
+    worktree_root: str | None
+    executable_paths: list[str]
+    environment_keys: list[str]
+    degradation_reason: str | None
+    cleanup_status: Literal["not_started", "succeeded", "failed"]
+    cleanup_residual_paths: list[str]
+
+    @model_validator(mode="after")
+    def truthful_cross_fields(self) -> SandboxExecutionEventRequest:
+        router_fields = (
+            self.decision_id,
+            self.item_id,
+            self.phase,
+            self.attempt,
+            self.dispatch_work_id,
+            self.routing_context_digest,
+        )
+        if self.context_source == "router" and any(value is None for value in router_fields):
+            raise ValueError("router events require complete routing correlation")
+        if self.context_source == "agents_yaml" and any(
+            value is not None
+            for value in (
+                self.decision_id,
+                self.item_id,
+                self.phase,
+                self.dispatch_work_id,
+                self.routing_context_digest,
+            )
+        ):
+            raise ValueError("agents_yaml events cannot claim router correlation")
+        if self.sandbox_applied and (
+            self.backend != "srt"
+            or self.preflight_status != "passed"
+            or not all(
+                (
+                    self.runtime_version,
+                    self.policy_revision,
+                    self.policy_digest,
+                    self.settings_digest,
+                    self.worktree_root,
+                )
+            )
+            or self.degradation_reason is not None
+        ):
+            raise ValueError("applied sandbox fields are not truthful")
+        if not self.sandbox_applied and not self.degradation_reason:
+            raise ValueError("degraded execution requires a reason")
+        if self.cleanup_status == "failed" and not self.cleanup_residual_paths:
+            raise ValueError("failed cleanup requires residual paths")
+        if len(self.executable_paths) != len(set(self.executable_paths)) or len(
+            self.environment_keys
+        ) != len(set(self.environment_keys)):
+            raise ValueError("event arrays must contain unique values")
+        return self
+
+
 _vendor_registry: VendorRegistryService | None = None
 
 
@@ -1131,7 +1232,6 @@ def create_coordination_api() -> FastAPI:
             },
         }
 
-
     @app.get("/locks")
     async def list_locks_by_agent(
         agent_id: str,
@@ -1852,6 +1952,54 @@ def create_coordination_api() -> FastAPI:
     # --------------------------------------------------------------------- #
     # AUDIT
     # --------------------------------------------------------------------- #
+
+    @app.get("/policies/network/export")
+    async def export_network_policy(
+        agent_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Export a default-deny snapshot for one enabled exact assignment."""
+        from .network_policies import NetworkPolicyExportError, get_network_policy_service
+
+        caller_id, caller_type = resolve_identity(principal, None, None)
+        if caller_id != agent_id and await resolve_trust_level(caller_id, caller_type) < 3:
+            raise HTTPException(
+                status_code=403, detail="cross-agent policy export requires trust level 3"
+            )
+        try:
+            return await get_network_policy_service().export_for_agent(agent_id)
+        except NetworkPolicyExportError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.reason) from exc
+
+    @app.post("/dispatch/sandbox-events")
+    async def record_sandbox_execution_event(
+        request: SandboxExecutionEventRequest,
+        response: Response,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Synchronously and idempotently commit a sandbox execution event."""
+        from .audit import SandboxAuditError, get_audit_service
+
+        actor_id, actor_type = resolve_identity(principal, None, None)
+        if actor_id != request.agent_id and await resolve_trust_level(actor_id, actor_type) < 3:
+            raise HTTPException(
+                status_code=403, detail="cross-agent sandbox audit requires trust level 3"
+            )
+        event = request.model_dump(mode="json")
+        try:
+            recorded = await get_audit_service().record_sandbox_event(
+                actor_agent_id=actor_id,
+                event=event,
+            )
+        except SandboxAuditError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        response.status_code = 200 if recorded.replayed else 201
+        return {
+            "success": True,
+            "event_id": event["event_id"],
+            "audit_entry_id": recorded.entry_id,
+            "replayed": recorded.replayed,
+        }
 
     @app.get("/audit")
     async def query_audit(
