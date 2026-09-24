@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-24 — restructure-openbao-per-agent-secrets
+
+### Phase: Plan Handoff
+
+**Use bounded last-known-good identity reload** — The operator approved a 30-second refresh cadence, at most 120 seconds of stale acceptance, audited degradation, then denial of new authentication.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D1)
+
+---
+
 ## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan
