@@ -229,6 +229,8 @@ packages:
         - ".github/workflows/sandbox-runtime.yml"
         - "skills/shared/verify_sandbox_runtime_evidence.py"
         - "skills/shared/tests/test_verify_sandbox_runtime_evidence.py"
+        - "skills/shared/tests/test_sandbox_profile_integration.py"
+        - "skills/shared/tests/fixtures/sandbox_vendor.py"
       keys: ["feature:add-dispatch-sandbox-enforcement:validation"]
       ttl_minutes: 180
       reason: "One final evidence and ownership reconciliation pass"
@@ -240,6 +242,8 @@ packages:
         - ".github/workflows/sandbox-runtime.yml"
         - "skills/shared/verify_sandbox_runtime_evidence.py"
         - "skills/shared/tests/test_verify_sandbox_runtime_evidence.py"
+        - "skills/shared/tests/test_sandbox_profile_integration.py"
+        - "skills/shared/tests/fixtures/sandbox_vendor.py"
       read_allow: ["**"]
     context_impact: {surfaces: [semantic_code, documentation, decisions, capabilities]}
     worktree: {name: add-dispatch-sandbox-enforcement--validation, mode: isolated}
