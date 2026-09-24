@@ -47,6 +47,18 @@ def _configured_vendor_command(repo: Path, agent_id: str) -> Path:
     return Path(resolved).resolve()
 
 
+def _configured_python_install_root(executable: Path) -> Path:
+    """Return the complete configured Python install, not only its bin directory."""
+
+    try:
+        install_root = executable.parents[1]
+    except IndexError as exc:
+        raise AssertionError(f"configured Python has no install root: {executable}") from exc
+    if executable.parent.name != "bin":
+        raise AssertionError(f"configured Python is not under an install bin directory: {executable}")
+    return install_root
+
+
 def _deny_all_policy() -> dict:
     policy = {
         "schema_version": 1,
@@ -222,6 +234,9 @@ def test_configured_vendor_command_is_resolved_from_vendor_panel() -> None:
 
     assert command.name.startswith("python3")
     assert command.is_absolute()
+    install_root = _configured_python_install_root(command)
+    assert command.is_relative_to(install_root)
+    assert install_root != command.parent
 
 
 def test_real_srt_runtime_capability_or_exact_skip() -> None:
@@ -334,6 +349,7 @@ def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
     assert runtime.common_git_dir == common_git
     fixture = Path(__file__).parent / "fixtures" / "sandbox_vendor.py"
     configured_executable = _configured_vendor_command(repo, "ocr-local")
+    configured_install_root = _configured_python_install_root(configured_executable)
     secret = tmp_path / "credential.txt"
     secret.write_text("do-not-read")
     audit = _RecordingAudit()
@@ -346,7 +362,7 @@ def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
             git_toplevel=_git_path(repo, "--show-toplevel"),
             git_common_dir=common_git,
             vendor_executable=configured_executable,
-            vendor_install_root=configured_executable.parent,
+            vendor_install_root=configured_install_root,
             policy=policy,
             write_capable=write_capable,
             credential_env_key="VENDOR_TOKEN",
@@ -387,7 +403,7 @@ def test_real_srt_complete_rollout_evidence(tmp_path: Path) -> None:
     outside.unlink(missing_ok=True)
     try:
         written = run(("write", str(inside)), _deny_all_policy(), write_capable=True)
-        assert written.sandbox_applied is True and written.returncode == 0
+        assert written.sandbox_applied is True and written.returncode == 0, written.stderr
         assert inside.read_text() == "sandbox-write\n"
         escaped = run(("write", str(outside)), _deny_all_policy(), write_capable=True)
         assert escaped.returncode != 0
