@@ -26,7 +26,14 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import ModuleType
 from typing import Any
+
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +77,12 @@ def _parse_line_range(line_range: Any) -> tuple[int | None, int | None]:
 # (review-findings axis contract, rule 2).
 DEFAULT_AXIS = "correctness"
 
+#: Evidence classes. See review-findings.schema.json for the full rationale.
+#: Defined here, beside DEFAULT_AXIS, because the dataclasses below use them as
+#: field defaults and therefore need them bound at class-definition time.
+DETERMINISTIC = "deterministic"
+JUDGMENT = "judgment"
+
 
 @dataclass
 class Finding:
@@ -84,11 +97,22 @@ class Finding:
     file_path: str | None = None
     line_start: int | None = None
     line_end: int | None = None
+    # Verbatim snippet the finding targets (add-deterministic-review-
+    # preprocessing). Optional — legacy findings and vendors that never set
+    # it default to None, and match_score's snippet band simply never fires
+    # for them, falling through to the existing location/description bands.
+    existing_code: str | None = None
     vendor: str = ""
     # `axis` is required by review-findings.schema.json, but legacy payloads
     # (and internally-constructed findings) predate it — default to
     # "correctness" so old data keeps its current matching behavior.
     axis: str = DEFAULT_AXIS
+    # How this finding was established. "deterministic" is a reproducible
+    # observation — a test failed, a scanner rule fired — that a seeded defect
+    # can prove the detector catches. "judgment" is a model's reasoning: often
+    # valuable, not reproducible, and not falsifiable by seeding a defect.
+    # Defaults to deterministic so every existing emitter is unchanged.
+    evidence_class: str = DETERMINISTIC
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], vendor: str) -> "Finding":
@@ -103,8 +127,15 @@ class Finding:
             file_path=data.get("file_path"),
             line_start=line_start,
             line_end=line_end,
+            existing_code=data.get("existing_code"),
             vendor=vendor,
             axis=data.get("axis") or DEFAULT_AXIS,
+            # Only ever *toward* judgment. A payload cannot promote itself to
+            # deterministic; the caller's ingest-side declaration is what makes a
+            # finding blockable, never the model's own label.
+            evidence_class=(
+                JUDGMENT if data.get("evidence_class") == JUDGMENT else DETERMINISTIC
+            ),
         )
 
 
@@ -117,6 +148,15 @@ class VendorResult:
     success: bool = True
     elapsed_seconds: float = 0.0
     error: str | None = None
+    # Files this vendor actually reviewed, set only when it reported
+    # coverage below the quorum threshold (add-deterministic-review-
+    # preprocessing, D5). ``None`` — the default — means every file counts
+    # toward this vendor's eligibility: coverage was never reported, or was
+    # reported at or above the threshold. Populated by callers that have
+    # coverage info (consensus_synthesizer.py's own CLI reads it from the
+    # per-vendor findings file); a caller that never sets it gets identical
+    # behavior to before this field existed.
+    reviewed_files: frozenset[str] | None = None
 
 
 @dataclass
@@ -127,6 +167,14 @@ class FindingMatch:
     matched: list[Finding] = field(default_factory=list)
     score: float = 0.0
     basis: str = ""
+    #: Vendors whose contribution to this match came from the judged path,
+    #: as opposed to a fast path or Jaccard. Tracked separately from
+    #: `basis` (which only ever holds the single last-assigned basis
+    #: string) so a later fast-path/Jaccard match against a *different*
+    #: vendor can never overwrite and hide an earlier judged one --
+    #: `_consensus_evidence_class` must not depend on vendor iteration
+    #: order (Codex review, PR #590).
+    judged_vendors: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -145,6 +193,17 @@ class ConsensusFinding:
     description: str
     vendor_dispositions: dict[str, str] | None = None
     agreed_axis: str = DEFAULT_AXIS
+    #: JUDGMENT only when *every* contributing finding was judgment-class. One
+    #: deterministic corroboration is enough to make a finding blockable: the
+    #: reproducible observation is what carries it, and a model agreeing with a
+    #: failing test does not make the test less real.
+    evidence_class: str = DETERMINISTIC
+    #: Count of successful vendors eligible to have reviewed this finding's
+    #: file — see :func:`_eligible_vendor_count`. Equals the full panel size
+    #: unless a vendor reported partial coverage that excluded this file, so
+    #: an "unconfirmed" finding on a file nobody else was asked to look at
+    #: is not confused with one where a full panel looked and stayed silent.
+    eligible_vendors: int = 0
 
 
 @dataclass
@@ -163,6 +222,8 @@ class ConsensusReport:
     unconfirmed_count: int = 0
     disagreement_count: int = 0
     blocking_count: int = 0
+    #: Judgment-class findings — reported and ranked, never counted as blocking.
+    advisory_count: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +231,7 @@ class ConsensusReport:
 # ---------------------------------------------------------------------------
 
 _CRITICALITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
 
 # Vendors label the same defect with different type vocabularies
 # ("correctness" vs "bug", "security" vs "vulnerability"). Matching on
@@ -228,6 +290,30 @@ def _paths_match(a: str | None, b: str | None) -> bool:
     return longer.endswith("/" + shorter)
 
 
+def _eligible_vendor_count(
+    file_path: str | None, vendor_results: list["VendorResult"],
+) -> int:
+    """Count vendors eligible to have reviewed *file_path* (D5).
+
+    A vendor whose ``reviewed_files`` is a set (it reported coverage below
+    the quorum threshold) counts only when *file_path* matches one of its
+    reviewed paths. ``reviewed_files is None`` — unreported coverage, or
+    coverage at/above threshold — always counts, so the coverage feature
+    can only ever narrow a panel from what it counted before, never widen
+    it artificially. A finding with no ``file_path`` cannot be file-gated,
+    so every vendor counts.
+    """
+    if not file_path:
+        return len(vendor_results)
+    count = 0
+    for vr in vendor_results:
+        if vr.reviewed_files is None or any(
+            _paths_match(file_path, p) for p in vr.reviewed_files
+        ):
+            count += 1
+    return count
+
+
 def _tokenize(text: str) -> set[str]:
     """Tokenize text for Jaccard similarity."""
     return {w.lower().strip(".,;:!?()[]{}\"'") for w in text.split() if len(w) > 2}
@@ -242,21 +328,39 @@ def _jaccard(a: set[str], b: set[str]) -> float:
     return intersection / union if union > 0 else 0.0
 
 
-def match_score(a: Finding, b: Finding) -> tuple[float, str]:
-    """Compute match score and basis between two findings.
+def _normalize_snippet(code: str) -> str:
+    """Normalize an existing_code snippet for equality comparison.
 
-    Score bands are calibrated so each is reachable at the default 0.6
-    threshold with realistic inputs — independent LLMs never produce
-    verbatim-identical descriptions, so every band must clear the
-    threshold on paraphrased agreement.
+    Splits into lines, strips whitespace and one leading diff marker
+    (+/-) per line, drops blank lines, rejoins with newline. Mirrors
+    line_resolver's line-level normalization so a snippet compares equal
+    across vendors regardless of indentation or which side of the diff
+    (old/new) it was quoted from.
+    """
+    lines: list[str] = []
+    for raw in code.split("\n"):
+        line = raw.strip()
+        if line.startswith(("+", "-")):
+            line = line[1:].strip()
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def _fast_path_score(a: Finding, b: Finding) -> tuple[float, str]:
+    """Location and snippet bands only -- no Jaccard, no judgment.
+
+    Split out from ``match_score`` (design D1 of
+    ``judge-cross-vendor-finding-matching-in-consensus-synthesizer``) so
+    ``_match_all`` can determine, for every candidate pair, whether it is
+    resolved without ever needing an LLM call: a pair scored here is never
+    routed to ``_judge_pairs``. Axis mismatch is checked first since it
+    gates every band, fast or not.
 
     Returns:
         (score, basis) where score is 0.0-1.0 and basis describes
-        the matching criteria used.
+        the matching criteria used, or (0.0, "") when neither band fires.
     """
-    # Axis is part of the cross-vendor matching key: an observability
-    # finding and a correctness finding on the same lines are two distinct
-    # signals, and merging them would silently drop one.
     if _canonical_axis(a.axis) != _canonical_axis(b.axis):
         return 0.0, ""
 
@@ -274,6 +378,46 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
                 return 0.95, "location+type"
             return 0.8, "location"
 
+    # Snippet match: a shared verbatim excerpt is stronger evidence than
+    # vendor line arithmetic, so two findings on the same file and axis
+    # whose existing_code normalizes identically score in the highest band
+    # even when their vendor-reported lines have drifted apart or are
+    # missing entirely.
+    if same_file and a.existing_code and b.existing_code:
+        if _normalize_snippet(a.existing_code) == _normalize_snippet(b.existing_code):
+            return 0.9, "snippet"
+
+    return 0.0, ""
+
+
+def match_score(a: Finding, b: Finding) -> tuple[float, str]:
+    """Compute match score and basis between two findings.
+
+    Score bands are calibrated so each is reachable at the default 0.6
+    threshold with realistic inputs — independent LLMs never produce
+    verbatim-identical descriptions, so every band must clear the
+    threshold on paraphrased agreement.
+
+    This is the deterministic scorer only -- fast paths (location, snippet)
+    plus Jaccard token-overlap. It never calls a judged path; that is
+    orchestrated separately by ``ConsensusSynthesizer._match_all`` via
+    ``_judge_pairs``, so this function's behavior (and every existing
+    caller's, including ``review_ledger.py``'s dedup matching) is unchanged
+    by that feature.
+
+    Returns:
+        (score, basis) where score is 0.0-1.0 and basis describes
+        the matching criteria used.
+    """
+    fast_score, fast_basis = _fast_path_score(a, b)
+    if fast_score > 0.0:
+        return fast_score, fast_basis
+
+    if _canonical_axis(a.axis) != _canonical_axis(b.axis):
+        return 0.0, ""
+
+    same_type = _types_compatible(a.type, b.type)
+    same_file = _paths_match(a.file_path, b.file_path)
     desc_sim = _jaccard(_tokenize(a.description), _tokenize(b.description))
 
     if same_file and same_type and desc_sim >= 0.25:
@@ -286,6 +430,60 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         return min(0.3 + desc_sim * 0.6, 0.75), "type+description"
 
     return 0.0, ""
+
+
+def _judge_pairs(
+    file_path: str, pairs: list[tuple[Finding, Finding]],
+) -> dict[int, float]:
+    """Judge every same-file, same-axis candidate pair unresolved by the
+    fast paths, in one batched ``decide()`` call (design D1/D2).
+
+    Builds one shared per-file state and one ``Noul`` question per pair, so
+    a file with N judgeable pairs costs exactly one call regardless of N.
+    Returns a ``{pair_index: noul_confidence}`` map covering only the pairs
+    that got an answer; a missing index means ``decide()`` was unavailable
+    (or answered nothing for that index), and the caller falls back to
+    ``match_score``'s Jaccard bands for it (design D3).
+
+    Called only from ``ConsensusSynthesizer._match_all``. ``match_score``
+    and ``review_ledger.py``'s dedup matching are unaffected.
+    """
+    if not pairs or system_one_decisions is None:
+        return {}
+
+    state = {
+        "file_path": file_path,
+        "pairs": {
+            f"pair_{i}": {
+                "a": {"vendor": a.vendor, "description": a.description},
+                "b": {"vendor": b.vendor, "description": b.description},
+            }
+            for i, (a, b) in enumerate(pairs)
+        },
+    }
+    questions = {
+        f"pair_{i}": {
+            "type": "noul",
+            "instructions": (
+                f"In state.pairs.pair_{i}, findings a and b describe the "
+                "same underlying defect."
+            ),
+        }
+        for i in range(len(pairs))
+    }
+
+    answers = system_one_decisions.decide(
+        state, questions, site="parallel-infrastructure.consensus_match",
+    )
+    if answers is None:
+        return {}
+
+    result: dict[int, float] = {}
+    for i in range(len(pairs)):
+        answer = answers.get(f"pair_{i}")
+        if answer is not None:
+            result[i] = max(0.0, min(1.0, float(answer.noul)))
+    return result
 
 
 def _higher_criticality(a: str, b: str) -> str:
@@ -325,7 +523,25 @@ def _agreed_axis(findings: list[Finding]) -> str:
 # Synthesizer
 # ---------------------------------------------------------------------------
 
-MATCH_THRESHOLD = 0.6
+
+def _default_match_threshold() -> float:
+    """Return the cross-vendor match-score threshold, sourced from the
+    review-rules sidecar when available, else its documented default.
+
+    Same shape as ``_coverage_quorum_threshold`` below, and for the same
+    reason: this module's CLI has no natural ``cwd`` to resolve a project
+    override against, so it uses the embedded default rather than the full
+    ``review_rules.load_config`` resolution chain.
+    """
+    try:
+        import review_rules
+
+        return review_rules.DEFAULT_MATCH_THRESHOLD
+    except Exception:  # noqa: BLE001 — degrade to the documented default
+        return 0.6
+
+
+MATCH_THRESHOLD = _default_match_threshold()
 
 
 class ConsensusSynthesizer:
@@ -367,18 +583,29 @@ class ConsensusSynthesizer:
         matches = self._match_all(all_findings)
 
         # Classify matches into consensus findings
-        consensus_findings = self._classify(matches)
+        consensus_findings = self._classify(matches, successful)
 
         # Compute summary counts
         confirmed = sum(1 for cf in consensus_findings if cf.status == "confirmed")
         unconfirmed = sum(1 for cf in consensus_findings if cf.status == "unconfirmed")
         disagreement = sum(1 for cf in consensus_findings if cf.status == "disagreement")
+        # Judgment-class findings never block. They are frequently the most
+        # interesting findings in the report — business-logic flaws and
+        # authorization confusion are exactly what a model notices and a rule set
+        # cannot — but they are not reproducible, and a gate whose verdict is not
+        # reproducible cannot be trusted or bisected against. They are surfaced
+        # and ranked; a human decides. A deterministic finding that a model also
+        # agrees with is still deterministic, so corroboration never demotes.
         blocking = sum(
             1
             for cf in consensus_findings
-            if (cf.status == "confirmed" and cf.recommended_disposition == "fix")
-            or cf.status == "disagreement"
+            if cf.evidence_class != JUDGMENT
+            and (
+                (cf.status == "confirmed" and cf.recommended_disposition == "fix")
+                or cf.status == "disagreement"
+            )
         )
+        advisory = sum(1 for cf in consensus_findings if cf.evidence_class == JUDGMENT)
 
         return ConsensusReport(
             review_type=review_type,
@@ -393,61 +620,201 @@ class ConsensusSynthesizer:
             unconfirmed_count=unconfirmed,
             disagreement_count=disagreement,
             blocking_count=blocking,
+            advisory_count=advisory,
         )
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
-        """Match findings across vendors using greedy best-match."""
-        used: set[tuple[str, int]] = set()
-        matches: list[FindingMatch] = []
+        """Match findings across vendors using greedy best-match.
 
-        # Group findings by vendor
-        by_vendor: dict[str, list[Finding]] = {}
-        for f in findings:
-            by_vendor.setdefault(f.vendor, []).append(f)
+        Every finding starts as its own primary (`by_primary`); a match is
+        recorded by *merging* one primary into another (`merge`), never by
+        an eager, order-dependent "used" flag -- a primary with an
+        unresolved vendor slot stays a fully live candidate for every later
+        pass, and `_consensus_evidence_class` reads `judged_vendors` off
+        the surviving primary rather than a single overwritable `basis`
+        string (Codex review, PR #590 P1: matching and evidence-class must
+        not depend on vendor iteration order).
 
-        vendors = list(by_vendor.keys())
+        Three passes (design D1-D3), each scoring every still-live,
+        cross-vendor pair with an unfilled slot up front and merging
+        strongest-first, so a primary with multiple same-vendor candidates
+        still gets its single best match rather than merely the first one
+        to clear the threshold:
 
-        # For each finding, find best matches from other vendors
-        for f in findings:
-            key = (f.vendor, f.id)
-            if key in used:
-                continue
+        1. Fast paths (location, snippet) -- zero `decide()` calls.
+        2. Batched judgment: every same-file, same-axis pair still live
+           after pass 1 is judged in exactly one `decide()` call *per
+           file*, spanning every primary and vendor on that file at once
+           -- not one call per primary (Codex review, PR #590 P2).
+        3. Jaccard fallback for everything still unresolved.
 
-            match = FindingMatch(primary=f)
-            used.add(key)
+        Note: unlike the pre-judgment algorithm (which scored fast-path,
+        judged, and Jaccard bands together for a pair in one comparison),
+        a fast-path hit in pass 1 is taken before judgment or Jaccard is
+        ever tried for that pair. Both later bands are still tried for
+        every pair pass 1 left unresolved, so total coverage is unchanged;
+        only a narrow tie-break between a fast-path score for one candidate
+        and a higher Jaccard score for a *different* candidate from the
+        same vendor could in principle differ.
+        """
+        def key_of(x: Finding) -> tuple[str, int]:
+            return (x.vendor, x.id)
 
-            # Find matches from other vendors
-            for other_vendor in vendors:
-                if other_vendor == f.vendor:
-                    continue
-                best_score = 0.0
-                best_match: Finding | None = None
-                best_basis = ""
-                for candidate in by_vendor[other_vendor]:
-                    ckey = (candidate.vendor, candidate.id)
-                    if ckey in used:
+        # Every finding starts as its own primary. Passes 1-3 never delete a
+        # finding; a match is recorded by *merging* the loser primary's own
+        # match into the winner's (`merge`), so every primary considered by
+        # a later pass is always still live -- there is no separate "used"
+        # bookkeeping to fall out of sync with (the bug Codex's P1 finding
+        # on PR #590 caught: a single overwritable `basis`/eager-"used"
+        # scheme made matching depend on vendor iteration order).
+        by_primary: dict[tuple[str, int], FindingMatch] = {
+            key_of(f): FindingMatch(primary=f) for f in findings
+        }
+        filled_slots: set[tuple[tuple[str, int], str]] = set()
+
+        def merge(winner_key: tuple[str, int], loser_key: tuple[str, int], score: float, basis: str) -> None:
+            winner = by_primary[winner_key]
+            loser = by_primary.pop(loser_key)
+            winner.matched.append(loser.primary)
+            winner.score = max(winner.score, score)
+            winner.basis = basis
+            if basis == "judged":
+                winner.judged_vendors.add(loser.primary.vendor)
+            filled_slots.add((winner_key, loser.primary.vendor))
+            # Reparent whatever the loser had already matched (rare: only
+            # possible with 3+ vendors), and everything it renders unavailable.
+            for m in loser.matched:
+                winner.matched.append(m)
+                filled_slots.add((winner_key, m.vendor))
+            winner.judged_vendors |= loser.judged_vendors
+
+        def live_pairs() -> list[tuple[tuple[str, int], tuple[str, int]]]:
+            """Every unordered pair of still-live, cross-vendor primaries
+            with an unfilled slot in both directions."""
+            keys = list(by_primary.keys())
+            pairs = []
+            for i, pk in enumerate(keys):
+                p = by_primary[pk].primary
+                for qk in keys[i + 1:]:
+                    q = by_primary[qk].primary
+                    if p.vendor == q.vendor:
                         continue
-                    s, basis = match_score(f, candidate)
-                    if s > best_score:
-                        best_score = s
-                        best_match = candidate
-                        best_basis = basis
+                    if (pk, q.vendor) in filled_slots or (qk, p.vendor) in filled_slots:
+                        continue
+                    pairs.append((pk, qk))
+            return pairs
 
-                if best_match and best_score >= self.match_threshold:
-                    match.matched.append(best_match)
-                    match.score = max(match.score, best_score)
-                    match.basis = best_basis
-                    used.add((best_match.vendor, best_match.id))
+        # Pass 1: fast paths only -- zero decide() calls. Scored for every
+        # live pair up front and merged strongest-first, so a primary with
+        # multiple same-vendor candidates still gets its single best match
+        # (as the pre-judgment algorithm did), not merely the first one
+        # found to clear the threshold.
+        fast_scored: list[tuple[float, str, tuple[str, int], tuple[str, int]]] = []
+        for pk, qk in live_pairs():
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            score, basis = _fast_path_score(p, q)
+            if score >= self.match_threshold:
+                fast_scored.append((score, basis, pk, qk))
+        for score, basis, pk, qk in sorted(fast_scored, key=lambda t: t[0], reverse=True):
+            if pk not in by_primary or qk not in by_primary:
+                continue
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            if (pk, q.vendor) in filled_slots or (qk, p.vendor) in filled_slots:
+                continue
+            merge(pk, qk, score, basis)
 
-            matches.append(match)
+        # Pass 2: batched judgment. Every same-file, same-axis pair among
+        # still-live primaries is judged in exactly one decide() call per
+        # file, regardless of how many primaries or vendors it spans.
+        by_file: dict[str, list[tuple[tuple[str, int], tuple[str, int]]]] = {}
+        for pk, qk in live_pairs():
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            if not p.file_path or not q.file_path:
+                continue
+            if _canonical_axis(p.axis) != _canonical_axis(q.axis):
+                continue
+            if not _paths_match(p.file_path, q.file_path):
+                continue
+            by_file.setdefault(_normalize_path(p.file_path), []).append((pk, qk))
 
-        return matches
+        judged: list[tuple[float, tuple[str, int], tuple[str, int]]] = []
+        for file_path, pairs in by_file.items():
+            finding_pairs = [
+                (by_primary[pk].primary, by_primary[qk].primary) for pk, qk in pairs
+            ]
+            scores = _judge_pairs(file_path, finding_pairs)
+            for idx, (pk, qk) in enumerate(pairs):
+                s = scores.get(idx)
+                if s is not None:
+                    judged.append((s, pk, qk))
 
-    def _classify(self, matches: list[FindingMatch]) -> list[ConsensusFinding]:
+        for score, pk, qk in sorted(judged, key=lambda t: t[0], reverse=True):
+            if score < self.match_threshold:
+                continue
+            if pk not in by_primary or qk not in by_primary:
+                continue
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            if (pk, q.vendor) in filled_slots or (qk, p.vendor) in filled_slots:
+                continue
+            merge(pk, qk, score, "judged")
+
+        # Pass 3: Jaccard fallback for everything still unresolved, same
+        # strongest-first merge order as pass 1.
+        jaccard_scored: list[tuple[float, str, tuple[str, int], tuple[str, int]]] = []
+        for pk, qk in live_pairs():
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            score, basis = match_score(p, q)
+            if score >= self.match_threshold:
+                jaccard_scored.append((score, basis, pk, qk))
+        for score, basis, pk, qk in sorted(jaccard_scored, key=lambda t: t[0], reverse=True):
+            if pk not in by_primary or qk not in by_primary:
+                continue
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            if (pk, q.vendor) in filled_slots or (qk, p.vendor) in filled_slots:
+                continue
+            merge(pk, qk, score, basis)
+
+        return [by_primary[key_of(f)] for f in findings if key_of(f) in by_primary]
+
+    @staticmethod
+    def _consensus_evidence_class(match: "FindingMatch") -> str:
+        """JUDGMENT when any contributing vendor was matched via the judged
+        path, or when every contributing finding was judgment-class.
+
+        `match.judged_vendors` (not `match.basis`, which only ever holds
+        the single most-recently-assigned basis string and can be
+        overwritten by a later fast-path/Jaccard match against a
+        *different* vendor) tracks every vendor whose contribution came
+        from judgment. Any non-empty set is always JUDGMENT,
+        unconditionally -- a probabilistic cross-vendor pairing can never
+        promote a consensus finding into the blocking count, regardless of
+        how confident the contributing findings' own evidence classes are,
+        and regardless of vendor iteration order (Codex review, PR #590).
+
+        Otherwise: one deterministic corroboration is enough to make the
+        consensus finding blockable. The reproducible observation is what
+        carries it; a model agreeing with a failing test does not make the
+        test less real, and the reverse — letting one judgment voice demote
+        a reproducible finding out of the blocking count — would be a way
+        to talk a gate out of firing.
+        """
+        if match.judged_vendors:
+            return JUDGMENT
+        contributing = [match.primary, *match.matched]
+        return (
+            JUDGMENT
+            if all(f.evidence_class == JUDGMENT for f in contributing)
+            else DETERMINISTIC
+        )
+
+    def _classify(
+        self, matches: list[FindingMatch], successful: list[VendorResult],
+    ) -> list[ConsensusFinding]:
         """Classify matches into confirmed/unconfirmed/disagreement."""
         results: list[ConsensusFinding] = []
 
         for i, m in enumerate(matches, 1):
+            eligible = _eligible_vendor_count(m.primary.file_path, successful)
             if not m.matched:
                 # Single vendor finding — unconfirmed
                 results.append(ConsensusFinding(
@@ -462,6 +829,8 @@ class ConsensusSynthesizer:
                     recommended_disposition="accept",
                     description=m.primary.description,
                     agreed_axis=_canonical_axis(m.primary.axis),
+                    evidence_class=self._consensus_evidence_class(m),
+                    eligible_vendors=eligible,
                 ))
                 continue
 
@@ -494,6 +863,8 @@ class ConsensusSynthesizer:
                     recommended_disposition=m.primary.disposition,
                     description=m.primary.description,
                     agreed_axis=_agreed_axis([m.primary, *m.matched]),
+                    evidence_class=self._consensus_evidence_class(m),
+                    eligible_vendors=eligible,
                 ))
             else:
                 # Disposition disagreement
@@ -513,6 +884,8 @@ class ConsensusSynthesizer:
                     description=m.primary.description,
                     vendor_dispositions=all_dispositions,
                     agreed_axis=_agreed_axis([m.primary, *m.matched]),
+                    evidence_class=self._consensus_evidence_class(m),
+                    eligible_vendors=eligible,
                 ))
 
         return results
@@ -540,6 +913,7 @@ class ConsensusSynthesizer:
                     "agreed_criticality": cf.agreed_criticality,
                     "recommended_disposition": cf.recommended_disposition,
                     "description": cf.description,
+                    "eligible_vendors": cf.eligible_vendors,
                     **({"vendor_dispositions": cf.vendor_dispositions} if cf.vendor_dispositions else {}),
                 }
                 for cf in report.consensus_findings
@@ -550,6 +924,7 @@ class ConsensusSynthesizer:
                 "unconfirmed_count": report.unconfirmed_count,
                 "disagreement_count": report.disagreement_count,
                 "blocking_count": report.blocking_count,
+                "advisory_count": report.advisory_count,
             },
         }
 
@@ -749,6 +1124,47 @@ def _resolve_canonical_schema(schema_arg: str | None) -> dict[str, Any]:
         ) from exc
 
 
+def _coverage_quorum_threshold() -> float:
+    """Return the coverage-eligibility threshold (D5), sourced from the
+    review-rules sidecar when available, else its documented default.
+
+    Duplicated from ``review_rules.DEFAULT_COVERAGE_QUORUM_THRESHOLD``
+    rather than requiring repo-root/project-layer resolution here: the
+    synthesizer's CLI has no natural ``cwd`` to resolve a project override
+    against (it reads findings files, not a worktree), so it uses the
+    embedded default. A project override is honored where it is resolved —
+    the dispatcher — and recorded on disk in each vendor's ``coverage.rate``,
+    which this threshold is compared against.
+    """
+    try:
+        import review_rules
+
+        return review_rules.DEFAULT_COVERAGE_QUORUM_THRESHOLD
+    except Exception:  # noqa: BLE001 — degrade to the documented default
+        return 0.8
+
+
+def _reviewed_files_from_coverage(
+    coverage: Any, *, threshold: float,
+) -> frozenset[str] | None:
+    """Derive ``VendorResult.reviewed_files`` from a per-vendor coverage block.
+
+    Returns ``None`` (full eligibility) when there is no coverage block, no
+    computed ``rate``, or the rate is at/above *threshold* — matching D5:
+    coverage only ever narrows eligibility, and only when reported below
+    the quorum threshold.
+    """
+    if not isinstance(coverage, dict):
+        return None
+    rate = coverage.get("rate")
+    reviewed = coverage.get("reviewed")
+    if not isinstance(rate, (int, float)) or isinstance(rate, bool):
+        return None
+    if rate >= threshold or not isinstance(reviewed, list):
+        return None
+    return frozenset(str(p) for p in reviewed if isinstance(p, str))
+
+
 def _validate_vendor_document(
     data: dict[str, Any], path: Path, schema: dict[str, Any]
 ) -> None:
@@ -813,6 +1229,22 @@ def main() -> int:
             "findings-gen-eval.json as a behavioral source)."
         ),
     )
+    parser.add_argument(
+        "--judgment-vendor",
+        action="append",
+        default=[],
+        metavar="VENDOR",
+        help=(
+            "Mark every finding from VENDOR as judgment-class, so it is ranked "
+            "and reported but never counted as blocking. Repeatable. Declared "
+            "here by the caller that chose the reviewer, rather than read from "
+            "the payload: a model asked to self-label its own findings as "
+            "non-blocking has every incentive to do the opposite, and the whole "
+            "point of the distinction is that it cannot be argued with. A "
+            "payload may still declare evidence_class itself, but only ever "
+            "toward judgment — nothing here can promote a finding to blocking."
+        ),
+    )
     parser.add_argument("--output", required=True, help="Output consensus JSON path")
     parser.add_argument("--quorum", type=int, default=2, help="Minimum reviewers")
     parser.add_argument(
@@ -828,6 +1260,7 @@ def main() -> int:
     # Load per-vendor findings
     vendor_results: list[VendorResult] = []
     findings_paths: list[Path] = [Path(p) for p in args.findings]
+    judgment_vendors = set(args.judgment_vendor)
 
     if args.input_dir:
         input_dir = Path(args.input_dir)
@@ -843,6 +1276,7 @@ def main() -> int:
     # against it so a drifted finding (missing required field / wrong enum)
     # fails loudly here rather than passing silently into consensus.
     canonical_schema = _resolve_canonical_schema(args.schema)
+    coverage_quorum_threshold = _coverage_quorum_threshold()
 
     for p in findings_paths:
         if not p.exists():
@@ -863,7 +1297,15 @@ def main() -> int:
             Finding.from_dict(f, vendor=vendor)
             for f in data.get("findings", [])
         ]
-        vendor_results.append(VendorResult(vendor=vendor, findings=findings))
+        if vendor in judgment_vendors:
+            for finding in findings:
+                finding.evidence_class = JUDGMENT
+        reviewed_files = _reviewed_files_from_coverage(
+            data.get("coverage"), threshold=coverage_quorum_threshold,
+        )
+        vendor_results.append(
+            VendorResult(vendor=vendor, findings=findings, reviewed_files=reviewed_files)
+        )
 
     # Additive behavioral source: load findings-gen-eval.json from
     # --input-dir (if provided). Missing file is not an error.
@@ -911,6 +1353,7 @@ def main() -> int:
           f"{report.unconfirmed_count} unconfirmed, "
           f"{report.disagreement_count} disagreement)")
     print(f"Blocking: {report.blocking_count}")
+    print(f"Advisory (judgment-class, non-blocking): {report.advisory_count}")
     print(f"Quorum: {'met' if report.quorum_met else 'NOT met'} "
           f"({report.quorum_received}/{report.quorum_requested})")
     print(f"Written to: {args.output}")

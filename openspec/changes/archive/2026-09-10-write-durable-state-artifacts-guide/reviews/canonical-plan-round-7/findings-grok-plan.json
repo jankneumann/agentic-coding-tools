@@ -1,0 +1,91 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Unchecked task 3.2 explicitly owns the archive-stability repair: Coverage requires resolving the design artifact with `change_dir(ROOT, CHANGE_ID)` from `openspec_paths` and preserving the eight-stage assertion after archival. design.md D4 states the same SHALL for any OpenSpec change-artifact lookup. The current literal path in `skills/tests/state-artifacts/test_state_artifacts_guide.py` is therefore pending implementation work the plan already testably requires, not a plan gap. That helper and the path-stability suite exist on `origin/main` (`skills/tests/_shared/openspec_paths.py`, `skills/tests/openspec_paths/`).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No plan change; implement unchecked task 3.2 against the main-landed `openspec_paths.change_dir` API.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": "62-67"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 3.3 and the work package both require the OpenSpec path-stability guard and base-relative context-impact validation. tasks.md 3.3 Coverage names the path-stability and CI test-coverage guards plus base-relative context-impact validation; work-packages.yaml runs `pytest skills/tests/state-artifacts skills/tests/openspec_paths` and `validate_context_impact.py ... --base main`.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action; keep the package gate and the fuller task 3.3 matrix aligned on these two guards.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": "109-144"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "context_impact.surfaces declares the full set `documentation`, `decisions`, `capabilities`, and `semantic_code`, matching proposal Impact (`docs/decisions/skill-workflow.md`, modified capability `skill-workflow`) while rationalizing only the schema-required no-contract OpenAPI README stub as a non-API change.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action; retain the four declared surfaces and the approved apis rationale.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": "90-100"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The shared eight-stage contract excludes the supervise-local cycle ledger. design.md lists stages 1\u20138 without the ledger, then states that `openspec/supervise/cycle-ledger.json` may be validated as phase-local operational state and is not part of the shared eight-stage authority contract or the five-class inventory. The skill-workflow delta names the same eight stages and does not elevate the ledger.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action; keep the shared-versus-local boundary.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": "37-48"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The recent-learning window stays bounded without freezing a numeric default or inventing a configuration surface. The delta requires a bounded window without making its numeric bound part of this documentation contract; design stage 5 says the bounded recent window is selected by roadmap runtime; task 2.1 Coverage forbids freezing the numeric default; and the normative plan docs no longer use the inaccurate `runtime-configured` wording.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action; keep the numeric bound outside this documentation-only contract.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": "21"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Guide references are repository-relative and install payload portability is gated. The delta requires the bare repository-relative `docs/guides/state-artifacts.md` reference in the six named skill sources; design D1 and the Risks mitigation tie `skills/install.sh --check` to payload portability and the non-escaping reference form; work-packages.yaml and task 3.3 both run that check.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action; finish any remaining reference-form normalization under unchecked task 3.2 without expanding scope.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": "46-51"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The change remains a justified single sequential documentation package. design.md Scope and Concurrency states that the guide, skill references, mirrors, and one test module form one package because concurrent edits to shared skill files would create avoidable conflicts and forbids repository-wide write globs; work-packages.yaml declares only `wp-state-artifacts-docs` with an explicit write allowlist and no parallel siblings.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action; do not split the package or expand beyond the documentation-only allowlist.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": "50-52"
+    }
+  ]
+}

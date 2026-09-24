@@ -1,0 +1,46 @@
+{
+  "review_type": "implementation",
+  "target": "wp-readiness-runtime",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "The roadmap JSON Schema does not enforce unique item_id values. Two non-identical items with the same item_id therefore load successfully, making checkpoint identity and ready output ambiguous instead of failing closed.",
+      "resolution": "Add a semantic duplicate-item-id check during roadmap loading, surface roadmap_invalid, and pin it with a RED regression.",
+      "disposition": "fix",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "readiness_exit_code is unit-tested, but the actual main() boundary is not directly pinned to emit parseable JSON while returning 2 for hard-invalid canonical input.",
+      "resolution": "Add a direct CLI-boundary test covering stdout and the non-zero status.",
+      "disposition": "fix",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/tests/roadmap-runtime/test_readiness.py",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The sole helper definition, required imports, checkpoint authority split, supervisor projection, deterministic ordering, and bounded diagnostics otherwise match the approved design and 463 focused tests pass.",
+      "resolution": "Accept the architecture after findings 1 and 2 are fixed.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/readiness.py",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

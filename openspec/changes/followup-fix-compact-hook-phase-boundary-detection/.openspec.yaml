@@ -1,0 +1,9 @@
+schema: feature-workflow
+created: 2026-09-08
+
+# No spec delta: the gate semantics are already a merged requirement under the
+# `skill-workflow` capability, added by the parent change
+# `fix-compact-hook-phase-boundary-detection`. The surviving task is a conditional
+# documentation touch-up, which `openspec validate` directs to declare skip_specs
+# rather than invent a requirement for.
+skip_specs: true

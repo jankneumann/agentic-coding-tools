@@ -1,0 +1,462 @@
+{
+  "schema_version": 2,
+  "change_id": "add-visual-code-explainer",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "631306eee970d16a37a7d3ba04fce8c5dda09e840082c2c6e16ede054200e041",
+  "char_length": 100000,
+  "budget_chars": 100000,
+  "tools_overflow": true,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 20000,
+    "selected": [
+      {
+        "path": "openspec/changes/add-visual-code-explainer/design.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2354
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/proposal.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1896
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1756
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2553
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/tasks.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4383
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/work-packages.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 960
+      },
+      {
+        "path": "skills/codebase-atlas/SKILL.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 253
+      },
+      {
+        "path": "skills/codebase-atlas/scripts/atlas_tree.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2944
+      },
+      {
+        "path": "skills/codebase-atlas/scripts/build_atlas.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 648
+      },
+      {
+        "path": "skills/explain-code/SKILL.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 871
+      },
+      {
+        "path": "skills/explain-code/references/call-tree.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 254
+      },
+      {
+        "path": "skills/explain-code/references/component-tree.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 250
+      },
+      {
+        "path": "skills/explain-code/references/file-tree.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 239
+      },
+      {
+        "path": "skills/explain-code/references/grounding.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1048
+      },
+      {
+        "path": "skills/explain-code/references/sequence.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 268
+      },
+      {
+        "path": "skills/explain-code/references/structural-diff.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 295
+      },
+      {
+        "path": "skills/install-manifest.json",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 161
+      },
+      {
+        "path": "skills/pyproject.toml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 100
+      },
+      {
+        "path": "skills/tests/codebase-atlas/test_atlas_tree.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4017
+      },
+      {
+        "path": "skills/tests/codebase-atlas/test_skill_md.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 209
+      },
+      {
+        "path": "skills/tests/explain-code/test_behaviour.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 650
+      },
+      {
+        "path": "skills/tests/explain-code/test_skill_md.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 581
+      }
+    ],
+    "excluded": [
+      {
+        "path": "docs/decisions/README.md",
+        "status": "modified",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 145
+      },
+      {
+        "path": "docs/decisions/codebase-analysis.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 197
+      },
+      {
+        "path": "docs/decisions/skill-workflow.md",
+        "status": "modified",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 272
+      },
+      {
+        "path": "docs/proposals/codebase-visualization-tool.md",
+        "status": "modified",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 376
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-antigravity.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 225
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 270
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 198
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-grok.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 159
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/fact-check-pi.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 178
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-antigravity-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 725
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2959
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 759
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-grok-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1527
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings-pi-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 538
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/findings.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1090
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-antigravity-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 180
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 180
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 185
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-grok-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 172
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 180
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 752
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-cache/round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2231
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/.review-ledger/ledger.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 7698
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/change-context.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1266
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/handoffs/impl-iterate-1662359d.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 656
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/handoffs/implement-6f47d347.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 618
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/handoffs/implementation-1.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 663
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/handoffs/plan-review-cb1eda0e.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1138
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/plan-findings.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1424
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/reviews/README.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 145
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/reviews/parked-disagreements.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 192
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/session-log.md",
+        "status": "modified",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2762
+      }
+    ],
+    "truncated": [
+      "skills/tests/codebase-atlas/test_atlas_tree.py",
+      "skills/tests/codebase-atlas/test_skill_md.py",
+      "skills/tests/explain-code/test_behaviour.py",
+      "skills/tests/explain-code/test_skill_md.py"
+    ]
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/add-visual-code-explainer/design.md",
+        "openspec/changes/add-visual-code-explainer/proposal.md",
+        "openspec/changes/add-visual-code-explainer/tasks.md",
+        "openspec/changes/add-visual-code-explainer/work-packages.yaml",
+        "skills/explain-code/references/call-tree.md",
+        "skills/explain-code/references/component-tree.md",
+        "skills/explain-code/references/file-tree.md",
+        "skills/explain-code/references/grounding.md",
+        "skills/explain-code/references/sequence.md",
+        "skills/explain-code/references/structural-diff.md",
+        "skills/install-manifest.json",
+        "skills/pyproject.toml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md",
+        "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "skills/*/SKILL.md",
+      "files": [
+        "skills/codebase-atlas/SKILL.md",
+        "skills/explain-code/SKILL.md"
+      ]
+    },
+    {
+      "group_id": 4,
+      "source": "default",
+      "pattern": "skills/*/scripts/*.py",
+      "files": [
+        "skills/codebase-atlas/scripts/atlas_tree.py",
+        "skills/codebase-atlas/scripts/build_atlas.py"
+      ]
+    },
+    {
+      "group_id": 5,
+      "source": "default",
+      "pattern": "skills/tests/**",
+      "files": [
+        "skills/tests/codebase-atlas/test_atlas_tree.py",
+        "skills/tests/codebase-atlas/test_skill_md.py",
+        "skills/tests/explain-code/test_behaviour.py",
+        "skills/tests/explain-code/test_skill_md.py"
+      ]
+    }
+  ]
+}

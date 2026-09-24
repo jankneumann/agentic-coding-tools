@@ -15,7 +15,7 @@ from models import (
     RoadmapItem,
     RoadmapStatus,
 )
-from orchestrator import execute_roadmap
+from orchestrator import _handle_vendor_limit, execute_roadmap
 
 
 def _write_roadmap(workspace: Path, items: list[RoadmapItem] | None = None, **kwargs) -> Roadmap:
@@ -299,8 +299,383 @@ class TestVendorLimitHandling:
             tmp_path,
             dispatch_fn=limit_then_succeed,
             on_policy_decision=lambda d: decisions.append(d),
+            registry_provider=lambda **_: {
+                "status": "ok",
+                "response": {"vendors": [
+                    _registry_lane("codex-cloud", "codex"),
+                ]},
+            },
         )
 
         assert len(decisions) == 1
         assert decisions[0].action == "switch"
         assert len(result["policy_decisions"]) == 1
+
+
+def _registry_lane(agent_id: str, policy_vendor: str) -> dict:
+    return {
+        "agent_id": agent_id,
+        "policy_vendor": policy_vendor,
+        "location": "cloud",
+        "capabilities": ["queue"],
+        "archetypes": ["implementer"],
+        "dispatch_modes": ["alternative"],
+        "dispatchable": True,
+        "availability": {"available": True, "status": "available", "rate_limits": []},
+        "cost": {"known": False, "models": []},
+    }
+
+
+def test_wait_policy_persists_pause_and_does_not_retry_or_select_lane(
+    tmp_path,
+) -> None:
+    reset_at = "2999-09-17T12:00:00+00:00"
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(default_action=PolicyAction.WAIT),
+    )
+    dispatch_calls: list[tuple[str, dict]] = []
+    registry_calls: list[dict] = []
+
+    def dispatch(_item_id, phase, context):
+        dispatch_calls.append((phase, dict(context)))
+        if phase == "implementing":
+            if sum(call_phase == "implementing" for call_phase, _ in dispatch_calls) > 1:
+                raise AssertionError("WAIT policy retried the paused phase")
+            return {
+                "outcome": "vendor_limit:claude:capacity",
+                "agent_id": "claude-local",
+                "capacity_reset_at": reset_at,
+                "capacity_report_status": "persisted",
+            }
+        return "success"
+
+    def registry_provider(**filters):
+        registry_calls.append(filters)
+        return {
+            "status": "ok",
+            "response": {"vendors": [_registry_lane("codex-cloud", "codex")]},
+        }
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        registry_provider=registry_provider,
+    )
+
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert result["status"] == "paused"
+    assert checkpoint["phase"] == "implementing"
+    assert checkpoint["pause_state"]["paused"] is True
+    assert checkpoint["pause_state"]["blocked_vendor"] == "claude"
+    assert checkpoint["pause_state"]["expected_resume_at"] == reset_at
+    assert "capacity" in checkpoint["pause_state"]["reason"]
+    assert [phase for phase, _ in dispatch_calls].count("implementing") == 1
+    assert registry_calls == []
+    decision = result["policy_decisions"][0]["decision"]
+    assert decision["action"] == "wait"
+    assert decision["to_agent_id"] is None
+
+    resumed_dispatches: list[str] = []
+    still_paused = execute_roadmap(
+        tmp_path,
+        dispatch_fn=lambda _item, phase, _context: (
+            resumed_dispatches.append(phase) or "success"
+        ),
+        registry_provider=registry_provider,
+    )
+    assert still_paused["status"] == "paused"
+    assert resumed_dispatches == []
+
+    checkpoint["pause_state"]["expected_resume_at"] = "2000-01-01T00:00:00+00:00"
+    (tmp_path / "checkpoint.json").write_text(json.dumps(checkpoint))
+    resumed = execute_roadmap(
+        tmp_path,
+        dispatch_fn=lambda _item, phase, _context: (
+            resumed_dispatches.append(phase) or "success"
+        ),
+        registry_provider=registry_provider,
+    )
+    assert resumed["status"] == "completed"
+    assert resumed_dispatches[0] == "implementing"
+    resumed_checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    assert resumed_checkpoint.get("pause_state") in (None, {})
+
+
+def test_wait_pause_sanitizes_adapter_reason_only_at_persistence_boundary(
+    tmp_path,
+) -> None:
+    vendor = "claude-api_key=lane-secret"
+    secret_reason = (
+        "capacity token=tok-secret "
+        "raw_response=private upstream payload"
+    )
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(default_action=PolicyAction.WAIT),
+    )
+
+    def dispatch(_item_id, phase, _context):
+        if phase == "implementing":
+            return {
+                "outcome": f"vendor_limit:{vendor}:{secret_reason}",
+                "agent_id": "claude-local",
+                "capacity_reset_at": "2999-09-17T12:00:00+00:00",
+            }
+        return "success"
+
+    result = execute_roadmap(tmp_path, dispatch_fn=dispatch)
+    checkpoint = json.loads((tmp_path / "checkpoint.json").read_text())
+    persisted = checkpoint["pause_state"]
+
+    assert secret_reason in result["policy_decisions"][0]["decision"]["reason"]
+    assert persisted["reason"].startswith("Waiting for")
+    assert "[REDACTED:token]" in persisted["reason"]
+    assert "[REDACTED:raw_response]" in persisted["reason"]
+    assert "tok-secret" not in persisted["reason"]
+    assert "private upstream payload" not in persisted["reason"]
+    assert "[REDACTED:api_key]" in persisted["blocked_vendor"]
+    assert "lane-secret" not in persisted["blocked_vendor"]
+
+
+def test_vendor_limit_uses_registry_lanes_not_hardcoded_roster(tmp_path) -> None:
+    roadmap = _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(default_action=PolicyAction.SWITCH),
+    )
+    calls: list[dict] = []
+
+    def registry_provider(**filters):
+        calls.append(filters)
+        return {
+            "status": "ok",
+            "response": {
+                "vendors": [
+                    _registry_lane("codex-cloud", "codex"),
+                    _registry_lane("custom-cloud", "custom"),
+                ]
+            },
+        }
+
+    decision = _handle_vendor_limit(
+        roadmap,
+        "ri-01",
+        "claude",
+        "capacity",
+        {},
+        registry_provider=registry_provider,
+        phase="implementing",
+    )
+
+    assert decision.action == "switch"
+    assert decision.to_agent_id in {"codex-cloud", "custom-cloud"}
+    assert calls == [{
+        "capability": "queue",
+        "archetype": "implementer",
+        "dispatch_mode": "alternative",
+        "location": None,
+        "available_only": False,
+    }]
+
+
+def test_registry_outage_fails_closed_without_explicit_fallback(tmp_path) -> None:
+    roadmap = _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.SWITCH),
+    )
+
+    decision = _handle_vendor_limit(
+        roadmap, "ri-01", "claude", "capacity", {},
+        registry_provider=lambda **_: {"status": "error", "reason": "server_error"},
+        phase="implementing",
+    )
+
+    assert decision.action == "fail_closed"
+    assert "registry" in decision.reason.lower()
+
+
+def test_explicit_agents_yaml_fallback_has_unknown_state_and_cost(tmp_path) -> None:
+    roadmap = _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.SWITCH),
+    )
+    fallback_lane = _registry_lane("codex-cloud", "codex")
+    fallback_lane["availability"] = {
+        "available": False, "status": "unknown", "rate_limits": []
+    }
+    fallback_lane["cost"] = {"known": False, "models": []}
+
+    decision = _handle_vendor_limit(
+        roadmap, "ri-01", "claude", "capacity", {},
+        registry_provider=lambda **_: {"status": "error", "reason": "timeout"},
+        agents_yaml_fallback=lambda **_: [fallback_lane],
+        phase="implementing",
+    )
+
+    assert decision.action == "switch"
+    assert decision.to_agent_id == "codex-cloud"
+    assert decision.expected_cost_delta_usd is None
+    assert decision.cost_guard == "unavailable"
+
+
+def test_legacy_provider_limit_excludes_all_provider_lanes_for_decision(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(default_action=PolicyAction.SWITCH),
+    )
+    calls = {"count": 0}
+
+    def dispatch(_item_id, _phase, _context):
+        calls["count"] += 1
+        if calls["count"] == 2:
+            return "vendor_limit:claude:capacity"
+        return "success"
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        registry_provider=lambda **_: {
+            "status": "ok",
+            "response": {"vendors": [
+                _registry_lane("claude-local", "claude"),
+                _registry_lane("claude-remote", "claude"),
+                _registry_lane("codex-cloud", "codex"),
+            ]},
+        },
+    )
+
+    decision = result["policy_decisions"][0]["decision"]
+    assert decision["to_agent_id"] == "codex-cloud"
+    assert decision["legacy_provider_scope"] is True
+    assert decision["durable_persistence"] == "skipped_ambiguous"
+
+
+def test_structured_limit_excludes_only_exact_lane(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(
+            default_action=PolicyAction.SWITCH, preferred_vendor="claude"
+        ),
+    )
+    calls = {"count": 0}
+
+    def dispatch(_item_id, _phase, _context):
+        calls["count"] += 1
+        if calls["count"] == 2:
+            return {
+                "outcome": "vendor_limit:claude:capacity",
+                "dispatch_agent_id": "claude-local",
+            }
+        return "success"
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        registry_provider=lambda **_: {
+            "status": "ok",
+            "response": {"vendors": [
+                _registry_lane("claude-local", "claude"),
+                _registry_lane("claude-remote", "claude"),
+                _registry_lane("codex-cloud", "codex"),
+            ]},
+        },
+    )
+
+    decision = result["policy_decisions"][0]["decision"]
+    assert decision["to_agent_id"] == "claude-remote"
+    assert decision["legacy_provider_scope"] is False
+    assert decision["durable_persistence"] == "delegated_unconfirmed"
+
+
+def test_structured_limit_retries_same_phase_on_selected_lane(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem(
+            "ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S, capability="queue"
+        )],
+        policy=Policy(
+            default_action=PolicyAction.SWITCH, preferred_vendor="claude"
+        ),
+    )
+    calls: list[tuple[str, dict]] = []
+
+    def dispatch(_item_id, phase, context):
+        calls.append((phase, dict(context)))
+        implementing_calls = [call for call in calls if call[0] == "implementing"]
+        if phase == "implementing" and len(implementing_calls) == 1:
+            return {
+                "outcome": "vendor_limit:claude:capacity",
+                # Provider/phase carriers use the additive agent_id field.
+                "agent_id": "claude-local",
+                "capacity_report_status": "persisted",
+            }
+        return "success"
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        registry_provider=lambda **_: {
+            "status": "ok",
+            "response": {"vendors": [
+                _registry_lane("claude-local", "claude"),
+                _registry_lane("claude-remote", "claude"),
+            ]},
+        },
+    )
+
+    implementing = [context for phase, context in calls if phase == "implementing"]
+    assert len(implementing) == 2
+    assert implementing[1]["dispatch_agent_id"] == "claude-remote"
+    assert implementing[1]["agent_id"] == "claude-remote"
+    assert result["completed_count"] == 1
+    decision = result["policy_decisions"][0]["decision"]
+    assert decision["legacy_provider_scope"] is False
+    assert decision["durable_persistence"] == "persisted"
+
+
+def test_unconfirmed_dispatch_reporting_is_not_claimed_as_persisted(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+        policy=Policy(default_action=PolicyAction.SWITCH),
+    )
+    calls = {"implementing": 0}
+
+    def dispatch(_item_id, phase, _context):
+        if phase == "implementing":
+            calls["implementing"] += 1
+            if calls["implementing"] == 1:
+                return {
+                    "outcome": "vendor_limit:claude:capacity",
+                    "agent_id": "claude-local",
+                }
+        return "success"
+
+    result = execute_roadmap(
+        tmp_path,
+        dispatch_fn=dispatch,
+        registry_provider=lambda **_: {
+            "status": "ok",
+            "response": {"vendors": [_registry_lane("codex-cloud", "codex")]},
+        },
+    )
+
+    decision = result["policy_decisions"][0]["decision"]
+    assert decision["durable_persistence"] == "delegated_unconfirmed"

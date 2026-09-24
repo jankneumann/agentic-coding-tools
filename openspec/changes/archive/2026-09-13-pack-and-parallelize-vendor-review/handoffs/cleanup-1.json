@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-13T11:39:57.239738+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Post-merge cleanup for PR #533. PR already rebase-merged. All tasks checked; no open-task migration. Archiving the change, merging skill-workflow spec deltas, regenerating docs/decisions/, and tearing down local worktrees for this change and the #532 follow-up.",
+    "completed_work": [
+      "post-merge-verify",
+      "architecture-refresh",
+      "archive",
+      "branch-cleanup"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Post-merge archive without deferred commit",
+        "rationale": "Operator requested cleanup directly; land archive+index on main as one commit rather than waiting on Step 11.6.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "No open-task migration",
+        "rationale": "tasks.md is fully checked; nothing to migrate.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "optional main-context convergence if operator wants Step 11.6"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/archive/",
+        "description": "Archived change destination"
+      },
+      {
+        "path": "openspec/specs/skill-workflow/spec.md",
+        "description": "Merged packet/parallel/verify-then-wire requirements"
+      }
+    ]
+  }
+}

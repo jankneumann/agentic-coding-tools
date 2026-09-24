@@ -10,7 +10,8 @@ import asyncio
 import logging
 import os
 import time
-from datetime import UTC, datetime
+from collections.abc import Awaitable, Callable, Mapping
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,27 @@ _AGING_APPROVAL_THRESHOLD_MINUTES = 15
 _REMINDER_DEBOUNCE_SECONDS = 30 * 60  # 30 minutes
 _LOCK_EXPIRY_WARNING_MINUTES = 10
 _DEFAULT_VENDOR_HEALTH_INTERVAL = 300  # 5 minutes
+_DEFAULT_CATALOG_REFRESH_INTERVAL = 6 * 60 * 60
+_DEFAULT_LOCAL_PROBE_INTERVAL = 5 * 60
+_DEFAULT_LEDGER_ROLLUP_INTERVAL = 5 * 60
+
+RoutingJob = tuple[Callable[[], Awaitable[Any]], int]
+
+
+def _positive_int_env(name: str, default: int) -> int:
+    """Read a positive interval without letting bad optional config disable watchdog."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("Ignoring invalid %s=%r; using %d", name, raw, default)
+        return default
+    if value <= 0:
+        logger.warning("Ignoring non-positive %s=%r; using %d", name, raw, default)
+        return default
+    return value
 
 
 class WatchdogService:
@@ -36,6 +58,10 @@ class WatchdogService:
         db: DatabaseClient | None = None,
         check_interval: int | None = None,
         time_fn: Any = None,
+        routing_jobs: Mapping[str, RoutingJob] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        vendor_health_fn: Callable[[], Any] | None = None,
+        vendor_registry: Any | None = None,
     ) -> None:
         self._db = db
         self._interval = check_interval or int(
@@ -50,12 +76,28 @@ class WatchdogService:
         )
         self._last_vendor_check: float = 0.0
         self._previous_vendor_state: dict[str, bool] = {}  # agent_id -> healthy
+        self._now_fn = now_fn or (lambda: datetime.now(UTC))
+        self._vendor_health_fn = vendor_health_fn
+        self._vendor_registry = vendor_registry
+        self._routing_jobs = (
+            dict(routing_jobs) if routing_jobs is not None else self._default_routing_jobs()
+        )
+        self._last_routing_run: dict[str, float] = {}
 
     @property
     def db(self) -> DatabaseClient:
         if self._db is None:
             self._db = get_db()
         return self._db
+
+    @property
+    def vendor_registry(self) -> Any:
+        if self._vendor_registry is None:
+            from .audit import get_audit_service
+            from .vendor_registry import VendorRegistryService
+
+            self._vendor_registry = VendorRegistryService(db=self.db, audit=get_audit_service())
+        return self._vendor_registry
 
     @property
     def running(self) -> bool:
@@ -89,6 +131,120 @@ class WatchdogService:
         await self._cleanup_expired_tokens()
         await self._check_event_bus_health()
         await self._check_vendor_health()
+        try:
+            await self.vendor_registry.compact_rate_limits()
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Watchdog: vendor rate-limit compaction failed: %s", exc)
+        await self._run_routing_jobs()
+
+    def _default_routing_jobs(self) -> dict[str, RoutingJob]:
+        """Build lazy routing jobs; missing optional credentials degrade safely."""
+
+        async def refresh_catalog() -> dict[str, Any]:
+            api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+            if not api_key:
+                return {"skipped": "OPENROUTER_API_KEY is not configured"}
+            from .model_routing.catalog import CatalogService
+            from .model_routing.refresher import OpenRouterRefresher
+
+            result = await OpenRouterRefresher(CatalogService(self.db), api_key=api_key).refresh()
+            return {"updated": result.updated}
+
+        async def probe_local_endpoints() -> dict[str, Any]:
+            from .model_routing.catalog import CatalogService
+            from .model_routing.local_endpoints import LocalEndpointService
+
+            service = LocalEndpointService(CatalogService(self.db))
+            await service.sync_from_agents_config()
+            results = await service.probe_all()
+            return {
+                "probed": len(results),
+                "available": sum(result.available for result in results),
+            }
+
+        async def sync_configured_catalog() -> dict[str, Any]:
+            from .model_routing.catalog import CatalogService
+            from .model_routing.configured_catalog import ConfiguredCatalogSync
+
+            result = await ConfiguredCatalogSync(catalog=CatalogService(self.db)).sync()
+            return {
+                "inserted": result.inserted,
+                "existing": result.existing,
+                "skipped": result.skipped,
+            }
+
+        async def rollup_ledger() -> dict[str, Any]:
+            from .model_routing.ledger import LedgerService
+
+            return await LedgerService(self.db).rollup_current_month()
+
+        return {
+            "configured_catalog_sync": (
+                sync_configured_catalog,
+                _positive_int_env(
+                    "ROUTING_CATALOG_REFRESH_INTERVAL_SECONDS",
+                    _DEFAULT_CATALOG_REFRESH_INTERVAL,
+                ),
+            ),
+            "catalog_refresh": (
+                refresh_catalog,
+                _positive_int_env(
+                    "ROUTING_CATALOG_REFRESH_INTERVAL_SECONDS",
+                    _DEFAULT_CATALOG_REFRESH_INTERVAL,
+                ),
+            ),
+            "local_endpoint_probe": (
+                probe_local_endpoints,
+                _positive_int_env(
+                    "ROUTING_LOCAL_PROBE_INTERVAL_SECONDS",
+                    _DEFAULT_LOCAL_PROBE_INTERVAL,
+                ),
+            ),
+            "ledger_rollup": (
+                rollup_ledger,
+                _positive_int_env(
+                    "ROUTING_LEDGER_ROLLUP_INTERVAL_SECONDS",
+                    _DEFAULT_LEDGER_ROLLUP_INTERVAL,
+                ),
+            ),
+        }
+
+    async def _run_routing_jobs(self) -> None:
+        """Run due routing jobs independently so one failure cannot stop peers."""
+        current_time = self._time_fn()
+        for name, (job, interval) in self._routing_jobs.items():
+            last_run = self._last_routing_run.get(name)
+            if last_run is not None and current_time - last_run < interval:
+                continue
+            self._last_routing_run[name] = current_time
+            try:
+                await job()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.error("Watchdog routing job %s failed: %s", name, exc, exc_info=True)
+                await self._record_routing_job_failure(name, exc)
+
+    async def _record_routing_job_failure(self, name: str, exc: Exception) -> None:
+        try:
+            await self.db.insert(
+                "audit_log",
+                {
+                    "agent_id": "watchdog",
+                    "agent_type": "system",
+                    "operation": "signal.routing_job_failed",
+                    "parameters": {"job": name},
+                    "result": {},
+                    "success": False,
+                    "error_message": str(exc),
+                },
+            )
+        except Exception as audit_exc:
+            logger.error(
+                "Watchdog could not record routing job failure for %s: %s",
+                name,
+                audit_exc,
+            )
 
     async def _loop(self) -> None:
         """Main loop: run checks at the configured interval."""
@@ -272,51 +428,98 @@ class WatchdogService:
         except Exception as exc:
             logger.error("Watchdog: _check_event_bus_health failed: %s", exc)
 
-    async def _check_vendor_health(self) -> None:
-        """Check vendor CLI/API availability, emit events on state changes.
+    def _load_vendor_health_report(self) -> Any | None:
+        if self._vendor_health_fn is not None:
+            return self._vendor_health_fn()
 
-        Runs at a separate interval (VENDOR_HEALTH_INTERVAL_SECONDS, default 5m)
-        to avoid excessive probing. Skips first run (no baseline).
-        """
+        import importlib.util
+
+        skills_root = Path(
+            os.environ.get(
+                "SKILLS_ROOT",
+                str(Path(__file__).resolve().parent.parent.parent / "skills"),
+            )
+        )
+        vendor_health_path = (
+            skills_root / "parallel-infrastructure" / "scripts" / "vendor_health.py"
+        )
+        if not vendor_health_path.exists():
+            logger.warning("Watchdog: vendor health probe missing at %s", vendor_health_path)
+            return None
+        spec = importlib.util.spec_from_file_location("vendor_health", vendor_health_path)
+        if not spec or not spec.loader:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.check_all_vendors()
+
+    async def _check_vendor_health(self) -> None:
+        """Persist every lane snapshot and emit transitions after the first poll."""
         current_time = self._time_fn()
         if current_time - self._last_vendor_check < self._vendor_health_interval:
             return
         self._last_vendor_check = current_time
 
         try:
-            # Import from parallel-infrastructure scripts
-            import importlib.util
-
-            vendor_health_path = (
-                Path(__file__).resolve().parent.parent.parent
-                / "skills"
-                / "parallel-infrastructure"
-                / "scripts"
-                / "vendor_health.py"
-            )
-            if not vendor_health_path.exists():
+            report = self._load_vendor_health_report()
+            if report is None:
                 return
+            current_state = {vendor.agent_id: vendor.healthy for vendor in report.vendors}
+            observed_at = self._now_fn()
+            stale_after = observed_at + timedelta(seconds=2 * self._vendor_health_interval)
 
-            spec = importlib.util.spec_from_file_location("vendor_health", vendor_health_path)
-            if not spec or not spec.loader:
-                return
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+            for vendor in report.vendors:
+                reason = getattr(vendor, "error", None)
+                if reason == "no_probe_method":
+                    status = "unknown"
+                elif vendor.healthy:
+                    status = "available"
+                    reason = None
+                else:
+                    status = "unavailable"
+                    reason = reason or "probe_failed"
+                try:
+                    await self.vendor_registry.persist_probe(
+                        vendor.agent_id,
+                        observation_id=(
+                            f"watchdog:{vendor.agent_id}:{int(observed_at.timestamp())}"
+                        ),
+                        status=status,
+                        source_agent_id="watchdog",
+                        reason=reason,
+                        observed_at=observed_at,
+                        stale_after=stale_after,
+                        metadata={"probe": "vendor_health"},
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.error(
+                        "Watchdog: failed to persist vendor probe for %s: %s",
+                        vendor.agent_id,
+                        exc,
+                    )
+                    try:
+                        await self.vendor_registry.audit_probe_persistence_failure(
+                            vendor.agent_id,
+                            source_agent_id="watchdog",
+                            reason="probe_persistence_failed",
+                        )
+                    except Exception as audit_exc:  # noqa: BLE001
+                        logger.error(
+                            "Watchdog: failed to audit vendor probe persistence "
+                            "failure for %s: %s",
+                            vendor.agent_id,
+                            audit_exc,
+                        )
 
-            report = mod.check_all_vendors()
-            current_state = {v.agent_id: v.healthy for v in report.vendors}
-
-            # Skip first run (no baseline to compare)
+            # The first poll establishes transition state but still persists snapshots.
             if not self._previous_vendor_state:
                 self._previous_vendor_state = current_state
                 return
 
-            # Detect state changes
             for agent_id, healthy in current_state.items():
                 was_healthy = self._previous_vendor_state.get(agent_id)
                 if was_healthy is None:
-                    continue  # New vendor, skip
-
+                    continue
                 if was_healthy and not healthy:
                     await self._emit_event(
                         channel="coordinator_agent",
@@ -339,8 +542,7 @@ class WatchdogService:
                     logger.info("Watchdog: vendor %s recovered", agent_id)
 
             self._previous_vendor_state = current_state
-
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.error("Watchdog: _check_vendor_health failed: %s", exc)
 
     async def _emit_event(

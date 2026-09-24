@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/review-rules.schema.json",
+  "title": "Review rules sidecar",
+  "description": "Shape of skills/parallel-infrastructure/scripts/review-rules.json (embedded default layer) and of <repo>/.review-rules.json (project layer). Rules are evaluated in declaration order; the first matching glob wins within a layer; the project layer outranks the default layer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rules"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "include": {
+      "type": "array",
+      "description": "Globs that bypass generated_path exclusion. Not a whitelist.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "exclude": {
+      "type": "array",
+      "description": "Globs never reviewed. Highest precedence among path gates.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "generated_paths": {
+      "type": "array",
+      "description": "Globs for vendored, generated, lockfile, and snapshot paths excluded by default.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "coverage_quorum_threshold": {
+      "type": "number", "minimum": 0, "maximum": 1,
+      "description": "Coverage rate below which a vendor is quorum-eligible only on files it reviewed."
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "rule"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "description": "Glob; ** crosses directories; matched case-insensitively." },
+          "rule": { "type": "string", "minLength": 1, "description": "Checklist text rendered once per rule group." },
+          "merge_default": { "type": "boolean", "description": "When true on a project rule, the matching default rule text is appended." }
+        }
+      }
+    }
+  }
+}

@@ -39,7 +39,16 @@ def test_declared_flags_exist_in_the_cli():
 
     parser = build_atlas.parse_args([])
     body = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
-    for flag in ("--check", "--output", "--json-only", "--no-coverage", "--graph"):
+    for flag in (
+        "--check",
+        "--output",
+        "--json-only",
+        "--no-coverage",
+        "--graph",
+        "--tree",
+        "--hops",
+        "--direction",
+    ):
         assert flag in body, f"{flag} is implemented but undocumented"
         assert hasattr(parser, flag.lstrip("-").replace("-", "_"))
 

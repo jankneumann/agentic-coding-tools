@@ -34,16 +34,21 @@
       "plan-roadmap",
       "roadmap-runtime",
       "shared",
+      "supervise",
       "worktree"
     ],
     "bao-vault": [
       "langfuse"
+    ],
+    "bug-scrub": [
+      "shared"
     ],
     "changelog-version": [
       "shared",
       "worktree"
     ],
     "cleanup-feature": [
+      "audit-choices",
       "coordination-bridge",
       "explore-feature",
       "merge-pull-requests",
@@ -55,6 +60,10 @@
       "coordination-bridge",
       "parallel-infrastructure",
       "session-log"
+    ],
+    "explain-code": [
+      "codebase-atlas",
+      "refresh-architecture"
     ],
     "explore-feature": [
       "coordination-bridge",
@@ -73,7 +82,11 @@
       "validate-feature",
       "worktree"
     ],
+    "improve-harness": [
+      "shared"
+    ],
     "iterate-on-implementation": [
+      "audit-choices",
       "coordination-bridge",
       "parallel-infrastructure",
       "worktree"
@@ -103,9 +116,13 @@
     ],
     "plan-roadmap": [
       "parallel-infrastructure",
+      "refine-roadmap",
       "roadmap-runtime",
       "shared",
       "worktree"
+    ],
+    "prioritize-proposals": [
+      "shared"
     ],
     "project-context-refresh": [
       "validate-packages"
@@ -140,6 +157,11 @@
       "parallel-infrastructure",
       "project-context-runtime"
     ],
+    "skill-audit": [
+      "shared",
+      "coordination-bridge",
+      "improve-harness"
+    ],
     "supervise": [
       "plan-roadmap",
       "prioritize-proposals",
@@ -151,6 +173,7 @@
       "shared"
     ],
     "validate-feature": [
+      "audit-choices",
       "coordination-bridge",
       "refresh-architecture",
       "security-review",
@@ -185,6 +208,9 @@
       "distribution": "portable"
     },
     "archive-roadmap": {
+      "distribution": "portable"
+    },
+    "audit-choices": {
       "distribution": "portable"
     },
     "autopilot": {
@@ -243,6 +269,9 @@
       "distribution": "portable"
     },
     "expedite": {
+      "distribution": "portable"
+    },
+    "explain-code": {
       "distribution": "portable"
     },
     "explore-feature": {
@@ -357,6 +386,9 @@
       ]
     },
     "simplify": {
+      "distribution": "portable"
+    },
+    "skill-audit": {
       "distribution": "portable"
     },
     "source-driven-development": {

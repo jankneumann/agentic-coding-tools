@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "review_type": "plan",
+  "created_at": "2026-09-01T23:22:15Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": null,
+      "models_attempted": ["claude-sonnet-4-6"],
+      "elapsed_seconds": 326.0,
+      "error": "Vendor CLI produced no result for more than five minutes; the parent dispatcher was interrupted before its 600-second per-vendor timeout to preserve phase liveness.",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": ["gemini-3.6-flash-low"],
+      "elapsed_seconds": 0.0,
+      "error": "Not attempted because the sequential dispatcher was interrupted after the preceding vendor exceeded the five-minute no-output health bound.",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": null,
+      "models_attempted": ["(default)"],
+      "elapsed_seconds": 0.0,
+      "error": "Not attempted because the sequential dispatcher was interrupted after the preceding vendor exceeded the five-minute no-output health bound.",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": null,
+      "models_attempted": ["qwen/qwen3-coder-flash"],
+      "elapsed_seconds": 0.0,
+      "error": "Not attempted because the sequential dispatcher was interrupted after the preceding vendor exceeded the five-minute no-output health bound.",
+      "error_class": "unknown"
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 0,
+  "vendors": []
+}

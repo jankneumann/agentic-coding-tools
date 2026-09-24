@@ -1,0 +1,103 @@
+{
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The HTTP projection mapper gives explicit service-origin policy failures precedence over open-ended reason text, so realistic prefixed policy denials become RFC 7807 HTTP 403 responses while conflict and validation reasons retain their declared statuses.",
+      "resolution": "Retain the reviewed implementation and regression coverage.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 120,
+        "end": 129
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: The mapper uses a defensive failure_category lookup, preserving compatibility with legacy or test-double result objects that do not carry the new internal provenance field.",
+      "resolution": "Retain the reviewed implementation and regression coverage.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 121,
+        "end": 122
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Only the submit_work policy-engine denial branches assign failure_category=policy; guardrail and input-validation failures remain uncategorized, and SubmitResult.from_dict does not trust a database RPC payload to assign policy provenance.",
+      "resolution": "Retain the reviewed implementation and regression coverage.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 715,
+        "end": 722
+      },
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: The realistic write_denied prefixed-reason regression proves the public HTTP response is a 403 application/problem+json payload without changing the MCP or CLI failure-envelope shape.",
+      "resolution": "Retain the reviewed implementation and regression coverage.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/tests/test_coordination_api.py",
+      "line_range": {
+        "start": 1114,
+        "end": 1142
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The database migration serializes keyed submit and reconcile by change, owns tuple uniqueness in PostgreSQL, and rejects stale or same-sequence different-phase generations before insertion.",
+      "resolution": "Retain the reviewed implementation and regression coverage.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/database/migrations/035_work_queue_projection.sql",
+      "line_range": {
+        "start": 45,
+        "end": 130
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: The optional autopilot seam persists authoritative loop state before projecting it and leaves coordinator-free tiers unchanged when no callback is injected.",
+      "resolution": "Retain the reviewed implementation and regression coverage.",
+      "disposition": "accept",
+      "package_id": "wp-bridge-projection",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 180,
+        "end": 199
+      },
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

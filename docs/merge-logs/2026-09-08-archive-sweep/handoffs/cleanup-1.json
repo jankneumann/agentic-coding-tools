@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-08T09:36:14.379273+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Archive sweep over the 12 changes that /prioritize-proposals identified as done-but-unarchived. 9 archived and their spec deltas merged; 3 blocked on stale spec deltas that need their owner's judgement, not sweep mechanics. Open tasks migrated to two follow-up OpenSpec proposals per operator choice.",
+    "completed_work": [
+      "task-migration",
+      "archive",
+      "spec-delta-merge",
+      "decision-index-regen",
+      "validate"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Archive oldest-first to respect delta ordering",
+        "rationale": "derive-agent-identity-from-registry and extend-coordinator-keys-to-new-harnesses both MODIFY the same two agent-identity requirements; extract-gen-eval-package and rename-descriptor-model-levels both touch gen-eval-framework. Chronological order puts the base change first in both pairs.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Migrate surviving tasks to follow-up proposals, not coordinator issues",
+        "rationale": "Operator chose the OpenSpec route. Both follow-ups declare skip_specs: true with schema: feature-workflow, because their parents already merged every behavioural requirement; the surviving work is documentation propagation and two scoping decisions.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Leave dead ceremony boxes unchecked, annotate instead",
+        "rationale": "Nine open boxes (commit/push/Review/Done/Merge) describe work already on main. Back-filling them with [x] would assert first-hand completion that was only inferred from the merged artifact. Migration Notes record the inference and its evidence.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Stop on three stale-delta changes rather than author spec content",
+        "rationale": "extract-gen-eval-package MODIFIES a heading that exists in no spec (already recorded in the 2026-08-28 session log). require-validating-roadmap-scaffolds and extend-coordinator-keys-to-new-harnesses carry MODIFIED blocks missing scenarios that superseding changes have since added. Reconciling them is spec authoring.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Owner decision on extract-gen-eval-package, require-validating-roadmap-scaffolds, extend-coordinator-keys-to-new-harnesses",
+      "followup-fix-autopilot-archetype-and-apply-outcome",
+      "followup-fix-compact-hook-phase-boundary-detection"
+    ],
+    "relevant_files": []
+  }
+}

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
@@ -10,6 +12,7 @@ from uuid import UUID
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from src.coordination_api import (
     create_coordination_api,
@@ -153,6 +156,46 @@ def test_local_trust_boundary_returns_403_and_failed_audit(
     assert call["result"]["refusal"] == "local_provider_trust_boundary"
 
 
+@pytest.mark.asyncio
+async def test_phase_resolution_does_not_block_api_event_loop(
+    _api_config: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The sync resolver may self-call this API, so the event loop must stay free."""
+    from src.agents_config import ResolvedArchetype
+
+    loop_progressed = threading.Event()
+    saw_progress_during_resolution = False
+
+    def _resolve(*_args: Any, **_kwargs: Any) -> ResolvedArchetype:
+        nonlocal saw_progress_during_resolution
+        saw_progress_during_resolution = loop_progressed.wait(timeout=0.2)
+        return ResolvedArchetype(
+            model="qwen/qwen3-coder",
+            system_prompt="Implement the task.",
+            archetype="implementer",
+            reasons=["adaptive routing selected"],
+            provider="openrouter",
+            write_capable=True,
+        )
+
+    monkeypatch.setattr("src.agents_config.resolve_archetype_for_phase", _resolve)
+    monkeypatch.setattr("src.audit._audit_service", AsyncMock())
+    app = create_coordination_api()
+
+    asyncio.get_running_loop().call_later(0.01, loop_progressed.set)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as async_client:
+        response = await async_client.post(
+            "/archetypes/resolve_for_phase",
+            headers=_auth_headers(),
+            json={"phase": "IMPLEMENT", "signals": {}},
+        )
+
+    assert response.status_code == 200
+    assert saw_progress_during_resolution is True
+
+
 # =============================================================================
 # Lock endpoint tests
 # =============================================================================
@@ -263,6 +306,84 @@ def test_lock_status_returns_locked(
     assert data["lock"]["locked_by"] == "agent-1"
 
 
+def test_list_locks_by_agent_uses_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_service = AsyncMock()
+    mock_service.check.return_value = []
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.locks
+
+    monkeypatch.setattr(src.locks, "_lock_service", mock_service)
+    response = client.get(
+        "/locks",
+        headers=_auth_headers(),
+        params={"agent_id": "agent-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"locks": []}
+    mock_service.check.assert_awaited_once_with(locked_by="agent-1")
+
+
+def test_release_locks_by_agent_uses_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_service = AsyncMock()
+    mock_service.release_by_agent.return_value = {
+        "success": True,
+        "released_count": 2,
+    }
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.locks
+
+    monkeypatch.setattr(src.locks, "_lock_service", mock_service)
+    response = client.post(
+        "/locks/release-by-agent",
+        headers=_auth_headers(),
+        json={"agent_id": "agent-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["released_count"] == 2
+    mock_service.release_by_agent.assert_awaited_once_with("agent-1")
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "request_kwargs"),
+    [
+        ("get", "/locks", {"params": {"agent_id": "other-agent"}}),
+        (
+            "post",
+            "/locks/release-by-agent",
+            {"json": {"agent_id": "other-agent"}},
+        ),
+    ],
+)
+def test_lock_by_agent_endpoints_reject_bound_identity_mismatch(
+    _api_config: None,
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    path: str,
+    request_kwargs: dict[str, Any],
+) -> None:
+    from src.config import reset_config
+
+    monkeypatch.setenv(
+        "COORDINATION_API_KEY_IDENTITIES",
+        '{"test-key-001":{"agent_id":"bound-agent","agent_type":"codex"}}',
+    )
+    reset_config()
+    with TestClient(create_coordination_api()) as bound_client:
+        response = getattr(bound_client, method)(
+            path, headers=_auth_headers(), **request_kwargs
+        )
+
+    assert response.status_code == 403
+
+
 # =============================================================================
 # Memory endpoint tests
 # =============================================================================
@@ -357,6 +478,33 @@ def test_claim_work_delegates_to_service(
     assert data["task_type"] == "test"
 
 
+def test_claim_work_uses_authenticated_fallback_identity_when_body_omits_it(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import ClaimResult
+
+    mock_service = AsyncMock()
+    mock_service.claim.return_value = ClaimResult(success=False, reason="empty")
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/claim",
+        headers=_auth_headers(),
+        json={"task_types": ["vendor-dispatch-correlation"]},
+    )
+
+    assert response.status_code == 200
+    mock_service.claim.assert_awaited_once_with(
+        agent_id="cloud-agent",
+        agent_type="cloud_agent",
+        task_types=["vendor-dispatch-correlation"],
+    )
+
+
 def test_complete_work_delegates_to_service(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -388,6 +536,53 @@ def test_complete_work_delegates_to_service(
     assert response.json()["status"] == "completed"
 
 
+def test_complete_work_passes_resolved_identity_when_body_omits_agent_id(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import CompleteResult
+
+    task_uuid = UUID("12345678-1234-1234-1234-123456789abc")
+    mock_service = AsyncMock()
+    mock_service.complete.return_value = CompleteResult(
+        success=True, status="completed", task_id=task_uuid
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/complete",
+        headers=_auth_headers(),
+        json={"task_id": str(task_uuid), "success": True, "result": {"ok": True}},
+    )
+
+    assert response.status_code == 200
+    mock_service.complete.assert_awaited_once_with(
+        task_id=task_uuid,
+        success=True,
+        result={"ok": True},
+        error_message=None,
+        agent_id="cloud-agent",
+    )
+
+
+def test_complete_work_rejects_malformed_task_id(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = AsyncMock()
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    monkeypatch.setattr("src.work_queue._work_queue_service", service)
+
+    response = client.post(
+        "/work/complete",
+        headers=_auth_headers(),
+        json={"task_id": "not-a-uuid", "success": False},
+    )
+    assert response.status_code == 400
+
+
 def test_submit_work_delegates_to_service(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -413,6 +608,186 @@ def test_submit_work_delegates_to_service(
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
+
+
+def test_submit_work_atomic_claim_uses_server_resolved_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import SubmitResult
+
+    task_uuid = UUID("12345678-1234-1234-1234-123456789abc")
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=True,
+        task_id=task_uuid,
+        status="claimed",
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "vendor-dispatch-correlation",
+            "task_description": "Track async dispatch",
+            "claim_immediately": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "claimed"
+    assert mock_service.submit.await_args.kwargs["claim_immediately"] is True
+    assert (
+        mock_service.submit.await_args.kwargs["claimant_agent_id"]
+        == "cloud-agent"
+    )
+    assert (
+        mock_service.submit.await_args.kwargs["claimant_agent_type"]
+        == "cloud_agent"
+    )
+
+
+def test_projection_submit_exposes_additive_result(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import SubmitResult
+
+    task_uuid = UUID("12345678-1234-1234-1234-123456789abc")
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=True, task_id=task_uuid, created=False, deduplicated=True, status="pending"
+    )
+    authorize = AsyncMock()
+    monkeypatch.setattr("src.coordination_api.authorize_operation", authorize)
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "project",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 3,
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "task_id": str(task_uuid),
+        "created": False,
+        "deduplicated": True,
+        "status": "pending",
+        "cancelled_task_ids": [],
+    }
+    assert authorize.await_args.kwargs["operation"] == "publish_work_projection"
+    assert authorize.await_args.kwargs["resource"] == "projection-change"
+    assert authorize.await_args.kwargs["context"]["change_id"] == "projection-change"
+
+
+@pytest.mark.parametrize("path", ["/work/submit", "/work/reconcile"])
+def test_standard_trust_cannot_publish_projection(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, path: str
+) -> None:
+    mock_service = AsyncMock()
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        path,
+        headers=_auth_headers(),
+        json={
+            "task_type": "issue",
+            "task_description": "poison victim projection",
+            "projection_key": {
+                "change_id": "victim-change",
+                "phase": "DONE",
+                "transition_sequence": 2147483647,
+            },
+        },
+    )
+
+    assert response.status_code == 403
+    mock_service.submit.assert_not_awaited()
+    mock_service.reconcile_projection.assert_not_awaited()
+
+
+def test_reconcile_authorizes_projection_publish_and_returns_cancellations(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import ReconcileResult
+
+    authorize = AsyncMock()
+    task_uuid = UUID(int=9)
+    mock_service = AsyncMock()
+    mock_service.reconcile_projection.return_value = ReconcileResult(
+        success=True,
+        task_id=task_uuid,
+        created=True,
+        deduplicated=False,
+        status="pending",
+        cancelled_task_ids=[UUID(int=2)],
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", authorize)
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/reconcile",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "resume",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 4,
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["cancelled_task_ids"] == [str(UUID(int=2))]
+    assert authorize.await_args.kwargs["operation"] == "publish_work_projection"
+    assert authorize.await_args.kwargs["resource"] == "projection-change"
+    assert authorize.await_args.kwargs["context"]["change_id"] == "projection-change"
+    assert authorize.await_args.kwargs["context"]["mode"] == "reconcile"
+
+
+@pytest.mark.parametrize("reason", ["stale_projection", "projection_mode_mismatch"])
+def test_projection_conflict_returns_409_problem(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, reason: str
+) -> None:
+    from src.work_queue import SubmitResult
+
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(success=False, reason=reason)
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "stale",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 1,
+            },
+        },
+    )
+    assert response.status_code == 409
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["type"].endswith(f":{reason}")
 
 
 # =============================================================================
@@ -893,3 +1268,210 @@ async def test_lifespan_fails_boot_when_registry_sync_fails(
     with pytest.raises(ProfileSyncError, match="projection unavailable"):
         with TestClient(create_coordination_api()):
             pass
+
+
+def test_projection_validation_returns_422_problem(client: TestClient) -> None:
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "invalid",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": True,
+            },
+        },
+    )
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 422
+
+
+@pytest.mark.parametrize(
+    ("path", "extra_path"),
+    [
+        ("/work/submit", "top_level"),
+        ("/work/submit", "projection_key"),
+        ("/work/reconcile", "top_level"),
+        ("/work/reconcile", "projection_key"),
+    ],
+)
+def test_projection_requests_reject_undeclared_fields_as_422_problem(
+    client: TestClient,
+    path: str,
+    extra_path: str,
+) -> None:
+    payload: dict[str, Any] = {
+        "task_type": "implement",
+        "task_description": "invalid extra field",
+        "projection_key": {
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 2,
+        },
+    }
+    if extra_path == "top_level":
+        payload["undeclared"] = True
+    else:
+        payload["projection_key"]["undeclared"] = True
+
+    response = client.post(path, headers=_auth_headers(), json=payload)
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 422
+
+
+def test_projection_submit_rejects_malformed_dependency_as_422_problem(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "invalid dependency",
+            "depends_on": ["not-a-uuid"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 422
+
+
+@pytest.mark.parametrize(
+    ("reason", "expected_status"),
+    [
+        ("operation_not_permitted", 403),
+        ("guardrail_denied", 422),
+    ],
+)
+def test_projection_submit_maps_service_denial_to_problem(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+    expected_status: int,
+) -> None:
+    from src.work_queue import SubmitResult
+
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=False,
+        created=False,
+        reason=reason,
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={"task_type": "implement", "task_description": "denied by service"},
+    )
+
+    assert response.status_code == expected_status
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == expected_status
+    assert response.json()["detail"] == reason
+
+
+def test_projection_submit_maps_prefixed_policy_denial_to_403_problem(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.work_queue import SubmitResult
+
+    reason = "write_denied: trust_level=1 < 2"
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=False,
+        created=False,
+        reason=reason,
+        failure_category="policy",
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={"task_type": "implement", "task_description": "denied by policy"},
+    )
+
+    assert response.status_code == 403
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 403
+    assert response.json()["detail"] == reason
+
+
+def test_projection_authentication_returns_401_problem(client: TestClient) -> None:
+    response = client.post(
+        "/work/reconcile",
+        json={
+            "task_type": "implement",
+            "task_description": "resume",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 2,
+            },
+        },
+    )
+    assert response.status_code == 401
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 401
+
+
+@pytest.mark.parametrize(
+    ("path", "method", "payload", "reason"),
+    [
+        (
+            "/issues/create",
+            "create",
+            {
+                "title": "spoof",
+                "labels": ["change:victim", "projection:autopilot-phase"],
+            },
+            "reserved_projection_label",
+        ),
+        (
+            "/issues/update",
+            "update",
+            {"issue_id": str(UUID(int=91)), "title": "tampered"},
+            "projection_issue_immutable",
+        ),
+        (
+            "/issues/close",
+            "close",
+            {"issue_id": str(UUID(int=91)), "reason": "tampered"},
+            "projection_issue_immutable",
+        ),
+    ],
+)
+def test_ordinary_issue_api_cannot_cross_projection_boundary(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    path: str,
+    method: str,
+    payload: dict[str, Any],
+    reason: str,
+) -> None:
+    from src.issue_service import ProjectionIssueMutationError
+
+    service = AsyncMock()
+    getattr(service, method).side_effect = ProjectionIssueMutationError(reason)
+    import src.issue_service
+
+    monkeypatch.setattr(src.issue_service, "_issue_service", service)
+
+    response = client.post(path, headers=_auth_headers(), json=payload)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == reason

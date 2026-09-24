@@ -1,0 +1,55 @@
+{
+  "review_type": "plan",
+  "target": "add-cross-roadmap-readiness-resolver",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Design D2 calls roadmap/checkpoint terminal-status disagreement both a normal short-lived ordering mismatch and an inconsistent workspace that is withheld. That conflicts with the normative scenario requiring a valid checkpoint completion to unblock external dependents while roadmap status still lags.",
+      "resolution": "Separate hard-invalid checkpoint conditions, which withhold the workspace, from soft roadmap/checkpoint status divergence, which sets stale and emits a diagnostic while preserving checkpoint-authoritative readiness and completion.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Design D5 promises deterministic diagnostics and non-zero exit for malformed canonical input, but the JSON contract has no bounded diagnostic codes for an invalid roadmap or duplicate roadmap_id; only checkpoint failures are representable.",
+      "resolution": "Add roadmap_invalid and duplicate_roadmap_id codes and specify that both are hard-invalid workspace conditions with non-zero CLI status.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/contracts/readiness-result.schema.json",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The phrase 'canonical serialization of every readiness-relevant input' does not enumerate normalized fields, ordering, missing-checkpoint sentinel, or malformed-input fallback. Two conforming implementations could generate different fingerprints for identical semantic state.",
+      "resolution": "Define the exact normalized roadmap/checkpoint projection, list ordering, path identity, absent-checkpoint sentinel, and raw-byte digest fallback for malformed input.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The one-package sequential DAG is appropriate because moving the admission helper, adding repository aggregation, and switching the supervisor consumer all touch one authority boundary and must remain green together.",
+      "resolution": "No change; keep the single package and explicit file locks.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/work-packages.yaml",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

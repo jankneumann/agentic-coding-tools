@@ -1,0 +1,122 @@
+{
+  "schema_version": 2,
+  "change_id": "add-adaptive-model-router",
+  "round": 5,
+  "body_path": "review-packet.md",
+  "sha256": "a731a41accb1c6ae9de4241b19e82c662747ebb0e2ea1757ab9a959f6c68a794",
+  "char_length": 50564,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": false,
+  "diff_kind": "last_fix",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/add-adaptive-model-router/architecture-impact.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 787
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/contracts/README.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 337
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/contracts/generated/models.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 769
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2934
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/design.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 273
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/specs/agent-archetypes/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 209
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/specs/agent-coordinator/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 602
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/specs/model-routing/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 520
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/tasks.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 225
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/work-packages.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2743
+      }
+    ],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/add-adaptive-model-router/architecture-impact.md",
+        "openspec/changes/add-adaptive-model-router/contracts/README.md",
+        "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+        "openspec/changes/add-adaptive-model-router/design.md",
+        "openspec/changes/add-adaptive-model-router/tasks.md",
+        "openspec/changes/add-adaptive-model-router/work-packages.yaml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "**/*.py",
+      "files": [
+        "openspec/changes/add-adaptive-model-router/contracts/generated/models.py"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/add-adaptive-model-router/specs/agent-archetypes/spec.md",
+        "openspec/changes/add-adaptive-model-router/specs/agent-coordinator/spec.md",
+        "openspec/changes/add-adaptive-model-router/specs/model-routing/spec.md"
+      ]
+    }
+  ]
+}

@@ -212,8 +212,40 @@ case "$EVENT_NAME" in
   push)
     # Union mode: every on-branch delta shadows the archive at once.
     # Report-only — its exit status must not depend on what it found.
+    #
+    # Non-blocking is right (a run that fires after the merge cannot
+    # stop it going red), but until 2026-09-09 it was also silent: the
+    # verdict went to a log nobody opens, so accumulated debt only ever
+    # surfaced when some unrelated pull request happened to touch a
+    # change directory and hit the *blocking* mode. Whoever wrote that
+    # PR then inherited it. Annotating keeps the merge unblocked while
+    # putting the finding on the commit and in the run summary, so the
+    # debt is attributable to the merge that introduced it.
     echo "requirement-traceability sweep: post-merge report (union of every on-branch delta, non-blocking)"
-    run_gate ""
+    run_gate "" | tee /tmp/traceability-union.log
+    gate_rc=${PIPESTATUS[0]}
+    if [[ $gate_rc -ne 0 ]]; then
+      echo "::warning::requirement-traceability sweep: main carries unaccounted requirements (gate exit ${gate_rc}). Not blocking this merge — see the job summary, and cite or excuse them before the next pull request inherits the failure."
+      # `${GITHUB_STEP_SUMMARY:-}` on purpose: this fragment is executed
+      # verbatim by skills/tests/validate-feature/test_ci_sweep_wiring.py,
+      # where that variable does not exist. Under `set -u` an unbound
+      # variable is fatal regardless of `set +e`, so the bare form turned
+      # a non-blocking report into a failing job outside Actions.
+      if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+        {
+          echo "### Requirement traceability — post-merge debt"
+          echo
+          echo "The union sweep over every on-branch delta exited ${gate_rc}."
+          echo "This does not block the merge. It blocks the next pull request that touches a change directory."
+          echo
+          echo '```'
+          sed -n '/^errors:/,/^$/p;/^forward failures:/,/^$/p;/^reverse failures:/,/^$/p' /tmp/traceability-union.log
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+      fi
+    elif [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+      echo "### Requirement traceability — clean" >> "$GITHUB_STEP_SUMMARY"
+    fi
     echo "requirement-traceability sweep: post-merge run never blocks; exiting 0 regardless of the result above"
     exit 0
     ;;
@@ -365,12 +397,12 @@ def test_archive_pull_request_derives_no_change_id(tmp_path: Path) -> None:
     half should yield a change id, so this SKIPs rather than deriving
     `archive` or the id being archived."""
     repo = _init_repo(tmp_path)
-    change_dir = repo / "openspec" / "changes" / "derive-descriptors-from-contracts"
+    change_dir = repo / "openspec" / "changes" / "archived-change"
     change_dir.mkdir(parents=True)
     (change_dir / "spec.md").write_text("# a change\n")
     pre_archive_sha = _commit_all(repo, "add change")
 
-    archive_dir = repo / "openspec" / "changes" / "archive" / "2026-08-15-derive-descriptors-from-contracts"
+    archive_dir = repo / "openspec" / "changes" / "archive" / "2026-08-15-archived-change"
     archive_dir.mkdir(parents=True)
     (archive_dir / "spec.md").write_text("# a change\n")
     _git(repo, "rm", "-q", "-r", str(change_dir.relative_to(repo)))
@@ -381,7 +413,7 @@ def test_archive_pull_request_derives_no_change_id(tmp_path: Path) -> None:
         {
             "EVENT_NAME": "pull_request",
             "PR_BASE_SHA": pre_archive_sha,
-            "PR_HEAD_REF": "openspec/archive-derive-descriptors-from-contracts",
+            "PR_HEAD_REF": "openspec/archive-archived-change",
         },
     )
     assert result.returncode == 0, result.stderr

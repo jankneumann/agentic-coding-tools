@@ -15,7 +15,9 @@ Archetype model values SHALL be resolved through provider-aware model mapping be
 
 Archetype names SHALL match the pattern `^[a-z][a-z0-9_-]{0,31}$` and SHALL be validated at all system boundaries.
 
-Provider-aware resolution SHALL cover exactly the supported roster: `claude_code`, `codex`, `antigravity`, `grok`, and `pi`. Resolution SHALL fail with a structured configuration error for the retired `gemini` provider rather than silently falling back to a Claude alias.
+Provider-aware resolution SHALL cover exactly the supported roster: `claude_code`, `codex`, `antigravity`, `grok`, `pi`, and `local`. Resolution SHALL fail with a structured configuration error for the retired `gemini` provider rather than silently falling back to a Claude alias.
+
+The `local` provider roster SHALL define at minimum the `standard` and `economy` tiers. Tiers omitted by the `local` roster SHALL resolve through the existing graceful-degradation rule (an omitted tier resolves to the provider's best defined tier). Resolution output for providers other than `local` SHALL be byte-identical to resolution output before this change.
 
 #### Scenario: Archetype resolves for Codex provider
 
@@ -49,6 +51,25 @@ Provider-aware resolution SHALL cover exactly the supported roster: `claude_code
 - **AND** the error SHALL list the supported roster
 - **AND** no dispatch SHALL be attempted
 
+#### Scenario: Archetype resolves for local provider
+
+- **WHEN** `runner` resolves under provider `local`
+- **THEN** the logical role SHALL remain `runner`
+- **AND** the dispatch model SHALL be a model identifier from the `local` roster in provider mapping
+- **AND** no Claude alias SHALL be dispatched to the `local` provider
+
+#### Scenario: Local roster omits a tier
+
+- **WHEN** an archetype whose tier is `frontier` or `premium` resolves under provider `local`
+- **THEN** resolution SHALL degrade to the best tier the `local` roster defines
+- **AND** the resolution reasons SHALL record the degradation
+
+#### Scenario: Existing providers are unaffected
+
+- **WHEN** any archetype resolves under `claude_code`, `codex`, `antigravity`, `grok`, or `pi`
+- **THEN** the resolved model, system prompt, and reasons SHALL be identical to resolution before the `local` roster existed
+- **AND** no `local` roster entry SHALL influence the result
+
 ### Requirement: Predefined Archetypes
 
 The system SHALL ship with predefined archetypes for `architect`, `analyst`, `implementer`, `reviewer`, `runner`, and `documenter`.
@@ -72,10 +93,18 @@ Each predefined archetype SHALL include a `system_prompt` tuned to its role. Eac
 
 ### Requirement: Skill Model Hint Integration
 
-All skills that use `Task()` calls SHALL be updated to include either a `model`
-parameter (Phase 1) or an `archetype` parameter (Phase 2+) on each Task() call.
+All skills that document `Task()` (or equivalent harness dispatch such as
+`Agent(...)` / vendor CLI) for model selection SHALL author **archetype or
+tier** vocabulary from `archetypes.yaml` (and `phase_mapping`), not raw
+harness model names or versions as policy.
 
-The mapping from workflow stage to archetype SHALL be:
+At dispatch time, skills SHALL resolve to a harness-specific model id via
+`try_resolve_archetype_for_phase` (or an equivalent tier-map resolution) and
+pass `model=<resolved_variable>` into the harness, **or** omit `model=` /
+CLI model flags when resolution fails. Skills SHALL NOT pass unresolved
+archetype names into harness APIs that only accept model ids.
+
+The mapping from workflow stage to archetype SHALL remain:
 
 | Skill | Task Type | Archetype |
 |-------|-----------|-----------|
@@ -88,26 +117,36 @@ The mapping from workflow stage to archetype SHALL be:
 | iterate-on-implementation | Quality checks | runner |
 | fix-scrub | Agent-assisted fixes | implementer |
 
+Phase 1 string literals such as `model="sonnet"` or `model="haiku"` SHALL NOT
+be treated as a valid end state for skill-authored policy.
+
 #### Scenario: Plan-feature uses analyst for exploration
 
-**WHEN** `/plan-feature` dispatches parallel Explore tasks in Step 2
-**THEN** each Task() call SHALL include `model="sonnet"` (Phase 1)
-or `archetype="analyst"` (Phase 2+)
+- **WHEN** `/plan-feature` dispatches parallel Explore tasks in Step 2
+- **THEN** the skill SHALL resolve the analyst archetype (or mapped tier) before dispatch
+- **AND** each Task() call SHALL use `model=<resolved_variable>` when resolution succeeds
+- **AND** the skill SHALL omit `model=` when resolution fails
+- **AND** the skill SHALL NOT hardcode a raw model id string (including `model="sonnet"`) as the selection policy
 
 #### Scenario: Implement-feature uses runner for quality checks
 
-**WHEN** `/implement-feature` dispatches quality check tasks in Step 6
-**THEN** each Task() call SHALL include `model="haiku"` (Phase 1)
-or `archetype="runner"` (Phase 2+)
+- **WHEN** `/implement-feature` dispatches quality check tasks in Step 6
+- **THEN** the skill SHALL resolve the runner archetype (or mapped tier) before dispatch
+- **AND** each Task() call SHALL use `model=<resolved_variable>` when resolution succeeds
+- **AND** the skill SHALL omit `model=` when resolution fails
+- **AND** the skill SHALL NOT hardcode `model="haiku"` (or any raw model version) as policy
 
 #### Scenario: Skill Task() call missing model or archetype parameter
 
-**WHEN** a skill SKILL.md file contains a `Task(` call without a `model=`
-parameter (Phase 1) or `archetype=` parameter (Phase 2+)
-**THEN** the validation test SHALL fail
-**AND** the test output SHALL identify the skill file and line number
+- **WHEN** a target lifecycle skill SKILL.md contains a fenced `Task(` dispatch example without a `model=` parameter and without an omit-on-failure instruction for that call
+- **THEN** the validation test SHALL fail
+- **AND** the test output SHALL identify the skill file and line number
 
----
+#### Scenario: String-literal model pins are rejected
+
+- **WHEN** a skill SKILL.md fenced dispatch example contains `model="…"` with a string literal, or a vendor CLI `-m <literal-model-id>`
+- **THEN** the validation test SHALL fail
+- **AND** `model=<variable_name>` forms SHALL remain valid
 
 ### Requirement: Complexity-Based Escalation
 
@@ -348,4 +387,192 @@ The endpoint SHALL require `X-API-Key` authentication (consistent with other wri
 
 - **WHEN** the client sends `POST /archetypes/resolve_for_phase` without an `X-API-Key` header
 - **THEN** the response status SHALL be `401`
+
+### Requirement: Local Roster Hardware Matching
+
+The `local` provider roster SHALL be selected by model architecture against the serving host's memory-bandwidth constraint, not by parameter count fitting host memory. Each `local` roster entry MUST declare its total and active parameter counts in a roster comment, MUST respect the configured active-parameter ceiling for the host class (GB10-class default: 12B active), and MUST carry an operator-signed review date. Dense models at or above 30B parameters MUST NOT be roster entries on bandwidth-bound host classes even when they fit in host memory.
+
+#### Scenario: MoE roster entry accepted
+
+- **WHEN** the roster adds a mixture-of-experts model whose declared active parameter count is at or below the host-class ceiling
+- **THEN** roster validation SHALL accept the entry
+- **AND** the entry SHALL record total parameters, active parameters, and a review date
+
+#### Scenario: Dense large model rejected
+
+- **WHEN** the roster adds a dense model at or above 30B parameters for a bandwidth-bound host class
+- **THEN** roster validation SHALL fail with a structured error naming the hardware-matching rule
+- **AND** coordinator startup SHALL surface the error rather than serving the invalid roster
+
+### Requirement: Local Provider Archetype Trust Boundary
+
+Archetype resolution SHALL permit the `local` provider only for archetypes whose output is cheap to discard or verified downstream: `runner`, `analyst`, `documenter`, and `validator`. Resolution for `architect`, `reviewer`, and `gatekeeper` archetypes MUST NOT return provider `local`, and a dispatch request pairing those archetypes with provider `local` SHALL fail with a structured error before any dispatch is attempted.
+
+#### Scenario: Permitted archetype resolves locally
+
+- **WHEN** phase INIT resolves archetype `runner` under provider `local`
+- **THEN** resolution SHALL succeed
+- **AND** the resolution reasons SHALL note the local trust boundary was checked
+
+#### Scenario: Boundary archetype refused
+
+- **WHEN** a dispatch requests archetype `reviewer` with provider `local`
+- **THEN** resolution SHALL fail with a structured error naming the trust boundary and the permitted archetype list
+- **AND** no dispatch SHALL be attempted
+- **AND** the refusal SHALL be recorded in the audit log
+
+### Requirement: Worker-Validator Vendor Diversity
+
+When dispatching a worker (implementer) and a validator (reviewer or behavioral validator) to the same OpenSpec change, the dispatcher SHALL select agents from different vendors. This applies to both `review_dispatcher.py` (validator selection) and the worker-side selection logic in `implement-feature` (worker selection).
+
+The dispatcher MUST track the vendor of each agent dispatched within a change's session and exclude already-used vendors from subsequent selections of the opposite role (worker vs validator) for that same change.
+
+When only one vendor is available (e.g., the agents.yaml registry contains only one configured vendor, or rate limits exhausted all alternatives), the dispatcher MUST log a clear warning naming the policy violation and continue with the single available vendor. The dispatcher MUST NOT block dispatch.
+
+The policy MUST be configurable in `agents.yaml` under a top-level `policies.vendor_diversity` key with at least the fields `enforce_for: [worker_vs_validator]` and `fallback: warn_and_continue`. The default for new installations MUST be enforcement enabled.
+
+#### Scenario: Worker and validator dispatch to different vendors
+
+- **GIVEN** an `agents.yaml` registry with vendors `claude`, `codex`, `gemini`
+- **AND** a worker has been dispatched to change `example-feature` using vendor `claude`
+- **WHEN** the dispatcher selects a validator for the same change-id
+- **THEN** the dispatcher MUST exclude `claude` from candidate selection
+- **AND** the dispatcher MUST select from `codex` or `gemini`
+- **AND** the dispatcher MUST log "vendor_diversity: excluded claude (worker), selected codex (validator) for example-feature"
+
+#### Scenario: Single-vendor environment falls back gracefully
+
+- **GIVEN** an `agents.yaml` registry with only vendor `claude` available
+- **AND** a worker has been dispatched using `claude`
+- **WHEN** the dispatcher selects a validator for the same change
+- **THEN** the dispatcher MUST log a warning: "vendor_diversity: only 1 vendor available (claude), violating policy but continuing"
+- **AND** the dispatcher MUST select `claude` for the validator role
+- **AND** the dispatcher MUST NOT exit with an error
+
+#### Scenario: Policy disabled allows same-vendor dispatch
+
+- **GIVEN** an `agents.yaml` with `policies.vendor_diversity.enforce_for: []`
+- **AND** a worker dispatched with `claude`
+- **WHEN** the dispatcher selects a validator
+- **THEN** the dispatcher MAY select `claude` without warning
+- **AND** the dispatcher MUST log "vendor_diversity: policy disabled by config"
+
+#### Scenario: Vendor exhaustion within a session is tracked
+
+- **GIVEN** an `agents.yaml` with vendors `claude`, `codex`
+- **AND** for change `example-feature`, a worker dispatched with `claude` and a validator dispatched with `codex`
+- **WHEN** a second validator is requested for the same change
+- **THEN** the dispatcher MAY select either `claude` or `codex` (the worker-validator constraint applies once per role pair, not transitively)
+- **AND** the dispatcher MUST log the role constraint that was checked
+
+#### Scenario: Vendor-tracking session state is change-scoped and tamper-resistant
+
+- **GIVEN** the dispatcher tracks worker/validator vendor history
+- **WHEN** session state is persisted between dispatcher invocations within one OpenSpec change
+- **THEN** session state MUST be stored at `openspec/changes/<change-id>/.dispatch-state.json` (change-scoped, not global)
+- **AND** the file MUST be written with mode `0644` (owner-writable, world-readable for transparency, but not world-writable)
+- **AND** the dispatcher MUST refuse to read state if the file's permissions include world-write (`0002` bit set), logging an error and falling back to no-history mode
+- **AND** the file MUST be removed by `/cleanup-feature` when the change is archived (no orphan state files persist)
+- **AND** state MUST be JSON conforming to `{worker_vendors: [string], validator_vendors: [string], change_id: string}` (other fields ignored)
+
+#### Scenario: Session-state storage is tamper-resistant and change-scoped
+
+- **GIVEN** the dispatcher has tracked vendor selections for change `example-feature` (worker=claude, validator=codex)
+- **WHEN** a second invocation of the dispatcher runs for the same change-id within the same session
+- **THEN** the dispatcher MUST persist its selection state under `openspec/changes/<change-id>/.dispatch-state/vendor-history.json` (or an equivalent change-scoped path resolved from `agents.yaml.policies.vendor_diversity.state_dir`)
+- **AND** the state file MUST be created with mode `0600` (owner read/write only)
+- **AND** when `/cleanup-feature <change-id>` runs, the `.dispatch-state/` directory MUST be removed alongside other change artifacts
+- **AND** state from a different change-id MUST NOT influence vendor selection for the active change (no cross-change contamination)
+
+### Requirement: Sole Authored Provider Tier Map
+
+The single authored tier→model source SHALL be
+`agent-coordinator/archetypes.yaml` under `model_aliases` (bare model id or
+`{model, thinking}` per tier). Task/phase → tier SHALL be authored only via
+`archetypes` and `phase_mapping` in the same file.
+
+`DEFAULT_PROVIDER_MODEL_MAP` in `agents_config.py` SHALL be an **emergency
+fallback only**, used when `archetypes.yaml` cannot be loaded. It SHALL NOT be
+a second authored roster operators keep in sync with YAML.
+
+Consumers of the provider tier map (resolution, dispatch, contract tests)
+MUST load YAML (directly or via `load_archetypes_config` /
+`get_provider_model_map` after a successful load). Tests SHALL derive expected
+models and thinking levels from the loaded YAML map, not from Python-map
+literals as policy.
+
+The normalized runtime/contract shape remains
+`openspec/schemas/provider-model-map.schema.json`.
+
+#### Scenario: YAML is the authored tier map
+
+- **WHEN** an operator changes a provider's `premium` entry in
+  `archetypes.yaml::model_aliases` and the coordinator reloads config
+- **THEN** `get_provider_model_map()` / `resolve_provider_model_spec` SHALL
+  reflect that entry
+- **AND** no edit to `DEFAULT_PROVIDER_MODEL_MAP` SHALL be required for the
+  change to take effect
+
+#### Scenario: Emergency fallback when YAML unavailable
+
+- **GIVEN** `archetypes.yaml` is missing or unreadable
+- **WHEN** provider model resolution runs
+- **THEN** the system SHALL use `DEFAULT_PROVIDER_MODEL_MAP` as fallback
+- **AND** SHALL emit a structured warning that the emergency map is in use
+- **AND** SHALL NOT treat the Python map as an alternate authored source under
+  normal operation
+
+#### Scenario: Consumers must load YAML
+
+- **WHEN** a consumer needs tier→model or phase→tier policy
+- **THEN** it SHALL obtain values from the loaded YAML-backed map / phase
+  mapping (or the coordinator resolve-for-phase endpoint that loads them)
+- **AND** it SHALL NOT hardcode a parallel phase→model or tier→model table as
+  policy
+
+#### Scenario: Tests do not pin Python-map literals as policy
+
+- **WHEN** contract or resolution tests assert resolved models or thinking
+- **THEN** expected values SHALL be derived from the loaded
+  `model_aliases` fixture or live YAML
+- **AND** tests SHALL NOT require `DEFAULT_PROVIDER_MODEL_MAP` to equal YAML
+  as a correctness condition
+
+### Requirement: Archetype Resolution Delegates to Adaptive Router
+
+When the adaptive-routing feature flag is on, archetype/phase model resolution SHALL delegate to
+the model-routing resolver, passing the archetype tier, phase, and escalation signals as task
+signals; when the flag is off or the resolver is unavailable, resolution SHALL use the existing
+static tier mapping unchanged.
+
+#### Scenario: Flag off preserves static behavior
+
+- **WHEN** `ROUTING_ADAPTIVE` is off and a phase resolves its archetype model
+- **THEN** the result SHALL equal the pre-change static tier resolution
+
+#### Scenario: Resolver unavailable preserves static behavior
+
+- **WHEN** `ROUTING_ADAPTIVE` is on and the resolver is unavailable, errors, or times out
+- **THEN** archetype/phase resolution SHALL equal the pre-change static tier resolution
+
+#### Scenario: Escalation signals become task signals
+
+- **WHEN** a phase resolves with escalation signals (complexity, write-dir count) and the flag is on
+- **THEN** those signals SHALL be forwarded to the resolver as task-type inputs
+
+### Requirement: Endpoint Kind in Agent Registry
+
+The agent registry schema (`agents.yaml`) SHALL support `endpoint_kind` and `base_url` fields so
+local and OpenRouter-served endpoints are declarable alongside CLI and SDK dispatch modes, with
+config validation rejecting unknown kinds.
+
+#### Scenario: Local endpoint declared in registry
+
+- **WHEN** an agent entry declares `endpoint_kind: local` with a `base_url`
+- **THEN** config loading SHALL accept it and register the endpoint for catalog health probing
+
+#### Scenario: Unknown endpoint kind is rejected
+
+- **WHEN** an agent entry declares an `endpoint_kind` outside `vendor-cli`, `vendor-sdk`, `openrouter`, and `local`
+- **THEN** config loading SHALL reject the entry with a validation error
 

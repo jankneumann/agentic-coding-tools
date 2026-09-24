@@ -63,6 +63,7 @@ erDiagram
         TEXT agent_id
         TEXT agent_type
         TIMESTAMPTZ created_at
+        TEXT delegated_from
         INT duration_ms
         UNKNOWN enable
         TEXT error_message
@@ -347,4 +348,14 @@ erDiagram
         UUID parent_id
         INTEGER priority
         TEXT task_type
+    }
+    public__work_queue_projection_heads {
+        TEXT change_id
+        TEXT phase
+        INTEGER transition_sequence
+        TIMESTAMPTZ updated_at
+    }
+    public__work_queue_projection_ownership {
+        TIMESTAMPTZ created_at
+        UUID task_id
     }

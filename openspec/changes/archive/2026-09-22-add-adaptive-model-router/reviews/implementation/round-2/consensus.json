@@ -1,0 +1,258 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "add-adaptive-model-router",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 3,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 3,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 3,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Percent-encoding the calendar-window timestamps breaks usage_summary on the postgres backend (the configured default). encode_filter_value turns the '+' in '2026-09-01T00:00:00+00:00' into '%2B', but db_postgres.query only calls _decode_query_value in the 'cs.' branch; the 'eq.'/'gt.'/'gte.'/'lte.'/'in.' branches pass the raw value to _coerce_filter_value, whose _ISO_DT_RE requires a literal '[+-]HH:MM' suffix. The value therefore stays a str and is bound to the TIMESTAMPTZ occurred_at column, which asyncpg rejects with DataError (exactly the failure _parse_iso_datetime's docstring describes). Every usage_summary call now raises: GET /routing/usage returns 500, the watchdog ledger_rollup job fails on every tick, and, because this diff also makes select_model call _current_exploration_budget, POST /routing/select_model and the MCP select_model_for_task tool fail as well. The same asymmetry means the new eq-path encoding in catalog.py is a no-op on postgres for any vendor/model/task_type containing '&', '#', '%', or '+' (get_entry misses, upsert inserts duplicates). test_usage_summary_queries_requested_calendar_window was edited to assert the '%2B' form against a mock DB, so the suite pins the regression. Fix: apply _decode_query_value symmetrically in every value branch of db_postgres.query (eq/gt/gte/lte/in), matching the cs. branch, and add a postgres-translator test that a '%2B'-encoded ISO timestamp coerces to datetime.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "LedgerService.usage_summary() in ledger.py does not calculate or return 'exploration_entries' in its summary dictionary. RoutingService._current_exploration_budget() in api.py directly accesses summary.get('exploration_entries') to determine budget consumption (pct_used = exploration_entries / entries). Because this key is absent from the ledger summary, summary.get('exploration_entries') returns None, causing pct_used to always evaluate to 0.0 regardless of actual exploration history. As a result, the ROUTING_EXPLORATION_PCT budget cap is never enforced, and decisions always log exploration_pct_used as 0.0 in decision budget_state.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "In LocalEndpointService.sync_from_agents_config() (local_endpoints.py), the remediation diff replaced 'model = getattr(agent, \\\"model\\\", None)' with 'model = agent.sdk.model if agent.sdk is not None else None', eliminating retrieval of agent.model. For local endpoints declared in agents.yaml that define a model name without an SDK block (standard for local OpenAI-compatible endpoints), model is evaluated as None. Consequently, if (vendor, base_url) is already in known_endpoints, the entry is skipped entirely ('if model is None and (vendor, base_url) in known_endpoints: continue'); if not known, it falls back to 'model or agent.name', registering the agent name placeholder rather than the user's configured model.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "_current_exploration_budget reads summary['exploration_entries'], but LedgerService.usage_summary (ledger.py lines 133-149) never emits that key; it emits 'entries', 'estimated_entries', 'exploration_usd_used', and 'by_model' only. _safe_float(None) returns 0.0, so pct_used is always 0.0 against the real ledger and the ROUTING_EXPLORATION_PCT cap can never bind; the recorded budget_state.exploration_pct_used is also always 0. This is the Round-1 'budget never wired' defect reappearing in a subtler form. The parametrized test in test_service.py injects 'exploration_entries' into the mocked summary by hand, so it cannot detect the mismatch. Fix: add 'exploration_entries': sum(bool(row.get('exploration')) for row in selected) to usage_summary's return dict and assert it in test_usage_summary_aggregates_by_model_and_exploration_spend.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: LedgerService.usage_summary does not return exploration_entries, although RoutingService._current_exploration_budget reads that field. With the real ledger, exploration_pct_used therefore remains zero and ROUTING_EXPLORATION_PCT never constrains exploration.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: OpenRouterRefresher now passes plain dictionaries to CatalogService.upsert, while this diff does not update the existing CatalogEntry-based upsert contract. The AsyncMock tests conceal the mismatch; the scheduled refresh can fail during real catalog persistence. Add an explicit partial-update mapping API or retain the CatalogEntry contract.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: RoutingService.select_model unconditionally queries the spend ledger for an exploration budget, even when allow_exploration is false, and does not contain ledger exceptions. A ledger read failure now prevents otherwise valid deterministic routing and escapes the HTTP endpoint as an unhandled 500. Skip the query when exploration is disabled and fail closed to non-exploratory selection when budget state is unavailable.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: `OpenRouterRefresher._entry` now returns a plain dict with `refreshed_at` as a live `datetime`, skipping `CatalogEntry.to_row()`'s isoformat conversion. `SupabaseClient.insert/update` pass `json=data` to httpx, which cannot serialize `datetime` (`TypeError: Object of type datetime is not JSON serializable`), so scheduled catalog refresh fails on the REST backend after this remediation.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "select_model now has a hard dependency on the spend ledger. Any exception from ledger.usage_summary (DB outage, the DataError in finding 1, a malformed row) propagates out of select_model. The HTTP route only catches RoutingUnavailableError, so the caller gets a 500 instead of the documented 503, and the MCP tool in db mode raises rather than returning the error dict added in this diff. Before this change, selection did not touch the ledger at all, so a ledger fault could not block routing. The spec's static-tier fallback protects resolve_archetype_for_phase callers, but direct HTTP/MCP consumers of select_model_for_task lose selection entirely when only the accounting store is degraded.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml defines the HTTPError schema under components/schemas, referenced by 401 and 503 responses. However, the generated contract file openspec/changes/add-adaptive-model-router/contracts/generated/models.py was not regenerated to include the HTTPError model, resulting in an out-of-sync generated contract module and requiring api.py to define an ad-hoc local HTTPErrorResponse class.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Every select_model call now fetches every routing_spend_ledger row for the current month and aggregates it in Python (including the by_model grouping that select_model does not use). The new plain occurred_at index helps the range scan, but the row transfer and aggregation cost grow linearly with monthly volume and are paid per selection on the hot path. The watchdog already runs rollup_current_month on its own schedule; the budget read could use that cached rollup or a targeted count/sum query (SELECT count(*) FILTER (WHERE exploration), sum(actual_usd) ...) instead of hydrating all rows.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Because task_signals is now the TaskSignals model with a required archetype, SelectModelRequest.model_validate raises pydantic.ValidationError in db mode when a caller omits archetype or passes an invalid complexity/modality literal. The HTTP path returns 422 with a JSON body and the http-proxy path returns an error dict, but the MCP db path now surfaces an uncaught exception. The new test test_mcp_no_candidate_matches_http_proxy_error_semantics establishes the principle that db and proxy transports return identical error dicts, but only exercises the 503 case, so the 422-equivalent divergence introduced by this diff is untested.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The placeholder-replacement branch runs whenever the endpoint's single reported model id differs from the catalog row's model, not only when the row is the agents.yaml placeholder. When an operator swaps the model served by an Ollama/vLLM endpoint (e.g. qwen3-coder:30b to llama3), the probe upserts the new id and deletes the previous discovered row; model_posteriors has ON DELETE CASCADE on catalog_id (per test_deleting_catalog_entry_cascades_to_its_posteriors), so all learned quality/cost posteriors for the previous model are destroyed on the next probe tick. Switching back later starts from priors again. That may be acceptable for dg-00, but it is a silent data-loss path on a 5-minute timer and is not covered by the new test, which only exercises the placeholder case.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The per-model estimated_fraction is spend-weighted (estimated USD / actual USD) while the top-level UsageAggregate.estimated_fraction is entry-count-weighted, and the OpenAPI description added in this diff defines the field as 'Share of included entries with estimated token counts'. Consumers reading the same field name at two levels get two different statistics. For zero-cost local endpoints the per-model value is always 0.0 even when every row is estimated, which hides exactly the rows the ledger is supposed to label.",
+      "eligible_vendors": 4
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 14,
+    "confirmed_count": 2,
+    "unconfirmed_count": 12,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 14
+  }
+}

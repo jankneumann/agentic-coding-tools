@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "add-live-vendor-capability-and-cost-registry",
+  "reviewers": [
+    {
+      "vendor": "codex-self",
+      "agent_id": "codex-self",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 9,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "security",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The principal-binding model introduced in revision 2 is inverted relative to who actually observes rate limits. D7 says the reporters are the shared result collectors in review_dispatcher.py and provider_dispatch.py, which run under the ORCHESTRATING session's key (e.g. claude-local) and report the DISPATCHED lane (e.g. grok-local, codex-remote). Every real dispatcher report is therefore a cross-lane write and is only permitted for trust-level 3 principals. agents.yaml binds *-remote lanes and cloud-harness identities to trust_level 2 (claude-remote:104, codex-remote:183, grok-remote:347), so any orchestrator running under those keys receives 403 for every observation and the registry never learns from cloud runs; the 'Principal reports own lane' scenario almost never occurs in practice. The spec needs an authorization rule that matches the producer topology (e.g. a principal may report any lane it is configured to dispatch to, or a dedicated vendor_registry.report operation checked via authorize_operation), and the wp-api-watchdog 403 tests must encode that rule rather than own-lane-only.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Packaging the probe file is necessary but not sufficient, and the 'Deployed probe' scenario (spec.md:89-92, 'present and executable') passes while producing zero snapshots. Two deployed-path defects remain: (a) watchdog.py:409-417 resolves the probe at Path(__file__).parents[2]/skills, which in the image (/app/src/watchdog.py) is /skills/..., whereas the Dockerfile sets SKILLS_ROOT=/app/skills (Dockerfile:115) and github_classifier.py already honours that variable; (b) vendor_health.load_agents_yaml (vendor_health.py:110-155) finds no roster in the container unless AGENTS_YAML is set (no ENV in Dockerfile) or COORDINATION_API_URL points back at itself, so check_all_vendors returns an empty report and every lane stays 'unknown'. With D9's default fail-closed posture and D4 rule 5, an all-unknown registry silently halts automatic switching in production. The plan must require SKILLS_ROOT-based resolution and an explicit roster path, and the deployed-probe gate must assert at least one snapshot is written, not just file presence.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "D4 collapses a model-scoped limit into lane-level `limited`, contradicting the dispatcher behaviour the plan builds on: review_dispatcher.py (752-890, 1274-1300, 1537) treats a capacity error on one model as per-model and falls back to standard/economy tiers on the same lane. Under D4, the first opus-tier 429 reported with scope=model marks the whole lane limited, so available_only reads and roadmap policy exclude a lane that is still dispatchable on fallback models while the dispatcher keeps using it. Neither spec nor OpenAPI defines when a model-scoped limit affects lane status or whether per-model limits are informational only.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: Revision 2 adds explicit `catalog_vendor` but still does not define the configured model/endpoint membership used to join dg-00 `model_catalog` when `AgentEntry.cli.model` is null (the common case in `agents.yaml`). Catalog rows are keyed `(vendor, model, endpoint_kind)`; without naming whether join uses `sdk.model`, archetype model rosters, a new explicit model list, and/or `endpoint_kind`, list projections stay `known=false` and D4's \u201cmatching catalog model\u201d local gate has no deterministic match set.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: D7 asserts dispatch adapters already know selected `agent_id` and that `provider_dispatch.py` reports capacity with lane/reset metadata, but `PhaseDispatchPayload`/`PhaseDispatchResult` only carry `provider` (e.g. `claude_code`), and the module has no capacity/429/reset classification seam today. Putting the file in write scope closes ownership, not the missing lane/capacity contract.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "wp-roadmap-policy must inject a 'registry provider' into orchestrator.py (spec Registry-Driven Roadmap Policy; D9 requires distinct timeout/auth/not-found/server/malformed provenance), and the only repository-native place those normalized list/availability reads are defined is the bridge (D6). Those helpers are written by wp-dispatch-reporting, a parallel sibling (both depend only on wp-api-watchdog), and coordination_bridge.py is outside wp-roadmap-policy's write_allow. orchestrator.py currently imports no bridge module (orchestrator.py:13-64). The package either blocks on an artifact it cannot see, or duplicates an HTTP client with its own error taxonomy, violating D6's single-convention intent.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The in-run switching rule assumes the limited identity is a lane, but the only producer of roadmap outcomes is the prompt layer (autopilot-roadmap SKILL.md, outside every write_allow), which emits vendor_limit:<policy_vendor>:<reason> (orchestrator.py:90,135,1033-1036) with no lane. D7 correctly makes persistence skip as ambiguous, but the policy path is undefined for this common case: when only policy_vendor is known, does policy exclude every lane with that policy_vendor, none, or fail closed? Excluding none would re-select a sibling lane of the same limited provider (claude-remote after claude-local), which usually shares the quota; excluding all is the sensible legacy-compatible behaviour but is not stated, so tests in 5.1 cannot be written deterministically.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Revision 2 correctly removes static tiers from USD enforcement, but a catalog quote is computed only when dispatch context supplies an exact catalog model plus prompt/completion token estimates, and no package, task, or interface produces those estimates (PhaseDispatchPayload in provider_dispatch.py:30-40 has no token fields; roadmap dispatch context carries none). Net effect: cost_ceiling_usd (policy.py:240-256), enforced today via static tiers, becomes a silent no-op for every user who set it. The plan should either name the estimate producer and heuristic, or define the posture when a ceiling is configured but the quote is unknown (fail closed vs proceed with an explicit provenance warning), plus a migration note for existing roadmaps.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The reused probe only evaluates lanes with a cli section (vendor_health.py:164-167), and grok-remote deliberately has none (agents.yaml:344-362). 'Every lane' is therefore unsatisfiable as written: grok-remote never gets a vendor_probe_state row, stays unknown under D4 rule 5, and is permanently excluded from available_only reads and from roadmap candidates under the default posture, despite having a coordinator identity and archetypes. The plan should state how lanes without a probe method are represented (explicit snapshot with status=unknown and reason=no_probe_method, or a documented exclusion). Round-1 consensus id 35 raised this; revision 2 covers local lanes via the catalog gate but not non-CLI cloud lanes.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 10,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "D6 states all routes accept Bearer, X-Coordinator-API-Key, or X-API-Key (matching verify_api_key at coordination_api.py:593-612), but the OpenAPI document declares only Bearer and X-API-Key. Contract-parity tests in wp-contracts will therefore not exercise the X-Coordinator-API-Key path that the CORS-facing UI uses.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: `review_dispatcher.py` already has `agent_id` and capacity classification, but D7's \u201cretry/reset metadata\u201d has no source: `ReviewResult` carries `error_class` without `retry_after`/`reset_at`, and no parsing rule is specified. Exact-lane reports would always fall through to `VENDOR_UNKNOWN_LIMIT_TTL_SECONDS` unless implementers invent undocumented parsers.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Storage/design require non-null probe `stale_after` and limit `reset_at`, but the event schema types both as `string|null` while marking them required by kind\u2014so `null` still validates. OpenAPI `RateLimitObservation` also leaves both reset fields optional/nullable and does not encode the prose rule that supplying both is rejected (400).",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: D8 closes the quote formula, but roadmap switch evaluation still has no specified source of exact catalog model plus prompt/completion token estimates on the `vendor_limit` path (today only vendor/reason). Without that wiring, either `cost_ceiling_usd` becomes permanently inert or implementers will reintroduce vendor-scalar/`_STATIC_COST_TIERS` USD deltas contrary to D8.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: tasks.md 6.2 still requires mypy, migration, contract, and DAG gates, but `wp-integration` verification only runs coordinator/skills pytest, strict OpenSpec, and two Ruff checks. Migration/contract coverage lives earlier, and mypy/DAG remain non-executable relative to the task checklist.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-self",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Revision 2 now keeps lane, provider, policy, and catalog identities typed and carries explicit config-sourced location through the API and downstream policy boundary.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-self",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Rate-limit writes now have bounded expiry, principal-derived attribution, cross-lane authorization, replay conflict behavior, retention, and structured audit requirements.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task 6.2 requires Ruff, mypy, migration, contract, DAG, and strict OpenSpec gates, but wp-integration's verification steps are pytest x2, openspec --strict, and ruff x2 only. mypy (the coordinator's documented gate is mypy --strict src/), the migration applier, a contract-parity re-run against the merged tree, and the work-package DAG/scope validator are not executable steps, so the tier-A package cannot evidence what the task list promises. Round-1 ids 23/40 concerned the absence of any test gate; that is closed, but the remaining named gates are still not executable.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Compaction is specified as a behaviour and tested in task 2.3, but no component owns running it in production: neither the watchdog (the coordinator's only periodic worker), a migration-time job, nor an API-triggered sweep is assigned, and no work package or task names the trigger. Without an owner the retention bound is aspirational and the (agent_id, reset_at) index grows unbounded, reopening round-1 id 44 in practice.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The spec simultaneously mandates the existing bridge normalization and requires not-found to be preserved as a distinct error. The existing convention (coordination_bridge.py:477-482) maps every 404 to status=skipped, reason=capability_unavailable, which for the registry conflates 'coordinator lacks the /vendors routes' with 'unknown lane' (the 404 that GET /vendors/{agent_id}/availability and the POST return for a bad agent_id). The plan should state how the two 404 meanings are distinguished (e.g. by response detail code) or explicitly accept the conflation for reads while treating POST 404 as a hard reporting failure.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "D4 rule 2 gates local lanes on 'non-stale available matching catalog model', but CatalogModelPrice projects only price, refreshed_at, and stale; the catalog available flag (model_catalog.available, catalog.py:38) is not surfaced. A consumer seeing a local lane as unavailable with a fresh catalog row cannot tell from the response which model failed the availability gate, undermining D10's explainability goal.",
+      "eligible_vendors": 4
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 20,
+    "confirmed_count": 3,
+    "unconfirmed_count": 17,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 20
+  }
+}

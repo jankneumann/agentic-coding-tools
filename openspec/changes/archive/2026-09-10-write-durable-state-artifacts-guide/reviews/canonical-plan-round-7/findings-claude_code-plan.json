@@ -1,0 +1,172 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Task 3.2 and design.md D4 require resolving the change directory with `change_dir(ROOT, CHANGE_ID)` from `openspec_paths`, and the package's first verification step runs `skills/.venv/bin/python -m pytest skills/tests/state-artifacts skills/tests/openspec_paths -q`. Neither the module nor the test directory exists. `git ls-files | grep -i openspec_paths` returns nothing, a repository-wide content grep matches only this change's own plan documents (design.md:29, tasks.md:67, plan-findings.md:63, work-packages.yaml:111, and the round-7 review artifacts), the only `def change_dir` in the tree is an unrelated pytest fixture at skills/tests/autopilot/test_inline_fallback.py:34, and `ls skills/tests/` shows no `openspec_paths` entry. No task creates the module or the directory. pytest given a nonexistent path exits with a usage error rather than a test failure, so the declared Tier-B gate fails before running anything, and the implementer is told to import a symbol from a module that has no defined home.",
+      "resolution": "Either add an explicit task that creates the helper (naming its file path and its public signature) plus its test directory, or drop `skills/tests/openspec_paths` from the verification command and have task 3.2 resolve the archived-or-active change directory inline inside skills/tests/state-artifacts/test_state_artifacts_guide.py.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 109,
+        "end": 117
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Even if the `openspec_paths` helper from finding 1 is created, the package cannot write it. `scope.write_allow` (work-packages.yaml:59-83) permits only the three docs files, `skills/pyproject.toml`, the six canonical `SKILL.md` sources, `skills/tests/state-artifacts/**`, the twelve mirror files, and `openspec/changes/write-durable-state-artifacts-guide/**`. A shared helper at `skills/shared/openspec_paths.py` and a test directory at `skills/tests/openspec_paths/` both fall outside that allowlist, so task 3.2 as written cannot be completed without failing the scope check that the same task list mandates in 3.3. The package also declares `task_type: documentation` and `metadata.package_kind: config`, which a new shared Python module strains.",
+      "resolution": "Decide the helper's home first, then reconcile: if it is a shared module, add its path and test directory to `locks.files` and `scope.write_allow` and restate the package's documentation-only framing; if the resolution stays inline in the existing test file, no scope change is needed and finding 1's second option keeps the package genuinely documentation-only.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 59,
+        "end": 83
+      },
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "skills/tests/ci_coverage/test_ci_test_coverage.py asserts that every directory under `skills/` containing `test_*.py` is reached either by `skills/pyproject.toml` testpaths or by an explicit ci.yml step, with a short justified `_EXEMPT` table as the only escape hatch. Task 1.3 is already checked and registered only `tests/state-artifacts` (present at skills/pyproject.toml:129). If finding 1 is resolved by creating `skills/tests/openspec_paths/`, that new directory must also be registered, but no task in Phase 3 does so, and task 3.3's coverage line names the CI test-coverage guard as something to run rather than something to satisfy. The guard would then fail on the very branch that introduces the directory.",
+      "resolution": "Add the testpaths registration to task 3.2's coverage line, or make the finding moot by resolving the change directory inline in the existing state-artifacts test module.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": {
+        "start": 62,
+        "end": 74
+      },
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The context-impact verification step passes `--base main` (work-packages.yaml:138) and plan-findings.md:64 justifies it as checking 'the full branch scope'. main is not this branch's base. `git merge-base main HEAD` is a956fea0 while `git merge-base origin/openspec/roadmap-roadmap-supervisor-orchestration HEAD` is 4f794962, and the two diffs differ sharply: 413 files against main versus 56 against the real roadmap base. The gate still resolves correctly today because `package_files()` in skills/validate-packages/scripts/context_impact.py:260 intersects the diff with `scope.write_allow` before inferring surfaces, and none of the extra 357 roadmap-sibling files that survive that filter imply a surface outside the declared set. The exposure is that roadmap siblings editing the same six `SKILL.md` files or `docs/decisions/skill-workflow.md` are attributed to this package, so the gate's result depends on work this change does not own.",
+      "resolution": "Point `--base` at the branch this change actually forks from (the roadmap branch), or record in the work package why main is deliberately used as a conservative superset despite not being the merge base.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 136,
+        "end": 144
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "design.md:59 states that `install.sh --check` validates 'payload portability and the non-escaping repository-relative reference form', and plan-findings.md:67 repeats that `install.sh --check` is explicitly connected to portable reference-form validation. The check runs skills/shared/validate_install_manifest.py, whose reference logic is `_local_markdown_link_errors` (lines 80-107) and matches Markdown link syntax only. All six skills carry the reference as an inline code span, not a link: 'Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`.' That form is never parsed, so the named guard cannot fail for it. The relationship is in fact inverted: the validator rejects a link whose target is not shipped (line 105-106), and `docs/` is outside the skills payload, so converting these to Markdown links would break `--check` rather than be validated by it.",
+      "resolution": "Restate the design and plan-findings claims accurately: `install.sh --check` guarantees no shipped SKILL.md contains an escaping or unshipped Markdown link, which is why the guide is cited as an inline code span. If the reference form itself needs a guard, assert it in the state-artifacts test rather than attributing it to the install check.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 59,
+        "end": 59
+      },
+      "axis": "compatibility",
+      "severity": "optional"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "test_design_rehydration_matches_canonical_order (skills/tests/state-artifacts/test_state_artifacts_guide.py:82-95) asserts the eight-stage order inside this change's own design.md, and task 3.2 preserves that assertion across archival rather than retargeting it. A change's design.md is frozen once archived, so as a permanent CI test it can never detect drift; it only re-verifies a document that no longer changes. The surfaces where the order can actually drift are the guide, already covered by test_guide_pins_rehydration_order_and_conflict_rules, and the promoted capability spec at openspec/specs/skill-workflow/spec.md, which is where the delta at specs/skill-workflow/spec.md:21 lands on archive and which no test asserts against.",
+      "resolution": "Have task 3.2 retarget the assertion at the promoted `openspec/specs/skill-workflow/spec.md` requirement text, which stays live and mutable, rather than making the frozen design artifact archive-resolvable.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": {
+        "start": 62,
+        "end": 67
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive: the declared context surfaces are complete and each is genuinely implied. work-packages.yaml:91-95 declares documentation, decisions, capabilities, and semantic_code. Checked against openspec/schemas/context-impact-rules.yaml: `capabilities` is implied by the `openspec/changes/*/specs/**` glob matching specs/skill-workflow/spec.md, `documentation` by `docs/**` and `**/*.md`, `decisions` by `docs/decisions/**` matching the regenerated skill-workflow index, and `semantic_code` by `**/*.py` matching the test module. `architecture` is correctly absent because no write_allow path matches `docs/architecture-analysis/**` or `skills/refresh-architecture/**`. The only surplus surface, `apis`, is implied solely by the declared contract file and carries both `reason` and `approved_by`, which is exactly what `_is_approved` (context_impact.py:141-148) requires to resolve the package to `rationalized` rather than `undeclared`.",
+      "resolution": "No action.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 90,
+        "end": 99
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive: the eight-stage shared contract cleanly excludes the supervise-local cycle ledger, and the three documents agree exactly. design.md:39-46 enumerates the stages, design.md:48 states that `openspec/supervise/cycle-ledger.json` is phase-local operational state outside both the eight-stage authority contract and the five-class inventory, spec.md:21 makes the same eight stages normative without mentioning the ledger, and the shipped guide at docs/guides/state-artifacts.md:21-28 renders them in the same order with the same names. The guide's inventory table also correctly demotes the coordinator work queue to a derived projection rather than admitting a sixth authority class.",
+      "resolution": "No action.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 39,
+        "end": 48
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive: the recent-learning window is bounded without freezing a numeric default and without claiming a configuration surface that does not exist. spec.md:21 requires a bounded window while explicitly excluding its numeric bound from the documentation contract, design.md:45 attributes selection to roadmap runtime, and tasks.md:35 forbids freezing the default. That attribution is real: skills/roadmap-runtime/scripts/learning.py:137 exposes `recency_window: int = RECENCY_WINDOW` and skills/roadmap-runtime/scripts/context.py:55 threads `recency_window: int = 3` through context assembly. The round-6 removal of the inaccurate 'runtime-configured' wording recorded at plan-findings.md:65 left a claim that matches the code.",
+      "resolution": "No action.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 19,
+        "end": 21
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive: guide references are uniformly repository-relative across all six canonical sources. skills/autopilot/SKILL.md:17, skills/autopilot-roadmap/SKILL.md:16, skills/session-log/SKILL.md:15, skills/supervise/SKILL.md:17, skills/implement-feature/SKILL.md:22, and skills/validate-feature/SKILL.md:22 each carry the identical sentence citing `docs/guides/state-artifacts.md` with no `../` escape, matching the requirement at spec.md:46. The documentation index links it relatively at docs/guides/documentation.md:6. The conditional mirror assertion is also consistent rather than evasive: spec.md:54-57 scopes the byte-identity requirement to installed mirrors, and the test skip at test_state_artifacts_guide.py:103-104 matches that scoping for fresh checkouts where the ignored mirrors are absent.",
+      "resolution": "No action; see finding 5 for the separate wording issue about which gate protects this form.",
+      "disposition": "accept",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 17,
+        "end": 17
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive: the single sequential documentation package remains justified and is not an unexamined default. The work spans one new guide, six shared SKILL.md files, twelve generated mirrors, the documentation index, the regenerated decision index, and one test module, all of which form a single semantic drift boundary as argued at design.md:52 and re-affirmed at plan-findings.md:58. Splitting it would put concurrent writers on the same six files. `locks.files` (work-packages.yaml:43-52) covers all ten canonical write targets including the two paths added after the round-1 lock-surface nit and the generated decision index added during scope reconciliation, `depends_on` is empty and consistent with a single package, and `scope.deny` blocks agent-coordinator source, database, and apps trees rather than relying on write_allow alone.",
+      "resolution": "No action.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 50,
+        "end": 52
+      },
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

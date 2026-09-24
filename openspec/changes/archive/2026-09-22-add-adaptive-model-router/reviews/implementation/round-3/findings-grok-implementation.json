@@ -1,0 +1,53 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: This remediation switches per-model `estimated_fraction` in `ledger._aggregate_by_model` to an entry-count ratio (`estimated_counts / entry_counts`, with tests now expecting `0.5`), but `contracts/openapi/v1.yaml` still documents `UsageAggregate.by_model.estimated_fraction` as \"Share of spend from estimated token counts\". Top-level `estimated_fraction` already says entry share, so the by-model OpenAPI description is now stale relative to the code this diff ships.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Update the by_model `estimated_fraction` OpenAPI description to \"Share of included entries with estimated token counts\" (matching the top-level field and the new aggregator), or regenerate/sync any derived docs from that contract.",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 322,
+        "end": 322
+      },
+      "evidence_class": "judgment",
+      "existing_code": "estimated_fraction: {type: number, default: 0, description: Share of spend from estimated token counts}",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "performance",
+      "criticality": "medium",
+      "description": "Nit: Replacing `delete_entry` with `set_availability(..., available=False)` retains superseded local catalog rows, and `probe_all` still loads them via `list_entries(endpoint_kind=\"local\")` (default `include_unavailable=True`). Each retained placeholder/old model is re-probed every tick: on success it re-upserts the current reported id and marks itself unavailable again. One placeholder is a permanent +1 request per endpoint; repeated model-id changes accumulate unbounded probe fan-out while routing correctly ignores those rows.",
+      "disposition": "fix",
+      "axis": "performance",
+      "severity": "nit",
+      "resolution": "Either (a) probe unavailable rows only when no other available row shares the same `(vendor, base_url)`, or (b) keep the placeholder unavailable for posterior retention but delete/skip non-placeholder predecessors once the discovered model row exists.",
+      "file_path": "agent-coordinator/src/model_routing/local_endpoints.py",
+      "line_range": {
+        "start": 161,
+        "end": 169
+      },
+      "evidence_class": "judgment",
+      "existing_code": "await self._catalog.set_availability(\n                    vendor,\n                    model,\n                    \"local\",\n                    available=False,\n                    p50_latency_ms=None,\n                )",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Round-2 confirmed defects are closed in this remediation: `db_postgres.query` now `_decode_query_value`s on eq/gt/gte/lte/in before coercion (with a postgres filter decode test), and `LedgerService.usage_summary` emits `exploration_entries` consumed by `_current_exploration_budget` (asserted in `test_usage_summary_aggregates_by_model_and_exploration_spend`). Related resilience extras (skip ledger when exploration is off; fail closed with `budget_state.status=unavailable`) and MCP 422 parity also look coherent; related unit tests in this packet passed locally.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

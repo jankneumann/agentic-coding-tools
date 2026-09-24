@@ -555,6 +555,36 @@ def test_wrapper_object_shape(tmp_path: Path, good_finding: dict[str, Any]) -> N
     assert payload["findings"] == [good_finding]
 
 
+def test_write_vendor_findings_persists_coverage_block(
+    tmp_path: Path, good_finding: dict[str, Any]
+) -> None:
+    coverage = {"reviewed": ["src/a.py"], "skipped": [], "rate": 1.0}
+    write_vendor_findings(
+        tmp_path,
+        vendor="claude_code",
+        review_type="plan",
+        target="x",
+        findings=[good_finding],
+        coverage=coverage,
+    )
+    payload = json.loads((tmp_path / "findings-claude_code-plan.json").read_text())
+    assert payload["coverage"] == coverage
+
+
+def test_write_vendor_findings_omits_coverage_when_not_given(
+    tmp_path: Path, good_finding: dict[str, Any]
+) -> None:
+    write_vendor_findings(
+        tmp_path,
+        vendor="claude_code",
+        review_type="plan",
+        target="x",
+        findings=[good_finding],
+    )
+    payload = json.loads((tmp_path / "findings-claude_code-plan.json").read_text())
+    assert "coverage" not in payload
+
+
 def test_reviewer_vendor_can_differ(tmp_path: Path, good_finding: dict[str, Any]) -> None:
     """Caller can override reviewer_vendor (e.g., for misnamed vendor)."""
     write_vendor_findings(

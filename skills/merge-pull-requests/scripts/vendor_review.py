@@ -16,18 +16,55 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
-from _helpers import capture_head, check_gh, run_gh, verify_and_restore_head
+from _helpers import (
+    capture_head,
+    capture_untracked,
+    check_gh,
+    quarantine_new_untracked,
+    run_gh,
+    verify_and_restore_head,
+)
+
+# Per system_one_decisions.testing's documented stubbing rule: import the
+# module, never a pre-bound name, so a monkeypatched `decide` attribute is
+# what this code actually calls.
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
 
 # ---------------------------------------------------------------------------
-# Thresholds — PRs below these are "small" and skip vendor review
+# Thresholds — PRs at or below these are "small" and skip vendor review.
+# Defaults for load_vendor_review_thresholds(); the deterministic fallback
+# path when the judged eligibility check (below) is unavailable.
 # ---------------------------------------------------------------------------
 
 SMALL_PR_MAX_CHANGED_LINES = 50
 SMALL_PR_MAX_FILES = 3
 DEFAULT_TIMEOUT = 300
+
+DEFAULT_VENDOR_REVIEW_CONFIDENCE_FLOOR = 0.5
+_VENDOR_REVIEW_JUDGMENT_CONFIG_PATH = _SCRIPTS_DIR / "vendor-review-judgment.json"
+
+# Ordered lowest-to-highest risk, matching docs/proposals/
+# jev-system-one-integration-assessment.md A4's Score(risk, [...]).
+_RISK_LEVELS = (
+    "docs/config only",
+    "internal refactor",
+    "behaviour change",
+    "security or data path",
+)
 
 # Origins that always skip vendor review (scoped automated fixes / dep bumps)
 SKIP_ORIGINS = frozenset({
@@ -46,9 +83,12 @@ REVIEW_ORIGINS = frozenset({"openspec", "codex", "other"})
 def compute_pr_size(pr_number: int) -> dict:
     """Compute changed lines and file count from PR diff.
 
+    Also fetches title/body — cheap metadata, not the diff itself — used by
+    the judged eligibility check below as its state.
+
     Returns:
         {"additions": int, "deletions": int, "changed_lines": int,
-         "changed_files": int, "files": [str]}
+         "changed_files": int, "files": [str], "title": str, "body": str}
     """
     try:
         raw = run_gh([
@@ -58,21 +98,25 @@ def compute_pr_size(pr_number: int) -> dict:
         print(f"Warning: Could not fetch diff file list for PR #{pr_number}: {e}",
               file=sys.stderr)
         return {"additions": 0, "deletions": 0, "changed_lines": 0,
-                "changed_files": 0, "files": []}
+                "changed_files": 0, "files": [], "title": "", "body": ""}
 
     files = [f for f in raw.strip().splitlines() if f.strip()]
     changed_files = len(files)
 
-    # Get line-level stats via the --stat flag
+    # Get line-level stats and title/body via the --json flag
     additions = 0
     deletions = 0
+    title = ""
+    body = ""
     try:
         stat_raw = run_gh([
-            "pr", "view", str(pr_number), "--json", "additions,deletions",
+            "pr", "view", str(pr_number), "--json", "additions,deletions,title,body",
         ])
         stat_data = json.loads(stat_raw)
         additions = stat_data.get("additions", 0)
         deletions = stat_data.get("deletions", 0)
+        title = stat_data.get("title") or ""
+        body = stat_data.get("body") or ""
     except (RuntimeError, json.JSONDecodeError) as e:
         print(f"Warning: Could not fetch PR stats for #{pr_number}: {e}",
               file=sys.stderr)
@@ -83,6 +127,8 @@ def compute_pr_size(pr_number: int) -> dict:
         "changed_lines": additions + deletions,
         "changed_files": changed_files,
         "files": files,
+        "title": title,
+        "body": body,
     }
 
 
@@ -90,14 +136,139 @@ def compute_pr_size(pr_number: int) -> dict:
 # Review eligibility
 # ---------------------------------------------------------------------------
 
+def load_vendor_review_thresholds(config_path: Path | None = None) -> dict[str, Any]:
+    """Read the optional sidecar JSON, falling back to module defaults.
+
+    Mirrors gatekeeper_shadow.load_shadow_thresholds and
+    triage.load_deep_analysis_floor: a malformed or missing sidecar
+    degrades to the defaults rather than raising. Covers both the
+    deterministic fallback thresholds (max_changed_lines/max_files) and the
+    judged path's act-floor (confidence_floor) in one file, since both
+    govern the same decision point.
+    """
+    path = config_path or _VENDOR_REVIEW_JUDGMENT_CONFIG_PATH
+    defaults: dict[str, Any] = {
+        "max_changed_lines": SMALL_PR_MAX_CHANGED_LINES,
+        "max_files": SMALL_PR_MAX_FILES,
+        "confidence_floor": DEFAULT_VENDOR_REVIEW_CONFIDENCE_FLOOR,
+    }
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return defaults
+    if not isinstance(raw, dict):
+        return defaults
+    try:
+        result = dict(defaults)
+        if "max_changed_lines" in raw:
+            result["max_changed_lines"] = int(raw["max_changed_lines"])
+        if "max_files" in raw:
+            result["max_files"] = int(raw["max_files"])
+        if "confidence_floor" in raw:
+            result["confidence_floor"] = float(raw["confidence_floor"])
+        return result
+    except (TypeError, ValueError):
+        return defaults
+
+
+def _answer_field(answer: Any, name: str, default: Any = None) -> Any:
+    """Read a field off a real SDK answer object or a plain dict/mapping."""
+    if isinstance(answer, dict):
+        return answer.get(name, default)
+    return getattr(answer, name, default)
+
+
+def _classify_pr_risk(
+    pr_number: int,
+    origin: str,
+    pr_size: dict,
+    dry_run: bool = False,
+) -> dict[str, Any] | None:
+    """Ask one calibrated judgment for whether this PR warrants review.
+
+    State is title, body, file list and diff stat — never the diff itself
+    (docs/proposals/jev-system-one-integration-assessment.md A4). Returns
+    `None` on any unavailability (module missing, `decide()` returns no
+    usable answer) — never raises. Callers fall back to the existing
+    size-threshold rule. The deterministic draft/origin skips already ran
+    before this is ever called, so a call-count test can assert this
+    function is never reached for those PRs. `dry_run` threads through to
+    `decide()` unchanged, per its documented contract, so `--dry-run`
+    reports eligibility without making a live external call.
+    """
+    if system_one_decisions is None:
+        return None
+
+    state: dict[str, Any] = {
+        "title": pr_size.get("title") or "",
+        "body": (pr_size.get("body") or "")[:2000],
+        "files": pr_size.get("files", []),
+        "additions": pr_size.get("additions", 0),
+        "deletions": pr_size.get("deletions", 0),
+        "origin": origin,
+    }
+    questions = {
+        "warrants_review": {
+            "type": "noul",
+            "instructions": "This PR warrants independent multi-vendor review.",
+            "criteria": {
+                "true": (
+                    "The change touches security, auth, data paths, "
+                    "guardrails, or policy -- worth a second opinion "
+                    "regardless of size."
+                ),
+                "false": (
+                    "The change is low-risk -- docs, config, or a narrow "
+                    "refactor that one reviewer's judgment already covers."
+                ),
+            },
+        },
+        "risk": {
+            "type": "score",
+            "instructions": "How risky is this change, from lowest to highest?",
+            "criteria": list(_RISK_LEVELS),
+        },
+    }
+
+    answers = system_one_decisions.decide(
+        state, questions, site="merge-pull-requests.vendor_review",
+        dry_run=dry_run,
+    )
+    if not answers:
+        return None
+
+    warrants_answer = answers.get("warrants_review") if hasattr(answers, "get") else None
+    if warrants_answer is None:
+        return None
+    noul = _answer_field(warrants_answer, "noul")
+    if not isinstance(noul, (int, float)):
+        return None
+
+    risk_answer = answers.get("risk") if hasattr(answers, "get") else None
+    risk_score = _answer_field(risk_answer, "score") if risk_answer is not None else None
+    risk_probability = _answer_field(risk_answer, "confidence") if risk_answer is not None else None
+
+    floor = load_vendor_review_thresholds()["confidence_floor"]
+    return {
+        "eligible": noul >= floor,
+        "risk_score": risk_score,
+        "risk_probability": risk_probability,
+    }
+
+
 def check_review_eligibility(
     pr_number: int,
     origin: str,
     pr_size: dict,
     existing_reviews: list[dict] | None = None,
     is_draft: bool = False,
+    dry_run: bool = False,
 ) -> dict:
     """Determine whether a PR warrants multi-vendor review.
+
+    `dry_run` threads through to the judged eligibility call so `--dry-run`
+    never makes a live external call, matching `dispatch_vendor_reviews`'s
+    own `dry_run` contract.
 
     Returns:
         {"eligible": bool, "reason": str, "details": dict}
@@ -110,7 +281,8 @@ def check_review_eligibility(
             "details": {"message": "Draft PRs are not reviewed"},
         }
 
-    # Bot/automation origins always skip
+    # Bot/automation origins always skip -- deterministic facts about
+    # provenance, never routed through the judged call below.
     if origin in SKIP_ORIGINS:
         return {
             "eligible": False,
@@ -119,21 +291,43 @@ def check_review_eligibility(
                          "message": f"Origin '{origin}' is auto-skip (scoped automation or dependency update)"},
         }
 
-    # Small PRs skip
     changed_lines = pr_size.get("changed_lines", 0)
     changed_files = pr_size.get("changed_files", 0)
-    if changed_lines <= SMALL_PR_MAX_CHANGED_LINES and changed_files <= SMALL_PR_MAX_FILES:
-        return {
-            "eligible": False,
-            "reason": "small_pr",
-            "details": {
-                "changed_lines": changed_lines,
-                "changed_files": changed_files,
-                "threshold_lines": SMALL_PR_MAX_CHANGED_LINES,
-                "threshold_files": SMALL_PR_MAX_FILES,
-                "message": f"PR is small ({changed_lines} lines, {changed_files} files) — skipping review",
-            },
+
+    judged = _classify_pr_risk(pr_number, origin, pr_size, dry_run=dry_run)
+    if judged is not None:
+        evidence = {
+            "evidence_class": "judgment",
+            "risk_score": judged["risk_score"],
+            "risk_probability": judged["risk_probability"],
         }
+        if not judged["eligible"]:
+            return {
+                "eligible": False,
+                "reason": "low_risk_judged",
+                "details": {
+                    **evidence,
+                    "message": "Judged low-risk -- skipping vendor review",
+                },
+            }
+    else:
+        evidence = {}
+        thresholds = load_vendor_review_thresholds()
+        if (
+            changed_lines <= thresholds["max_changed_lines"]
+            and changed_files <= thresholds["max_files"]
+        ):
+            return {
+                "eligible": False,
+                "reason": "small_pr",
+                "details": {
+                    "changed_lines": changed_lines,
+                    "changed_files": changed_files,
+                    "threshold_lines": thresholds["max_changed_lines"],
+                    "threshold_files": thresholds["max_files"],
+                    "message": f"PR is small ({changed_lines} lines, {changed_files} files) — skipping review",
+                },
+            }
 
     # Check existing reviews — skip if there's a fresh approval
     if existing_reviews:
@@ -173,6 +367,7 @@ def check_review_eligibility(
             "changed_lines": changed_lines,
             "changed_files": changed_files,
             "message": f"PR qualifies for vendor review ({changed_lines} lines, {changed_files} files, origin={origin})",
+            **evidence,
         },
     }
 
@@ -200,6 +395,7 @@ _FALLBACK_ENUMS = {
         "observability", "resilience", "compatibility",
     ),
     "severity": ("critical", "nit", "optional", "fyi", "none"),
+    "evidence_class": ("deterministic", "judgment"),
 }
 
 
@@ -223,15 +419,9 @@ def _finding_contract() -> tuple[tuple[str, ...], dict[str, tuple[str, ...]]]:
         )
         if str(dispatcher_dir) not in sys.path:
             sys.path.insert(0, str(dispatcher_dir))
-        from review_findings_schema import finding_item_schema
+        from review_findings_schema import prompt_contract
 
-        item = finding_item_schema()
-        required = tuple(item.get("required") or ())
-        enums = {
-            name: tuple(spec["enum"])
-            for name, spec in (item.get("properties") or {}).items()
-            if isinstance(spec, dict) and spec.get("enum")
-        }
+        required, enums = prompt_contract()
         if required and enums:
             return required, enums
     except Exception:  # noqa: BLE001 - prompt must build even if the schema moves
@@ -269,6 +459,16 @@ def build_review_prompt(pr_number: int, pr_size: dict) -> str:
         vocab_lines.append(
             f"  axis:        {_enum_hint(enums, 'axis')}"
             "   — which review dimension the finding belongs to"
+        )
+    if "evidence_class" in enums:
+        vocab_lines.append(
+            f"  evidence_class: {_enum_hint(enums, 'evidence_class')}"
+            "   — 'judgment' when the finding rests on your reasoning rather than"
+            " on a reproducible observation you actually made. Optional; omitted"
+            " means deterministic. Marking a finding 'judgment' means it is"
+            " reported and ranked but never blocks a merge, so prefer it when you"
+            " are not certain — an honest 60%-confidence finding is more useful"
+            " than a suppressed one or an overstated one."
         )
     vocab_block = "\n".join(vocab_lines)
 
@@ -325,6 +525,22 @@ Use `gh pr diff {pr_number}` to read the actual diff before reviewing.
 # ---------------------------------------------------------------------------
 # Dispatch reviews
 # ---------------------------------------------------------------------------
+
+def vendor_artifact_dir(pr_number: int) -> Path:
+    """Where files a vendor wrote into the checkout are quarantined.
+
+    ``MERGE_VENDOR_ARTIFACT_DIR`` overrides the system temp directory. A fresh
+    timestamped subdirectory per dispatch keeps repeated reviews apart. An
+    override that resolves inside the checkout is refused by
+    ``quarantine_new_untracked`` and fails the review rather than relocating
+    the files to another committable path.
+    """
+    base = os.environ.get("MERGE_VENDOR_ARTIFACT_DIR") or (
+        Path(tempfile.gettempdir()) / "vendor-review-artifacts"
+    )
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return Path(base) / f"pr{pr_number}-{stamp}"
+
 
 def dispatch_vendor_reviews(
     pr_number: int,
@@ -411,25 +627,57 @@ def dispatch_vendor_reviews(
     # detaching the operator's HEAD (issue #349). Snapshot HEAD before
     # dispatch and verify/restore after.
     head_before = capture_head()
+    untracked_before = capture_untracked()
 
-    results: list[ReviewResult] = orch.dispatch_and_wait(
-        review_type="pr",
-        dispatch_mode="review",
-        prompt=prompt,
-        cwd=cwd,
-        timeout_seconds=timeout_seconds,
-        exclude_vendor="claude_code",
-    )
-
-    head_guard = verify_and_restore_head(head_before)
-    if head_guard["drift_detected"]:
-        print(
-            f"WARNING: vendor review dispatch moved HEAD "
-            f"({head_before['branch'] or 'detached'}@{head_before['sha'][:8]} -> "
-            f"{head_guard['after']['branch'] or 'detached'}@{head_guard['after']['sha'][:8]}); "
-            f"restore {'succeeded' if head_guard['restored'] else 'FAILED: ' + str(head_guard['error'])}",
-            file=sys.stderr,
+    # Both guards run in `finally`: an interrupted or failing dispatch (vendor
+    # timeouts run to minutes) can leave exactly the state they exist to undo.
+    try:
+        results: list[ReviewResult] = orch.dispatch_and_wait(
+            review_type="pr",
+            dispatch_mode="review",
+            prompt=prompt,
+            cwd=cwd,
+            timeout_seconds=timeout_seconds,
+            exclude_vendor="claude_code",
         )
+    finally:
+        head_guard = verify_and_restore_head(head_before)
+        if head_guard["drift_detected"]:
+            print(
+                f"WARNING: vendor review dispatch moved HEAD "
+                f"({head_before['branch'] or 'detached'}@{head_before['sha'][:8]} -> "
+                f"{head_guard['after']['branch'] or 'detached'}@{head_guard['after']['sha'][:8]}); "
+                f"restore {'succeeded' if head_guard['restored'] else 'FAILED: ' + str(head_guard['error'])}",
+                file=sys.stderr,
+            )
+
+        # The same authority lets a vendor write files into the checkout, where
+        # a later `git add -A` sync-point commit would publish them. Move them out.
+        workspace_guard = quarantine_new_untracked(
+            untracked_before, vendor_artifact_dir(pr_number),
+        )
+        if workspace_guard["moved"]:
+            print(
+                f"WARNING: vendor review dispatch wrote untracked file(s) into the "
+                f"checkout; moved to {workspace_guard['quarantined_to']}: "
+                + ", ".join(workspace_guard["moved"]),
+                file=sys.stderr,
+            )
+        if workspace_guard["errors"]:
+            print(
+                "ERROR: vendor review file(s) could not be moved out of the checkout: "
+                + "; ".join(workspace_guard["errors"]),
+                file=sys.stderr,
+            )
+
+    # A vendor file left in the checkout fails the review: the caller is a sync
+    # point whose next commit could publish it.
+    stranded = sorted(set(workspace_guard["new_untracked"]) - set(workspace_guard["moved"]))
+    guard_error = (
+        f"workspace guard left {len(stranded)} vendor file(s) in the checkout "
+        f"({', '.join(stranded)}): " + "; ".join(workspace_guard["errors"])
+        if stranded else None
+    )
 
     # Collect successful vendor results for consensus
     vendor_results: list[VendorResult] = []
@@ -472,7 +720,8 @@ def dispatch_vendor_reviews(
         "vendors": vendor_summaries,
         "consensus": consensus_dict,
         "head_guard": head_guard,
-        "error": None,
+        "workspace_guard": workspace_guard,
+        "error": guard_error,
     }
 
 
@@ -519,6 +768,7 @@ def main() -> int:
         pr_size=pr_size,
         existing_reviews=existing_reviews,
         is_draft=args.is_draft,
+        dry_run=args.dry_run,
     )
 
     result = {

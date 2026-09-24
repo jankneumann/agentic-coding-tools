@@ -152,6 +152,14 @@ permit(
     principal.trust_level >= 3
 };
 
+permit(
+    principal,
+    action == Action::"publish_work_projection",
+    resource
+) when {
+    principal.trust_level >= 3
+};
+
 // ============================================================
 // APPROVAL & POLICY READ — Permit for trust_level >= 1
 // ============================================================

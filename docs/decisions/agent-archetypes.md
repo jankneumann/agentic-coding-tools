@@ -5,6 +5,72 @@
 
 ---
 
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Reconciled openspec/schemas/archetypes.schema.json from the skill-owned copy** — install.sh flagged divergence and assumes the openspec/ copy is newer; here the direction inverted because task 1.3 edited the skill-owned source. The stale copy provably rejected the shipped roster with '4 is not one of [1, 2, 3]'.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D3)
+
+---
+
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Corrected the proposal's injection point from compose_prompt to resolve_archetype_for_phase** — compose_prompt composes with a task prompt and is used by other callers such as audit_triage; injecting there would change behaviour beyond phase resolution. Design D3 was right and the Impact prose had drifted from it.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D5)
+
+---
+
+## 2026-09-15 — add-skill-audit
+
+### Phase: Plan
+
+**procedure_mode is an optional field on the archetype, injected only in resolve_archetype_for_phase** — The tier is known there and nowhere else; the autopilot fold forwards system_prompt verbatim; the review dispatcher never composes an archetype prompt; guided default keeps output byte-identical.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D3)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Plan
+
+**Approach A — authored vocabulary vs dispatch payload** — Harnesses need concrete model ids; skills must not author raw versions as policy. Resolve at dispatch from YAML.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Implementation
+
+**Harden guard in place (D3)** — Ban all string-literal model= in fenced Task/Agent and CLI -m; keep model=<var> valid. Removed VALID_MODELS allowlist.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Plan
+
+**Stay off archetypes.yaml / adaptive router** — Coexist with concurrent roster and routing proposals.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D4)
+
+---
+
 ## 2026-09-03 — add-model-usage-ledger
 
 ### Phase: Plan
@@ -16,58 +82,58 @@
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **Served model map strips local roster metadata** — Review F-05: hardware metadata is load-time validation input, not part of the canonical ProviderModelMap contract
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D3)
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **403 refusal declared as OpenAPI delta** — Review F-06: new response shape is a contract change and must be declared in this change's contracts
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D5)
 
 ---
 
-## 2026-08-15 — add-local-model-provider-tier
+## 2026-08-15 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Plan
 
 **local is a first-class provider (D1)** — Keeps local a distinct vendor for trust, routing, audit, and rate-limit policy; pi precedent reused
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D1)
 
 ---
 
-## 2026-08-15 — add-local-model-provider-tier
+## 2026-08-15 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Plan
 
 **Trust boundary enforced in resolver with audited refusals (D3)** — Prose gates are invisible to unattended loops; coordinator is the single decision point
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D2)
 
 ---
 
-## 2026-08-15 — add-local-model-provider-tier
+## 2026-08-15 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Plan
 
 **Hardware matching as machine-checked roster metadata (D4)** — GB10 is bandwidth-bound (~273 GB/s); active-parameter ceiling and dense >=30B rejection enforced at startup, not in comments
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D3)
 
 ---
 
@@ -104,33 +170,33 @@
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Vendor-diversity session state at openspec/changes/<id>/.dispatch-state.json with 0644 permissions (D9)** — Change-scoped, cleanup-managed, world-readable but world-write-rejected; defers coordinator-side state to follow-up
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **WP6 tests use exact log-format assertions to lock in spec contract** — Spec scenarios specify exact log strings; tests catch silent format drift
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **Vendor-diversity policy is per-change, not per-package** — Implementable from existing change-id session state; per-package would force vendor-pool exhaustion on changes with many packages
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D4)

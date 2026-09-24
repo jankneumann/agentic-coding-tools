@@ -1,0 +1,1125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/contracts/delegated-dispatch-attempt.schema.json",
+  "title": "Delegated Dispatch Attempt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "dispatch_id",
+    "item_id",
+    "change_id",
+    "phase",
+    "attempt",
+    "status",
+    "prepared_at",
+    "launch_token",
+    "launch_marker_path",
+    "lease_generation",
+    "launch_history",
+    "scope",
+    "isolation",
+    "context"
+  ],
+  "properties": {
+    "dispatch_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "item_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "maxLength": 160
+    },
+    "phase": {
+      "const": "autopilot"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "prepared",
+        "claimed",
+        "acknowledged",
+        "launched",
+        "quarantined",
+        "parked",
+        "completed",
+        "failed"
+      ]
+    },
+    "launch_token": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 256
+    },
+    "launch_marker_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lease_generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof",
+        "write_allow",
+        "lock_keys"
+      ],
+      "properties": {
+        "proof": {
+          "enum": [
+            "proven_disjoint",
+            "serial_indeterminate"
+          ]
+        },
+        "write_allow": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "lock_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "worktree_path",
+        "branch"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "managed_worktree",
+            "harness_provided"
+          ]
+        },
+        "worktree_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "context": {
+      "$ref": "./bounded-dispatch-context.schema.json",
+      "description": "Exact shared recursively bounded sanitized context from the request; runtime also enforces canonical JSON at most 16 KiB."
+    },
+    "application_journal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "result",
+        "result_digest",
+        "bound_at"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "state": {
+          "enum": [
+            "result_bound",
+            "callback_started",
+            "callback_acknowledged",
+            "terminal_persisted",
+            "effects_applied"
+          ]
+        },
+        "result": {"$ref": "./supervised-dispatch-result.schema.json"},
+        "result_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bound_at": {"type": "string", "format": "date-time"},
+        "callback_started_at": {"type": "string", "format": "date-time"},
+        "callback_acknowledged_at": {"type": "string", "format": "date-time"},
+        "terminal_persisted_at": {"type": "string", "format": "date-time"},
+        "effects_applied_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "continuation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "approval_ref"
+      ],
+      "properties": {
+        "approval_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "enum": [
+            "pending_gate",
+            "policy_pause"
+          ]
+        }
+      }
+    },
+    "lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generation",
+        "owner_nonce",
+        "state",
+        "acquired_at",
+        "heartbeat_at",
+        "expires_at"
+      ],
+      "properties": {
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "owner_nonce": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 256
+        },
+        "state": {
+          "enum": [
+            "active",
+            "released",
+            "expired",
+            "uncertain"
+          ]
+        },
+        "acquired_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "heartbeat_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "launch_history": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "generation",
+          "owner_nonce",
+          "state",
+          "marker_path",
+          "observed_at"
+        ],
+        "properties": {
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "owner_nonce": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256
+          },
+          "state": {
+            "enum": [
+              "claimed",
+              "acknowledged",
+              "go_released",
+              "entered",
+              "heartbeat",
+              "parked",
+              "quarantined",
+              "terminal",
+              "stale_takeover"
+            ]
+          },
+          "marker_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "handle": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "launch_evidence": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "generation",
+            "handle",
+            "observed_at"
+          ],
+          "properties": {
+            "kind": {
+              "const": "host_ack"
+            },
+            "generation": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "handle": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "observed_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "generation",
+            "marker_path",
+            "observed_at"
+          ],
+          "properties": {
+            "kind": {
+              "const": "child_marker"
+            },
+            "generation": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "marker_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "observed_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      ]
+    },
+    "parked": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "pending_gate",
+            "policy_pause"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "gate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "deadline": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "handoff_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "outcome": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^(success|failed:.+|vendor_limit:[^:]+:.+|parked)$",
+      "maxLength": 1024
+    },
+    "prepared_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resolved_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "quarantine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "properties": {
+        "kind": {
+          "const": "unknown_liveness"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "launch_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generation",
+        "state"
+      ],
+      "properties": {
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "enum": [
+            "waiting_ack",
+            "go_released",
+            "entered"
+          ]
+        },
+        "handle": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "go_released_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "entered_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "scope": {
+            "properties": {
+              "proof": {
+                "const": "proven_disjoint"
+              }
+            },
+            "required": [
+              "proof"
+            ]
+          }
+        },
+        "required": [
+          "scope"
+        ]
+      },
+      "then": {
+        "properties": {
+          "scope": {
+            "properties": {
+              "write_allow": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "prepared"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "type": "null"
+          },
+          "resolved_at": {
+            "type": "null"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "parked"
+              ]
+            },
+            {
+              "required": [
+                "lease"
+              ]
+            },
+            {
+              "required": [
+                "launch_evidence"
+              ]
+            },
+            {
+              "required": [
+                "launch_gate"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "claimed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "launch_evidence",
+          "lease",
+          "launch_gate"
+        ],
+        "properties": {
+          "lease": {
+            "properties": {
+              "state": {
+                "const": "active"
+              }
+            }
+          },
+          "launch_gate": {
+            "properties": {
+              "state": {
+                "const": "waiting_ack"
+              },
+              "handle": {
+                "type": "null"
+              },
+              "go_released_at": {
+                "type": "null"
+              },
+              "entered_at": {
+                "type": "null"
+              }
+            }
+          },
+          "outcome": {
+            "type": "null"
+          },
+          "resolved_at": {
+            "type": "null"
+          },
+          "launch_evidence": {
+            "properties": {
+              "kind": {
+                "const": "child_marker"
+              }
+            }
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "parked"
+              ]
+            },
+            {
+              "required": [
+                "quarantine"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "launched"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "launch_evidence",
+          "lease",
+          "launch_gate"
+        ],
+        "properties": {
+          "lease": {
+            "properties": {
+              "state": {
+                "const": "active"
+              }
+            }
+          },
+          "launch_gate": {
+            "properties": {
+              "state": {
+                "const": "entered"
+              },
+              "handle": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "go_released_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "entered_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "handle",
+              "go_released_at",
+              "entered_at"
+            ]
+          },
+          "outcome": {
+            "type": "null"
+          },
+          "resolved_at": {
+            "type": "null"
+          },
+          "launch_evidence": {
+            "properties": {
+              "kind": {
+                "const": "host_ack"
+              }
+            }
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "parked"
+              ]
+            },
+            {
+              "required": [
+                "quarantine"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "quarantined"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "launch_evidence",
+          "lease",
+          "launch_gate",
+          "quarantine"
+        ],
+        "properties": {
+          "lease": {
+            "properties": {
+              "state": {
+                "const": "uncertain"
+              }
+            }
+          },
+          "outcome": {
+            "type": "null"
+          },
+          "resolved_at": {
+            "type": "null"
+          },
+          "launch_evidence": {
+            "properties": {
+              "kind": {
+                "const": "host_ack"
+              }
+            }
+          },
+          "launch_gate": {
+            "required": [
+              "handle",
+              "go_released_at"
+            ],
+            "properties": {
+              "state": {
+                "enum": [
+                  "go_released",
+                  "entered"
+                ]
+              },
+              "handle": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "go_released_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "not": {
+          "required": [
+            "parked"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "parked"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "parked",
+          "outcome",
+          "resolved_at",
+          "launch_evidence",
+          "lease",
+          "launch_gate"
+        ],
+        "properties": {
+          "outcome": {
+            "const": "parked"
+          },
+          "lease": {
+            "properties": {
+              "state": {
+                "const": "released"
+              }
+            }
+          },
+          "launch_gate": {
+            "properties": {
+              "state": {
+                "const": "entered"
+              },
+              "handle": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "go_released_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "entered_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "handle",
+              "go_released_at",
+              "entered_at"
+            ]
+          },
+          "launch_evidence": {
+            "properties": {
+              "kind": {
+                "const": "host_ack"
+              }
+            }
+          }
+        },
+        "not": {
+          "required": [
+            "quarantine"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "outcome",
+          "resolved_at",
+          "handoff_id",
+          "launch_evidence",
+          "lease",
+          "launch_gate"
+        ],
+        "properties": {
+          "outcome": {
+            "const": "success"
+          },
+          "handoff_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "lease": {
+            "properties": {
+              "state": {
+                "const": "released"
+              }
+            }
+          },
+          "launch_gate": {
+            "properties": {
+              "state": {
+                "const": "entered"
+              },
+              "handle": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "go_released_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "entered_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "handle",
+              "go_released_at",
+              "entered_at"
+            ]
+          },
+          "launch_evidence": {
+            "properties": {
+              "kind": {
+                "const": "host_ack"
+              }
+            }
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "parked"
+              ]
+            },
+            {
+              "required": [
+                "quarantine"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "failed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "outcome",
+          "resolved_at"
+        ],
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "pattern": "^(failed:.+|vendor_limit:[^:]+:.+)$"
+          },
+          "lease": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "released",
+                  "expired"
+                ]
+              }
+            }
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "parked"
+              ]
+            },
+            {
+              "required": [
+                "quarantine"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "continuation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "enum": [
+              "prepared",
+              "claimed",
+              "acknowledged",
+              "launched",
+              "quarantined"
+            ]
+          },
+          "lease_generation": {
+            "minimum": 2
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "not": {
+              "const": "quarantined"
+            }
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "quarantine"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "acknowledged"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "launch_evidence",
+          "lease",
+          "launch_gate"
+        ],
+        "properties": {
+          "launch_evidence": {
+            "properties": {
+              "kind": {
+                "const": "host_ack"
+              }
+            }
+          },
+          "lease": {
+            "properties": {
+              "state": {
+                "const": "active"
+              }
+            }
+          },
+          "launch_gate": {
+            "required": [
+              "handle",
+              "go_released_at"
+            ],
+            "properties": {
+              "state": {
+                "const": "go_released"
+              },
+              "handle": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "go_released_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "entered_at": {
+                "type": "null"
+              }
+            }
+          },
+          "outcome": {
+            "type": "null"
+          },
+          "resolved_at": {
+            "type": "null"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "parked"
+              ]
+            },
+            {
+              "required": [
+                "quarantine"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "launch_gate": {
+            "properties": {
+              "state": {
+                "const": "entered"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          }
+        },
+        "required": [
+          "launch_gate"
+        ]
+      },
+      "then": {
+        "properties": {
+          "launch_gate": {
+            "required": [
+              "entered_at"
+            ],
+            "properties": {
+              "entered_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

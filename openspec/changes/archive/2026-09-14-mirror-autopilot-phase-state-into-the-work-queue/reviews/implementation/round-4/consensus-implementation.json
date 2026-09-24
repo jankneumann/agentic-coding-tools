@@ -1,0 +1,336 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "mirror-autopilot-phase-state-into-the-work-queue",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "disagreement",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 4
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 12
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "`runner.py transition` (the new canonical host writer) does not handle `autopilot.GoalGateRefused`. `_apply_transition` raises it (autopilot.py:810-858, a RuntimeError subclass) whenever the resolved target is DONE and the goal gate finds no evidence, e.g. `--outcome created` from SUBMIT_PR. `_cmd_transition` catches only GatePending, ValueError and OSError, so the refusal escapes as an uncaught traceback with exit 1 and no state change. Both other DONE paths convert the same refusal into a persisted ESCALATE (`run_loop` autopilot.py:1122-1130 and `gate-answer` runner.py:270-278) per design D6 ('a refusal is never a silent stop'). On the prose host the operator sees an 'operational failure' exit, nothing is written, and per SKILL.md exit 1 suppresses projection, so neither loop-state nor the queue records the escalation.",
+      "vendor_dispositions": {
+        "claude_code": "fix",
+        "codex": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 2,
+      "status": "disagreement",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Tasks 3.1-3.3 are checked as complete, and design D5/D9 and the proposal acceptance require a coordinator-backed proof (three live generations, >50 seeded lower-priority issues, connected-SSE and polling visibility within 5 seconds, crash-after-save resume, interrupted-cleanup retry, 100-row bound). The parent-to-HEAD diff contains no such test: the only coordinator test added is `agent-coordinator/tests/test_autopilot_projection_visibility.py`, whose migration check (lines 13-26) is substring matching on the SQL text, and the skill tests monkeypatch every bridge call. Migration 037 (claim_task overload drop plus `task_type <> 'issue'` exclusion and the new trigger body) therefore has no executed evidence anywhere in the change; `handoffs/implementation-review-3.json` line 73 itself defers 'Live PostgreSQL migration execution evidence' to VALIDATE. Marking 3.1-3.3 done misrepresents the verification tier-A contract in work-packages.yaml.",
+      "vendor_dispositions": {
+        "claude_code": "escalate",
+        "grok": "fix"
+      }
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Concurrent projection publishers can remove the newer canonical row's labels while both report success. Label repair occurs after the database reconciliation lock has been released and identifies stale rows only by inequality with the task ID returned to that invocation. A deterministic interleaving is: generation N reconciles and receives row N; generation N+1 reconciles, cancels row N, and labels row N+1; the delayed generation-N invocation then labels its cancelled row, lists both double-labelled rows, treats row N+1 as stale because it differs from row N, and clears row N+1's labels at lines 127-144. Generation N can also relabel its cancelled row after generation N+1 has already completed cleanup. The current projection is consequently absent or accompanied by a stale projection even though both adapters return status ok, violating exact reconciliation and the exactly-one-current-row contract."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Normal reconciliation can send a cancelled projection row to Kanban, whose runtime status domain cannot render it. The reconciliation RPC cancels stale rows before the adapter labels the canonical row and later clears stale labels. Canonical labeling emits an SSE snapshot while cancelled stale rows may still carry change:<id>; event_stream._build_snapshot lists change-labelled issues without a status filter at lines 178-184. IssueService likewise applies no status predicate when status is omitted, while Kanban's IssueStatus union contains pending, claimed, running, completed, failed, and blocked but not cancelled, and issueStatusToColumn has no cancelled branch. A snapshot or polling request between canonical labeling and cleanup therefore makes Board index an undefined column; a cleanup failure leaves that condition persistent. This contradicts the promised unchanged, live Kanban visibility path."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "behavioral_failure",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Canonical failure edges into ESCALATE do not preserve the required resume metadata. TRANSITIONS maps numerous ordinary outcomes such as PLAN failed, IMPLEMENT failed, and review max_iter directly to ESCALATE. _apply_transition then only assigns current_phase, timestamp, and total_iterations at lines 807-815; it never sets previous_phase or escalation_reason. Both run_loop and the new runner.py transition command persist this incomplete state. A later ESCALATE resolved transition deterministically raises \"previous_phase is None\", so the run cannot resume to its originating phase. This violates the base escalation contract requiring previous_phase and escalation_reason whenever ESCALATE is entered."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The required live integration proof is absent although tasks 3.1-3.3 and 4.3 are checked complete. agent-coordinator/tests/test_autopilot_projection_visibility.py only string-scans migration 037, exercises SSE with a FakeBus and mocked snapshots, inspects selected OpenAPI fields, and unit-tests missing task IDs. It never applies migration 037 to PostgreSQL, invokes a live coordinator projection sequence, attempts an unfiltered claim against an issue row, verifies database NOTIFY OLD-label fallback, seeds more than 50 issues, or renders/polls Kanban during cancellation and label cleanup. change-context.md explicitly records 0/1 requirements with evidence and says the live PostgreSQL/coordinator proof is deferred. The claimed acceptance and migration safety are therefore unverified, and the missing cross-boundary test would have exposed the cancelled-status and concurrency defects above."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "apply_outcome_or_escalate remains a second ESCALATE writer that bypasses the new generation rule and projection seam. On a non-zero apply-outcome result it manually sets previous_phase and current_phase at lines 659-665 but never increments total_iterations. It then returns the original non-zero code and has no projection callback, while the host protocol suppresses projection after non-zero mutation exits. The durable phase can therefore change to ESCALATE with the previous projection identity and leave the old queue generation live until a later resume reconciliation, contrary to the requirement that every direct ESCALATE transition increment once and every durable coordinated mutation project immediately."
+    },
+    {
+      "id": 8,
+      "status": "disagreement",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 10
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "escalate",
+      "description": "The revision-2 OpenAPI request schemas remain more permissive than the runtime projection API. WorkSubmitRequest and WorkReconcileRequest use Pydantic extra=\"forbid\", require non-empty task_type and task_description, constrain priority to 1-10, and validate submit dependencies as UUIDs. The authored /work/submit and /work/reconcile schemas at lines 89-100 and 129-139 omit additionalProperties:false, minLength constraints, priority bounds, and UUID formats. A client generated from the declared contract can therefore produce requests the runtime rejects with 422, so the parity test's selected-field assertions do not establish actual OpenAPI parity.",
+      "vendor_dispositions": {
+        "codex": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Critical: Design D7 and task 1.1 require adapter tests that project at least three successive generations so first-insert and same-generation replay cannot hide an inverted submit/reconcile mapping. `skills/tests/autopilot/test_queue_projection.py` covers one-shot identity, a single `reconciliation_required` fallthrough, mismatch degradation, and reconcile cleanup, but never drives three increasing `(phase, transition_sequence)` generations through the adapter."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Critical: `runner.py project-state` returns exit 1 for any non-ok projection envelope (`return 0 if result.get(\"status\") == \"ok\" else 1` at runner.py:436), the same class used for missing-state I/O failures (lines 429\u2013431). SKILL.md:84\u201385 says projection failure is degraded and must not rewrite loop-state, but never tells the host to continue phase work on a non-zero `project-state` exit. Coordinated hosts that treat any non-zero as a stop will halt an otherwise healthy run on a transient coordinator/label outage, violating observability-only projection."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "When a `projection_snapshot` marker is dequeued it is immediately converted by awaiting `_build_snapshot` (line 327), and only afterwards is `window_count` incremented and compared to `_BACKPRESSURE_LIMIT`. If the window is already saturated, the backpressure branch drains the queue and awaits `_build_snapshot` a second time (line 346), discarding the first result. During a 100-row stale-label repair this doubles the database-backed snapshot work for the same tick. Not a correctness issue because the second snapshot is fresher, but the first query is wasted."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "`test_coordinator_free_run_cannot_call_projection_transport` drives `run_loop` with `queue_projection_fn=None`, so `persist_and_project` returns before any callback and the patched bridge functions can never be reached; the test cannot fail for the isolation property D10 describes (a host constructing the adapter on the coordinator-free tier). It also inserts into `sys.path` without cleanup. Similarly `test_projection_openapi_problem_contract_matches_runtime` (agent-coordinator test, lines 145-173) only parses the YAML and never compares against the FastAPI app's problem handlers, so its name overstates what it proves. The real isolation guard is the AST top-level import test, which is sound."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Review-process note: pytest and ruff invocations required sandbox approval that this non-interactive session could not grant, so the suites listed in work-packages.yaml were not executed by this reviewer; conclusions are from static reading. Verified positives with file evidence: (a) projection identity is derived only from `(change_id, current_phase, total_iterations)` with the stricter change-id grammar checked before transport (lines 54-67); (b) only a `status=error`/409/`detail=reconciliation_required` envelope advances to reconcile, matching migration 035's `v_seq > v_head_seq` branch (lines 89-90, 149-158; 035_work_queue_projection.sql:116-118); (c) one `detect_coordination` snapshot is reused across submit, label and cleanup calls via `_coordination_state` (coordination_bridge.py:526-537); (d) HTTP-200 `success:false` issue-service replies are demoted to `status=failed` with a bounded reason (coordination_bridge.py:1233-1248); (e) canonical labelling precedes stale cleanup and any failure returns a bounded degraded envelope without touching loop-state (lines 99-140); (f) `enter_escalate` increments the sequence exactly once and only on a real phase change (autopilot.py:510-513); (g) migration 037 drops both historical `claim_task` overloads (001 and 021 signatures) and re-creates the 027 six-arg signature with `task_type <> 'issue'` (037 lines 7-25); (h) the label-change trigger derives change_id from NEW labels with OLD fallback so removals stay routable (037 lines 96-116); (i) SSE marker coalescing clears the pending flag before the query so a mid-query update enqueues one follow-up, and off_event still runs for both callbacks in `finally` (event_stream.py:273-280, 320-328, 375-378); (j) canonical and installed skill copies (`skills/`, `.claude/skills/`, `.agents/skills/`) are byte-identical apart from `__pycache__` and test dirs; (k) `_projection_mutation_payload` now rejects a success result with no task_id as 422 (coordination_api.py:130-131); (l) OpenAPI work-queue.yaml declares `/work/reconcile`, `ProjectionKey`, `ProjectionMutationResult` and problem+json 401/403/409/422 consistent with the runtime handlers at coordination_api.py:835-896."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Exact nested HTTP-409 reconciliation remains narrow and spec-correct. `_requires_reconciliation` demands `status=error`, `status_code=409`, dict `response`, and `detail == \"reconciliation_required\"` (queue_projection.py:149-158); sibling `projection_generation_mismatch` degrades without reconcile (`test_only_exact_reconciliation_required_conflict_advances_head`)."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Projection issue helpers treat HTTP-200 business failures as non-success. `_require_projection_operation_success` (coordination_bridge.py:1233-1247) keeps status ok only when `response.success is True`; `try_projection_issue_update`/`list` route through it, and the adapter degrades on non-ok label/list/cleanup envelopes."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Migration 037 removes legacy `claim_task` overloads before installing the sole issue-excluding form (DROP of 3-arg and 5-arg signatures at lines 7-8; `AND task_type <> 'issue'` at line 25), so unfiltered SQL callers cannot resolve a historical overload that would claim projection rows."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: One capability snapshot is detected once per adapter call and reused for the full submit/reconcile/label/list/cleanup chain via `_coordination_state` (queue_projection.py:60-82; coordination_bridge.py:531-533). `test_projection_reuses_one_capability_snapshot_for_all_bridge_calls` pins identity reuse."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: SSE projection coalescing and unsubscribe remain sound. `_on_task_event` latches `projection_refresh_pending` and enqueues one marker for `projection.labels_changed` bursts (event_stream.py:276-280); consumption paths clear the latch so mid-refresh events re-arm exactly once; the `finally` block identity-unregisters both bus callbacks (355-360)."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Coordinator-free isolation is structural. `runner.py` imports `queue_projection` only inside `_cmd_project_state` (418-419); `persist_and_project` short-circuits when `queue_projection_fn is None`; AST and fail-fast transport spies in `test_phase_projection_isolation.py` prove no publisher traffic on the callback-free path."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Installed skill mirror parity holds at HEAD `f16b8d3f`. Canonical sources under `skills/` for autopilot `SKILL.md`, `queue_projection.py`, `runner.py`, `autopilot.py`, and coordination-bridge `coordination_bridge.py` are byte-identical to both `.agents/skills/` and `.claude/skills/` mirrors."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 20,
+    "confirmed_count": 0,
+    "unconfirmed_count": 17,
+    "disagreement_count": 3,
+    "blocking_count": 0,
+    "advisory_count": 20
+  }
+}

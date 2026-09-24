@@ -11,7 +11,11 @@ base_url: "http://127.0.0.1:8765"
 
 lifecycle:
   startup_command: "python -m http.server 8765 --bind 127.0.0.1"
-  startup_cwd: "evaluation/gen_eval/fixtures/sample-frontend"
+  # Repo-root-relative. Was evaluation/gen_eval/fixtures/sample-frontend until
+  # 2026-09-08; the fixture moved under packages/gen-eval when gen-eval was
+  # extracted and this line was left behind, unnoticed because no CI job ran
+  # this descriptor.
+  startup_cwd: "packages/gen-eval/tests/fixtures/sample-frontend"
   bind_address: "127.0.0.1"
   health_check:
     url: "http://127.0.0.1:8765/"

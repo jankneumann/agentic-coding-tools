@@ -22,6 +22,7 @@ The coordinator work queue SHALL be the single source of dispatch state for asyn
 
 WHEN an async vendor task is dispatched
 THEN a work-queue entry SHALL record the submission
+AND the authenticated dispatcher SHALL own the row before vendor work starts
 AND completion SHALL be recorded via complete_work before results are consumed downstream.
 
 ### Requirement: Lock Release by Agent
@@ -32,3 +33,12 @@ The coordinator HTTP API SHALL support listing and bulk-releasing locks by agent
 
 WHEN a cloud session deregisters
 THEN all locks held by its agent id SHALL be released without waiting for TTL expiry.
+
+### Requirement: SDK Dispatch Scope
+
+SDK vendor adapters SHALL remain review-only unless a later delta explicitly widens their contract.
+
+#### Scenario: Unsupported SDK mode fails before external work
+
+WHEN an SDK adapter is asked to dispatch a mode other than review
+THEN it SHALL reject the request before credential resolution or any network call.

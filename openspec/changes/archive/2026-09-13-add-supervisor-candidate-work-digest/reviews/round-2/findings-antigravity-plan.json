@@ -1,0 +1,151 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Preflight pruning removes approved and rejected candidate files and score caches before fingerprint evaluation, but only a due deferral is defined as a due transition that bypasses the unchanged-fingerprint early exit. When terminal candidates (approved or rejected) are pruned without any due deferral, the candidate store changes, but because the candidate store is excluded from the cycle fingerprint, the cycle fingerprint remains unchanged and no due transition is detected. The cycle therefore hits the unchanged fingerprint gate, re-presenting the prior digest.json byte-for-byte with the pruned terminal candidates still present in the artifact, and any capacity freed by terminal pruning is not exposed to SENSE.",
+      "resolution": "Specify that any lifecycle maintenance pass that mutates the store (including terminal pruning of approved or rejected candidate files) bypasses the unchanged fingerprint early exit and triggers a digest rebuild from surviving caches; add a spec scenario verifying terminal-only pruning removes approved/rejected candidates from the digest and updates candidate capacity.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 28,
+        "end": 30
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: While the staleness reference clock is specified as host-owned (manifest.as_of), the artifact creation/emission timestamp subtracted from manifest.as_of is never defined. candidate-work.schema.json contains no timestamp field; filesystem mtime varies across git clones and worktrees and is absent from the cycle fingerprint, making staleness penalties non-reproducible across environments.",
+      "resolution": "Define a deterministic, reproducible artifact timestamp source for candidates (such as the git commit timestamp of the provenance source artifact, or add an explicit source timestamp field to the candidate-work contract) along with explicit rules for uncommitted or missing provenance files.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 49,
+        "end": 51
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: The normative spec clause at line 99 states \"The refiner SHALL own final priority renumbering\", whereas design.md D4 (lines 120-121) and proposal.md (line 80) explicitly state that --after alters YAML insertion position only and does NOT renumber priorities. This creates a direct contradiction between the normative spec requirement and the design specification.",
+      "resolution": "Remove or update the stale \"The refiner SHALL own final priority renumbering\" sentence in specs/supervise/spec.md line 99 to match the selected design contract where explicit candidate priority is copied directly and --after only changes YAML element position.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 97,
+        "end": 100
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: D8 caps the full batch manifest input at 64 KiB, but normative spec line 9 caps only provenance evidence at 64 KiB while candidate title, description, and rationale strings have no individual length caps in candidate-work.schema.json. If candidate stub text alone totals > 64 KiB across 20 stubs, or if a single stub payload exceeds 64 KiB, store --prune-only succeeds on count (<=20 stubs) but prepare-batch behavior and error reporting are unspecified.",
+      "resolution": "Harmonize the 64-KiB input bound across proposal, design, and spec. Define exact byte accounting for serialized batch manifest prompt data and specify fail-closed behavior for individual or batch payload overflow during prepare-batch.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 10
+      },
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: When a scoring run fails (e.g. timeout, retry exhaustion, or invalid model JSON), the spec mandates that no cache, digest, or mirror state is published, preserving the prior digest and rendering a degraded chat line. However, because no files on disk are modified, on the next cycle the cycle fingerprint remains unchanged. As a result, the next cycle hits the unchanged fingerprint early exit and re-presents the prior digest without dispatching a scorer, permanently suppressing the intended next-cycle retry unless an unrelated tree edit occurs.",
+      "resolution": "Specify that a cycle with failed scoring records a failed-scoring flag in the cycle ledger or bypasses the unchanged fingerprint early exit on the next cycle to ensure the automatic scoring retry takes place; add a test scenario covering consecutive cycles following a scoring failure.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 189,
+        "end": 197
+      },
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: proposal.md lines 204-205 and tasks.md 1.8 specify using ri-16's canonical readiness resolver (resolve_readiness()) for dependency readiness. However, resolve_readiness() only returns items currently on the ready frontier, whereas design.md D2 (lines 49-53) and spec.md line 11 require a strict index of all roadmap item/change statuses (including archived/completed changes) to resolve whether prerequisites are satisfied. In addition, task 2.2 still mentions \"deterministic chunk/merge behavior\" from an earlier multi-batch design.",
+      "resolution": "Update proposal.md, task 1.8, and task 2.2 to consistently specify the strict all-status roadmap and archived-change status index for dependency readiness, and remove stale multi-batch chunk/merge wording.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/tasks.md",
+      "line_range": {
+        "start": 88,
+        "end": 122
+      },
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: design.md D2 states \"These constants and buckets are emitted in weights, so a reader can recompute every rank\". However, digest.schema.json restricts weights to six numeric fields (relevance, value, readiness, scope_fit, risk, staleness_penalty_per_30d) and cannot represent non-arithmetic ranking rules such as the 5-point staleness cap, bucket ordering (pending before deferred, ready before blocked), inverted risk interpretation, or tie-breaking by stub_key.",
+      "resolution": "Extend digest.schema.json weights or ranking_policy definition to include complete ranking policy parameters, or adjust design text to clarify that weights contains arithmetic factor weights while ranking rules are fixed by schema version.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json",
+      "line_range": {
+        "start": 72,
+        "end": 79
+      },
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "low",
+      "description": "The plan enforces safe evidence isolation by restricting provenance reads to UTF-8 regular files inside the repository, excluding symlinks and URIs, capping per-artifact excerpts to 2 KiB and total manifest input to 64 KiB, running host-side secret redaction via sanitize_string, and framing evidence in explicit untrusted-data delimiters.",
+      "resolution": "Retain these security bounds and negative test scenarios during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 175,
+        "end": 188
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The work-packages DAG establishes an acyclic two-lane structure (contracts -> digest-module/rubric-prompt -> skill-docs -> integration), with clear file locks, isolated worktrees, and complete write_allow scopes for canonical and runtime mirror targets.",
+      "resolution": "Maintain the defined work-package boundaries and mirror synchronization checks during execution.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml",
+      "line_range": {
+        "start": 29,
+        "end": 251
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

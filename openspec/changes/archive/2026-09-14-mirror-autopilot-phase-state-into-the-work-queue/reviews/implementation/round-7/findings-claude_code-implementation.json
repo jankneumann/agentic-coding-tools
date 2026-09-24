@@ -1,0 +1,237 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "install.sh --check now fails whenever the runtime mirrors are absent, and the required CI job runs it on a fresh checkout where they never exist. check_install_payload (skills/install.sh:246-253) reports 'Installed skill mirror missing' for every portable skill when $TARGET_ROOT/.claude/skills/<skill> or .agents/skills/<skill> does not exist, and the --check branch (271-276) exits 1. Both mirror roots are gitignored (.gitignore:280-281) and `git ls-files .claude .agents` shows no tracked skill mirrors, so the test-infra-skills job (.github/workflows/ci.yml:79-105: checkout, uv sync, ruff, then `bash install.sh --check` with no prior install) will fail deterministically at HEAD. The same applies to the documented consumer pre-install check in docs/cross-repo-setup.md:35. The new drift regression (skills/tests/install_sh/test_consumer_portability.py:65-115) installs first, so it cannot see this. The validation report records CI/CD as 'pending', so the break has not yet been observed.",
+      "resolution": "Either (a) run `bash install.sh` (or a rsync install into the checkout) before `--check` in ci.yml, or (b) make --check distinguish 'not installed' from 'drifted': skip agents whose <rel_dir> root does not exist with a warning (or add an explicit --check-installed flag) while still failing on partial/different payloads. Add a test that runs --check against an empty target root and asserts the intended exit code.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 246,
+        "end": 276
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "medium",
+      "description": "The round-6 'database-owned UUID registry' is not the sole ownership authority: migration 039 still ORs the mutable marker label into v_existing_owned (039:99-102 in submit_task, 193-196 in reconcile_work_projection). Any API-key holder can put that label on an ordinary issue-type row via POST /issues/update or PATCH /issues/{id}/labels (IssueService.update at issue_service.py:424-425 and the patch handler at coordination_api.py:3233-3239 apply labels verbatim with no reserved-label rejection). An ordinary issue row at the exact tuple is constructible through the still-supported unlabelled keyed submit (task_type=issue + projection_key, no labels). With the spoofed label present, the next labelled submit/reconcile treats the row as owned, permanently inserts it into the registry (039:114-117, 208-211), relabels it, reactivates it if terminal, and returns success \u2014 the exact commandeering round 6 claims to have closed, only via labels instead of input_data. The live collision tests seed only labels=['ordinary'] (test_autopilot_projection_acceptance_postgres.py:400-409), so the label-spoof path is untested. The seed statement (039:11-17) already migrates legacy labelled rows into the registry, so the OR is unnecessary after 039 applies.",
+      "resolution": "Drop the label disjunct so ownership is decided solely by work_queue_projection_ownership after the 039 seed, and/or reject 'projection:autopilot-phase' in IssueService.update / the labels PATCH path. Add a live test that seeds an unowned issue row at the tuple carrying the marker label and asserts projection_key_collision with the row untouched.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 99,
+        "end": 112
+      },
+      "axis": "security",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`runner.py transition` converts a completed run into a new ESCALATE generation on any outcome. TRANSITIONS has no DONE entry (autopilot.py:240-260), so transition() raises ValueError('No transitions defined for phase DONE') (270-271); _cmd_transition catches every ValueError (runner.py:431-455), appends transition_failed, calls enter_escalate \u2014 which, because current_phase != 'ESCALATE', sets previous_phase='DONE', current_phase='ESCALATE', and increments total_iterations (autopilot.py:520-523) \u2014 saves, and exits 0 so the protocol's mandatory project-state submit publishes the new generation and reconciliation cancels the DONE projection row. A stray or replayed host call after SUBMIT_PR\u2192DONE silently reopens a finished change as escalated and rewrites the board.",
+      "resolution": "Guard _cmd_transition (and enter_escalate or _apply_transition) so a DONE state refuses the edge with a non-zero, non-mutating exit, and add a runner CLI test seeding current_phase=DONE that asserts the file is byte-unchanged.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 431,
+        "end": 455
+      },
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The canonical CLI writers give the prose host no way to record run options that the transition table consumes. `runner.py init` (runner.py:380-402) builds LoopState with defaults force=False, cli_review_enabled=True, val_review_enabled=False (autopilot.py:121-138) and accepts no flags; runner.py has no other writer for these fields. `transition` resolves INIT\u2192GATEKEEPER_OR_PLAN from state.force and the review edges from state.cli_review_enabled / state.val_review_enabled (autopilot.py:277-286). SKILL.md forbids hand-editing current_phase and promises --force 'transitions straight to PLAN' (SKILL.md:240-241), so on the host-driven path those operator flags are silently ignored unless the host hand-edits other loop-state fields, which the protocol no longer describes.",
+      "resolution": "Add `--force`, `--cli-review-enabled/--no-review`, and `--val-review-enabled` options to `runner.py init` (and optionally a set-options writer for resume), and reference them from the INIT/GATEKEEPER prose.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 380,
+        "end": 402
+      },
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Owned terminal-row reactivation emits no EventBus event, so a connected SSE client is not refreshed. The reactivation UPDATE (039:130-134 submit, 242-246 reconcile) moves the canonical row to status='pending'; notify_work_queue_change only emits task.* for NEW.status IN ('completed','failed','claimed','running','blocked') (037:112-113), and the preceding `SET labels=p_projection_labels` is a no-op for a row closed out of band with its labels intact (IssueService.close sets status='completed' and leaves labels, issue_service.py:481-485), so no projection.labels_changed fires. The board keeps showing the row as completed until polling or unrelated traffic.",
+      "resolution": "Emit projection.labels_changed (or a task.pending event for rows carrying the marker label) from the reactivation branch, or include 'pending' in the status-notify set for labelled projection rows; extend the reactivation live test with a connected SSE stream assertion.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 130,
+        "end": 135
+      },
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Migration 039's registry seed (039:10-17) only adopts existing issue rows that carry the marker label. A pre-038 projection row whose client-side label repair failed (task_type=issue, complete tuple, labels=[]) is left unowned; the first labelled submit or reconcile for that tuple returns projection_key_collision (039:108-112, 202-206), mapped to HTTP 409 and treated as terminal degradation by the adapter (queue_projection.py:103-112). The projection for that generation stays degraded until the sequence advances and the cancel CTE (039:218-232) retires the unowned row. Accepted fail-closed trade-off, but undocumented as an upgrade caveat with no operator repair path other than direct SQL.",
+      "resolution": "Document the caveat in docs/guides/work-queue-truth-projection.md and optionally extend the seed to ri-08 publisher rows identified by input_data.projection_provenance, or provide a coordination-cli command to register a row.",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 10,
+        "end": 17
+      },
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive: migrations 038 and 039 preserve legacy non-projection behaviour and cannot select ordinary change-labelled issues. The unkeyed submit path (039:37-47) matches 035 apart from rejecting labels; keyed calls with NULL p_projection_labels skip the collision check, registry insert, label rewrite, and reactivation branches, pinned by test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics. Every owned-label mutation predicate requires task_type='issue', all three identity keys, and the marker label (039:122-128, 234-240). IssueService.create never writes identity keys into input_data (issue_service.py:265-279), and the DAG scheduler task context carries feature_id rather than change_id (dag_scheduler.py:132-134), so the reconcile cancel CTE cannot reach ordinary issues or package tasks on a coordinated resume.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 37,
+        "end": 47
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive: every ESCALATE edge advances exactly once and records resume metadata. _apply_transition returns through enter_escalate before its own increment (autopilot.py:832-841); enter_escalate mutates previous_phase, current_phase, and total_iterations only when the phase actually changes (520-524); apply_outcome_or_escalate mirrors that guard on the raw dict and projects the reloaded state (674-686); runner escalate/transition/gate-answer/goal-gate paths reuse the same writer. test_runner_cli.py:139-254 proves the executable host paths at the process boundary.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 514,
+        "end": 533
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Positive: a structured degraded projection cannot halt authoritative work and queue responses are never state inputs. _cmd_project_state loads the file, performs the lazy adapter import, writes the envelope, and returns 0 for any structured result (runner.py:491-522). QueueProjectionAdapter derives identity solely from LoopState, advances to reconcile only on the exact status=error/409/detail=reconciliation_required envelope built by _normalize_operation_response (coordination_bridge.py:509-517), and returns only status/reason/task_id (queue_projection.py:52-112). In-process resume reconciles before phase work (autopilot.py:1044-1045) and the authorized escalate_resume edge is applied and flushed before exit 3 (runner.py:169-183).",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 86,
+        "end": 112
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive: labels are applied and stale owned labels cleared inside the per-change advisory transaction for concurrent N/N+1 publishers. Both functions take pg_advisory_xact_lock and lock the head row FOR UPDATE before any mutation (039:72-74, 172-174); a delayed older publisher is rejected as stale_projection while the lock is held (77-79, 175-178). Same-generation replay preserves claimed/running rows and resets only cancelled/completed/failed rows (130-134, 242-246); collisions with unowned rows return before head insert/update and cancellation (108-121, 202-216). Live coverage: test_work_queue_postgres.py:343-396 and test_autopilot_projection_acceptance_postgres.py.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 72,
+        "end": 86
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Positive: runtime and OpenAPI request/response constraints agree. projection_key_collision is in _PROJECTION_CONFLICTS (HTTP 409) and invalid_projection_labels in _PROJECTION_INVALID (HTTP 422) (coordination_api.py:95-110), with a mapper regression at test_autopilot_projection_visibility.py:262-273. WorkSubmitRequest/WorkReconcileRequest use extra='forbid', priority 1-10, exactly two labels of at most 160 chars (223-249), matching the YAML's additionalProperties:false, ordered prefixItems, items:false, and the conditional projection_key/task_type:issue requirement (work-queue.yaml:88-192). Exact-equality validation makes the 160-versus-135 per-item bound difference unobservable.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 95,
+        "end": 110
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Positive: first-insert and stale-to-current SSE refresh are closed and coalesced. notify_projection_insert fires AFTER INSERT for rows carrying the marker label (039:254-284); label changes and OLD-label fallback remain in notify_work_queue_change (037:80-110). sse_event_generator collapses bursts into one projection_snapshot marker, clears the flag before the DB-backed snapshot so a concurrent update queues exactly one follow-up, and resets it after the backpressure drain (event_stream.py:219, 272-280, 320-328, 340-345). Live proof at test_autopilot_projection_acceptance_postgres.py:180-250 with a real EventBusService; implicit label reads exclude cancelled rows (issue_service.py:319-322).",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 272,
+        "end": 328
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive: coordinator-free tiers stay isolated and installed mirrors match. autopilot.py and runner.py have no top-level queue_projection import; the only import is lazy inside _cmd_project_state (runner.py:502-503), guarded by the AST test at test_phase_projection_isolation.py:12-27 and the fail-fast transport spies at 47-86. `diff -qr --exclude=tests --exclude=__pycache__ --exclude=node_modules` of skills/autopilot and skills/coordination-bridge against both .claude/skills and .agents/skills produced no output at HEAD 217a72c4.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 496,
+        "end": 522
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 14,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Positive: generated architecture artifacts satisfy the provenance/freshness contract and the review ledger is complete. architecture.provenance.json records source_revision 3c0bc59311316ea3f55f6ada651d80d4f9cd49f5, worktree_dirty=false, validation passed with 0 errors, and input_roots limited to migrations, agent-coordinator/src, apps; `git log -1 -- <those roots>` returns the same commit, and the three later commits touch only docs/architecture-analysis and the validation report. round-5/dispositions.md is now a non-empty ledger; round-6/dispositions.md dispositions Codex 1, Codex 2/Claude 3, Claude 1, and Claude 2 with the corresponding 039/API changes present at HEAD.",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "docs/architecture-analysis/architecture.provenance.json",
+      "line_range": {
+        "start": 132,
+        "end": 176
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

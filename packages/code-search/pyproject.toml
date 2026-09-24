@@ -37,6 +37,10 @@ packages = ["src/code_search_pkg"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Make tests/_shared importable as `from openspec_paths import ...`. This package
+# has its own virtualenv, so it carries a byte-identical mirror of the helper
+# rather than reaching into skills/. See docs/guides/openspec-path-stability.md.
+pythonpath = ["tests/_shared"]
 markers = [
     "requires_db: needs a live ParadeDB (POSTGRES_DSN) — skipped otherwise",
     "requires_embedder: needs cocoindex + a reachable embedding model — skipped otherwise",

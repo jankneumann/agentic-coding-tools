@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-14T21:47:58.138146+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned the adoption of Open Code Review's deterministic engineering split into the multi-vendor review pipeline: file selection with reasons, existing_code line resolver, glob rule groups, per-vendor coverage, a diff-grounded fact-check pass, and OCR as an optional vendor. Gate 1 selected Approach 1 (pure-Python ports, OCR optional) with fact-check and the OCR vendor delivered first. Coordinated tier; nine work packages.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Port OCR's deterministic stages as stdlib Python rather than shelling out to the ocr binary",
+        "rationale": "Delegate mode does not expose the resolver or the review filter; a Go binary on the core review path is absent from cloud containers; preview and run must share one selection function.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Line resolution anchors on a verbatim existing_code snippet resolved at ingest, no model relocation",
+        "rationale": "Fixes consensus line drift, gives the ledger a snippet fingerprint, and lets compact re-verify by snippet presence; relocation cost is deferred until the fixture set shows the miss rate.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Fact-check pass runs on the economy tier after raw checkpoint and before synthesis, counted in the round budget",
+        "rationale": "Operator choice at discovery; removals are logged with the disproving line and protected subjects are never removed; failures remove nothing.",
+        "capability": "review-convergence-safety",
+        "supersedes": null
+      },
+      {
+        "title": "Coverage is optional on the payload and binding in the manifest; absent coverage is full coverage",
+        "rationale": "No existing vendor loses quorum for a field it never emitted; partial coverage limits eligibility per file like the placeholder-only rule.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "This change lands before ambient-review-ledger, which rebases onto it",
+        "rationale": "ambient-review-ledger is planned only (0/33 tasks, no branch); PR #531 landed the gate-time ledger slice this change modifies. Additive edits keep either order mergeable.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Delivery order: fact-check and OCR vendor first, ports after",
+        "rationale": "Operator's Gate 1 modification; they attack the false-positive pain directly and touch no files the ports touch.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Start with wp-contracts, then wp-fact-check, wp-ocr-vendor, and wp-packet in parallel.",
+      "Record the live fact-check precision and token delta in the validation report before archival."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-deterministic-review-preprocessing/proposal.md",
+        "description": "approved proposal with selected approach"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-review-preprocessing/design.md",
+        "description": "decisions D1 to D10 and fitness functions"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-review-preprocessing/tasks.md",
+        "description": "nine phases, TDD-ordered"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-review-preprocessing/work-packages.yaml",
+        "description": "nine-package DAG"
+      }
+    ]
+  }
+}

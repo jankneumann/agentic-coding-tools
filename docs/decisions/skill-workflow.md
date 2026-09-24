@@ -5,6 +5,556 @@
 
 ---
 
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
+
+### Phase: Implementation
+
+**Inline package implementation after workflow blocked** — workflow tool cannot launch from a subagent; used managed package worktrees instead of silent main-checkout work
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D1)
+
+---
+
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
+
+### Phase: Implementation Review
+
+**Slim review packet under MAX_ARG_STRLEN** — Excluded ledger/handoffs/session-log/docs noise and capped BUDGET_CHARS=100000 so argv vendors (codex/pi/agy) can dispatch; stdin vendors already worked.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D1)
+
+---
+
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
+
+### Phase: Validation
+
+**Mark container phases not applicable** — gate_logic --describe-surface deployable=false; issue #432 requires not applicable not skipped.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D1)
+
+---
+
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
+
+### Phase: Implementation Review
+
+**Recover pi findings via string-id coercion** — pi emitted valid findings with string ids; schema rejected them as auth_required. Coerced ids and enriched evidence_class=judgment to restore quorum with grok.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D2)
+
+---
+
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
+
+### Phase: Validation
+
+**Skip Gen-Eval and Evidence work-queue audit** — Only unrelated agent-coordinator descriptor exists; no work-queue-result artifacts from sequential implement.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D2)
+
+---
+
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
+
+### Phase: Implementation
+
+**Task 2.8 harness-absent** — No trajectory-scenario harness in checkout; deterministic behavioural tests cover the three behaviours
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D3)
+
+---
+
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
+
+### Phase: Implementation Review
+
+**Advisory judgment does not block IMPL_REVIEW** — Recovered consensus: 24 advisory / 0 blocking. Medium unconfirmed judgment findings (spec scenario gaps, proposal wording) stay advisory unless confirmed high/critical or deterministic.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D3)
+
+---
+
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Ran local-parallel tier, not coordinated, and said so** — check_coordinator reports CAN_LOCK true but the lock endpoint rejects this session's API key, as try_recall did at plan time. The coordinated protocol is built on lock claims, so running it would have meant reporting a coordinated run that never claimed a lock.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Plan
+
+**Gate 2 approve plan** — User approved complete plan; proceed to implementation.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Cleanup
+
+**Rebase-merge with force-approval** — OpenSpec default rebase strategy; operator authorized merge without waiting for formal review after CI green.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Plan
+
+**Harden test_skill_model_hints in place** — Reuse existing CI hook; empty opus/sonnet/haiku allowlist; extend Agent/-m checks.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D2)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Implementation
+
+**Dual economy resolve for cite-requirements (D2)** — Resolve economy tier for claude_code and codex via resolve_tier_for_provider; labels are observed placeholders not policy pins.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D2)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Cleanup
+
+**Non-deployable validation gate** — deployable:false → only Spec Compliance required; Docker unavailable so deploy/smoke/security/e2e N/A.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D2)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Plan
+
+**cite-requirements dual economy-tier resolve** — Keep dual-vendor diversity without hardcoded haiku/luna pins.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D3)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Implementation
+
+**context_impact surfaces documentation + semantic_code** — SKILL.md/markdown implies documentation; guard .py implies semantic_code. Spurious rationale keys removed.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D3)
+
+---
+
+## 2026-09-14 — add-deterministic-review-preprocessing
+
+### Phase: Plan
+
+**Port OCR's deterministic stages as stdlib Python rather than shelling out to the ocr binary** — Delegate mode does not expose the resolver or the review filter; a Go binary on the core review path is absent from cloud containers; preview and run must share one selection function.
+
+- Status: `active`
+- Source: [openspec/changes/add-deterministic-review-preprocessing/session-log.md](/openspec/changes/add-deterministic-review-preprocessing/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — add-deterministic-review-preprocessing
+
+### Phase: Plan
+
+**Line resolution anchors on a verbatim existing_code snippet resolved at ingest, no model relocation** — Fixes consensus line drift, gives the ledger a snippet fingerprint, and lets compact re-verify by snippet presence; relocation cost is deferred until the fixture set shows the miss rate.
+
+- Status: `active`
+- Source: [openspec/changes/add-deterministic-review-preprocessing/session-log.md](/openspec/changes/add-deterministic-review-preprocessing/session-log.md) (D2)
+
+---
+
+## 2026-09-13 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Cleanup
+
+**Post-merge archive without deferred commit** — Operator requested cleanup directly; land archive+index on main as one commit rather than waiting on Step 11.6.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D1)
+
+---
+
+## 2026-09-13 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Cleanup
+
+**No open-task migration** — tasks.md is fully checked; nothing to migrate.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
+
+### Phase: Plan
+
+**Keep the findings schema strict** — Coerce then validate rather than loosening axis/severity required fields (ri-14).
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
+
+### Phase: Implementation
+
+**Runtime JSON sidecars next to the helper** — Load coercion and timeout tables from files beside review_findings_schema.py so they survive change archival.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
+
+### Phase: Cleanup
+
+**Rebase-merge PR 529** — OpenSpec agent PR; preserve plan then implement then CI-fix commits.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
+
+### Phase: Plan
+
+**One repair retry** — A second constrained rewrite with validator errors; no unbounded re-review.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
+
+### Phase: Implementation
+
+**Repair is a second dispatch with the same timeout** — Exactly one constrained rewrite; AUTH/UNAVAILABLE/CAPACITY skip repair.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
+
+### Phase: Plan
+
+**Per-vendor timeout budget passed through converge()** — Archive p50 for Claude is 410s against a 300s default that converge() never overrode.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
+
+### Phase: Plan
+
+**Model-review ingest is judgment** — evidence_class already exists; ingest defaulted to deterministic and made every LLM finding blockable.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D4)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Gate-time ledger only** — Slice of ambient-review-ledger without the git-hook sensor.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**Heuristic compact and fingerprint+match_score merge** — Follows D1/D2: no extra LLM call; identity is hash(axis, path, description) with match_score as the paraphrase path, gated on file_path or >=4 tokens to avoid collapsing generic test findings.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Cleanup
+
+**Rebase-merge PR 531 then archive on main** — OpenSpec agent PR; preserve plan/implement/CI-fix commits. Archive belongs on main because the code is already merged.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Heuristic compact in v1** — No extra LLM call; retire on missing file or missing tokens; model compact can replace later.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**Disagreement parks instead of aborting** — D4: agreed blocking work continues; parked leftovers surface on ConvergenceResult.escalate_findings.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Cleanup
+
+**No open-task migration** — tasks.md is fully checked; nothing to send to coordinator issues or a follow-up proposal.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Disagreement parks rather than aborting** — Agreed blocking work should continue; parked items surface at SUBMIT_PR.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**PLAN_FIX is a sub-step, not an outer bounce** — D6: _phase_review passes a recording fix_callback into converge() and maps leftover non-convergence to max_iter. TRANSITIONS still maps not_converged→PLAN_FIX for resume of in-flight loop-state.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Plan
+
+**PLAN_FIX is fix_callback inside converge()** — The outer bounce was a second engine over the same artifacts.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D4)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**Default stall window of 2** — Post-compact blocking must strictly decrease; compact removes invented-finding noise that forced a window of 3.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D4)
+
+---
+
+## 2026-09-12 — 2026-09-13-fix-audit-choices-range-ledger-path
+
+### Phase: Plan
+
+**Destination mirrors openspec/priorities/** — prioritize-proposals is the only other producer of this artifact class and already answered this question, explicitly rejecting openspec/changes/ as 'the wrong home for a meta-report'. Reusing its dated run-directory layout avoids inventing a second shape for one artifact class.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-fix-audit-choices-range-ledger-path/session-log.md](/openspec/changes/archive/2026-09-13-fix-audit-choices-range-ledger-path/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-13-fix-audit-choices-range-ledger-path
+
+### Phase: Plan
+
+**The shared module holds the run-id format, not the filenames** — The two producers write different filenames (report.* vs choices.*). Extracting those too would give the shared helper knowledge of both callers, which is the coupling the extraction exists to avoid. skills/shared/ is a declared shared_library, so no cross_skill_dependencies entry is needed.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-fix-audit-choices-range-ledger-path/session-log.md](/openspec/changes/archive/2026-09-13-fix-audit-choices-range-ledger-path/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Packet not repo-walk** — Timeouts are a symptom of tool-using exploration; pack diff, specs, schema, open ledger.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Implementation
+
+**Packet markdown is the dispatch prompt** — converge() builds review_packet.py output and passes the body as prompt; packet_path is optional kwargs.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Concurrent CLI dispatch** — The spec already SHALL parallel; sequential was a write-conflict guard that does not apply to read-only review.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Implementation
+
+**Thread pool concurrent dispatch with async submit-then-poll** — D2: wall clock is max(vendor). Async vendors must not submit+poll one-by-one.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Verify-then-wire structured output** — Do not guess CLI flags; only verified rows change agents.yaml.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Implementation
+
+**Wire only empirically verified schema flags** — Claude and agy accept --json-schema; Codex needs a file path the sentinel cannot supply; pi --mode json is NDJSON.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D3)
+
+---
+
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
+
+### Phase: Plan
+
+**Conductor invokes iterate skills in worktrees** — Discovery 2.1: land the 2026-08-24 deferred seam. execute_plan never edits PR branches. iterate-on-plan for plan nodes, iterate-on-implementation for implementation nodes, both with --vendor-review.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D2)
+
+---
+
+## 2026-09-10 — 2026-09-10-write-durable-state-artifacts-guide
+
+### Phase: Implementation Continuation
+
+**Merge current main without rebasing the supervisor stack** — The ri-10 branch is seven commits atop the long-lived supervisor roadmap branch; a merge preserves that history and imports the approved openspec_paths helper and guard as exact main ancestors.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D1)
+
+---
+
+## 2026-09-10 — 2026-09-10-write-durable-state-artifacts-guide
+
+### Phase: Implementation Continuation
+
+**Use the shared archive-safe change resolver** — Resolving design.md through change_dir(ROOT, CHANGE_ID) preserves the eight-stage assertion after OpenSpec archival without copying path infrastructure into ri-10.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D2)
+
+---
+
+## 2026-09-10 — 2026-09-14-migrate-discovery-generators-to-emit-candidate-work-stubs
+
+### Phase: Plan
+
+**Emit additive canonical sidecars** — Preserves rich producer artifacts while standardizing the consumer boundary.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-14-migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md](/openspec/changes/archive/2026-09-14-migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md) (D1)
+
+---
+
+## 2026-09-08 — 2026-09-10-write-durable-state-artifacts-guide
+
+### Phase: Implementation
+
+**Use portable repository-relative guide references** — Installed skill payloads cannot use relative Markdown links that escape the skill directory, so canonical and mirrored skills use the established bare backticked repository path `docs/guides/state-artifacts.md`.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D1)
+
+---
+
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan
+
+**Keep loop-state authoritative through an optional outbox seam** — Projection runs only after state persistence and resume reconciliation derives queue rows from loaded LoopState without feeding results back.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D2)
+
+---
+
 ## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Cleanup
@@ -115,58 +665,80 @@
 
 ---
 
-## 2026-08-19 — add-local-model-provider-tier
+## 2026-08-21 — 2026-09-10-add-decision-choices-ledger
+
+### Phase: Plan
+
+**Separate decision-choices schema instead of extending review-findings** — review-findings validator hard-requires axis/severity and its consumers assume code-anchored defects; decision entries are intent-anchored. Follows validate-feature-findings-gate precedent.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-add-decision-choices-ledger/session-log.md](/openspec/changes/archive/2026-09-10-add-decision-choices-ledger/session-log.md) (D1)
+
+---
+
+## 2026-08-21 — 2026-09-10-add-decision-choices-ledger
+
+### Phase: Plan
+
+**Cross-reference-only linkage to self-reported decisions, never write-back** — Positions the ledger as the audit counterpart to the self-reported docs/decisions archive; writing into session-log or docs/decisions would break the deterministic drift gates and the read-only auditor principle.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-add-decision-choices-ledger/session-log.md](/openspec/changes/archive/2026-09-10-add-decision-choices-ledger/session-log.md) (D3)
+
+---
+
+## 2026-08-19 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: GitHub Review Remediation
 
 **Use Pi as the local execution boundary** — A raw chat-completions response cannot inspect files, run commands, edit, or write a real handoff. The adapter now launches the existing Pi coding-agent harness with a one-shot custom-provider extension.
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D1)
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **Defense-in-depth trust boundary in the adapter** — Review F-02: resolver-only enforcement is defeated when the coordinator is unreachable; the local dispatch path now refuses absent/non-permitted archetypes itself
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D1)
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **Probe cache TTL 30s + connection-error invalidation** — Review F-03: a permanent verdict cannot express liveness; policy engine re-consults each evaluation
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D2)
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **Smoke path uses INIT/runner for local** — Review F-01 (critical): the IMPLEMENT payload violated the trust boundary the change itself introduces; refusals are now hard smoke failures
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D4)
 
 ---
 
-## 2026-08-15 — add-local-model-provider-tier
+## 2026-08-15 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Plan
 
 **Health probe + concurrency cap in adapter (D5)** — Structured fallback, never a hang; policy engine must not switch to a dead endpoint
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D4)
 
 ---
 
@@ -456,91 +1028,91 @@
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **Single umbrella change vs roadmap of 4 small changes** — One plan-approval gate + one PR keeps human-attention cost bounded; cross-WP dependencies become intra-change contracts in contracts/
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D1)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Foundation-only scope this session** — 2330 LOC spread across 7 WPs exceeds single-session capacity; 4 scope-isolated foundation packages provide clean checkpoint with no incomplete state
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D1)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **WP3-WP7 dispatched as serial sub-agent chain** — Each WP consumes prior schema/output; parallelism not possible within the gen-eval extension chain
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D1)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **WP1+WP2+WP6 dispatched in parallel via Task() sub-agents** — Disjoint write_allow scopes (README.md, docs/*, agents.yaml+review_dispatcher.py); ~2x speedup over sequential
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D2)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Defer 8.1 (E2E) and 8.3 (rebase test) with documented rationale rather than skipping silently** — Honest reporting > artificial completion; future operators see exactly what's verified vs deferred
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D2)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Pause before SUBMIT_PR for explicit user authorization** — Project guidelines: 'Do NOT create a pull request unless the user explicitly asks for one' — autopilot's --force authorized implementation, not PR creation
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Worker-vendor recording implemented as a new section 3z in implement-feature/SKILL.md** — Worker side of vendor-diversity needed wiring; SKILL.md was the natural integration point
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D4)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **This proposal merges before harness-engineering-features** — Operator-selected; harness-engineering-features rebases onto our additive sections (no edits to existing content reduces conflict risk)
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D7)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D7)
 
 ---
 

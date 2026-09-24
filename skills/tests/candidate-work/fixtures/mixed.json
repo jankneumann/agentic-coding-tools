@@ -1,0 +1,46 @@
+[
+  {
+    "schema_version": 1,
+    "title": "Repair type-check failures",
+    "description": "Correct the reported type errors without changing public behavior.",
+    "rationale": "Bug-scrub found a failing type-check gate.",
+    "provenance": {
+      "source_artifact": "docs/bug-scrub/report.json",
+      "finding_ids": ["type-src-worker-py-12"],
+      "generator": "bug-scrub"
+    },
+    "effort": "XS",
+    "priority": 2,
+    "suggested_change_id": "update-type-src-worker-py-12-a1b2c3d4"
+  },
+  {
+    "schema_version": 1,
+    "title": "Improve dispatch retry guidance",
+    "description": "Teach dispatch workflows to distinguish retryable transport failures.",
+    "rationale": "Improve-harness observed the same capability gap in two skills.",
+    "provenance": {
+      "source_artifact": "docs/improve-harness/report.json",
+      "finding_ids": ["gap-7", "gap-11"],
+      "generator": "improve-harness"
+    },
+    "effort": "M",
+    "priority": 3,
+    "suggested_change_id": "update-dispatch-retry-guidance-b2c3d4e5",
+    "tags": ["source-rank-2"]
+  },
+  {
+    "schema_version": 1,
+    "title": "Add review packet streaming",
+    "description": "Pass large review packets through files instead of command arguments.",
+    "rationale": "Explore-feature scored the change highly for reliability and focus fit.",
+    "provenance": {
+      "source_artifact": "docs/feature-discovery/opportunities.json",
+      "finding_ids": ["opportunity-3"],
+      "generator": "explore-feature"
+    },
+    "effort": "S",
+    "priority": 2,
+    "suggested_change_id": "add-opportunity-3-c3d4e5f6",
+    "depends_on": ["update-dispatch-retry-guidance-b2c3d4e5"]
+  }
+]

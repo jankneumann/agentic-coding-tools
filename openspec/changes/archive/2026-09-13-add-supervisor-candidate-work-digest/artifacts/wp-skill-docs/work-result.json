@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "feature_id": "add-supervisor-candidate-work-digest",
+  "package_id": "wp-skill-docs",
+  "attempt": 1,
+  "plan_revision": 5,
+  "contracts_revision": 5,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/supervise/SKILL.md"
+    ],
+    "keys": [
+      "feature:add-supervisor-candidate-work-digest:docs"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "skills/supervise/SKILL.md",
+      "skills/tests/supervise/test_cycle_state.py",
+      "skills/tests/supervise/test_workflow_contract.py",
+      ".claude/skills/supervise/SKILL.md",
+      ".agents/skills/supervise/SKILL.md",
+      ".claude/skills/supervise/scripts/digest.py",
+      ".agents/skills/supervise/scripts/digest.py",
+      ".claude/skills/supervise/scripts/cycle_state.py",
+      ".agents/skills/supervise/scripts/cycle_state.py",
+      ".claude/skills/supervise/templates/rubric-prompt.md",
+      ".agents/skills/supervise/templates/rubric-prompt.md"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": [
+      "**/.venv/**",
+      "skills/**/scripts/**"
+    ]
+  },
+  "files_modified": [
+    "skills/supervise/SKILL.md",
+    "skills/tests/supervise/test_workflow_contract.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "cfea58b9a70aa529d5b506d409e67f6eb0fc920e"
+    },
+    "head": {
+      "commit": "e3150d9c0b3afd9772c8ce82e8513ee3d6d599e6",
+      "branch": "openspec/add-supervisor-candidate-work-digest--wp-skill-docs",
+      "worktree": ".git-worktrees/add-supervisor-candidate-work-digest/wp-skill-docs"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Workflow contract passes",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/supervise/test_cycle_state.py skills/tests/supervise/test_workflow_contract.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "workflow_contract": {
+              "passed": 93,
+              "failed": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "Mirrors are synchronized",
+        "kind": "command",
+        "command": "bash skills/install.sh --check",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "mirrors_synced": {
+              "passed": 1,
+              "failed": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "TDD RED captured five absent workflow contracts before GREEN. Canonical and installed supervise mirrors were byte-identical after sync. Context checkpoint ran and is degraded only by expected active-change projection drift."
+}

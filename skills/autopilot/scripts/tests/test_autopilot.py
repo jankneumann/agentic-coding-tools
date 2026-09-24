@@ -24,6 +24,7 @@ if _SCRIPTS_DIR not in sys.path:
 
 from autopilot import (
     LoopState,
+    _phase_review,
     check_escalation_resolved,
     enter_escalate,
     load_state,
@@ -235,8 +236,28 @@ def test_transition_plan_review_converged() -> None:
 
 
 def test_transition_plan_review_not_converged() -> None:
+    # Resume compatibility: the table still maps not_converged → PLAN_FIX.
+    # New runs never emit not_converged from _phase_review (D6).
     state = LoopState(current_phase="PLAN_REVIEW")
     assert transition(state, "not_converged") == "PLAN_FIX"
+
+
+def test_plan_review_does_not_outer_bounce_into_cold_rereview() -> None:
+    """_phase_review maps inner non-convergence to max_iter, not PLAN_FIX."""
+    state = LoopState(current_phase="PLAN_REVIEW", change_id="demo")
+
+    def fake_converge(**kwargs):
+        return {"converged": False, "findings_count": 2, "blocking_findings": []}
+
+    outcome = _phase_review(
+        state,
+        change_dir=Path("."),
+        worktree_path=Path("."),
+        converge_fn=fake_converge,
+        fix_mode="inline",
+    )
+    assert outcome == "max_iter"
+    assert transition(state, outcome) == "ESCALATE"
 
 
 def test_transition_plan_review_max_iter() -> None:
@@ -434,21 +455,20 @@ def test_full_happy_path_no_cli_review(tmp_path: Path) -> None:
 
 
 def test_plan_review_fix_loop(tmp_path: Path) -> None:
-    """Convergence fails round 1, succeeds round 2."""
+    """PLAN_REVIEW is one engine: converge() applies fixes internally."""
     change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
-    # First call: not converged; second call: converged (PLAN_REVIEW)
-    # Third call: converged (IMPL_REVIEW)
-    converge_results = iter([
-        {"converged": False, "findings_count": 3, "blocking_findings": [{"id": "F1"}]},
-        {"converged": True, "findings_count": 0, "blocking_findings": []},
-        # For IMPL_REVIEW
-        {"converged": True, "findings_count": 0, "blocking_findings": []},
-    ])
-    converge_mock = MagicMock(side_effect=lambda **kw: next(converge_results))
+    def _converge(**kw):
+        fix_cb = kw.get("fix_callback")
+        if fix_cb is not None:
+            fix_cb([{"id": "F1", "file_path": "design.md"}], wt)
+        return {"converged": True, "findings_count": 0, "blocking_findings": []}
+
+    converge_mock = MagicMock(side_effect=_converge)
     assess_mock = MagicMock(return_value={"force_required": False, "val_review_enabled": False})
+    fixer = MagicMock()
 
     result = run_loop(
         "fix-loop-1",
@@ -457,11 +477,20 @@ def test_plan_review_fix_loop(tmp_path: Path) -> None:
         state_path=tmp_path / "state.json",
         assess_complexity_fn=assess_mock,
         converge_fn=converge_mock,
+        fix_callback=fixer,
     )
 
     assert result.current_phase == "DONE"
-    # Should have gone through PLAN_ITERATE -> PLAN_REVIEW -> PLAN_FIX -> PLAN_REVIEW -> IMPLEMENT ...
-    assert 3 in result.findings_trend or len(result.findings_trend) >= 1
+    assert result.current_phase != "PLAN_FIX"
+    # PLAN_FIX recorded as a sub-step, not an outer bounce.
+    sub_steps = [
+        e for e in result.phase_history
+        if e.get("phase") == "PLAN_FIX" and e.get("sub_step")
+    ]
+    assert sub_steps
+    assert all(e.get("phase") != "PLAN_FIX" or e.get("sub_step") for e in result.phase_history if e.get("phase") == "PLAN_FIX")
+    assert len(result.findings_trend) >= 1
+    fixer.assert_called()
 
 
 # ---------------------------------------------------------------------------
@@ -796,21 +825,28 @@ def test_smoke_local_uses_a_trust_boundary_permitted_phase() -> None:
     }
 
 
-def test_smoke_local_real_mode_refuses_an_unresolved_archetype() -> None:
-    """A resolver refusal is a hard smoke failure — never a dispatch anyway."""
+def test_smoke_local_real_mode_reports_structured_fallback_without_endpoint() -> None:
+    """A permitted real-mode local smoke fails structurally without an endpoint."""
     started = time.monotonic()
     proc = _run_smoke("--provider", "local", "--json")
     elapsed = time.monotonic() - started
 
     assert elapsed < 60
     assert proc.returncode != 0
-    assert proc.stdout.strip() == "", "no dispatch result may be produced"
-    assert "trust boundary" in proc.stderr
-    assert "No dispatch attempted" in proc.stderr
+    if proc.stdout:
+        body = json.loads(proc.stdout)
+        assert body["payload"]["phase"] == "INIT"
+        assert body["payload"]["archetype"] == "runner"
+        assert body["result"]["dispatch_tier"] == "fallback"
+        assert body["result"]["outcome"] == "failed"
+        assert any("LOCAL_INFERENCE_BASE_URL is not set" in warning for warning in body["result"]["warnings"])
+    else:
+        assert "trust boundary" in proc.stderr
+        assert "No dispatch attempted" in proc.stderr
 
 
-def test_smoke_local_real_mode_unreachable_endpoint_refuses_before_dispatch() -> None:
-    """Even with an endpoint configured, an unconfirmed archetype stops the run."""
+def test_smoke_local_real_mode_reports_structured_fallback_for_dead_endpoint() -> None:
+    """A permitted real-mode local smoke fails structurally for a dead endpoint."""
     started = time.monotonic()
     proc = _run_smoke(
         "--provider",
@@ -822,8 +858,16 @@ def test_smoke_local_real_mode_unreachable_endpoint_refuses_before_dispatch() ->
 
     assert elapsed < 60
     assert proc.returncode != 0
-    assert "trust boundary" in proc.stderr
-    assert "No dispatch attempted" in proc.stderr
+    if proc.stdout:
+        body = json.loads(proc.stdout)
+        assert body["payload"]["phase"] == "INIT"
+        assert body["payload"]["archetype"] == "runner"
+        assert body["result"]["dispatch_tier"] == "fallback"
+        assert body["result"]["outcome"] == "failed"
+        assert any("health probe failed" in warning for warning in body["result"]["warnings"])
+    else:
+        assert "trust boundary" in proc.stderr
+        assert "No dispatch attempted" in proc.stderr
 
 
 def test_smoke_local_real_mode_reports_fallback_for_a_dead_endpoint(

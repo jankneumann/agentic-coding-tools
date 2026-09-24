@@ -5,36 +5,69 @@
 
 ---
 
-## 2026-08-16 — derive-agent-identity-from-registry
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan
+
+**Enforce projection identity in PostgreSQL** — A partial unique expression index plus ON CONFLICT is the only considered approach that atomically arbitrates concurrent submitters.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D1)
+
+---
+
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan Iteration 1
+
+**Use one bounded monotonic projection identity** — A single explicit projection_key with transition_sequence copied from LoopState.total_iterations removes ambiguous iteration sources and reserved embedded fields.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D1)
+
+---
+
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan Iteration 1
+
+**Serialize keyed mutations per change** — A shared transaction advisory lock closes different-tuple submit/reconcile races while the unique text-expression index arbitrates same-key concurrency.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D2)
+
+---
+
+## 2026-08-16 — 2026-09-08-derive-agent-identity-from-registry
 
 ### Phase: Validate
 
 **One resolver, three call sites** — coordination_api, work_queue and policy_engine each carried a copy; two still failed open. Extracted to src/trust_resolution.py.
 
 - Status: `active`
-- Source: [openspec/changes/derive-agent-identity-from-registry/session-log.md](/openspec/changes/derive-agent-identity-from-registry/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-08-derive-agent-identity-from-registry/session-log.md](/openspec/changes/archive/2026-09-08-derive-agent-identity-from-registry/session-log.md) (D2)
 
 ---
 
-## 2026-08-16 — derive-agent-identity-from-registry
+## 2026-08-16 — 2026-09-08-derive-agent-identity-from-registry
 
 ### Phase: Validate
 
 **Degraded security scanners reported as inconclusive, not pass** — Both scanners were unavailable; the gate's PASS was policy-granted degradation over zero scanning. Recording it as a pass would be the 'silence is not success' failure.
 
 - Status: `active`
-- Source: [openspec/changes/derive-agent-identity-from-registry/session-log.md](/openspec/changes/derive-agent-identity-from-registry/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-08-derive-agent-identity-from-registry/session-log.md](/openspec/changes/archive/2026-09-08-derive-agent-identity-from-registry/session-log.md) (D3)
 
 ---
 
-## 2026-08-14 — derive-agent-identity-from-registry
+## 2026-08-14 — 2026-09-08-derive-agent-identity-from-registry
 
 ### Phase: Plan
 
 **Fail-loud scoped to registry-declared agents** — Known agent with missing/disabled profile = hard error + audit event (projection machinery failed); unknown principals keep the low default (registry cannot be authoritative for principals it does not name).
 
 - Status: `active`
-- Source: [openspec/changes/derive-agent-identity-from-registry/session-log.md](/openspec/changes/derive-agent-identity-from-registry/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-08-derive-agent-identity-from-registry/session-log.md](/openspec/changes/archive/2026-09-08-derive-agent-identity-from-registry/session-log.md) (D3)
 
 ---
 

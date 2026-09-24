@@ -1,0 +1,22 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 560,
+        "end": 605
+      },
+      "description": "Critical: Step 11.5 is not executable as written because the shell state is split across separate fences with an agent-only dispatch in between. The first bash fence assigns `JSON_PATH`, `MD_PATH`, `RUN_ID`, and `SKIP_REASON`; the agent instructions then say to set `SKIP_REASON` outside bash; the second bash fence reads those variables. If an executing agent runs the fences as ordinary separate shell snippets, the second fence receives none of that state, so successful audits can be treated as `audit produced no ledger`, failure reasons cannot be passed reliably, and the ledger pair is not committed.",
+      "resolution": "Make the Step 11.5 bash execution self-contained: compute `CHANGE_DIR`, `JSON_PATH`, `MD_PATH`, and `RUN_ID` inside the same runnable block that calls `audit_choices_step`, and specify an explicit mechanism for passing the agent-dispatch outcome into that block, such as `SKIP_REASON='<reason>' bash -c ...` or a single persistent shell session with exported variables. Add a regression test that executes the documented fences the way an agent would, without manually injecting the variables."
+    }
+  ]
+}

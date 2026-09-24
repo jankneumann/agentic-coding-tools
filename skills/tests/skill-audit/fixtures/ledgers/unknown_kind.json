@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "skill": "quick-task",
+  "generated_at": "2026-09-16T00:00:00+00:00",
+  "convention": "current",
+  "freshness": {
+    "archetypes_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "reviewed_dates": [],
+    "evidence_window_days": 7
+  },
+  "layers": [],
+  "dispatch_profile": [],
+  "evidence": {"status": "available", "tier_rows": [], "multi_source_fraction": 0},
+  "findings": [
+    {
+      "id": "F001",
+      "kind": "vibes_bad",
+      "layer": "teaching",
+      "section_id": "SKILL.md#01-why",
+      "remediation": "keep",
+      "evidence": {}
+    }
+  ]
+}

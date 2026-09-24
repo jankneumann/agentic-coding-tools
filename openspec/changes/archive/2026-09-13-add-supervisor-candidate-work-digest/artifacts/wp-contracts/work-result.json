@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "feature_id": "add-supervisor-candidate-work-digest",
+  "package_id": "wp-contracts",
+  "attempt": 1,
+  "plan_revision": 5,
+  "contracts_revision": 5,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/rubric-score.schema.json",
+      "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json",
+      "openspec/schemas/supervise-rubric-score.schema.json",
+      "openspec/schemas/supervise-digest.schema.json",
+      "openspec/schemas/supervisor-record.schema.json",
+      "openspec/schemas/supervisor-record-mirror.schema.json"
+    ],
+    "keys": [
+      "feature:add-supervisor-candidate-work-digest:contracts"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "openspec/changes/add-supervisor-candidate-work-digest/contracts/**",
+      "openspec/schemas/supervise-rubric-score.schema.json",
+      "openspec/schemas/supervise-digest.schema.json",
+      "openspec/schemas/supervisor-record.schema.json",
+      "openspec/schemas/supervisor-record-mirror.schema.json",
+      "skills/tests/supervise/fixtures/digest/**",
+      "skills/tests/supervise/test_digest_schemas.py",
+      "skills/tests/supervise/test_supervisor_record_schema.py"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": [
+      "**/.venv/**"
+    ]
+  },
+  "files_modified": [
+    "openspec/schemas/supervise-digest.schema.json",
+    "openspec/schemas/supervise-rubric-score.schema.json",
+    "openspec/schemas/supervisor-record-mirror.schema.json",
+    "openspec/schemas/supervisor-record.schema.json",
+    "skills/tests/supervise/fixtures/digest/digest-valid.json",
+    "skills/tests/supervise/fixtures/digest/rubric-valid.json",
+    "skills/tests/supervise/fixtures/digest/supervisor-decisions.json",
+    "skills/tests/supervise/test_digest_schemas.py",
+    "skills/tests/supervise/test_supervisor_record_schema.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "71d9c50b4c1999900c94992d735cc6b133bc3d49"
+    },
+    "head": {
+      "commit": "59155f1f968a8d842eb294bc6c077e40734dbb16",
+      "branch": "openspec/add-supervisor-candidate-work-digest--wp-contracts",
+      "worktree": ".git-worktrees/add-supervisor-candidate-work-digest/wp-contracts"
+    }
+  },
+  "verification": {
+    "tier": "C",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Contract tests pass",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/supervise/test_digest_schemas.py skills/tests/supervise/test_supervisor_record_schema.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "contract_suite": {
+              "passed": 39,
+              "failed": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "TDD RED confirmed missing runtime schemas and rejected decision metadata; GREEN passed 39 tests. Context checkpoint ran and is degraded only by expected active-change projection drift."
+}

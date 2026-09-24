@@ -13,7 +13,12 @@ import os
 import subprocess
 from typing import Any
 
-from _helpers import GH_TIMEOUT, run_gh, run_gh_unchecked
+from _helpers import (
+    GH_TIMEOUT,
+    run_gh,
+    run_gh_unchecked,
+    update_branch_already_current,
+)
 from merge_events import MergeEvent, emit_event
 
 MAX_AUTO_REBASE_PER_MERGE = int(
@@ -75,8 +80,7 @@ def _refresh_pr_branch(pr_number: int) -> dict:
         if result.returncode == 0:
             return {"success": True, "pr_number": pr_number}
 
-        error = result.stderr.strip().lower()
-        if "already up-to-date" in error or "not behind" in error:
+        if update_branch_already_current(result.stderr):
             return {"success": True, "pr_number": pr_number, "already_fresh": True}
 
         return {

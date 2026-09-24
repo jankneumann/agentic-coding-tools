@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "vendor": "pi",
+  "review_type": "plan",
+  "stdout_path": "raw-pi-plan.txt",
+  "byte_length": 951109,
+  "truncated": false,
+  "sha256": "c3375fc4b1282af626cd8110a1cbe5713311169e7344e72ec8c5fe9e27e089f9",
+  "repair_attempted": false,
+  "coercions": [
+    "axis:completeness->architecture"
+  ]
+}

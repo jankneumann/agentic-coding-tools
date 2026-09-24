@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-08T09:52:08.201658+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Added the canonical durable state-artifacts guide, linked six workflow skills, aligned supervise rehydration order, and installed byte-identical runtime mirrors. TDD preserved 9-fail/6-pass RED evidence before a 15-test GREEN result; relative links were replaced after the installer portability guard rejected them.",
+    "completed_work": [
+      "Added five-class authority inventory and deterministic rehydration order",
+      "Added structural RED/GREEN tests and durable RED evidence",
+      "Linked canonical skills, aligned supervise, and synchronized mirrors"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use portable canonical guide links",
+        "rationale": "Installed skill payloads cannot use relative links that escape the skill directory; a stable repository URL remains clickable in canonical and mirrored copies.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run implementation iteration/review, full strict validation, context drift, and scope checks."
+    ],
+    "relevant_files": [
+      {
+        "path": "docs/guides/state-artifacts.md",
+        "description": "Canonical authority and rehydration guide"
+      },
+      {
+        "path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+        "description": "Structural drift contract"
+      },
+      {
+        "path": "skills/supervise/SKILL.md",
+        "description": "Canonical supervisor rehydration order"
+      }
+    ]
+  }
+}

@@ -161,6 +161,16 @@ class TestLoadAgentsConfig:
         profiles = [a.profile for a in agents]
         assert len(profiles) == len(set(profiles))
 
+    def test_shipped_dispatchable_agents_have_explicit_catalog_identity(self) -> None:
+        agents = load_agents_config()
+
+        dispatchable = [
+            agent for agent in agents if agent.cli is not None or agent.sdk is not None
+        ]
+        assert dispatchable
+        assert all(agent.catalog_vendor for agent in dispatchable)
+        assert all(agent.endpoint_kind for agent in dispatchable)
+
 
 # ---------------------------------------------------------------------------
 # get_api_key_identities
@@ -674,9 +684,16 @@ class TestCliConfig:
         Roster per ``contracts/roster.md`` (add-agy-grok-pi-harnesses): the five
         first-class local CLI vendors are claude_code, codex, antigravity, grok,
         and pi. ``gemini`` is retired and MUST NOT appear.
+
+        ``ocr`` (add-deterministic-review-preprocessing) is excluded from this
+        set on purpose: it is a single-purpose, optional reviewer adapter
+        around the ``ocr`` binary, not a general-purpose coding-agent CLI, so
+        it is not part of the roster this test guards. It still has its own
+        ``cli`` section (dispatched the same way as the roster vendors), just
+        outside the five-vendor equality check below.
         """
         entries = load_agents_config()
-        local_with_cli = [e for e in entries if e.cli is not None]
+        local_with_cli = [e for e in entries if e.cli is not None and e.type != "ocr"]
         assert len(local_with_cli) >= 3, "Expected at least 3 agents with CLI config"
         vendors = {e.type for e in local_with_cli}
         assert vendors == {"claude_code", "codex", "antigravity", "grok", "pi"}
@@ -1250,19 +1267,27 @@ class TestLocalRosterValidation:
             assert entry["active_params_b"] < entry["total_params_b"], tier
             assert isinstance(entry["reviewed"], str), tier
 
-    def test_default_map_local_tiers_match_the_yaml_roster(self) -> None:
-        """1.4: DEFAULT_PROVIDER_MODEL_MAP is the tier->model-id view of the roster."""
+    def test_loaded_map_matches_yaml_roster_for_all_providers(
+        self, _clean_archetypes: None,
+    ) -> None:
+        """Authored YAML is the sole tier→model source after load."""
         import yaml as _yaml
 
-        from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP, LOCAL_PROVIDER
+        from src.agents_config import get_provider_model_map, load_archetypes_config
 
+        load_archetypes_config(_REAL_ARCHETYPES_YAML)
         raw = _yaml.safe_load(_REAL_ARCHETYPES_YAML.read_text())
-        yaml_roster = raw["model_aliases"][LOCAL_PROVIDER]
-        default_roster = DEFAULT_PROVIDER_MODEL_MAP["providers"][LOCAL_PROVIDER]
+        yaml_aliases = raw["model_aliases"]
+        loaded = get_provider_model_map()["providers"]
 
-        assert set(default_roster) == set(yaml_roster)
-        for tier, entry in yaml_roster.items():
-            assert _tier_model(default_roster[tier]) == entry["model"]
+        assert set(loaded) == set(yaml_aliases)
+        for provider, tiers in yaml_aliases.items():
+            for tier, entry in tiers.items():
+                expected = entry["model"] if isinstance(entry, dict) else entry
+                got = _tier_model(loaded[provider][tier])
+                assert got == expected, f"{provider}.{tier}"
+                if isinstance(entry, dict) and entry.get("thinking"):
+                    assert loaded[provider][tier]["thinking"] == entry["thinking"]
 
 
 class TestLocalTierDegradation:
@@ -1569,3 +1594,110 @@ class TestLocalProviderTrustBoundary:
             refused.add(entry.archetype)
 
         assert {"architect", "reviewer", "gatekeeper"} <= refused
+
+
+# ---------------------------------------------------------------------------
+# `procedure_mode` on archetypes (OpenSpec change add-skill-audit, D3)
+#
+# Spec: openspec/changes/add-skill-audit/specs/agent-archetypes/spec.md —
+#       MODIFIED "Archetype Definition Schema" scenarios "procedure_mode absent
+#       loads as guided", "Unknown procedure_mode is rejected", "Unknown
+#       archetype keys are still rejected".
+# Contract: skills/autopilot/install_assets/openspec/schemas/archetypes.schema.json
+# ---------------------------------------------------------------------------
+
+
+class TestProcedureModeLoading:
+    """Loader behaviour for the optional ``procedure_mode`` field."""
+
+    def test_v3_file_without_procedure_mode_loads_every_archetype_guided(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """A schema_version 3 roster with no ``procedure_mode`` keys still loads,
+        and every archetype reports the default mode."""
+        import yaml as _yaml
+
+        from src.agents_config import DEFAULT_PROCEDURE_MODE, load_archetypes_config
+
+        path = _write_local_yaml(tmp_path)
+        raw = _yaml.safe_load(path.read_text())
+        assert raw["schema_version"] == 3
+        assert not any("procedure_mode" in a for a in raw["archetypes"].values())
+
+        archetypes = load_archetypes_config(path)
+
+        assert archetypes, "guard: fixture must define archetypes"
+        assert {name: a.procedure_mode for name, a in archetypes.items()} == {
+            name: DEFAULT_PROCEDURE_MODE for name in archetypes
+        }
+
+    def test_default_mode_is_guided(self) -> None:
+        """The spec names the default: omitted means ``guided``."""
+        from src.agents_config import DEFAULT_PROCEDURE_MODE, PROCEDURE_MODES
+
+        assert DEFAULT_PROCEDURE_MODE == "guided"
+        assert DEFAULT_PROCEDURE_MODE in PROCEDURE_MODES
+
+    def test_each_declared_mode_round_trips(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """Every enumerated mode is accepted and exposed verbatim on the config."""
+        from src.agents_config import PROCEDURE_MODES, load_archetypes_config
+
+        names = ["runner", "architect", "implementer"]
+        assert len(PROCEDURE_MODES) == len(names), "fixture covers one archetype per mode"
+        expected = dict(zip(names, PROCEDURE_MODES, strict=True))
+
+        def mutate(raw: dict[str, Any]) -> None:
+            raw["schema_version"] = 4
+            for name, mode in expected.items():
+                raw["archetypes"][name]["procedure_mode"] = mode
+
+        archetypes = load_archetypes_config(_write_local_yaml(tmp_path, mutate))
+
+        assert {name: archetypes[name].procedure_mode for name in names} == expected
+
+    def test_unknown_procedure_mode_rejected_naming_archetype_and_value(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """``procedure_mode: strict`` fails validation; the error names both the
+        archetype and the offending value so the operator can find it."""
+        from jsonschema import ValidationError
+
+        from src.agents_config import load_archetypes_config
+
+        def mutate(raw: dict[str, Any]) -> None:
+            raw["archetypes"]["runner"]["procedure_mode"] = "strict"
+
+        with pytest.raises(ValidationError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, mutate))
+
+        message = str(exc_info.value)
+        assert "runner" in message
+        assert "strict" in message
+
+    def test_unknown_archetype_key_still_rejected(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """Adding ``procedure_mode`` must not loosen ``additionalProperties``."""
+        from jsonschema import ValidationError
+
+        from src.agents_config import load_archetypes_config
+
+        def mutate(raw: dict[str, Any]) -> None:
+            raw["archetypes"]["runner"]["procedure_density"] = "verbatim"
+
+        with pytest.raises(ValidationError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, mutate))
+
+        assert "procedure_density" in str(exc_info.value)
+
+    def test_schema_version_4_is_accepted(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        from src.agents_config import load_archetypes_config
+
+        def mutate(raw: dict[str, Any]) -> None:
+            raw["schema_version"] = 4
+
+        assert load_archetypes_config(_write_local_yaml(tmp_path, mutate))

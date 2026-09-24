@@ -1,0 +1,528 @@
+schema_version: 1
+
+feature:
+  id: add-deterministic-review-preprocessing
+  title: "Deterministic review pre-processing, snippet anchoring, fact-check, and OCR vendor"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-09-14T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-deterministic-review-preprocessing/contracts/README.md"
+    files:
+      - "openspec/changes/add-deterministic-review-preprocessing/contracts/README.md"
+      - "openspec/changes/add-deterministic-review-preprocessing/contracts/review-packet.schema.json"
+      - "openspec/changes/add-deterministic-review-preprocessing/contracts/review-rules.schema.json"
+      - "openspec/changes/add-deterministic-review-preprocessing/contracts/vendor-coverage.schema.json"
+      - "openspec/changes/add-deterministic-review-preprocessing/contracts/fact-check-decisions.schema.json"
+      - "openspec/changes/add-deterministic-review-preprocessing/contracts/ocr-adapter.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Pre-processing contracts"
+    task_type: contracts
+    description: "Validate the five contracts and repoint the packet metadata contract test to v2."
+    role: contracts
+    priority: 1
+    depends_on: []
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 1
+    locks:
+      files:
+        - "openspec/changes/add-deterministic-review-preprocessing/contracts/review-packet.schema.json"
+      keys:
+        - "contract:openspec/changes/add-deterministic-review-preprocessing/contracts/review-packet.schema.json"
+      ttl_minutes: 60
+      reason: "Freeze packet v2, rules, coverage, and fact-check formats"
+    scope:
+      write_allow:
+        - "openspec/changes/add-deterministic-review-preprocessing/contracts/**"
+        - "skills/tests/parallel-infrastructure/test_review_preprocessing_contracts.py"
+        - "skills/tests/parallel-infrastructure/test_review_packet_schema.py"
+      read_allow:
+        - "openspec/changes/add-deterministic-review-preprocessing/**"
+        - "skills/tests/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: wp-contracts
+      mode: isolated
+    verification:
+      tier_required: C
+      steps:
+        - name: "Contract tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_review_preprocessing_contracts.py skills/tests/parallel-infrastructure/test_review_packet_schema.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["contract_tests"]
+    outputs:
+      result_keys: ["contract_tests"]
+    metadata:
+      loc_estimate: 120
+      package_kind: data_model
+
+  - package_id: wp-fact-check
+    title: "Diff-grounded fact-check pass"
+    task_type: implement
+    description: "fact_check.py with ported prompt, economy-tier call, protected-subject veto, decision file; wired into converge() after checkpoint and before synthesis; manifest fields."
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/fact_check.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      keys:
+        - "feature:add-deterministic-review-preprocessing:factcheck"
+      ttl_minutes: 120
+      reason: "Fact-check pass and convergence wiring"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/fact_check.py"
+        - "skills/parallel-infrastructure/scripts/prompts/fact_check_system.md"
+        - "skills/parallel-infrastructure/scripts/prompts/fact_check_user.md"
+        - "skills/parallel-infrastructure/scripts/tests/test_fact_check.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/tests/autopilot/test_convergence_fact_check.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/archetypes.yaml"
+        - "openspec/changes/add-deterministic-review-preprocessing/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "semantic_code"
+        - "documentation"
+    worktree:
+      name: wp-fact-check
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Fact-check unit and convergence tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_fact_check.py skills/tests/autopilot/test_convergence_fact_check.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["fact_check_tests"]
+    outputs:
+      result_keys: ["fact_check_tests"]
+    metadata:
+      loc_estimate: 420
+      package_kind: integration
+
+  - package_id: wp-ocr-vendor
+    title: "Optional OCR reviewer vendor"
+    task_type: implement
+    description: "ocr_adapter.py rewrite, coercion aliases plus mirror, discovery test, agents.yaml ocr-local block."
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/ocr_adapter.py"
+        - "skills/parallel-infrastructure/scripts/finding-coercion.json"
+        - "agent-coordinator/agents.yaml"
+      keys:
+        - "feature:add-deterministic-review-preprocessing:ocrvendor"
+      ttl_minutes: 120
+      reason: "OCR adapter and vendor registration"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/ocr_adapter.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_ocr_adapter.py"
+        - "skills/parallel-infrastructure/scripts/finding-coercion.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/finding-coercion.json"
+        - "skills/tests/parallel-infrastructure/test_finding_coercion.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher_ocr.py"
+        - "agent-coordinator/agents.yaml"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/**"
+        - "openspec/changes/add-deterministic-review-preprocessing/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: wp-ocr-vendor
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Adapter, coercion, and discovery tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_ocr_adapter.py skills/tests/parallel-infrastructure/test_finding_coercion.py skills/parallel-infrastructure/scripts/tests/test_review_dispatcher_ocr.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["ocr_tests"]
+        - name: "agents.yaml still loads"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import yaml; yaml.safe_load(open(\"agent-coordinator/agents.yaml\"))'"
+          evidence:
+            artifacts: []
+            result_keys: ["agents_yaml_loads"]
+    outputs:
+      result_keys: ["ocr_tests", "agents_yaml_loads"]
+    metadata:
+      loc_estimate: 260
+      package_kind: integration
+
+  - package_id: wp-packet
+    title: "Packet selection and rule groups"
+    task_type: implement
+    description: "file_selection.py, review_rules.py, embedded review-rules.json plus mirror, and review_packet.py integration with preview parity and v2 metadata."
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_packet.py"
+        - "skills/parallel-infrastructure/scripts/file_selection.py"
+        - "skills/parallel-infrastructure/scripts/review_rules.py"
+      keys:
+        - "feature:add-deterministic-review-preprocessing:packet"
+      ttl_minutes: 120
+      reason: "Packet pre-processing"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/file_selection.py"
+        - "skills/parallel-infrastructure/scripts/review_rules.py"
+        - "skills/parallel-infrastructure/scripts/review-rules.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/review-rules.json"
+        - "skills/parallel-infrastructure/scripts/review_packet.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_file_selection.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_rules.py"
+        - "skills/tests/parallel-infrastructure/test_review_packet.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-deterministic-review-preprocessing/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "semantic_code"
+        - "apis"
+    worktree:
+      name: wp-packet
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Selection, rules, and packet tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_file_selection.py skills/parallel-infrastructure/scripts/tests/test_review_rules.py skills/tests/parallel-infrastructure/test_review_packet.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["packet_tests"]
+        - name: "Sidecar mirror parity"
+          kind: command
+          command: "cmp skills/parallel-infrastructure/scripts/review-rules.json skills/parallel-infrastructure/install_assets/openspec/schemas/review-rules.json"
+          evidence:
+            artifacts: []
+            result_keys: ["rules_mirror_identical"]
+    outputs:
+      result_keys: ["packet_tests", "rules_mirror_identical"]
+    metadata:
+      loc_estimate: 520
+      package_kind: integration
+
+  - package_id: wp-resolver
+    title: "Snippet anchor and ingest-time line resolver"
+    task_type: implement
+    description: "line_resolver.py, optional schema fields on canonical plus mirror, resolver call after validation in _ingest_stdout, unanchored manifest count."
+    role: implementer
+    priority: 3
+    depends_on: ["wp-fact-check", "wp-packet"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/line_resolver.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "openspec/schemas/review-findings.schema.json"
+      keys:
+        - "feature:add-deterministic-review-preprocessing:resolver"
+        - "contract:openspec/schemas/review-findings.schema.json"
+      ttl_minutes: 120
+      reason: "Line resolver and schema fields"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/line_resolver.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_line_resolver.py"
+        - "openspec/schemas/review-findings.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json"
+        - "skills/tests/parallel-infrastructure/test_review_findings_schema.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/schemas/**"
+        - "openspec/changes/add-deterministic-review-preprocessing/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: wp-resolver
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Resolver, schema, and dispatcher tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_line_resolver.py skills/tests/parallel-infrastructure/test_review_findings_schema.py skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["resolver_tests"]
+        - name: "Schema mirror parity"
+          kind: command
+          command: "cmp openspec/schemas/review-findings.schema.json skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json"
+          evidence:
+            artifacts: []
+            result_keys: ["schema_mirror_identical"]
+    outputs:
+      result_keys: ["resolver_tests", "schema_mirror_identical"]
+    metadata:
+      loc_estimate: 420
+      package_kind: integration
+
+  - package_id: wp-ledger-match
+    title: "Snippet band in matching and ledger"
+    task_type: implement
+    description: "Snippet-equality band in match_score; fingerprint prefers snippet with token fallback; compact by snippet presence."
+    role: implementer
+    priority: 4
+    depends_on: ["wp-resolver"]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+      keys:
+        - "feature:add-deterministic-review-preprocessing:ledgermatch"
+      ttl_minutes: 120
+      reason: "Matching and ledger on snippets"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+        - "skills/tests/parallel-infrastructure/test_review_ledger.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-deterministic-review-preprocessing/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "semantic_code"
+    worktree:
+      name: wp-ledger-match
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Synthesizer and ledger tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py skills/tests/parallel-infrastructure/test_review_ledger.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["ledger_match_tests"]
+    outputs:
+      result_keys: ["ledger_match_tests"]
+    metadata:
+      loc_estimate: 180
+      package_kind: integration
+
+  - package_id: wp-coverage
+    title: "Per-vendor coverage contract"
+    task_type: implement
+    description: "Coverage rate in the dispatcher, partial quorum eligibility in the synthesizer, manifest fields, and the coverage request in the prompt contract."
+    role: implementer
+    priority: 5
+    depends_on: ["wp-ledger-match"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      keys:
+        - "feature:add-deterministic-review-preprocessing:coverage"
+      ttl_minutes: 120
+      reason: "Coverage eligibility across dispatcher, synthesizer, manifest"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/review_findings_schema.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py"
+        - "skills/tests/parallel-infrastructure/test_checkpoint_findings.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-deterministic-review-preprocessing/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "semantic_code"
+    worktree:
+      name: wp-coverage
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coverage tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py skills/tests/parallel-infrastructure/test_checkpoint_findings.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["coverage_tests"]
+    outputs:
+      result_keys: ["coverage_tests"]
+    metadata:
+      loc_estimate: 300
+      package_kind: integration
+
+  - package_id: wp-fixtures
+    title: "Labeled review fixture set"
+    task_type: implement
+    description: "Fixture manifest from real diffs with labels, recorded fact-check transcript, and the two fixture-driven tests."
+    role: implementer
+    priority: 5
+    depends_on: ["wp-resolver"]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/tests/parallel-infrastructure/fixtures/review-fixtures/manifest.json"
+      keys:
+        - "feature:add-deterministic-review-preprocessing:fixtures"
+      ttl_minutes: 120
+      reason: "Fixture set"
+    scope:
+      write_allow:
+        - "skills/tests/parallel-infrastructure/fixtures/review-fixtures/**"
+        - "skills/tests/parallel-infrastructure/test_fact_check_fixture.py"
+        - "skills/tests/parallel-infrastructure/test_line_resolver_fixture.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "semantic_code"
+    worktree:
+      name: wp-fixtures
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Fixture tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_fact_check_fixture.py skills/tests/parallel-infrastructure/test_line_resolver_fixture.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["fixture_tests"]
+    outputs:
+      result_keys: ["fixture_tests"]
+    metadata:
+      loc_estimate: 200
+      package_kind: data_model
+
+  - package_id: wp-integration
+    title: "Integration, docs, validation report"
+    task_type: integrate
+    description: "Full suites, install.sh --check, skill docs, and the validation report with live precision and token delta."
+    role: integrator
+    priority: 6
+    depends_on: ["wp-ocr-vendor", "wp-coverage", "wp-fixtures"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files: []
+      keys:
+        - "feature:add-deterministic-review-preprocessing:integration"
+      ttl_minutes: 120
+      reason: "Integration"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/SKILL.md"
+        - "skills/autopilot/SKILL.md"
+        - "docs/guides/workflow.md"
+        - "openspec/changes/add-deterministic-review-preprocessing/validation-report.md"
+      read_allow:
+        - "**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "documentation"
+        - "capabilities"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: "Parallel-infrastructure and autopilot suites"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests skills/tests/parallel-infrastructure skills/tests/autopilot -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suites"]
+        - name: "Install payload parity"
+          kind: command
+          command: "skills/install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["install_check"]
+    outputs:
+      result_keys: ["full_suites", "install_check"]
+    metadata:
+      loc_estimate: 120
+      package_kind: integration

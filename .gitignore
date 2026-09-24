@@ -253,6 +253,9 @@ docs/security-review/*.json
 artifacts/
 .status-cache.json
 
+# Per-worktree supervised-dispatch generation markers (runtime arbitration only)
+.supervised-dispatch/
+
 # Per-run autopilot phase-resolution cache (wire-autopilot-phase-subagents D4)
 openspec/changes/*/.phase-resolution-cache.json
 
@@ -299,3 +302,6 @@ docs/architecture-analysis/parallel_zones.json
 # ~650 KB of generated HTML with an embedded JSON payload: regenerable in about a
 # second, and not meaningfully diffable, so tracking it would only add noise.
 docs/architecture-analysis/atlas/
+
+# Playwright validator: generated .spec.ts files (see scripts/cli.py --test-dir).
+skills/playwright-validator/.generated/

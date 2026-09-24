@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T01:04:20.522500+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Planned phase 1 of multi-vendor review robustness: schema-derived prompts, coerce-then-validate, one repair retry, per-vendor timeouts through converge(), judgment ingest, raw stdout sidecars, and fast-empty rejection.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Keep the findings schema strict",
+        "rationale": "Coerce then validate rather than loosening axis/severity required fields (ri-14).",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "One repair retry",
+        "rationale": "A second constrained rewrite with validator errors; no unbounded re-review.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Per-vendor timeout budget passed through converge()",
+        "rationale": "Archive p50 for Claude is 410s against a 300s default that converge() never overrode.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Model-review ingest is judgment",
+        "rationale": "evidence_class already exists; ingest defaulted to deterministic and made every LLM finding blockable.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Gate 2 approval, then /implement-feature harden-review-dispatch-parse-and-timeouts"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-dispatch-parse-and-timeouts/proposal.md",
+        "description": "approved-direction proposal"
+      },
+      {
+        "path": "openspec/changes/harden-review-dispatch-parse-and-timeouts/design.md",
+        "description": "D1-D8"
+      }
+    ]
+  }
+}

@@ -1,0 +1,273 @@
+schema_version: 1
+
+feature:
+  id: mirror-autopilot-phase-state-into-the-work-queue
+  title: Mirror Autopilot phase state into the work queue
+  plan_revision: 12
+  created_by: codex
+  deployable: false
+
+contracts:
+  revision: 3
+  openapi:
+    primary: openspec/contracts/agent-coordinator/openapi/work-queue.yaml
+    files:
+      - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
+      - openspec/contracts/agent-coordinator/openapi/kanban-viz.yaml
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-projection-adapter
+    title: Coordinated phase projection adapter and host registration
+    task_type: integration
+    description: Implement tasks 1.1 through 2.14 with TDD, including canonical host writers, head advancement, elevated change-scoped publication, fail-closed trust resolution, database-owned reserved labels, immutable projection issues, atomic multi-issue close, labelled/unlabelled namespace isolation, transport label parity, upgrade-safe serialized repair, and reviewed-checkout vendor discovery while preserving the coordinator-free default and one-way authority contract.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - .github/workflows/ci.yml
+        - agent-coordinator/agents.yaml
+        - agent-coordinator/cedar/default_policies.cedar
+        - agent-coordinator/cedar/schema.cedarschema
+        - skills/autopilot/scripts/autopilot.py
+        - skills/autopilot/scripts/convergence_loop.py
+        - skills/autopilot/scripts/queue_projection.py
+        - skills/autopilot/scripts/runner.py
+        - skills/autopilot/SKILL.md
+        - skills/coordination-bridge/scripts/coordination_bridge.py
+        - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
+        - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
+        - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/agents_config.py
+        - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/http_proxy.py
+        - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/policy_engine.py
+        - agent-coordinator/src/work_queue.py
+        - skills/install.sh
+        - skills/parallel-infrastructure/scripts/review_dispatcher.py
+        - skills/parallel-infrastructure/scripts/vendor_health.py
+        - skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py
+        - skills/parallel-review-implementation/SKILL.md
+        - skills/parallel-review-plan/SKILL.md
+        - skills/parallel-infrastructure/tests/test_vendor_health.py
+        - skills/tests/install_sh/test_consumer_portability.py
+        - docs/cross-repo-setup.md
+        - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
+        - openspec/contracts/agent-coordinator/openapi/kanban-viz.yaml
+        - docs/guides/work-queue-truth-projection.md
+      keys:
+        - feature:autopilot-live-queue-projection:modify
+      ttl_minutes: 120
+      reason: One publisher and one host registration boundary
+    scope:
+      write_allow:
+        - .github/workflows/ci.yml
+        - agent-coordinator/agents.yaml
+        - agent-coordinator/cedar/default_policies.cedar
+        - agent-coordinator/cedar/schema.cedarschema
+        - skills/autopilot/scripts/**
+        - skills/autopilot/SKILL.md
+        - skills/coordination-bridge/scripts/coordination_bridge.py
+        - skills/tests/autopilot/**
+        - skills/tests/coordination-bridge/**
+        - skills/tests/install_sh/**
+        - skills/install.sh
+        - skills/parallel-infrastructure/scripts/review_dispatcher.py
+        - skills/parallel-infrastructure/scripts/vendor_health.py
+        - skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py
+        - skills/parallel-review-implementation/SKILL.md
+        - skills/parallel-review-plan/SKILL.md
+        - skills/parallel-infrastructure/tests/test_vendor_health.py
+        - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
+        - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
+        - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/agents_config.py
+        - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/http_proxy.py
+        - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/policy_engine.py
+        - agent-coordinator/src/work_queue.py
+        - agent-coordinator/tests/**
+        - docs/cross-repo-setup.md
+        - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
+        - openspec/contracts/agent-coordinator/openapi/kanban-viz.yaml
+        - docs/guides/work-queue-truth-projection.md
+      read_allow:
+        - skills/**
+        - agent-coordinator/**
+        - docs/guides/work-queue-truth-projection.md
+        - docs/architecture-analysis/**
+        - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
+      deny:
+        - agent-coordinator/database/migrations/00*.sql
+        - agent-coordinator/database/migrations/01*.sql
+        - agent-coordinator/database/migrations/02*.sql
+        - agent-coordinator/database/migrations/03[0-6]_*.sql
+    context_impact:
+      surfaces: [apis, architecture, documentation, semantic_code]
+    worktree:
+      name: ri09-wp-projection-adapter
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: Run Autopilot projection tests
+          kind: command
+          command: skills/.venv/bin/python -m pytest skills/tests/autopilot -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [autopilot_projection_tests_pass]
+        - name: Run coordination bridge projection tests
+          kind: command
+          command: skills/.venv/bin/python -m pytest skills/tests/coordination-bridge -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [coordination_bridge_tests_pass]
+        - name: Run coordinator queue and issue tests
+          kind: command
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_issue_service.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_cedar_policy_engine.py -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [coordinator_projection_tests_pass]
+        - name: Lint changed Python
+          kind: command
+          command: skills/.venv/bin/python -m ruff check skills/autopilot/scripts skills/coordination-bridge/scripts/coordination_bridge.py skills/tests/autopilot skills/tests/coordination-bridge agent-coordinator/src/event_stream.py
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [ruff_pass]
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: [autopilot_projection_tests_pass, coordination_bridge_tests_pass, coordinator_projection_tests_pass, ruff_pass]
+      artifacts:
+        - skills/autopilot/scripts/queue_projection.py
+        - skills/autopilot/scripts/convergence_loop.py
+        - skills/autopilot/scripts/runner.py
+        - skills/autopilot/SKILL.md
+        - skills/coordination-bridge/scripts/coordination_bridge.py
+        - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
+        - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
+        - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/agents_config.py
+        - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/http_proxy.py
+        - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/policy_engine.py
+        - agent-coordinator/src/work_queue.py
+        - agent-coordinator/cedar/default_policies.cedar
+        - agent-coordinator/cedar/schema.cedarschema
+        - skills/parallel-infrastructure/scripts/review_dispatcher.py
+        - skills/parallel-review-implementation/SKILL.md
+        - skills/parallel-review-plan/SKILL.md
+        - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
+        - openspec/contracts/agent-coordinator/openapi/kanban-viz.yaml
+        - docs/guides/work-queue-truth-projection.md
+
+  - package_id: wp-live-integration
+    title: Coordinator, crash recovery, and kanban proof
+    task_type: integration
+    description: Implement tasks 3.1 through 4.3 against live PostgreSQL and the read-only kanban data path, including concurrent-generation serialization, crash recovery, row-limit proof, connected SSE refresh, and label-only polling without frontend behavior changes.
+    role: integrator
+    priority: 2
+    depends_on: [wp-projection-adapter]
+    locks:
+      files:
+        - docs/guides/work-queue-truth-projection.md
+        - docs/architecture-analysis
+      keys:
+        - feature:autopilot-live-queue-projection:verify
+      ttl_minutes: 90
+      reason: Cross-boundary behavioral verification and durable documentation
+    scope:
+      write_allow:
+        - skills/tests/autopilot/**
+        - skills/tests/coordination-bridge/**
+        - agent-coordinator/tests/**
+        - docs/guides/work-queue-truth-projection.md
+        - docs/architecture-analysis/**
+        - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
+      read_allow:
+        - '**'
+      deny:
+        - agent-coordinator/database/migrations/**
+    context_impact:
+      surfaces: [architecture, capabilities, documentation, semantic_code]
+    worktree:
+      name: ri09-wp-live-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: Run affected skill suites
+          kind: command
+          command: skills/.venv/bin/python -m pytest skills/tests/autopilot skills/tests/coordination-bridge -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [skill_suites_pass]
+        - name: Run coordinator status and queue tests
+          kind: command
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_status_reporting.py agent-coordinator/tests/test_work_queue.py -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [coordinator_tests_pass]
+        - name: Run live PostgreSQL projection and migration tests
+          kind: command
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/integration/postgres/test_autopilot_projection_acceptance_postgres.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py agent-coordinator/tests/e2e/postgres/test_work_queue_live.py -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [live_postgres_projection_tests_pass]
+        - name: Run strict OpenSpec validation
+          kind: command
+          command: openspec validate --strict --all
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [openspec_valid]
+    metadata:
+      loc_estimate: 180
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: [skill_suites_pass, coordinator_tests_pass, openspec_valid]
+      artifacts:
+        - docs/guides/work-queue-truth-projection.md

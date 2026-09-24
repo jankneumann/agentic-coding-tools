@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-14T14:44:54Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": "gemini-3.8-flash-high",
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 302.8673367970623,
+      "error": "Invalid JSON output: {\"conversation_id\":\"2d08fda3-801a-4e07-b0b9-e66f78c912c0\",\"status\":\"SUCCESS\",\"response\":\"\",\"duration_seconds\":297.416542469,\"num_turns\":1,\"json_schema\":{\"type\":\"object\",\"required\":[\"findings\"],\"properties\":{\"findings\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"id\",\"type\",\"criticality\",\"description\",\"disposition\",\"axis\",\"severity\"],\"properties\":{\"id\":{\"type\":\"integer\"},\"type\":{\"type\":\"string\",\"enum\":[\"spec_gap\",\"contract_mismatch\",\"architecture\",\"security\",\"performance\",\"style\",\"correc",
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 2.7228060038760304,
+      "error": "Unknown error",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 900.1076331501827,
+      "error": "Timeout after 900s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 451.5567360688001,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 102.9914022339508,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a0a053-141f-7698-b27d-2d99b03edb1e\",\"timestamp\":\"2026-09-14T14:29:54.335Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/recover-ri-09-work-queue-projection\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Final independent read-only implementation convergence review for\\n`mirror-autopilot-phase-state-into-the-work-queue` at exact HEAD\\n`a9d1c958e7036d88ede",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 15
+    }
+  ]
+}

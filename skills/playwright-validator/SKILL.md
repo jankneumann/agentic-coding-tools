@@ -48,7 +48,9 @@ non-frontend dispatch target.
 * `--output-dir PATH` — where `findings-playwright.json` is written
   (default: `openspec/changes/<change-id>/`).
 * `--test-dir PATH` — where the generated `.spec.ts` files land
-  (default: `skills/playwright-validator/test-results/generated/<change-id>/`).
+  (default: `skills/playwright-validator/.generated/<change-id>/`). Must not
+  be a directory named `test-results` — that is Playwright's own `outputDir`,
+  which it clears before each run, deleting the generated specs.
 * `--browsers chromium [firefox webkit]` — override descriptor's matrix.
 * `--dry-run` — emit the `.spec.ts` but do not invoke `npx playwright test`.
 

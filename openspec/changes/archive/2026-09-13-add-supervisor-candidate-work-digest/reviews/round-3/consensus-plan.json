@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "add-supervisor-candidate-work-digest",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 3,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "disagreement",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 1
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Critical: The Git-based staleness rule does not define what happens when the last commit timestamp is later than the host manifest as_of. Git permits future-dated commits, so the specified subtraction can produce a negative staleness_days (rejected by digest.schema.json) or, if fed directly into the formula, a negative penalty that incorrectly boosts the candidate.",
+      "vendor_dispositions": {
+        "codex": "fix",
+        "antigravity": "accept",
+        "grok": "fix"
+      }
+    },
+    {
+      "id": 2,
+      "status": "disagreement",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 3
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Critical: Lifecycle maintenance is required to delete terminal stub/cache files and publish a rebuilt digest as one maintained baseline, but the recovery journal is defined only in terms of replacement bytes/checksums for cache, digest, and mirror targets. It neither represents deletions nor explicitly includes candidate-store removal. A crash after pruning and before the digest/mirror replacements can therefore leave durable mixed state that the stated roll-forward protocol cannot reconstruct.",
+      "vendor_dispositions": {
+        "codex": "fix",
+        "antigravity": "accept",
+        "grok": "fix"
+      }
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Revision 4 correctly separates generated_at from state_updated_at, allowing lifecycle-only rebuilds to preserve cache evidence time while exposing the later state transition."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The separation of responsibilities between digest.py (store, prepare-batch, rank, digest, stub-to-request, decide) and cycle_state.py state helpers maintains the host-assisted invariant while avoiding monolithic script bloat."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The security posture is robust with strict 64 KiB complete canonical prompt manifest bounds, 2 KiB provenance excerpt caps, contained UTF-8 regular file validation, untrusted data delimiters, and string sanitization."
+    },
+    {
+      "id": 6,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 7
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The digest.schema.json weights object comprehensively exposes all ranking policy constants, penalty caps, risk direction, decision and dependency bucket orders, and tie-breaking rules for total deterministic rank reconstructibility."
+    },
+    {
+      "id": 7,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The refine-roadmap integration preserves explicit stub priorities while decoupling insertion positioning via --after, ensuring zero contract mismatch with existing roadmap tooling."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: Digest Approval Routing still says the request SHALL place by stub priority unless --after overrides it, while the next sentences say explicit priority and insertion position are independent and no renumbering is implied. Refiner _apply_add preserves an explicit priority via setdefault and otherwise appends; an implementer can read the first clause as computing insertion from priority."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The complete canonical prompt-manifest 64 KiB bound, per-artifact 2 KiB excerpt cap, oversized:<stub_key> fail-closed path, contained regular-file loader, sanitize_string redaction, and untrusted delimiters close the round-2 partial-bound gap without leaving a single schema-valid stub able to force an oversize dispatch."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Ranking and stub-to-request now consistently build a strict all-status index from roadmap YAML, active changes, and archived changes with an explicit archived-completed rule, and both proposal and tasks forbid using ri-16 ready-frontier output as that index."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Failed scoring now has a coherent retry ledger rule: no journal or output updates, prior digest preserved, and the last successful cycle fingerprint left unadvanced so the unchanged early exit cannot suppress the next retry."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: proposal Impact still lists digest.py subcommands as store/rank/digest/stub-to-request/decide and omits prepare-batch, even though What Changes, design D3/D8, tasks, and the normative spec all make prepare-batch the public bounded-manifest boundary."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 12,
+    "confirmed_count": 3,
+    "unconfirmed_count": 7,
+    "disagreement_count": 2,
+    "blocking_count": 2,
+    "advisory_count": 5
+  }
+}

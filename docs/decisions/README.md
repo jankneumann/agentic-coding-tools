@@ -8,6 +8,8 @@ A Decision is *architectural* when it shapes how a capability behaves across mul
 
 Routine engineering choices that do not outlive the change that introduced them SHOULD remain untagged — they clutter the index without adding archaeological value.
 
+**Related: the choices ledger.** `choices.json`/`choices.md` (produced by the `audit-choices` skill, one pair per change under `openspec/changes/<change-id>/`) are this index's independently audited, per-change complement: implementation-time decisions an auditor found in the diff, not decisions the implementer chose to tag as architectural. The two stores cross-reference each other via `<change-id>#D<n>` and never write to one another — the ledger is read-only end to end and this index is regenerated only from session-log `Decisions` bullets.
+
 ## How to read a capability timeline
 
 Each `<capability>.md` file is reverse-chronological (newest first). Every entry carries a status (`active` or `superseded`), a back-reference to the originating session-log phase entry, and — when a later decision explicitly reverses an earlier one via `` `supersedes:` `` — bidirectional `Supersedes` / `Superseded by` links.
@@ -27,6 +29,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [agent-identity](./agent-identity.md)
 - [architecture-refresh](./architecture-refresh.md)
 - [code-search](./code-search.md)
+- [codebase-analysis](./codebase-analysis.md)
 - [configuration](./configuration.md)
 - [coordination-bridge](./coordination-bridge.md)
 - [coordinator-kanban-viz](./coordinator-kanban-viz.md)
@@ -36,13 +39,18 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [gen-eval-framework](./gen-eval-framework.md)
 - [merge-infrastructure](./merge-infrastructure.md)
 - [merge-pull-requests](./merge-pull-requests.md)
+- [model-routing](./model-routing.md)
 - [observability](./observability.md)
 - [project-context-refresh](./project-context-refresh.md)
 - [project-context-refresh-orchestration](./project-context-refresh-orchestration.md)
+- [review-convergence-safety](./review-convergence-safety.md)
+- [roadmap-orchestration](./roadmap-orchestration.md)
 - [semantic-context-evaluation](./semantic-context-evaluation.md)
 - [sentinel-security-eval](./sentinel-security-eval.md)
 - [setup-coordinator](./setup-coordinator.md)
 - [skill-workflow](./skill-workflow.md)
 - [software-factory-tooling](./software-factory-tooling.md)
+- [supervise](./supervise.md)
+- [trust-posture](./trust-posture.md)
 - [validate-feature-ephemeral](./validate-feature-ephemeral.md)
 - [worktree](./worktree.md)

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/parked-disagreements.schema.json",
+  "title": "Parked review disagreements",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "change_id", "items"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "change_id": { "type": "string", "minLength": 1 },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ledger_id", "round", "vendor_dispositions", "description"],
+        "properties": {
+          "ledger_id": { "type": "integer", "minimum": 1 },
+          "round": { "type": "integer", "minimum": 1 },
+          "vendor_dispositions": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "description": { "type": "string" },
+          "parked_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

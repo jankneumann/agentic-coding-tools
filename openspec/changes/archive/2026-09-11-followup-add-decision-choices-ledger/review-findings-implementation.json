@@ -1,0 +1,43 @@
+{
+  "review_type": "implementation",
+  "target": "followup-add-decision-choices-ledger",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "description": "Step 11.5 dispatches the audit as `if ! audit_output=$(/audit-choices \"$CHANGE_ID\" --run-id \"$RUN_ID\" 2>&1); then SKIP_REASON=\"audit dispatch failed\"; return; fi`, inside a bash function whose whole control flow depends on that command's exit status. A slash command is not a shell command; a shell evaluating that substitution gets 127 (command not found). The guard then converts the failure into the non-blocking skip path and the step prints `audit-choices: skipped (audit dispatch failed) — continuing to summary` and falls through to Step 12. The result is the worst available failure mode: the feature never produces a ledger on any run, every run reports success, and the designed warn-and-continue behavior is exactly what hides it. Other skills do put slash commands in bash fences, but as standalone invocation lines an agent is meant to read and perform; none embeds one in command substitution and then branches on `$?`. The two readings of this block — agent-interprets vs shell-executes — disagree about the result here, and only the agent reading works.",
+      "resolution": "Separate the agent-performed dispatch from the shell-executed bookkeeping. State the `/audit-choices $CHANGE_ID --run-id $RUN_ID` dispatch as a numbered agent instruction outside the fence, with an explicit statement of what to set SKIP_REASON to when the dispatch fails or is unavailable, and keep the fenced bash for the parts that really are shell: the both-files-present check, the entries comparison, the staging, the commit and the restore. Then extend the content test in skills/tests/audit-choices/test_workflow_hooks.py to assert that no slash command appears inside a bash fence in this step."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "skills/validate-feature/SKILL.md",
+      "description": "The `Choices:` row reaches the Step 11 report sketch as a literal line, but reaches the Step 12 persisted report only through prose above the heredoc instructing that `$CHOICES_ROW` be carried into the `<phase results from Step 10>` placeholder. The heredoc uses an unquoted `<< EOF`, so a shell would expand `$CHOICES_ROW` if it appeared there, but it does not appear; the placeholder stays a literal an agent is expected to replace. That is a weaker guarantee than the sketch has, and it is the half that actually lands in validation-report.md, which the pre-merge gate later reads. The content test pins the prose, so a rewrite that drops the row from the persisted report while keeping the instruction would still pass.",
+      "resolution": "Either put `$CHOICES_ROW` into the heredoc body directly, next to the placeholder, so the shell substitutes it regardless of how the placeholder is handled, or have test_workflow_hooks.py assert the persisted-report instruction names `$CHOICES_ROW` by variable rather than only mentioning choices in prose."
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "nit",
+      "disposition": "accept",
+      "evidence_class": "deterministic",
+      "file_path": "skills/cleanup-feature/SKILL.md",
+      "description": "Both gate hooks invoke needs_user.py without `--repo-root`, so it falls back to its default of `.` and silently returns no entries whenever the caller's working directory is not the repository root. The ledger-presence test in each hook uses the same relative path, so the two agree and the gate reports `no choices ledger` rather than erroring. In practice both skills run from their worktree root so this is currently correct, and passing an explicit root would need each hook to resolve one.",
+      "resolution": "No change required. Noted so that a future hook added from a subdirectory does not inherit the assumption silently."
+    }
+  ]
+}

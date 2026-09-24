@@ -1,0 +1,51 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: In contracts/schemas/trust-posture.schema.json at line 20, the field description for gates still reads 'Keys are restricted to the eight enumerated gates', but properties under gates were expanded in task 1.3 to include roadmap_approval (bringing the total to nine).",
+      "resolution": "Update the description of gates in contracts/schemas/trust-posture.schema.json to state 'the nine enumerated gates'.",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/trust-posture.schema.json",
+      "line_range": {
+        "start": 20,
+        "end": 20
+      }
+    },
+    {
+      "id": 2,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: In contracts/schemas/gate-decision.schema.json (line 3) and contracts/schemas/gate-request.schema.json (line 3), the $id URI fields contain 'https://agentic-coding-tools/openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/...', referencing the parent change ID encode-autopilot-gates-and-goal-gate-in-code rather than the current change ID or canonical schema URI.",
+      "resolution": "Update $id URIs in contracts/schemas/gate-decision.schema.json and gate-request.schema.json to reference the current change path or canonical schema URI.",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/gate-decision.schema.json",
+      "line_range": {
+        "start": 3,
+        "end": 3
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Final plan review round confirmed that all 42 previous findings were correctly resolved and verified against live codebase files. Round-2 fixes (notified/roadmap_fingerprint in gate-decision schema, D2 stamping, D3 require_approval_ref freshness check, MODIFIED Autopilot Gate Call Sites delta, check_filed keyword signature, wp-router task range 2.0-2.10) are completely and consistently applied across proposal.md, design.md, tasks.md, work-packages.yaml, specs, contracts, and tests. OpenSpec strict validation passes clean and all test suites pass without regression.",
+      "resolution": "Plan is ready for execution.",
+      "disposition": "accept",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/proposal.md"
+    }
+  ]
+}

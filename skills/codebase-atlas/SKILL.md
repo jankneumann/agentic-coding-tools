@@ -39,6 +39,9 @@ graph is wrong or narrow, the atlas says so rather than hiding it.
 | `--json-only` | Print the view-model as JSON; render nothing |
 | `--no-coverage` | Skip the on-disk coverage scan (faster, drops the banner) |
 | `--graph PATH` | Read a different graph artifact |
+| `--tree TARGET` | Print an indented call/callee tree for a symbol or file |
+| `--hops N` | Hop depth for `--tree` (default 2, max 4) |
+| `--direction in\|out\|both` | Callers, callees, or both for `--tree` (default out) |
 
 ## Usage
 
@@ -47,6 +50,7 @@ runtime copy in any consumer repository:
 
 ```bash
 python3 "<skill-base-dir>/scripts/build_atlas.py" $ARGUMENTS
+python3 "<skill-base-dir>/scripts/build_atlas.py" --tree acquire_lock --hops 2
 ```
 
 Requires only the Python standard library. In *this* repository the Makefile wraps

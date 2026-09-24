@@ -269,3 +269,15 @@ def test_gate_failure_still_reports_under_errexit(tmp_path: Path) -> None:
         "report would name no violation"
     )
     assert "FAIL: requirement-traceability gate exited 1" in result.stdout
+
+
+def test_task_record_overlap_exception_is_narrow_and_auditable() -> None:
+    """Shared task bookkeeping is not treated as a source-scope collision."""
+    skill = _SKILL_MD.read_text(encoding="utf-8")
+    match = re.search(r"### 7\.5\..*?### 8\.", skill, re.S)
+    assert match is not None
+    section = match.group(0)
+    assert "`openspec/changes/<change-id>/tasks.md`" in section
+    assert "every reporting package declared the path in `write_allow`" in section
+    assert "report the exception explicitly" in section
+    assert "Every other duplicated modified file remains a failure" in section

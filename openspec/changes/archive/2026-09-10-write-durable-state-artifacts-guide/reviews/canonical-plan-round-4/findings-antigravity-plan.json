@@ -1,0 +1,97 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "architecture",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/session-log.md",
+      "line_range": {
+        "start": 10,
+        "end": 15
+      },
+      "description": "Canonical reference resolution: `session-log.md` records the bare repository-relative guide reference (`docs/guides/state-artifacts.md`) under Decision 1 in Implementation, and the regenerated decision index in `docs/decisions/skill-workflow.md` matches perfectly.",
+      "resolution": "Verified resolved. Bare repository-relative guide reference is recorded at canonical session-log source and reflected in the regenerated decision index."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "correctness",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 60,
+        "end": 95
+      },
+      "description": "Exact eight-step rehydration ordering contract: `test_state_artifacts_guide.py` structurally checks the 8-step rehydration sequence (1. Bootstrap locator, 2. Roadmap definition, 3. Roadmap execution state, 4. Change execution state, 5. Learning context, 6. Phase history, 7. Handoff context, 8. Rebuild projections) across `docs/guides/state-artifacts.md`, `skills/supervise/SKILL.md`, and `design.md`.",
+      "resolution": "Verified resolved. The exact 8-step rehydration sequence is structurally asserted across all three design and guide targets."
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "observability",
+      "file_path": "skills/pyproject.toml",
+      "line_range": {
+        "start": 129,
+        "end": 129
+      },
+      "description": "Default CI collection registration: `skills/pyproject.toml` line 129 lists `tests/state-artifacts` in `[tool.pytest.ini_options].testpaths`. `test_ci_test_coverage.py` passes all 100 tests cleanly, confirming `tests/state-artifacts` is reached by default CI.",
+      "resolution": "Verified resolved. CI test collection is explicitly registered in pyproject.toml testpaths and enforced by the CI coverage suite."
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "resilience",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 81,
+        "end": 96
+      },
+      "description": "Fresh-checkout mirror handling: `test_changed_skill_mirrors_are_byte_identical` in `test_state_artifacts_guide.py` gracefully invokes `pytest.skip()` when `.agents/skills` or `.claude/skills` directory mirrors are absent in fresh or uninstalled checkouts, while verifying byte parity when mirrors exist.",
+      "resolution": "Verified resolved. Fresh checkout skip behavior and installed mirror byte-parity are robustly tested."
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 88,
+        "end": 92
+      },
+      "description": "Declared context impact surfaces: `work-packages.yaml` lines 88-92 explicitly lists `documentation`, `decisions`, and `semantic_code` under `context_impact.surfaces` for `wp-state-artifacts-docs`, ensuring full alignment with package validation gates.",
+      "resolution": "Verified resolved. All modified surfaces are accurately declared in the work package context impact specification."
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "security",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/session-log.md",
+      "line_range": {
+        "start": 44,
+        "end": 66
+      },
+      "description": "User review-destination authorization audit trail: `session-log.md` records verbatim operator authorization for diff/context sharing with external review harnesses while explicitly withholding secrets, credentials, unrelated private data, and PR merge authority.",
+      "resolution": "Verified resolved. Operator authorization boundaries are audit-recorded without exposing sensitive credentials or grant of merge authority."
+    }
+  ]
+}

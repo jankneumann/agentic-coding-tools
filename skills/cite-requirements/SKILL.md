@@ -102,19 +102,44 @@ with an empty list where nothing is semantically related. Explicitly
 instruct: name ONLY ids from the provided list; do not rank; omit rather
 than stretch.
 
-Dispatch the same prompt to two models (tiers are defaults — resolve
-against `agent-coordinator/agents.yaml` archetypes when available rather
-than hardcoding):
+Resolve the **economy** (cheap/fast) tier for two distinct providers from
+`agent-coordinator/archetypes.yaml` (via the shared tier map), then dispatch
+with those resolved harness ids — never hardcode model versions as policy:
 
-- **claude / haiku**: `Agent(prompt=<annotation prompt>, model="haiku")`
-- **codex / gpt-5.6-luna**: `codex exec -m gpt-5.6-luna "<annotation prompt>"`
+```python
+import sys
+from pathlib import Path
 
-Merge into `openspec/changes/<change-id>/traceability-annotations.json`:
+sys.path.insert(0, str(Path("<skill-base-dir>").parent / "shared"))
+from archetype_roster import resolve_tier_for_provider
+
+claude_economy_model, _ = resolve_tier_for_provider("claude_code", "economy")
+codex_economy_model, _ = resolve_tier_for_provider("codex", "economy")
+```
+
+If either resolution returns `None`, skip that vendor and say so; do not
+fall back to a hardcoded model id.
+
+Dispatch the same annotation prompt to both resolved models:
+
+```
+# claude_code / economy tier (resolved id in claude_economy_model)
+Agent(prompt=<annotation prompt>, model=claude_economy_model)
+```
+
+```bash
+# codex / economy tier (resolved id in codex_economy_model)
+codex exec -m "$codex_economy_model" "<annotation prompt>"
+```
+
+Merge into `openspec/changes/<change-id>/traceability-annotations.json`.
+`models[].label` values are **observed run metadata** (the ids actually
+resolved for this run), not selection policy:
 
 ```json
-{"generated": "<iso>", "models": [{"label": "haiku", "vendor": "claude"},
-                                   {"label": "gpt-5.6-luna", "vendor": "codex"}],
- "flags": {"--mode": [{"model": "haiku", "requirement": "…", "note": "…"}]}}
+{"generated": "<iso>", "models": [{"label": "<resolved-economy-claude>", "vendor": "claude"},
+                                   {"label": "<resolved-economy-codex>", "vendor": "codex"}],
+ "flags": {"--mode": [{"model": "<resolved-economy-claude>", "requirement": "…", "note": "…"}]}}
 ```
 
 Validate the shape: `$WALK annotations-validate <file>` (structure only —
@@ -136,9 +161,10 @@ For each flag the inventory lists as `undecided`:
    verbatim (`--subject=--mode` — the `=` form is required, since flag names
    themselves begin with `--`).
 2. Below the script's marker, append `## Interpretation — NOT from any
-   file`: each model's annotations for this flag (labelled), a one-line
-   agreement summary ("both name X", "haiku only", "neither model found a
-   related requirement"), and the orchestrator's own reading if it has one
+   file`: each model's annotations for this flag (labelled by vendor /
+   observed resolved id), a one-line agreement summary ("both name X",
+   "claude only", "codex only", "neither model found a related
+   requirement"), and the orchestrator's own reading if it has one
    (labelled as such).
 3. Ask via AskUserQuestion. Options: **Cite requirement(s)** /
    **Exclude this flag** (needs a written reason) / **New requirement

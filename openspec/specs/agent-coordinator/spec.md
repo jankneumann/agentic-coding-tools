@@ -113,7 +113,7 @@ The system SHALL store episodic memories (experiences and their outcomes) to ena
 
 ### Requirement: Work Queue
 
-The system SHALL provide task assignment, tracking, and dependency management through a work queue.
+The system SHALL provide task assignment, tracking, dependency management, and atomic projection submission through a work queue. An ordinary submission without `projection_key` SHALL create a new row. A submission with the complete `(change_id, phase, transition_sequence)` key SHALL use submit-if-absent semantics enforced by PostgreSQL uniqueness and per-change transaction serialization. `transition_sequence` SHALL be the strict bounded integer copied from `LoopState.total_iterations`; phase-local `iteration` SHALL NOT identify a projection. A replay SHALL return the canonical row and SHALL NOT create a second row.
 
 - Tasks SHALL support priority levels
 - Task claiming SHALL be atomic (no double-claiming)
@@ -142,7 +142,46 @@ The system SHALL provide task assignment, tracking, and dependency management th
 - **WHEN** agent attempts to claim a task with pending dependencies
 - **THEN** the task SHALL NOT be returned by `get_work()`
 
----
+#### Scenario: Agent submits ordinary new task
+
+- **WHEN** an agent calls `submit_work` without `projection_key`
+- **THEN** the system SHALL create a new work-queue row
+- **AND** return `{success: true, task_id, created: true, deduplicated: false}`
+
+#### Scenario: Concurrent projection replay creates one task
+
+- **GIVEN** multiple clients submit the same complete projection key concurrently
+- **WHEN** PostgreSQL resolves the submissions
+- **THEN** exactly one row SHALL exist for that key
+- **AND** every success SHALL return the same canonical task ID
+- **AND** exactly one success SHALL report `created=true`
+
+#### Scenario: Different tuple race serializes by change
+
+- **GIVEN** keyed submit and reconciliation concurrently target different sequences of one change
+- **WHEN** both database transactions execute
+- **THEN** both SHALL acquire the same change-scoped transaction lock
+- **AND** the reconciled current sequence SHALL be the only active projection row
+- **AND** a delayed submit below the committed high-water sequence SHALL fail as `stale_projection`
+
+#### Scenario: Only reconciliation advances projection sequence
+
+- **GIVEN** a projection head already exists for a change
+- **WHEN** keyed submit requests a sequence above that head
+- **THEN** it SHALL fail as `reconciliation_required`
+- **AND** reconciliation SHALL be the only operation that may advance the high-water sequence
+
+#### Scenario: Equal-sequence different-phase submit is rejected
+
+- **GIVEN** a projection head exists for one `(phase, transition_sequence)` generation
+- **WHEN** keyed submit requests a different phase at the same sequence
+- **THEN** it SHALL fail as `projection_generation_mismatch`
+- **AND** it SHALL NOT create a second active generation
+
+#### Scenario: Reserved or malformed identity is rejected
+
+- **WHEN** submit or reconcile receives a partial key, boolean or out-of-range sequence, unknown phase, invalid change ID, or reserved identity field inside `input_data`
+- **THEN** the boundary SHALL return 422 without a queue mutation
 
 ### Requirement: MCP Server Interface
 
@@ -292,13 +331,21 @@ The system SHALL track agent work sessions for coordination, discovery, and audi
 
 ### Requirement: Agent Profiles
 
-The system SHALL support configurable agent profiles that define capabilities, trust levels, and operational constraints.
+The system SHALL support configurable agent profiles that define capabilities, trust levels,
+and operational constraints, resolved fail-loud for agents declared in the registry.
 
 - Profiles SHALL specify allowed operations and tools
-- Profiles SHALL define trust level (0-4)
+- Profiles SHALL define trust level (0–4), referencing the Unified Trust Scale defined by
+  the `agent-identity` capability rather than a local literal range
 - Profiles SHALL configure resource limits (max files, execution time, API calls)
 - Profiles SHALL be assignable per agent_id or agent_type
-- Default profiles SHALL exist for each agent type
+- Profiles for registry-declared agents SHALL be materialized by the startup registry sync;
+  hand-authored default rows SHALL NOT be required for registry agents
+- Trust resolution SHALL distinguish two miss cases:
+  - a principal **not present** in the registry SHALL receive the default trust level
+    (existing behavior, unchanged)
+  - a **registry-declared** agent whose profile row is missing or disabled SHALL cause a
+    hard resolution error and an audit event — never a silent default
 
 #### Scenario: Agent with restricted profile
 - **WHEN** agent with "reviewer" profile attempts file modification
@@ -315,6 +362,18 @@ The system SHALL support configurable agent profiles that define capabilities, t
 - **AND** agent's profile has trust_level < 3
 - **THEN** system rejects with `{success: false, error: "insufficient_trust_level"}`
 
+#### Scenario: Registry agent with broken projection fails loud
+- **WHEN** `grok-local` is declared in `agents.yaml`
+- **AND** its `grok_local` profile row is missing or disabled
+- **THEN** trust resolution SHALL return an error (not the default trust level)
+- **AND** an audit event SHALL record the failed resolution
+
+#### Scenario: Unknown principal still defaults low
+- **WHEN** a principal absent from the registry authenticates via an explicitly configured
+  env-var identity
+- **THEN** trust resolution SHALL return the configured default trust level
+- **AND** no error SHALL be raised
+
 #### Profile Trust Levels
 
 | Level | Name | Typical Capabilities |
@@ -325,7 +384,8 @@ The system SHALL support configurable agent profiles that define capabilities, t
 | 3 | Elevated | Skip Tier 0-1 verification, extended resource limits |
 | 4 | Admin | Full access, can modify policies and profiles |
 
----
+This table is the human-readable rendering of the Unified Trust Scale; the programmatic
+definition lives in the trust-scale module and the two SHALL be asserted equal in tests.
 
 ### Requirement: Cloud Agent Integration
 
@@ -3083,6 +3143,137 @@ The `handoff_documents` table SHALL carry a nullable `supervisor_record JSONB` c
 - **WHEN** `POST /handoffs/write` receives `supervisor_record` that is not a JSON object or null
 - **THEN** the request SHALL fail with HTTP 422
 - **AND** nothing SHALL be written
+
+### Requirement: Loop-State Projection Reconciliation
+
+The coordinator SHALL atomically reconcile from one caller-provided `projection_key`, cancel stale active rows for the change, preserve terminal rows, and ensure the current generation is represented. It MUST NOT return queue fields as authoritative state inputs.
+
+#### Scenario: Resume converges stale projection rows
+
+- **GIVEN** stale `pending`, `claimed`, or `running` rows for earlier sequences
+- **WHEN** reconciliation runs for the authoritative current key
+- **THEN** stale active rows SHALL become `cancelled`
+- **AND** exactly one canonical row SHALL represent the current key
+- **AND** unrelated and terminal rows SHALL remain unchanged
+
+#### Scenario: Terminal current generation is already satisfied
+
+- **GIVEN** the current key already identifies a `completed`, `failed`, or `cancelled` row
+- **WHEN** reconciliation replays
+- **THEN** it SHALL return that canonical row with `created=false`
+- **AND** it SHALL NOT create a replacement generation
+
+#### Scenario: Phase revisit uses a new generation
+
+- **GIVEN** `LoopState.iteration` differs from `total_iterations` or a phase is revisited
+- **WHEN** the projection key is derived
+- **THEN** `transition_sequence` SHALL equal `total_iterations`
+- **AND** the revisit SHALL not collide with the earlier phase generation
+
+### Requirement: Projection Transport Parity
+
+Direct MCP, HTTP-proxy MCP, HTTP, and `coordination-cli` SHALL map keyed submit and reconcile to the same service contract. HTTP successes SHALL match `ProjectionMutationSuccess`; authentication, policy, and validation failures SHALL be 4xx RFC 7807 Problems. MCP and CLI failures SHALL use a discriminated `{success:false, reason}` envelope without success-only fields.
+
+#### Scenario: Direct and proxy MCP mappings agree
+
+- **WHEN** direct MCP and HTTP-proxy MCP submit or reconcile the same valid key
+- **THEN** both SHALL expose canonical task ID, status, created, deduplicated, and cancelled IDs with structurally equal values
+
+#### Scenario: CLI exposes projection operations
+
+- **WHEN** an operator invokes `coordination-cli work submit` with all projection-key flags or `coordination-cli work reconcile`
+- **THEN** the CLI SHALL validate and delegate the explicit key without embedding a second identity source
+
+#### Scenario: Policy denial is not a success payload
+
+- **WHEN** HTTP authentication or policy denies a projection mutation
+- **THEN** the response SHALL be a 401 or 403 Problem
+- **AND** it SHALL NOT contain a null `task_id` in a success schema
+
+#### Scenario: Reconciliation uses queue-submission authorization
+
+- **WHEN** any transport requests projection reconciliation
+- **THEN** authorization SHALL evaluate the existing `submit_work` policy operation
+- **AND** policy context SHALL identify `mode=reconcile`
+
+### Requirement: Projection Migration Preflight
+
+Migration 035 SHALL prevent unsafe index creation by checking legacy reserved keys while blocking concurrent keyed writes. Failure SHALL roll back and provide deterministic remediation evidence.
+
+#### Scenario: Malformed legacy row aborts safely
+
+- **GIVEN** seeded partial, fractional, boolean, string, huge, or duplicate legacy projection identities
+- **WHEN** migration 035 runs
+- **THEN** it SHALL abort with documented SQLSTATE and offending task IDs
+- **AND** no partial index or function change SHALL remain
+- **AND** after rows are remediated, the unchanged migration SHALL succeed on retry
+
+### Requirement: Model Routing API Surface
+
+The coordinator SHALL serve all five operations from the merged routing OpenAPI contract:
+`POST /routing/select_model`, `GET /routing/catalog`, `GET /routing/decisions/{id}`,
+`GET /routing/usage`, and `POST /routing/feedback`. The coordinator SHALL expose the same
+selection operation as the `select_model_for_task` MCP tool, and both transports SHALL use the
+same routing service.
+
+#### Scenario: POST selection operation is served
+
+- **WHEN** a cloud agent POSTs task signals to `/routing/select_model` with valid authentication
+- **THEN** the response SHALL contain the selected candidate, ranked alternatives, and a decision ID
+
+#### Scenario: GET catalog operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/catalog`
+- **THEN** the response SHALL contain stored catalog entries without an external refresh
+
+#### Scenario: GET decision operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/decisions/{id}` for a persisted decision ID
+- **THEN** the response SHALL contain that persisted selection record
+
+#### Scenario: GET usage operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/usage` with a valid usage window
+- **THEN** the response SHALL contain the ledger aggregate for that requested window
+
+#### Scenario: POST feedback operation is served
+
+- **WHEN** an authenticated caller POSTs a valid event to `/routing/feedback`
+- **THEN** the coordinator SHALL accept the event through the shared routing service
+
+#### Scenario: Local agent uses the MCP tool
+
+- **WHEN** a local agent invokes the `select_model_for_task` MCP tool
+- **THEN** the same resolver SHALL serve the request as the HTTP path
+
+### Requirement: Model Routing Storage Migrations
+
+The coordinator database SHALL gain additive-only migrations for `model_catalog`,
+`model_posteriors`, `routing_decisions`, and `routing_spend_ledger`. Applying the migration more
+than once MUST preserve the schema and existing data.
+
+#### Scenario: Migrations are additive and idempotent
+
+- **WHEN** the model-routing migrations are applied and the migration runner is invoked again
+- **THEN** no existing table SHALL be altered destructively
+- **AND** the second run SHALL require no schema rollback
+
+### Requirement: dg-00 Routing Watchdog Jobs
+
+The coordinator watchdog SHALL schedule the OpenRouter catalog refresher, local-endpoint health
+probe, and spend-ledger rollup independently. A failure in one routing job SHALL be recorded
+without preventing the other jobs or the watchdog loop from continuing.
+
+#### Scenario: Routing job failure is contained
+
+- **WHEN** the catalog refresher raises an exception
+- **THEN** the watchdog SHALL record a routing-job failure signal
+- **AND** the local probe and ledger rollup SHALL remain independently schedulable
+
+#### Scenario: Ledger rollup uses an independent schedule
+
+- **WHEN** the ledger-rollup interval is due while the refresher or local probe is not due or fails
+- **THEN** the watchdog SHALL still run the ledger rollup on its own schedule
 
 ## Database Tables
 

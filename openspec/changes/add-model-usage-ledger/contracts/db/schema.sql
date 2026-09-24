@@ -1,5 +1,5 @@
 -- Contract: model usage ledger schema.
--- Realized as agent-coordinator/database/migrations/037_model_usage_ledger.sql.
+-- Realized as agent-coordinator/database/migrations/045_model_usage_ledger.sql.
 -- Style mirrors existing numbered migrations (IF NOT EXISTS, explicit indexes).
 -- Carries forward usage_records / usage_ingest_state from the superseded
 -- usage-stats-multi-model change, extended per design D2, D3, D5, D6, D9.

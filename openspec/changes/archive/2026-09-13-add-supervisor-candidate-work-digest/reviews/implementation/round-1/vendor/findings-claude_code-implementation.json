@@ -1,0 +1,254 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "critical",
+      "axis": "resilience",
+      "severity": "critical",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1189,
+        "end": 1204
+      },
+      "evidence_class": "deterministic",
+      "description": "Critical: `_lifecycle_rebuild` demands a valid rubric cache for EVERY surviving stored candidate and raises `lifecycle rebuild requires cache for <key>` otherwise, but two spec-blessed degraded paths guarantee the store holds keys that were never scored. `prepare_batch` raises `OversizedManifestError` while the spec states the oversized stub 'remains stored for correction' (specs/supervise/spec.md), and a rubric dispatch timeout/schema failure is documented to 'preserve the prior valid digest' without advancing the fingerprint (SKILL.md:274-281). In both cases `digest.py store` (SKILL.md:243-249) has already persisted the fresh candidate file, while the prior `digest.json` and the cache directory still reflect the last successful rank. The cache is derived, non-authoritative state, yet it is treated as a hard precondition. `remaining` at digest.py:1171 is built from the persisted candidate files, not from the prior digest's `ranked` keys, so the loop cannot skip the un-scored key.",
+      "failure_scenario": "Cycle N: `store` persists `change:add-huge` plus 3 prior candidates; `prepare-batch` raises `oversized:change:add-huge`; the host renders a Degraded line and stops (no rank, no cache for that key). The operator then rejects an unrelated candidate via `digest.py decide`. Cycle N+1: the preflight `digest.py store --prune-only --record <rehydrated>` enters `_maintenance`, sees the terminal `rejected` entry, calls `_lifecycle_rebuild`, loads the prior `digest.json`, iterates `sorted(remaining)` which includes `change:add-huge`, finds no `openspec/supervise/rubric-cache/change--add-huge.rubric.json`, and raises. Every subsequent cycle raises at the same point, including the read-only `store --prune-only --dry-run` form, so the supervisor cannot run SENSE, gates, or the digest at all until someone hand-edits `openspec/supervise/candidates/`. No test covers a remaining key without a cache; `test_lifecycle_rebuild_rejects_cache_with_wrong_identity` only mutates an existing cache.",
+      "disposition": "fix",
+      "resolution": "Restrict the cache-identity loop to keys present in `prior_digest['ranked']`, and treat a missing or unreadable cache for any other remaining key as a degraded marker that excludes the key from the rebuilt digest rather than aborting the command."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 618,
+        "end": 717
+      },
+      "evidence_class": "deterministic",
+      "description": "Critical: a due-deferral wake performed by the lifecycle preflight is silently reverted by the same cycle's `rank`. `_maintenance` (digest.py:224-235) flips a due `deferred` entry to `pending`, drops `until`, and `_lifecycle_rebuild` publishes that maintained mirror. But `rank_candidates` rebuilds its decision view from the raw `record` argument at line 618 (`prior = _decision_index(record)`), takes `decision` from it at line 628, and at lines 714-716 copies `until` straight back out of `old` into the newly published mirror. SKILL.md sets `$SUPERVISE_RECORD` exactly once during rehydration (SKILL.md:168) and passes that same pre-wake snapshot to the preflight (line 186), `prepare-batch` (lines 259, 264) and `rank` (lines 285, 289). Nothing instructs the host to re-read the mirror after preflight, and `store_candidates` exposes the wake only as an advisory `woken_keys` list that no documented step consumes. `prepare_batch` has the same defect at line 868, emitting the stale `deferred_until` into the manifest signals.",
+      "failure_scenario": "An operator defers `change:add-foo` until 2026-09-15. On 2026-09-16 the tree has also changed, so `unchanged` is false. Preflight reports `woken_keys: [change:add-foo]` and writes a mirror with `decision: pending` and no `until`. The host then runs `prepare-batch` and `rank` with the unchanged `$SUPERVISE_RECORD`, so the digest's ranked entry carries `decision: deferred` and `signals.deferred_until: 2026-09-15`; the sort key at digest.py:676-681 pushes it into the final future-deferred bucket, and the republished mirror restores `until: 2026-09-15`. The deferral never expires: every later cycle re-wakes it and every later rank re-buries it, so the operator is never re-asked about work they explicitly scheduled to resurface.",
+      "disposition": "fix",
+      "resolution": "Make `rank_candidates` and `prepare_batch` apply the same `_maintenance` normalization to the record they are handed (or accept the maintained decision index), and pin the behavior with a test that wakes a due deferral and then ranks."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 799,
+        "end": 805
+      },
+      "evidence_class": "deterministic",
+      "description": "Critical: staleness is computed as a difference of calendar dates taken in two different timezones, so it can be negative even when the clock-skew guard passes. Line 803 compares the aware datetimes correctly (`source_time > as_of`), but line 805 then does `(as_of.date() - source_time.date()).days`. `git log -1 --format=%cI` emits the committer's local offset, while the host-owned `as_of` is normally UTC. A commit made shortly before `as_of` from a timezone east of UTC yields a later local date and therefore a negative day count. The spec is explicit that this must not happen: 'A commit timestamp later than manifest `as_of` SHALL produce null staleness and `clock_skew:<source_artifact>` degradation, never a negative value or score increase' (specs/supervise/spec.md). Two consequences follow. At digest.py:638 `min(staleness // 30, 5)` evaluates to `-1` for `staleness == -1` (Python floor division), so `- penalty` awards a silent +1 score bonus, corrupting the deterministic total order the whole design rests on. Worse, `supervise-digest.schema.json` declares `signals.staleness_days` with `minimum: 0`, so `_validate` at digest.py:701 rejects the assembled digest and the entire scored batch is discarded after the analyst has already been paid for.",
+      "failure_scenario": "A contributor in UTC+10 commits `reports/findings.md` at 2026-09-11T08:00:00+10:00 (2026-09-10T22:00Z). The cycle runs with `as_of = 2026-09-10T23:00:00Z`. `source_time > as_of` is false so no `clock_skew` marker is emitted; `as_of.date()` is 2026-09-10 and `source_time.date()` is 2026-09-11, giving `staleness_days = -1`. `prepare-batch` emits `-1` into the manifest, the analyst scores the batch, and `rank` raises a jsonschema ValidationError on `minimum: 0`, leaving the prior digest in place and the fingerprint unadvanced. The cycle re-fails identically on every retry as long as that artifact is the newest commit.",
+      "disposition": "fix",
+      "resolution": "Normalize both instants to a single timezone before taking dates (e.g. `as_of.astimezone(timezone.utc).date() - source_time.astimezone(timezone.utc).date()`), and clamp any remaining negative result to the `clock_skew` degradation path. Add a regression test that commits with a non-UTC `GIT_COMMITTER_DATE` offset."
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "high",
+      "axis": "compatibility",
+      "severity": "critical",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/supervise/test_supervisor_record_schema.py",
+      "line_range": {
+        "start": 68,
+        "end": 95
+      },
+      "evidence_class": "deterministic",
+      "description": "Critical: the canonical record schemas were tightened in a way that invalidates already-committed records, and the tests conceal it by rewriting the fixtures in memory instead of migrating them. `supervisor-record.schema.json` and its mirror now constrain `stub_key` to `^(change:(add|update|remove|refactor)-...|prov:[0-9a-f]{32})$` and make `route` and `roadmap_ref` required for any `approved` entry. The committed fixtures `skills/tests/supervise/fixtures/supervisor-record/full.json:35-41` and `mirror.json:24-30` hold `change:extend-handoff-document-with-supervisor-record` with `decision: approved` and neither new field, so they now violate both schemas. Rather than migrating those files, `test_full_record_fixture_validates` and `test_mirror_fixture_validates` mutate each approved entry before validating, and `test_supervisor_record.py:54-70` adds a `_json()` helper that silently rewrites the same key and injects `route`/`roadmap_ref`. The fixtures are the documented example of the record shape, so the suite now green-lights a contract the fixtures do not satisfy. The runtime has no compensating migration: `_clean_digested_stub` (cycle_state.py:334-358) still validates `stub_key` against the old loose `^(change|prov):.+$` and passes `route`, `roadmap_ref`, `until` and `reason` through `_clean_optional_text` unvalidated, so a legacy entry survives sanitization and then fails `_validate_record` inside `write_mirror`. The sanitization layer exists precisely to guarantee a writable mirror from untrusted rehydrated state, and it no longer does. `cycle_state.stub_key` (line 748-750) still emits `change:<anything-non-empty>` and `dedupe_stubs` does not validate against `candidate-work.schema.json`, so non-canonical keys remain producible.",
+      "failure_scenario": "A supervisor session rehydrates a coordinator handoff written before this change whose `back_edge.digested_stubs` contains `{stub_key: 'change:extend-handoff-document-with-supervisor-record', decision: 'approved'}` \u2014 exactly the committed fixture. `_clean_digested_stub` accepts it (loose regex, absent optional fields simply not copied). `write_mirror` then calls `_validate_record` against the tightened mirror schema, which fails on both the `stub_key` pattern and the `required: [route, roadmap_ref]` branch, so `digest.py decide`, `rank_candidates._mirror_document` and every `cycle` mirror write raise instead of degrading. The supervisor loses its durable mirror entirely, and no test detects it because every fixture-based test patches the offending entry first.",
+      "disposition": "fix",
+      "resolution": "Migrate the committed fixtures to the canonical shape and delete the in-test rewrites, then tighten `_clean_digested_stub` to drop or repair entries that cannot satisfy the new schema (canonical key pattern, enum-checked `route`, `date`-shaped `until`, required approval metadata) so sanitization keeps its guarantee that the mirror is always writable."
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 579,
+        "end": 604
+      },
+      "evidence_class": "deterministic",
+      "description": "Nit: the cache-reuse branch of `rank_candidates` (taken when `--scores` is omitted) is unreachable as documented and has no test coverage at all. Line 591 requires `cached['scored_at'] == manifest['as_of']`, but `as_of` is a freshly chosen host-owned timestamp each run (SKILL.md:180-181) while cached `scored_at` echoes the timestamp of the run that produced it. SKILL.md:212-214 promises that `--force` 'bypasses the SENSE early exit but reuses complete same-fingerprint caches when candidate composition has not changed', yet nothing tells the host to reuse the prior digest's `generated_at` as `$SUPERVISE_AS_OF`, and both documented `rank` invocations (SKILL.md:284-290) always pass `--scores`. A grep across `skills/tests` finds no call to `rank_candidates` with `scores=None` and no test matching `missing valid cache` or `cache scored_at`, so roughly 25 lines of publication-path logic \u2014 including the `scorer` carry-forward at lines 595-604, which non-deterministically takes whichever cached scorer sorts last \u2014 ship unexercised.",
+      "failure_scenario": "An operator runs `/supervise cycle --force` on an unchanged tree. Per SKILL.md the host reuses caches and omits `--scores`. `rank` picks a new `$SUPERVISE_AS_OF`, reads the first cache, and raises `cache scored_at mismatch for change:add-foo`. The forced cycle produces no digest even though every cache is valid for the current fingerprint, and the failure is invisible to CI because the branch is untested.",
+      "disposition": "fix",
+      "resolution": "Decide which timestamp governs reuse \u2014 either validate caches against the prior digest's `generated_at` rather than the new `as_of`, or have SKILL.md pin `$SUPERVISE_AS_OF` to `generated_at` on the reuse path \u2014 and add a test that ranks from caches alone."
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "nit",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 785,
+        "end": 801
+      },
+      "evidence_class": "deterministic",
+      "description": "Nit: the tracked/unmodified evidence gate passes `source_artifact` to git as a pathspec with glob magic enabled, while the excerpt is read from the literal filesystem path. `git ls-files --error-unmatch`, `git diff --quiet HEAD` and `git log -1 --format=%cI` all interpret `*`, `?` and `[...]` as wildcards, so a literal filename containing those characters can be cleared by a different, genuinely tracked file. The spec requires that 'untracked, modified, missing, and unsafe artifacts SHALL use null staleness and degradation', and this is a mechanical way to bypass that gate. The traversal, symlink and `resolve(strict=True)` checks that precede it all operate on the literal path, so they do not constrain what git matches.",
+      "failure_scenario": "A repository contains a tracked, clean `reports/a.md` committed 400 days ago and an untracked `reports/[a].md` written by a discovery generator. A stub names `reports/[a].md`. `resolve(strict=True)` succeeds on the literal file; `ls-files --error-unmatch -- 'reports/[a].md'` matches `reports/a.md` through the character class and returns 0; `diff --quiet HEAD` reports clean; `log -1` returns `reports/a.md`'s commit date. The manifest therefore presents untracked generator output to the analyst as tracked evidence, attributes a 400-day staleness to it, and applies the maximum 5-point penalty to an item whose evidence is actually brand new.",
+      "disposition": "fix",
+      "resolution": "Pass the path as a literal pathspec (`:(literal)` prefix, or add `--literal-pathspecs` to the `git` argv built in `_git_output`), and add a fixture whose filename contains glob metacharacters."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/supervise/test_digest_evidence.py",
+      "line_range": {
+        "start": 100,
+        "end": 129
+      },
+      "evidence_class": "deterministic",
+      "description": "Nit: the `binary` case of `test_prepare_batch_never_reads_unsafe_or_unavailable_evidence` passes for the wrong reason, leaving the NUL-byte detector at digest.py:793-794 with no real coverage. The fixture writes `reports/binary.bin` but never commits it, so `_artifact_evidence` returns `evidence_untracked:reports/binary.bin` at line 787 before the content is ever inspected. The assertion `any(fixture in marker for marker in candidate['degraded'])` is satisfied because the literal string 'binary' appears in the file path, not because a binary artifact was detected. The `UnicodeDecodeError` fallback at lines 796-798 is likewise unreached. The tasks file lists this exact fixture as RED coverage for task 1.5, so the traceability claim is overstated.",
+      "failure_scenario": "Someone removes or inverts the `b'\\x00' in raw` check at digest.py:793. The suite stays green: the binary parametrization never reaches that line, and no other test commits a NUL-bearing artifact. A tracked binary provenance file would then be decoded (or partially decoded) and spliced into the analyst prompt as untrusted text.",
+      "disposition": "fix",
+      "resolution": "Commit the binary and the invalid-UTF-8 fixtures so they reach the content checks, and assert on the exact marker string (`evidence_binary:<path>`) rather than a substring of the path."
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "optional",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1117,
+        "end": 1121
+      },
+      "evidence_class": "deterministic",
+      "description": "Optional: `decide` validates `--until` with bare `datetime.fromisoformat`, which accepts a full date-time, but every consumer declares that field as a calendar date. Both record schemas give `until` `\"format\": \"date\"`, and `supervise-digest.schema.json` gives `signals.deferred_until` the same format; `digest.py` validates with `FormatChecker()` enabled (line 128), as does `cycle_state._validate_record` (cycle_state.py:243-245). The write therefore succeeds or fails depending on which validator sees the value first, and the failure surfaces in a later command rather than at the point of bad input.",
+      "failure_scenario": "An operator runs `digest.py decide change:add-foo --decision deferred --until 2026-12-01T00:00:00Z`. `fromisoformat` accepts it, the value is merged into `back_edge.digested_stubs`, and `write_mirror` validates it against `format: date`, which rejects a date-time \u2014 so the decision is lost with an error that names the schema rather than the flag the operator typed.",
+      "disposition": "fix",
+      "resolution": "Validate `--until` with `datetime.date.fromisoformat` and reject anything that carries a time component, so the error is raised against the argument the operator supplied."
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "optional",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1266,
+        "end": 1271
+      },
+      "evidence_class": "deterministic",
+      "description": "Optional: the mirror-fingerprint fallback in `_lifecycle_rebuild` chains `.get()` calls without guarding an explicit null. `(record or {}).get('back_edge', {}).get('last_fingerprint')` supplies the `{}` default only when the key is absent; a record that carries `\"back_edge\": null` returns `None` from the first `.get` and raises `AttributeError` on the second. Every other reader of this structure is defensive \u2014 `_decision_index` (line 189-192) and `_clean_back_edge` (cycle_state.py:361-363) both type-check before indexing \u2014 so this is the one unguarded path.",
+      "failure_scenario": "A truncated or hand-edited handoff record with `back_edge: null` reaches the lifecycle preflight with no prior `digest.json` present. `store --prune-only` raises an uncaught `AttributeError` and the CLI wrapper reports a bare `error: 'NoneType' object has no attribute 'get'` with exit code 2, giving the operator no indication which record or field is malformed.",
+      "disposition": "fix",
+      "resolution": "Reuse the same `isinstance(..., dict)` guard the neighbouring readers apply, and fall back to `None` when `back_edge` is not a mapping."
+    },
+    {
+      "id": 10,
+      "type": "security",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 343,
+        "end": 365
+      },
+      "evidence_class": "deterministic",
+      "description": "none: the journal trust boundary is genuinely closed rather than merely documented. `_authorize_transaction_target` allowlists by (operation, path) pair, so the digest and mirror accept only `replace` while candidate and cache paths accept `replace`/`delete`, and each candidate or cache filename must round-trip through `decode_stub_key` before it is authorized. `recover_transaction` validates the complete journal \u2014 size bound before parsing, schema version, operation count, path safety, authorization, duplicate targets, and SHA-256 of every replacement payload \u2014 across a full pass at lines 428-449 before the first mutation at line 457. `test_recovery_refuses_a_tampered_journal_target_before_mutating_any_file` proves the ordering by putting an authorized cache write ahead of an unauthorized `skills/tampered.py` write and asserting the cache was never created. That is the correct shape for a roll-forward journal: a partially applied malicious journal is strictly worse than a rejected one.",
+      "failure_scenario": "Not a defect; recorded as verified positive coverage of the journal-authority fix in impl-findings.md item 1.",
+      "disposition": "accept"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/supervise/test_digest.py",
+      "line_range": {
+        "start": 432,
+        "end": 450
+      },
+      "evidence_class": "deterministic",
+      "description": "none: the reproducibility non-functional requirement is tested at the byte level rather than asserted. `test_ranking_is_byte_identical_for_shuffled_input` reverses both the manifest candidates and the score rows and compares the persisted `digest.json` bytes, which pins the canonical serializer (`sort_keys` plus trailing newline at digest.py:115-116) together with the total order at digest.py:675-682. It is complemented by `test_supervisor_outputs_do_not_change_cycle_fingerprint`, which commits a candidate file, a cache, a digest and a journal and proves the fingerprint is unchanged \u2014 the exclusion set added to `_tree_listing` covers both the `ls-tree` listing and the `diff` pathspecs, so a supervisor-output-only commit cannot make the next cycle look dirty and re-dispatch an analyst.",
+      "failure_scenario": "Not a defect; recorded as verified positive coverage of the determinism and cache-identity requirements.",
+      "disposition": "accept"
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/supervise/test_supervisor_record.py",
+      "line_range": {
+        "start": 506,
+        "end": 520
+      },
+      "evidence_class": "deterministic",
+      "description": "none: the host-assisted invariant is enforced structurally instead of by convention. `test_digest_runtime_has_no_model_network_or_roadmap_write_capability` parses `digest.py` with `ast`, asserts the import set is disjoint from the model and HTTP client modules, and walks every `write_text`/`write_bytes`/`replace`/`unlink` call to assert none of them mentions `roadmap.yaml`. That keeps the design's central claim \u2014 judgment is dispatched by the host, arithmetic and persistence live in the script, and roadmap mutation belongs to `refiner.py` \u2014 checkable by a machine rather than by a reviewer's memory. `stub_to_request` (digest.py:1007-1085) is correspondingly pure: it reads the roadmap only to compute the next item ID and dependency classes, and returns a request dict.",
+      "failure_scenario": "Not a defect; recorded as verified positive coverage of the isolation non-functional requirement.",
+      "disposition": "accept"
+    },
+    {
+      "id": 13,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/supervise/test_digest_routing.py",
+      "line_range": {
+        "start": 216,
+        "end": 246
+      },
+      "evidence_class": "deterministic",
+      "description": "none: the approval seam is proved against the real refiner rather than a mock. `test_stub_request_runs_real_refiner_preview_apply_and_stale_sha_refusal` renders a request from a stored stub, runs the genuine `preview_refinement`, applies with the preview's base SHA-256, asserts the change was actually scaffolded on disk, and then re-applies with the now-stale SHA to prove `BaseRoadmapChangedError` fires. This is the safety property the proposal's non-functional table calls out, and testing it through the real transaction is what makes 'approval never bypasses the preview' a claim about behavior rather than about documentation.",
+      "failure_scenario": "Not a defect; recorded as verified positive coverage of the roadmap-mutation safety requirement.",
+      "disposition": "accept"
+    },
+    {
+      "id": 14,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 315,
+        "end": 325
+      },
+      "evidence_class": "deterministic",
+      "description": "none: `store_candidates` returns a structured result that is sufficient for the host to narrate the cycle without re-deriving state \u2014 `retained_keys`, `fresh_keys`, `pruned_keys`, `woken_keys`, `lifecycle_changed`, `pending_recovery`, `dry_run`, and the `rebuilt_digest` itself. That is what lets the dry-run path report lifecycle transitions on stdout while writing nothing, and it keeps the Degraded rendering in SKILL.md grounded in returned data rather than inference. `CandidateCapacityError` and `OversizedManifestError` similarly carry the specific keys (`unpersisted_keys`, `marker`) the operator needs to act on, instead of a generic message.",
+      "failure_scenario": "Not a defect; recorded as verified positive coverage of the degraded-reporting requirement. Note that `woken_keys` is currently advisory only \u2014 see finding 2.",
+      "disposition": "accept"
+    }
+  ]
+}

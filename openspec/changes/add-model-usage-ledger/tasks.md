@@ -81,11 +81,11 @@ Spec scenario IDs are `<capability>.<n>` numbered in file order within each delt
 
 ## Phase 3 — Coordinator ledger (wp-coordinator)
 
-- [ ] 3.1 Write migration tests: 037 applies additively, provenance constraint rejects cost without version, CHECK accepts `validator` [S]
+- [ ] 3.1 Write migration tests: 045 applies additively, provenance constraint rejects cost without version, CHECK accepts `validator` [S]
   **Spec scenarios**: agent-coordinator.1, agent-coordinator.2, agent-archetypes.7
   **Contracts**: contracts/db/schema.sql
   **Dependencies**: None
-- [ ] 3.2 Create `database/migrations/037_model_usage_ledger.sql` from the DB contract [S]
+- [ ] 3.2 Create `database/migrations/045_model_usage_ledger.sql` from the DB contract [S]
   **Design decisions**: D3, D5, D6, D9
   **Dependencies**: 3.1
 - [ ] 3.3 Write tests for `pricing.py` loader: schema validation, fail-loud on unknown vendor, exact-over-prefix, null cost with reason [S]

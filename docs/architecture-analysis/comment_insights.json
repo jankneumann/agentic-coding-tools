@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-09-02T10:23:05+00:00",
+  "generated_at": "2026-09-22T13:06:06+00:00",
   "summary": {
-    "total_comments": 2506,
-    "total_with_markers": 20,
+    "total_comments": 2643,
+    "total_with_markers": 21,
     "marker_totals": {
       "NOTE": 4,
       "BUG": 4,
-      "WARNING": 4,
+      "WARNING": 5,
       "WARN": 4,
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1908,
-    "documented_nodes": 275,
+    "total_graph_nodes": 1956,
+    "documented_nodes": 282,
     "documentation_coverage": 0.144
   },
   "marker_hotspots": [
@@ -118,6 +118,13 @@
       "markers": {
         "NOTE": 1
       }
+    },
+    {
+      "file": "work_queue.py",
+      "total_markers": 1,
+      "markers": {
+        "WARNING": 1
+      }
     }
   ],
   "node_marker_map": {
@@ -145,12 +152,18 @@
       "markers": [
         "WARN"
       ]
+    },
+    "py:work_queue.WorkQueueService.complete": {
+      "comment_count": 11,
+      "markers": [
+        "WARNING"
+      ]
     }
   },
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 299,
+      "total_comments": 304,
       "with_markers": 2,
       "languages": [
         "python"
@@ -174,7 +187,7 @@
     },
     {
       "file": "audit.py",
-      "total_comments": 7,
+      "total_comments": 14,
       "with_markers": 0,
       "languages": [
         "python"
@@ -182,7 +195,7 @@
     },
     {
       "file": "audit_triage.py",
-      "total_comments": 9,
+      "total_comments": 15,
       "with_markers": 0,
       "languages": [
         "python"
@@ -222,7 +235,7 @@
     },
     {
       "file": "coordination_api.py",
-      "total_comments": 232,
+      "total_comments": 236,
       "with_markers": 2,
       "languages": [
         "python"
@@ -246,7 +259,7 @@
     },
     {
       "file": "db.py",
-      "total_comments": 3,
+      "total_comments": 7,
       "with_markers": 0,
       "languages": [
         "python"
@@ -254,7 +267,7 @@
     },
     {
       "file": "db_postgres.py",
-      "total_comments": 11,
+      "total_comments": 28,
       "with_markers": 0,
       "languages": [
         "python"
@@ -286,7 +299,7 @@
     },
     {
       "file": "event_stream.py",
-      "total_comments": 40,
+      "total_comments": 46,
       "with_markers": 0,
       "languages": [
         "python"
@@ -455,6 +468,14 @@
     {
       "file": "kanban-viz/src/__tests__/runtime.test.ts",
       "total_comments": 4,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/setup.ts",
+      "total_comments": 5,
       "with_markers": 0,
       "languages": [
         "typescript"
@@ -806,7 +827,7 @@
     },
     {
       "file": "migrations.py",
-      "total_comments": 11,
+      "total_comments": 39,
       "with_markers": 0,
       "languages": [
         "python"
@@ -934,7 +955,7 @@
     },
     {
       "file": "profiles.py",
-      "total_comments": 8,
+      "total_comments": 18,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1006,7 +1027,7 @@
     },
     {
       "file": "trust_resolution.py",
-      "total_comments": 5,
+      "total_comments": 14,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1022,8 +1043,8 @@
     },
     {
       "file": "work_queue.py",
-      "total_comments": 21,
-      "with_markers": 0,
+      "total_comments": 57,
+      "with_markers": 1,
       "languages": [
         "python"
       ]

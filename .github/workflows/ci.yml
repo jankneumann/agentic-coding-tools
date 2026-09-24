@@ -21,8 +21,31 @@ permissions:
 # branch, which measured 3 superseded runs out of 30 still executing to
 # completion.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Safety lives in the GROUP, not in the flag.
+  #
+  # This previously read `cancel-in-progress: ${{ github.event_name ==
+  # 'pull_request' }}`, which *looks* like "only cancel PR runs" and is not.
+  # A `${{ }}` expression yields a string, and a non-empty string — including
+  # "false" — is truthy for this field, so every event cancelled its
+  # predecessor. Pushes to main share the group `CI-refs/heads/main`, so a merge
+  # landing while the previous merge was still building killed that run.
+  #
+  # Observed, not theorised: 3 of the last 40 main runs were cancelled. On
+  # 2026-09-10 three merges 13s apart produced ok / CANCELLED / ok, and on
+  # 2026-09-04 the same shape. In both clusters the last run survives and the
+  # middle one dies, which is what `cancel-in-progress: true` does. Two pushes
+  # 40s apart (8efb87d1 -> b47dcaad) both survived, because a run that already
+  # finished cannot be cancelled. `1ad5da69` is on main today with no CI verdict
+  # of its own — exactly what the old comment here promised could not happen.
+  #
+  # Keying the group on `github.run_id` for anything that is not a pull request
+  # makes each such run a singleton: nothing else can join its group, so nothing
+  # can cancel it, whatever the flag evaluates to. Pull requests still key on the
+  # PR number and still supersede properly. The flag is now plainly `true`
+  # because that is what it always effectively was; writing it honestly is what
+  # stops the next reader trusting a condition that never applied.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -79,6 +102,7 @@ jobs:
 
       - name: Validate standalone skill install payload
         run: |
+          bash install.sh --mode copy --force --deps none --openspec-assets none --openspec-cli none --python-tools none
           bash install.sh --check
           uv run python validate-feature/scripts/linters/dependency_direction.py --skills-root .
 
@@ -131,10 +155,13 @@ jobs:
             tests/archive-roadmap \
             tests/autopilot \
             tests/autopilot-roadmap \
+            tests/candidate-work \
+            tests/collect-transcripts \
             tests/coordinator-task-status-renderer \
             tests/docs \
             tests/githooks \
             tests/integration \
+            tests/improve-harness \
             tests/iterate-on-plan \
             tests/langfuse \
             tests/phase-record-compaction \
@@ -178,6 +205,53 @@ jobs:
 
       - name: Run skills tests
         run: agent-coordinator/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/ -v
+
+  # Non-blocking by design (design D6): a stale skill audit is a prompt to
+  # re-run /skill-audit, not a defect in the change under review. Fails soft so
+  # an unrelated archetypes.yaml edit never blocks a merge.
+  skill-audit-freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+        working-directory: agent-coordinator
+
+      - name: Check skill-audit report freshness
+        run: |
+          set +e
+          out="$(agent-coordinator/.venv/bin/python skills/skill-audit/scripts/skill_audit.py --all --check-freshness 2>&1)"
+          printf '%s\n' "$out"
+          # Two different facts, reported separately. A skill whose report's
+          # roster hash no longer matches archetypes.yaml has genuinely drifted
+          # and is worth re-auditing. A skill with no report at all has simply
+          # never been audited, which is the steady state for most of the
+          # corpus and is not drift.
+          drifted=$(printf '%s\n' "$out" | grep 'STALE' | grep -vc 'no report under' || true)
+          never=$(printf '%s\n' "$out" | grep -c 'no report under' || true)
+          if [ "${drifted:-0}" -gt 0 ]; then
+            printf '::warning title=skill-audit freshness::%s\n' \
+              "$drifted skill audit(s) drifted against the current archetypes.yaml. Re-run /skill-audit <skill> to refresh."
+          fi
+          if [ "${never:-0}" -gt 0 ]; then
+            printf '::notice title=skill-audit coverage::%s\n' \
+              "$never skill(s) have never been audited. Run /skill-audit <skill> to add coverage."
+          fi
+          # Always green. Per design D6 this job reports; it never gates. The
+          # underlying command exits 1 whenever any skill lacks a report, which
+          # is true for most of the corpus and would pin this check red forever,
+          # drowning the drift signal it exists to carry.
+          exit 0
 
   validate-specs:
     runs-on: ubuntu-latest
@@ -495,6 +569,9 @@ jobs:
               'src.http_proxy',
               'src.config',
               'gen_eval.mcp_service',
+              # system_one_decisions — shared seam for calibrated System One
+              # (TypeSafe Jev) decisions, fallback-only for now.
+              'system_one_decisions',
           ]
 
           failures = []
@@ -571,10 +648,17 @@ jobs:
 
       - name: Apply database migrations
         run: |
+          set -euo pipefail
           sudo apt-get install -y postgresql-client
           for f in agent-coordinator/database/migrations/*.sql; do
-            PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -f "$f"
+            PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -h localhost -p 54322 -U postgres -d postgres -f "$f"
           done
+          PGPASSWORD=postgres \
+          POSTGRES_USER=postgres \
+          POSTGRES_DB=postgres \
+          PGHOST=localhost \
+          PGPORT=54322 \
+            bash agent-coordinator/database/migrations/999_record_schema_migrations.sh
 
       - name: Wait for DB readiness
         run: cd agent-coordinator && uv run python scripts/wait_for_db.py
@@ -734,6 +818,115 @@ jobs:
           name: gen-eval-dogfood-report
           path: packages/gen-eval/evaluation/.reports/
           if-no-files-found: ignore
+
+  # Package-level unit tests for packages/code-search/.
+  #
+  # Added 2026-09-08. Until then this suite ran nowhere: CI covered two of the
+  # four `packages/` trees, so when `complete-incremental-semantic-indexing` was
+  # archived on 2026-07-25 and moved its contract schemas under
+  # `openspec/changes/archive/`, 14 assertions in `test_incremental_contracts.py`
+  # went red and stayed red for six weeks. Nothing was wrong with the code; there
+  # was simply no observer.
+  #
+  # Installs `--extra dev` only, NOT `--all-extras`. The `index` extra pulls
+  # cocoindex + sentence-transformers (and thus torch), which is minutes of
+  # download for three tests. Those three carry `@pytest.mark.requires_embedder`
+  # and the suite's own conftest skips them when cocoindex is unimportable, so
+  # the omission is visible in the run's skip count rather than silent.
+  #
+  # No lint step: this package has no ruff configuration and 78 default-profile
+  # findings. Adopting a style here is its own change, not a precondition for
+  # running the tests that already exist.
+  code-search-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/code-search
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install code-search with dev extras
+        run: uv sync --extra dev
+
+      - name: Run pytest
+        run: uv run pytest
+
+  # Package-level unit tests for packages/system-one-decisions/.
+  #
+  # Modeled on code-search-tests above: same no-lint rationale applies (no
+  # ruff/mypy config in this package yet) — a style pass is its own change,
+  # not a precondition for running the tests that already exist.
+  system-one-decisions-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/system-one-decisions
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install system-one-decisions with dev extras
+        run: uv sync --extra dev
+
+      - name: Run pytest
+        run: uv run pytest
+
+  # Package-level unit tests, lint and types for packages/agent-scenarios/.
+  #
+  # Added 2026-09-08 alongside code-search-tests, for the same reason: this tree
+  # had a full suite and no CI job. Its tests were green, but `strict = true` in
+  # its own pyproject had never been enforced and had accumulated 12 errors, and
+  # its uv.lock had drifted from packages/gen-eval's dev group.
+  #
+  # mypy blocks here rather than carrying the `continue-on-error: true` that
+  # gen-eval-tests uses: the package is clean under --strict as of this commit,
+  # so a non-blocking step would only invite it to rot again.
+  agent-scenarios-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/agent-scenarios
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install agent-scenarios with all extras
+        # gen-eval is a path dependency; --locked asserts uv.lock is in sync
+        # with both pyproject files rather than silently re-resolving.
+        run: uv sync --all-extras --locked
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type-check (mypy)
+        run: uv run mypy src/
+
+      - name: Run pytest
+        # The `gx10` marker covers tests needing live vendor CLIs; they are not
+        # available on a hosted runner and deselect here rather than erroring.
+        run: uv run pytest -m "not gx10"
 
   # Full-capability requirement-traceability sweep (task 5.7, design D12).
   #
@@ -923,8 +1116,40 @@ jobs:
             push)
               # Union mode: every on-branch delta shadows the archive at once.
               # Report-only — its exit status must not depend on what it found.
+              #
+              # Non-blocking is right (a run that fires after the merge cannot
+              # stop it going red), but until 2026-09-09 it was also silent: the
+              # verdict went to a log nobody opens, so accumulated debt only ever
+              # surfaced when some unrelated pull request happened to touch a
+              # change directory and hit the *blocking* mode. Whoever wrote that
+              # PR then inherited it. Annotating keeps the merge unblocked while
+              # putting the finding on the commit and in the run summary, so the
+              # debt is attributable to the merge that introduced it.
               echo "requirement-traceability sweep: post-merge report (union of every on-branch delta, non-blocking)"
-              run_gate ""
+              run_gate "" | tee /tmp/traceability-union.log
+              gate_rc=${PIPESTATUS[0]}
+              if [[ $gate_rc -ne 0 ]]; then
+                echo "::warning::requirement-traceability sweep: main carries unaccounted requirements (gate exit ${gate_rc}). Not blocking this merge — see the job summary, and cite or excuse them before the next pull request inherits the failure."
+                # `${GITHUB_STEP_SUMMARY:-}` on purpose: this fragment is executed
+                # verbatim by skills/tests/validate-feature/test_ci_sweep_wiring.py,
+                # where that variable does not exist. Under `set -u` an unbound
+                # variable is fatal regardless of `set +e`, so the bare form turned
+                # a non-blocking report into a failing job outside Actions.
+                if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+                  {
+                    echo "### Requirement traceability — post-merge debt"
+                    echo
+                    echo "The union sweep over every on-branch delta exited ${gate_rc}."
+                    echo "This does not block the merge. It blocks the next pull request that touches a change directory."
+                    echo
+                    echo '```'
+                    sed -n '/^errors:/,/^$/p;/^forward failures:/,/^$/p;/^reverse failures:/,/^$/p' /tmp/traceability-union.log
+                    echo '```'
+                  } >> "$GITHUB_STEP_SUMMARY"
+                fi
+              elif [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+                echo "### Requirement traceability — clean" >> "$GITHUB_STEP_SUMMARY"
+              fi
               echo "requirement-traceability sweep: post-merge run never blocks; exiting 0 regardless of the result above"
               exit 0
               ;;

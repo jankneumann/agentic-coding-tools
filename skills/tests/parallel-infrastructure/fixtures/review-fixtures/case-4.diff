@@ -1,0 +1,13 @@
+diff --git a/src/cache.py b/src/cache.py
+index e69de29..4444444 100644
+--- a/src/cache.py
++++ b/src/cache.py
+@@ -1,4 +1,7 @@
+ class LRUCache:
+-    def __init__(self, capacity):
++    def __init__(self, capacity=128):
+         self.capacity = capacity
+         self.store = {}
++
++    def get(self, key):
++        return self.store.get(key)

@@ -5,47 +5,47 @@
 
 ---
 
-## 2026-07-26 — rename-descriptor-model-levels
+## 2026-07-26 — 2026-09-08-rename-descriptor-model-levels
 
 ### Phase: Implementation
 
 **Land tasks 1.2, 1.3, 1.4 and 2.2 as one commit** — They are separate tasks but not separable commits. Renaming the models breaks conftest.py and ten other test files until the aliases exist, and invalidates the checked-in schema until it is regenerated. Splitting them puts two red commits on main, and rebase-merge lands every commit individually, so a broken middle commit breaks git bisect.
 
 - Status: `active`
-- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-08-rename-descriptor-model-levels/session-log.md](/openspec/changes/archive/2026-09-08-rename-descriptor-model-levels/session-log.md) (D1)
 
 ---
 
-## 2026-07-26 — rename-descriptor-model-levels
+## 2026-07-26 — 2026-09-08-rename-descriptor-model-levels
 
 ### Phase: Implementation
 
 **The alias is deliberately not cached into globals()** — Caching the resolved type into the module dict would let the dict answer every access after the first, so only the first consumer to touch the name would ever see the DeprecationWarning. A test asserts two accesses produce two warnings specifically to forbid that implementation.
 
 - Status: `active`
-- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-08-rename-descriptor-model-levels/session-log.md](/openspec/changes/archive/2026-09-08-rename-descriptor-model-levels/session-log.md) (D2)
 
 ---
 
-## 2026-07-26 — rename-descriptor-model-levels
+## 2026-07-26 — 2026-09-08-rename-descriptor-model-levels
 
 ### Phase: Implementation
 
 **Deprecated names stay importable but leave __all__** — 'from gen_eval import *' should hand a new consumer only names that are not on their way out, while 'from gen_eval import ServiceDescriptor' keeps working for one release. PEP 562 __getattr__ supports both.
 
 - Status: `active`
-- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-08-rename-descriptor-model-levels/session-log.md](/openspec/changes/archive/2026-09-08-rename-descriptor-model-levels/session-log.md) (D3)
 
 ---
 
-## 2026-07-26 — rename-descriptor-model-levels
+## 2026-07-26 — 2026-09-08-rename-descriptor-model-levels
 
 ### Phase: Implementation
 
 **Published-schema naming assertions live in test_descriptor_naming.py** — They must spell the pre-rename names in order to assert their absence, and every test file except that one is scanned by a gate that fails on those literals. Placing them beside the other contract tests would make the gate unsatisfiable.
 
 - Status: `active`
-- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-08-rename-descriptor-model-levels/session-log.md](/openspec/changes/archive/2026-09-08-rename-descriptor-model-levels/session-log.md) (D4)
 
 ---
 
@@ -126,99 +126,99 @@
 
 ---
 
-## 2026-05-24 — extract-gen-eval-package
+## 2026-05-24 — 2026-09-08-extract-gen-eval-package
 
 ### Phase: Plan
 
 **Package lives at packages/gen-eval/ (new top-level convention)** — User clarified that agentic-coding-tools is conceptually a coordinator service + shared component libraries, with multiple future extractions planned. Introducing the packages/ convention with one example is cheaper than retrofitting later with three. Rejected: evaluation/gen_eval/ at root (namespace ambiguity + single-purpose dir name); separate repo (highest setup cost, weakest coupling to OpenSpec workflow).
 
 - Status: `active`
-- Source: [openspec/changes/extract-gen-eval-package/session-log.md](/openspec/changes/extract-gen-eval-package/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-08-extract-gen-eval-package/session-log.md](/openspec/changes/archive/2026-09-08-extract-gen-eval-package/session-log.md) (D1)
 
 ---
 
-## 2026-05-24 — extract-gen-eval-package
+## 2026-05-24 — 2026-09-08-extract-gen-eval-package
 
 ### Phase: Plan
 
 **Framework-only data split; descriptors stay in consumers** — Matches the stated architectural intent 'code in agentic-coding-tools, configuration in consumer repos'. Package ships .py + schemas/ + dtu/ templates + tests/fixtures/ + examples/. agent-coordinator keeps its descriptor.yaml + manifests/ + scenarios/ as project test fixtures.
 
 - Status: `active`
-- Source: [openspec/changes/extract-gen-eval-package/session-log.md](/openspec/changes/extract-gen-eval-package/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-08-extract-gen-eval-package/session-log.md](/openspec/changes/archive/2026-09-08-extract-gen-eval-package/session-log.md) (D2)
 
 ---
 
-## 2026-05-24 — extract-gen-eval-package
+## 2026-05-24 — 2026-09-08-extract-gen-eval-package
 
 ### Phase: Plan
 
 **Optional [mcp] extra inside the package** — Two consumer profiles in the ecosystem: agent-coordinator wants MCP routing (it's a service), agentic-assistant wants pure Python (skills do orchestration). Optional extra is the only design that serves both without forcing a wrong dependency on either. mcp_service.py and clients/mcp_client.py wrap their fastmcp imports in try/except per design D4.
 
 - Status: `active`
-- Source: [openspec/changes/extract-gen-eval-package/session-log.md](/openspec/changes/extract-gen-eval-package/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-08-extract-gen-eval-package/session-log.md](/openspec/changes/archive/2026-09-08-extract-gen-eval-package/session-log.md) (D3)
 
 ---
 
-## 2026-05-24 — extract-gen-eval-package
+## 2026-05-24 — 2026-09-08-extract-gen-eval-package
 
 ### Phase: Plan
 
 **Move evaluation/metrics.py into the package** — Resolves the only reverse coupling. GenEvalMetrics is named for gen-eval, only consumed by gen-eval's reports.py, and has no other consumers. Alternatives (Protocol injection, no-op stub, callback shim) all add indirection for zero gain.
 
 - Status: `active`
-- Source: [openspec/changes/extract-gen-eval-package/session-log.md](/openspec/changes/extract-gen-eval-package/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-08-extract-gen-eval-package/session-log.md](/openspec/changes/archive/2026-09-08-extract-gen-eval-package/session-log.md) (D4)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Sample-frontend HTTP server binds to 127.0.0.1 by default (D7)** — Default-secure binding prevents accidental network exposure; operators opt out via descriptor.bind_address
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D1)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **Playwright validator packaged as a peer skill, not a new gen-eval mode** — Different system deps (npx, browsers); peer-skill packaging matches repo convention and keeps gen-eval Python-only
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D2)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Change-id input validated as ^[a-zA-Z0-9_-]+$ at argparse time** — Prevents path traversal at the boundary; fail-fast at parse not after walk
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D4)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Prompt injection hardened via # escaping and code-fence promotion** — User-supplied scenario WHEN/THEN cannot alter prompt structure
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D5)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **Sample frontend uses static HTML, not a JS framework** — Smallest possible surface; proves validator-agnosticism; no app-side npm deps in CI
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D6)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D6)

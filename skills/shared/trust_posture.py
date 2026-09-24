@@ -65,7 +65,7 @@ SCHEMA_VERSION = 1
 
 
 class Gate(str, enum.Enum):
-    """The eight human gates governed by the contract.
+    """The nine human gates governed by the contract.
 
     Canonical (snake_case) names are the on-disk keys. The comment after each is
     the prose gate name used in the always-on-automation proposal / SKILL.md.
@@ -79,6 +79,7 @@ class Gate(str, enum.Enum):
     REPLAN_REQUIRED = "replan_required"                     # replan_required
     PR_CREATION = "pr_creation"                             # PR creation
     MERGE = "merge"                                         # merge
+    ROADMAP_APPROVAL = "roadmap_approval"                    # roadmap approval
 
 
 class Disposition(str, enum.Enum):

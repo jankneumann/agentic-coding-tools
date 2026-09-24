@@ -1065,6 +1065,12 @@
           "type": "UNKNOWN",
           "nullable": true,
           "default": null
+        },
+        {
+          "name": "delegated_from",
+          "type": "TEXT",
+          "nullable": true,
+          "default": "NULL"
         }
       ],
       "primary_key": [
@@ -2062,6 +2068,64 @@
       "primary_key": [],
       "file": "030_incremental_code_search_indexes.sql",
       "line": 210
+    },
+    {
+      "name": "public.work_queue_projection_heads",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "change_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "phase",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "transition_sequence",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()"
+        }
+      ],
+      "primary_key": [
+        "change_id"
+      ],
+      "file": "035_work_queue_projection.sql",
+      "line": 50
+    },
+    {
+      "name": "public.work_queue_projection_ownership",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "task_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()"
+        }
+      ],
+      "primary_key": [
+        "task_id"
+      ],
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 3
     }
   ],
   "foreign_keys": [
@@ -2193,6 +2257,18 @@
       "to_table": "public.code_search_indexes",
       "to_columns": [
         "index_id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.work_queue_projection_ownership",
+      "from_columns": [
+        "task_id"
+      ],
+      "to_table": "public.work_queue",
+      "to_columns": [
+        "id"
       ],
       "constraint_name": "",
       "on_delete": "CASCADE"
@@ -2773,13 +2849,23 @@
         "git_blob_id"
       ],
       "unique": false
+    },
+    {
+      "name": "work_queue_projection_key_uidx",
+      "table": "public.work_queue",
+      "columns": [
+        "(input_data ->> 'change_id')",
+        "(input_data ->> 'phase')",
+        "(input_data ->> 'transition_sequence')"
+      ],
+      "unique": true
     }
   ],
   "stored_functions": [
     {
       "name": "auth.role",
       "file": "000_bootstrap.sql",
-      "line": 31,
+      "line": 47,
       "language": "sql",
       "parameters": [],
       "return_type": "text",
@@ -2843,48 +2929,9 @@
       ]
     },
     {
-      "name": "public.claim_task",
-      "file": "027_claim_task_exclude_submitter.sql",
-      "line": 1,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_TASK_TYPES TEXT[] DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_ARCHETYPES TEXT[] DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_TRUST_LEVEL INTEGER DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_EXCLUDE_SUBMITTED_BY TEXT DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.p_exclude_submitted_by",
-        "public.skip",
-        "public.v_task",
-        "public.work_queue"
-      ]
-    },
-    {
       "name": "public.complete_task",
-      "file": "001_core_schema.sql",
-      "line": 262,
+      "file": "036_terminal_completion_guard.sql",
+      "line": 1,
       "language": "plpgsql",
       "parameters": [
         {
@@ -2910,47 +2957,7 @@
       ],
       "return_type": "jsonb",
       "referenced_tables": [
-        "public.work_queue"
-      ]
-    },
-    {
-      "name": "public.submit_task",
-      "file": "021_agent_requirements.sql",
-      "line": 88,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_TASK_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_DESCRIPTION TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_INPUT_DATA JSONB DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_PRIORITY INTEGER DEFAULT 5"
-        },
-        {
-          "name": "",
-          "type": "P_DEPENDS_ON UUID[] DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_DEADLINE TIMESTAMPTZ DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.v_task_id",
+        "public.v_current_status",
         "public.work_queue"
       ]
     },
@@ -3359,48 +3366,6 @@
       "referenced_tables": []
     },
     {
-      "name": "public.coordinator_notify",
-      "file": "025_notify_enrich_change_id.sql",
-      "line": 1,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "CHANNEL TEXT"
-        },
-        {
-          "name": "",
-          "type": "EVENT_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "ENTITY_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "SUMMARY TEXT DEFAULT ''"
-        },
-        {
-          "name": "",
-          "type": "CHANGE_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "CONTEXT JSONB DEFAULT '{}'"
-        },
-        {
-          "name": "",
-          "type": "::JSONB"
-        }
-      ],
-      "return_type": "void",
-      "referenced_tables": []
-    },
-    {
       "name": "public.notify_approval_queue_change",
       "file": "015_notification_triggers.sql",
       "line": 34,
@@ -3413,15 +3378,12 @@
     },
     {
       "name": "public.notify_work_queue_change",
-      "file": "025_notify_enrich_change_id.sql",
-      "line": 67,
-      "language": "plpgsql",
+      "file": "037_autopilot_phase_projection_visibility.sql",
+      "line": 73,
+      "language": "unknown",
       "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "new.labels",
-        "new.status"
-      ]
+      "return_type": "trigger as",
+      "referenced_tables": []
     },
     {
       "name": "public.notify_agent_discovery_change",
@@ -3583,6 +3545,214 @@
         "public.handoff_documents",
         "public.v_handoffs"
       ]
+    },
+    {
+      "name": "public.claim_task",
+      "file": "037_autopilot_phase_projection_visibility.sql",
+      "line": 8,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_TASK_TYPES TEXT[] DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ARCHETYPES TEXT[] DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TRUST_LEVEL INTEGER DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_EXCLUDE_SUBMITTED_BY TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.p_exclude_submitted_by",
+        "public.skip",
+        "public.v_task",
+        "public.work_queue"
+      ]
+    },
+    {
+      "name": "public.submit_task",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 46,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_TASK_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DESCRIPTION TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_INPUT_DATA JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_DEPENDS_ON UUID[] DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_DEADLINE TIMESTAMPTZ DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_PROJECTION_LABELS TEXT[] DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.v_head_phase",
+        "public.v_id",
+        "public.v_status",
+        "public.work_queue",
+        "public.work_queue_projection_heads",
+        "public.work_queue_projection_ownership"
+      ]
+    },
+    {
+      "name": "public.reconcile_work_projection",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 220,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_CHANGE_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_PHASE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_TRANSITION_SEQUENCE INTEGER"
+        },
+        {
+          "name": "",
+          "type": "P_TASK_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DESCRIPTION TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_INPUT_DATA JSONB"
+        },
+        {
+          "name": "",
+          "type": "P_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_PROJECTION_LABELS TEXT[] DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.cancelled",
+        "public.set",
+        "public.v_cancelled",
+        "public.v_head_seq",
+        "public.v_id",
+        "public.v_status",
+        "public.work_queue",
+        "public.work_queue_projection_heads",
+        "public.work_queue_projection_ownership"
+      ]
+    },
+    {
+      "name": "public.enforce_projection_label_ownership",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 398,
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "public.work_queue_projection_ownership"
+      ]
+    },
+    {
+      "name": "public.mutate_issue_if_unowned",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 419,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_ISSUE_ID UUID"
+        },
+        {
+          "name": "",
+          "type": "P_PATCH JSONB"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.jsonb_array_elements_text",
+        "public.v_issue",
+        "public.work_queue",
+        "public.work_queue_projection_ownership"
+      ]
+    },
+    {
+      "name": "public.close_issues_if_unowned",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 468,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_REQUEST JSONB"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.jsonb_array_elements_text",
+        "public.unnest",
+        "public.v_issues",
+        "public.v_reason",
+        "public.work_queue",
+        "public.work_queue_projection_ownership"
+      ]
+    },
+    {
+      "name": "public.notify_projection_insert",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 533,
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": []
     }
   ],
   "triggers": [
@@ -3636,6 +3806,13 @@
       "function": "public.notify_agent_discovery_change"
     },
     {
+      "name": "trg_audit_log_notify",
+      "table": "public.audit_log",
+      "event": "INSERT",
+      "timing": "AFTER",
+      "function": "public.notify_audit_log_change"
+    },
+    {
       "name": "trg_work_queue_notify",
       "table": "public.work_queue",
       "event": "UPDATE",
@@ -3643,11 +3820,18 @@
       "function": "public.notify_work_queue_change"
     },
     {
-      "name": "trg_audit_log_notify",
-      "table": "public.audit_log",
+      "name": "trg_work_queue_projection_label_ownership",
+      "table": "public.work_queue",
+      "event": "INSERT|UPDATE",
+      "timing": "BEFORE",
+      "function": "public.enforce_projection_label_ownership"
+    },
+    {
+      "name": "trg_work_queue_projection_insert_notify",
+      "table": "public.work_queue",
       "event": "INSERT",
       "timing": "AFTER",
-      "function": "public.notify_audit_log_change"
+      "function": "public.notify_projection_insert"
     }
   ],
   "fk_graph": [
@@ -3727,24 +3911,31 @@
       "columns": [
         "index_id"
       ]
+    },
+    {
+      "from": "public.work_queue_projection_ownership",
+      "to": "public.work_queue",
+      "columns": [
+        "task_id"
+      ]
     }
   ],
   "summary": {
-    "total_tables": 27,
-    "total_columns": 295,
-    "total_foreign_keys": 11,
-    "total_indexes": 69,
+    "total_tables": 29,
+    "total_columns": 302,
+    "total_foreign_keys": 12,
+    "total_indexes": 70,
     "most_referenced_tables": [
+      {
+        "table": "public.work_queue",
+        "references": 3
+      },
       {
         "table": "public.code_search_indexes",
         "references": 3
       },
       {
         "table": "public.agent_profiles",
-        "references": 2
-      },
-      {
-        "table": "public.work_queue",
         "references": 2
       },
       {
@@ -3786,6 +3977,10 @@
         "column_count": 13
       },
       {
+        "table": "public.audit_log",
+        "column_count": 12
+      },
+      {
         "table": "public.guardrail_violations",
         "column_count": 12
       },
@@ -3800,10 +3995,6 @@
       {
         "table": "public.verification_results",
         "column_count": 12
-      },
-      {
-        "table": "public.audit_log",
-        "column_count": 11
       }
     ]
   }

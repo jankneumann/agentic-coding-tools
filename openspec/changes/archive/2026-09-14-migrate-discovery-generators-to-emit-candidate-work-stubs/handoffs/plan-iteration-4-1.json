@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-14T00:09:25.147922+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Applied the operator-approved immutable source-identity basis for all derived candidate IDs. Revision 7 now excludes volatile provenance, pins exact serialization, keeps explicit hints unsuffixed, and fails duplicate final IDs before replacement.",
+    "completed_work": [
+      "Specified exact identity keys, per-producer source IDs, normalization, serialization, and hashing.",
+      "Added normative scenario coverage and task traceability for stable IDs and duplicate rejection.",
+      "Advanced the recovery plan to revision 7 for final all-harness review."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Hash the minimal immutable producer identity tuple",
+        "rationale": "Stable source identity must survive report relocation, reranking, and provenance growth.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep explicit source hints unsuffixed",
+        "rationale": "Explicit IDs are already caller-selected identities and remain subject to normalization and duplicate rejection.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Dispatch the final scoped plan diff to all configured harnesses and gate on substantive quorum."
+    ],
+    "relevant_files": []
+  }
+}

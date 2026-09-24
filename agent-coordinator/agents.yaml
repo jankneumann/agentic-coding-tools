@@ -56,6 +56,10 @@ agents:
 
   claude-local:
     type: claude_code
+    location: local
+    policy_vendor: claude
+    catalog_vendor: claude_code
+    endpoint_kind: vendor-cli
     profile: claude_code_local
     trust_level: 3
     transport: mcp
@@ -85,25 +89,32 @@ agents:
       command: claude
       dispatch_modes:
         review:
-          args: ["--print", "--allowedTools", "Read,Grep,Glob"]
+          # --json-schema verified 2026-09-12 (claude 2.1.268 --help).
+          # Model + thinking come from archetypes.yaml reviewer/premium tier.
+          args: ["--print", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
         alternative:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
         quick:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
       model_flag: "--model"
+      # null → review_dispatcher resolves archetypes.yaml premium for claude_code
       model: null
-      model_fallbacks: ["claude-sonnet-4-6"]
+      model_fallbacks: []
       prompt_via_stdin: true
 
   claude-remote:
     type: claude_code
+    location: cloud
+    policy_vendor: claude
+    catalog_vendor: claude_code
+    endpoint_kind: vendor-sdk
     profile: claude_code_remote
     trust_level: 2
     transport: http
     isolation: none
     api_key: "${CLAUDE_WEB_API_KEY}"
     openbao_role_id: claude-code-web
-    capabilities: [lock, queue, memory, guardrails, handoff, discover, feature_registry]
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, feature_registry, vendor_limit_reporter]
     archetypes: [analyst, implementer, reviewer, documenter]
     description: Remote Claude Code agent (runs on Anthropic infrastructure)
     cli:
@@ -111,25 +122,14 @@ agents:
       dispatch_modes:
         review:
           # Sync: --print --remote blocks and returns stdout
-          args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob"]
-        alternative:
-          # Async: --remote without --print returns immediately
-          args: ["--remote"]
-          async: true
-          poll:
-            # Poll via RemoteTrigger API or `claude --resume` (session-based)
-            # For now, use `claude tasks` to check status
-            command_template: ["claude", "--resume", "{task_id}", "--print"]
-            task_id_pattern: "session[_\\s:]+([a-f0-9-]+)"
-            success_pattern: "completed|finished|done"
-            failure_pattern: "failed|error|cancelled"
-            interval_seconds: 60
-            timeout_seconds: 1800
+          # --json-schema verified 2026-09-12 (same claude CLI as claude-local).
+          # Model + thinking come from archetypes.yaml reviewer/premium tier.
+          args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
         quick:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
       model_flag: "--model"
       model: null
-      model_fallbacks: ["claude-sonnet-4-6"]
+      model_fallbacks: []
       prompt_via_stdin: true
     sdk:
       package: anthropic
@@ -145,6 +145,10 @@ agents:
 
   codex-local:
     type: codex
+    location: local
+    policy_vendor: codex
+    catalog_vendor: codex
+    endpoint_kind: vendor-cli
     profile: codex_local
     trust_level: 3
     transport: mcp
@@ -162,17 +166,22 @@ agents:
       command: codex
       dispatch_modes:
         review:
+          # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["exec", "-s", "read-only"]
         alternative:
           args: ["exec", "-s", "workspace-write"]
         quick:
           args: ["exec", "-s", "workspace-write"]
       model_flag: "-m"
-      model: "gpt-5.5"
-      model_fallbacks: ["gpt-5.4", "gpt-5.4-mini"]
+      model: null
+      model_fallbacks: []
 
   codex-remote:
     type: codex
+    location: cloud
+    policy_vendor: codex
+    catalog_vendor: codex
+    endpoint_kind: vendor-sdk
     profile: codex_remote
     trust_level: 2
     transport: http
@@ -185,42 +194,14 @@ agents:
     # profile — operations this agent holds today and needs to register a session
     # and avoid being reaped as stale. The omission was a registry gap, not an
     # intentional restriction (claude-remote already declares `discover`).
-    capabilities: [lock, queue, memory, guardrails, handoff, discover, feature_registry]
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, feature_registry, vendor_limit_reporter]
     archetypes: [implementer, reviewer]
     description: Remote Codex agent (runs on OpenAI infrastructure)
-    cli:
-      command: codex
-      dispatch_modes:
-        review:
-          # codex cloud exec requires --env; set CODEX_CLOUD_ENV in environment
-          # All cloud exec is async — submit + poll
-          args: ["cloud", "exec", "--env", "${CODEX_CLOUD_ENV}"]
-          async: true
-          poll:
-            command_template: ["codex", "cloud", "status", "{task_id}"]
-            task_id_pattern: "task[_\\s:]+([\\w-]+)"
-            success_pattern: "completed|succeeded"
-            failure_pattern: "failed|cancelled|error"
-            interval_seconds: 30
-            timeout_seconds: 600
-        alternative:
-          args: ["cloud", "exec", "--env", "${CODEX_CLOUD_ENV}"]
-          async: true
-          poll:
-            command_template: ["codex", "cloud", "status", "{task_id}"]
-            task_id_pattern: "task[_\\s:]+([\\w-]+)"
-            success_pattern: "completed|succeeded"
-            failure_pattern: "failed|cancelled|error"
-            interval_seconds: 30
-            timeout_seconds: 1800
-      model_flag: "-m"
-      model: "gpt-5.4"
-      model_fallbacks: ["gpt-5.3-codex"]
     sdk:
       package: openai
       method: chat.completions.create
-      model: gpt-5.4
-      model_fallbacks: [gpt-5.4-mini]
+      model: gpt-5.6-sol
+      model_fallbacks: [gpt-5.6-terra, gpt-5.6-luna]
       api_key_env: OPENAI_API_KEY
       max_tokens: 16384
 
@@ -235,6 +216,10 @@ agents:
 
   antigravity-local:
     type: antigravity
+    location: local
+    policy_vendor: antigravity
+    catalog_vendor: antigravity
+    endpoint_kind: vendor-cli
     profile: antigravity_local
     trust_level: 3
     transport: mcp
@@ -262,14 +247,17 @@ agents:
           # Read-only-ness comes from --mode plan (no edits), not from
           # withholding permissions. This was the only dispatch mode missing
           # the flag.
-          args: ["--mode", "plan", "--dangerously-skip-permissions"]
+          #
+          # --json-schema verified 2026-09-12 (agy 1.2.2 --help: schema string
+          # or path). Sentinel injected by CliVendorAdapter._resolve_args.
+          args: ["--mode", "plan", "--dangerously-skip-permissions", "--output-format", "json", "--json-schema", "@review-findings-schema"]
         alternative:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
         quick:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
       model_flag: "--model"
-      model: "gemini-3.6-flash-medium"
-      model_fallbacks: ["gemini-3.6-flash-low"]
+      model: null
+      model_fallbacks: []
       prompt_via_flag: "--prompt"
 
   # ---------------------------------------------------------------------------
@@ -283,6 +271,10 @@ agents:
 
   grok-local:
     type: grok
+    location: local
+    policy_vendor: grok
+    catalog_vendor: grok
+    endpoint_kind: vendor-cli
     profile: grok_local
     trust_level: 3
     transport: mcp
@@ -327,19 +319,23 @@ agents:
         quick:
           args: ["--prompt-file", "/dev/stdin", "--always-approve"]
       model_flag: "-m"
-      model: "grok-4.5"
+      model: null
       model_fallbacks: []
       prompt_via_stdin: true
 
   grok-remote:
     type: grok
+    location: cloud
+    policy_vendor: grok
+    catalog_vendor: grok
+    endpoint_kind: vendor-sdk
     profile: grok_remote
     trust_level: 2
     transport: http
     isolation: sandbox
     api_key: "${GROK_REMOTE_API_KEY}"
     openbao_role_id: grok-cloud
-    capabilities: [lock, queue, memory, guardrails, handoff, feature_registry]
+    capabilities: [lock, queue, memory, guardrails, handoff, feature_registry, vendor_limit_reporter]
     archetypes: [implementer, reviewer]
     description: Remote Grok agent (runs on xAI infrastructure)
     # No `cli` section on purpose. The local entry's flags above are the ones
@@ -360,6 +356,10 @@ agents:
 
   pi-local:
     type: pi
+    location: local
+    policy_vendor: pi
+    catalog_vendor: openrouter
+    endpoint_kind: openrouter
     profile: pi_local
     trust_level: 3
     transport: mcp
@@ -398,9 +398,57 @@ agents:
         quick:
           args: ["-p", "--provider", "openrouter", "--approve"]
       model_flag: "--model"
-      model: "qwen/qwen3-coder"
-      model_fallbacks: ["qwen/qwen3-coder-flash"]
+      model: null
+      model_fallbacks: []
       # pi cannot serve a single request without this key; availability
       # checks fail closed on it instead of reporting the bare binary as
       # a usable vendor (issue #383).
       api_key_env: OPENROUTER_API_KEY
+
+  ocr-local:
+    type: ocr
+    location: local
+    policy_vendor: ocr
+    catalog_vendor: ocr
+    endpoint_kind: vendor-cli
+    profile: ocr_local
+    trust_level: 1
+    transport: mcp
+    isolation: none
+    # A bare subprocess wrapper around the `ocr` CLI (review mode only), not
+    # a coordinator-aware coding agent — it locks nothing, queues nothing,
+    # and writes no memory. `discover` is the one capability it genuinely
+    # has: being found as an available reviewer at dispatch time. The
+    # registry schema requires a non-empty list (minItems: 1), so this is
+    # the narrowest accurate declaration rather than copying the full
+    # coding-agent capability set used by the trust_level 2/3 vendors above.
+    capabilities: [discover]
+    archetypes: [reviewer]
+    description: >-
+      Optional Open Code Review (alibaba/open-code-review) reviewer. A
+      different architecture, not a different model: deterministic file
+      selection, rule resolution, and line positioning around a single LLM
+      call, run through ocr_adapter.py rather than a general-purpose
+      coding-agent CLI (openspec/changes/add-deterministic-review-
+      preprocessing). Tier-1 only when the `ocr` binary is on PATH and an
+      LLM endpoint is configured (OCR_LLM_URL/OCR_LLM_TOKEN env, or
+      ~/.opencodereview/config.json) — see ocr_adapter.can_dispatch().
+      Absent either, discovery skips it with the standard Tier-3 line and
+      no other vendor's dispatch changes.
+    cli:
+      command: python3
+      dispatch_modes:
+        review:
+          # Path is relative to `cwd` (the reviewed worktree), which
+          # resolves correctly for this repo's own self-review — the
+          # primary use case, and the only one exercised today. A foreign
+          # target repo without this path present would fail this one
+          # dispatch (script not found) rather than a clean Tier-3 skip;
+          # review_dispatcher.py's sentinel-resolution mechanism (used for
+          # grok's --json-schema) is the fix for that, and is out of this
+          # package's scope.
+          args: ["skills/parallel-infrastructure/scripts/ocr_adapter.py"]
+      model_flag: "--model"
+      model: null
+      model_fallbacks: []
+      prompt_via_stdin: true

@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-14T10:40:47Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.8-flash-high",
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 300.56841458939016,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 2.7931046979501843,
+      "error": "Unknown error",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 900.1046932986937,
+      "error": "Timeout after 900s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 361.820057277102,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 148.44938081596047,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a09f73-97e6-74a9-a7ff-876ea9ca6be5\",\"timestamp\":\"2026-09-14T10:25:48.006Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/recover-ri-09-work-queue-projection\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Fresh independent read-only implementation recovery review for\\n`mirror-autopilot-phase-state-into-the-work-queue` at exact HEAD\\n`f5ae8ab37ea1b05dc3030b",
+      "error_class": "vendor_unavailable"
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-implementation.json",
+      "finding_count": 23
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 15
+    }
+  ]
+}

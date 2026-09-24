@@ -1,0 +1,277 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "followup-add-decision-choices-ledger",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 3,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 3,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 5,
+  "quorum_received": 5,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Requirement: 'Choices audit workflow integration' explicitly mandates that both validation and cleanup gates shall surface open needs-user entries from the ledger. However, spec.md only provides scenario 'needs-user entries surface at the validation gate' and completely omits a scenario for the cleanup gate (which Task 3.3 implements)."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Scenario ordinal collision and range mismatch. The archived parent spec (openspec/changes/archive/2026-09-10-add-decision-choices-ledger/specs/skill-workflow/spec.md) contains 7 scenarios (skill-workflow.1 through skill-workflow.7). In tasks.md, Task 3.1 is assigned skill-workflow.7 (colliding with parent scenario 7 'Rendering enforces the ranking invariant') and Task 3.2 is assigned skill-workflow.8. Furthermore, Task 3.6 claims to cover 'skill-workflow.1 through skill-workflow.8', omitting the 9th scenario."
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: F2 says Step 11.5 runs `git add openspec/changes/$CHANGE_ID/choices.json choices.md`; the second path is repository-root `choices.md`, not `openspec/changes/$CHANGE_ID/choices.md`, so implementing the plan literally can commit only half of the ledger pair."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Task 3.3 / F1 insert `### 5.5` immediately before `### 6. Archive OpenSpec Proposal`, but cleanup-feature Step 5a still says: if all tasks are checked, skip to Step 6. That early exit is the common happy path and would jump over 5.5, so open `needs-user` entries would not surface before archive whenever there are no unchecked tasks. Scenario skill-workflow.9 therefore fails on the path the plan does not update."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Task 3.2 says to add a `Choices:` row to 'the Step 11 Phase Results template', but skills/validate-feature/SKILL.md contains two distinct Phase Results blocks inside Step 11: an illustrative report sketch with an h3 `### Phase Results` heading, and the heredoc that actually writes $REPORT_FILE with an h2 `## Phase Results` whose body is the placeholder `<phase results from Step 10>`. Only the second one reaches validation-report.md, and its content is assembled at Step 10, not typed in Step 11. As written the task can be satisfied by editing the sketch alone, in which case the gate presentation shows a Choices row that never appears in the persisted report, and task 3.7's content test would pass while the behavior is absent."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Task 3.6 instructs the end-to-end test to copy the archived parent's artifacts and to 'resolve the archive dir at test time \u2014 never pin the path', but does not name the mechanism. AGENTS.md states the rule concretely: resolve at read time with `change_dir()` from `openspec_paths`, and a guard test enforces it. That helper already exists at skills/tests/_shared/openspec_paths.py and its `change_dir(repo_root, change_id)` returns the active `openspec/changes/<id>/` when present and the archived directory otherwise \u2014 exactly what task 3.6 needs. Leaving it unnamed invites a hand-rolled glob over `openspec/changes/archive/*-add-decision-choices-ledger` that satisfies the prose but fails the guard."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Dangling design decision references and missing design artifact context. tasks.md references design decisions D5 and D6 for Tasks 3.1, 3.2, 3.3, and 3.5, but followup-add-decision-choices-ledger contains no design.md file nor an explicit reference establishing that D1..D9 are inherited from the archived parent change."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Incomplete testability and verification specification in Task 3.6. Task 3.6 ('Run an end-to-end audit against an archived-change fixture') claims to cover all spec scenarios including non-blocking workflow invocation (Task 3.1) and gate surfacing (Tasks 3.2 and 3.3). However, tasks.md specifies no automated test suite additions (e.g. in skills/tests/audit-choices/ or skills/validate-feature/scripts/tests/) to verify prompt/SKILL.md workflow hook execution automatically."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Critical: F2 claims a no-diff re-audit commits nothing, but `run_audit.py` creates a fresh header each run (`generated_at` and `run_id`) and `choices_ledger.write_ledger()` always rewrites `choices.json`, with `choices.md` rendering the generated timestamp. Task 3.6 only checks stable IDs and count, so the plan does not verify the commit-skipping behavior it relies on."
+    },
+    {
+      "id": 10,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Critical: Scenario 11 is about invoking the audit with an explicit `<base-sha>..<head-sha>` range and no change directory, but task 3.6 only says to assert the ledger records `change_id == \"range:<base>..<head>\"` and exits 0. That can be satisfied by calling `run_audit.py` with a precomputed synthetic change id, bypassing the standalone range argument resolution the requirement names."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "F1 correctly requires Step 11.5 to run even when `VENDOR_REVIEW=false`, but the chosen heading `### 11.5` sits between conditional Step 11 (`Skip this step if VENDOR_REVIEW=false`) and Step 12. On non-coordinated runs without `--vendor-review`, agents can treat 11.5 as part of the skipped Step 11 and never invoke the audit\u2014the main hook for producing ledgers. Task 3.1 does not spell an explicit always-run / outside-conditional invariant."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Task 3.1 says invoke `/audit-choices $CHANGE_ID` with `run_id=iterate-on-implementation-<UTC ISO timestamp>`, but `skills/audit-choices/SKILL.md` Arguments accept only `<change-id>` or `<base>..<head>`\u2014no run_id flag. The driver CLI already requires `--run-id`, yet the skill entrypoint the plan delegates to has no way to receive the prescribed value without an undocumented side channel or an unplanned Arguments change."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Scenario skill-workflow.10 requires gate presentation to state that no open choices exist when the ledger is absent or has zero `needs-user` entries. Tasks 3.2/3.3 specify `\u25cb`/`\u2713` and `no open choices`, and 3.6 only checks that `needs_user.py` prints empty stdout. Task 3.7 pins scenarios 7\u20139 only and does not assert the empty-ledger presentation strings, so scenario 10's gate-side SHALL is unpinned."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Delta scenario 'Workflow invocation is non-blocking' requires that no ledger file be left half-written on failure/unavailability. F6 and task 3.1 enumerate skip/continue behavior but not pair cleanup or atomicity. `choices_ledger.write_ledger_pair` writes `choices.json` then `choices.md` as separate operations; a failure between them yields a partial pair, and `run_audit` catching that still leaves the JSON behind. Nothing in 3.6/3.7 asserts the half-written THEN."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Decision F4 justifies the row form by asserting that a `## Choices` section 'would be one heading away from becoming a gate input' in validate-feature/scripts/gate_logic.py. That overstates the mechanism. gate_logic.py computes required phases from two fixed allowlists \u2014 ALWAYS_REQUIRED_PHASES ({'Spec Compliance'}) plus REQUIRED_PHASES ({'Smoke Tests','Security','E2E Tests'}) when the surface is deployable, plus 'Architecture' in blocking mode. An unrecognized `## Choices` heading is simply not consulted, so it could not become a gate input without a code change to those dicts. The row form is still the right call, but the stated reason is not the real one and a future reader may act on it."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Ambiguity regarding python driver changes vs SKILL.md prompt wiring for surfacing needs-user entries. Proposal asserts 'No change to the schema, the ledger format, the audit driver, or the skill's read-only posture. This change is wiring and documentation only.' However, gate_logic.py currently has no logic for reading choices.json or surfacing needs-user entries. If gate_logic.py needs modification to surface needs-user entries programmatically at validation and cleanup gates, proposal.md should explicitly clarify that gate_logic.py will be updated."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 16,
+    "confirmed_count": 2,
+    "unconfirmed_count": 14,
+    "disagreement_count": 0,
+    "blocking_count": 2
+  }
+}

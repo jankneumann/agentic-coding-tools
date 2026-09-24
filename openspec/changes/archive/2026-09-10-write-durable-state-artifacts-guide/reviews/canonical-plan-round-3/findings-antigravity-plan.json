@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "correctness",
+      "file_path": "skills/pyproject.toml",
+      "line_range": {
+        "start": 129,
+        "end": 129
+      },
+      "description": "CI test discovery resolution: `skills/pyproject.toml` registers `tests/state-artifacts` under `[tool.pytest.ini_options].testpaths` (line 129). `test_ci_test_coverage.py` passes completely without exemption, ensuring `skills/tests/state-artifacts/test_state_artifacts_guide.py` is executed during CI pytest runs.",
+      "resolution": "Verified resolved. CI test discovery for the new state-artifacts directory is correctly registered in pyproject.toml testpaths and enforced by test_ci_test_coverage.py."
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "resilience",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 81,
+        "end": 90
+      },
+      "description": "Safe runtime mirror assertion handling: `test_changed_skill_mirrors_are_byte_identical` in `skills/tests/state-artifacts/test_state_artifacts_guide.py` (lines 86-87) safely executes `pytest.skip()` when `.agents/skills` or `.claude/skills` directory mirrors are absent, preventing `FileNotFoundError` exceptions during uninstalled test execution while retaining byte-identity verification when mirrors exist.",
+      "resolution": "Verified resolved. Mirror checks safely skip when uninstalled, preventing test errors in clean environments."
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "file_path": "skills/autopilot/SKILL.md",
+      "line_range": {
+        "start": 15,
+        "end": 18
+      },
+      "description": "Portable repository guide reference convention: `skills/autopilot/SKILL.md` (and all five other updated skill files `autopilot-roadmap`, `session-log`, `supervise`, `implement-feature`, `validate-feature`) references `docs/guides/state-artifacts.md` using the repo-relative backtick convention rather than hardcoding remote main branch GitHub URLs, matching codebase conventions established by work-queue-truth-projection.md and memory-conventions.md.",
+      "resolution": "Verified resolved. Guide references across all six canonical skill documents conform to the repo-relative string convention."
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "architecture",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 46
+      },
+      "description": "Eight-step rehydration algorithm alignment across design, supervise, and canonical guide: `design.md` (lines 39-46), `docs/guides/state-artifacts.md` (lines 21-28), and `skills/supervise/SKILL.md` (lines 139-153) share the exact 8-step rehydration sequence (1. Bootstrap locator, 2. Roadmap definition, 3. Roadmap execution state, 4. Change execution state, 5. Learning context, 6. Phase history, 7. Handoff context, 8. Rebuild projections). Additionally, D5 in `design.md` and `change-context.md` accurately permits the generated `docs/decisions/skill-workflow.md` decision index as a derived projection.",
+      "resolution": "Verified resolved. Rehydration algorithm alignment and D5 decision index scope permissions are fully consistent across all design and guide documents."
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "observability",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 38,
+        "end": 41
+      },
+      "description": "Writer ordering accuracy: `docs/guides/state-artifacts.md` line 40 explicitly enumerates decision-index regeneration as the fourth step of `PhaseRecord.write_both()`, matching the exact runtime behavior in `skills/session-log/scripts/phase_record.py`.",
+      "resolution": "Verified resolved. Writer ordering paragraph correctly documents decision-index regeneration."
+    }
+  ]
+}

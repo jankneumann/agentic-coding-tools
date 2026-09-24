@@ -57,6 +57,23 @@ if str(_BRIDGE_SCRIPTS) not in sys.path:
 import coordination_bridge  # type: ignore[import-not-found]  # noqa: E402
 from phase_record import PhaseRecord  # noqa: E402
 
+# GATEKEEPER shadow judgment (roadmap ri-06). Guarded: apply_phase_outcome
+# must keep working even if this sibling module is unavailable for some
+# reason -- the shadow record is strictly observational.
+if str(_THIS_DIR) not in sys.path:
+    sys.path.insert(0, str(_THIS_DIR))
+try:
+    import gatekeeper_shadow  # type: ignore[import-not-found]
+except ImportError:
+    gatekeeper_shadow = None  # type: ignore[assignment]
+
+# Phase-outcome shadow adjudication (roadmap ri-07). Same guard shape as
+# gatekeeper_shadow above -- strictly observational.
+try:
+    import phase_outcome_shadow  # type: ignore[import-not-found]
+except ImportError:
+    phase_outcome_shadow = None  # type: ignore[assignment]
+
 # ---------------------------------------------------------------------------
 # Per-phase runtime config
 # ---------------------------------------------------------------------------
@@ -82,26 +99,50 @@ _WORKTREE_PHASES: set[str] = {
 # Crash-recovery cap (D8).
 _MAX_ATTEMPTS = 3
 
-# Per-phase signal keys to lift from state_dict for the coordinator's
-# resolve_archetype_for_phase endpoint (design D12). Mirrors the `signals`
-# field in agent-coordinator/archetypes.yaml -> phase_mapping. Keep this
-# list synchronized with that YAML when phase semantics change.
-_PHASE_SIGNAL_KEYS: dict[str, list[str]] = {
-    "INIT":         [],
-    "GATEKEEPER":   ["gate_signals"],
-    "PLAN":         ["capabilities_touched"],
-    "PLAN_ITERATE": ["capabilities_touched", "iteration_count"],
-    "PLAN_REVIEW":  ["proposal_loc", "capabilities_touched"],
-    "PLAN_FIX":     ["findings_severity", "findings_count"],
-    "IMPLEMENT":    ["loc_estimate", "write_allow", "dependencies", "complexity"],
-    "IMPL_ITERATE": ["iteration_count", "write_allow"],
-    "IMPL_REVIEW":  ["files_changed", "lines_changed"],
-    "IMPL_FIX":     ["findings_severity", "findings_count"],
-    "VALIDATE":     ["test_count", "suite_duration"],
-    "VAL_REVIEW":   ["findings_severity"],
-    "VAL_FIX":      ["findings_severity"],
-    "SUBMIT_PR":    [],
-}
+# Per-phase signal keys for resolve_archetype_for_phase (design D12).
+# Authored only in archetypes.yaml::phase_mapping; loaded below.
+def _load_phase_signal_keys() -> dict[str, list[str]]:
+    """Derive phase→signal keys from archetypes.yaml (sole authored map)."""
+    fallback = {
+        "INIT": [],
+        "GATEKEEPER": ["gate_signals"],
+        "PLAN": ["capabilities_touched"],
+        "PLAN_ITERATE": ["capabilities_touched", "iteration_count"],
+        "PLAN_REVIEW": ["proposal_loc", "capabilities_touched"],
+        "PLAN_FIX": ["findings_severity", "findings_count"],
+        "IMPLEMENT": [
+            "loc_estimate",
+            "write_allow",
+            "dependencies",
+            "complexity",
+        ],
+        "IMPL_ITERATE": ["iteration_count", "write_allow"],
+        "IMPL_REVIEW": ["files_changed", "lines_changed"],
+        "IMPL_FIX": ["findings_severity", "findings_count"],
+        "VALIDATE": ["test_count", "suite_duration"],
+        "VAL_REVIEW": ["findings_severity"],
+        "VAL_FIX": ["findings_severity"],
+        "SUBMIT_PR": [],
+    }
+    try:
+        import importlib.util
+        from pathlib import Path
+
+        shared = Path(__file__).resolve().parents[2] / "shared" / "archetype_roster.py"
+        spec = importlib.util.spec_from_file_location("archetype_roster", shared)
+        if not spec or not spec.loader:
+            return fallback
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        keys = mod.phase_signal_keys()
+        return keys if keys else fallback
+    except Exception:
+        return fallback
+
+
+# Loaded once at import from archetypes.yaml::phase_mapping.*.signals.
+# Do not hand-edit — change the YAML.
+_PHASE_SIGNAL_KEYS: dict[str, list[str]] = _load_phase_signal_keys()
 
 # Operator override env var (D8): "PHASE=model[,PHASE=model]*". Forces a
 # specific model for the named phase; sets options["model"] only — the
@@ -341,6 +382,14 @@ def _build_options(
         options["model"] = resolved["model"]
         options["system_prompt"] = resolved["system_prompt"]
         state_dict["_resolved_archetype"] = resolved["archetype"]
+        # The coordinator rewrites `provider` to the vendor that actually owns
+        # the selected model, because adaptive routing ranks the whole catalog
+        # and may cross vendors. Taking `model` without `provider` produces a
+        # pair no adapter can dispatch -- provider="codex" with
+        # model="qwen/qwen3-coder". Optional passthrough, like write_capable:
+        # older coordinators omit it, and then the static provider stands.
+        if resolved.get("provider"):
+            state_dict["_resolved_provider"] = resolved["provider"]
         # write_capable is an optional passthrough from the coordinator (older
         # coordinators may omit it); surface it for build-dispatch metadata.
         if "write_capable" in resolved:
@@ -499,15 +548,22 @@ _PHASE_TASKS: dict[str, str | None] = {
         "outcome 'complete' when refinements settle, 'failed' otherwise."
     ),
     "PLAN_REVIEW": (
-        "Run /parallel-review-plan for state.change_id (multi-vendor plan\n"
-        "review). Aggregate findings into a structured PhaseRecord. Return\n"
-        "outcome 'converged' if no blocking findings, 'not_converged'\n"
-        "otherwise, 'max_iter' once max_phase_iterations is exhausted."
+        "Run converge() from skills/autopilot/scripts/convergence_loop.py\n"
+        "as the whole PLAN_REVIEW phase for state.change_id. Do NOT run\n"
+        "/parallel-review-plan as a one-shot cold review. Pass a real\n"
+        "PLAN_FIX applicator as fix_callback (inline edits of cited\n"
+        "file_paths only) and record PLAN_FIX as a phase_history sub-step\n"
+        "around that operation. Return 'converged' if no blocking ledger\n"
+        "items remain, 'max_iter' if the inner loop stalled or exhausted\n"
+        "rounds. Do not return 'not_converged' to bounce the outer machine\n"
+        "into PLAN_FIX."
     ),
     "PLAN_FIX": (
-        "Apply review findings from the previous PLAN_REVIEW handoff via\n"
-        "/iterate-on-plan in fix mode. Return outcome 'fixed' on success,\n"
-        "'stuck' if findings cannot be resolved within the budget."
+        "PLAN_FIX is the inner fix_callback of converge(), not an outer\n"
+        "cold-review bounce. Apply blocking ledger items by editing only\n"
+        "their cited file_paths (proposal.md, design.md, specs,\n"
+        "work-packages.yaml). Return outcome 'fixed' on success, 'stuck'\n"
+        "if findings cannot be resolved within the budget."
     ),
     "IMPLEMENT": (
         "Implement the next slice of work per tasks.md. Commit per task.\n"
@@ -527,15 +583,20 @@ _PHASE_TASKS: dict[str, str | None] = {
         "Return outcome 'complete' when refinements settle, 'failed' otherwise."
     ),
     "IMPL_REVIEW": (
-        "Run multi-vendor review against the implementation. Aggregate\n"
-        "findings into a structured PhaseRecord. Return outcome 'converged'\n"
-        "if no blocking findings, 'not_converged' if blocking findings need\n"
-        "another round, or 'max_iter' if the iteration cap is exhausted."
+        "Run converge() from skills/autopilot/scripts/convergence_loop.py\n"
+        "as the whole IMPL_REVIEW phase for state.change_id (fix_mode=\n"
+        "targeted). Do NOT dispatch a one-shot cold implementation review.\n"
+        "Pass a real IMPL_FIX applicator as fix_callback (lead vendor from\n"
+        "package_authors, scoped to cited file_paths) and record IMPL_FIX\n"
+        "as a phase_history sub-step. Return 'converged' if no blocking\n"
+        "ledger items remain, 'max_iter' if the inner loop stalled or\n"
+        "exhausted rounds."
     ),
     "IMPL_FIX": (
-        "Apply review findings from the previous IMPL_REVIEW handoff via\n"
-        "/iterate-on-implementation in fix mode. Return outcome 'fixed'\n"
-        "on success, 'stuck' if findings cannot be resolved within budget."
+        "IMPL_FIX is the inner fix_callback of converge(), not an outer\n"
+        "cold-review bounce. Apply blocking ledger items via the lead\n"
+        "vendor, scoped to cited file_paths. Return outcome 'fixed' on\n"
+        "success, 'stuck' if findings cannot be resolved within budget."
     ),
     "VALIDATE": (
         "Run validation phases (spec, evidence, deploy, smoke, security,\n"
@@ -543,14 +604,19 @@ _PHASE_TASKS: dict[str, str | None] = {
         "Return outcome 'passed' on PASS, 'failed' on FAIL."
     ),
     "VAL_REVIEW": (
-        "Review validation findings from the previous VALIDATE handoff.\n"
-        "Identify blocking failures vs. acceptable warnings. Return outcome\n"
-        "'converged' if validation passes critique, 'not_converged' otherwise."
+        "Run converge() from skills/autopilot/scripts/convergence_loop.py\n"
+        "as the whole VAL_REVIEW phase for state.change_id (review_type=\n"
+        "implementation, fix_mode=targeted). Do NOT dispatch a one-shot\n"
+        "cold validation review. Pass a real VAL_FIX applicator as\n"
+        "fix_callback and record VAL_FIX as a phase_history sub-step.\n"
+        "Return 'converged' if validation passes critique, 'max_iter'\n"
+        "otherwise."
     ),
     "VAL_FIX": (
-        "Apply validation findings via /iterate-on-implementation focused\n"
-        "on the specific failures (test fixes, security findings, etc.).\n"
-        "Return outcome 'fixed' on success, 'stuck' otherwise."
+        "VAL_FIX is the inner fix_callback of converge(), not an outer\n"
+        "cold-review bounce. Apply validation findings focused on the\n"
+        "specific failures (test fixes, security findings, etc.). Return\n"
+        "outcome 'fixed' on success, 'stuck' otherwise."
     ),
     "SUBMIT_PR": None,  # D13: state-only — no sub-agent dispatch
 }
@@ -926,6 +992,7 @@ def build_phase_dispatch_kwargs(
     phase: str,
     change_id: str,
     provider: str | None = None,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """Return the dispatch payload for a phase sub-agent (D3).
 
@@ -966,6 +1033,10 @@ def build_phase_dispatch_kwargs(
     isolation = options.get("isolation")
     archetype = state_dict.get("_resolved_archetype")
     write_capable = state_dict.get("_resolved_write_capable")
+    # Dispatch to the vendor that owns the model adaptive routing picked, not
+    # the statically configured one. _build_options records this only when the
+    # coordinator supplied it, so the static provider remains the fallback.
+    dispatch_provider = state_dict.get("_resolved_provider") or selected_provider
 
     if isinstance(system_prompt, str) and system_prompt:
         folded_prompt = f"{system_prompt}{_PROMPT_SEPARATOR}{phase_prompt}"
@@ -986,7 +1057,8 @@ def build_phase_dispatch_kwargs(
         "schema_version": 1,
         "change_id": change_id,
         "phase": phase,
-        "provider": selected_provider,
+        "provider": dispatch_provider,
+        "agent_id": agent_id,
         "prompt": folded_prompt,
         "model": model,
         "system_prompt": system_prompt,
@@ -998,7 +1070,15 @@ def build_phase_dispatch_kwargs(
 
 
 def _expected_outcomes_for_phase(phase: str) -> list[str]:
-    """Return allowed outcomes for a phase dispatch payload."""
+    """Return allowed outcomes for a phase dispatch payload.
+
+    VAL_REVIEW's ``max_iter`` was missing here even though
+    ``autopilot.TRANSITIONS["VAL_REVIEW"]`` has always allowed it (a
+    pre-existing bug found by Codex review while adjudicating this exact
+    dict, PR #592) -- a real max_iter claim had no matching Choice
+    criterion, forcing an artificial disagreement in the phase-outcome
+    shadow judgment (roadmap ri-07).
+    """
     return {
         "GATEKEEPER": ["proceed", "proceed_with_review", "escalate"],
         "PLAN_ITERATE": ["complete", "failed"],
@@ -1007,7 +1087,7 @@ def _expected_outcomes_for_phase(phase: str) -> list[str]:
         "IMPL_ITERATE": ["complete", "failed"],
         "IMPL_REVIEW": ["converged", "not_converged", "max_iter"],
         "VALIDATE": ["passed", "failed"],
-        "VAL_REVIEW": ["converged", "not_converged"],
+        "VAL_REVIEW": ["converged", "not_converged", "max_iter"],
     }.get(phase, ["complete", "failed"])
 
 
@@ -1015,15 +1095,18 @@ def build_phase_dispatch_payload(
     phase: str,
     change_id: str,
     provider: str | None = None,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """Return a provider-neutral phase dispatch payload."""
     payload = build_phase_dispatch_kwargs(
         phase=phase,
         change_id=change_id,
         provider=provider,
+        agent_id=agent_id,
     )
     if payload.get("provider") is None:
         payload["provider"] = "claude_code"
+    payload["agent_id"] = agent_id
     return payload
 
 
@@ -1075,8 +1158,20 @@ def apply_phase_outcome(
     handoff_id: str,
     *,
     allow_phase_mismatch: bool = False,
+    change_dir: Path | None = None,
 ) -> None:
     """Update loop-state.json after a phase sub-agent returns (D4).
+
+    ``change_dir`` (roadmap ri-06): on the non-replay path, when *phase* is
+    ``"GATEKEEPER"``, also builds and appends a ``"GATEKEEPER_SHADOW"``
+    ``phase_history`` entry via ``gatekeeper_shadow.build_shadow_entry`` --
+    the real host-driven GATEKEEPER dispatch protocol
+    (``skills/autopilot/SKILL.md`` Step 1.5: ``build-dispatch`` /
+    ``apply-outcome``) never calls the Python-level ``_phase_gatekeeper``, so
+    this is the only place a production run can record shadow data (Codex
+    review, PR #591, P1). Replay-safe: the shadow judgment is skipped
+    entirely on the replay path above, so a retried ``apply-outcome`` call
+    never doubles the ``decide()`` call count or the shadow record.
 
     **No-transition contract (design D1 Layer A / Task 3):** this function
     updates ONLY the fields it owns — ``last_handoff_id``, ``handoff_ids``
@@ -1231,6 +1326,37 @@ def apply_phase_outcome(
         "outcome": outcome,
         "at": _now_iso(),
     })
+
+    if phase == "GATEKEEPER" and gatekeeper_shadow is not None:
+        gate_signals = state.get("gate_signals")
+        shadow_entry = gatekeeper_shadow.build_shadow_entry(
+            gate_signals if isinstance(gate_signals, dict) else {},
+            change_dir,
+            acting_verdict=outcome,
+        )
+        if shadow_entry is not None:
+            history.append(shadow_entry)
+    elif phase_outcome_shadow is not None and change_dir is not None:
+        # Every other phase transition (roadmap ri-07) -- GATEKEEPER already
+        # has its own dedicated shadow judgment above (ri-06).
+        expected_outcomes = _expected_outcomes_for_phase(phase)
+        handoff_record = phase_outcome_shadow.read_local_handoff(
+            change_dir, phase, handoff_id
+        )
+        worktree_path = Path.cwd().resolve() / ".git-worktrees" / change_id
+        diff_stat = phase_outcome_shadow.git_diff_stat(worktree_path)
+        output_tail = phase_outcome_shadow.test_output_tail(change_dir)
+        outcome_entry = phase_outcome_shadow.build_outcome_adjudication_entry(
+            phase=phase,
+            claimed_outcome=outcome,
+            expected_outcomes=expected_outcomes,
+            handoff_record=handoff_record,
+            diff_stat=diff_stat,
+            test_output_tail=output_tail,
+        )
+        if outcome_entry is not None:
+            history.append(outcome_entry)
+
     state["phase_history"] = history
 
     _save_state(state_path, state)

@@ -332,6 +332,76 @@ def test_try_submit_work_passes_payload(monkeypatch) -> None:
     assert payload["task_type"] == "implementation"
     assert payload["priority"] == 3
     assert payload["depends_on"] == ["a", "b"]
+    assert "claim_immediately" not in payload
+
+def test_try_submit_work_passes_atomic_claim_flag_without_client_identity(
+    monkeypatch,
+) -> None:
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        coordination_bridge,
+        "detect_coordination",
+        lambda **_: _state(CAN_QUEUE_WORK=True),
+    )
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        captured.append(kwargs)
+        return {
+            "status_code": 200,
+            "data": {"success": True, "task_id": "t-1", "status": "claimed"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+    result = coordination_bridge.try_submit_work(
+        task_type="vendor-dispatch-correlation",
+        task_description="Track async dispatch",
+        claim_immediately=True,
+    )
+
+    assert result["status"] == "ok"
+    assert captured[0]["payload"]["claim_immediately"] is True
+    assert "agent_id" not in captured[0]["payload"]
+
+def test_work_lifecycle_helpers_allow_server_resolved_identity(monkeypatch) -> None:
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        coordination_bridge,
+        "detect_coordination",
+        lambda **_: _state(CAN_QUEUE_WORK=True),
+    )
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        captured.append(kwargs)
+        return {
+            "status_code": 200,
+            "data": {"success": True, "task_id": "ledger-1"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+
+    coordination_bridge.try_get_work(
+        agent_id=None,
+        agent_type=None,
+        task_types=["vendor-dispatch-correlation"],
+    )
+    coordination_bridge.try_complete_work(
+        task_id="ledger-1",
+        agent_id=None,
+        success=True,
+        result={"vendor_result": {"version": 1, "state": "succeeded"}},
+    )
+
+    assert captured[0]["payload"] == {
+        "task_types": ["vendor-dispatch-correlation"],
+    }
+    assert captured[1]["payload"] == {
+        "task_id": "ledger-1",
+        "success": True,
+        "result": {"vendor_result": {"version": 1, "state": "succeeded"}},
+        "error_message": None,
+    }
 
 
 def test_validate_url_allows_custom_domain(monkeypatch) -> None:
@@ -682,3 +752,215 @@ def test_try_issue_create_unauthorized_returns_skipped(monkeypatch) -> None:
 
     assert result["status"] == "skipped"
     assert result["reason"] == "unauthorized"
+
+
+def test_vendor_registry_helpers_use_native_response_envelope(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    calls: list[dict[str, Any]] = []
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {"status_code": 200, "data": {"vendors": []}, "error": None}
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+
+    result = coordination_bridge.try_list_vendors(
+        capability="review", available_only=True
+    )
+
+    assert result["status"] == "ok"
+    assert result["operation"] == "list_vendors"
+    assert result["response"] == {"vendors": []}
+    assert calls[0]["path"] == "/vendors?capability=review&available_only=true"
+
+
+def test_vendor_availability_preserves_unknown_lane_problem(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {
+            "status_code": 404,
+            "data": {"detail": "unknown_vendor_lane"},
+            "error": "HTTP 404",
+        },
+    )
+
+    result = coordination_bridge.try_get_vendor_availability("missing")
+
+    assert result["status"] == "error"
+    assert result["operation"] == "get_vendor_availability"
+    assert result["status_code"] == 404
+    assert result["error"] == "unknown_vendor_lane"
+
+
+def test_report_vendor_rate_limit_posts_exact_lane_and_payload(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    calls: list[dict[str, Any]] = []
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {
+            "status_code": 202,
+            "data": {"observation_id": "obs-1", "status": "accepted"},
+            "error": None,
+        }
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+    payload = {"observation_id": "obs-1", "reason": "capacity"}
+
+    result = coordination_bridge.try_report_vendor_rate_limit("codex-local", payload)
+
+    assert result["status"] == "ok"
+    assert result["operation"] == "report_vendor_rate_limit"
+    assert calls[0]["path"] == "/vendors/codex-local/rate-limit-observations"
+    assert calls[0]["payload"] == payload
+
+
+def test_vendor_registry_malformed_success_is_not_empty_success(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {"status_code": 200, "data": [], "error": None},
+    )
+
+    result = coordination_bridge.try_list_vendors()
+
+    assert result["status"] == "error"
+    assert result["reason"] == "malformed_response"
+
+
+def test_vendor_registry_server_error_remains_distinct_from_timeout(monkeypatch) -> None:
+    monkeypatch.setattr(coordination_bridge, "detect_coordination", lambda **_: _state())
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **_: {
+            "status_code": 503,
+            "data": {"detail": "vendor_registry_unavailable"},
+            "error": "HTTP 503",
+        },
+    )
+
+    result = coordination_bridge.try_list_vendors()
+
+    assert result["status"] == "error"
+    assert result["reason"] == "server_error"
+    assert result["status_code"] == 503
+
+def _refusal() -> dict[str, Any]:
+    return {
+        "status_code": 403,
+        "data": {"detail": "API key is not permitted to act as requested agent_id"},
+        "error": "forbidden",
+    }
+
+
+def _ok() -> dict[str, Any]:
+    return {"status_code": 200, "data": {"success": True}, "error": None}
+
+
+def _capture_bridge(monkeypatch, responses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    captured: list[dict[str, Any]] = []
+    queue = list(responses)
+    monkeypatch.setattr(
+        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+    )
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **kwargs: (captured.append(kwargs) or queue.pop(0)),
+    )
+    return captured
+
+
+def test_try_lock_sends_caller_identity_first(monkeypatch) -> None:
+    """An unbound key is the only identity the server has; do not discard it.
+
+    A deployment may list a key in COORDINATION_API_KEYS with no entry in
+    COORDINATION_API_KEY_IDENTITIES. Blanking identity there resolves every
+    agent to the `cloud-agent` default, so two agents would share one lock
+    owner and could release each other's locks.
+    """
+    captured = _capture_bridge(monkeypatch, [_ok()])
+
+    coordination_bridge.try_lock(
+        file_path="f", agent_id="local-agent", agent_type="claude_code", api_key="k"
+    )
+
+    assert len(captured) == 1
+    assert captured[0]["payload"]["agent_id"] == "local-agent"
+    assert captured[0]["payload"]["agent_type"] == "claude_code"
+
+
+def test_try_lock_retries_without_identity_when_the_key_is_bound(monkeypatch) -> None:
+    """A bound key may only act as itself, and the caller cannot know its name.
+
+    The refusal is the only signal that the key is bound, so it drives one
+    retry with the identity dropped.
+    """
+    captured = _capture_bridge(monkeypatch, [_refusal(), _ok()])
+
+    result = coordination_bridge.try_lock(
+        file_path="f",
+        agent_id="merge-pull-requests-sync-point",
+        agent_type="merge-pull-requests",
+        api_key="bound-key-xyz",
+    )
+
+    assert [c["payload"]["agent_id"] for c in captured] == [
+        "merge-pull-requests-sync-point",
+        "",
+    ]
+    assert captured[1]["payload"]["agent_type"] == ""
+    assert result["status"] == "ok"
+
+
+def test_try_unlock_retries_without_identity_when_the_key_is_bound(monkeypatch) -> None:
+    """A refused release strands the lock until its TTL expires."""
+    captured = _capture_bridge(monkeypatch, [_refusal(), _ok()])
+
+    coordination_bridge.try_unlock(
+        file_path="f", agent_id="merge-pull-requests-sync-point", api_key="bound-key-xyz"
+    )
+
+    assert [c["payload"]["agent_id"] for c in captured] == [
+        "merge-pull-requests-sync-point",
+        "",
+    ]
+
+
+def test_an_unrelated_403_is_not_retried(monkeypatch) -> None:
+    """Only the identity refusal means "you are bound"; other 403s are real."""
+    denied = {
+        "status_code": 403,
+        "data": {"detail": "agent is not permitted to acquire locks"},
+        "error": "forbidden",
+    }
+    captured = _capture_bridge(monkeypatch, [denied])
+
+    result = coordination_bridge.try_lock(
+        file_path="f", agent_id="a", agent_type="t", api_key="k"
+    )
+
+    assert len(captured) == 1
+    assert result["reason"] == "forbidden"
+
+
+def test_a_forbidden_response_is_distinguished_from_a_rejected_key(monkeypatch) -> None:
+    """403 and 401 want different fixes, so they must not share one reason."""
+    monkeypatch.setattr(
+        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+    )
+    monkeypatch.setattr(
+        coordination_bridge, "_http_request", lambda **_: _refusal()
+    )
+
+    result = coordination_bridge.try_lock(
+        file_path="f", agent_id="a", agent_type="t", api_key="k"
+    )
+
+    assert result["reason"] == "forbidden"
+    assert result["status_code"] == 403
+    assert "not permitted to act as requested agent_id" in result["detail"]

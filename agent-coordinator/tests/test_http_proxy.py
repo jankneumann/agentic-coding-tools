@@ -14,7 +14,7 @@ Covers:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -909,3 +909,119 @@ async def test_proxy_release_lock_sends_identity(_reset_client: None) -> None:
     await http_proxy.proxy_release_lock("x.py")
     assert captured["json"]["agent_id"] == "agent-x"
     assert captured["json"]["file_path"] == "x.py"
+
+
+
+@pytest.mark.asyncio
+async def test_proxy_complete_work_leaves_identity_to_authenticated_principal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(http_proxy, "_request", request)
+    monkeypatch.setattr(
+        http_proxy,
+        "_agent_identity",
+        MagicMock(side_effect=AssertionError("ambient identity must not be read")),
+    )
+
+    await http_proxy.proxy_complete_work(
+        task_id="ledger-task",
+        success=True,
+    )
+
+    body = request.await_args.kwargs["json_body"]
+    assert "agent_id" not in body
+    assert "agent_type" not in body
+
+async def test_proxy_submit_and_reconcile_projection_payloads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(http_proxy, "_request", request)
+    monkeypatch.setattr(http_proxy, "_agent_identity", lambda: {})
+    key = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 6}
+    labels = ["change:projection-change", "projection:autopilot-phase"]
+
+    await http_proxy.proxy_submit_work(
+        task_type="issue",
+        description="submit",
+        projection_key=key,
+        projection_labels=labels,
+    )
+    assert request.await_args_list[0].args[:2] == ("POST", "/work/submit")
+    assert request.await_args_list[0].kwargs["json_body"]["projection_key"] == key
+    assert request.await_args_list[0].kwargs["json_body"]["projection_labels"] == labels
+    assert "claim_immediately" not in request.await_args_list[0].kwargs["json_body"]
+
+    await http_proxy.proxy_submit_work(
+        task_type="vendor-dispatch-correlation",
+        description="atomic ledger row",
+        claim_immediately=True,
+    )
+    assert request.await_args_list[1].args[:2] == ("POST", "/work/submit")
+    assert request.await_args_list[1].kwargs["json_body"]["claim_immediately"] is True
+
+    await http_proxy.proxy_reconcile_work_projection(
+        projection_key=key,
+        task_type="issue",
+        description="resume",
+        projection_labels=labels,
+    )
+    assert request.await_args_list[2].args[:2] == ("POST", "/work/reconcile")
+    assert request.await_args_list[2].kwargs["json_body"]["projection_key"] == key
+    assert request.await_args_list[2].kwargs["json_body"]["projection_labels"] == labels
+
+
+@pytest.mark.asyncio
+async def test_projection_proxy_bodies_satisfy_strict_request_models(
+    monkeypatch: pytest.MonkeyPatch,
+    _reset_client: None,
+) -> None:
+    """The bodies these proxies send must validate against the real route models.
+
+    ``WorkSubmitRequest`` and ``WorkReconcileRequest`` set ``extra="forbid"`` and
+    declare no identity fields, and both routes take identity from the authenticated
+    principal rather than the body. Any identity injected here is therefore a 422
+    before the route runs. The sibling test above monkeypatches ``_agent_identity``
+    to ``{}``, so it cannot see that; this one leaves identity injection live and
+    validates the payload against the models the server actually enforces.
+    """
+    from src.coordination_api import WorkReconcileRequest, WorkSubmitRequest
+
+    # Real config, so _agent_identity() injects live values rather than {}.
+    http_proxy.init_client(
+        HttpProxyConfig(
+            base_url="http://localhost:8081",
+            api_key=None,
+            agent_id="agent-x",
+            agent_type="claude_code",
+        )
+    )
+    assert http_proxy._agent_identity() == {"agent_id": "agent-x", "agent_type": "claude_code"}
+
+    request = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(http_proxy, "_request", request)
+    key = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 6}
+    labels = ["change:projection-change", "projection:autopilot-phase"]
+
+    await http_proxy.proxy_submit_work(
+        task_type="issue",
+        description="submit",
+        projection_key=key,
+        projection_labels=labels,
+    )
+    submit_body = request.await_args_list[0].kwargs["json_body"]
+    assert "agent_id" not in submit_body
+    assert "agent_type" not in submit_body
+    WorkSubmitRequest.model_validate(submit_body)
+
+    await http_proxy.proxy_reconcile_work_projection(
+        projection_key=key,
+        task_type="issue",
+        description="resume",
+        projection_labels=labels,
+    )
+    reconcile_body = request.await_args_list[1].kwargs["json_body"]
+    assert "agent_id" not in reconcile_body
+    assert "agent_type" not in reconcile_body
+    WorkReconcileRequest.model_validate(reconcile_body)

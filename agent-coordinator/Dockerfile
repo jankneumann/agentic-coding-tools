@@ -36,6 +36,9 @@ COPY packages/gen-eval/ /packages/gen-eval/
 # The coordinator declares code-search-pkg as a non-editable sibling path
 # dependency. Copy it into the builder so uv installs its wheel into .venv.
 COPY packages/code-search/ /packages/code-search/
+# Shared seam for calibrated System One (TypeSafe Jev) decisions — another
+# non-editable sibling path dependency, same reason as gen-eval/code-search.
+COPY packages/system-one-decisions/ /packages/system-one-decisions/
 
 WORKDIR /app
 
@@ -76,6 +79,8 @@ COPY agent-coordinator/src/ /app/src/
 # Keep it outside coordinator internals so consumer skill installs can use the
 # same implementation without depending on /app/src.
 COPY skills/shared/github_classifier.py /app/skills/shared/github_classifier.py
+# Watchdog loads this probe through SKILLS_ROOT in the deployed runtime.
+COPY skills/parallel-infrastructure/scripts/vendor_health.py /app/skills/parallel-infrastructure/scripts/vendor_health.py
 COPY agent-coordinator/profiles/ /app/profiles/
 COPY agent-coordinator/cedar/ /app/cedar/
 # Evaluation module is imported by src/coordination_api.py for the
@@ -89,6 +94,7 @@ COPY agent-coordinator/evaluation/ /app/evaluation/
 COPY agent-coordinator/database/ /app/database/
 COPY agent-coordinator/agents.yaml /app/agents.yaml
 COPY agent-coordinator/teams.yaml /app/teams.yaml
+COPY agent-coordinator/routing.yaml /app/routing.yaml
 # archetypes.yaml is read at runtime by src/agents_config.py:load_archetypes_config
 # (`Path(__file__).parent.parent / "archetypes.yaml"`). It powers per-phase
 # archetype resolution at POST /archetypes/resolve_for_phase. Without this
@@ -113,6 +119,7 @@ USER appuser
 ENV DB_BACKEND=postgres \
     PYTHONPATH=/app \
     SKILLS_ROOT=/app/skills \
+    AGENTS_YAML=/app/agents.yaml \
     # Prepend the venv to PATH so `python` (and other installed entry points)
     # resolve to /app/.venv/ instead of the base image's /usr/local/bin/python.
     # Without this, ad-hoc invocations like `docker run --entrypoint python ...`

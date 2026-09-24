@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-03T01:45:00.000000+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude",
+    "session_id": "val-fix-6",
+    "summary": "Fixed Canonical Validation 6's single root cause: DirectPostgresClient.query()/insert()/update() never JSON-decoded jsonb columns, so Task.result came back as a raw string instead of a dict, breaking TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused both locally and in GitHub's required test-integration job. Registered an asyncpg jsonb/json type codec on the pool, reconciled its encoder with the existing _serialize_for_asyncpg pre-serialization so neither path double-encodes the other, and proved the fix against a fresh live PostgreSQL deployment.",
+    "completed_work": [
+      "Added _encode_jsonb_param() and _register_jsonb_codecs() to agent-coordinator/src/db_postgres.py, and wired init=_register_jsonb_codecs into asyncpg.create_pool() inside DirectPostgresClient._get_pool(), so query()/insert()/update()/rpc() all decode jsonb/json columns to native dicts/lists via a codec keyed on the declared column type instead of runtime string-sniffing.",
+      "Reconciled the codec's encoder with _serialize_for_asyncpg's existing dict-to-JSON-string pre-serialization: _encode_jsonb_param passes an already-str value through unchanged (so a pre-serialized payload is never re-encoded into a quoted string) and only json.dumps()'s a value that was not pre-serialized (e.g. a raw list/dict reaching asyncpg directly).",
+      "Kept rpc()'s existing isinstance(result, str) decode fallback in place as harmless defense-in-depth now that the codec handles the normal path.",
+      "Added agent-coordinator/tests/test_db_factory.py::TestEncodeJsonbParam (pre-serialized strings unchanged, non-pre-serialized dict/list gets encoded, None round-trips through JSON null, non-JSON plain strings untouched), TestRegisterJsonbCodecs (registers jsonb and json with schema=pg_catalog, format=text, the module's encoder/decoder; explicit round-trip proof using the exact failing test's {'reason': 'cancelled_by_projection_reconcile'} payload shape), and TestPoolRegistersJsonbCodecInit (_get_pool() passes init=_register_jsonb_codecs to asyncpg.create_pool).",
+      "Deployed a fresh rootless Podman/PostgreSQL 18.3 stack (docker.io/paradedb/paradedb:v0.22.2, isolated network valfix6-net, port 55447), raw-initialized all 39 SQL migrations plus 999_record_schema_migrations.sh via docker-entrypoint-initdb.d; confirmed 39/39 migrations recorded.",
+      "Ran tests/integration/postgres/ against the live database: 38 passed, 6 skipped, including TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused (previously the reproducing failure) and test_complete_still_succeeds_for_active_claimed_task, both now passing.",
+      "Ran tests/e2e/postgres/ against the same live database: 13 passed.",
+      "Ran tests/test_work_queue.py, tests/test_work_queue_invariants.py, and tests/test_db_factory.py (no tests/test_db_postgres*.py file exists in this repo; the db_postgres.py unit tests live in test_db_factory.py): 79 passed.",
+      "Tore down the Podman stack (podman rm -f valfix6-pg, podman network rm valfix6-net); confirmed zero remaining containers, networks, or listeners on port 55447.",
+      "Ran the coordinator full non-live suite (-m \"not e2e and not integration\"): 2,447 passed, 11 skipped, 97 deselected (up 8 from Validation 6's 2,439 — exactly the new codec unit tests).",
+      "Ran mypy src/ (77 source files, no issues) and ruff check . (all checks passed)."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Register a pool-wide asyncpg jsonb/json type codec rather than ad hoc decoding in query() alone",
+        "rationale": "Mirroring rpc()'s isinstance(result, str) fallback inside query() only fixes that one call site; insert()/update()'s RETURNING * rows have the identical defect and would still hand back JSON text for any jsonb column. A codec registered once in _get_pool() via asyncpg.create_pool(..., init=...) makes decoding uniform across every method that talks to the pool, keyed off Postgres's own declared column/return type.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Reconcile the codec's encoder with _serialize_for_asyncpg's existing pre-serialization instead of changing that path",
+        "rationale": "_serialize_for_asyncpg (and some callers, e.g. work_queue.py's manual json.dumps for agent_requirements) already turn dicts/lists into JSON text before asyncpg sees them. A naive encoder=json.dumps codec would double-encode those already-serialized strings, storing a quoted JSON string instead of the object. _encode_jsonb_param passes through an already-str value unchanged and only serializes values that were not pre-serialized, so both paths produce identical wire text and neither can double-encode the other's output.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "VALIDATE: rerun the canonical validation round against this head, including a fresh live-PostgreSQL run of tests/integration/postgres/, and reconfirm PR #457's test-integration job goes green at the new head."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/db_postgres.py",
+        "description": "_encode_jsonb_param(), _register_jsonb_codecs(), and the init= wiring in _get_pool()"
+      },
+      {
+        "path": "agent-coordinator/tests/test_db_factory.py",
+        "description": "TestEncodeJsonbParam, TestRegisterJsonbCodecs, TestPoolRegistersJsonbCodecInit"
+      },
+      {
+        "path": "agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py",
+        "description": "TestCompleteTaskTerminalCancellation, now passing against a live database"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+        "description": "Canonical Validation 6 root-cause section this fix addresses"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md",
+        "description": "Phase: Validation Fix 6 session-log entry"
+      }
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: MCP HTTP `claim_immediately` submit and `complete_work` still use different identities, so atomically claimed rows cannot be completed on that transport. `proxy_submit_work` omits body identity and `/work/submit` claims as `resolve_identity(principal, None, None)` (bound principal, else `cloud-agent`). `proxy_complete_work` always injects `**_agent_identity()`, which sends ambient `AGENT_ID` or the proxy default `claude-code-1`. Under an unbound key that yields claim=`cloud-agent` and complete=`claude-code-1`/`AGENT_ID`; under a bound key whose id differs from ambient `AGENT_ID`, complete 403s. Direct/stdio MCP is consistent (`get_config().agent` on both sides), and the dispatcher bridge path correctly completes with `agent_id=None`, but the HTTP MCP surface that this round explicitly forwards `claim_immediately` through remains broken for the paired complete. Ledger failure ordering on the bridge/dispatcher path is otherwise sound: open-before-launch, terminal paths attempt `complete_work` before return, and succeeded findings are withheld when completion fails.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Make HTTP MCP completion use the same authenticated-principal rule as atomic submit and the bridge: omit ambient identity from `proxy_complete_work` (or take an explicit omit/`agent_id=None` path for claim_immediately rows) so `/work/complete` resolves `resolve_identity(principal, None, None)`. Add a proxy/MCP test that submits with `claim_immediately=True` then completes through `proxy_complete_work` under unbound and bound keys with `AGENT_ID` set, asserting both payloads leave ownership to the server principal.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/http_proxy.py",
+      "line_range": {
+        "start": 472,
+        "end": 486
+      },
+      "evidence_class": "judgment",
+      "existing_code": "async def proxy_complete_work(\n    task_id: str,\n    success: bool,\n    result: dict[str, Any] | None = None,\n    error_message: str | None = None,\n) -> dict[str, Any]:\n    \"\"\"Proxy complete_work to POST /work/complete.\"\"\"\n    body = {\n        **_agent_identity(),\n        \"task_id\": task_id,\n        \"success\": success,\n        \"result\": result,\n        \"error_message\": error_message,\n    }"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Round-2 remediations are present in the worktree and `/tmp/dg02-round3.patch`: dispatcher `_complete_completion_ledger` passes `agent_id=None` (no ambient `AGENT_ID`); `claim_immediately` is omitted by default and forwarded only when true through bridge, HTTP proxy, and direct/HTTP MCP submit; migration is uniquely `043_atomic_submit_claim.sql` with `SECURITY INVOKER`, pinned `search_path`, reserved projection-key rejection, `REVOKE`/`GRANT` to `service_role` only; succeeded `result={}` is passed through unchanged and fails closed; async logs/manifest retain `vendor_task_id`/`task_id`/`ledger_task_id`/`async_dispatch`; separate `ledger_claimer`/`try_get_work` claim interface is removed. Remaining blocker is finding #1 on MCP HTTP complete identity.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep the landed remediations; fix finding #1 before treating HTTP MCP `claim_immediately` as a complete lifecycle.",
+      "package_id": "whole-branch",
+      "evidence_class": "judgment"
+    }
+  ]
+}

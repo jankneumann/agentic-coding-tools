@@ -29,8 +29,8 @@ def render_plan(plan: dict[str, Any]) -> str:
         "",
         "## Nodes",
         "",
-        "| PR | Title | Origin | Outcome | Strategy | Auto | Gates | CI | Staleness | Comments | Revalidate | Blocking reason |",
-        "|----|-------|--------|---------|----------|------|-------|----|-----------|----------|------------|-----------------|",
+        "| PR | Title | Origin | Kind | Skill | Outcome | Strategy | Auto | Gates | CI | Failure class | Staleness | Comments | Revalidate | Blocking reason |",
+        "|----|-------|--------|------|-------|---------|----------|------|-------|----|---------------|-----------|----------|------------|-----------------|",
     ]
     comment_details: list[str] = []
     for node in plan["nodes"]:
@@ -40,9 +40,12 @@ def render_plan(plan: dict[str, Any]) -> str:
         lines.append(
             "| "
             f"#{node['pr']} | {_cell(node.get('title', ''))} | {node['origin']} | "
+            f"{definition.get('kind', '—')} | "
+            f"{_cell(definition.get('remediation_skill') or '—')} | "
             f"{state['outcome']} | {node['strategy']} | "
             f"{'yes' if node['auto_executable'] else 'no'} | {_cell(gates)} | "
-            f"{state['ci_state']} | {state['staleness']} | "
+            f"{state['ci_state']} | {_cell(state.get('ci_failure_class') or '—')} | "
+            f"{state['staleness']} | "
             f"{state['unresolved_comments']} | "
             f"{'yes' if state.get('needs_revalidation', False) else 'no'} | "
             f"{_cell(state.get('blocking_reason') or '—')} |",

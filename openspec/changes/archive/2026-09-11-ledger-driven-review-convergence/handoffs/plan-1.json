@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T01:04:22.442665+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Planned phase 2: a gate-time finding ledger with compact, delta review, tighter blocking, parked disagreement, scoped fixes, and one convergence engine instead of nested PLAN_REVIEW/PLAN_FIX cold re-reviews.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Gate-time ledger only",
+        "rationale": "Slice of ambient-review-ledger without the git-hook sensor.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Heuristic compact in v1",
+        "rationale": "No extra LLM call; retire on missing file or missing tokens; model compact can replace later.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Disagreement parks rather than aborting",
+        "rationale": "Agreed blocking work should continue; parked items surface at SUBMIT_PR.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "PLAN_FIX is fix_callback inside converge()",
+        "rationale": "The outer bounce was a second engine over the same artifacts.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Depends on phase 1 landing. Gate 2 approval, then implement after harden-review-dispatch-parse-and-timeouts."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/ledger-driven-review-convergence/proposal.md",
+        "description": "gate-time ledger proposal"
+      },
+      {
+        "path": "openspec/changes/ledger-driven-review-convergence/design.md",
+        "description": "D1-D8"
+      }
+    ]
+  }
+}

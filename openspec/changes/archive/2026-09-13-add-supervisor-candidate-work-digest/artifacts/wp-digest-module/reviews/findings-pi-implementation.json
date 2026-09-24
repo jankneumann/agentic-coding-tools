@@ -1,0 +1,150 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Key/path safety: Implementation correctly encodes stub keys for safe filename construction and validates all paths to prevent directory traversal attacks.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Capacity atomicity: Implementation properly handles candidate capacity bounds with atomic operations that fail gracefully when exceeding the 20-candidate limit.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Lifecycle/dry-run behavior: Implementation correctly implements dry-run mode that reports results without persisting changes and handles lifecycle maintenance operations appropriately.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Score/time/key validation: Implementation strictly validates score documents against manifests, ensuring exact key coverage and timestamp matching before any cache or digest writes.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Dependency status semantics: Implementation builds a strict dependency status index that correctly distinguishes completed, blocked, pending, and archived dependencies.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Git staleness computation: Implementation correctly computes staleness days using Git commit timestamps and properly handles clock skew scenarios with appropriate degradation markers.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Deterministic cache/rank: Implementation ensures deterministic ranking through strict formula-based scoring and consistent tie-breaking using stub_key ordering.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Journal crash recovery: Implementation includes robust transactional journaling with fsync operations and proper recovery mechanisms that ensure atomicity of digest updates.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Evidence containment/sanitization: Implementation properly sanitizes and bounds evidence content, treating all provenance as untrusted data with appropriate delimiters and redaction.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Stub-to-request no writes: Implementation correctly avoids writing to roadmap files directly, instead generating pure refiner requests that maintain separation of concerns.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Decision merge: Implementation properly handles decision merging into supervisor records with appropriate validation of conditional metadata fields.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "AST host-assisted invariant: Implementation correctly avoids direct model/network calls and maintains host-assisted architecture through static analysis verification.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "All eight-axis risks addressed: Implementation properly addresses correctness, readability, architecture, security, performance, observability, resilience, and compatibility concerns across all reviewed aspects.",
+      "disposition": "accept",
+      "package_id": "wp-digest-module",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

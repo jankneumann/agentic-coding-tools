@@ -1,0 +1,228 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Ordinary issue mutation is fail-closed at both boundaries. The database RPC locks the issue row before checking registry ownership, rejects the reserved marker, and applies every exposed update/close field in the same statement; the HTTP create, update, and close handlers map ProjectionIssueMutationError to 403.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 398,
+        "end": 463
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Labelled submit is serialized before inspection, rejects associated reserved-label and complete unowned-key collisions before reading or changing the head, inserts the canonical row with no labels, registers its UUID, and then replaces labels with the exact canonical pair transactionally. Exact-key replay preserves the owned UUID and repairs labels; terminal owned rows alone are reactivated.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 90,
+        "end": 213
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Reconcile enforces both namespace directions before head or row mutation: associated unowned reserved rows and complete unowned keyed rows return projection_key_collision, while an unlabelled request against any registry-owned row for the change returns projection_mode_mismatch. Only the legacy unlabelled branch performs historical tuple cancellation; the labelled branch cancels and relabels registry-owned rows exclusively.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 248,
+        "end": 395
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Direct service submissions carrying a parsed projection key authorize publish_work_projection against the exact change ID with submit mode/change context, and reconciliation performs the same elevated authorization with reconcile context before guardrails or the mutating RPC. TrustResolutionError is explicitly prevented from falling through either guardrail exception handler.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 725,
+        "end": 995
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Cedar resolves omitted trust through the shared resolver, converts TrustResolutionError into an audited denial, and returns before policy evaluation or downstream mutation. The native and Cedar policy sets both classify publish_work_projection as trust-level-3 administration.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/policy_engine.py",
+      "line_range": {
+        "start": 684,
+        "end": 804
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Direct MCP submit and reconcile accept projection_labels and forward them unchanged to both DB-service and HTTP-proxy transports. The proxy request bodies preserve the pair, while runtime validation requires the ordered change label and fixed reserved marker.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_mcp.py",
+      "line_range": {
+        "start": 323,
+        "end": 439
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "none: All projection state conflicts\u2014stale_projection, projection_generation_mismatch, projection_mode_mismatch, reconciliation_required, and projection_key_collision\u2014are classified as structured HTTP 409 Problems. Invalid requests and policy denials remain separately mapped to 422 and 403, so the recovered SQL preflights do not leak ownership-trigger exceptions through projection endpoints.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 95,
+        "end": 141
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: In-process convergence uses the shared reviewed-checkout resolver with worktree_path whenever no explicit roster or injected orchestrator is supplied. The resolver implements explicit, reviewed-checkout-local, coordinator, then global-disk precedence and retains a coordinator roster when either CLI or SDK adapters are present.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "line_range": {
+        "start": 560,
+        "end": 616
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: The in-process host persists before every projection, reconciles loaded durable state before gates or phase work, projects all ordinary and ESCALATE transitions after saving, and never feeds queue responses into LoopState. Projection exceptions and non-success envelopes are bounded degradation results rather than state rollback.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 1048,
+        "end": 1218
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Canonical CLI transition and escalation writers preserve retry-idempotent ESCALATE metadata and generation advancement, while project-state reloads the durable file, lazily imports the publisher only inside that explicit command, leaves loop-state untouched, and exits successfully for structured projection degradation.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 413,
+        "end": 537
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Projection label-change events are change-scoped, coalesced into fresh snapshots, remain re-armable after backpressure drains, and unregister both EventBus callbacks on every generator exit. Because migration 039 applies labels through an UPDATE after ownership registration, the migration-037 label-change trigger supplies first-generation connected-client visibility despite the staged unlabelled INSERT.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 272,
+        "end": 360
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Live PostgreSQL regressions cover both submit and reconcile mode isolation, exact head preservation, non-issue and unowned-issue key collisions, reserved-label spoof rejection, and owned terminal-row recovery. Fresh-migration upgrade coverage separately proves fail-closed pre-039 behavior followed by explicit administrator adoption.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/tests/integration/postgres/test_autopilot_projection_acceptance_postgres.py",
+      "line_range": {
+        "start": 307,
+        "end": 620
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Exact commit inspection confirms HEAD 34f3e5c74d88fd2d252b4a760c876cb8bc3fe91e differs from the validated implementation-and-architecture commit 96133ffe07592f6415406644b7587df715cd2e16 only by the validation ledger update, which records the round-13 recovery and pins 96133ffe as the validated source.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/validation-report.md",
+      "line_range": {
+        "start": 1,
+        "end": 60
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

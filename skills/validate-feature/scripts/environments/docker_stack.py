@@ -205,15 +205,28 @@ class DockerStackEnvironment:
 
         # Step 2: Start docker compose with allocated ports
         db_port = str(self._allocation["db_port"])
+        api_port = str(self._allocation["api_port"])
         project_name = str(self._allocation["compose_project_name"])
 
+        # AGENT_COORDINATOR_REST_PORT is the variable the compose file reads for
+        # the API's host port ("${AGENT_COORDINATOR_REST_PORT:-8081}:8081").
+        # Without it the API bound the fixed default 8081 while `.test-env`
+        # advertised the allocated `api_port`, so every smoke test connected to a
+        # closed port -- and two concurrent stacks collided on 8081, which is the
+        # thing allocating a port is for. Found 2026-09-08 running task 8.1.
         env_overrides = {
             "AGENT_COORDINATOR_DB_PORT": db_port,
+            "AGENT_COORDINATOR_REST_PORT": api_port,
             "COMPOSE_PROJECT_NAME": project_name,
         }
 
         compose_env = {**os.environ, **env_overrides}
 
+        # `coordinator-api` sits behind the `api` compose profile, so a bare
+        # `compose up` starts postgres and nothing else -- which is why all 11
+        # smoke tests failed against a healthy stack until 2026-09-08. Only the
+        # `api` profile is requested: langfuse, openbao and cloudflared are
+        # behind their own profiles and are not part of a validation stack.
         cmd = [
             self.runtime,
             "compose",
@@ -221,6 +234,8 @@ class DockerStackEnvironment:
             self.compose_file,
             "-p",
             project_name,
+            "--profile",
+            "api",
             "up",
             "-d",
         ]
@@ -294,7 +309,11 @@ class DockerStackEnvironment:
             ]
             if project_name:
                 cmd.extend(["-p", project_name])
-            cmd.extend(["down", "-v"])
+            # `--profile api` on down as well as up. Compose only tears down
+            # services in the selected profiles, so a bare `down` stopped
+            # postgres and left `coordinator-api` running -- observed 2026-09-08,
+            # where the leaked container then held port 8081 against the next run.
+            cmd.extend(["--profile", "api", "down", "-v"])
 
             subprocess.run(
                 cmd,
@@ -327,11 +346,22 @@ class DockerStackEnvironment:
         api_port = str(self._allocation["api_port"])
         project_name = str(self._allocation["compose_project_name"])
 
+        # The key the stack was actually configured with. The compose file reads
+        # COORDINATOR_API_KEYS (default `dev-key-001`) into the API's
+        # COORDINATION_API_KEYS; the smoke tests' `api_key` fixture falls back to
+        # `e2e-test-key` when nothing publishes one. Those two never agreed, so
+        # `test_valid_credentials_accepted` got a 401 against a correctly
+        # configured stack. Publishing it here makes the launcher the single
+        # source of truth. Comma-separated lists are allowed; take the first.
+        api_keys = os.environ.get("COORDINATOR_API_KEYS", "dev-key-001")
+        api_key = api_keys.split(",")[0].strip() or "dev-key-001"
+
         return {
             "POSTGRES_DSN": f"postgresql://postgres:postgres@localhost:{db_port}/postgres",
             "DB_PORT": db_port,
             "API_PORT": api_port,
             "API_BASE_URL": f"http://localhost:{api_port}",
+            "API_KEY": api_key,
             "COMPOSE_PROJECT_NAME": project_name,
             "SESSION_ID": self.session_id,
             "ENV_TYPE": "docker",

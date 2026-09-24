@@ -6,8 +6,11 @@ with all new feature types working together.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
+
+from system_one_decisions.testing import stub_decide
 
 from gen_eval.clients.base import StepResult, TransportClientRegistry
 from gen_eval.descriptor import InterfaceDescriptor
@@ -161,7 +164,7 @@ class TestIntegrationExtended:
         assert step1.semantic_verdict is not None
         assert step1.semantic_verdict.status == "skip"
 
-    async def test_semantic_evaluation_via_evaluator(self) -> None:
+    async def test_semantic_evaluation_via_evaluator(self, monkeypatch) -> None:
         """Evaluator invokes semantic evaluation when LLM backend is provided."""
         scenario = Scenario(
             id="semantic-integration",
@@ -196,9 +199,10 @@ class TestIntegrationExtended:
         )
         registry.register("http", client)
 
-        # Mock LLM backend
+        # A confident noul answers the judgment; the LLM backend is only a
+        # reasoning-prose fallback and is never called on the pass path.
+        stub_decide(monkeypatch, returns={"satisfies": SimpleNamespace(noul=0.9)})
         llm_backend = AsyncMock()
-        llm_backend.is_available = AsyncMock(return_value=True)
         llm_backend.run = AsyncMock(
             return_value='{"pass": true, "confidence": 0.9, "reasoning": "Relevant"}'
         )
@@ -215,9 +219,9 @@ class TestIntegrationExtended:
         assert verdict.steps[0].semantic_verdict is not None
         assert verdict.steps[0].semantic_verdict.status == "pass"
         assert verdict.steps[0].semantic_verdict.confidence == 0.9
-        llm_backend.run.assert_called_once()
+        llm_backend.run.assert_not_called()
 
-    async def test_semantic_fail_causes_step_failure(self) -> None:
+    async def test_semantic_fail_causes_step_failure(self, monkeypatch) -> None:
         """Semantic evaluation failure should cause step to fail."""
         scenario = Scenario(
             id="semantic-fail",
@@ -245,8 +249,10 @@ class TestIntegrationExtended:
         )
         registry.register("http", client)
 
+        # A low-confidence noul drives the fail; the LLM backend supplies
+        # only the human-readable reasoning text for that failure.
+        stub_decide(monkeypatch, returns={"satisfies": SimpleNamespace(noul=0.1)})
         llm_backend = AsyncMock()
-        llm_backend.is_available = AsyncMock(return_value=True)
         llm_backend.run = AsyncMock(
             return_value='{"pass": false, "confidence": 0.85, "reasoning": "No results"}'
         )
@@ -262,6 +268,7 @@ class TestIntegrationExtended:
         assert verdict.status == "fail"
         assert verdict.steps[0].semantic_verdict is not None
         assert verdict.steps[0].semantic_verdict.status == "fail"
+        llm_backend.run.assert_called_once()
 
     def test_manifest_roundtrip_with_new_entries(self) -> None:
         """Manifest can include E2E scenario entries."""

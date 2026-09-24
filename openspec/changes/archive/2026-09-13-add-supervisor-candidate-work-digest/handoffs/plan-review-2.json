@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T01:24:35.029239+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "code-reviewer",
+    "session_id": null,
+    "summary": "Round-2 multi-vendor plan review did not converge after PLAN_FIX cb449eb1. Four external reviewers completed; the coherent consensus set combined Codex, Antigravity, Claude, and Grok into 17 unique findings with 8 confirmed, 7 blocking, and 1 low-severity disagreement. Pi output was retained in the round artifact directory but excluded from consensus because its positive severity=none findings used contradictory Critical prefixes. Strict OpenSpec and work-package validation still pass.",
+    "completed_work": [
+      "Ran a separate round-2 vendor dispatch after PLAN_FIX cb449eb1; Antigravity, Claude, Grok, and Pi all completed.",
+      "Validated the Codex, Antigravity, Claude, and Grok findings documents and synthesized them without overwriting round-1 artifacts.",
+      "Round-2 consensus: 17 unique findings, 8 confirmed, 8 unconfirmed, 1 disagreement, 7 blocking, and 1 advisory.",
+      "Excluded Pi from consensus because multiple severity=none observations incorrectly began with the Critical prefix, violating the review skill's coherence contract.",
+      "Strict OpenSpec validation and work-package schema/DAG/lock/overlap validation passed."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Return revision 3 to PLAN_FIX",
+        "rationale": "Confirmed blockers remain in lifecycle early-exit behavior, staleness derivation, priority contract consistency, oversized input handling, dependency-index instructions, failure retry/publication semantics, and ranking-policy observability.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Treat every lifecycle mutation, including terminal pruning, as a reason to bypass unchanged early exit and rebuild the digest.",
+      "Define the reproducible source-artifact timestamp used to compute staleness_days.",
+      "Remove the normative claim that refine-roadmap add renumbers priorities; align the spec with explicit priority plus independent insertion position.",
+      "Define complete-prompt byte accounting and fail-closed handling for one oversized but schema-valid stub.",
+      "Replace stale multi-batch/readiness-resolver instructions with the single-manifest protocol and exact all-status/archive dependency-index APIs.",
+      "Resolve the cached scored_at versus new as_of contradiction on due-deferral cache-only reranking.",
+      "Define an implementable crash-recoverable publish protocol and ensure failed scoring does not advance the successful-cycle fingerprint, so the next cycle retries.",
+      "Expose or stop claiming the full ranking policy in digest.json, and resolve the mirror-scope disagreement by using a narrowly scoped synchronization/check command.",
+      "Run the third and final PLAN_REVIEW round after PLAN_FIX."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/findings-codex-plan.json",
+        "description": "round-2 primary findings"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/consensus-plan.json",
+        "description": "round-2 consensus with seven blocking findings"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/review-manifest.json",
+        "description": "round-2 vendor dispatch evidence"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+        "description": "revision-3 design requiring fixes"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+        "description": "normative contract requiring fixes"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/tasks.md",
+        "description": "stale implementation instructions requiring alignment"
+      }
+    ]
+  }
+}

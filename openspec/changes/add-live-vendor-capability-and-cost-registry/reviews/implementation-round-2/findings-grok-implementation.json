@@ -1,0 +1,153 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: `select_registry_lane` never consults `policy.default_action`. With the model default `PolicyAction.WAIT`, a registry-driven vendor-limit path always returns `switch` when any eligible alternate lane exists. Legacy `evaluate_policy` still honors WAIT, but the orchestrator now calls only `select_registry_lane`, and roadmap tests force SWITCH, so the default wait posture is silently abandoned.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "package_id": "wp-roadmap-policy",
+      "file_path": "skills/autopilot-roadmap/scripts/policy.py",
+      "line_range": {
+        "start": 376,
+        "end": 416
+      },
+      "evidence_class": "judgment",
+      "existing_code": "def select_registry_lane(\n    *,\n    policy: Policy,\n    vendor_limit: VendorLimit,\n    lanes: Sequence[Mapping[str, Any]],\n    switch_attempts: int = 0,\n    from_agent_id: str | None = None,\n    model: str | None = None,\n    prompt_tokens: int | None = None,\n    completion_tokens: int | None = None,\n    allow_unknown: bool = False,\n    excluded_agent_ids: set[str] | None = None,\n    excluded_policy_vendors: set[str] | None = None,\n) -> PolicyDecision:\n    \"\"\"Select a concrete registry lane while retaining provider compatibility.\"\"\"\n    if switch_attempts >= policy.max_switch_attempts_per_item:\n        return PolicyDecision(\n            action=\"fail_closed\",\n            reason=\"Exceeded max switch attempts\",\n            from_vendor=vendor_limit.vendor,\n        )\n    candidates = filter_registry_lanes("
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Spec Scenario Snapshot write fails requires the failure to be audited and logged. Watchdog isolates per-lane `persist_probe` exceptions and logs them, but does not emit a durable AuditService record for the failed lane, so D10 persistence-failure audit is incomplete for probe writes.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "package_id": "wp-api-watchdog",
+      "file_path": "agent-coordinator/src/watchdog.py",
+      "line_range": {
+        "start": 476,
+        "end": 481
+      },
+      "evidence_class": "judgment",
+      "existing_code": "except Exception as exc:  # noqa: BLE001\n                    logger.error(\n                        \"Watchdog: failed to persist vendor probe for %s: %s\",\n                        vendor.agent_id,\n                        exc,\n                    )"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Remediations 1\u20133 and 8 verified: `report_vendor_rate_limit` is granted via `TRUST_DERIVED_OPERATIONS` at elevated trust and is absent from `ADMIN_ACTIONS`; `get_vendor_registry()` and watchdog `vendor_registry` inject `get_audit_service()`; partial missing/ambiguous catalog joins set `cost.known=False` and durable-audit `vendor_catalog_projection_miss`; accepted/duplicate/rejected/compaction audits carry non-secret status/reason fields.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-registry-core",
+      "file_path": "agent-coordinator/src/vendor_registry.py",
+      "line_range": {
+        "start": 339,
+        "end": 379
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Remediations 4\u20135 verified: `provider_dispatch.dispatch_phase` reports terminal capacity once via best-effort `_report_terminal_capacity` without replacing the result; sync/async CLI and SDK notify only intermediate model-scoped attempts when `has_fallback`; `_collect` owns the single terminal report, including single-model exhaustion.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2753,
+        "end": 2757
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Remediations 6\u20137 verified: orchestrator accepts `dispatch_agent_id` or provider-carrier `agent_id`, retries the same phase, and injects selected lane as both `dispatch_agent_id` and `agent_id`; provenance uses `capacity_report_status` (`persisted`/`failed`/`skipped`) or `delegated_unconfirmed`/`skipped_ambiguous`, never claims persistence from lane id alone; configured USD ceiling with unknown quote logs `cost_guard unavailable`.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-roadmap-policy",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": {
+        "start": 1035,
+        "end": 1133
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: GET `/vendors` and GET `/vendors/{agent_id}/availability` match OpenAPI filters/auth (Bearer, X-API-Key, X-Coordinator-API-Key), return typed lane identity (`agent_id`, `vendor_type`, `policy_vendor`, `catalog_vendor`, explicit `location`, capabilities, dispatch_modes), and use RFC7807 problem types for 404/503; no pagination is contracted or required by the vendor-registry spec for the configured roster size.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "wp-api-watchdog",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1580,
+        "end": 1629
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: SQL RPCs provide atomic probe upsert, rate-limit insert/identical-replay/conflict, and compaction; tables have no price columns; reads batch one probe, one active-limit, and one catalog query; model-scoped limits leave the lane available while marking only that model unavailable; quotes use Decimal ROUND_HALF_UP to six places per choices.json; registry outage fail-closes unless an explicit agents.yaml fallback is injected, with no hardcoded orchestrator vendor roster.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-registry-core",
+      "file_path": "agent-coordinator/src/vendor_registry.py",
+      "line_range": {
+        "start": 136,
+        "end": 159
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Watchdog first poll persists every lane snapshot with `stale_after = observed_at + 2\u00d7interval` and skips transitions; `no_probe_method` maps to unknown; per-lane persist failures are isolated so sibling writes and legacy transition events continue; compaction is scheduled from `run_once`.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "wp-api-watchdog",
+      "file_path": "agent-coordinator/src/watchdog.py",
+      "line_range": {
+        "start": 438,
+        "end": 515
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Finding 12 remains correctly non-actionable: OpenAPI leaves POST 400 unbound to Problem, so `urn:vendor-registry:invalid-observation` is not schema drift under the current contract. No new contract evidence reverses that triage.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 68,
+        "end": 69
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

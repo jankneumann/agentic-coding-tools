@@ -13,10 +13,10 @@ import itertools
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import pytest
+from openspec_paths import change_dir, repo_root_from
 
 from src.agents_config import (
     ASSIGNMENT_ASSIGNED_BY,
@@ -31,15 +31,9 @@ from src.agents_config import (
 )
 from src.config import reset_config
 
-CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "openspec"
-    / "changes"
-    / "derive-agent-identity-from-registry"
-    / "contracts"
-    / "events"
-    / "profile-sync-audit.schema.json"
-)
+CONTRACT_PATH = change_dir(
+    repo_root_from(__file__, 2), "derive-agent-identity-from-registry"
+) / "contracts" / "events" / "profile-sync-audit.schema.json"
 
 
 # ---------------------------------------------------------------------------
@@ -321,6 +315,15 @@ class TestDeriveAllowedOperations:
         }
         assert merge_ops.isdisjoint(low)
         assert merge_ops.issubset(high)
+        assert "publish_work_projection" not in low
+        assert "publish_work_projection" in high
+
+    def test_trust_three_derives_vendor_rate_limit_admin_override(self) -> None:
+        low = derive_allowed_operations(["lock"], trust_level=2)
+        high = derive_allowed_operations(["lock"], trust_level=3)
+
+        assert "report_vendor_rate_limit" not in low
+        assert "report_vendor_rate_limit" in high
 
     def test_output_is_sorted_and_deduplicated(self) -> None:
         # feature_registry and trust>=3 both grant register_feature.
@@ -334,11 +337,11 @@ class TestDeriveAllowedOperations:
 
 
 class TestClaudeCodeLocalRegression:
-    """Task 2.5 — the derived grants must reproduce migrations 007/019/022.
+    """Task 2.5 — derived grants reproduce migrations 007/019/022/039/041.
 
     ``claude_code_cli`` was seeded by 007, renamed to ``claude_code_local`` by
-    019, and topped up by 022. The union below is what a live deployment's row
-    holds today; the projection must not silently drop any of it.
+    019, and topped up by 022, 039, and 041. The union below is what a live
+    deployment's row holds today; the projection must not silently drop any of it.
     """
 
     MIGRATION_GRANTS = {
@@ -366,6 +369,8 @@ class TestClaudeCodeLocalRegression:
         "run_pre_merge_checks",
         "mark_merged",
         "remove_from_merge_queue",
+        "publish_work_projection",
+        "report_vendor_rate_limit",
     }
 
     def test_derived_operations_match_migrations(self) -> None:

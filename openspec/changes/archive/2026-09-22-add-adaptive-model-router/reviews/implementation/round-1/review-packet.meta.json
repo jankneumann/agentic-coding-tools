@@ -1,0 +1,273 @@
+{
+  "schema_version": 2,
+  "change_id": "add-adaptive-model-router",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "d9f22a42c049dec5a435ab36df21f02c6b8b711eea6e086405146ee0e193ce4a",
+  "char_length": 149058,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": false,
+  "diff_kind": "last_fix",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "agent-coordinator/database/migrations/040_model_routing.sql",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 792
+      },
+      {
+        "path": "agent-coordinator/src/agents_config.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2001
+      },
+      {
+        "path": "agent-coordinator/src/coordination_api.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 275
+      },
+      {
+        "path": "agent-coordinator/src/coordination_mcp.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 418
+      },
+      {
+        "path": "agent-coordinator/src/http_proxy.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 306
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/__init__.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 202
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/api.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3448
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/catalog.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2311
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/ledger.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1802
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/local_endpoints.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1180
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/refresher.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 821
+      },
+      {
+        "path": "agent-coordinator/src/watchdog.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1442
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_agent_endpoints.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 722
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_api.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2296
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_catalog.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1342
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_catalog_watchdog.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 507
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_contracts_generated.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1451
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_delegation.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 973
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_ledger.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1057
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_local_endpoints.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 949
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_migrations_catalog.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 393
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_refresher.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 547
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_service.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 483
+      },
+      {
+        "path": "agent-coordinator/tests/test_coordination_api.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 646
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/contracts/generated/models.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 769
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3251
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2472
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 756
+      }
+    ],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "agent-coordinator/database/migrations/040_model_routing.sql",
+        "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "**/*.py",
+      "files": [
+        "agent-coordinator/src/agents_config.py",
+        "agent-coordinator/src/coordination_api.py",
+        "agent-coordinator/src/coordination_mcp.py",
+        "agent-coordinator/src/http_proxy.py",
+        "agent-coordinator/src/model_routing/__init__.py",
+        "agent-coordinator/src/model_routing/api.py",
+        "agent-coordinator/src/model_routing/catalog.py",
+        "agent-coordinator/src/model_routing/ledger.py",
+        "agent-coordinator/src/model_routing/local_endpoints.py",
+        "agent-coordinator/src/model_routing/refresher.py",
+        "agent-coordinator/src/watchdog.py",
+        "agent-coordinator/tests/model_routing/test_agent_endpoints.py",
+        "agent-coordinator/tests/model_routing/test_api.py",
+        "agent-coordinator/tests/model_routing/test_catalog.py",
+        "agent-coordinator/tests/model_routing/test_catalog_watchdog.py",
+        "agent-coordinator/tests/model_routing/test_contracts_generated.py",
+        "agent-coordinator/tests/model_routing/test_delegation.py",
+        "agent-coordinator/tests/model_routing/test_ledger.py",
+        "agent-coordinator/tests/model_routing/test_local_endpoints.py",
+        "agent-coordinator/tests/model_routing/test_migrations_catalog.py",
+        "agent-coordinator/tests/model_routing/test_refresher.py",
+        "agent-coordinator/tests/model_routing/test_service.py",
+        "agent-coordinator/tests/test_coordination_api.py",
+        "openspec/changes/add-adaptive-model-router/contracts/generated/models.py"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "skills/*/scripts/*.py",
+      "files": [
+        "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      ]
+    },
+    {
+      "group_id": 4,
+      "source": "default",
+      "pattern": "**/scripts/tests/**",
+      "files": [
+        "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+      ]
+    }
+  ]
+}

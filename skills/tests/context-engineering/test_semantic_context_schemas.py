@@ -22,13 +22,16 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
+from openspec_paths import change_dir
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMOTED = REPO_ROOT / "openspec/contracts/code-search/schemas"
 CHANGE_ID = "inject-scoped-semantic-context-into-coding-jobs"
-CONTRACTS_README = REPO_ROOT / "openspec/changes" / CHANGE_ID / "contracts/README.md"
+
+CONTRACTS_README = change_dir(REPO_ROOT, CHANGE_ID) / "contracts/README.md"
 COORDINATOR_SOURCE = REPO_ROOT / "agent-coordinator/src/code_search.py"
 
 HIT_SCHEMA_NAME = "semantic-context-hit.schema.json"
