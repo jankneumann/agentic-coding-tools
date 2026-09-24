@@ -211,6 +211,7 @@ def test_prepared_command_materializes_0600_and_cleans_owned_state(tmp_path: Pat
         assert stat.S_IMODE(prepared.settings_path.stat().st_mode) == 0o600
         document = json.loads(prepared.settings_path.read_text())
         assert document["network"]["allowedDomains"] == ["api.example.com:443"]
+        assert str(runtime.runtime_dir.resolve()) in document["filesystem"]["allowRead"]
     assert not state_root.exists()
     assert prepared.cleanup_status == "succeeded"
 

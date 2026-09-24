@@ -537,7 +537,14 @@ def prepare_sandbox_command(
     os.chmod(state_root, 0o700)
     runtime_reads = tuple(
         path
-        for path in (runtime.node, runtime.entrypoint, runtime.bwrap, runtime.socat, runtime.rg)
+        for path in (
+            runtime.runtime_dir,
+            runtime.node,
+            runtime.entrypoint,
+            runtime.bwrap,
+            runtime.socat,
+            runtime.rg,
+        )
         if path is not None
     )
     prepared: PreparedCommand | None = None
