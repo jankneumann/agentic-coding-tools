@@ -1,0 +1,117 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The execution and audit contracts cannot represent the complete immutable dg-06 assignment. The landed assignment includes agent/vendor/location/isolation/mode/model/endpoint fields and attempt correlation (`openspec/changes/make-the-orchestrator-obey-the-router/contracts/routing-dispatch-context.schema.json:7-26,29-50`), but the proposed execution context drops model, endpoint kind, attempt, and work ID and makes vendor optional (`openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json:7-28`); the sandbox event drops the assignment entirely (`openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json:28-55`). This cannot satisfy the requirement that the same decision identifier and assignment appear in the execution audit (`openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:29-33`). Carry the complete dg-06 context unchanged, or define a normative enforcement projection plus a digest bound to the full persisted assignment and audit both.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Phase payload v2 would retain two independent isolation authorities. Task 4.3 embeds `DispatchExecutionContext` (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:36-38`), while the current payload and deserializer independently carry `PhaseDispatchPayload.isolation` (`skills/autopilot/scripts/provider_dispatch.py:38-66`). The plan does not remove the legacy field or require equality, so a v2 payload can say `worktree` in one field and `sandbox` in the immutable context. Remove the legacy field for v2 or reject any mismatch before dispatch, and require all launch paths to read only the embedded context.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: Standalone context construction applies managed-worktree validation even to compatibility paths that must preserve arbitrary cwd. Design D1 validates every standalone invocation cwd through `checkout_policy.py`, and D3 requires every root to pass its managed-worktree check (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:18-22,55-57`), but that policy intentionally rejects a local shared checkout (`skills/shared/checkout_policy.py:123-135`) while current standalone dispatch accepts its supplied cwd (`skills/parallel-infrastructure/scripts/review_dispatcher.py:944-1019`). This contradicts byte-compatible `none`/`worktree` behavior (`openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:17-21`). Restrict the managed-worktree/root rejection to sandboxed write-capable execution and preserve legacy cwd handling elsewhere.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: Write-capable snapshot fallback destroys the worker's edits before the planned host commit can occur. `_dispatch_with_snapshot_fallback()` reruns every dispatch mode in a detached snapshot and unconditionally removes that snapshot in `finally` (`skills/parallel-infrastructure/scripts/review_dispatcher.py:2461-2485`), while the plan denies worker Git writes and requires the host to validate and commit only after collection (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:59-62`; `openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:41-43`). For `alternative` or `quick`, successful edits therefore disappear before the host sees them. Limit snapshot fallback to read-only modes, or return/preserve the snapshot and reconcile its edits into the canonical managed worktree before cleanup and host commit.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The sandbox-event schema accepts false enforcement attestations. Its only conditional constrains `sandbox_applied=false`; a schema-valid event may set `sandbox_applied=true`, `requested_isolation=none`, `backend=local-process`, and null runtime, preflight, policy, and root values (`openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json:28-61`). That violates truthful-state requirements (`openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:88-92`) and the required coordinator evidence (`openspec/changes/add-dispatch-sandbox-enforcement/specs/agent-coordinator/spec.md:32-39`). Add cross-field constraints so applied means requested sandbox, SRT backend, non-null runtime/preflight/policy/root, and no degradation reason; encode the complementary degraded state as well.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: The plan does not close the unrestricted-read gap stated as a reason for this change. `proposal.md` identifies reads outside the checkout as an existing exposure (`openspec/changes/add-dispatch-sandbox-enforcement/proposal.md:9-14`), but D3 defines write restrictions and Git-metadata write denial only (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:48-64`), and the specification protects only named credential locations (`openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:41-47`). Because SRT otherwise permits broad reads, unrelated host files remain accessible; an inferred blanket home deny would instead break linked-worktree common Git metadata. Define and test an explicit read policy with read-only worktree/common-Git carve-outs and denial of unrelated host and credential files.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: Durable JSONL replay is not crash-safe when acknowledged records are removed. The design specifies locked append, file/directory fsync, and removal after acknowledgement (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:104-117`), but no atomic compaction protocol protects later unacknowledged records from a crash during truncate/rewrite. That can erase evidence whose successful fsync previously authorized fail-open, violating `openspec/changes/add-dispatch-sandbox-enforcement/specs/agent-coordinator/spec.md:45-49`. Require same-directory mode-0600 temporary rewrite, temp fsync, atomic replace, directory fsync under the lock, plus interruption tests around acknowledgement and each compaction boundary.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Nit: The durable outbox path derives from caller-controlled `XDG_STATE_HOME`, but the plan does not require absolute-path, ownership, symlink, or checkout-containment validation. The design simultaneously uses `${XDG_STATE_HOME:-~/.local/state}` and promises the outbox is outside every checkout and never sandbox-writable (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:106-111`); tasks cover locking and modes but not hostile path resolution (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:14-17`). Require a canonical operator-owned root, no-follow creation, and fail-closed tests for relative, symlinked, wrong-owner, and checkout-contained state paths.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The required capable-host evidence cannot be collected pre-merge through the newly introduced manual workflow. Tasks require a manual `macos-14` workflow to upload and record evidence (`openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:50-52`), and the validation package creates `.github/workflows/sandbox-runtime.yml` while requiring that evidence before completion (`openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:171-213`). GitHub manual dispatch requires the workflow file to exist on the default branch, so a workflow first added by this unmerged change cannot provide its own merge gate. Add a PR/push trigger, use a pre-existing default-branch reusable workflow, or define an external capable-runner evidence path.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The payload-v2 work package cannot update all affected producers or their tests. `wp-integration` may write the provider, phase, dispatcher, and selected tests only (`openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:124-168`), but `skills/autopilot/scripts/smoke_provider_dispatch.py:155-166` directly constructs schema-version-1 payloads and its test is outside the package scope. Either add the smoke producer and `skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py` to locks, write scope, and verification, or explicitly specify and test a v1 compatibility adapter.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: The completion gate may validate only one OS while declaring two materially different SRT backends supported. Linux requires bwrap, seccomp, and user-namespace behavior (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:129-133`), but the gate accepts one Ubuntu-or-macOS pass and makes `macos-14` canonical (`openspec/changes/add-dispatch-sandbox-enforcement/design.md:166-172`; `openspec/changes/add-dispatch-sandbox-enforcement/tasks.md:50-52`; `openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml:202-213`). Require real-runtime evidence for each supported backend family, including Linux namespace/seccomp/filesystem/egress behavior, or narrow supported rollout to the evidenced platform.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

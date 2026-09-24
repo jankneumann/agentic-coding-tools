@@ -9,7 +9,7 @@
 The router now chooses an isolation posture and the orchestrator carries that immutable
 decision to execution, but local vendor CLI processes still run with the host user's OS
 authority. A `worktree` prevents concurrent agents from sharing one checkout; it does not
-prevent reads outside that checkout, writes elsewhere, or arbitrary egress. The coordinator's
+prevent reads of sibling/user-home data, writes elsewhere, or arbitrary egress. The coordinator's
 network policy is likewise advisory because it is checked only by callers that volunteer a
 domain.
 
@@ -22,8 +22,9 @@ polling, and the autopilot local-provider harness.
 
 ### Immutable execution context
 
-Dispatch receives a versioned execution context containing the routing decision identifier,
-exact agent/lane identifier, isolation, dispatch mode, canonical worktree root, and provenance.
+Dispatch receives a versioned execution context containing the complete dg-06 enforcement
+projection, canonical digest of the persisted routing context, one authoritative isolation,
+canonical worktree root, and provenance.
 The enforcement layer never re-runs routing. Standalone review-panel calls that have no routed
 context resolve the already-landed dg-05 fallback once from the exact `agents.yaml` lane.
 Routed callers carry the complete context in phase payload v2; every adapter lifecycle method
@@ -34,8 +35,8 @@ accepts that context explicitly instead of reconstructing it from cwd.
 `NetworkPolicyService` gains an exact-agent export. It returns the active profile-specific and
 global rules, a closed default-deny contract, schema revision, and a deterministic digest.
 Rendering is conservative: SRT denies take precedence, so conflicting authored rules may become
-narrower but never wider. A malformed or unavailable cold-start export renders deny-all; it does
-not invent destinations.
+narrower but never wider. A malformed or unavailable cold-start export fails closed before vendor
+launch; only a successfully exported empty allow set is a valid deny-all policy.
 
 A narrow sandbox-execution audit endpoint durably and idempotently records applied and degraded
 outcomes. If the coordinator is unavailable, a locked mode-0600 JSONL outbox under the operator's
@@ -48,15 +49,17 @@ allowed only after either the coordinator event or the durable outbox record suc
 
 - pure, deterministic SRT settings rendering;
 - mode-aware filesystem policy (`review` has no project write roots; write-capable modes are
-  confined to the canonical worktree root; every lane gets an ephemeral vendor-state root);
+  confined to the canonical worktree root; user-home reads are denied with narrow worktree/tool
+  carve-outs; every lane gets an ephemeral vendor-state root);
 - a prepared-command lifecycle that owns a unique mode-0600 settings file, sanitized environment,
   runtime identity, policy digest, process group, and cleanup;
 - an additive renderer seam for future runtimes.
 
 The reviewed runtime is `@anthropic-ai/sandbox-runtime` 0.0.77 on Node >=20.11.0. The repository
 pins the package and integrity and never installs it during dispatch. Setup/CI install the pin;
-runtime discovery is explicit absolute override, then the dispatcher's Git-root installation,
-then unavailable. The runtime is accepted only when package metadata and integrity match. On Linux
+runtime discovery is explicit absolute override, then the primary checkout resolved through the
+linked worktree's common Git directory, then unavailable. The runtime is accepted only when
+package metadata and integrity match. On Linux
 the preflight also verifies `bubblewrap`, `socat`,
 `ripgrep`, user-namespace capability, architecture/seccomp support, and a real no-op SRT launch.
 
@@ -86,11 +89,12 @@ unknown failure never triggers an unsandboxed retry because doing so could execu
 
 ## Scope Boundary
 
-This change protects against accidental or confused local tool behavior after sandbox startup.
+This change protects against accidental or confused local CLI behavior after sandbox startup.
 It does not claim containment of a malicious vendor executable, a compromised runtime, same-user
 races, damage inside an authorized writable root, or exfiltration through an allowed destination
 such as GitHub. It strips proxy and code-injection environment variables required to preserve the
-SRT boundary, but vendor credentials deliberately supplied to a CLI remain readable by that CLI.
+SRT boundary. dg-07 sandbox lanes require environment-backed authentication; file-backed login
+state remains ineligible. Credentials deliberately supplied to a CLI remain readable by that CLI.
 Request-time secret substitution is dg-08; broader credential brokering and cloud execution remain
 owned by `add-sandboxed-harness-execution`.
 
@@ -123,7 +127,8 @@ dg-07 supplies the local backend and renderer seam it consumes.
 - Modified config projection: effective per-mode isolation reaches standalone adapters.
 - New pinned optional tool dependency: SRT 0.0.77.
 - New contracts, tests, operational documentation, and real-runtime probes.
-- New capable-host GitHub Actions evidence gate, with a recorded configured-vendor CLI pass.
+- New PR-triggered Ubuntu/macOS GitHub Actions evidence gate, with linked-worktree and configured-
+  vendor CLI passes bound to the tested SHA.
 
 ## Rollback
 

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "vendor": "pi",
+  "review_type": "plan",
+  "stdout_path": "raw-pi-plan.txt",
+  "byte_length": 5246296,
+  "truncated": false,
+  "sha256": "1df8f5798a43c1336e93133ce54df077b3ac68b2ae7398e0fd302aae2c1e718b",
+  "repair_attempted": false,
+  "coercions": [
+    "severity:high->critical",
+    "axis:testability->correctness",
+    "severity:high->critical",
+    "severity:high->critical",
+    "severity:medium->nit",
+    "severity:high->critical",
+    "severity:medium->nit",
+    "severity:high->critical",
+    "severity:medium->nit",
+    "severity:medium->nit",
+    "severity:high->critical",
+    "severity:medium->nit",
+    "severity:medium->nit",
+    "severity:high->critical",
+    "severity:low->optional"
+  ]
+}

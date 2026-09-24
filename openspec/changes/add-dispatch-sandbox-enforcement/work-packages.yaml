@@ -69,7 +69,7 @@ packages:
   - package_id: wp-runtime
     title: "Pure SRT renderer and local process lifecycle"
     task_type: backend
-    description: "Implement tasks 3.1-3.4 with official SRT 0.0.77 behavior pinned."
+    description: "Implement tasks 3.1-3.4 and the task 5.1 fixture with official SRT 0.0.77 behavior pinned."
     role: security-implementer
     archetype: implementer
     priority: 1
@@ -78,8 +78,10 @@ packages:
       files:
         - "skills/shared/sandbox_profile.py"
         - "skills/shared/local_process_backend.py"
+        - "skills/shared/checkout_policy.py"
         - "tools/sandbox-runtime/**"
         - "skills/install.sh"
+        - "skills/install-manifest.json"
         - ".github/workflows/ci.yml"
       keys: ["feature:add-dispatch-sandbox-enforcement:runtime"]
       ttl_minutes: 240
@@ -88,12 +90,15 @@ packages:
       write_allow:
         - "skills/shared/sandbox_profile.py"
         - "skills/shared/local_process_backend.py"
+        - "skills/shared/checkout_policy.py"
+        - "skills/shared/tests/test_checkout_policy.py"
         - "skills/shared/tests/test_sandbox_profile.py"
         - "skills/shared/tests/test_local_process_backend.py"
         - "skills/shared/tests/test_sandbox_profile_integration.py"
         - "skills/shared/tests/fixtures/sandbox_vendor.py"
         - "tools/sandbox-runtime/**"
         - "skills/install.sh"
+        - "skills/install-manifest.json"
         - ".github/workflows/ci.yml"
         - ".gitignore"
       read_allow: ["**"]
@@ -107,7 +112,7 @@ packages:
       steps:
         - name: "Sandbox profile tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/shared/tests/test_sandbox_profile.py skills/shared/tests/test_local_process_backend.py skills/shared/tests/test_sandbox_profile_integration.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests/test_sandbox_profile.py skills/shared/tests/test_local_process_backend.py skills/shared/tests/test_sandbox_profile_integration.py skills/shared/tests/test_checkout_policy.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [sandbox_profile_tests]}
@@ -126,10 +131,16 @@ packages:
         - "agent-coordinator/src/agents_config.py"
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "skills/autopilot/scripts/provider_dispatch.py"
+        - "skills/autopilot/scripts/smoke_provider_dispatch.py"
         - "skills/autopilot/scripts/phase_agent.py"
         - "skills/autopilot-roadmap/scripts/orchestrator.py"
         - "skills/tests/autopilot-roadmap/test_orchestrator.py"
         - "agent-coordinator/agents.yaml"
+        - "skills/parallel-infrastructure/scripts/tests/test_no_vendor_subprocess_bypass.py"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/autopilot/SKILL.md"
+        - "skills/autopilot-roadmap/SKILL.md"
       keys: ["feature:add-dispatch-sandbox-enforcement:integration"]
       ttl_minutes: 240
       reason: "All vendor process sinks must migrate as one behavioral boundary"
@@ -141,6 +152,8 @@ packages:
         - "skills/parallel-infrastructure/scripts/tests/**"
         - "skills/autopilot/scripts/provider_dispatch.py"
         - "skills/autopilot/scripts/tests/test_provider_dispatch.py"
+        - "skills/autopilot/scripts/smoke_provider_dispatch.py"
+        - "skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py"
         - "skills/autopilot/scripts/phase_agent.py"
         - "skills/tests/phase-record-compaction/test_phase_agent.py"
         - "skills/tests/vendor-neutral-autopilot/test_dispatch_adapter.py"
@@ -162,7 +175,7 @@ packages:
       steps:
         - name: "Dispatcher and provider tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/autopilot/scripts/tests/test_provider_dispatch.py skills/tests/phase-record-compaction/test_phase_agent.py skills/tests/vendor-neutral-autopilot/test_dispatch_adapter.py skills/tests/autopilot-roadmap/test_orchestrator.py agent-coordinator/tests/test_agents_config_isolation.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/parallel-infrastructure/scripts/tests/test_no_vendor_subprocess_bypass.py skills/autopilot/scripts/tests/test_provider_dispatch.py skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py skills/tests/phase-record-compaction/test_phase_agent.py skills/tests/vendor-neutral-autopilot/test_dispatch_adapter.py skills/tests/autopilot-roadmap/test_orchestrator.py -q && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config_isolation.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [integration_tests]}
@@ -204,7 +217,7 @@ packages:
       steps:
         - name: "Behavioral and strict validation"
           kind: command
-          command: "skills/.venv/bin/python skills/shared/verify_sandbox_runtime_evidence.py openspec/changes/add-dispatch-sandbox-enforcement/evidence/sandbox-runtime-evidence.json && skills/.venv/bin/python -m pytest skills/shared/tests/test_sandbox_profile_integration.py -q"
+          command: "skills/.venv/bin/python skills/shared/verify_sandbox_runtime_evidence.py --github-run openspec/changes/add-dispatch-sandbox-enforcement/evidence/sandbox-runtime-evidence.json && skills/.venv/bin/python -m pytest skills/shared/tests/test_sandbox_profile_integration.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -219,7 +232,7 @@ packages:
           evidence: {artifacts: [], result_keys: [full_python_suites]}
         - name: "Repository quality gates"
           kind: command
-          command: "skills/.venv/bin/python -m ruff check skills/shared skills/parallel-infrastructure/scripts/review_dispatcher.py skills/autopilot/scripts/provider_dispatch.py skills/autopilot/scripts/phase_agent.py agent-coordinator/src agent-coordinator/tests && openspec validate --strict --all"
+          command: "skills/.venv/bin/python -m ruff check skills/shared skills/parallel-infrastructure/scripts/review_dispatcher.py skills/autopilot/scripts/provider_dispatch.py skills/autopilot/scripts/phase_agent.py agent-coordinator/src agent-coordinator/tests && agent-coordinator/.venv/bin/python -m mypy agent-coordinator/src && bash skills/install.sh --check && skills/.venv/bin/python skills/validate-feature/scripts/linters/dependency_direction.py && openspec validate --strict --all"
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [quality_gates, openspec_validation]}

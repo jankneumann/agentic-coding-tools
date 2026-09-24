@@ -1,0 +1,95 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Malformed/unrenderable network policy is specified as both deny-all and fail-closed. proposal.md:36-38 and design.md D4 (lines 77-79) plus specs/agent-coordinator/spec.md:28-30 say a malformed or unavailable cold-start export must become a valid deny-all network document used for sandbox preparation. The same proposal.md:83-84, design.md D6 (lines 111-112), and specs/vendor-dispatch/spec.md:98-99 say malformed/unrenderable policy must fail closed (no vendor launch). contracts/openapi.yaml:26 also returns 422 for unrenderable policy without saying whether the client synthesizes deny-all or aborts. Implementers cannot satisfy both acceptance paths, and tests cannot pin one behavior.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Pick one normative outcome and align all artifacts: either (A) unavailable/malformed export \u21d2 preparation synthesizes an explicit deny-all snapshot and still applies SRT (API may 422, client maps to deny-all), or (B) unavailable/malformed export \u21d2 fail closed with no process start. Reserve fail-closed for cases that cannot even materialize deny-all settings, and name that distinction explicitly if both remain.",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 77,
+        "end": 112
+      },
+      "evidence_class": "judgment",
+      "existing_code": "Any legacy malformed applicable rule makes the entire export\nunrenderable and therefore deny-all; rules are never silently omitted. An unavailable snapshot\nbecomes deny-all.\n...\nUnsafe root,\nunrenderable policy, materialization failure, and all post-SRT-start failures fail closed."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Design D3 (design.md:52-55) both redirects HOME/XDG into a backend-owned ephemeral state root and claims 'Read-only credential inputs and required environment credential keys remain explicit per-vendor configuration' / 'still readable by the vendor process' (design.md:100-102). agents.yaml today only declares api_key_env for some lanes (agent-coordinator/agents.yaml:139,205,406) and has no credential-file inventory; vendor CLIs that resolve auth via $HOME (login state under ~/.claude, ~/.codex, ~/.pi) will miss those files once HOME is rewritten. No contract, agents.yaml schema, or task defines the bridging mechanism (absolute config-path env vars + allowRead, SRT credentials.files binds, copy-into-ephemeral-HOME, or sandbox-lane requires api_key_env only). Tasks 3.1/4.1 mention 'explicit credential reads' and 'preserve per-vendor credential/state configuration' without a shape implementers can code against.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Specify the credential/state seam when HOME/XDG are ephemeral: required agents.yaml fields (credential file paths and/or config-dir env overrides), how they become SRT allowRead/credentials entries, and a RED test that a sandboxed vendor with only home-login state either succeeds via the bridge or fails closed with a named reason\u2014not a mysterious missing-credentials hang.",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 52,
+        "end": 55
+      },
+      "evidence_class": "judgment",
+      "existing_code": "Every sandboxed command receives a backend-owned, per-launch state root used for HOME,\nXDG state/config/cache, and runtime temporary files, so vendor CLIs do not need write access to\nthe operator's home. Read-only credential inputs and required environment credential keys remain\nexplicit per-vendor configuration; no renderer hard-codes them."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Autopilot write phases hardcode isolation=worktree and will clobber a router sandbox decision. skills/autopilot/scripts/phase_agent.py:355-366 sets options['isolation']='worktree' for every _WORKTREE_PHASES entry before payload assembly (lines 1033-1066). Design D1 (design.md:24-30) and task 4.3 require PhaseDispatchPayload v2 to embed the dg-06 assignment's isolation unchanged, and orchestrator.py:1653 already writes context['isolation']=routing['assignment']['isolation']. Task 4.3 names phase_agent construction but never requires removing or subordinating this hardcode, so a routed isolation=sandbox assignment can still leave the dispatch payload as worktree and skip SRT.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "In task 4.3 / design D1, require that when an execution_context (or routed assignment) is present its isolation wins; treat the phase_agent worktree hardcode as managed-worktree setup only (or delete it) and add a RED test that a sandbox routing decision survives into the embedded DispatchExecutionContext.",
+      "package_id": "wp-integration",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {
+        "start": 355,
+        "end": 366
+      },
+      "evidence_class": "judgment",
+      "existing_code": "``isolation=\"worktree\"`` is set independently for phases in\n:data:`_WORKTREE_PHASES`.\n...\n    if phase in _WORKTREE_PHASES:\n        options[\"isolation\"] = \"worktree\""
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: Task 5.1 is still not executable under the work-package DAG. tasks.md:47-49 says 'Add a controlled vendor fixture under the runtime package...', but work-packages.yaml assigns wp-validation-docs only to 'Collect task 5.1 evidence, implement tasks 5.2-5.4' (lines 171-174) and that package's write_allow (190-196) cannot create skills/shared/tests/fixtures/**. wp-runtime write_allow includes the fixture path (skills/shared/tests/fixtures/sandbox_vendor.py) and integration tests, yet its description claims only tasks 3.1-3.4. The fixture work is therefore owned by nobody, or owned by a package that cannot write it.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Move task 5.1 implementation into wp-runtime (extend description/depends) or widen wp-validation-docs write_allow to the fixture/integration paths; keep 'collect evidence' as a validation verification step only.",
+      "package_id": "wp-validation-docs",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "line_range": {
+        "start": 171,
+        "end": 196
+      },
+      "evidence_class": "judgment",
+      "existing_code": "description: \"Collect task 5.1 evidence, implement tasks 5.2-5.4, and reconcile downstream ownership.\"\n...\n      write_allow:\n        - \"docs/**\"\n        - \"openspec/changes/add-dispatch-sandbox-enforcement/**\"\n        - \"openspec/changes/add-sandboxed-harness-execution/**\"\n        - \".github/workflows/sandbox-runtime.yml\"\n        - \"skills/shared/verify_sandbox_runtime_evidence.py\""
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: Snapshot-fallback dispatch changes the effective project root while DispatchExecutionContext.worktree_root is treated as immutable. design.md D1 (lines 12-22) forbids deriving/replacing the root from ambient cwd and carries one canonical worktree_root; D8 (lines 143-150) still requires the snapshot-fallback path (review_dispatcher.py:2461-2479, which retries on create_review_snapshot under .git-worktrees/.review-snapshots/) to use the same backend and states 'The actual invocation cwd is the policy root.' The plan never says whether the retry must construct a new context with the snapshot path as worktree_root (decision_id preserved), reject sandbox+snapshot, or treat snapshot creation/dispatch as outside FS policy. As written, implementers will either violate immutability or apply allowWrite/denyWrite/.git rules to the wrong tree.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Specify snapshot-fallback behavior under sandbox: e.g. rebuild execution_context with validated snapshot worktree_root while keeping the same decision_id/isolation, or document that snapshot fallback is review-only with empty allowWrite and policy root retargeted explicitly in the retry call.",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "line_range": {
+        "start": 143,
+        "end": 150
+      },
+      "evidence_class": "judgment",
+      "existing_code": "Sync submit, async submit, poll, repair retry, snapshot fallback, and autopilot local-provider\nlaunch all use the backend exactly once per process attempt.\n...\nThe\nactual invocation cwd is the policy root."
+    }
+  ]
+}

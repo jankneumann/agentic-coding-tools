@@ -1,0 +1,236 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "OpenAPI spec defines identical response schemas for 200 (idempotent replay) and 201 (new insert) on /dispatch/sandbox-events, but the contract requires distinguishable semantics. The sandbox-execution-event.schema.json doesn't include a field to differentiate replay vs new insert in the response. Implementation will be unable to signal which occurred without adding a response field.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "network-policy-export.schema.json requires policy_digest as SHA-256 hex (64 chars) but neither the design nor proposal specifies the canonical serialization format for computing the digest (e.g., JSON canonicalization, field ordering, included fields). Without a specified serialization, different implementations will produce different digests, breaking the 'deterministic digest' guarantee.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The openapi.yaml 403 descriptions reference 'trust-level-3 dispatcher' but trust levels are not defined in the contract schemas. The coordinator uses a 0-4 scale (MIN_TRUST=0, MAX_TRUST=4 in trust_levels.py) but the API contract doesn't expose this vocabulary. Consumers cannot programmatically determine what trust level 3 means.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The sandbox-execution-event.schema.json requires policy_revision and policy_digest as optional strings, but the design states 'Migration 044 makes event_id unique; replay returns the original durable audit row id' and 'policy_revision is the maximum included row update timestamp plus row count'. The schema doesn't enforce the format of policy_revision (timestamp+count) or link it to the network-policy-export's policy_revision. The audit table for sandbox events doesn't exist in current migrations (044 is planned).",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "high",
+      "description": "Design D5 states environment sanitization 'removes inherited proxy variables, loader/startup injection variables, Git path/config overrides, and untrusted temp settings' but provides no exhaustive list. The implementation must define exactly which variables are stripped (e.g., HTTP_PROXY, HTTPS_PROXY, NO_PROXY, LD_PRELOAD, NODE_OPTIONS, GIT_CONFIG_GLOBAL, GIT_CONFIG_SYSTEM, TMPDIR, TEMP, TMP). Without an exhaustive list in the spec, implementations will differ and security boundary may leak.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Design D3 states 'The worktree .git pointer and linked-worktree common Git metadata are explicitly denied for writes' but SRT's deny-first semantics with hostname-pattern allow-rules cannot express 'deny writes to .git directory but allow reads'. The renderer must either use SRT's filesystem API to deny write access to specific paths (if supported) or this requirement is unachievable with the stated SRT 0.0.77 capabilities.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Task 4.2 states 'poll enforcement failures are collection failures retried to the existing deadline, not terminal remote-task failures' but review_dispatcher.py poll_for_result() calls _complete_completion_ledger() with success=False on ANY pre-launch error (including sandbox enforcement denial). The ledger completion marks the remote task as failed. The plan doesn't specify how to distinguish 'sandbox pre-launch denial' from other poll errors to avoid completing the ledger.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Task 4.4 requires 'an AST guard rejecting subprocess calls whose argv derives from vendor command templates/binaries outside the shared backend, with explicit Git/coordinator-helper allowlists' but the plan doesn't specify: (a) the exact AST patterns to flag (subprocess.run, Popen, etc.), (b) the allowlist patterns for Git/coordinator helpers, (c) whether it runs in CI or as a pre-commit hook, (d) how it handles dynamic command construction. Without this, the guard cannot be implemented testably.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Work-package wp-integration locks files across three separate skill directories (parallel-infrastructure, autopilot, autopilot-roadmap) and agent-coordinator. The scope.write_allow includes skills/implement-feature/SKILL.md, skills/iterate-on-implementation/SKILL.md, skills/autopilot/SKILL.md, skills/autopilot-roadmap/SKILL.md - these are skill definition files, not implementation files. Modifying SKILL.md files is outside the scope of a backend integration change and risks breaking skill contracts.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "dispatch-execution-context.schema.json has enforcement_scope enum ['execution', 'submission'] but the design mentions 'execution' and 'polling' as scopes. The autopilot local provider uses the context for the full lifecycle (dispatch + poll). The schema should include 'polling' or clarify that 'submission' covers async submit+poll.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Design D6 states 'Each later event attempt drains older outbox entries before writing the new one, removing a record only after the endpoint acknowledges its event_id' but the outbox is JSONL with advisory locking. If the process crashes after writing to outbox but before fsync, or after fsync but before coordinator acknowledgment, the record may be duplicated or lost. The plan doesn't specify idempotency key handling for outbox writes (event_id is generated by caller, not coordinator).",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "The sandbox-execution-event schema includes environment_keys (array of key names) but the design D5 says 'Environment metadata SHALL contain key names only AND argv prompt bodies, credential values, and settings-file contents SHALL be absent.' However, the schema doesn't forbid secret-like key names (e.g., API_KEY, SECRET, TOKEN) from appearing in environment_keys. An auditor could infer credential presence from key names. The spec should require filtering of sensitive key patterns.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "provider_dispatch.py _dispatch_local() constructs argv directly via subprocess.run() with ['pi', '-p', '--provider', 'local', ...] and passes env=os.environ.copy(). This bypasses the shared backend entirely. Task 4.3 requires 'autopilot local-provider passthrough without cwd inference' but the current code doesn't accept an execution_context parameter. The plan must specify how the local provider integrates with the backend's argv/environment construction.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 14,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Design D7 states Linux preflight checks 'bwrap, socat, rg, supported architecture/seccomp conditions, user-namespace/AppArmor viability, and a no-op sandbox launch' but macOS only checks 'supported native backend and a no-op launch'. SRT 0.0.77 on macOS uses a different sandboxing mechanism (Seatbelt/App Sandbox) - the plan doesn't specify what 'native backend' means or what capability checks are needed. The macOS preflight is underspecified.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 15,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "network-policy-export.schema.json rules require hostname_pattern with regex ^(?:\\\\\\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$ which doesn't allow CIDR notation (e.g., 10.0.0.0/8) or IP ranges. The design D4 mentions 'SRT-compatible hostname plus separately range-checked port grammar' but the schema only allows hostname patterns. IP-based rules cannot be expressed.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 16,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Task 3.2 requires 'runtime discovery and capability preflight' with 'package version and lockfile integrity metadata match' but the work-package wp-runtime locks tools/sandbox-runtime/** without specifying how integrity is verified. The plan mentions 'lockfile integrity' but there's no package-lock.json or npm-shrinkwrap.json in the locked paths. The SRT pin requires both package.json version AND integrity hash verification - the implementation needs a declared integrity source.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 17,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The sandbox-execution-event schema includes executable_paths and environment_keys but the design says 'Audit payloads contain key names and digests, never prompt/argv bodies, settings bodies, or secret values.' The schema doesn't include a field for the SRT settings file digest or the rendered policy digest (policy_digest is optional). Without the settings digest, post-hoc verification that the applied settings match the exported policy is impossible.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 18,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Design D8 states 'On timeout the backend starts a new session, sends TERM to the process group, waits a bounded grace period, sends KILL if required, waits, and then cleans owned material.' But if the process group cleanup fails (e.g., zombie processes, permission issues), the backend has no specified fallback. The settings file (mode 0600) and any mount artifacts may leak. The plan needs a guaranteed cleanup strategy or at minimum a leak-reporting mechanism.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 19,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "agents.yaml cli.dispatch_modes entries have optional 'isolation' field (string enum of ISOLATION_MODES). The plan says 'config projection so effective mode isolation is mode override then entry' but agents_config.py ModeConfig.isolation is already IsolationMode | None. The precedence isn't documented: does agents.yaml mode.isolation override the router decision? The design D1 says 'The backend SHALL consume the dg-06 routing decision... and SHALL NOT call routing again' - but standalone callers use agents.yaml. The precedence between router decision and agents.yaml mode.isolation for routed callers is not specified.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 20,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The plan mentions 'New capable-host GitHub Actions evidence gate, with a recorded configured-vendor CLI pass' and 'The canonical job is a manual macos-14 workflow that uploads and records sandbox-runtime-evidence.json' but work-package wp-validation-docs doesn't include the GitHub Actions workflow file in its write_allow list (.github/workflows/sandbox-runtime.yml is listed but the evidence verification script skills/shared/verify_sandbox_runtime_evidence.py is not in wp-runtime's scope). The evidence collection and verification are split across packages without clear ownership.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    }
+  ],
+  "coverage": {
+    "reviewed": [
+      "openspec/changes/add-dispatch-sandbox-enforcement/proposal.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/tasks.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/specs/agent-coordinator/spec.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/README.md",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/openapi.yaml",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/network-policy-export.schema.json",
+      "openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json",
+      "agent-coordinator/src/network_policies.py",
+      "agent-coordinator/src/audit.py",
+      "agent-coordinator/src/agents_config.py",
+      "agent-coordinator/src/coordination_api.py",
+      "agent-coordinator/database/migrations/008_audit_log.sql",
+      "agent-coordinator/database/migrations/009_network_policies.sql",
+      "agent-coordinator/agents.yaml",
+      "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "skills/autopilot/scripts/provider_dispatch.py",
+      "skills/autopilot/scripts/phase_agent.py",
+      "skills/coordination-bridge/scripts/coordination_bridge.py",
+      "skills/shared/environment_profile.py",
+      "skills/shared/checkout_policy.py"
+    ],
+    "skipped": []
+  }
+}

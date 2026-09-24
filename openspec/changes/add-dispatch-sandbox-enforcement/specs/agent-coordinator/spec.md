@@ -4,8 +4,10 @@
 
 The coordinator SHALL export the enabled global rules plus the exact agent's profile-specific
 rules as a versioned, deterministic, default-deny document. Each export SHALL carry the exact
-agent id, normalized ordered rules, schema revision, and content digest. Any malformed applicable
-legacy rule SHALL make the whole export unrenderable; rules SHALL NOT be silently omitted.
+agent id, normalized ordered rules, schema revision, and canonical content digest. Any malformed
+applicable legacy rule SHALL make the whole export unrenderable; rules SHALL NOT be silently
+omitted. The digest SHALL cover canonical UTF-8 JSON for every snapshot field except the digest
+itself, and applied execution events SHALL copy the exact revision and digest they enforced.
 
 The authenticated principal MAY export its own policy. Exporting another agent's policy requires
 trust level 3 or greater so the dispatch host can prepare a child without granting arbitrary agents
@@ -26,17 +28,23 @@ AND no destination absent from the authored effective policy SHALL be introduced
 #### Scenario: Policy outage denies network
 
 WHEN an exact-agent export is unavailable or malformed at cold start
-THEN sandbox preparation SHALL use a valid deny-all network document
-AND SHALL NOT fall back to an independently maintained destination list.
+THEN sandbox preparation SHALL fail closed before vendor process start
+AND SHALL NOT synthesize a destination list or treat the outage as fail-open.
 
 ### Requirement: Sandbox execution events SHALL be durably auditable
 
 The coordinator SHALL accept a narrow sandbox execution event and SHALL not acknowledge durable
-success until the audit row is inserted. `event_id` SHALL be an idempotency key and replay SHALL
-return the original audit row id. Events SHALL include routing correlation, execution location and
+success until the audit row is inserted. `event_id` SHALL be generated once by the caller, remain
+stable through outbox replay, and be an idempotency key; replay SHALL return the original audit row
+id and `replayed=true`. Events SHALL include routing correlation and full-context digest, execution location and
 scope, requested and applied isolation, runtime/preflight outcome, policy revision/digest,
 canonical root, executable paths, allowed environment key names, and degradation reason without
 secret values.
+
+The server SHALL author `created_at`. `sandbox_applied=true` SHALL require the SRT backend,
+successful preflight, non-null runtime/policy/settings/root evidence, and no degradation reason.
+`sandbox_applied=false` SHALL require a degradation reason. Cleanup failure SHALL carry residual
+owned paths.
 
 The request's `agent_id` names the target CLI lane; the audit actor SHALL be derived from the
 authenticated principal and SHALL NOT be accepted from request JSON. Recording an event for
@@ -47,6 +55,13 @@ another agent requires trust level 3 or greater.
 WHEN sandbox preflight permits an unsandboxed fallback
 THEN the coordinator SHALL persist `applied=false` before acknowledging the event
 AND the fallback process SHALL not start before acknowledgement or a durable local outbox write.
+
+#### Scenario: Permanent outbox rejection does not poison later evidence
+
+WHEN an older queued event receives a permanent 4xx response during drain
+THEN that record SHALL move atomically to a durable dead-letter file with response metadata
+AND later queued records MAY continue draining
+AND a live event receiving 4xx SHALL fail closed rather than enter the outbox.
 
 #### Scenario: Secret values are excluded
 

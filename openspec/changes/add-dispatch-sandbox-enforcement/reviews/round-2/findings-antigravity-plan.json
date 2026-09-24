@@ -1,0 +1,55 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "correctness",
+      "criticality": "high",
+      "description": "In work-packages.yaml lines 163-167, the verification command for wp-integration executes 'skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/autopilot/scripts/tests/test_provider_dispatch.py skills/tests/phase-record-compaction/test_phase_agent.py skills/tests/vendor-neutral-autopilot/test_dispatch_adapter.py skills/tests/autopilot-roadmap/test_orchestrator.py agent-coordinator/tests/test_agents_config_isolation.py -q'. Running agent-coordinator/tests/test_agents_config_isolation.py with skills/.venv/bin/python fails immediately with 'ModuleNotFoundError: No module named respx' because respx is installed in agent-coordinator/.venv, not in skills/.venv. In wp-policy-audit (line 63) and wp-validation-docs (line 216), coordinator test suites are separated and invoked using agent-coordinator/.venv/bin/python. Bundling the coordinator test into the skills/.venv pytest invocation makes the wp-integration verification step deterministically unexecutable.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "id": 1,
+      "line_range": "163-167",
+      "severity": "critical",
+      "type": "behavioral_failure"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "medium",
+      "description": "In contracts/sandbox-execution-event.schema.json, requested_isolation allows 'none', 'worktree', and 'sandbox' (line 36), while lines 57-62 enforce an allOf condition: when sandbox_applied is false, degradation_reason is required to be a non-empty string. For dispatches where effective isolation is legitimately 'none' or 'worktree', sandbox_applied is false by design (specs/vendor-dispatch/spec.md lines 17-21), but no degradation occurred. Because of the unconditional allOf check, non-sandboxed dispatches fail schema validation unless a non-existent degradation reason is manufactured. The allOf schema condition should require degradation_reason only when requested_isolation is 'sandbox' and sandbox_applied is false.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json",
+      "id": 2,
+      "line_range": "36-62",
+      "severity": "nit",
+      "type": "contract_mismatch"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "medium",
+      "description": "contracts/sandbox-execution-event.schema.json requires location (line 12) and restricts it strictly to enum ['local', 'cloud'] (line 33). However, contracts/dispatch-execution-context.schema.json declares location as nullable: {'type': ['string', 'null'], 'enum': ['local', 'cloud', null]} (line 23), and the underlying configuration system (agent-coordinator/src/agents_config.py line 631) and dg-06 contracts (contracts/events/routing-decision-record.schema.json line 117) allow and default location to 'unknown'. If a standalone or unrouted caller constructs a DispatchExecutionContext with location: null or location: 'unknown', any resulting SandboxExecutionEvent will fail schema validation. The location enum should be consistent across both contracts or allow null/unknown when unrouted.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/sandbox-execution-event.schema.json",
+      "id": 3,
+      "line_range": "33",
+      "severity": "nit",
+      "type": "contract_mismatch"
+    },
+    {
+      "axis": "architecture",
+      "criticality": "medium",
+      "description": "Task 4.3 in tasks.md requires 'Version PhaseDispatchPayload, embed DispatchExecutionContext'. skills/autopilot/scripts/smoke_provider_dispatch.py (lines 155-165) constructs PhaseDispatchPayload directly, and is tested under skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py (executed during wp-validation-docs test suites). However, wp-integration's scope.write_allow (work-packages.yaml lines 137-154) lists provider_dispatch.py and its test file, but omits smoke_provider_dispatch.py. Bumping PhaseDispatchPayload to require execution_context will break smoke_provider_dispatch.py and subsequent test suites without wp-integration having write permission to update it.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "id": 4,
+      "line_range": "142-154",
+      "severity": "nit",
+      "type": "spec_gap"
+    }
+  ]
+}
