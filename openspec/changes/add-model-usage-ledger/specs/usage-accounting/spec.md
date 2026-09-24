@@ -167,6 +167,32 @@ null with `cost_reason = "no_price"`; the system SHALL never store zero as a sta
 When the vendor reported its own cost, `vendor_cost_usd` SHALL be stored alongside the estimate
 and reports SHALL prefer it, labelled as vendor-reported.
 
+A vendor-reported figure SHALL NOT be written to `cost_usd`, including when `cost_usd` would
+otherwise be null. `cost_usd` means "derived by this system from the pricing table" and
+`vendor_cost_usd` means "reported by the vendor"; the columns coexist and neither is promoted into
+the other. Preferring the vendor figure is a presentation rule for reports, not a storage rule.
+
+Collapsing them would cost three things that are currently true: a consumer could no longer tell
+whether a `cost_usd` total was estimates, billings, or a mixture; `pricing_version` would stop being
+a complete index of derived costs, so a rate correction could not re-price history; and
+`unpriced_records` would stop counting genuine gaps, because the tempting moment to promote is
+exactly when `cost_usd` is null — which is what makes a missing rate visible.
+
+#### Scenario: Vendor-reported cost never lands in cost_usd
+
+- **GIVEN** a Grok usage record whose transcript carries `total_cost_usd`
+- **AND** no pricing entry exists for that `(vendor, model)`
+- **THEN** `vendor_cost_usd` SHALL hold the vendor figure
+- **AND** `cost_usd` SHALL be null with `cost_reason = "no_price"`
+- **AND** the record SHALL still be counted under `unpriced_records`
+- **AND** a spend report SHALL show the vendor figure, labelled vendor-reported
+
+#### Scenario: Priced rows are always estimates
+
+- **WHEN** a usage record is written with a non-null `cost_usd`
+- **THEN** `estimated` SHALL be true and `pricing_version` SHALL be non-null
+- **AND** a write with `cost_usd` non-null and `estimated` false SHALL be rejected by the database
+
 #### Scenario: Unknown model yields null cost with reason
 
 - **WHEN** a usage record has `model = "experimental-x"` with no pricing entry

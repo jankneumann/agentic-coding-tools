@@ -98,6 +98,17 @@ Spec scenario IDs are `<capability>.<n>` numbered in file order within each delt
 - [ ] 3.4a Seed `agent-coordinator/pricing.yaml` (schema_version 1, version `2026.09.1`, rates for every vendor/model in `archetypes.yaml`) [S]
   **Design decisions**: D5
   **Dependencies**: 3.4
+
+- [ ] 3.4b Pin the cost-provenance invariant — a vendor-reported figure is never written to `cost_usd` even when it would be null, priced rows are rejected by the database when `estimated` is not true, and an unpriced record carrying `vendor_cost_usd` still counts under `unpriced_records` [S]
+  **Spec scenarios**: usage-accounting (Vendor-reported cost never lands in cost_usd), usage-accounting (Priced rows are always estimates)
+  **Design decisions**: D5, D13
+  **Contracts**: contracts/db/schema.sql
+  **Dependencies**: 3.4a
+  **Files**: agent-coordinator/src/usage_ledger.py, agent-coordinator/tests/test_pricing.py
+
+  The tempting moment to promote is exactly when `cost_usd` is null and a vendor figure is
+  available — which is the case that makes a missing rate visible. A test is cheaper than
+  rediscovering why the column is split.
 - [ ] 3.5 Write tests for `usage_ledger.py` service: ingest idempotency, dispatch upsert, by-phase join with mismatch flags, unattributed detection [M]
   **Spec scenarios**: usage-accounting.2, usage-accounting.5, usage-accounting.16, usage-accounting.17, usage-accounting.18
   **Design decisions**: D2, D3

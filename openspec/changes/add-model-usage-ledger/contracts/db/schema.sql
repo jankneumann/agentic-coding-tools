@@ -20,7 +20,13 @@ CREATE TABLE IF NOT EXISTS usage_records (
     cost_reason           TEXT,                        -- 'no_price' when cost_usd IS NULL
     pricing_version       TEXT,
     estimated             BOOLEAN,
-    vendor_cost_usd       NUMERIC(12,6),               -- vendor-reported, e.g. grok total_cost_usd
+    -- Vendor-reported, e.g. grok total_cost_usd. Coexists with cost_usd and is NEVER
+    -- promoted into it, not even when cost_usd is null (D13). cost_usd means "derived from
+    -- pricing.yaml" and carries pricing_version; this column means "the vendor said so" and
+    -- carries none. Merging them would make a cost_usd total un-splittable between estimates
+    -- and billings, strand promoted rows outside pricing_version's re-pricing index, and hide
+    -- the missing rate that unpriced_records exists to surface.
+    vendor_cost_usd       NUMERIC(12,6),
     session_id            TEXT        NOT NULL,
     agent_id              TEXT,                        -- sidechain sub-agent id, NULL for parent (D2)
     parent_session_id     TEXT,

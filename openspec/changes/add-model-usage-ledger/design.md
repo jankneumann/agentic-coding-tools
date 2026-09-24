@@ -101,6 +101,49 @@ for other harnesses).
 an accepted source for the router's spend ledger and feedback posteriors, and the "no transcript
 parsing in v1" sentence is struck.
 
+## D13 — `cost_usd` is always derived; a vendor-billed figure never moves into it
+
+The plan-review remediation constrained priced rows to `estimated IS TRUE`, and raised whether that
+would wrongly reject a genuinely vendor-billed cost. It would not, and the reason is already in D5:
+`vendor_cost_usd` is stored *alongside* the estimate and reports prefer it, labelled as
+vendor-reported. The two columns coexist. Nothing promotes one into the other.
+
+**Decision.** Make that explicit and enforce it, rather than leaving it as a property the schema
+happens to have.
+
+- `cost_usd` means "computed by this system from `pricing.yaml`". It is therefore always an
+  estimate, always carries `pricing_version`, and is null with `cost_reason` when no rate exists.
+- `vendor_cost_usd` means "reported by the vendor". It carries no `pricing_version`, because no
+  price table produced it.
+- A vendor-reported figure SHALL NOT be written to `cost_usd`, under any circumstance, including
+  when `cost_usd` would otherwise be null.
+
+The `estimated IS TRUE` constraint stays. It is not a restriction on what the system can represent;
+it is the statement that this column only ever holds one kind of number.
+
+**Alternative rejected: relax to `estimated IS NOT NULL` and allow promotion.** This is the shape
+the open question implied, and it is worse in three specific ways.
+
+*`cost_usd` would mean two things.* A consumer summing the column could no longer say whether it had
+summed estimates, billings, or a mixture — and the mixture is the common case, since only some
+vendors report cost. Reconciling a total against an invoice becomes impossible without re-deriving
+the split.
+
+*`pricing_version` becomes meaningless on promoted rows.* Today it answers "which table priced
+this", and re-pricing history after a rate correction is a matter of selecting on it. A promoted row
+has no pricing version and cannot be re-priced, so the column silently stops being a complete index
+of derived costs.
+
+*`unpriced_records` stops being true.* Promotion is most tempting exactly when `cost_usd` is null —
+a vendor cost is right there. But those records are counted as `unpriced_records` precisely so the
+gap in `pricing.yaml` stays visible. Filling `cost_usd` from the vendor hides the missing rate, and
+the rate stays missing for every other model that shares it.
+
+**Consequence for reports, which is where the question came from.** "Prefer the vendor figure" is a
+presentation rule, not a storage rule: a report showing spend SHALL use `vendor_cost_usd` when
+present and `cost_usd` otherwise, and SHALL label which it used. That gives the accurate number
+without collapsing the distinction that makes it auditable.
+
 ## Task-sizing notes
 
 Seven implementation packages, each M or smaller. The only L-shaped area was the coordinator
