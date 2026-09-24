@@ -72,6 +72,40 @@ def test_build_phase_dispatch_payload_returns_provider_neutral_payload(
     assert "complete" in payload["expected_outcomes"]
 
 
+def test_routed_payload_v2_preserves_authoritative_execution_context(
+    workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_loop_state(workspace, "demo")
+    monkeypatch.setattr(
+        coordination_bridge,
+        "try_resolve_archetype_for_phase",
+        lambda *args, **kwargs: {
+            "model": "must-not-substitute",
+            "system_prompt": "Run the phase.",
+            "archetype": "implementer",
+            "provider": "must-not-substitute",
+        },
+    )
+    context = {
+        "agent_id": "codex-local", "vendor_type": "codex",
+        "model": "gpt-5.6", "isolation": "sandbox",
+        "routing_context": {"provenance": {"extension": "preserved"}},
+    }
+
+    payload = phase_agent.build_phase_dispatch_payload(
+        phase="IMPLEMENT", change_id="demo", provider="codex",
+        agent_id="codex-local", execution_context=context,
+    )
+
+    assert payload["schema_version"] == 2
+    assert payload["provider"] == "codex"
+    assert payload["model"] == "gpt-5.6"
+    assert payload["agent_id"] == "codex-local"
+    assert payload["isolation"] == "sandbox"
+    assert payload["execution_context"] == context
+
+
 def test_normalize_tuple_result() -> None:
     payload = PhaseDispatchPayload(
         schema_version=1,

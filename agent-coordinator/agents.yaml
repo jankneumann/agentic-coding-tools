@@ -92,15 +92,23 @@ agents:
           # --json-schema verified 2026-09-12 (claude 2.1.268 --help).
           # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["--print", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
+          enforcement_scope: execution
+          write_capable: false
         alternative:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
+          enforcement_scope: execution
+          write_capable: true
         quick:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
+          enforcement_scope: execution
+          write_capable: true
       model_flag: "--model"
       # null → review_dispatcher resolves archetypes.yaml premium for claude_code
       model: null
       model_fallbacks: []
       prompt_via_stdin: true
+      api_key_env: ANTHROPIC_API_KEY
+      state_env_keys: []
 
   claude-remote:
     type: claude_code
@@ -125,12 +133,17 @@ agents:
           # --json-schema verified 2026-09-12 (same claude CLI as claude-local).
           # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
+          enforcement_scope: submission
+          write_capable: false
         quick:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
+          enforcement_scope: execution
+          write_capable: true
       model_flag: "--model"
       model: null
       model_fallbacks: []
       prompt_via_stdin: true
+      state_env_keys: []
     sdk:
       package: anthropic
       method: messages.create
@@ -168,13 +181,21 @@ agents:
         review:
           # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["exec", "-s", "read-only"]
+          enforcement_scope: execution
+          write_capable: false
         alternative:
           args: ["exec", "-s", "workspace-write"]
+          enforcement_scope: execution
+          write_capable: true
         quick:
           args: ["exec", "-s", "workspace-write"]
+          enforcement_scope: execution
+          write_capable: true
       model_flag: "-m"
       model: null
       model_fallbacks: []
+      api_key_env: OPENAI_API_KEY
+      state_env_keys: []
 
   codex-remote:
     type: codex
@@ -251,14 +272,22 @@ agents:
           # --json-schema verified 2026-09-12 (agy 1.2.2 --help: schema string
           # or path). Sentinel injected by CliVendorAdapter._resolve_args.
           args: ["--mode", "plan", "--dangerously-skip-permissions", "--output-format", "json", "--json-schema", "@review-findings-schema"]
+          enforcement_scope: execution
+          write_capable: false
         alternative:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
+          enforcement_scope: execution
+          write_capable: true
         quick:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
+          enforcement_scope: execution
+          write_capable: true
       model_flag: "--model"
       model: null
       model_fallbacks: []
       prompt_via_flag: "--prompt"
+      api_key_env: GEMINI_API_KEY
+      state_env_keys: []
 
   # ---------------------------------------------------------------------------
   # Grok (xAI / X subscription — routed through the `grok` binary, never
@@ -314,14 +343,22 @@ agents:
             - "--always-approve"
             - "--json-schema"
             - "@review-findings-schema"
+          enforcement_scope: execution
+          write_capable: false
         alternative:
           args: ["--prompt-file", "/dev/stdin", "--always-approve"]
+          enforcement_scope: execution
+          write_capable: true
         quick:
           args: ["--prompt-file", "/dev/stdin", "--always-approve"]
+          enforcement_scope: execution
+          write_capable: true
       model_flag: "-m"
       model: null
       model_fallbacks: []
       prompt_via_stdin: true
+      api_key_env: XAI_API_KEY
+      state_env_keys: []
 
   grok-remote:
     type: grok
@@ -393,10 +430,16 @@ agents:
           # Read-only-ness is a property of the review prompt, not of blinding
           # the reviewer. --approve matches alternative/quick.
           args: ["-p", "--provider", "openrouter", "--mode", "json", "--approve"]
+          enforcement_scope: execution
+          write_capable: false
         alternative:
           args: ["-p", "--provider", "openrouter", "--approve"]
+          enforcement_scope: execution
+          write_capable: true
         quick:
           args: ["-p", "--provider", "openrouter", "--approve"]
+          enforcement_scope: execution
+          write_capable: true
       model_flag: "--model"
       model: null
       model_fallbacks: []
@@ -404,6 +447,7 @@ agents:
       # checks fail closed on it instead of reporting the bare binary as
       # a usable vendor (issue #383).
       api_key_env: OPENROUTER_API_KEY
+      state_env_keys: []
 
   ocr-local:
     type: ocr
@@ -448,7 +492,10 @@ agents:
           # grok's --json-schema) is the fix for that, and is out of this
           # package's scope.
           args: ["skills/parallel-infrastructure/scripts/ocr_adapter.py"]
+          enforcement_scope: execution
+          write_capable: false
       model_flag: "--model"
       model: null
       model_fallbacks: []
       prompt_via_stdin: true
+      state_env_keys: []

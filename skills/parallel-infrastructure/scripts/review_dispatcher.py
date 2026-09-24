@@ -21,6 +21,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -51,7 +52,44 @@ from coordination_bridge import (  # noqa: E402
     try_submit_work,
 )
 
+_SKILLS_ROOT = Path(__file__).resolve().parents[2]
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+from shared.vendor_process_surfaces import (  # noqa: E402
+    VendorProcessInvocation,
+    VendorProcessBlocked,
+    as_completed_process,
+    run_vendor_process,
+)
+
 logger = logging.getLogger(__name__)
+
+
+def _run_cli_process(
+    argv: list[str],
+    *,
+    input: str | None = None,
+    capture_output: bool = True,
+    text: bool = True,
+    timeout: float,
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
+    isolation: str = "none",
+) -> subprocess.CompletedProcess[str]:
+    """Compatibility adapter over the one registered vendor-process backend."""
+
+    if not capture_output or not text:
+        raise ValueError("vendor process backend requires captured text output")
+    invocation = VendorProcessInvocation(
+        surface="review",
+        argv=tuple(argv),
+        cwd=Path(cwd or Path.cwd()),
+        env=env or os.environ.copy(),
+        timeout_seconds=timeout,
+        isolation=isolation,  # type: ignore[arg-type]
+        stdin_text=input,
+    )
+    return as_completed_process(invocation, run_vendor_process(invocation))
 
 
 # ---------------------------------------------------------------------------
@@ -552,6 +590,8 @@ class ModeConfig:
     async_dispatch: bool = False
     poll: PollConfig | None = None
     isolation: str | None = None
+    enforcement_scope: str = "execution"
+    write_capable: bool = False
 
 
 @dataclass
@@ -573,6 +613,7 @@ class CliConfig:
     # OPENROUTER_API_KEY). A present binary with this var unset cannot serve
     # a request — can_dispatch() fails closed on it (issue #383).
     api_key_env: str = ""
+    state_env_keys: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -733,6 +774,19 @@ class ReviewResult:
     capacity_model: str | None = None
     capacity_reset_at: str | None = None
     capacity_retry_after_seconds: int | None = None
+    # Immutable routing/enforcement evidence for one process attempt.
+    routing_digest: str | None = None
+    requested_isolation: str | None = None
+    applied_isolation: str | None = None
+    endpoint_digest: str | None = None
+    policy_revision: str | None = None
+    runtime_version: str | None = None
+    settings_digest: str | None = None
+    snapshot_content_digest: str | None = None
+    collection_state: str | None = None
+    cleanup_status: str | None = None
+    cleanup_residual_paths: list[str] = field(default_factory=list)
+    sandbox_host_commit_required: bool = False
 
 
 def _notify_capacity(
@@ -1009,13 +1063,16 @@ class CliVendorAdapter:
             start = time.monotonic()
 
             try:
-                result = subprocess.run(
+                result = _run_cli_process(
                     cmd,
                     input=stdin_text,
                     capture_output=True,
                     text=True,
                     timeout=timeout_seconds,
                     cwd=str(cwd),
+                    isolation=(
+                        self.cli_config.dispatch_modes[mode].isolation or "none"
+                    ),
                 )
                 elapsed = time.monotonic() - start
 
@@ -1030,6 +1087,7 @@ class CliVendorAdapter:
                         selected_files=_extract_selected_files_from_prompt(prompt),
                         coverage_quorum_threshold=_coverage_quorum_threshold(cwd),
                     )
+                    self._stamp_process_metadata(ingested, result, mode=mode)
                     if ingested.success or ingested.error_class in (
                         ErrorClass.AUTH, ErrorClass.UNAVAILABLE,
                     ):
@@ -1140,6 +1198,36 @@ class CliVendorAdapter:
             error=last_error[:500] if last_error else "Unknown error",
             error_class=last_error_class,
         )
+
+    def _stamp_process_metadata(
+        self,
+        review: ReviewResult,
+        process: subprocess.CompletedProcess[str],
+        *,
+        mode: str,
+    ) -> ReviewResult:
+        metadata = getattr(process, "sandbox_metadata", {})
+        if not isinstance(metadata, dict):
+            return review
+        for field_name in (
+            "routing_digest", "requested_isolation", "applied_isolation",
+            "endpoint_digest", "policy_revision", "runtime_version",
+            "settings_digest", "snapshot_content_digest", "cleanup_status",
+        ):
+            value = metadata.get(field_name)
+            if value is not None:
+                setattr(review, field_name, value)
+        residual = metadata.get("cleanup_residual_paths")
+        if isinstance(residual, list) and all(isinstance(path, str) for path in residual):
+            review.cleanup_residual_paths = list(residual)
+        review.collection_state = "collected" if review.success else "failed"
+        mode_config = self.cli_config.dispatch_modes[mode]
+        review.sandbox_host_commit_required = bool(
+            mode_config.write_capable
+            and review.requested_isolation == "sandbox"
+            and review.success
+        )
+        return review
 
     def _ingest_stdout(
         self,
@@ -1523,13 +1611,14 @@ class CliVendorAdapter:
             start = time.monotonic()
 
             try:
-                result = subprocess.run(
+                result = _run_cli_process(
                     cmd,
                     input=stdin_text,
                     capture_output=True,
                     text=True,
                     timeout=120,  # submit timeout (not execution timeout)
                     cwd=str(cwd),
+                    isolation=mode_config.isolation or "none",
                 )
             except subprocess.TimeoutExpired:
                 return fail(
@@ -1630,6 +1719,7 @@ class CliVendorAdapter:
         *,
         review_started_at: float | None = None,
         ledger_task_id: str | None = None,
+        isolation: str = "none",
     ) -> ReviewResult:
         """Poll structured status and persist terminal state before ingestion.
 
@@ -1657,11 +1747,20 @@ class CliVendorAdapter:
             arg.replace("{task_id}", task_id)
             for arg in poll_config.command_template
         ]
+        poll_mode = next(
+            (
+                name
+                for name, config in self.cli_config.dispatch_modes.items()
+                if config.poll is poll_config or config.poll == poll_config
+            ),
+            "alternative",
+        )
 
         start = time.monotonic()
         elapsed_start = review_started_at if review_started_at is not None else start
         deadline = start + poll_config.timeout_seconds
         attempts = 0
+        enforcement_block: str | None = None
 
         while time.monotonic() < deadline:
             attempts += 1
@@ -1670,15 +1769,21 @@ class CliVendorAdapter:
             )
 
             try:
-                result = subprocess.run(
+                result = _run_cli_process(
                     poll_cmd,
                     capture_output=True,
                     text=True,
                     timeout=30,
                     cwd=str(cwd) if cwd else None,
+                    isolation=isolation,
                 )
             except subprocess.TimeoutExpired:
                 logger.warning("Poll command timed out, retrying")
+                time.sleep(poll_config.interval_seconds)
+                continue
+            except VendorProcessBlocked as exc:
+                enforcement_block = str(exc)
+                logger.warning("Poll enforcement blocked, retrying: %s", exc)
                 time.sleep(poll_config.interval_seconds)
                 continue
             except OSError as exc:
@@ -1789,6 +1894,7 @@ class CliVendorAdapter:
                     models_attempted=[],
                     enforce_empty_findings_grace=review_started_at is not None,
                 )
+                self._stamp_process_metadata(ingested, result, mode=poll_mode)
                 ledger_error = self._complete_completion_ledger(
                     ledger_task_id,
                     success=ingested.success,
@@ -1817,6 +1923,16 @@ class CliVendorAdapter:
             time.sleep(poll_config.interval_seconds)
 
         # Timeout
+        if enforcement_block is not None:
+            return ReviewResult(
+                vendor=self.vendor,
+                success=False,
+                elapsed_seconds=time.monotonic() - elapsed_start,
+                error=f"remote_state_unknown: {enforcement_block}",
+                error_class=ErrorClass.TRANSIENT,
+                task_id=task_id,
+                ledger_task_id=ledger_task_id,
+            )
         message = (
             f"Polling timed out after {poll_config.timeout_seconds}s "
             f"({attempts} attempts)"
@@ -2408,17 +2524,70 @@ def _main_repo_from_cwd(cwd: Path) -> Path:
 
 
 def review_snapshot_path(cwd: Path, round_id: str, vendor: str) -> Path:
-    """``.git-worktrees/.review-snapshots/<round>/<vendor>/`` under the main repo."""
+    """Return one registered read-only review snapshot path."""
     root = _main_repo_from_cwd(cwd) / ".git-worktrees" / ".review-snapshots"
-    return root / _safe_path_component(round_id) / _safe_path_component(vendor)
+    return root / (
+        f"{_safe_path_component(round_id)}--{_safe_path_component(vendor)}"
+    )
+
+
+def workspace_content_digest(cwd: Path) -> str:
+    """Digest the exact index plus tracked/worktree/nonignored-untracked content."""
+
+    index = subprocess.run(
+        ["git", "ls-files", "--stage", "-z"],
+        cwd=str(cwd),
+        check=True,
+        capture_output=True,
+    ).stdout
+    listed = subprocess.run(
+        ["git", "ls-files", "-co", "--exclude-standard", "-z"],
+        cwd=str(cwd),
+        check=True,
+        capture_output=True,
+    ).stdout
+    if isinstance(index, str):
+        index = index.encode()
+    if isinstance(listed, str):
+        listed = listed.encode()
+    digest = hashlib.sha256()
+    digest.update(b"index\0")
+    digest.update(index)
+    for raw in sorted(set(listed.split(b"\0"))):
+        if not raw:
+            continue
+        relative = raw.decode("utf-8", errors="surrogateescape")
+        if relative == ".git-worktrees" or relative.startswith(".git-worktrees/"):
+            continue
+        path = cwd / relative
+        digest.update(b"path\0")
+        digest.update(raw)
+        digest.update(b"\0")
+        if path.is_symlink():
+            digest.update(b"symlink\0")
+            digest.update(os.readlink(path).encode("utf-8", errors="surrogateescape"))
+        elif path.is_file():
+            digest.update(b"file\0")
+            digest.update(path.read_bytes())
+        else:
+            digest.update(b"missing\0")
+    return digest.hexdigest()
 
 
 def create_review_snapshot(cwd: Path, round_id: str, vendor: str) -> Path:
-    """Add a detached throwaway worktree for one vendor retry, then return it."""
+    """Materialize an exact detached review snapshot and prove content parity."""
     dest = review_snapshot_path(cwd, round_id, vendor)
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists():
         destroy_review_snapshot(dest, cwd)
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=str(cwd),
+        check=True,
+        capture_output=True,
+    ).stdout
+    if isinstance(untracked, str):
+        untracked = untracked.encode()
     subprocess.run(
         ["git", "worktree", "add", "--detach", str(dest), "HEAD"],
         cwd=str(cwd),
@@ -2427,6 +2596,51 @@ def create_review_snapshot(cwd: Path, round_id: str, vendor: str) -> Path:
         text=True,
         timeout=60,
     )
+    try:
+        staged = subprocess.run(
+            ["git", "diff", "--binary", "--cached", "HEAD"],
+            cwd=str(cwd),
+            check=True,
+            capture_output=True,
+        ).stdout
+        if staged:
+            subprocess.run(
+                ["git", "apply", "--index", "--binary", "-"],
+                cwd=str(dest),
+                input=staged,
+                check=True,
+                capture_output=True,
+            )
+        unstaged = subprocess.run(
+            ["git", "diff", "--binary"],
+            cwd=str(cwd),
+            check=True,
+            capture_output=True,
+        ).stdout
+        if unstaged:
+            subprocess.run(
+                ["git", "apply", "--binary", "-"],
+                cwd=str(dest),
+                input=unstaged,
+                check=True,
+                capture_output=True,
+            )
+        for raw in untracked.split(b"\0"):
+            if not raw:
+                continue
+            relative = raw.decode("utf-8", errors="surrogateescape")
+            source = cwd / relative
+            target = dest / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if source.is_symlink():
+                target.symlink_to(os.readlink(source))
+            else:
+                shutil.copy2(source, target)
+        if workspace_content_digest(cwd) != workspace_content_digest(dest):
+            raise RuntimeError("review snapshot content digest mismatch")
+    except Exception:
+        destroy_review_snapshot(dest, cwd)
+        raise
     return dest
 
 
@@ -2464,10 +2678,11 @@ def _dispatch_with_snapshot_fallback(
     cwd: Path,
     round_id: str,
     run: Callable[[Path], ReviewResult],
+    write_capable: bool = False,
 ) -> ReviewResult:
     """Run *run(cwd)*; on concurrent git-index failure, retry on a snapshot."""
     result = run(cwd)
-    if result.success or not _is_concurrent_git_error(result):
+    if result.success or write_capable or not _is_concurrent_git_error(result):
         return result
     logger.warning(
         "Concurrent git access error for %s; retrying on detached snapshot",
@@ -2552,6 +2767,10 @@ class ReviewOrchestrator:
                         async_dispatch=mode_data.get("async", False),
                         poll=poll_cfg,
                         isolation=mode_data.get("isolation"),
+                        enforcement_scope=mode_data.get(
+                            "enforcement_scope", "execution"
+                        ),
+                        write_capable=mode_data.get("write_capable", False),
                     )
                 adapters[agent["agent_id"]] = CliVendorAdapter(
                     agent_id=agent["agent_id"],
@@ -2565,6 +2784,7 @@ class ReviewOrchestrator:
                         prompt_via_stdin=cli.get("prompt_via_stdin", False),
                         prompt_via_flag=cli.get("prompt_via_flag"),
                         api_key_env=cli.get("api_key_env") or "",
+                        state_env_keys=list(cli.get("state_env_keys") or []),
                     ),
                     transport=agent.get("transport", "mcp"),
                 )
@@ -2660,7 +2880,21 @@ class ReviewOrchestrator:
                 "endpoint_kind": endpoint_kind,
                 "base_url": base_url,
                 "api_key_env": agent.get("api_key_env"),
-                "cli": cli,
+                "cli": (
+                    {
+                        **cli,
+                        "dispatch_modes": {
+                            name: {
+                                **mode,
+                                "isolation": mode.get("isolation")
+                                or agent.get("isolation", "none"),
+                            }
+                            for name, mode in cli.get("dispatch_modes", {}).items()
+                        },
+                    }
+                    if cli
+                    else None
+                ),
                 "sdk": sdk,
             })
         logger.info("Loaded dispatch config from agents.yaml: %s", path)
@@ -3012,6 +3246,7 @@ class ReviewOrchestrator:
                             vendor=reviewer.vendor,
                             cwd=cwd,
                             round_id=round_id,
+                            write_capable=mode_config.write_capable,
                             run=lambda run_cwd, a=adapter, t=vendor_timeout: a.dispatch(
                                 dispatch_mode,
                                 prompt,
@@ -3120,6 +3355,7 @@ class ReviewOrchestrator:
                         vendor=job["vendor"],
                         cwd=cwd,
                         round_id=round_id,
+                        write_capable=job["mode_config"].write_capable,
                         run=lambda run_cwd, a=job["adapter"]: a.dispatch_async(
                             dispatch_mode,
                             prompt,
@@ -3162,6 +3398,7 @@ class ReviewOrchestrator:
                         cwd=run_cwd,
                         review_started_at=started,
                         ledger_task_id=ledger_id,
+                        isolation=mode_config.isolation or "none",
                     )
 
                 poll_futs[pool.submit(
@@ -3172,6 +3409,7 @@ class ReviewOrchestrator:
                         vendor=job["vendor"],
                         cwd=cwd,
                         round_id=round_id,
+                        write_capable=mode_config.write_capable,
                         run=_poll_run,
                     ),
                 )] = job
@@ -3256,6 +3494,18 @@ class ReviewOrchestrator:
                 "async_dispatch": r.async_dispatch,
                 "task_id": r.task_id,
                 "ledger_task_id": r.ledger_task_id,
+                "routing_digest": r.routing_digest,
+                "requested_isolation": r.requested_isolation,
+                "applied_isolation": r.applied_isolation,
+                "endpoint_digest": r.endpoint_digest,
+                "policy_revision": r.policy_revision,
+                "runtime_version": r.runtime_version,
+                "settings_digest": r.settings_digest,
+                "snapshot_content_digest": r.snapshot_content_digest,
+                "collection_state": r.collection_state,
+                "cleanup_status": r.cleanup_status,
+                "cleanup_residual_paths": r.cleanup_residual_paths,
+                "sandbox_host_commit_required": r.sandbox_host_commit_required,
             }
             for r in results
         ]

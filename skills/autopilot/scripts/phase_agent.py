@@ -993,6 +993,7 @@ def build_phase_dispatch_kwargs(
     change_id: str,
     provider: str | None = None,
     agent_id: str | None = None,
+    execution_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the dispatch payload for a phase sub-agent (D3).
 
@@ -1053,8 +1054,20 @@ def build_phase_dispatch_kwargs(
     }
     _atomic_write_json(_cache_path(change_id), cache_payload)
 
+    if execution_context is not None:
+        context_provider = execution_context.get("vendor_type")
+        context_agent = execution_context.get("agent_id")
+        if provider is not None and provider != context_provider:
+            raise ValueError("provider disagrees with execution_context")
+        if agent_id is not None and agent_id != context_agent:
+            raise ValueError("agent_id disagrees with execution_context")
+        dispatch_provider = context_provider
+        model = execution_context.get("model")
+        isolation = execution_context.get("isolation")
+        agent_id = context_agent
+
     return {
-        "schema_version": 1,
+        "schema_version": 2 if execution_context is not None else 1,
         "change_id": change_id,
         "phase": phase,
         "provider": dispatch_provider,
@@ -1066,6 +1079,11 @@ def build_phase_dispatch_kwargs(
         "archetype": archetype,
         "write_capable": write_capable,
         "expected_outcomes": _expected_outcomes_for_phase(phase),
+        **(
+            {"execution_context": json.loads(json.dumps(execution_context))}
+            if execution_context is not None
+            else {}
+        ),
     }
 
 
@@ -1096,6 +1114,7 @@ def build_phase_dispatch_payload(
     change_id: str,
     provider: str | None = None,
     agent_id: str | None = None,
+    execution_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return a provider-neutral phase dispatch payload."""
     payload = build_phase_dispatch_kwargs(
@@ -1103,6 +1122,7 @@ def build_phase_dispatch_payload(
         change_id=change_id,
         provider=provider,
         agent_id=agent_id,
+        execution_context=execution_context,
     )
     if payload.get("provider") is None:
         payload["provider"] = "claude_code"

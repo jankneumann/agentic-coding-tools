@@ -494,6 +494,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                             "type": "string",
                                             "enum": list(ISOLATION_MODES),
                                         },
+                                        "enforcement_scope": {
+                                            "type": "string",
+                                            "enum": ["execution", "submission"],
+                                        },
+                                        "write_capable": {"type": "boolean"},
                                         "poll": {
                                             "type": "object",
                                             "required": [
@@ -535,6 +540,14 @@ AGENTS_SCHEMA: dict[str, Any] = {
                             # env). Availability checks treat the binary as
                             # unavailable when the var is unset (issue #383).
                             "api_key_env": {"type": "string", "minLength": 1},
+                            "state_env_keys": {
+                                "type": "array",
+                                "uniqueItems": True,
+                                "items": {
+                                    "type": "string",
+                                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+                                },
+                            },
                         },
                         "additionalProperties": False,
                     },
@@ -569,6 +582,8 @@ class ModeConfig:
     async_dispatch: bool = False
     poll: PollConfig | None = None
     isolation: IsolationMode | None = None
+    enforcement_scope: str = "execution"
+    write_capable: bool = False
 
 
 @dataclass
@@ -593,6 +608,21 @@ class CliConfig:
     # OPENROUTER_API_KEY). A present binary with this var unset cannot serve
     # a request, so availability checks fail closed on it (issue #383).
     api_key_env: str = ""
+    state_env_keys: list[str] = field(default_factory=list)
+
+    def sandbox_rollout_eligible(
+        self,
+        mode: str,
+        *,
+        fallback_isolation: IsolationMode = "none",
+    ) -> bool:
+        """Return whether a sandbox lane has environment-backed authentication."""
+
+        configured = self.dispatch_modes.get(mode)
+        if configured is None:
+            return False
+        isolation = configured.isolation or fallback_isolation
+        return isolation != "sandbox" or bool(self.api_key_env)
 
 
 @dataclass
@@ -883,6 +913,10 @@ def load_agents_config(
                     args=mode_data["args"],
                     async_dispatch=mode_data.get("async", False),
                     isolation=mode_data.get("isolation"),
+                    enforcement_scope=mode_data.get(
+                        "enforcement_scope", "execution"
+                    ),
+                    write_capable=mode_data.get("write_capable", False),
                     poll=poll_config,
                 )
 
@@ -898,6 +932,7 @@ def load_agents_config(
                 prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
                 prompt_via_flag=raw_cli.get("prompt_via_flag", ""),
                 api_key_env=raw_cli.get("api_key_env", ""),
+                state_env_keys=list(raw_cli.get("state_env_keys", [])),
             )
 
         sdk_config: SdkConfig | None = None
@@ -1863,11 +1898,9 @@ def get_dispatch_configs(
                     name: {
                         "args": mc.args,
                         "async": mc.async_dispatch,
-                        **(
-                            {"isolation": mc.isolation}
-                            if mc.isolation is not None
-                            else {}
-                        ),
+                        "isolation": mc.isolation or entry.isolation,
+                        "enforcement_scope": mc.enforcement_scope,
+                        "write_capable": mc.write_capable,
                         **({"poll": {
                             "command_template": mc.poll.command_template,
                             "result_protocol": mc.poll.result_protocol,
@@ -1883,6 +1916,7 @@ def get_dispatch_configs(
                 "prompt_via_stdin": entry.cli.prompt_via_stdin,
                 "prompt_via_flag": entry.cli.prompt_via_flag,
                 "api_key_env": entry.cli.api_key_env,
+                "state_env_keys": entry.cli.state_env_keys,
             }
         agents_out.append({
             "agent_id": entry.name,

@@ -10,6 +10,7 @@ from jsonschema import ValidationError
 
 from src.agents_config import (
     AgentEntry,
+    CliConfig,
     ModeConfig,
     get_agent_isolation,
     get_dispatch_configs,
@@ -213,9 +214,14 @@ def _mode_aware_agents_yaml(tmp_path: Path) -> Path:
                 review:
                   args: [exec]
                   isolation: sandbox
+                  enforcement_scope: execution
+                  write_capable: false
                 alternative:
                   args: [exec]
+                  enforcement_scope: execution
+                  write_capable: true
               model_flag: -m
+              state_env_keys: []
           codex-remote:
             type: codex
             profile: remote
@@ -229,7 +235,10 @@ def _mode_aware_agents_yaml(tmp_path: Path) -> Path:
               dispatch_modes:
                 review:
                   args: [exec]
+                  enforcement_scope: submission
+                  write_capable: false
               model_flag: -m
+              state_env_keys: []
     """))
     return path
 
@@ -277,7 +286,10 @@ def test_dispatch_config_serializes_mode_isolation(
     output = get_dispatch_configs()
     local = next(agent for agent in output["agents"] if agent["agent_id"] == "codex-local")
     assert local["cli"]["dispatch_modes"]["review"]["isolation"] == "sandbox"
-    assert "isolation" not in local["cli"]["dispatch_modes"]["alternative"]
+    assert local["cli"]["dispatch_modes"]["alternative"]["isolation"] == "worktree"
+    assert local["cli"]["dispatch_modes"]["review"]["enforcement_scope"] == "execution"
+    assert local["cli"]["dispatch_modes"]["review"]["write_capable"] is False
+    assert local["cli"]["state_env_keys"] == []
 
 
 def test_invalid_per_mode_isolation_is_rejected_at_load(
@@ -289,3 +301,55 @@ def test_invalid_per_mode_isolation_is_rejected_at_load(
 
     with pytest.raises(ValidationError, match="container"):
         load_agents_config(path, secrets_path=dummy_secrets)
+
+
+def test_mode_enforcement_and_cli_state_keys_are_parsed(
+    tmp_path: Path,
+    dummy_secrets: Path,
+) -> None:
+    agents = load_agents_config(
+        _mode_aware_agents_yaml(tmp_path), secrets_path=dummy_secrets
+    )
+    local = next(agent for agent in agents if agent.name == "codex-local")
+    assert local.cli is not None
+    assert local.cli.state_env_keys == []
+    assert local.cli.dispatch_modes["review"].enforcement_scope == "execution"
+    assert local.cli.dispatch_modes["review"].write_capable is False
+    assert local.cli.dispatch_modes["alternative"].write_capable is True
+
+
+@pytest.mark.parametrize("state_keys", ["[VENDOR_HOME, VENDOR_HOME]", "[not-valid]"])
+def test_state_env_keys_reject_duplicates_and_invalid_names(
+    tmp_path: Path,
+    dummy_secrets: Path,
+    state_keys: str,
+) -> None:
+    path = _mode_aware_agents_yaml(tmp_path)
+    path.write_text(
+        path.read_text().replace(
+            "state_env_keys: []", f"state_env_keys: {state_keys}", 1
+        )
+    )
+
+    with pytest.raises((ValidationError, ValueError), match="state_env_keys"):
+        load_agents_config(path, secrets_path=dummy_secrets)
+
+
+def test_sandbox_cli_without_environment_auth_is_rollout_ineligible() -> None:
+    cli = CliConfig(
+        command="codex",
+        dispatch_modes={
+            "review": ModeConfig(
+                args=["exec"],
+                isolation="sandbox",
+                enforcement_scope="execution",
+                write_capable=False,
+            )
+        },
+        model_flag="-m",
+        state_env_keys=[],
+    )
+
+    assert cli.sandbox_rollout_eligible("review") is False
+    cli.api_key_env = "OPENAI_API_KEY"
+    assert cli.sandbox_rollout_eligible("review") is True

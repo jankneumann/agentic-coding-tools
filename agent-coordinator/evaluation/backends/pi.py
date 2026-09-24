@@ -15,16 +15,25 @@ Empirical Phase 1 findings (design.md § Empirical CLI findings):
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import shutil
+import sys
 import time
+from pathlib import Path
 from typing import Any
 
 from ..config import AblationFlags, AgentBackendConfig
 from ..metrics import TokenUsage
 from .base import BackendResult
+
+_SKILLS_ROOT = Path(__file__).resolve().parents[3] / "skills"
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+from shared.vendor_process_surfaces import (  # noqa: E402
+    VendorProcessInvocation,
+    run_vendor_process_async,
+)
 
 # NDJSON events that carry the terminal assistant message (E8).
 _TERMINAL_EVENTS = {"agent_end", "message_end"}
@@ -170,27 +179,26 @@ class PiBackend:
 
         try:
             env = {**os.environ, **self._env}
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=working_dir,
+            result = await run_vendor_process_async(VendorProcessInvocation(
+                surface="evaluation_pi",
+                argv=tuple(cmd),
+                cwd=Path(working_dir),
                 env=env,
-            )
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=timeout
-            )
+                timeout_seconds=timeout,
+                isolation="none",
+            ))
             wall_clock = time.time() - start_time
+            if result.timed_out:
+                raise TimeoutError
+            raw = result.stdout
+            err_output = result.stderr
 
-            raw = stdout.decode("utf-8", errors="replace")
-            err_output = stderr.decode("utf-8", errors="replace")
-
-            if process.returncode != 0:
+            if result.returncode != 0:
                 return BackendResult(
                     success=False,
                     output=raw,
                     wall_clock_seconds=wall_clock,
-                    error=err_output or f"pi exited {process.returncode}",
+                    error=err_output or f"pi exited {result.returncode}",
                 )
 
             output, usage = self._parse_ndjson(raw)

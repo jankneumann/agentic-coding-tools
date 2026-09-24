@@ -69,6 +69,42 @@ def _routed_result(context: dict, *, status: str = "completed") -> dict:
     }
 
 
+def test_local_route_projects_lossless_payload_v2_execution_context(tmp_path) -> None:
+    _write_roadmap(
+        tmp_path,
+        items=[RoadmapItem("ri-01", "Item", ItemStatus.APPROVED, 1, Effort.S)],
+    )
+    seen: list[dict] = []
+
+    def resolve(_item, phase, _context):
+        return {
+            "decision_id": f"decision-{phase}",
+            "assignment": {
+                "agent_id": "codex-local", "vendor_type": "codex",
+                "policy_vendor": "codex", "catalog_vendor": "openai",
+                "location": "local", "isolation": "sandbox",
+                "dispatch_mode": "alternative", "model": "gpt-5.6",
+                "endpoint_kind": "vendor-cli", "base_url": None,
+                "enforcement_scope": "execution", "write_capable": True,
+                "extension": {"preserved": True},
+            },
+            "provenance": {"extension": ["preserved"]},
+        }
+
+    def dispatch(_item, _phase, context):
+        seen.append(context["execution_context"])
+        return _routed_result(context)
+
+    execute_roadmap(tmp_path, dispatch_fn=dispatch, routing_resolver=resolve)
+
+    assert len(seen) == 4
+    assert seen[0]["routing_context"]["assignment"]["extension"] == {
+        "preserved": True
+    }
+    assert len(seen[0]["routing_context_digest"]) == 64
+    assert seen[0]["worktree_root"] == str(tmp_path.resolve())
+
+
 class TestExecutionOrder:
     """Verify items execute in dependency and priority order."""
 

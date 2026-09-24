@@ -150,6 +150,11 @@ return terminal `routing_proof` only after observing the
 correlated VendorResultEnvelope or ledger record. Echoing fields from dispatch context
 without that authoritative observation is invalid host integration.
 
+For a local write-capable route with `isolation="sandbox"`, `dispatch_fn` must
+instruct the worker to edit only. A successful collection carries
+`sandbox_host_commit_required=true`; the roadmap host validates the scoped diff
+and creates the save-point commit before it records the routed attempt complete.
+
 On resume, the host must also supply a `routing_reconciler` that reads the
 coordinator ledger for any checkpointed `prepared` attempt. An unavailable or
 mismatched result parks with a durable escalation before a new submission. The

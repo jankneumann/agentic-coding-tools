@@ -68,6 +68,12 @@ python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 Write-mode quick tasks must push their branch and use PR review before any work
 reaches main.
 
+When the selected write lane requests `isolation="sandbox"`, the vendor edits
+only and MUST NOT commit or push. It returns
+`sandbox_host_commit_required=true`; after collection the host validates the
+worktree diff, creates the save-point commit, and performs the existing push/PR
+step outside the sandbox.
+
 ### 2. Complexity Check
 
 If the prompt exceeds 500 words OR references more than 5 file paths, emit a warning:
