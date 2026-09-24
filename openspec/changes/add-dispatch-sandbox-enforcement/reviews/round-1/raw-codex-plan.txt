@@ -1,0 +1,94 @@
+{
+  "findings": [
+    {
+      "id": "DSE-001",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "The change is not an implementation plan yet. `openspec/changes/add-dispatch-sandbox-enforcement/` contains only `proposal.md` and `specs/vendor-dispatch/spec.md`; `design.md`, `contracts/`, `tasks.md`, and `work-packages.yaml` are absent. The repository independently records this as “design-ish / no tasks” and “missing task decomposition” at `openspec/priorities/latest.md:120-122` and `openspec/priorities/latest.md:200-205`, while the proposal itself defers conflict sequencing to the nonexistent design at `openspec/changes/add-dispatch-sandbox-enforcement/proposal.md:254-265`. Add the missing design, versioned contracts, task decomposition, file locks, package DAG, and verification gates before implementation dispatch.",
+      "disposition": "regenerate",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-002",
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "The proposed resolver would obtain a fresh routing answer instead of consuming the immutable decision already attached by dg-06. `openspec/changes/add-dispatch-sandbox-enforcement/proposal.md:78-81` says `resolve_isolation()` consults the router, and `proposal.md:256-262` names `POST /route/task`; however, the dg-04 contract explicitly says that operation does not exist at `openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/README.md:6-16`, with the actual operation defined as `POST /routing/select_model` at `contracts/openapi/v1.1.yaml:11-24`. More importantly, dg-06 requires the selected assignment to be deep-copied and preserved at `openspec/changes/make-the-orchestrator-obey-the-router/design.md:11-17`, and current code persists that assignment at `skills/autopilot-roadmap/scripts/orchestrator.py:244-284`. Change the plan so the enforcement seam consumes the supplied routing context's `assignment.isolation` unchanged; use dg-05 fallback resolution only when no routed context exists, and never re-route an active attempt.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-003",
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "The claimed single chokepoint does not cover all current vendor CLI subprocesses. The plan modifies only `CliVendorAdapter.dispatch()` and `dispatch_async()` at `openspec/changes/add-dispatch-sandbox-enforcement/proposal.md:94-97`, while the requirement forbids any adapter bypass at `specs/vendor-dispatch/spec.md:3-13`. Async status commands are independently constructed and executed at `skills/parallel-infrastructure/scripts/review_dispatcher.py:1656-1679`. More seriously, `PhaseDispatchPayload` already carries isolation at `skills/autopilot/scripts/provider_dispatch.py:38-65`, but the local Pi agent is launched directly and ignores it at `provider_dispatch.py:474-504`. Route every agent-controlled subprocess through one shared launch primitive, including sync submission, async submission, polling where the requirement remains broad, repair/fallback attempts, and the autopilot Pi harness; alternatively narrow the normative requirement and add an explicit separate enforcement package for uncovered execution surfaces.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-004",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "The plan has no workable SRT 0.0.77 configuration or dependency lifecycle. It promises a pure dictionary renderer plus an argv wrapper at `openspec/changes/add-dispatch-sandbox-enforcement/proposal.md:72-90` and acknowledges the runtime's unstable interface at `proposal.md:163-172`, but SRT's CLI consumes per-run configuration through `--settings <file>` as documented in the [official SRT README](https://github.com/anthropics/sandbox-runtime/blob/main/README.md). No package manifest, exact version pin, installer ownership, secure settings-file materialization, cleanup, or version/capability probe is planned. A shared `~/.srt-settings.json` would also race because dispatches run concurrently at `skills/parallel-infrastructure/scripts/review_dispatcher.py:3113-3135`. Specify a per-dispatch, mode-0600 settings file and guaranteed cleanup across success, timeout, exception, repair, and fallback paths; pin and verify 0.0.77; and distinguish absent `srt`, missing transitive prerequisites such as `bwrap`, `socat`, or `rg`, and unsupported kernels from failures produced by the wrapped vendor command before deciding to retry unsandboxed.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-005",
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "The network-policy export cannot be a simple list of allowed domains without changing policy semantics. Current enforcement selects profile-specific rules before global rules, then applies numeric priority and SQL wildcard matching at `agent-coordinator/database/migrations/009_network_policies.sql:78-97`; the service separately applies an environment-configured default on RPC failure at `agent-coordinator/src/network_policies.py:59-78`. The proposed export at `openspec/changes/add-dispatch-sandbox-enforcement/proposal.md:121-124` defines no agent identity, snapshot/version, allow-versus-deny precedence, default-policy representation, wildcard translation, normalization, tie handling, or malformed-policy behavior. Add a versioned, agent-specific export contract that deterministically projects exact/profile/global rules into SRT semantics, validates patterns and actions, records policy provenance, and fails closed on invalid or unavailable policy data. Tests must cover exact versus wildcard overlap, profile deny over global allow, priority conflicts, default allow/deny, SQL `%`/`_` characters, and database failure.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-006",
+      "type": "observability",
+      "criticality": "critical",
+      "description": "The fail-open audit guarantee is not durable with the existing audit API. The requirement says degradation must be reconstructible from the audit trail alone at `openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:56-74`. Yet `AuditService.log_operation()` returns success immediately before insertion when async logging is enabled at `agent-coordinator/src/audit.py:154-160`; `drain()` only checks for pending tasks and never checks failed `AuditResult` values from completed tasks at `audit.py:164-195`; insertion failures merely return a failed result at `audit.py:197-220`. The standalone dispatcher also has no append-audit transport. Define a coordinator-owned, acknowledged sandbox-degradation event contract and a durable fallback spool/replay path so unsandboxed launch cannot lose its evidence during process exit or coordinator/database outage. Add crash-before-flush, completed-write-failure, timeout, and coordinator-unavailable tests.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-007",
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Scoping writes only to the worktree root does not account for linked-worktree Git metadata. The proposed policy is `allowWrite` only for the supplied root at `openspec/changes/add-dispatch-sandbox-enforcement/proposal.md:82-84`, but this checkout's `.git:1` points to `/home/jankneumann/Coding/agentic-coding-tools/.git/worktrees/codex`, outside that root. The dispatcher explicitly resolves common Git metadata outside linked worktrees at `skills/parallel-infrastructure/scripts/review_dispatcher.py:2373-2407` and creates detached fallback worktrees at `review_dispatcher.py:2410-2429`. Commands such as `git status` can attempt optional index refreshes and be misclassified as concurrent-index failures by `review_dispatcher.py:2461-2485`. Specify the Git behavior: for read-only review, set and test `GIT_OPTIONAL_LOCKS=0` while keeping metadata readable but not writable; for write-capable modes, explicitly decide whether private worktree metadata is denied or narrowly granted without exposing the common repository metadata. Validate `git status`, `git diff`, and snapshot fallback inside a real linked worktree.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-008",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "The promised independent filesystem/network posture is not threaded into the proposed enforcement API. `proposal.md:99-113` says an environment may supply filesystem isolation while still requiring network enforcement, but the proposed signatures at `proposal.md:78-86` accept only an isolation decision, worktree root, and policy. The canonical dg-05 `IsolationResolution` contains only `value` and `source` at `agent-coordinator/src/isolation_contract.py:18-22`, so it cannot implicitly carry dg-03 posture. The posture is already implemented as independent booleans at `skills/shared/environment_profile.py:44-94`; this change should consume it rather than reimplement it. Add posture explicitly to the enforcement decision, define behavior for all four filesystem/network combinations, and cover nested-container/runtime-unavailable cases where applying a second filesystem namespace may fail while network enforcement is still required.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-009",
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "The repository's authored policy and credential environment are insufficient for a functioning sandboxed vendor CLI. Default policies allow GitHub, npm, PyPI, and Supabase only at `agent-coordinator/database/migrations/009_network_policies.sql:44-52`; they do not authorize the vendor API endpoints needed for inference. The Claude and Codex CLI entries also declare no `cli.api_key_env` at `agent-coordinator/agents.yaml:88-103` and `agent-coordinator/agents.yaml:165-177`, so those CLIs commonly depend on home-directory login state that an unspecified `denyRead` credential set may block. Meanwhile current launches inherit the ambient environment at `skills/parallel-infrastructure/scripts/review_dispatcher.py:1012-1019` and `review_dispatcher.py:1526-1533`, while the Pi harness explicitly copies every environment variable at `skills/autopilot/scripts/provider_dispatch.py:474-503`. Add required provider destinations to the coordinator-authored, per-profile policy rather than the renderer; define which authentication files or injected variables remain available; and specify how SRT handles pre-existing `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`, and certificate variables without permitting bypass or breaking TLS.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": "DSE-010",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "No real-runtime verification is planned for the roadmap's observable-enforcement outcomes. The governing dg-07 acceptance requires observable filesystem and socket restrictions at `openspec/roadmaps/dispatch-governance/roadmap.yaml:203-210`, while the local spec can be satisfied superficially by asserting a rendered dictionary at `openspec/changes/add-dispatch-sandbox-enforcement/specs/vendor-dispatch/spec.md:21-38`. Add gated integration tests against pinned SRT 0.0.77 on supported Linux and macOS hosts that prove writes inside and outside the worktree, credential reads, allowed and denied DNS/HTTP/raw-socket traffic, child-process inheritance, linked-worktree Git behavior, ambient proxy handling, and sandbox-degradation reporting. Include negative tests where `srt` exists but a prerequisite or kernel feature is unavailable, and assert that successful unsandboxed degradation is never reported as sandboxed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    }
+  ]
+}

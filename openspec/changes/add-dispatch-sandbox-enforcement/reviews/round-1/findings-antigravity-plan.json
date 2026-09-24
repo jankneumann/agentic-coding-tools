@@ -1,0 +1,55 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "architecture",
+      "criticality": "high",
+      "description": "In work-packages.yaml (lines 150-187), wp-validation-docs is assigned tasks 5.1-5.4 ('Implement tasks 5.1-5.4 and reconcile downstream ownership'), but its scope.write_allow (lines 167-171) only permits modifications under docs/**, openspec/changes/add-dispatch-sandbox-enforcement/**, and openspec/changes/add-sandboxed-harness-execution/**. Task 5.1 in tasks.md (lines 38-39) mandates adding a controlled vendor fixture proving filesystem and egress restrictions, which belongs in skills/parallel-infrastructure/scripts/tests/ or skills/shared/tests/ and will be rejected by package scope enforcement. Furthermore, verification.steps (lines 180-185) only runs 'openspec validate add-dispatch-sandbox-enforcement --strict', omitting execution of the behavioral test fixture (5.1), runtime probe validation (5.2), and test suite / linter runs (5.4).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "id": 1,
+      "line_range": "150-187",
+      "severity": "critical",
+      "type": "spec_gap",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "high",
+      "description": "contracts/dispatch-execution-context.schema.json (lines 7-25) requires schema_version, agent_id, dispatch_mode, isolation, source, and worktree_root. In skills/autopilot/scripts/provider_dispatch.py (lines 39-66), PhaseDispatchPayload omits worktree_root, dispatch_mode, and source, while agent_id and isolation are optional (defaulting to None in callers and tests). While tasks.md task 4.3 mandates 'Add RED/GREEN coverage for autopilot local-provider dispatch using its immutable payload', the plan does not define how provider_dispatch.py constructs a valid DispatchExecutionContext from PhaseDispatchPayload without violating the schema or mutating the caller contract (e.g. how worktree_root is determined without cwd coupling, how phase maps to dispatch_mode, or fallback agent_id/isolation resolution for local Pi provider).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/contracts/dispatch-execution-context.schema.json",
+      "id": 2,
+      "line_range": "7-25",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "medium",
+      "description": "design.md D6 (lines 72-78) and specs/agent-coordinator/spec.md (lines 34-39) require that when the coordinator audit endpoint is unavailable, an unsandboxed fallback requires appending and fsyncing a mode-0600 local outbox before process launch, with later invocations draining older entries. However, the plan fails to specify the canonical outbox location (storing it in worktree_root risks data loss when ephemeral or snapshot worktrees are pruned; storing it in shared locations requires an explicit path under .git/ or a user directory), record serialization (e.g. JSONL), and concurrency control (file locking via fcntl.flock) to prevent file corruption during concurrent review or autopilot dispatches.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/design.md",
+      "id": 3,
+      "line_range": "72-78",
+      "severity": "critical",
+      "type": "spec_gap",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "observability",
+      "criticality": "low",
+      "description": "In work-packages.yaml lines 82-106, wp-runtime grants write_allow for skills/shared/tests/test_sandbox_profile_integration.py alongside test_sandbox_profile.py to implement tasks 3.1-3.4 (including process-group termination, timeout SIGTERM/SIGKILL, and settings cleanup). However, verification.steps (lines 98-105) only executes test_sandbox_profile.py. Excluding test_sandbox_profile_integration.py from the verification command allows wp-runtime to pass verification without verifying that process lifecycle and integration tests pass.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-dispatch-sandbox-enforcement/work-packages.yaml",
+      "id": 4,
+      "line_range": "82-106",
+      "severity": "nit",
+      "type": "spec_gap",
+      "evidence_class": "judgment"
+    }
+  ]
+}

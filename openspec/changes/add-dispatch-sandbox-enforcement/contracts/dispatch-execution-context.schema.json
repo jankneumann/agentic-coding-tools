@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/dispatch-execution-context.schema.json",
+  "title": "DispatchExecutionContext",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "agent_id",
+    "location",
+    "enforcement_scope",
+    "dispatch_mode",
+    "isolation",
+    "source",
+    "worktree_root"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "decision_id": {"type": ["string", "null"], "minLength": 1},
+    "agent_id": {"type": "string", "minLength": 1},
+    "vendor": {"type": ["string", "null"], "minLength": 1},
+    "location": {"type": ["string", "null"], "enum": ["local", "cloud", null]},
+    "enforcement_scope": {"enum": ["execution", "submission"]},
+    "dispatch_mode": {"type": "string", "minLength": 1},
+    "isolation": {"enum": ["none", "worktree", "sandbox"]},
+    "source": {"enum": ["router", "agents_yaml", "default"]},
+    "worktree_root": {"type": "string", "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"source": {"const": "router"}}},
+      "then": {"properties": {"decision_id": {"type": "string", "minLength": 1}}}
+    }
+  ]
+}

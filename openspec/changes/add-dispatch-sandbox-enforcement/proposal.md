@@ -1,269 +1,132 @@
 # Add Dispatch Sandbox Enforcement
 
-> Parent roadmap: `dispatch-governance` (item `dg-07`)
+> Parent roadmap: `dispatch-governance` (`dg-07`)
 > Change ID: `add-dispatch-sandbox-enforcement`
-> Effort: M
-> Depends on: `dg-03` (isolation posture), `dg-06` (orchestrator obeys router)
-> Related: `symphony/trust-posture-binding` (priority 12) — declaration layer
+> Prerequisites: dg-02, dg-03, dg-05, and dg-06 are landed
 
 ## Why
 
-The coordinator has an `isolation` field that means nothing.
+The router now chooses an isolation posture and the orchestrator carries that immutable
+decision to execution, but local vendor CLI processes still run with the host user's OS
+authority. A `worktree` prevents concurrent agents from sharing one checkout; it does not
+prevent reads outside that checkout, writes elsewhere, or arbitrary egress. The coordinator's
+network policy is likewise advisory because it is checked only by callers that volunteer a
+domain.
 
-`agent-coordinator/src/agents_config.py:264` declares
-`VALID_ISOLATION_MODES = {"worktree", "sandbox", "none"}`. The value is schema-validated,
-stored on `AgentEntry`, exposed through `get_agent_isolation()` (`agents_config.py:979`),
-and asserted in `tests/test_agents_config_isolation.py:170` — which pins `codex` to
-`"sandbox"`. **No production caller reads it.** An agent declared `isolation: sandbox`
-today runs exactly like one declared `isolation: none`.
-
-Three adjacent gaps compound it:
-
-**Worktree isolation is concurrency isolation, not security isolation.** The invariant in
-`docs/guides/worktree-management.md` is rigorously enforced — one agent, one worktree, one
-branch, guarded by `checkout_policy.py require-mutation`. It stops agents corrupting each
-other's git state. It does not stop a dispatched agent reading `~/.ssh/id_rsa` or POSTing
-the repository to a pastebin, because a worktree is an ordinary directory owned by the
-ordinary uid.
-
-**Network policy is advisory.** `network_policies.py` (90 lines) answers `check_domain()`
-through `policy_engine.py:361`. An agent must *voluntarily ask permission*. Nothing
-enforces the answer at the socket. This is the same defect `add-coordinator-llm-gateway`
-names for spend: *"that ceiling is advisory — enforced by post-hoc reconciliation, not at
-request time."* Same shape, different resource.
-
-**Sandbox intent is already expressed, in three incompatible dialects, enforced by nobody.**
-`agents.yaml:60-66` and `:131-137`:
-
-```yaml
-review:      { args: ["--print", "--allowedTools", "Read,Grep,Glob"] }   # claude
-review:      { args: ["exec", "-s", "read-only"] }                        # codex
-alternative: { args: ["exec", "-s", "workspace-write"] }
-```
-
-The file's own header comment says "the dispatch mode controls sandbox permissions." That
-is a policy statement per dispatch mode, written three different ways, enforced by whatever
-each vendor felt like implementing, verifiable by us in no way at all.
-
-Meanwhile `symphony/trust-posture-binding` commits to a posture artifact declaring
-"sandbox mode, network allowlist" bound to `policy_engine.py` so posture is
-"**enforceable, not just documented**." There is currently no mechanism that could make
-it enforceable. This change is that mechanism.
-
-### Why now, and why at dispatch
-
-Dispatched vendor CLIs are the sharpest edge in the system: `review_dispatcher.py`
-spawns `claude`, `codex`, `gemini` and friends with prompts assembled from repository
-content, and every one of them inherits the full ambient authority of the developer's
-uid — SSH keys, cloud credentials, shell rc files, unrestricted egress. That is code we
-did not write, driven by prompts we do not fully review.
-
-It is also, conveniently, a single chokepoint. `CliVendorAdapter.build_command()`
-(`review_dispatcher.py:218`) constructs `cmd`; `subprocess.run(cmd, ...)` at `:279` and
-`:521` executes it. One injection site covers every vendor.
-
-The pressure is increasing, not static. `TRUST_POSTURE.md` exists precisely to let
-operators flip human gates from `block` to `auto`. Every gate flipped removes a human
-from the loop. Machine-level containment is what should backfill the removed human, and
-right now nothing does.
+dg-07 closes the local execution gap. A shared local-process backend consumes the exact dg-06
+decision, renders the coordinator's policy for Anthropic Sandbox Runtime (SRT), and applies the
+result to every vendor CLI lifecycle command: synchronous invocation, asynchronous submission,
+polling, and the autopilot local-provider harness.
 
 ## What Changes
 
-### New: `skills/shared/sandbox_profile.py`
+### Immutable execution context
 
-A pure, side-effect-free renderer. Takes a resolved isolation decision plus the
-coordinator's network policy and worktree root; returns a runtime-specific policy
-document plus an argv wrapper.
+Dispatch receives a versioned execution context containing the routing decision identifier,
+exact agent/lane identifier, isolation, dispatch mode, canonical worktree root, and provenance.
+The enforcement layer never re-runs routing. Standalone review-panel calls that have no routed
+context resolve the already-landed dg-05 fallback once from the exact `agents.yaml` lane.
+Routed callers carry the complete context in phase payload v2; every adapter lifecycle method
+accepts that context explicitly instead of reconstructing it from cwd.
 
-- `resolve_isolation(agent_type, dispatch_mode, ...) -> IsolationDecision` — consults
-  the task router when reachable, falls back to `get_agent_isolation()` from
-  `agents.yaml`, then to `none`. Mirrors the precedence ladder already established in
-  `environment_profile.py`.
-- `render_srt_settings(decision, worktree_root, network_policy) -> dict` — emits srt's
-  JSON settings shape: `allowWrite` scoped to the worktree root, `denyRead` covering
-  credential paths, `network.allowedDomains` from the coordinator's policy.
-- `wrap_command(cmd, decision) -> list[str]` — returns `cmd` unchanged when isolation is
-  not `sandbox` or the runtime is unavailable; otherwise returns the wrapped argv.
+### Coordinator-owned network-policy export and audit
 
-The renderer is deliberately runtime-shaped but not runtime-bound: `render_srt_settings`
-is one function beside a `render_*` seam, so an OpenShell YAML or container-args renderer
-is an addition rather than a rewrite. Both candidate runtimes are pre-1.0 (srt is a
-"research preview"; OpenShell is "alpha — single-player mode"), which makes the seam a
-requirement rather than speculative generality.
+`NetworkPolicyService` gains an exact-agent export. It returns the active profile-specific and
+global rules, a closed default-deny contract, schema revision, and a deterministic digest.
+Rendering is conservative: SRT denies take precedence, so conflicting authored rules may become
+narrower but never wider. A malformed or unavailable cold-start export renders deny-all; it does
+not invent destinations.
 
-### Modified: `skills/parallel-infrastructure/scripts/review_dispatcher.py`
+A narrow sandbox-execution audit endpoint durably and idempotently records applied and degraded
+outcomes. If the coordinator is unavailable, a locked mode-0600 JSONL outbox under the operator's
+XDG state directory is fsynced and retried oldest-first on later calls. An unsandboxed fallback is
+allowed only after either the coordinator event or the durable outbox record succeeds.
 
-`CliVendorAdapter.dispatch()` and `dispatch_async()` call `wrap_command()` between
-`build_command()` and `subprocess.run()`. No other logic moves.
+### Pure renderer and lifecycle-owning backend
 
-### Modified: `skills/shared/environment_profile.py`
+`skills/shared/sandbox_profile.py` provides:
 
-`isolation_provided: bool` widens to a two-dimensional posture — filesystem and network
-isolation reported separately — because a container gives strong filesystem isolation and
-wide-open egress, and this change must be able to say "skip the filesystem sandbox here,
-still enforce the network allowlist."
+- pure, deterministic SRT settings rendering;
+- mode-aware filesystem policy (`review` has no project write roots; write-capable modes are
+  confined to the canonical worktree root; every lane gets an ephemeral vendor-state root);
+- a prepared-command lifecycle that owns a unique mode-0600 settings file, sanitized environment,
+  runtime identity, policy digest, process group, and cleanup;
+- an additive renderer seam for future runtimes.
 
-The existing detection ladder also has a live bug: planning this change inside a cloud
-harness returned `isolation_provided=False source=default`, because the container exposes
-none of `/.dockerenv`, `KUBERNETES_SERVICE_HOST`, or `CODESPACES`. `worktree.py setup`
-consequently attempted a real worktree and failed on the already-checked-out branch. The
-heuristic layer gains the missing signals.
+The reviewed runtime is `@anthropic-ai/sandbox-runtime` 0.0.77 on Node >=20.11.0. The repository
+pins the package and integrity and never installs it during dispatch. Setup/CI install the pin;
+runtime discovery is explicit absolute override, then the dispatcher's Git-root installation,
+then unavailable. The runtime is accepted only when package metadata and integrity match. On Linux
+the preflight also verifies `bubblewrap`, `socat`,
+`ripgrep`, user-namespace capability, architecture/seccomp support, and a real no-op SRT launch.
 
-Existing `bool` callers keep working through a compatibility property; `worktree.py` and
-`merge_worktrees.py` read the filesystem dimension.
+Official runtime sources:
 
-### Modified: `agent-coordinator/src/agents_config.py`
+- https://github.com/anthropics/sandbox-runtime
+- https://github.com/anthropics/sandbox-runtime/blob/main/README.md
+- https://github.com/anthropics/sandbox-runtime/blob/main/package.json
+- https://github.com/anthropics/sandbox-runtime/security/advisories/GHSA-9gqj-5w7c-vx47
 
-`get_agent_isolation()` gains a companion that resolves *effective* isolation for an
-`(agent_type, dispatch_mode)` pair, so `review` and `alternative` can carry different
-postures under one agent entry — which `agents.yaml` already implies and cannot express.
+### One local command backend
 
-### Modified: `agent-coordinator/src/network_policies.py`
+The shared backend replaces direct vendor subprocess launches in `CliVendorAdapter` sync submit,
+async submit and poll paths, and in `autopilot/scripts/provider_dispatch.py`. Poll enforcement
+failures are collection failures retried to the existing deadline, not terminal remote-task
+failures. A structural guard
+prevents future vendor CLI subprocess sinks outside the backend. Non-sandbox decisions preserve
+argv, stdin, cwd, timeout, and result behavior.
 
-An export path that serializes the active policy into the shape `sandbox_profile.py`
-consumes. The policy stays authored in one place; enforcement becomes a rendering of it.
+### Loud, bounded degradation
 
-### Degradation
+Fail-open is restricted to facts known before a vendor process starts: unsupported OS, missing or
+incompatible pinned runtime, or failed platform capability preflight. Those cases warn, durably
+audit `applied=false`, and run the original command. Unsafe roots, malformed policy, settings
+materialization errors, and audit/outbox failures fail closed. Once SRT starts, a timeout or
+unknown failure never triggers an unsandboxed retry because doing so could execute work twice.
 
-srt requires macOS (Seatbelt) or Linux (bubblewrap + socat + ripgrep). When the runtime
-is absent or the platform is unsupported, dispatch **proceeds unsandboxed**, emits a
-warning, and writes a coordinator audit event. This follows the degradation pattern
-already used in `vendor_health.py`. Fail-closed would break every developer on an
-unsupported platform for a control that is, by its authors' own account, a defense
-against confused agents rather than determined ones.
+## Scope Boundary
 
-## Non-Goals
+This change protects against accidental or confused local tool behavior after sandbox startup.
+It does not claim containment of a malicious vendor executable, a compromised runtime, same-user
+races, damage inside an authorized writable root, or exfiltration through an allowed destination
+such as GitHub. It strips proxy and code-injection environment variables required to preserve the
+SRT boundary, but vendor credentials deliberately supplied to a CLI remain readable by that CLI.
+Request-time secret substitution is dg-08; broader credential brokering and cloud execution remain
+owned by `add-sandboxed-harness-execution`.
 
-- **Sandbox lifecycle management in the coordinator.** No `sandbox_create` / `sandbox_destroy`
-  / connection brokering. That is OpenShell's entire product (a Rust gateway plus k3s); if
-  containerized isolation is needed later, dispatch should target OpenShell's API rather
-  than reimplementing a control plane. Related: `docker_manager.py` handles ParadeDB and
-  Colima lifecycle and must not grow into an agent sandbox manager — different problem,
-  different failure modes.
-- **Wrapping Bash inside skill scripts.** Many call sites, much broader blast radius,
-  deferred by explicit scope decision.
-- **Declaring the posture artifact.** `symphony/trust-posture-binding` owns declaration.
-  This change owns enforcement and consumes whatever that item declares.
-- **Protection against a determined exfiltrator.** See Trade-offs.
+dg-03's factual `posture.filesystem` means a per-session workspace exists; it is not a security
+attestation and never satisfies a router request for `sandbox`. Wrapping a local submission CLI
+also does not imply that a remote worker is sandboxed.
 
 ## Approaches Considered
 
-### Approach 1 — OS-level wrapper at the dispatch chokepoint (**Recommended**)
+### Shared SRT local-process backend (selected)
 
-Render coordinator policy into an srt settings document and wrap the vendor argv in
-`CliVendorAdapter`.
+One policy renderer and one lifecycle-owning runner cover every current local CLI sink. It enforces
+the already-authored isolation and network decisions without creating a second router.
 
-**Pros**
-- One injection site (`review_dispatcher.py:218` → `:279`) covers every current and
-  future vendor CLI, including vendors that ship no sandbox of their own.
-- Gives the existing advisory `network_policies.py` real teeth at the socket without
-  rewriting the policy model or moving where policy is authored.
-- Finally gives `isolation: sandbox` — already declared, validated, and tested — a
-  meaning, closing a gap the schema has advertised for some time.
-- srt is a single npm dependency with no daemon, no control plane, and no ops burden;
-  it is what Claude Code's own `/sandbox` uses.
-- Vendor-neutral: the same posture applies to `codex`, `gemini`, and any adapter added
-  later, rather than depending on each vendor's flags.
+### Vendor-native flags only
 
-**Cons**
-- Adds a Node dependency to a Python dispatch path.
-- Unsupported on Windows outside WSL2 (srt's Windows support is alpha).
-- OS-level sandboxing falls to a kernel bug; containers would be stronger.
-- srt is a research preview with an unstable interface.
+Rejected. Vendor flags differ, omit network enforcement, and leave vendors without a native
+sandbox unprotected.
 
-**Effort**: M
+### Coordinator-managed containers
 
-### Approach 2 — Normalize vendor-native sandbox flags only
-
-Define a portable mode vocabulary (`read-only`, `workspace-write`) and map it onto each
-vendor's own flags, extending what `agents.yaml` already does.
-
-**Pros**
-- No new dependency; works on every platform the vendor CLIs work on.
-- Smallest diff by a wide margin; effort S.
-- Zero risk of breaking dispatch on unsupported platforms.
-
-**Cons**
-- Enforces nothing we control — we are trusting each vendor's implementation, with no way
-  to verify it and no recourse when it is weak or absent.
-- Vendors without a sandbox mode get no protection at all.
-- Does not cover `SdkVendorAdapter`, which makes direct API calls with no CLI to flag.
-- Leaves `isolation: sandbox` still meaningless, and leaves `network_policies.py` still
-  advisory — neither of the two gaps that motivate this change actually closes.
-
-**Effort**: S
-
-### Approach 3 — Coordinator-managed container sandboxes (OpenShell or bespoke)
-
-Give the coordinator sandbox lifecycle primitives; run dispatched agents inside containers
-with policy-enforced egress and injected credential providers.
-
-**Pros**
-- Strongest isolation boundary of the three; survives a kernel bug that defeats Seatbelt
-  or bubblewrap.
-- Credentials never touch the sandbox filesystem (OpenShell's provider model).
-- Handles the multi-tenant case this repo may eventually reach.
-
-**Cons**
-- Rebuilds, or takes a hard dependency on, an alpha "single-player mode" control plane.
-- Per-dispatch container startup latency against a review path that is currently a
-  subprocess spawn.
-- Substantial ops burden: image builds, registry, gateway lifecycle, k3s.
-- Overwhelmingly disproportionate to the threat model — the realistic failure is a
-  prompt-injected agent reading credentials, not a container escape.
-
-**Effort**: XL
-
-### Recommendation
-
-**Approach 1.** Approach 2 is cheaper but closes neither motivating gap: `isolation: sandbox`
-stays inert and network policy stays advisory, so it buys a vocabulary rather than a
-control. Approach 3 buys a stronger boundary than the threat model needs, at the cost of
-depending on an alpha control plane and adding container latency to every review dispatch.
-
-Approach 1 sits where the leverage is: one chokepoint, one dependency, enforcement of a
-policy model that already exists. It also leaves Approach 3 open — `render_srt_settings`
-sits behind a seam, so adopting OpenShell later means adding a renderer, not redoing the
-integration.
-
-## Trade-offs
-
-**Accepted: containment of confused agents over containment of determined ones.** srt's own
-documentation is explicit that an allowlist containing `github.com` is an exfiltration
-channel, that domain fronting works, and that an exposed Docker socket is a full escape.
-This repository's workflow *requires* `github.com`. What this change buys is protection
-against accidental credential reads and unplanned egress. It is not a containment boundary
-against an adversary who knows GitHub is reachable, and the specs must not claim otherwise.
-
-**Accepted: a Node dependency in a Python path** over building OS-sandboxing bindings
-ourselves.
-
-**Accepted: fail-open** over a hard guarantee, so unsupported platforms degrade instead of
-breaking. The audit event is what makes the degradation visible rather than silent.
+Deferred. A container/control-plane backend belongs to the downstream sandboxed-harness change;
+dg-07 supplies the local backend and renderer seam it consumes.
 
 ## Impact
 
-- **Specs**: `agent-coordinator` (isolation resolution, policy export), `skill-workflow`
-  (dispatch wrapping), `worktree` (posture dimensions)
-- **Code**: `skills/shared/sandbox_profile.py` (new), `skills/shared/environment_profile.py`,
-  `skills/parallel-infrastructure/scripts/review_dispatcher.py`,
-  `agent-coordinator/src/agents_config.py`, `agent-coordinator/src/network_policies.py`
-- **Config**: `agents.yaml` per-mode isolation
-- **Docs**: `docs/guides/worktree-management.md` (posture, not bool)
+- New shared runtime: `skills/shared/sandbox_profile.py` and local process backend helpers.
+- Modified execution sinks: review dispatcher and autopilot local-provider dispatch.
+- Modified coordinator: exact-agent policy export and durable sandbox audit endpoint.
+- Modified config projection: effective per-mode isolation reaches standalone adapters.
+- New pinned optional tool dependency: SRT 0.0.77.
+- New contracts, tests, operational documentation, and real-runtime probes.
+- New capable-host GitHub Actions evidence gate, with a recorded configured-vendor CLI pass.
 
-### Coordination with in-flight changes
+## Rollback
 
-- **`implement-the-task-router-vendor-x-location-x-model`** — `POST /route/task` returns
-  `isolation` among its outputs. That change is the **producer** of the decision; this one
-  is the **consumer**. `resolve_isolation()` calls the router when reachable. Because the
-  router change already specifies "a local static fallback table when the coordinator is
-  down," this change is interface-bound to the router without being schedule-blocked by it:
-  the fallback is `get_agent_isolation()`, which exists today. The contract between them
-  must be pinned before either merges.
-- **`build-structured-vendor-result-channel`** — rewrites the same `CliVendorAdapter`
-  methods this change modifies. Direct merge-conflict risk; the two must not run
-  concurrently against `review_dispatcher.py`. Sequencing to be recorded in `design.md`.
-- **`add-coordinator-llm-gateway`** — same advisory-to-enforced argument applied to spend.
-  This change should follow its established shape rather than invent a parallel one.
-- **`symphony/trust-posture-binding`** — declaration layer. This change supplies the
-  enforcement its acceptance criterion ("enforceable, not just documented") requires.
+Removing a mode's `sandbox` decision restores the byte-compatible local process path. Removing or
+breaking the runtime does not silently claim enforcement: the preflight records a durable degraded
+event before the legacy command may run.

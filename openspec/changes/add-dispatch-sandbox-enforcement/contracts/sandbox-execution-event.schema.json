@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/sandbox-execution-event.schema.json",
+  "title": "SandboxExecutionEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "decision_id",
+    "agent_id",
+    "location",
+    "enforcement_scope",
+    "dispatch_mode",
+    "requested_isolation",
+    "sandbox_applied",
+    "backend",
+    "runtime_version",
+    "platform",
+    "preflight_status",
+    "policy_revision",
+    "policy_digest",
+    "worktree_root",
+    "executable_paths",
+    "environment_keys",
+    "degradation_reason"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "event_id": {"type": "string", "format": "uuid"},
+    "decision_id": {"type": ["string", "null"], "minLength": 1},
+    "agent_id": {"type": "string", "minLength": 1},
+    "location": {"enum": ["local", "cloud"]},
+    "enforcement_scope": {"enum": ["execution", "submission"]},
+    "dispatch_mode": {"type": "string", "minLength": 1},
+    "requested_isolation": {"enum": ["none", "worktree", "sandbox"]},
+    "sandbox_applied": {"type": "boolean"},
+    "backend": {"enum": ["local-process", "srt"]},
+    "runtime_version": {"type": ["string", "null"]},
+    "platform": {"type": "string", "minLength": 1},
+    "preflight_status": {"type": ["string", "null"]},
+    "policy_revision": {"type": ["string", "null"]},
+    "policy_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "worktree_root": {"type": ["string", "null"]},
+    "executable_paths": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "environment_keys": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+      "uniqueItems": true
+    },
+    "degradation_reason": {"type": ["string", "null"], "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"sandbox_applied": {"const": false}}},
+      "then": {"properties": {"degradation_reason": {"type": "string", "minLength": 1}}}
+    }
+  ]
+}

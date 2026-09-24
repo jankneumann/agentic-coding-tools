@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/network-policy-export.schema.json",
+  "title": "NetworkPolicyExport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "agent_id",
+    "default_action",
+    "rules",
+    "policy_revision",
+    "policy_digest"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "agent_id": {"type": "string", "minLength": 1},
+    "default_action": {"const": "deny"},
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["hostname_pattern", "port", "action", "priority", "scope", "policy_id"],
+        "properties": {
+          "hostname_pattern": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?:\\*\\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"
+          },
+          "port": {"type": ["integer", "null"], "minimum": 1, "maximum": 65535},
+          "action": {"enum": ["allow", "deny"]},
+          "priority": {"type": "integer"},
+          "scope": {"enum": ["agent_profile", "global"]},
+          "policy_id": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "policy_revision": {"type": "string", "minLength": 1},
+    "policy_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}
