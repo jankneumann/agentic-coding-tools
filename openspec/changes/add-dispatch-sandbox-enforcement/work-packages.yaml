@@ -245,7 +245,7 @@ packages:
         - "skills/shared/tests/test_sandbox_profile_integration.py"
         - "skills/shared/tests/fixtures/sandbox_vendor.py"
       read_allow: ["**"]
-    context_impact: {surfaces: [semantic_code, documentation, decisions, capabilities]}
+    context_impact: {surfaces: [apis, semantic_code, documentation, decisions, capabilities]}
     worktree: {name: add-dispatch-sandbox-enforcement--validation, mode: isolated}
     timeout_minutes: 180
     retry_budget: 1
