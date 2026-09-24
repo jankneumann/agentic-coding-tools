@@ -3,9 +3,9 @@
 Both the CLI dispatcher (review_dispatcher.py) and the in-process
 convergence loop (skills/autopilot/scripts/convergence_loop.py) write
 per-vendor finding files and a manifest through this module so the on-disk
-format is identical regardless of caller. After dispatch returns, every
-vendor's findings are durably persisted; a synthesis crash leaves the data
-intact for manual or postmortem analysis.
+format is identical regardless of caller. In-process convergence persists
+each terminal vendor result as it arrives; a dispatch interruption or later
+synthesis crash leaves completed data intact for recovery and analysis.
 
 Schema reference (in this proposal's contracts/ dir):
 - ``finding.schema.json`` — per-vendor file shape (wrapper object + findings[])
@@ -23,6 +23,7 @@ input never reaches the filesystem.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -129,6 +130,34 @@ def _atomic_write_json(path: Path, payload: Any) -> None:
         os.close(fd)
 
 
+def _atomic_write_text(path: Path, body: str) -> None:
+    """Atomically replace a UTF-8 text file and fsync its directory entry."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as file:
+            file.write(body)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+    try:
+        fd = os.open(path.parent, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        try:
+            os.fsync(fd)
+        except OSError:
+            pass
+    finally:
+        os.close(fd)
+
+
 # ---------------------------------------------------------------------------
 # Path safety
 # ---------------------------------------------------------------------------
@@ -192,15 +221,22 @@ def write_vendor_findings(
     target: str,
     findings: list[dict[str, Any]],
     reviewer_vendor: str | None = None,
+    coverage: dict[str, Any] | None = None,
 ) -> Path:
     """Write a per-vendor findings file as a wrapper object.
 
-    Wrapper shape: ``{review_type, target, reviewer_vendor, findings: [...]}``.
-    Path: ``out_dir / "findings-{vendor}-{review_type}.json"``.
+    Wrapper shape: ``{review_type, target, reviewer_vendor, findings: [...]}``,
+    plus an optional ``coverage`` block (add-deterministic-review-
+    preprocessing, D5) when the vendor reported one. Path:
+    ``out_dir / "findings-{vendor}-{review_type}.json"``.
 
     Keyword-only after ``out_dir`` to prevent positional confusion. Validates
     vendor name, review_type, and each finding BEFORE any disk operation —
-    a malformed input never produces a partial file.
+    a malformed input never produces a partial file. ``coverage`` is passed
+    through verbatim (already coerced and rate-computed by the caller) and
+    omitted from the payload entirely when ``None``, so a vendor that never
+    reports coverage writes byte-identical files to before this parameter
+    existed.
     """
     safe_dir = _validate_path_safety(out_dir, vendor, review_type)
     for finding in findings:
@@ -212,9 +248,50 @@ def write_vendor_findings(
         "reviewer_vendor": reviewer_vendor or vendor,
         "findings": findings,
     }
+    if coverage is not None:
+        payload["coverage"] = coverage
     fpath = safe_dir / f"findings-{vendor}-{review_type}.json"
     _atomic_write_json(fpath, payload)
     return fpath
+
+
+def write_raw_output(
+    out_dir: Path,
+    *,
+    vendor: str,
+    review_type: str,
+    stdout: str | None,
+    stderr: str | None = None,
+    coercions: list[str] | None = None,
+    repair_attempted: bool = False,
+) -> Path:
+    """Persist full vendor stdout/stderr next to findings. Never truncates."""
+    safe_dir = _validate_path_safety(out_dir, vendor, review_type)
+    safe_dir.mkdir(parents=True, exist_ok=True)
+    body = stdout or ""
+    stdout_path = safe_dir / f"raw-{vendor}-{review_type}.txt"
+    _atomic_write_text(stdout_path, body)
+    stderr_rel = None
+    if stderr:
+        stderr_path = safe_dir / f"raw-{vendor}-{review_type}.stderr.txt"
+        _atomic_write_text(stderr_path, stderr)
+        stderr_rel = stderr_path.name
+    meta = {
+        "schema_version": 1,
+        "vendor": vendor,
+        "review_type": review_type,
+        "stdout_path": stdout_path.name,
+        "byte_length": len(body.encode("utf-8")),
+        "truncated": False,
+        "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "repair_attempted": repair_attempted,
+        "coercions": list(coercions or []),
+    }
+    if stderr_rel:
+        meta["stderr_path"] = stderr_rel
+    meta_path = safe_dir / f"raw-{vendor}-{review_type}.meta.json"
+    _atomic_write_json(meta_path, meta)
+    return meta_path
 
 
 def read_vendor_findings(out_dir: Path) -> dict[str, list[dict[str, Any]]]:

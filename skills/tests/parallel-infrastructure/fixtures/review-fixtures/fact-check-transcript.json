@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "description": "Recorded fact-check model responses for the labeled fixture set (add-deterministic-review-preprocessing, D8). Keyed by case id; each value is the raw text a live fact-check caller would have returned for that case's findings. test_fact_check_fixture.py replays these instead of calling a live model, so CI stays deterministic. Recorded 2026-09-14.",
+  "responses": {
+    "case-1": "{\"tool\": \"report_incorrect_comments\", \"items\": [{\"finding_id\": \"2\", \"ground\": \"A_absent_from_subject_diff\", \"evidence_line\": null}]}",
+    "case-2": "{\"tool\": \"report_incorrect_comments\", \"items\": [{\"finding_id\": \"2\", \"ground\": \"B_contradicted_by_diff_line\", \"evidence_line\": \"delay *= 2\"}, {\"finding_id\": \"3\", \"ground\": \"B_contradicted_by_diff_line\", \"evidence_line\": \"for i in range(attempts):\"}]}",
+    "case-3": "{\"tool\": \"report_incorrect_comments\", \"items\": [{\"finding_id\": \"2\", \"ground\": \"B_contradicted_by_diff_line\", \"evidence_line\": \"logger.info(\\\"exporting report as %s\\\", fmt)\"}, {\"finding_id\": \"3\", \"ground\": \"A_absent_from_subject_diff\", \"evidence_line\": null}]}",
+    "case-4": "{\"tool\": \"report_incorrect_comments\", \"items\": [{\"finding_id\": \"2\", \"ground\": \"B_contradicted_by_diff_line\", \"evidence_line\": \"def __init__(self, capacity=128):\"}]}"
+  }
+}

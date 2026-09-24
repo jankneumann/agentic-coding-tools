@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=scanner_images.sh
+source "$(dirname "${BASH_SOURCE[0]}")/scanner_images.sh"
+
 target=""
 out_dir=""
 mode="baseline"
@@ -98,20 +101,80 @@ else
       ;;
   esac
 
+  run_args=(run --rm)
+
+  # Loopback targets need the host network namespace; a bridged container
+  # resolves `localhost` to itself. Measured on podman 4.9.3 against a
+  # 127.0.0.1-bound service: --network=host reaches it (HTTP 200), while
+  # --add-host=host.docker.internal:host-gateway does not (HTTP 000), because a
+  # service bound to loopback is not reachable through the host gateway at all.
+  # The frontend descriptors this scanner is pointed at MUST bind 127.0.0.1
+  # (design D7 of factory-missions-architecture-alignment), so host networking
+  # is the only posture that can scan them.
+  #
+  # Scoped deliberately: a remote target keeps the container in its own network
+  # namespace. While scanning a loopback target the scanner does share the
+  # host's loopback and could in principle reach other 127.0.0.1 services, which
+  # is the accepted cost of being able to scan them at all.
+  target_host="$target"
+  target_host="${target_host#*://}"          # strip scheme
+  target_host="${target_host##*@}"           # strip userinfo
+  case "$target_host" in
+    # Bracketed IPv6 ("[::1]:9"): the host runs to the closing bracket, so the
+    # port colon cannot be found by cutting at the first ':'.
+    \[*) target_host="${target_host%%\]*}"; target_host="${target_host#\[}" ;;
+    *)   target_host="${target_host%%[:/?]*}" ;;
+  esac
+  case "$target_host" in
+    localhost|127.0.0.1|0.0.0.0|::1)
+      run_args+=(--network=host)
+      ;;
+    # 127.0.0.0/8 is all loopback, not just .0.0.1.
+    127.*)
+      run_args+=(--network=host)
+      ;;
+  esac
+
+  # Rootless podman maps the container's `zap` user to a subuid that cannot
+  # write into a host-owned bind mount, so the report job died with
+  # `AccessDeniedException /zap/wrk/zap-report.json` and the scan produced no
+  # artifact to parse. keep-id maps it back to the invoking user. Docker's
+  # default (non-userns-remap) mapping already writes as the host user, so this
+  # is podman-only rather than unconditional.
+  if [[ "$container_runtime" == "podman" ]]; then
+    run_args+=(--userns=keep-id)
+  fi
+
   set +e
-  "$container_runtime" run --rm \
+  "$container_runtime" "${run_args[@]}" \
     -v "$out_dir":/zap/wrk \
-    ghcr.io/zaproxy/zaproxy:stable \
+    "$(scanner_image ZAP)" \
     "${zap_cmd[@]}" >/tmp/security-review-zap.log 2>&1
   rc=$?
   set -e
 
-  if [[ $rc -eq 0 ]]; then
+  # zap-baseline.py / zap-api-scan.py / zap-full-scan.py exit codes:
+  #   0  ran, nothing at or above the configured threshold
+  #   1  ran, at least one FAIL-level alert
+  #   2  ran, at least one WARN-level alert (absent -I)
+  #   3  did NOT run (target unreachable, internal error)
+  #
+  # Mapping every non-zero code to "error" conflated "found something" with
+  # "never ran", and the aggregate gate turns "never ran" into NOT CHECKED —
+  # which `--allow-degraded-pass` then converts into a PASS. A scan that found
+  # real vulnerabilities was therefore reported as a clean degraded pass with
+  # zero findings. Verified 2026-09-09: rc=3 with no host networking (genuinely
+  # unreachable) versus rc=2 with it, from a run whose report parsed to 12
+  # findings, 2 of them medium.
+  #
+  # 0/1/2 are all "the scanner ran": the report is written, the parser reads it,
+  # and the severity gate — not this wrapper — decides the verdict.
+  if [[ $rc -eq 0 || $rc -eq 1 || $rc -eq 2 ]]; then
     status="ok"
-    message="zap $mode scan completed via $container_runtime"
+    message="zap $mode scan completed via $container_runtime (exit $rc)"
   else
     status="error"
-    message="zap $mode scan failed via $container_runtime (exit $rc)"
+    message="zap $mode scan failed to run via $container_runtime (exit $rc)"
   fi
 fi
 

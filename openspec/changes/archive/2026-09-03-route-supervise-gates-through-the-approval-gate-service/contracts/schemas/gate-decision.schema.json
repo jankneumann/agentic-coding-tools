@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/events/gate-decision.schema.json",
+  "title": "GateDecisionRecord",
+  "description": "One entry of LoopState.gate_decisions (autopilot) or Checkpoint.gate_decisions (autopilot-roadmap). Superset of ApprovalDecision.to_audit_record().",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "gate",
+    "outcome",
+    "resolution",
+    "disposition",
+    "reason",
+    "posture_present",
+    "recorded_at"
+  ],
+  "properties": {
+    "gate": {
+      "type": "string",
+      "enum": [
+        "gatekeeper_escalation",
+        "proposal_approval",
+        "plan_review_convergence_failure",
+        "validation_failure",
+        "escalate_resume",
+        "replan_required",
+        "pr_creation",
+        "merge",
+        "roadmap_approval"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "proceed",
+        "blocked"
+      ]
+    },
+    "resolution": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "approved",
+        "rejected",
+        "timeout_default_proceed",
+        "timeout_default_block",
+        "posture_block",
+        "coordinator_unreachable",
+        "console_approved",
+        "console_rejected"
+      ]
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "notify_with_timeout",
+        "block"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "approval_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "default_action": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "proceed",
+        "block",
+        null
+      ],
+      "description": "The posture's default_action as APPLIED, not necessarily as declared: `_apply_default` overwrites this to `block` when a `proceed` default fires on an undelivered notification (`notified: false`). It is not safe to infer the posture's *declared* default_action from this field alone -- combine it with `notified` (present when an approval was filed) to distinguish a genuine `default_action: block` timeout (`notified: true`) from an undelivered `proceed` forced closed (`notified: false`)."
+    },
+    "posture_present": {
+      "type": "boolean"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "note": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Operator note supplied to `gate-answer --note`."
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decision_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "Stable id assigned by the supervise gate router; approval_ref = 'gate-decision:<decision_id>'."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "autopilot",
+        "supervise",
+        "autopilot-roadmap",
+        "escalation"
+      ],
+      "description": "Which layer evaluated the gate."
+    },
+    "verb": {
+      "type": "string",
+      "enum": [
+        "cycle",
+        "execute",
+        "resume"
+      ],
+      "description": "Which supervise verb raised the gate. Optional, and only meaningful when source is 'supervise'."
+    },
+    "roadmap_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "change_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dispatch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "item_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "notified": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Whether the coordinator's push_notification call reported delivery when this decision's approval was filed, threaded from ApprovalDecision.notified (added to the existing ri-05 dataclass by this change) through to_audit_record(). Present only on notify_with_timeout records that filed an approval; null for a console-originated roadmap_approval answer, where no coordinator delivery concept applies. Combined with default_action it lets a reader distinguish a genuine default_action:block timeout (notified=true) from an undelivered proceed forced to block (notified=false)."
+    },
+    "roadmap_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 over the roadmap's authorized DAG shape (item_id, change_id, depends_on, external_depends_on, normalized_status) at evaluation time. Stamped on every roadmap_approval record; require_approval_ref rejects a reference whose stored fingerprint does not match the roadmap's current shape."
+    },
+    "timeout_seconds": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "The posture's notify_with_timeout window in effect when this decision was made, when approval_id is set; used to compute a pending-gate deadline for a filed approval (requested_at + timeout_seconds)."
+    }
+  }
+}

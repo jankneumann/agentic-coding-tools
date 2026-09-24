@@ -171,3 +171,58 @@ def test_unusable_playwright_probe_skips_instead_of_failing(monkeypatch, tmp_pat
     monkeypatch.setattr(subprocess, "run", _raise)
     with pytest.raises(pytest.skip.Exception):
         test_full_pipeline_runs_against_sample_frontend(tmp_path)
+
+
+def test_generated_specs_do_not_land_in_playwrights_output_dir(tmp_path, caplog):
+    """The default --test-dir must not sit under a `test-results/` directory.
+
+    Playwright treats `<rootDir>/test-results` as its own `outputDir` and clears
+    it at the start of every run. The default used to emit the generated
+    .spec.ts files into `skills/playwright-validator/test-results/generated/`,
+    so once a package.json existed above them -- which is exactly what a real
+    deployment needs for `@playwright/test` to resolve -- Playwright deleted its
+    own input, ran zero tests, exited 0, and wrote an empty findings file. An
+    empty findings file is indistinguishable from a genuine clean run, which is
+    what makes this worth a guard rather than a comment.
+
+    Verified against Playwright 1.56 on 2026-09-08 (task 8.1): the spec
+    directory was gone after the run and only `.last-run.json` remained.
+
+    Runs the real CLI with --dry-run and no --test-dir, so it asserts where the
+    default actually writes rather than re-deriving it here -- a re-derivation
+    would keep passing after cli.py regressed.
+    """
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        rc = cli_main(
+            [
+                "sample-frontend-demo",
+                "--descriptor",
+                str(DESCRIPTOR),
+                "--specs-dir",
+                str(SPECS_DIR),
+                "--output-dir",
+                str(tmp_path),
+                "--dry-run",
+            ]
+        )
+    assert rc == 0, "dry run should succeed"
+
+    emitted = [
+        line.split("emitted test script: ", 1)[1]
+        for line in caplog.messages
+        if "emitted test script: " in line
+    ]
+    assert emitted, f"CLI logged no emitted script; messages={caplog.messages}"
+    written = Path(emitted[0])
+    try:
+        assert "test-results" not in written.parts, (
+            f"default --test-dir wrote to {written}, which sits under a "
+            "`test-results/` directory -- Playwright clears that before each "
+            "run and would delete the spec it is about to execute"
+        )
+    finally:
+        # The default path is inside the repo; leave no artifact behind.
+        if written.exists():
+            shutil.rmtree(written.parent, ignore_errors=True)

@@ -1,0 +1,142 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 27,
+        "end": 27
+      },
+      "description": "D5 requires migration 037 to emit a 'change-scoped projection event' when the adapter-owned labels are added OR removed, but does not pin how change_id is derived on the removal branch. The existing notify_work_queue_change() (migrations/025_notify_enrich_change_id.sql, lines 78-89) derives v_change_id exclusively by scanning NEW.labels for a 'change:%' prefix. spec.md line 5 and line 35 require stale projection rows to 'lose both labels', so after cleanup NEW.labels carries no change: label, v_change_id is NULL, coordinator_notify emits change_id=null, and event_stream.sse_event_generator._on_task_event (event_stream.py:272) drops the event with `if not evt.change_id or evt.change_id not in change_ids: return`. D9 further orders canonical labeling BEFORE stale cleanup, so the last snapshot a connected client receives is built while the stale row is still labelled and still contains it. The removal half of D5's 'add the new row and remove stale rows without waiting for polling fallback' therefore silently regresses to the 5s polling fallback, and task 3.3 as written only asserts the add path, so the suite would stay green.",
+      "resolution": "In D5 (and task 2.4), pin that the 037 label-change branch derives change_id from the first 'change:' label in NEW.labels and falls back to OLD.labels when NEW carries none, so add and remove events are both change-scoped. Extend task 3.3 to assert that the connected SSE client's post-cleanup snapshot no longer contains the cancelled generation."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/work-packages.yaml",
+      "line_range": {
+        "start": 75,
+        "end": 91
+      },
+      "description": "wp-projection-adapter declares agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql and agent-coordinator/src/event_stream.py as locked files, write_allow entries, and outputs.artifacts, and owns skills/coordination-bridge/scripts/coordination_bridge.py plus skills/tests/coordination-bridge/**. Its two verification steps run only `pytest skills/tests/autopilot` and a ruff invocation. The ruff step lints skills/tests/coordination-bridge but no step ever RUNS that suite, so the new coordinator-only issue helpers and the existing AST truth-direction guard (skills/tests/coordination-bridge/test_work_queue_projection_invariant.py) are unexercised at this package's gate; no step touches agent-coordinator at all, so a broken event_stream.py or a migration syntax error passes tier B and only surfaces in the dependent wp-live-integration package.",
+      "resolution": "Add to wp-projection-adapter.verification.steps: `skills/.venv/bin/python -m pytest skills/tests/coordination-bridge -q`, `agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_issue_service.py -q`, and extend the ruff target list with agent-coordinator/src/event_stream.py. Add the corresponding result_keys to outputs."
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 70,
+        "end": 97
+      },
+      "description": "work-packages.yaml pins contracts.openapi.primary to openspec/contracts/agent-coordinator/openapi/work-queue.yaml at revision 1, but that file predates ri-08: /work/submit declares only responses 200 and 401, carries no projection_key property, and there is no /work/reconcile path at all. D7 and contracts/README.md line 6 make the entire head-advance algorithm depend on an undeclared response \u2014 coordination_api.py:843-852 returns 409 application/problem+json with detail equal to the raw reason, and coordination_bridge._normalize_operation_response (line 509-517) surfaces it as {status: error, status_code: 409, response: {detail: ...}}. Neither package's write_allow includes openspec/contracts/**, so the contract of record cannot be brought into agreement within this change's scope, and a future contract-conformance check would flag /work/submit's 409 as undeclared. ri-08's own session-log recorded this same gap as an open item.",
+      "resolution": "Either (a) add openspec/contracts/agent-coordinator/openapi/work-queue.yaml to wp-projection-adapter's write_allow, bump contracts.revision, and declare projection_key, /work/reconcile, and the 403/409/422 problem+json responses; or (b) state explicitly in contracts/README.md that the projection surface is specified in openspec/specs/agent-coordinator/spec.md (the stale_projection / reconciliation_required / projection_generation_mismatch requirements) and that this OpenAPI file is knowingly non-authoritative for it, so no revision bump is implied."
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 64,
+        "end": 64
+      },
+      "description": "D8 states 'The in-process host registers the same adapter explicitly and routes every save_state site through persist_and_project'. autopilot.run_loop() has no production caller anywhere in the repository: the only references outside skills/tests and skills/autopilot/scripts/tests are SKILL.md line 116 prose ('Pass cli_review_enabled to run_loop()') and archived spec text. The live host is the prose+runner.py CLI protocol, which is exactly what D2/D8 add project-state for. Naming a second 'in-process host' that does not exist leaves task 3.1's coordinator-backed proof unpinned: an implementer can satisfy it by driving run_loop with an injected fake adapter, which would prove nothing about the only path a real coordinated Autopilot run takes.",
+      "resolution": "In D8, state that run_loop currently has no production caller, so its persist_and_project routing is a library contract verified by injected-callback unit tests (tasks 1.1/1.2), and amend task 3.1 to require that the coordinator-backed three-generation proof is driven through `runner.py init` / `transition` / `project-state`, not through run_loop."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 474,
+        "end": 481
+      },
+      "description": "D8 requires 'gate-session flushes' to be routed through persist_and_project, but _GateSession is a dataclass with fields (change_id, state_path, repo_root, evaluator) and no projection seam, and it is constructed from two callers with opposite requirements: run_loop (autopilot.py:1018), where the flush must project, and runner._evaluate_gate (runner.py:151), where it must NOT project because the SKILL protocol already calls `project-state --mode submit` after gate-check exits 0/3/4. Without pinning this, the natural implementation either projects from neither caller (losing the gate-park generation in-process) or from both (a redundant same-identity submit per gate-check invocation).",
+      "resolution": "Pin in D8 that _GateSession gains an optional queue_projection_fn defaulting to None, that only run_loop passes it, and that runner._evaluate_gate constructs the session without it so the CLI host remains the sole projector on that path."
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "accept",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/reviews/round-2/dispositions.md",
+      "line_range": {
+        "start": 10,
+        "end": 10
+      },
+      "description": "Round 2 justified the 100-row cleanup ceiling with 'The maximum Autopilot generation count is 51, so the bounded repair query covers the complete projection-row history.' The 51 figure comes from run_loop's max_global_iterations default of 50 (autopilot.py:925), which caps only the in-process loop; the D8 `runner.py transition` writer this change adds has no such cap, so on the host-driven path generation count is unbounded. The 100-row bound is still correct, but for a different reason: IssueService.list_issues with both adapter-owned labels uses PostgREST `cs` AND-semantics, so it selects only rows still carrying projection:autopilot-phase \u2014 typically the canonical row plus a small number of interrupted leftovers, never the full generation history. The plan's mechanism is sound; only the recorded rationale does not transfer.",
+      "resolution": "Accept the bound. Optionally restate it in D9 as a ceiling on concurrently double-labelled rows rather than on total generations, so task 3.1's 100-row-bound test does not encode a '<= 51 generations' assumption that the CLI host does not honour."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 58,
+        "end": 58
+      },
+      "description": "Re-tested and confirmed against source. The 409 envelope pinned by D7 matches exactly: coordination_api.projection_problem_handler (line 843-852) emits application/problem+json with `detail` set to the bare reason string ('reconciliation_required'), not a prose sentence, and coordination_bridge._normalize_operation_response (line 509-517) wraps any non-2xx, non-401/403/404, sub-500 response as {status: 'error', status_code, response: <problem document>}. Migration 035 confirms the three reasons and that only a higher sequence yields reconciliation_required, so submit-then-reconcile is the correct head-advance path and projection_generation_mismatch / stale_projection correctly remain degraded. Separately confirmed exactly-once ESCALATE sequencing is achievable: _apply_transition raises GoalGateRefused from _check_done_evidence (line 800-801) BEFORE `total_iterations += 1` at line 805, so no path that falls through to enter_escalate can double-increment; all five direct enter_escalate call sites (autopilot.py:1067, 1112; runner.py:184, 244, 264, 275) are each followed by exactly one save.",
+      "resolution": "No change required."
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "none",
+      "disposition": "accept",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 68,
+        "end": 70
+      },
+      "description": "Re-tested and confirmed. The unfiltered-claim exposure is real and migration 037's predicate is the correct and sufficient enforcement point: the live claim_task definition (migration 027) has no task_type exclusion and orders `priority ASC, created_at ASC`, so a priority-1 task_type=issue row would be claimed FIRST by any get_work with p_task_types NULL; issue_service.py line 5 documents the exclusion as already-intended. work_queue.py:400 is the only claim path (single RPC, no Python-side fallback) and no caller in the repo passes task_types containing 'issue', so the predicate breaks nothing. The two-label cleanup is correctly bounded and non-destructive: MAX_PAGE_SIZE=100 (issue_service.py:26), the label filter uses PostgREST `cs` array-contains plus a Python all()-post-filter (lines 329-344), so ordinary issues carrying only change:<id> can never be selected; update_issue replaces labels wholesale (line 420-421), which is safe precisely because the two-label set is adapter-exclusive. Priority 1 is within the CHECK (priority BETWEEN 1 AND 10) constraint and list_issues orders priority.asc, so the row stays inside the default 50-row window that both /issues/list polling and _build_snapshot use.",
+      "resolution": "No change required."
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "none",
+      "disposition": "accept",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 74,
+        "end": 74
+      },
+      "description": "Re-tested and confirmed. D10's lazy-isolation requirement is implementable in the codebase's existing idiom: autopilot.py already imports coordination_bridge lazily inside _resolve_archetype (line 737) rather than at module scope, and runner.py's module-scope imports are limited to autopilot, phase_agent, and the shared approval/trust packages, so a new queue_projection module imported only inside the project-state handler is a genuine isolation boundary rather than a paper one. The coordinator-free Autopilot fallback (SKILL.md line 41-49) dispatches sibling skills and never enters runner.py's projection path. Queue-data non-authority is machine-enforced: the AST guard at skills/tests/coordination-bridge/test_work_queue_projection_invariant.py tracks the binding of a claim result and flags any subscript chain extracting current_phase/iteration off it, and task 4.3 runs it. persist_and_project (autopilot.py:198-218) saves first and classifies every non-'ok' envelope as degradation without touching state, and the label-only kanban query path (useCoordinator.ts:75, POST /issues/list with {labels: ['change:<id>']}) needs no frontend change to see the projected row.",
+      "resolution": "No change required."
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: the Force scenario remains unimplemented in the host procedure for non-empty backlogs. `SKILL.md` says `--force` reuses complete same-fingerprint caches without analyst dispatch, and `rank_candidates(..., scores=None)` now supports that via `_valid_prior_digest_for_reuse`, but Rank still instructs: when `requested_keys` is non-empty, dispatch exactly one analyst and always invoke `rank --scores`. Only the zero-candidate branch calls rank without scores. A host following the written Rank sequence on `/supervise cycle --force` over an unchanged non-empty store therefore re-dispatches and republishes a new `generated_at`, violating specs/supervise/spec.md scenario \"Force does not discard valid scores\".",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Extend Rank (and TestWorkflowContract) with an explicit force/same-fingerprint reuse branch: after prepare-batch, if fingerprint and requested keys match the prior digest and caches validate, call `rank` without `--scores` and skip analyst dispatch; dispatch only when reuse fails because scores are missing or composition changed.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 214,
+        "end": 295
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: terminal decision history makes same-key re-admission unscorable and self-deleting. After reject/approve \u2192 prune, `_merge_terminal_history` keeps the terminal entry in the mirror; a later `store` of the same stub_key succeeds and reports `fresh_keys`, but `prepare_batch` skips any key whose decision is approved/rejected, yielding `requested_keys: []`. The next `store --prune-only` then deletes the freshly stored file again because the terminal decision still applies. Independently reproduced: re-admit \u2192 requested_keys=[] \u2192 second prune removes the candidate. Dedupe/seen_keys often masks this on the happy path, but any bypass (ledger reset, direct store, tests) permanently loses reconsidered work while consuming capacity.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "When `store` admits a key that only exists as terminal history, clear or supersede that terminal decision to pending for the new payload (or refuse re-admission explicitly). Add a regression covering reject \u2192 prune \u2192 re-store \u2192 prepare-batch \u2192 rank.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 948,
+        "end": 954
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: `_valid_prior_digest_for_reuse` raises on a missing/mismatched singleton cache even when fingerprint and requested keys match the prior digest. Design D6 says force/reuse should dispatch for missing scores; raising aborts the scores=None path before the host can fall back to analyst dispatch. Independently reproduced by deleting one cache after a successful rank and calling `rank_candidates(..., scores=None)` with a later as_of.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "Return None (soft miss) from `_valid_prior_digest_for_reuse` when any required cache is absent or identity-invalid, and surface a distinct \"scores required\" error only after documenting the host fallback; alternatively add an explicit `--reuse-only` vs `--allow-rescore` mode.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 598,
+        "end": 611
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: local installed copies under `.agents/skills/supervise/scripts/` and `.claude/skills/supervise/scripts/` still lack the d9c7f0a4 recovery/reuse/binding/UTC/pathspec fixes (`cmp` differs from `skills/supervise/scripts/digest.py` and `cycle_state.py`). SKILL.md mirrors are current. These paths are gitignored install outputs, so this is workspace hygiene rather than committed drift; harnesses that execute the installed copy would not see the round-1 fixes until `skills/install.sh` is re-run.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "resolution": "Re-run `bash skills/install.sh` (or equivalent sync) before exercising supervise from `.agents`/`.claude` in this worktree.",
+      "package_id": "whole-branch",
+      "file_path": ".agents/skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1,
+        "end": 30
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: round-1 blockers verified fixed in runtime and tests: unscored lifecycle survivors prune without raising; force reuse works when rank is called without scores; recovery recovers then demands rehydrate; prepare/rank normalize due deferrals from stale records; rank binds manifests byte-for-byte to the persisted store including the empty-store case; staleness uses UTC dates with max(0,\u2026); git evidence uses `:(literal)` pathspecs; legacy digested stubs canonicalize into schema-writable mirror entries; zero-candidate rank publishes a valid empty digest.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Retain the d9c7f0a4 regression suite as the gate for these invariants.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 91,
+        "end": 645
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: evidence and publication boundaries stay fail-closed: journal recovery still allowlists only canonical candidate/cache/digest/mirror targets with complete preflight checksum validation; provenance loading rejects URIs/symlinks/traversal, sanitizes excerpts, and frames them as untrusted data; rubric prompt keeps trusted instructions before the untrusted manifest block.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Keep the journal authorization and evidence loader regressions.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 352,
+        "end": 484
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: model dispatch and roadmap mutation remain outside `scripts/`: digest.py stays network/LLM-free, approval still emits a single refine-roadmap request for host preview/apply, and `decide` merges through `write_mirror` without writing roadmap.yaml.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Preserve the host-assisted and no-roadmap-write structural tests.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1,
+        "end": 6
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: mutating entry points recover a pending journal then refuse to continue with pre-recovery host state (`recovered pending digest transaction; rehydrate and retry`), and lifecycle rebuild now intersects survivors with prior ranked keys so unscored admissions no longer block terminal pruning.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Keep the recovery-rehydrate and unscored-survivor regressions.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 91,
+        "end": 94
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

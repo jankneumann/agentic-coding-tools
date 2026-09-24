@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-10T04:19:36.245413+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Synchronized the stacked ri-10 branch with current main, preserved both sides of five additive conflicts, and completed archive-safe design lookup plus reference-form normalization. Focused state-artifact/path tests pass 719/719; the required package checkpoint degraded because its loader drops feature-level contract files and falsely reports the otherwise-valid API rationale as spurious.",
+    "completed_work": [
+      "Merged origin/main and resolved five additive conflicts",
+      "Completed task 3.2 archive-stability and reference wording",
+      "Verified 719 focused tests, 71 coordinator conflict tests, 73 decision/bridge tests, 118 supervisor workflow tests, 735 context-engineering tests, 23 archetype tests, and strict OpenSpec 90/90"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Merge current main without rebasing the supervisor stack",
+        "rationale": "The ri-10 branch is seven commits atop the long-lived supervisor roadmap branch; a merge preserves that history and imports the approved openspec_paths helper and guard as exact main ancestors.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Use the shared archive-safe change resolver",
+        "rationale": "Resolving design.md through change_dir(ROOT, CHANGE_ID) preserves the eight-stage assertion after OpenSpec archival without copying path infrastructure into ri-10.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run vendor-diverse implementation review with the degraded checkpoint called out",
+      "Run task 3.3 complete validation matrix"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+        "description": "Archive-safe design lookup contract"
+      },
+      {
+        "path": "docs/guides/state-artifacts.md",
+        "description": "Canonical guide reference wording"
+      },
+      {
+        "path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+        "description": "Task 3.2 completion record"
+      }
+    ]
+  }
+}

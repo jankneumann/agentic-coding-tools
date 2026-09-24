@@ -437,6 +437,22 @@ async def proxy_check_locks(
     return results
 
 
+
+async def proxy_list_locks_by_agent(agent_id: str) -> dict[str, Any]:
+    """List the caller's active locks through the recovery endpoint."""
+    from urllib.parse import quote
+
+    return await _request("GET", f"/locks?agent_id={quote(agent_id, safe='')}")
+
+
+async def proxy_release_locks_by_agent(agent_id: str) -> dict[str, Any]:
+    """Idempotently release the caller's active locks through HTTP."""
+    return await _request(
+        "POST",
+        "/locks/release-by-agent",
+        json_body={"agent_id": agent_id},
+    )
+
 # =============================================================================
 # PROXY FUNCTIONS: Work Queue
 # =============================================================================
@@ -461,7 +477,6 @@ async def proxy_complete_work(
 ) -> dict[str, Any]:
     """Proxy complete_work to POST /work/complete."""
     body = {
-        **_agent_identity(),
         "task_id": task_id,
         "success": success,
         "result": result,
@@ -476,17 +491,62 @@ async def proxy_submit_work(
     input_data: dict[str, Any] | None = None,
     priority: int = 5,
     depends_on: list[str] | None = None,
+    agent_requirements: dict[str, Any] | None = None,
+    projection_key: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
+    claim_immediately: bool = False,
 ) -> dict[str, Any]:
-    """Proxy submit_work to POST /work/submit."""
+    """Proxy submit_work to POST /work/submit.
+
+    No agent identity is injected. ``WorkSubmitRequest`` forbids extra fields, and
+    the route resolves identity from the authenticated principal
+    (``resolve_identity(principal, None, None)``) rather than from the body — so
+    sending ``agent_id``/``agent_type`` here is both ignored server-side and a hard
+    422 before the route is reached.
+    """
     body = {
-        **_agent_identity(),
         "task_type": task_type,
         "task_description": description,
         "input_data": input_data,
         "priority": priority,
         "depends_on": depends_on,
+        "agent_requirements": agent_requirements,
     }
+    if claim_immediately:
+        body["claim_immediately"] = True
+    if projection_key is not None:
+        body["projection_key"] = projection_key
+    if projection_labels is not None:
+        body["projection_labels"] = projection_labels
     return await _request("POST", "/work/submit", json_body=body)
+
+
+async def proxy_reconcile_work_projection(
+    projection_key: dict[str, Any],
+    task_type: str,
+    description: str,
+    input_data: dict[str, Any] | None = None,
+    priority: int = 5,
+    agent_requirements: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
+) -> dict[str, Any]:
+    """Proxy projection reconciliation to POST /work/reconcile.
+
+    Same contract as :func:`proxy_submit_work`: ``WorkReconcileRequest`` forbids
+    extra fields and the route takes identity from the principal, so no identity is
+    injected into the body.
+    """
+    body: dict[str, Any] = {
+        "projection_key": projection_key,
+        "task_type": task_type,
+        "task_description": description,
+        "input_data": input_data,
+        "priority": priority,
+        "agent_requirements": agent_requirements,
+    }
+    if projection_labels is not None:
+        body["projection_labels"] = projection_labels
+    return await _request("POST", "/work/reconcile", json_body=body)
 
 
 async def proxy_get_task(task_id: str) -> dict[str, Any]:
@@ -1191,3 +1251,30 @@ async def proxy_run_gen_eval(
         "time_budget_minutes": time_budget_minutes,
     }
     return await _request("POST", "/gen-eval/run", json_body=body)
+
+
+# =============================================================================
+# PROXY FUNCTIONS: Model routing
+# =============================================================================
+
+
+async def proxy_select_model_for_task(
+    *,
+    task_signals: dict[str, Any],
+    routing_profile: dict[str, Any] | None = None,
+    objective_profile: str | None = None,
+    weight_overrides: dict[str, float] | None = None,
+    allow_exploration: bool = True,
+) -> dict[str, Any]:
+    """Proxy the MCP model-selection tool to the matching HTTP operation."""
+    return await _request(
+        "POST",
+        "/routing/select_model",
+        json_body={
+            "task_signals": task_signals,
+            "routing_profile": routing_profile,
+            "objective_profile": objective_profile,
+            "weight_overrides": weight_overrides,
+            "allow_exploration": allow_exploration,
+        },
+    )

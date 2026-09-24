@@ -1,0 +1,11 @@
+{
+  "schema_version": 5,
+  "change_id": "fixture-change",
+  "current_phase": "SUBMIT_PR",
+  "phase_archetype": "runner",
+  "phase_history": [
+    {"at": "2026-09-10T10:00:00+00:00", "phase": "PLAN", "outcome": "complete"},
+    {"at": "2026-09-11T10:00:00+00:00", "phase": "IMPLEMENT", "outcome": "complete"},
+    {"at": "2026-09-12T10:00:00+00:00", "phase": "PLAN_REVIEW", "outcome": "complete"}
+  ]
+}

@@ -1,0 +1,11 @@
+diff --git a/src/orders.py b/src/orders.py
+index e69de29..1111111 100644
+--- a/src/orders.py
++++ b/src/orders.py
+@@ -8,4 +8,5 @@ def process_order(order, user):
+ def process_order(order, user):
+     total = compute_total(order.items)
+-    charge_card(user, total)
++    normalized_email = user.email.lower()
++    charge_card(user, total, receipt_to=normalized_email)
+     return total

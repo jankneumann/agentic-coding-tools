@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-23T02:32:47.346192+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "PR #417 was merged with a merge commit (ed6ce01f) after conflict resolution unblocked CI (25/25 green, 1 skipped). All tasks.md items were complete; the nine deferred-tasks.md items were migrated to coordinator issues with GitHub backups #609-#617. The change was archived post-merge; ROUTING_ADAPTIVE stays default-off, so no traffic rollout happened here.",
+    "completed_work": [
+      "merge",
+      "task-migration",
+      "archive",
+      "decision-index-regen"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Merge commit instead of rebase-merge",
+        "rationale": "The branch contained a merge commit carrying nine conflict resolutions (including a JSON-unioned supervisor-record.json ledger). A rebase would replay the 78 original commits and discard those resolutions, producing untested code; the merge commit lands exactly what CI tested.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Deferred items migrated to coordinator issues, one per DT item",
+        "rationale": "DT-1 to DT-9 are unrelated (benchmark, Cedar, dashboard, probes, config ownership); one follow-up proposal would bundle them into a change that would have to be split. Per-item issues let each become its own change. The user approved GitHub Issues as a backup mirror.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "No staged rollout performed at cleanup",
+        "rationale": "The adaptive router is gated by ROUTING_ADAPTIVE, which defaults off (agents_config.py). Merging changes no live routing; turning it off again means unsetting the variable. Enabling it is a separate, operator-owned decision.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "DT follow-ups: GitHub #609-#617",
+      "Fix coordinator issue search truncation (#618)",
+      "dispatch-governance next item: dg-06 make-the-orchestrator-obey-the-router"
+    ],
+    "relevant_files": []
+  }
+}

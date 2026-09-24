@@ -1,0 +1,38 @@
+[project]
+name = "system-one-decisions"
+version = "0.1.0"
+description = "Shared seam for calibrated System One (TypeSafe Jev) decisions, live TypeSafe client behind an optional extra."
+requires-python = ">=3.12"
+
+# No required dependencies — the whole point is that every consumer (skills
+# venv, gen-eval, the coordinator image) can install this package without
+# pulling in a vendor SDK. typesafe-sdk is a "live" extra: decide() imports
+# it lazily inside the function, never at module load time (design D1/D4).
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    # The test suite constructs real Choice/Noul/Score/... instances to
+    # exercise decide()'s live path against the SDK's actual shapes (design
+    # D5) — needed for tests regardless of whether an end consumer installs
+    # the `live` extra.
+    "typesafe-sdk>=0.7,<1",
+]
+live = [
+    "typesafe-sdk>=0.7,<1",
+]
+test-adapter = [
+    # A drop-in TypeSafeClient replacement backed by an LLM, used only for
+    # behavioural CI substitute tests (design D3) -- never live, never
+    # calibrated. Double-gated at test-run time (ANTHROPIC_API_KEY and
+    # SYSTEM_ONE_ADAPTER_TESTS=1 both required).
+    "system-one-adapter[anthropic]>=0.2,<1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/system_one_decisions"]

@@ -1,0 +1,177 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 265,
+        "end": 270
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "A console-approved escalate_resume never advances out of ESCALATE, so the human-approved resume path has no canonical writer and the projection keeps publishing the parked generation. `_evaluate_gate` parks escalate_resume via `session.park(..., context=context)` with no `edge` (runner.py:187), and `_cmd_gate_answer` treats a missing edge as 'record the answer and leave the phase where it is' (runner.py:265-270). Only the auto-approved path applies `_apply_transition(state, 'resolved')` (runner.py:170-176, pinned by test_auto_escalate_resume_transitions_and_flushes_before_continue). SKILL.md now forbids hand-editing `current_phase` and names no `transition --outcome resolved` step after `gate-answer --decision approved` (SKILL.md:126-146). Consequence: after the operator approves, `loop-state.json` still says ESCALATE, `project-state --mode submit` replays the ESCALATE tuple (board never shows the resumed phase), `apply-outcome --phase <previous_phase>` fails the phase guard in apply_phase_outcome (exit 2), and any ordinary `transition --outcome <x>` hits ESCALATE's table, is converted to a 'logical transition failure', overwrites escalation_reason and exits 0 while still parked. This breaks the recovery claim that every ESCALATE edge records resume metadata and advances exactly once; the round-5 fix covered only the auto posture. No test covers gate-answer approved for escalate_resume (test_the_printed_request_is_answerable_by_gate_answer uses pr_creation).",
+      "resolution": "In `_cmd_gate_answer`, when `gate is Gate.ESCALATE_RESUME and approved`, apply `autopilot._apply_transition(state, 'resolved', change_dir=...)` before `save_state` (mirroring `_evaluate_gate`), or have `_evaluate_gate` park escalate_resume with `edge={'outcome': 'resolved', 'target': state.previous_phase}` so the existing edge branch applies it. Add a CLI regression: seed ESCALATE(previous_phase=IMPLEMENT, total_iterations=4), gate-check parks, gate-answer approved, assert current_phase==IMPLEMENT and total_iterations==5, then project-state submit projects ('IMPLEMENT', 5). Update SKILL.md section 0 so the console path names the durable writer."
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "observability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 28,
+        "end": 34
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "Degraded projection envelopes hide the coordinator's precise problem reason. For any non-2xx/401/403/404 response the bridge returns `{'status': 'error', 'status_code': N, 'response': <problem json>, 'error': str(HTTPError)}` (coordination_bridge.py:322-328, 508-517), and `_degraded` computes `reason = envelope.get('reason') or envelope.get('error')`, only falling back to `response.detail` when both are None. So `project-state` prints `reason: 'HTTP Error 409: Conflict'` / `'HTTP Error 422: Unprocessable Entity'` instead of `stale_projection`, `projection_generation_mismatch`, `projection_key_collision`, or `invalid_projection_labels`. The design's documented operator recovery for the fail-closed pre-038 case (D9 upgrade caveat, round-7 Claude 6) depends on the operator seeing `projection_key_collision`; with this precedence it is indistinguishable from a stale replay. test_only_exact_reconciliation_required_conflict_advances_head asserts only `status == 'degraded'` with a fake envelope lacking the `error` key, so the real bridge shape is untested. Head advancement itself is unaffected because `_requires_reconciliation` reads `response.detail` directly.",
+      "resolution": "In `_degraded`, when `envelope.get('status') == 'error'` and `envelope.get('response')` is a dict with a string `detail`, prefer that detail over the transport error string (keep the error string as a secondary field if useful). Add an adapter test using the real `_normalize_operation_response` shape for 409/422 asserting the reason equals the problem detail."
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 232,
+        "end": 268
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "`install.sh --check` validates only the manifest-listed portable skill directories: `check_install_payload` iterates `${skills[@]}` per agent and diffs each `<dest>/<skill>`. The same installer also mirrors `SHARED_LIBS` (`shared`, install.sh:623 and 880-935), the `references/` library (sync_references_library, 673-698) and `install-manifest.json` into every runtime mirror, and installed skills import from that shared tree (autopilot imports shared.approval_gate/trust_posture; discover_prs loads shared/github_classifier.py per test_consumer_portability). A stale or hand-edited `.claude/skills/shared/*.py` or `references/*` therefore passes `--check` green, so the round-5/7 claim of byte-level installed-payload validation across both runtime mirrors and the CI gate added in ci.yml:105 are narrower than stated. I verified locally that autopilot, coordination-bridge and shared mirrors currently match canonical in this worktree (diff -qr clean), so this is a gate gap rather than present drift.",
+      "resolution": "Extend `check_install_payload` to diff `$dest_dir/<lib>` for each `SHARED_LIBS` entry, `$dest_dir/references` when `$SCRIPT_DIR/references` exists, and `$dest_dir/install-manifest.json`, using the same exclusions as the install path. Add a drift regression that mutates `.agents/skills/shared/<file>` and expects `--check` to fail."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 471,
+        "end": 500
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "`runner.py transition` is an idempotent no-op once `current_phase == 'DONE'` (runner.py:419, round-7 Claude 3), but the sibling durable writer `runner.py escalate` has no terminal guard. A stray host `escalate` after DONE calls `enter_escalate`, which sets previous_phase=DONE, current_phase=ESCALATE and bumps total_iterations, and the mandated `project-state --mode submit` then advances the projection head to an ESCALATE generation for a completed change (the DONE row is cancelled by reconcile). A later `resolved` edge resolves `_previous_phase` to DONE and re-runs the goal gate via `_check_done_evidence`. The DONE-idempotence claim therefore holds for only one of the two host-facing writers.",
+      "resolution": "Mirror the DONE guard in `_cmd_escalate` (return 0 without mutating state, or exit 2 with a clear message), and pin it with a CLI test alongside test_runner_transition_after_done_is_idempotent."
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "observability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 519,
+        "end": 525
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "`enter_escalate` guards the phase change and sequence increment when already in ESCALATE but unconditionally overwrites `escalation_reason` and `phase_started_at`. `apply_outcome_or_escalate` deliberately preserves the original reason on retry (autopilot.py:670-681), so the two ESCALATE writers have different retry semantics. Through `runner.py escalate` retries and, more importantly, the `_cmd_transition` ValueError branch (any unsupported outcome issued while parked), the durable root cause such as 'goal gate refused: <reason>' is replaced by 'logical transition failure: Invalid outcome ... for phase ESCALATE' while the run stays parked and exits 0. The original text survives only indirectly (goal_gate.reason or a phase_history note), which weakens the operator-facing resume prompt that SKILL.md renders from escalation_reason.",
+      "resolution": "Only assign `escalation_reason`/`phase_started_at` inside the `if state.current_phase != 'ESCALATE'` block (or append retry reasons to phase_history instead of overwriting), and add a unit test that a second enter_escalate while parked preserves the first reason."
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "correctness",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/test_autopilot_projection_visibility.py",
+      "line_range": {
+        "start": 220,
+        "end": 238
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "The runtime/OpenAPI bound test pins only the per-item `max_length` of `projection_labels` (161-char item rejected). The list-level `min_length=2, max_length=2` declared on the `list[ProjectionLabel] | None` fields (coordination_api.py:224-226, 242-244) is not exercised by any request-model or endpoint test, and the OpenAPI `prefixItems` pattern/const are enforced only by the service layer's exact-pair check (`_projection_labels_are_valid`). Behaviour is still fail-closed because the service returns `invalid_projection_labels` (422) for any non-exact pair, so this is a coverage gap, not a defect.",
+      "resolution": "Optionally add one request-model test with a one-item and a three-item list asserting ValidationError, so the Pydantic-level contract stays pinned if the model annotation changes."
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "observability",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/reviews/implementation/round-8/review-prompt.md",
+      "line_range": {
+        "start": 1,
+        "end": 5
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "The dispatched prompt names exact HEAD `112b040921a9292c2a57d682a5976dd797a990b5`, which does not exist in this repository (`git cat-file -t` fails). The checked-out HEAD is `112b0409a09a725885fcb40b715b25c0936c74a3` ('docs(validation): record ri-09 recovery gates'); only the 8-character prefix matches, so the full SHA in the audit ledger is mistyped. The parent SHA `2b755a5d\u2026` resolves and equals the merge base. This review was performed against the actual HEAD. Review sandbox limitation: pytest, the live PostgreSQL stack and podman were not executable under this session's permissions, so all verification is static code/migration analysis plus local mirror diffs; the validation report's live-test evidence was not independently re-run.",
+      "resolution": "Record the correct full HEAD SHA in the round-8 manifest/dispositions so the ledger's exact-head claim is verifiable."
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "correctness",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 98,
+        "end": 121
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "Positive verification of the round-6/7 ownership claims. Ownership is consulted only via `work_queue_projection_ownership` (EXISTS at 039:100-102 and 202-204), seeded once from labelled rows (039:11-17); neither `input_data` markers nor labels confer ownership at runtime. The collision check runs before the head insert (`v_head_missing` deferred to 039:118-121) and, in reconcile, before the head upsert and the cancel CTE (039:200-224), so an unowned collision has no transaction effect (live tests test_submit_collision_with_nonissue_is_fail_closed, test_owned_projection_cannot_take_over_unowned_issue_key assert head and row untouched). Reactivation resets only cancelled/completed/failed rows (039:130-134) and emits projection.labels_changed (039:136-142); claimed/running rows keep lifecycle state. Legacy `p_projection_labels IS NULL` paths are equivalent to migration 035 apart from head-insert ordering, and ordinary IssueService rows (input_data is `{body}` or NULL, issue_service.py:270-272) can never match the tuple predicates used by the cancel, relabel or ownership statements, so ordinary change-labelled issues cannot be mutated.",
+      "resolution": "None required."
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "compatibility",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 95,
+        "end": 134
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "Positive verification of the API contract claims. `projection_key_collision` is in `_PROJECTION_CONFLICTS` (409) and `invalid_projection_labels` in `_PROJECTION_INVALID` (422); a success result without task_id raises `canonical_task_id_missing` (422). Request models forbid extra fields and bound `projection_labels` items to 160 chars, matching the OpenAPI `additionalProperties: false`, ordered `prefixItems`, conditional `if projection_labels then projection_key+task_type=issue` block, and typed Problem401/403/409/422 responses (work-queue.yaml:88-192); the problem handlers emit exactly the four required Problem keys. The bridge decodes `application/problem+json` bodies with `json.loads` regardless of content type (coordination_bridge.py:269-278), so `_requires_reconciliation` sees `response.detail == 'reconciliation_required'` and head advancement works end to end. agents.yaml:275 now passes `--output-format json` before `--json-schema`, pinned by test_repo_antigravity_schema_review_uses_json_output_mode.",
+      "resolution": "None required."
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "architecture",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 272,
+        "end": 346
+      },
+      "package_id": "wp-projection-adapter",
+      "description": "Positive verification of visibility, isolation and mirror claims. SSE converts `projection.labels_changed` (emitted by the 037 UPDATE trigger with OLD-label fallback and the 039 AFTER INSERT trigger) into a coalesced fresh snapshot, clearing the pending flag before the query and after the backpressure drain so a burst of up to 100 label repairs yields one bounded refresh with one follow-up. `_build_snapshot` reads `list_issues(labels=[change:<id>])`, which now excludes cancelled rows implicitly while `status='all'` retains them (issue_service.py:319-322); ordinary issue closure writes `completed`, never `cancelled`, so no ordinary board rows disappear. `claim_task` excludes `task_type='issue'` for unfiltered claims (037:25). `queue_projection` is imported only inside `_cmd_project_state`, autopilot.py never imports it, `_GateSession` in runner leaves the callback unset, and the coordinator-free run test fails fast on any transport call. `.claude/skills` and `.agents/skills` are untracked and `diff -qr` of autopilot, coordination-bridge and shared against canonical is clean; ci.yml:105 materialises both mirrors before `--check`. Architecture provenance `generated_at` 2026-09-14T09:12:19Z equals the source commit b98f1435 timestamp and was committed in c8f8e37e, so the deterministic artifacts are fresh for the code state.",
+      "resolution": "None required."
+    }
+  ]
+}

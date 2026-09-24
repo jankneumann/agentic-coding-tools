@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T15:37:53.107513Z",
+  "payload": {
+    "agent_name": "implement (retry, non-isolated)",
+    "session_id": null,
+    "summary": "Implemented all of Phase 3 (tasks 3.0-3.7) of followup-add-decision-choices-ledger: the read-only needs_user.py reader, the three SKILL.md workflow hooks (iterate-on-implementation Step 11.5, validate-feature Choices row, cleanup-feature Step 5.5), two documentation updates (workflow.md, decision-index README producer), and the three new test files (unit, end-to-end fixture, SKILL.md content pins). Both checkpoints ran; all skills/tests/audit-choices tests (100) and tests/ci_coverage (124) pass, install.sh --check and dependency_direction.py pass, runtime copies resynced. Every task and both checkpoints are checked off in tasks.md. Branch pushed.",
+    "completed_work": [
+      "3.0: skills/audit-choices/scripts/needs_user.py (read-only reader) + skills/tests/audit-choices/test_needs_user.py, test-first",
+      "3.1: iterate-on-implementation Step 11.5 (non-blocking audit invocation, F2 entries/schema_version comparison, F6 partial-pair guard, warn-and-continue skip line, Step 12 summary line) + audit-choices SKILL.md --run-id documentation (F8)",
+      "3.2: validate-feature Choices row in both the Step 11 report sketch and the Step 12 $REPORT_FILE heredoc, plus the After Validation echo",
+      "3.3: cleanup-feature Step 5.5 (anchored before Step 6, per design F1) + retargeted Step 5a early exit from Step 6 to Step 5.5",
+      "chore: declared the audit-choices cross-skill dependency in skills/install-manifest.json for cleanup-feature, iterate-on-implementation, and validate-feature (install.sh --check caught this)",
+      "checkpoint after 3.1-3.3: pytest tests/audit-choices, install.sh --check both green",
+      "3.4: docs/guides/workflow.md command-ladder entry and Infrastructure Skills bullet",
+      "3.5: decision_index.py emit_readme ledger-positioning paragraph + regenerated docs/decisions/README.md via make decisions",
+      "3.6: skills/tests/audit-choices/test_end_to_end.py — driver pinned against a synthetic fixture repo seeded from the archived parent change's own artifacts (proposal.md/design.md/session-log.md), covering scenarios 1, 3-7, the reader half of 11, and the executable half of 12",
+      "3.7: skills/tests/audit-choices/test_workflow_hooks.py — SKILL.md content pins for all three hooks and the audit-choices Arguments section, using a fence-aware heading scanner (several illustrative templates contain '##'-prefixed lines inside code fences that a naive scanner would mistake for real document structure)",
+      "final checkpoint: the four skill gates, runtime resync, diff/scope review",
+      "pushed openspec/followup-add-decision-choices-ledger--a70ba725 to origin"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Treat make context-refresh's pending-merge warnings as pre-existing, out of scope",
+        "rationale": "The final checkpoint's `make context-refresh PYTHON=skills/.venv/bin/python` exits 2, listing ~30 active OpenSpec changes across the whole repo with pending spec merges (roadmap-orchestration, vendor-ux, worktree, usage-api, task-routing, etc.), none touched by this change's diff. `spec:skill-workflow` is in that list too, but that is expected and correct: this change's spec delta is designed to merge into openspec/specs/ only at archive time (see proposal.md's rationale for carrying Phase 3 forward at all), not at implement time. Fixing ~30 unrelated changes' archival state is out of this phase's scope, so the command was run and its output reviewed but not acted on beyond confirming nothing in the failure list is attributable to this diff.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Open a PR from openspec/followup-add-decision-choices-ledger--a70ba725 against openspec/followup-add-decision-choices-ledger, or hand off to /validate-feature followup-add-decision-choices-ledger per the orchestrator's normal phase sequence",
+      "At cleanup/archive time for this change, expect spec:skill-workflow's pending-merge state (surfaced by context-refresh) to resolve as part of the normal archive-time spec merge"
+    ],
+    "relevant_files": [
+      "skills/audit-choices/scripts/needs_user.py",
+      "skills/tests/audit-choices/test_needs_user.py",
+      "skills/tests/audit-choices/test_end_to_end.py",
+      "skills/tests/audit-choices/test_workflow_hooks.py",
+      "skills/iterate-on-implementation/SKILL.md",
+      "skills/validate-feature/SKILL.md",
+      "skills/cleanup-feature/SKILL.md",
+      "skills/audit-choices/SKILL.md",
+      "skills/install-manifest.json",
+      "skills/explore-feature/scripts/decision_index.py",
+      "docs/decisions/README.md",
+      "docs/guides/workflow.md",
+      "openspec/changes/followup-add-decision-choices-ledger/tasks.md"
+    ]
+  },
+  "notes": {
+    "worktree_state": "Two untracked leftovers remain in the worktree, unrelated to this change and NOT part of any commit here: pr_review.json and openspec/changes/switch-pi-standard-to-ox-alpha/. These came from a stash entry (stash@{0}, 'recovery: vendor-review worktree drift PRs 409 and 276') that pre-existed in this shared .git and was accidentally popped by an ad hoc `git stash && ... && git stash pop` I ran while sanity-checking whether `make context-refresh`'s failures were pre-existing. The pop conflicted; I recovered with `git reset --merge`, which restored all tracked files to HEAD (confirmed via `git diff --stat 0a47a61d..HEAD` matching exactly the intended task scope) and left both stash entries intact and undropped (`git stash list` still shows both). The two untracked files it left behind could not be removed: `rm -rf` and `git clean` were both denied by the harness's auto-mode classifier as destructive actions. They do not affect this change's commits or the push. Recommend either the orchestrator or a session with elevated permissions runs `rm -f pr_review.json && rm -rf openspec/changes/switch-pi-standard-to-ox-alpha/` in this worktree, or ignores them if they are cleaned up automatically at worktree teardown."
+  }
+}

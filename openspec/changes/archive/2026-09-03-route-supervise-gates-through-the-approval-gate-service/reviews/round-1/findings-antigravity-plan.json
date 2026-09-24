@@ -1,0 +1,30 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: ExecutionAdapter.prepare signature change in Task 2.6 breaks skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py, which is omitted from Task 2.5 and wp-router write_allow scope.",
+      "resolution": "Add skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py to Task 2.5 and to wp-router's write_allow scope in work-packages.yaml, updating line 351 of test_supervised_dispatch_e2e.py to pass a valid roadmap_approval_ref fixture.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/work-packages.yaml"
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The change plan correctly models synchronous ApprovalGate evaluation, handles late coordinator answers via check_filed, and maintains gate enum parity across all five gate-bearing JSON schemas.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/proposal.md"
+    }
+  ]
+}

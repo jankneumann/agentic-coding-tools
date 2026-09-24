@@ -1,0 +1,211 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: `/work/submit` and `/work/reconcile` authorize labelled projection mutations as generic `submit_work` operations without binding authorization to `projection_key.change_id` (`agent-coordinator/src/coordination_api.py:1203-1209,1239-1248`). The active policy permits `submit_work` to every trust-level-2 principal (`agent-coordinator/database/migrations/026_remote_worker_feature_handoff_permissions.sql:39-47`), while labelled reconciliation creates registry ownership, advances the per-change head, and cancels prior owned generations (`agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql:221-249`). An ordinary submit-capable principal can therefore reconcile an arbitrary change at a maximal sequence, cancel its legitimate projection, and make subsequent durable generations stale.",
+      "resolution": "Introduce a distinct projection-publish authorization operation or capability, bind its resource to the requested change ID, and restrict it to the selected Autopilot publisher identity before the service or SQL mutation runs. Add an authorization regression proving an ordinary submit-capable principal cannot advance another change's projection head.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1239,
+        "end": 1248
+      },
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Migration 039 does not enforce its documented pre-registry upgrade gate when reconciliation targets a newer generation. Given an active migration-038 row at sequence N, that row is unowned after upgrade. Reconciliation at N+1 inserts and registers the new row and advances the head at lines 194-229, but cancellation and label cleanup at lines 231-259 affect only registry-owned rows. The legacy row therefore remains pending with both projection labels while the call returns success, producing two active board-visible generations. The upgrade regression at `agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py:234-281` covers only same-tuple replay and misses this path. This contradicts `design.md:74`, which explicitly states that advancing a generation alone is not a repair.",
+      "resolution": "Before inserting or advancing any labelled generation, detect every unowned reserved-labelled row for the change and return `projection_key_collision` without mutation until an administrator verifies and registers it. Add a pre-039 upgrade test that reconciles N+1 and asserts fail-closed head, row, status, and label preservation.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 194,
+        "end": 259
+      },
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: `WorkQueueService.reconcile_projection` catches `TrustResolutionError` in its blanket `except Exception` handler and then proceeds to the mutating reconciliation RPC without completing the guardrail scan. The sibling submit path explicitly re-raises this error at lines 820-827 to prevent exactly this fail-open behavior. The structural regression in `agent-coordinator/tests/test_trust_resolution_fail_open.py:200-222` enumerates claim, complete, and submit but omits the now production-used reconcile path.",
+      "resolution": "Add `except TrustResolutionError: raise` before the blanket reconciliation handler and extend the fail-open regression to prove trust-resolution failure prevents `reconcile_work_projection` from reaching the database.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 933,
+        "end": 956
+      },
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: `_orchestrator_for_dispatch` decides coordinator resolution failed solely from an empty CLI-adapter map. A valid SDK-only coordinator roster is discarded in favor of process/global disk configuration even though `ReviewOrchestrator` explicitly supports SDK-only inputs (`review_dispatcher.py:1862-1875,1927-1943`) and the coordinator serializer accepts agents with `cli` or `sdk` (`agent-coordinator/src/agents_config.py:1773-1788`). This violates coordinator-before-disk precedence for dispatch, `--check-vendors`, and `--list-agents`. A no-write reproduction at exact HEAD returned the disk orchestrator and invoked `from_agents_yaml()` for an SDK-only coordinator roster. Existing precedence tests do not cover coordinator-nonempty-to-no-disk behavior.",
+      "resolution": "Fall back to disk only when both `orchestrator.adapters` and `orchestrator.sdk_adapters` are empty. Add an SDK-only coordinator precedence regression asserting disk loading is not called, plus a targeted `--list-agents --cwd` routing assertion.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2587,
+        "end": 2590
+      },
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The projection adapter derives identity exclusively from durable LoopState fields, sends `task_type=issue`, priority 1, and the exact owned-label pair, routes explicit reconcile directly, and advances submit through reconciliation only for the exact `status=error`/HTTP-409/`reconciliation_required` envelope. Successful projection additionally requires a non-empty canonical task ID.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 55,
+        "end": 115
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: State persistence precedes projection, projection exceptions and non-success envelopes are degraded without feeding queue data back into state, and resume reconciliation occurs before gate handling or phase work. Direct ESCALATE entry advances the generation once and preserves the original incident on retry. Focused Autopilot projection, ordering, recovery, gate, and isolation regressions passed at exact HEAD.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 186,
+        "end": 233
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: For already registry-owned rows, migration 039 takes the per-change advisory lock before head mutation, rejects exact unowned collisions before transaction effects, limits labelled cancellation and cleanup to registry-owned UUIDs, preserves claimed/running canonical lifecycle state, and reactivates only terminal canonical rows. These protections remain correct apart from the distinct pre-registry newer-generation gap reported above.",
+      "resolution": "No change required for the covered owned-row and exact-collision paths.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 186,
+        "end": 280
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Projection label notifications are filtered by subscribed change ID, coalesced into bounded fresh snapshots, and the pending-refresh flag is cleared before rebuilding so updates arriving during the query enqueue a follow-up. Implicit label-filtered issue reads exclude cancelled rows. Focused coordinator visibility, issue, and work-queue tests passed at exact HEAD.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 272,
+        "end": 328
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Runtime request models and OpenAPI agree on the heterogeneous ordered projection-label pair: a canonical change label with the 135-character bound followed by the fixed `projection:autopilot-phase` label. Projection conflict and invalid-reason mappings remain aligned with the RFC 7807 API responses.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 195,
+        "end": 252
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Coordinator-free tiers remain isolated from the new publisher: the projection module is not eagerly imported, the state-machine callback defaults to absent, and fail-fast module and bridge-call spies cover submit, reconcile, and projection-label helpers while permitting pre-existing coordinator detection and archetype resolution.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 12,
+        "end": 86
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Explicit `--agents-yaml` returns before local or coordinator lookup, checkout-local discovery receives the exact reviewed `--cwd`, and dispatch, `--check-vendors`, and `--list-agents` all call the same resolver with that cwd. Tests pin the explicit and checkout-local branches and the coordinator-empty-to-disk branch; the missing SDK-only coordinator branch is isolated in finding 4.",
+      "resolution": "No change required for the explicit, checkout-local, and shared-entry-point behavior.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2520,
+        "end": 2724
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Antigravity review construction still places `--output-format json` before the inlined `--json-schema` and passes the prompt through `--prompt`. Findings ingestion accepts direct objects plus dict- or JSON-string-valued `structuredOutput`, `structured_output`, and `response` envelopes. The focused dispatcher suite passed at exact HEAD.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 868,
+        "end": 893
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

@@ -233,7 +233,7 @@ If `CAN_HANDOFF=true`, write a review handoff with:
 
 After writing your own findings, dispatch reviews to other vendor CLIs and synthesize consensus.
 
-**Write the review prompt** to `openspec/changes/<change-id>/reviews/review-prompt.md` — include instructions to read the plan artifacts and output only valid JSON conforming to `review-findings.schema.json`.
+**Write the review prompt** to `openspec/changes/<change-id>/reviews/review-prompt.md` — include instructions to read the plan artifacts and output only valid JSON conforming to `review-findings.schema.json`. The required-field list and enums MUST come from `review_findings_schema.prompt_contract()` / `prompt_contract_block()` — do not hand-copy the field list.
 
 **Adversarial mode**: If `--adversarial` flag was passed, wrap the review prompt with adversarial framing before dispatch:
 
@@ -259,7 +259,7 @@ python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.p
 
 This dispatches to all available vendors configured in `agents.yaml` with `cli` sections. Each vendor runs independently and writes findings to `reviews/findings-<vendor>-plan.json`.
 
-**Agent discovery resolution chain**: The dispatcher resolves agents via the coordination MCP server configured in `~/.claude.json` → `mcpServers.coordination`. It extracts the `agent-coordinator/` directory from the MCP server args and runs `get_dispatch_configs.py` to load `agents.yaml`. If the coordinator is not configured, pass `--agents-yaml <path>` explicitly as fallback. Use `--list-agents` to verify available agents.
+**Agent discovery resolution chain**: An explicit `--agents-yaml` wins. Otherwise the dispatcher searches from the reviewed `--cwd` for checkout-local `agent-coordinator/agents.yaml`, then tries the configured coordination MCP/HTTP roster, and finally the process/global disk fallback. SDK-only coordinator rosters count as configured and are not discarded. Dispatch, `--check-vendors`, and `--list-agents` use this same resolver. Use `--list-agents --cwd <reviewed-checkout>` to verify the exact roster.
 
 **Troubleshooting dispatch failures**: Run `python3 <script> --list-agents` to verify agent discovery. Common issues: (1) `~/.claude.json` has no `mcpServers.coordination` entry — run `/setup-coordinator`, (2) async/remote agents may time out — local agents are more reliable, (3) some vendors may return non-JSON output — check `review-manifest.json` for error details.
 

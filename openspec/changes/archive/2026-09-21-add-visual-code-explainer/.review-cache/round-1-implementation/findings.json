@@ -1,0 +1,511 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "add-visual-code-explainer",
+  "reviewers": [
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 13,
+      "elapsed_seconds": 258,
+      "error": null
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 82,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Ledger item 37 is resolved \u2014 `design.md` now defines D8 (atlas_tree.py module layout) and D9 (refusal list), matching task/WP references.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "architecture",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md"
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Ledger items 38 and 45 are resolved \u2014 task 2.5 Spec scenarios now include skill-workflow \"Tree tool failure after fresh check\", and `references/grounding.md` documents `--tree` spawn/unexpected-exit \u2192 `graph check failed`.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md"
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Ledger item 46 is resolved \u2014 task 2.6 Spec scenarios now list \"Manifest declares portable distribution and atlas dependencies\" and \"Sibling skill paths use skill-base-dir form\".",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/tasks.md"
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: Ledger item 13 is `status: retired` with `parked_reason: disagreement` in `.review-ledger/ledger.json`, yet `reviews/parked-disagreements.json` still tracks ledger_id 13 as an active parked disagreement. The process records disagree on whether the item is closed or still parked (the open-item claim of `retired_reason: plan-review-adjudication-round-4` is not present on the ledger record).",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "compatibility",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/reviews/parked-disagreements.json"
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Atlas Symbol Tree Export SHALL resolve module targets by full file path or basename, but the only module scenario (\"File target gives the aggregated module view\") and task 1.1 / `test_basename_roots_at_module` cover basename only. There is also no scenario for unique-symbol-name-before-module when a unique name collides with a module path/basename. Same gap as parked item 13 and open items 40/50/51/52.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md"
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Atlas Symbol Tree Export SHALL use only the Python standard library and make no network requests, but no WHEN/THEN scenario or task 1.x acceptance check verifies either constraint.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "security",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md"
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: D5 / skill-workflow map `--check` spawn/OSError to `graph check failed`, but no scenario WHEN covers that path. \"Stale or absent graph falls back to source\" WHEN is only non-zero `--check` or missing script/graph (\u2192 `graph stale` / `graph absent`), yet its THEN still allows `graph check failed`. \"Tree tool failure after fresh check\" covers only `--tree` after a successful check. `test_behaviour.py` only asserts the reason token exists.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "resilience",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/skill-workflow/spec.md"
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: Atlas requirement says every node line SHALL be `<name>  (<file>:<line>)  [<kind>]`, but \"Callees tree for a symbol\" validates that shape only for the root line, and task 1.1 / `TestPrintedNodesMatchFixture` checks descendants only by `(name, file)` \u2014 wrong line or kind on children would still pass.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/specs/codebase-analysis/spec.md"
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: In `proposal.md` What Changes, the Frontmatter bullet lists six keys (`name, description, category, tags, user_invocable, related`) but then says the skill test asserts the \"four surviving keys\". Spec, tasks 2.1, D6, and `test_skill_md.py` all require explicit assertions for all six.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/proposal.md"
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: In `session-log.md` Plan Review, `### Next Steps` still sits between round-1 and round-2 decisions and tells the reader to IMPLEMENT if converged, while rounds 3\u20134 adjudications (converge-result cleanup, task 1.1 scenario extension, `--tree` \u2192 `graph check failed`, non-call-tree source read, proposal disclosure alignment; `plan_revision` \u2192 6) live only in `plan-findings.md`.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "readability",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/session-log.md"
+    },
+    {
+      "id": 11,
+      "status": "confirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [
+        {
+          "vendor": "pi",
+          "finding_id": 49
+        }
+      ],
+      "match_score": 0.6136363636363635,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "fix",
+      "description": "Nit: Plan Review decision 2 in `session-log.md` understates `graph check failed` as \"spawn failure or `--tree` exit 1\", while D5 and the skill-workflow requirement also map any `--tree` exit other than `0`/`2`/`3` (after a fresh `--check`) to that reason.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "grok",
+        "pi"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/session-log.md"
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Open item 52 claims design.md says task 1.1 covers file-path resolution; current design.md D4 only states path-or-basename resolution and task 1.1 text says \"basename target\". The missing full-path scenario is real (finding 5); the design-attribution half of item 52 is not accurate.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "architecture",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "openspec/changes/add-visual-code-explainer/design.md"
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Grounding reference, exit-3 ask-don't-guess, sketching-only disclosure exemptions, and footer\u2192disclosure substring mapping are consistent across D5, skill-workflow, grounding.md, and the deterministic behaviour tests.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "grok"
+      ],
+      "file_path": "skills/explain-code/references/grounding.md"
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 39,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Ledger item 13 is marked 'retired' with retired_reason 'plan-review-adjudication-round-4' in .review-ledger/ledger.json, but the same item is tracked as an active parked disagreement in reviews/parked-disagreements.json. The disagreement about module file path vs basename coverage remains unresolved; retiring it while keeping it parked is contradictory.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "compatibility",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 40,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The Atlas Symbol Tree Export requirement states '<target> SHALL resolve as exact node id, then unique symbol name, then module file path or basename', but the only module-resolution scenario ('File target gives the aggregated module view') and task 1.1 test only cover basename resolution ('api.py'). Full file path resolution (e.g., 'src/api.py') and the unique-name-before-module precedence are not exercised by any scenario or test.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 41,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The Atlas Symbol Tree Export requirement mandates 'using only the Python standard library and making no network requests', but no WHEN/THEN scenario or task verifies either constraint. The security and operability boundary is unenforced \u2014 an implementation could import third-party packages or make network calls and still pass all tests.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "security",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 42,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The grounding requirement maps failure to spawn or run run_architecture.py --check to 'graph check failed' (first-match order), but no skill-workflow scenario has a WHEN condition for --check spawn failure (OSError/exception before exit code). The 'Stale or absent graph' scenario covers missing files and non-zero exits; the 'Tree tool failure' scenario only covers build_atlas.py --tree after a fresh check. An implementation could misclassify a --check spawn failure and still pass all behavioural tests.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "resilience",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 43,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The atlas requirement states each node line SHALL show '<name> (<file>:<line>) [<kind>]', but test_every_printed_node_matches_fixture in test_atlas_tree.py only validates (name, file) against the fixture. Incorrect line numbers or kinds on descendant nodes would pass. The LINE_RE regex captures all four fields but the assertion doesn't use line and kind.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 44,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "proposal.md 'What Changes' lists six frontmatter keys (name, description, category, tags, user_invocable, related) but then states the skill test 'asserts the four surviving keys explicitly'. The count is wrong \u2014 there are six surviving keys after omitting 'triggers', not four. This mis-briefs implementers of task 2.1.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 47,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The 'Stale or absent graph falls back to source' scenario allows reason 'graph check failed' per the first-match table, but its WHEN clause ('--check exits non-zero, or the script or graph file is missing') cannot produce that reason: missing script/graph maps to 'graph absent' (first match), non-zero --check exit maps to 'graph stale' (third match). 'graph check failed' is only for --check spawn/OSError, which is not in the WHEN condition. The scenario's reason list includes an unreachable value.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 48,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "session-log.md 'Phase: Plan Review (2026-09-16)' still contains '### Next Steps' positioned between round-1 and round-2 decisions, stating 'IMPLEMENT if converged'. Rounds 3-4 adjudications (removing slimmed converge-result, extending task 1.1 scenarios, --tree failure -> graph check failed, requiring source read for non-call-tree forms, proposal disclosure alignment; plan_revision -> 6) are recorded only in plan-findings.md. The session log is the standing decision record and is stale mid-review.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "readability",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 22,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 50,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Parked disagreement item 13 indicates 'Atlas target resolution SHALL accepts a module file path or basename, but only basename is covered' \u2014 this disagreement is valid and active (per parked-disagreements.json) but ledger item 13 is incorrectly retired. The underlying spec gap (items 40/51) remains unaddressed.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 23,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 51,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "In specs/codebase-analysis/spec.md, the Atlas Symbol Tree Export requirement states '<target> SHALL resolve as exact node id, then unique symbol name, then module file path or basename' but the corresponding test scenario 'File target gives the aggregated module view' only covers basename resolution explicitly (WHEN '--tree <file-basename>'). The 'Target resolution precedence' scenario mentions exact-id-before-name but does not test file path resolution as a distinct case.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "correctness",
+      "vendor_hits": [
+        "pi"
+      ]
+    },
+    {
+      "id": 24,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 52,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "design.md D4 describes target resolution as 'exact node id; unique symbol name; a file path or basename matching a module', and task 1.1 is said to cover file path resolution, but there is no explicit scenario in codebase-analysis spec.md that specifically tests module file path resolution as a distinct case from basename resolution. The only module scenario uses 'file-basename' in its WHEN clause.",
+      "eligible_vendors": 2,
+      "evidence_class": "judgment",
+      "axis": "architecture",
+      "vendor_hits": [
+        "pi"
+      ]
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 24,
+    "confirmed_count": 1,
+    "unconfirmed_count": 23,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 24
+  }
+}

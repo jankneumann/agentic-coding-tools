@@ -18,7 +18,7 @@ import json
 import logging
 from typing import Protocol
 
-from .models import TrajectoryFinding, TrajectoryVerdict
+from .models import TrajectoryFinding, TrajectoryVerdict, TranscriptEvent
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class TrajectoryJudgeBackend(Protocol):
     def complete(self, prompt: str, system: str | None = None) -> str: ...
 
 
-def _summarize_transcript(events: list[dict], max_events: int = 200) -> str:
+def _summarize_transcript(events: list[TranscriptEvent], max_events: int = 200) -> str:
     """Render normalized events into a compact judge-friendly summary."""
     lines: list[str] = []
     for ev in events[:max_events]:
@@ -77,7 +77,7 @@ def review_trajectory(
     *,
     task_prompt: str,
     criteria: str,
-    transcript_events: list[dict],
+    transcript_events: list[TranscriptEvent],
     deterministic_status: str,
 ) -> TrajectoryVerdict:
     """Judge trajectory quality. Returns ``skip`` when no backend is available."""

@@ -1,0 +1,75 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Verified that the 'Valid checkpoint divergence remains authoritative' scenario exists in specs/roadmap-orchestration/spec.md (lines 48-52), matching design.md D2 and the roadmap_checkpoint_divergence code in contracts/readiness-result.schema.json.",
+      "resolution": "Confirmed scenario presence and alignment across spec.md, design.md, and readiness-result.schema.json; no changes needed.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/specs/roadmap-orchestration/spec.md",
+      "line_range": {
+        "start": 48,
+        "end": 52
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Verified that the 'Invalid roadmap fails closed' scenario exists in specs/roadmap-orchestration/spec.md (lines 54-57), matching design.md D5 and the roadmap_invalid / duplicate_roadmap_id codes in contracts/readiness-result.schema.json.",
+      "resolution": "Confirmed scenario presence and alignment across spec.md, design.md, and readiness-result.schema.json; no changes needed.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/specs/roadmap-orchestration/spec.md",
+      "line_range": {
+        "start": 54,
+        "end": 57
+      }
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Verified that design.md D3 fully defines deterministic fingerprinting, including SHA-256 calculation over canonical projections, canonical key and list sorting, compact separators, trailing newline, raw-byte SHA-256 fallback for malformed input, and explicit exclusion of timestamps and mtimes.",
+      "resolution": "Confirmed design.md D3 (lines 23-29) completely specifies deterministic fingerprinting requirements; no changes needed.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "line_range": {
+        "start": 23,
+        "end": 29
+      }
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Ran strict OpenSpec validation (`openspec validate add-cross-roadmap-readiness-resolver --strict`), which passed cleanly with 0 errors.",
+      "resolution": "Strict OpenSpec validation confirmed change readiness; no issues found.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/proposal.md",
+      "line_range": {
+        "start": 1,
+        "end": 10
+      }
+    }
+  ]
+}

@@ -113,6 +113,7 @@ paths:
       responses:
         "200": {description: Updated issue (kanban-viz spec 287)}
         "401": {description: Missing or invalid X-API-Key}
+        "403": {description: Projection-owned or reserved-label issue mutation is forbidden}
   /agents/{agent_id}/kick:
     post:
       operationId: kickAgent

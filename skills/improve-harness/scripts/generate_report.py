@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import textwrap
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -335,13 +336,14 @@ def create_proposal_stub(finding: dict[str, Any]) -> str:
 # CLI entry point
 # ---------------------------------------------------------------------------
 
-def main() -> None:
+def main() -> int:
     """CLI entry point — generate report from memory entries."""
     import argparse
     import sys
 
     sys.path.insert(0, os.path.dirname(__file__))
     from analyze_failures import query_memory, rank_findings
+    from improve_candidate_work import write_projection
 
     parser = argparse.ArgumentParser(
         description="Generate capability-gap analysis report"
@@ -358,6 +360,10 @@ def main() -> None:
         "--output", type=str, default=None,
         help="Output file path (default: stdout)",
     )
+    parser.add_argument(
+        "--candidate-work-output", type=str, default=None,
+        help="Candidate-work sidecar path (default: adjacent to file report)",
+    )
     args = parser.parse_args()
 
     entries = query_memory(time_window_days=args.time_window)
@@ -369,6 +375,21 @@ def main() -> None:
         print(f"Report written to {args.output}")
     else:
         print(report)
+
+    if args.output or args.candidate_work_output:
+        ranked = rank_findings(entries)
+        source_artifact = args.output or "stdout://improve-harness"
+        candidate_path = (
+            Path(args.candidate_work_output)
+            if args.candidate_work_output
+            else Path(args.output).with_name("improve-harness-candidate-work.json")
+        )
+        try:
+            write_projection(ranked, candidate_path, source_artifact)
+        except (OSError, ValueError) as exc:
+            print(f"error: candidate-work sidecar not written: {exc}", file=sys.stderr)
+            return 2
+        print(f"Candidate work written to {candidate_path}")
 
     if args.create_proposal and entries:
         ranked = rank_findings(entries)
@@ -383,6 +404,8 @@ def main() -> None:
                 print("\n---\n")
                 print(stub)
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

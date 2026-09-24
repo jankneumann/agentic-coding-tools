@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "generated_paths": [
+    "**/*.lock",
+    "**/package-lock.json",
+    "**/uv.lock",
+    "**/*.generated.*",
+    "**/*.gen.py",
+    "**/*.pb.go",
+    "**/*.pb2.py",
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/__snapshots__/**",
+    "**/*.snap",
+    "**/.review-cache/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.min.js",
+    "**/*.min.css"
+  ],
+  "coverage_quorum_threshold": 0.8,
+  "match_threshold": 0.6,
+  "rules": [
+    {
+      "path": "skills/*/SKILL.md",
+      "rule": "Check that the workflow steps match what the referenced scripts actually accept (flags, return shapes). Verify examples are runnable as written. Flag instructions that silently assume coordinator, tier, or environment state without stating the fallback."
+    },
+    {
+      "path": "**/scripts/tests/**",
+      "rule": "Check that tests exercise real behavior, not just shape — mocks should stand in for I/O and external calls, not for the logic under test. Flag a test that would pass even if the implementation were reverted to a no-op."
+    },
+    {
+      "path": "skills/tests/**",
+      "rule": "Same standard as scripts/tests/: verify the test would fail if the behavior it targets were broken. Check that fixture paths use openspec_paths.change_dir rather than a literal openspec/changes/<id>/ path where the guide requires it."
+    },
+    {
+      "path": "skills/*/scripts/*.py",
+      "rule": "Check for unhandled exceptions on the failure paths this module is meant to guard (network, subprocess, file I/O). Verify a function documented as \"never raises\" actually catches every exception class it claims to. Flag silent behavior changes to existing callers."
+    },
+    {
+      "path": "agent-coordinator/agents.yaml",
+      "rule": "Verify a new or changed CLI/SDK block's flags match what that vendor's CLI actually accepts (cross-check against any comment citing a verified version). Check that trust_level, capabilities, and archetypes are consistent with what the agent is actually granted."
+    },
+    {
+      "path": "agent-coordinator/archetypes.yaml",
+      "rule": "Verify model/tier changes are cited to an operator decision or empirical finding, not asserted alone. Check that a tier change does not silently widen or narrow which archetypes route to it."
+    },
+    {
+      "path": "openspec/schemas/*.schema.json",
+      "rule": "Verify the schema is valid Draft 2020-12, that required fields were not silently dropped, and that any mirrored copy (install_assets, sentinel-injected) is checked for the same change."
+    },
+    {
+      "path": "openspec/changes/*/specs/**/spec.md",
+      "rule": "Verify every SHALL/MUST has at least one Scenario with WHEN/THEN. Check that a MODIFIED requirement's unchanged scenarios were preserved, not silently dropped."
+    },
+    {
+      "path": ".github/workflows/*.{yml,yaml}",
+      "rule": "Check for unpinned third-party actions (should pin to a commit SHA, not a mutable tag), missing least-privilege permissions blocks, and secrets referenced outside an env: mapping. Flag pull_request_target combined with a checkout of PR head code."
+    },
+    {
+      "path": "**/*.py",
+      "rule": "Check for unhandled exceptions, resource leaks (files/sockets/locks not in a context manager), and mutable default arguments. Flag a docstring claim (\"never raises\", \"pure function\") the code does not actually satisfy."
+    },
+    {
+      "path": "**/*.{yaml,yml}",
+      "rule": "Check for duplicate keys, inconsistent indentation that changes structure, and hardcoded secrets or credentials."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "change_id": "add-supervisor-candidate-work-digest",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "codex"
+  ]
+}

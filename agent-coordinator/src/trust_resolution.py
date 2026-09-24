@@ -19,6 +19,15 @@ from .config import get_config
 #: ``agent_profile_assignments`` row pointed this agent at this profile", as
 #: opposed to ``'default'`` (the ``agent_type`` fallback inside
 #: ``get_agent_profile()``, which serves the oldest enabled row of the type).
+#:
+#: This is the *only* provenance that credits a non-registry principal below;
+#: anything else — including ``None`` and any value this module does not know —
+#: yields the default trust level. ``ProfilesService`` caches provenance
+#: alongside the profile precisely so that a cache hit still carries it: it
+#: used to report ``source="cache"`` on every hit, which made every cached
+#: lookup of an assigned profile fall through to the default. Do not "fix" a
+#: future variant of that by widening this set; widening it re-admits the
+#: type-fallback escalation the gate below exists to close.
 ASSIGNMENT_SOURCE = "assignment"
 
 

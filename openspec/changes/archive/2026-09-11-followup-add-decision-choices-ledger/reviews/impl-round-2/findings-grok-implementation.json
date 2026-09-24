@@ -1,0 +1,39 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: validate-feature Step 11's Choices-row snippet resolves the ledger via `CHOICES_JSON=\"$OPENSPEC_PATH/changes/$CHANGE_ID/choices.json\"` and `needs_user.py --repo-root \"$PROJECT_ROOT\"`. After Step 1's `eval \"$(worktree.py detect)\"`, a managed worktree sets `OPENSPEC_PATH`/`PROJECT_ROOT` to the shared main checkout, not the feature worktree. `iterate-on-implementation` Step 11.5 commits the ledger under the worktree-relative `openspec/changes/$CHANGE_ID/` on the feature branch, so the validation gate's presence check misses it and always renders `\u25cb Choices: no ledger`, and the reader (also pointed at main) prints nothing. Reproduced: relative worktree ledger FOUND; `$OPENSPEC_PATH/.../choices.json` MISSING; `--repo-root \"$PROJECT_ROOT\"` silent while `--repo-root \"$(git rev-parse --show-toplevel)\"` lists the needs-user line. This breaks skill-workflow.9/11 on the mandated local worktree path (non-ephemeral). cleanup-feature Step 5.5 correctly uses relative `openspec/changes/...` and default `--repo-root .`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Root the Choices presence check and reader at the checkout under validation, matching Step 2's `CHANGE_DIR=\"$(git rev-parse --show-toplevel)/openspec/changes/$CHANGE_ID\"` or cleanup-feature's relative `openspec/changes/$CHANGE_ID/choices.json` with `--repo-root \"$(git rev-parse --show-toplevel)\"` (or omit `--repo-root` when cwd is already that toplevel). Do not use detect's main-repo `OPENSPEC_PATH`/`MAIN_REPO` for branch-scoped ledger files.",
+      "file_path": "skills/validate-feature/SKILL.md",
+      "line_range": {
+        "start": 1044,
+        "end": 1058
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: `test_workflow_hooks.py` pins skill-relative `needs_user.py` invocation and the `\u25cb`/`\u2713` wordings, but never asserts that the ledger path / `--repo-root` target the current feature checkout. `test_no_ledger_path_survives_set_u` even injects `OPENSPEC_PATH=\"openspec\"`, which hides the worktree failure mode where detect sets `OPENSPEC_PATH` to the absolute main-repo openspec. Finding 1's regression therefore keeps the suite green while skill-workflow.9/11 fail in real worktree runs.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Assert the Choices fence does not use `$OPENSPEC_PATH`/`$PROJECT_ROOT`/`$MAIN_REPO` for the ledger, and add an executable case that sets worktree-like `OPENSPEC_PATH=$MAIN/openspec` + `PROJECT_ROOT=$MAIN` while the ledger exists only under the cwd worktree openspec, expecting the \u26a0/needs-user path (or at least not `\u25cb Choices: no ledger`).",
+      "file_path": "skills/tests/audit-choices/test_workflow_hooks.py",
+      "line_range": {
+        "start": 668,
+        "end": 695
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

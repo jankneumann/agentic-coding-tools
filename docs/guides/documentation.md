@@ -3,6 +3,7 @@
 ## Foundational
 
 Read these before contributing infrastructure changes:
+- [Durable State Artifacts](state-artifacts.md) — Canonical holders, writers, authority boundaries, failure behavior, and fresh-session rehydration order.
 - [Parallel Agentic Development](../parallel-agentic-development.md) — Worktree isolation, scope discipline, parallel DAG execution (the canonical multi-agent safety reference)
 - [Mental Models](../mental-models.md) — Conceptual framework: orchestrators/workers/validators, scope isolation, structured handoffs
 - [Skills Workflow](../skills-workflow.md) — Stage-by-stage workflow guide and design principles
@@ -31,6 +32,7 @@ Read these before contributing infrastructure changes:
 - [Parallel Git Config](../parallel-git-config.md) — Multi-agent git configuration
 - [Script/Skill Dependencies](../script-skill-dependencies.md) — Cross-skill Python import contract
 - [Coordination Detection Template](../coordination-detection-template.md) — Detecting coordinator availability
+- [Vendor Dispatch Capabilities](vendor-dispatch-capabilities.md) — Structured result guarantees, async ledger lifecycle, and per-lane CLI/SDK limits
 
 ## Subdirectories
 

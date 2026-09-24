@@ -1,0 +1,94 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The routing.yaml schema (contracts/config/routing.schema.json) defines fallback with only location_order and isolation_order, omitting dispatch_mode. Since dispatch_mode is a first-class routing dimension (alongside location and isolation) per design D3/D8 and the openapi contract, the fallback dimension table should include a deterministic dispatch_mode_order or explicitly document why dispatch_mode is excluded (e.g., derived from phase_dispatch_modes defaults). The design D8 states 'The fallback table's order is only a deterministic choice among the lane's exact configured values' implying all three dimensions.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Design D4 states 'The routing path constructs a read-only VendorRegistryService(audit=None)' but the dg-01 VendorRegistryService contract (openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml) does not specify an audit parameter in its constructor or factory. If dg-04 requires modifying VendorRegistryService to accept audit=None, this is a breaking change to a stacked dependency (dg-01). The plan should either confirm dg-01 already supports this, or define the exact interface change needed in dg-01 before dg-04 can consume it.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "The routing-decision audit event schema (contracts/events/routing-decision.schema.json) constrains source to 'coordinator' and success to true. This means failed atomic RPC commits (which return HTTP 503 per design D7) produce no audit record of the attempt. While the design states 'RPC failure rolls back both writes and produces HTTP 503', the absence of any audit trace for durability failures creates an observability gap for diagnosing routing-durability-unavailable errors. The schema should either allow success=false with a failure reason, or the plan should explicitly accept this limitation.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Work-package wp-policy-service locks files from the dg-01 deliverable: agent-coordinator/src/vendor_registry.py and agent-coordinator/src/watchdog.py. Since dg-04 is stacked on dg-01 (which should be complete and stable), modifying dg-01 files in dg-04 creates cross-cutting coupling that complicates merge order, testing isolation, and potential rebase conflicts. The ConfiguredCatalogSync job (watchdog.py) and any VendorRegistryService interface changes (vendor_registry.py) should be evaluated for whether they belong in dg-01 or can be implemented via composition/extension without touching dg-01 sources.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Design D7 states 'The routing_decisions.policy_version column keeps dg-00 scorer version linear-utility-v1; the routing YAML version/checksum live in selected provenance.' This overloading of the policy_version column (scorer version, not routing policy version) is not reflected in the migration 042_atomic_routing_audit.sql (referenced but not provided) or the routing-decision audit schema (which includes routing_policy_version and routing_policy_checksum but the column name policy_version is ambiguous). The plan should clarify this in the migration documentation or rename the column to scorer_version to avoid confusion.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The openapi v1.1 Candidate schema requires catalog_vendor in RoutingAssignment (required array), but dg-01 VendorLane has catalog_vendor as nullable. For OpenRouter lanes, the design says catalog_vendor comes from the catalog row match at routing time, which is fine. However, if a configured lane has no catalog_vendor set AND no matching catalog row exists (e.g., misconfigured lane), the assignment cannot be formed. The plan should specify how this case is handled in feasibility (likely excluded as catalog:no-configured-lane), and the contract should reflect that catalog_vendor in assignment is populated from the catalog projection, not the lane config.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 7,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Work-package wp-contract-config defines role: contracts-author without an archetype field, while wp-policy-service, wp-transports-fallback, and wp-integration all include archetype (implementer/validator). The work-packages.yaml schema (from parallel-infrastructure) may expect archetype for all packages. This inconsistency could cause validation failures in the package DAG/scope checks run in wp-integration.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The routing.yaml schema validates structure but not semantic constraints: rule.id uniqueness, phase_dispatch_modes referencing valid phases, rule.when having at least one predicate (minProperties: 1 covers this), and constrain referencing valid enums. Design D3 states 'A dedicated loader validates unknown fields, duplicate IDs, enum values, ranges, and phase dispatch defaults' but this loader is not specified in contracts or tasks. Task 1.3 says 'Define and validate versioned routing.yaml' — the validation logic should be part of the contract deliverable (e.g., a validated config object) not just an implementation detail.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional"
+    }
+  ],
+  "coverage": {
+    "reviewed": [
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/tasks.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/README.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/config/routing.schema.json",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/events/routing-decision.schema.json",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+      "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/README.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/db/schema.sql"
+    ],
+    "skipped": []
+  }
+}

@@ -48,6 +48,19 @@ class TestWatchdogInitialState:
         assert svc._last_reminders == {}
 
 
+def test_invalid_routing_interval_env_falls_back_to_defaults(monkeypatch):
+    monkeypatch.setenv("ROUTING_CATALOG_REFRESH_INTERVAL_SECONDS", "not-an-int")
+    monkeypatch.setenv("ROUTING_LOCAL_PROBE_INTERVAL_SECONDS", "0")
+    monkeypatch.setenv("ROUTING_LEDGER_ROLLUP_INTERVAL_SECONDS", "-5")
+
+    service = WatchdogService(db=_make_mock_db())
+
+    assert service._routing_jobs["catalog_refresh"][1] == 6 * 60 * 60
+    assert service._routing_jobs["configured_catalog_sync"][1] == 6 * 60 * 60
+    assert service._routing_jobs["local_endpoint_probe"][1] == 5 * 60
+    assert service._routing_jobs["ledger_rollup"][1] == 5 * 60
+
+
 class TestRunOnceCallsAllChecks:
     @patch("src.watchdog.get_event_bus")
     async def test_run_once_calls_all_checks(self, mock_get_bus):

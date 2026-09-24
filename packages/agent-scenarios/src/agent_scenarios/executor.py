@@ -26,7 +26,7 @@ from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
-from .models import AgentScenario, PRRef, RunResult, WorkspaceState
+from .models import AgentScenario, PRRef, RunResult, TranscriptEvent, WorkspaceState
 
 
 class ScenarioExecutor(Protocol):
@@ -135,7 +135,7 @@ class CLIVendorExecutor:
         self,
         vendor_commands: dict[str, str],
         *,
-        transcript_normalizer: Callable[[Path, str], list[dict]] | None = None,
+        transcript_normalizer: Callable[[Path, str], list[TranscriptEvent]] | None = None,
         timeout_seconds: int = 1800,
     ) -> None:
         self._vendor_commands = vendor_commands
@@ -215,7 +215,7 @@ class CLIVendorExecutor:
                 created_pr = None
         return state.model_copy(update={"working_branch": branch, "created_pr": created_pr})
 
-    def _collect_transcript(self, workdir: Path, vendor: str) -> list[dict]:
+    def _collect_transcript(self, workdir: Path, vendor: str) -> list[TranscriptEvent]:
         if self._normalize is None:
             return []
         # The CLI writes its transcript to a vendor-specific location; the GX10
@@ -278,7 +278,7 @@ class Outcome:
         artifacts: dict[str, str] | None = None,
         exit_code: int = 0,
         error: str | None = None,
-        events: list[dict] | None = None,
+        events: list[TranscriptEvent] | None = None,
     ) -> None:
         self.write_files = write_files or {}
         self.delete_files = delete_files or []
@@ -313,7 +313,7 @@ class Outcome:
             }
         )
 
-    def transcript(self, scenario: AgentScenario, vendor: str) -> list[dict]:
+    def transcript(self, scenario: AgentScenario, vendor: str) -> list[TranscriptEvent]:
         if self._events is not None:
             return self._events
         # Minimal normalized transcript (collect-transcripts event shape).

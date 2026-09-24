@@ -1,0 +1,211 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Migration 039 keeps `work_queue_projection_ownership` as the sole ownership authority with no mutable-field upgrade seed; labelled submit/reconcile fail closed with `projection_key_collision` before head or label mutation when the exact tuple is unowned or non-issue, and live upgrade/spoof regressions pin that behavior.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No remaining ownership-commandeering defect found at HEAD.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 5,
+        "end": 116
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Labelled cancel, stale-label clear, and terminal reactivation all require registry ownership; same-generation replay reactivates only cancelled/completed/failed owned rows while preserving claimed lifecycle state; the NULL-label reconcile path retains the historical unlabelled cancel contract without selecting ordinary change-only issues.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-6/8 ownership-isolation claims hold in the 039 function bodies and acceptance tests.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 231,
+        "end": 268
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Automatic and console-approved `escalate_resume` share one persisted `resolved` edge: auto apply persists immediately, console park stores `{outcome:resolved,target:previous_phase}`, and `gate-answer` applies that edge before host projection; `enter_escalate` advances generation once and preserves the original incident on retries.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-5/8 ESCALATE recovery claims are implemented and regression-covered.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 169,
+        "end": 192
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Failed `apply_outcome_or_escalate` sets `previous_phase` from the authoritative durable `current_phase`, advances generation once, and projects ESCALATE; success best-effort submits the unchanged generation; `transition`/`escalate` after DONE are byte-preserving no-ops.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-8 state-recovery claims hold with focused Autopilot regressions.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 639,
+        "end": 700
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "none: Runtime Pydantic `ProjectionLabels` and OpenAPI `projection_labels` both require the heterogeneous ordered pair (change-label pattern with maxLength 135, then const `projection:autopilot-phase`); `projection_key_collision` is classified as HTTP 409 in the API mapper.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Round-6/8 request-contract and conflict-status claims match OpenAPI and runtime.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 96,
+        "end": 227
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Degraded projection prefers explicit envelope `reason`, then RFC 7807 `response.detail`, then generic HTTP error text, and `project-state` exits 0 on structured degradation so authoritative loop-state is never halted or rewritten by queue responses.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Round-4/8 non-authority and canonical-problem-detail claims hold.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 28,
+        "end": 103
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: First-insert and terminal-reactivation paths emit `projection.labels_changed` inside the per-change transaction under `pg_advisory_xact_lock`; concurrent N/N+1 publishers therefore serialize label apply and owned stale-label clear; implicit label-filtered issue reads exclude cancelled rows.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Round-4/5/7 concurrency, SSE, and board-filter claims hold.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "line_range": {
+        "start": 73,
+        "end": 314
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: CI materializes both runtime mirrors with side effects disabled before `install.sh --check`; the checker byte-diffs portable skills, shared libraries (`shared`/`references`), and `install-manifest.json` for each agent destination.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Round-5/7/8 installed-payload parity claims hold; current worktree mirrors match canonical autopilot/shared trees.",
+      "package_id": "whole-branch",
+      "file_path": "skills/install.sh",
+      "line_range": {
+        "start": 237,
+        "end": 298
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Antigravity review dispatch requests `--output-format json` plus `--json-schema`, and `_extract_findings` unwraps `structuredOutput`, `structured_output`, and JSON-text `response` envelopes.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Round-4/8 Antigravity structured-output ingestion claims hold.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 869,
+        "end": 893
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Coordinator-free isolation remains intact: `runner.py` imports `queue_projection` only inside `project-state`, Autopilot/runner AST guards forbid eager imports, and `run_loop(..., queue_projection_fn=None)` never constructs or calls the publisher.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Spec D10 / isolation claim remains satisfied.",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 512,
+        "end": 524
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Generated architecture artifacts declare `source_revision` `83b104394341936572b550afe410150cb6b4ec94` with validation status passed and zero errors; HEAD after that revision is documentation-only (`4982835`, `73ccaab`), so provenance/freshness is consistent with the last behavioral fix rather than a stale graph defect.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Architecture size alone is not treated as a code defect; provenance contract is current relative to the last code change.",
+      "package_id": "whole-branch",
+      "file_path": "docs/architecture-analysis/architecture.provenance.json",
+      "line_range": {
+        "start": 1,
+        "end": 40
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Independent re-test of round-4 through round-8 seams at exact HEAD `73ccaabf8f9437bfd87d2950c88edccf1e61c3bf` against parent `2b755a5d617b996d8d94ec895d71f7a8799d69c9` found no remaining critical/high/medium correctness, safety, data-integrity, concurrency, migration, API-contract, or operability regressions; dispositions and validation-report claims are corroborated by migration/runtime/OpenAPI code and committed regressions.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Recovery review concludes clean on behavioral seams; historical round artifacts remain audit evidence only.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/validation-report.md",
+      "line_range": {
+        "start": 1,
+        "end": 52
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

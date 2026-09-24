@@ -1,0 +1,230 @@
+[
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#00-frontmatter.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F001"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-00-frontmatter",
+    "tags": [
+      "source-rank-1"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#00-frontmatter"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#08-0-detect-coordinator-and-recall-memory.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F002"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-08-0-detect-coordinator-and-recall-memo",
+    "tags": [
+      "source-rank-2"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#08-0-detect-coordinator-and-recall-memory"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#14-4-smoke-phase.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F003"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-14-4-smoke-phase",
+    "tags": [
+      "source-rank-3"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#14-4-smoke-phase"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#17-6-e2e-phase.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F004"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-17-6-e2e-phase",
+    "tags": [
+      "source-rank-4"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#17-6-e2e-phase"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#24-8-log-analysis-phase.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F005"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-24-8-log-analysis-phase",
+    "tags": [
+      "source-rank-5"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#24-8-log-analysis-phase"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#25-9-ci-cd-status-phase.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F006"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-25-9-ci-cd-status-phase",
+    "tags": [
+      "source-rank-6"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#25-9-ci-cd-status-phase"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#26-10-teardown.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F007"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-26-10-teardown",
+    "tags": [
+      "source-rank-7"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#26-10-teardown"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#29-12-5-finalize-ephemeral-validation-scope.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F008"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-29-12-5-finalize-ephemeral-validation-s",
+    "tags": [
+      "source-rank-8"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#29-12-5-finalize-ephemeral-validation-scope"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#30-13-pr-comment.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F009"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-30-13-pr-comment",
+    "tags": [
+      "source-rank-9"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#30-13-pr-comment"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#32-after-validation.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F010"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-32-after-validation",
+    "tags": [
+      "source-rank-10"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#32-after-validation"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: contract_unpinned in SKILL.md#35-next-step.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F011"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-contract-unpinned-skill-md-35-next-step",
+    "tags": [
+      "source-rank-11"
+    ],
+    "title": "rightsize validate-feature: contract_unpinned in SKILL.md#35-next-step"
+  },
+  {
+    "description": "Improve the harness capability: rightsize validate-feature: convention_drift in SKILL.md.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F012"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/validate-feature-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-validate-feature-convention-drift-skill-md",
+    "tags": [
+      "source-rank-12"
+    ],
+    "title": "rightsize validate-feature: convention_drift in SKILL.md"
+  }
+]

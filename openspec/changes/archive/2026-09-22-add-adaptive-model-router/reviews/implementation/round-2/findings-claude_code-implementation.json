@@ -1,0 +1,133 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/model_routing/ledger.py",
+      "line_range": {
+        "start": 119,
+        "end": 120
+      },
+      "existing_code": "f\"occurred_at=gte.{encode_filter_value(start.isoformat())}\"\nf\"&occurred_at=lte.{encode_filter_value(inclusive_end.isoformat())}\",",
+      "description": "Percent-encoding the calendar-window timestamps breaks usage_summary on the postgres backend (the configured default). encode_filter_value turns the '+' in '2026-09-01T00:00:00+00:00' into '%2B', but db_postgres.query only calls _decode_query_value in the 'cs.' branch; the 'eq.'/'gt.'/'gte.'/'lte.'/'in.' branches pass the raw value to _coerce_filter_value, whose _ISO_DT_RE requires a literal '[+-]HH:MM' suffix. The value therefore stays a str and is bound to the TIMESTAMPTZ occurred_at column, which asyncpg rejects with DataError (exactly the failure _parse_iso_datetime's docstring describes). Every usage_summary call now raises: GET /routing/usage returns 500, the watchdog ledger_rollup job fails on every tick, and, because this diff also makes select_model call _current_exploration_budget, POST /routing/select_model and the MCP select_model_for_task tool fail as well. The same asymmetry means the new eq-path encoding in catalog.py is a no-op on postgres for any vendor/model/task_type containing '&', '#', '%', or '+' (get_entry misses, upsert inserts duplicates). test_usage_summary_queries_requested_calendar_window was edited to assert the '%2B' form against a mock DB, so the suite pins the regression. Fix: apply _decode_query_value symmetrically in every value branch of db_postgres.query (eq/gt/gte/lte/in), matching the cs. branch, and add a postgres-translator test that a '%2B'-encoded ISO timestamp coerces to datetime.",
+      "resolution": "In db_postgres.query, decode val with _decode_query_value before _coerce_filter_value in the eq., gt., gte., lte., and in. branches (mirroring the cs. branch). Add a unit test on the translator asserting that encode_filter_value(datetime.isoformat()) round-trips to a datetime parameter. Alternatively drop encoding for timestamps in ledger.py, but the decoder gap would still leave catalog.py's eq encodings broken on postgres.",
+      "evidence_class": "judgment",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/model_routing/api.py",
+      "line_range": {
+        "start": 254,
+        "end": 258
+      },
+      "existing_code": "exploration_entries = max(\n    _safe_float(summary.get(\"exploration_entries\")),\n    0.0,\n)\npct_used = exploration_entries / entries if entries else 0.0",
+      "description": "_current_exploration_budget reads summary['exploration_entries'], but LedgerService.usage_summary (ledger.py lines 133-149) never emits that key; it emits 'entries', 'estimated_entries', 'exploration_usd_used', and 'by_model' only. _safe_float(None) returns 0.0, so pct_used is always 0.0 against the real ledger and the ROUTING_EXPLORATION_PCT cap can never bind; the recorded budget_state.exploration_pct_used is also always 0. This is the Round-1 'budget never wired' defect reappearing in a subtler form. The parametrized test in test_service.py injects 'exploration_entries' into the mocked summary by hand, so it cannot detect the mismatch. Fix: add 'exploration_entries': sum(bool(row.get('exploration')) for row in selected) to usage_summary's return dict and assert it in test_usage_summary_aggregates_by_model_and_exploration_spend.",
+      "resolution": "Emit exploration_entries from LedgerService.usage_summary and extend the ledger test to assert its value (2 for the fixture in the new aggregation test). Consider a small contract test that feeds a real LedgerService(db=mock) summary into RoutingService._current_exploration_budget so the key set is checked end to end.",
+      "evidence_class": "judgment",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/model_routing/api.py",
+      "line_range": {
+        "start": 283,
+        "end": 283
+      },
+      "existing_code": "budget, budget_state = await self._current_exploration_budget()",
+      "description": "select_model now has a hard dependency on the spend ledger. Any exception from ledger.usage_summary (DB outage, the DataError in finding 1, a malformed row) propagates out of select_model. The HTTP route only catches RoutingUnavailableError, so the caller gets a 500 instead of the documented 503, and the MCP tool in db mode raises rather than returning the error dict added in this diff. Before this change, selection did not touch the ledger at all, so a ledger fault could not block routing. The spec's static-tier fallback protects resolve_archetype_for_phase callers, but direct HTTP/MCP consumers of select_model_for_task lose selection entirely when only the accounting store is degraded.",
+      "resolution": "Wrap _current_exploration_budget in try/except Exception: log a warning, fall back to ExplorationBudget() and an empty budget_state (optionally with a 'budget_unavailable': True marker in budget_state) so a ledger failure degrades exploration gating rather than selection. Add a test where ledger.usage_summary raises and select_model still returns a selection.",
+      "evidence_class": "judgment",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "performance",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "performance",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/model_routing/api.py",
+      "line_range": {
+        "start": 249,
+        "end": 252
+      },
+      "existing_code": "summary = await self.ledger.usage_summary(\n    window=\"month\",\n    include_estimated=True,\n)",
+      "description": "Every select_model call now fetches every routing_spend_ledger row for the current month and aggregates it in Python (including the by_model grouping that select_model does not use). The new plain occurred_at index helps the range scan, but the row transfer and aggregation cost grow linearly with monthly volume and are paid per selection on the hot path. The watchdog already runs rollup_current_month on its own schedule; the budget read could use that cached rollup or a targeted count/sum query (SELECT count(*) FILTER (WHERE exploration), sum(actual_usd) ...) instead of hydrating all rows.",
+      "resolution": "Have the ledger expose a lightweight month-budget query (counts and sums only), or cache the last rollup result in LedgerService with a short TTL and read that from _current_exploration_budget.",
+      "evidence_class": "judgment",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/coordination_mcp.py",
+      "line_range": {
+        "start": 119,
+        "end": 119
+      },
+      "existing_code": "request = SelectModelRequest.model_validate(",
+      "description": "Because task_signals is now the TaskSignals model with a required archetype, SelectModelRequest.model_validate raises pydantic.ValidationError in db mode when a caller omits archetype or passes an invalid complexity/modality literal. The HTTP path returns 422 with a JSON body and the http-proxy path returns an error dict, but the MCP db path now surfaces an uncaught exception. The new test test_mcp_no_candidate_matches_http_proxy_error_semantics establishes the principle that db and proxy transports return identical error dicts, but only exercises the 503 case, so the 422-equivalent divergence introduced by this diff is untested.",
+      "resolution": "Catch pydantic.ValidationError around model_validate in select_model_for_task and return {'success': False, 'error': 'http_422', 'status_code': 422, 'detail': {'detail': exc.errors()}} (matching whatever proxy_select_model_for_task returns for a 422), and add a parametrized case to the transport-parity test.",
+      "evidence_class": "judgment",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "escalate",
+      "file_path": "agent-coordinator/src/model_routing/local_endpoints.py",
+      "line_range": {
+        "start": 161,
+        "end": 162
+      },
+      "existing_code": "await self._catalog.delete_entry(vendor, model, \"local\")\nmodel = reported_model",
+      "description": "The placeholder-replacement branch runs whenever the endpoint's single reported model id differs from the catalog row's model, not only when the row is the agents.yaml placeholder. When an operator swaps the model served by an Ollama/vLLM endpoint (e.g. qwen3-coder:30b to llama3), the probe upserts the new id and deletes the previous discovered row; model_posteriors has ON DELETE CASCADE on catalog_id (per test_deleting_catalog_entry_cascades_to_its_posteriors), so all learned quality/cost posteriors for the previous model are destroyed on the next probe tick. Switching back later starts from priors again. That may be acceptable for dg-00, but it is a silent data-loss path on a 5-minute timer and is not covered by the new test, which only exercises the placeholder case.",
+      "resolution": "Only delete the old row when it is the config placeholder (e.g. model equals the agent name, or the row has no posteriors); otherwise mark the old row unavailable and leave its posteriors intact. If deletion on swap is the intended policy, document it and log at warning level when a non-placeholder row is removed.",
+      "evidence_class": "judgment",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/model_routing/ledger.py",
+      "line_range": {
+        "start": 207,
+        "end": 208
+      },
+      "existing_code": "actual = float(group[\"actual_usd\"])\ngroup[\"estimated_fraction\"] = estimated_spend.get(key, 0.0) / actual if actual else 0.0",
+      "description": "The per-model estimated_fraction is spend-weighted (estimated USD / actual USD) while the top-level UsageAggregate.estimated_fraction is entry-count-weighted, and the OpenAPI description added in this diff defines the field as 'Share of included entries with estimated token counts'. Consumers reading the same field name at two levels get two different statistics. For zero-cost local endpoints the per-model value is always 0.0 even when every row is estimated, which hides exactly the rows the ledger is supposed to label.",
+      "resolution": "Compute the per-model fraction as estimated_rows / rows for the group so it matches the top-level definition and the contract description, and adjust the expected values in test_usage_summary_aggregates_by_model_and_exploration_spend (openrouter/vendor/a becomes 0.5).",
+      "evidence_class": "judgment",
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

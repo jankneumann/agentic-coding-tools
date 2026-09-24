@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "validation-evidence",
+  "reviewers": [
+    {"vendor": "codex", "agent_id": "validation_evidence_critic", "success": true, "findings_count": 2, "elapsed_seconds": 55.0, "error": null},
+    {"vendor": "antigravity", "agent_id": "antigravity-local", "success": false, "findings_count": 0, "elapsed_seconds": 120.0, "error": "Hard-cap interruption before a findings document was returned"}
+  ],
+  "quorum_met": false,
+  "quorum_requested": 2,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Security pass is not independently auditable because all scanner artifacts and the captured log are absent after a nonzero wrapper exit."
+    }
+  ],
+  "summary": {"total_unique_findings": 1, "confirmed_count": 0, "unconfirmed_count": 1, "disagreement_count": 0, "blocking_count": 1}
+}

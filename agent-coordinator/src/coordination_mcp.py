@@ -90,6 +90,70 @@ mcp = FastMCP(
 )
 
 
+@mcp.tool
+async def select_model_for_task(
+    task_signals: dict[str, Any],
+    routing_profile: dict[str, Any] | None = None,
+    objective_profile: str | None = None,
+    weight_overrides: dict[str, float] | None = None,
+    allow_exploration: bool = True,
+) -> dict[str, Any]:
+    """Select a feasible model using the coordinator's adaptive router.
+
+    This is the MCP mirror of ``POST /routing/select_model``. Direct-DB mode
+    and HTTP-proxy mode intentionally share the same request model and service.
+    """
+    if _transport == "http":
+        return await http_proxy.proxy_select_model_for_task(
+            task_signals=task_signals,
+            routing_profile=routing_profile,
+            objective_profile=objective_profile,
+            weight_overrides=weight_overrides,
+            allow_exploration=allow_exploration,
+        )
+
+    from pydantic import ValidationError
+
+    from .model_routing.api import (
+        RoutingUnavailableError,
+        SelectModelRequest,
+        get_routing_service,
+    )
+
+    try:
+        request = SelectModelRequest.model_validate(
+            {
+                "task_signals": task_signals,
+                "routing_profile": routing_profile,
+                "objective_profile": objective_profile,
+                "weight_overrides": weight_overrides,
+                "allow_exploration": allow_exploration,
+            }
+        )
+    except ValidationError as exc:
+        details = []
+        for error in exc.errors(include_url=False):
+            normalized = dict(error)
+            normalized["loc"] = ["body", *error["loc"]]
+            details.append(normalized)
+        return {
+            "success": False,
+            "error": "http_422",
+            "status_code": 422,
+            "detail": {"detail": details},
+        }
+
+    try:
+        return await get_routing_service().select_model(request)
+    except RoutingUnavailableError as exc:
+        return {
+            "success": False,
+            "error": "http_503",
+            "status_code": 503,
+            "detail": {"detail": str(exc)},
+        }
+
+
 # =============================================================================
 # HELPER: Get agent identity from environment
 # =============================================================================
@@ -327,6 +391,9 @@ async def submit_work(
     priority: int = 5,
     depends_on: list[str] | None = None,
     agent_requirements: dict[str, Any] | None = None,
+    projection_key: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
+    claim_immediately: bool = False,
 ) -> dict[str, Any]:
     """
     Submit a new task to the work queue.
@@ -339,6 +406,8 @@ async def submit_work(
         input_data: Data needed to complete the task (optional)
         priority: 1 (highest) to 10 (lowest), default 5
         depends_on: List of task_ids that must complete first (optional)
+        claim_immediately: Atomically claim the new row as this authenticated
+            agent; incompatible with dependencies, requirements, and projections
 
     Returns:
         success: Whether the task was created
@@ -360,6 +429,10 @@ async def submit_work(
             input_data=input_data,
             priority=priority,
             depends_on=depends_on,
+            agent_requirements=agent_requirements,
+            projection_key=projection_key,
+            projection_labels=projection_labels,
+            claim_immediately=claim_immediately,
         )
     from uuid import UUID
 
@@ -368,6 +441,7 @@ async def submit_work(
     depends_on_uuids = None
     if depends_on:
         depends_on_uuids = [UUID(d) for d in depends_on]
+    claimant = get_config().agent if claim_immediately else None
 
     result = await service.submit(
         task_type=task_type,
@@ -376,11 +450,64 @@ async def submit_work(
         priority=priority,
         depends_on=depends_on_uuids,
         agent_requirements=agent_requirements,
+        projection_key=projection_key,
+        projection_labels=projection_labels,
+        claim_immediately=claim_immediately,
+        claimant_agent_id=claimant.agent_id if claimant else None,
+        claimant_agent_type=claimant.agent_type if claimant else None,
     )
 
+    if not result.success:
+        return {"success": False, "reason": result.reason}
     return {
-        "success": result.success,
-        "task_id": str(result.task_id) if result.task_id else None,
+        "success": True,
+        "task_id": str(result.task_id),
+        "created": result.created,
+        "deduplicated": result.deduplicated,
+        "status": result.status,
+        "cancelled_task_ids": [],
+    }
+
+
+@mcp.tool
+async def reconcile_work_projection(
+    projection_key: dict[str, Any],
+    task_type: str,
+    description: str,
+    input_data: dict[str, Any] | None = None,
+    priority: int = 5,
+    agent_requirements: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
+) -> dict[str, Any]:
+    """Reconcile derived work rows to an authoritative loop-state generation."""
+    if _transport == "http":
+        return await http_proxy.proxy_reconcile_work_projection(
+            projection_key=projection_key,
+            task_type=task_type,
+            description=description,
+            input_data=input_data,
+            priority=priority,
+            agent_requirements=agent_requirements,
+            projection_labels=projection_labels,
+        )
+    result = await get_work_queue_service().reconcile_projection(
+        projection_key=projection_key,
+        task_type=task_type,
+        description=description,
+        input_data=input_data,
+        priority=priority,
+        agent_requirements=agent_requirements,
+        projection_labels=projection_labels,
+    )
+    if not result.success:
+        return {"success": False, "reason": result.reason}
+    return {
+        "success": True,
+        "task_id": str(result.task_id),
+        "created": result.created,
+        "deduplicated": result.deduplicated,
+        "status": result.status,
+        "cancelled_task_ids": [str(value) for value in result.cancelled_task_ids],
     }
 
 

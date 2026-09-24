@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "medium",
+      "disposition": "fix",
+      "axis": "correctness",
+      "file_path": "src/reports.py",
+      "existing_code": "data = render(report, fmt)",
+      "description": "Format validation happens after render(report, fmt) already ran, so an unsupported format still pays for the render before the error is raised."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "low",
+      "disposition": "accept",
+      "axis": "correctness",
+      "file_path": "src/reports.py",
+      "existing_code": "logger.info(\"exporting report\")",
+      "description": "The function still uses the old log message \"exporting report\" without the format, making it hard to trace which format was exported."
+    },
+    {
+      "id": 3,
+      "type": "documentation",
+      "criticality": "low",
+      "severity": "low",
+      "disposition": "accept",
+      "axis": "maintainability",
+      "file_path": "src/reports.py",
+      "description": "The docstring above export_report was deleted in this change."
+    }
+  ]
+}

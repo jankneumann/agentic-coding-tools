@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/vendor-raw-output.schema.json",
+  "title": "Raw vendor stdout sidecar metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "vendor", "review_type", "stdout_path", "byte_length", "truncated", "sha256"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "vendor": { "type": "string", "minLength": 1 },
+    "review_type": { "type": "string", "enum": ["plan", "implementation"] },
+    "stdout_path": { "type": "string", "minLength": 1 },
+    "stderr_path": { "type": "string" },
+    "byte_length": { "type": "integer", "minimum": 0 },
+    "truncated": { "type": "boolean", "const": false },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "repair_attempted": { "type": "boolean" },
+    "coercions": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

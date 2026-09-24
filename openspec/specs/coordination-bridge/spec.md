@@ -60,3 +60,76 @@ Hot-path helpers (those expected to run on every phase, e.g., `try_resolve_arche
 - **WHEN** a hot-path helper is called against a coordinator that lacks the underlying endpoint
 - **THEN** the helper SHALL return `{"status": "failed", "operation": "<name>", "error": "<404-or-similar>"}` from the direct HTTP call and MUST NOT trigger a separate `CAN_*` probe round-trip
 
+### Requirement: Work Projection Helper Envelope
+
+The coordination bridge SHALL expose submit and reconcile helpers for loop-state-derived queue projections. Helpers SHALL accept one explicit bounded `projection_key`, reject reserved identity fields in `input_data`, preserve the uniform no-raise transport envelope, include the canonical task ID plus creation/deduplication outcome, and SHALL accept authoritative phase fields only from their caller. A reconciliation response MUST NOT be used to update loop-state.
+
+#### Scenario: Bridge reports a deduplicated replay
+
+- **GIVEN** a projection tuple already exists
+- **WHEN** `try_submit_work` submits the same complete tuple
+- **THEN** the helper SHALL return the canonical task ID
+- **AND** it SHALL report `created=false` and `deduplicated=true`
+
+#### Scenario: Reconcile transport failure preserves caller truth
+
+- **GIVEN** loop-state has already been persisted
+- **AND** the coordinator transport is unavailable
+- **WHEN** the reconcile helper runs
+- **THEN** it SHALL return a structured failed result without raising
+- **AND** it SHALL NOT modify or replace the caller's loop-state
+
+### Requirement: Semantic Code Search Bridge Helper
+
+The bridge SHALL expose a `try_code_search` helper so non-MCP callers can
+execute a semantic code-search query over HTTP. The helper SHALL obey the
+uniform helper envelope: it SHALL NOT raise on any transport, authorization, or
+service failure, and SHALL report failure through the structured result.
+
+<!-- Scenario ID: coordination-bridge.code-search-helper-success -->
+#### Scenario: A ready response is returned unmodified
+
+- **WHEN** the coordinator answers a semantic code-search request successfully
+- **THEN** the helper SHALL return the coordinator's discriminated response
+  unmodified inside the standard envelope
+- **AND** it SHALL NOT drop, reorder, re-rank, or filter the returned hits
+
+<!-- Scenario ID: coordination-bridge.code-search-helper-capability-gate -->
+#### Scenario: An absent capability skips the call
+
+- **WHEN** capability detection reports that code search is unavailable
+- **THEN** the helper SHALL return a skipped result naming the absent capability
+- **AND** it SHALL NOT issue an HTTP request
+
+<!-- Scenario ID: coordination-bridge.code-search-helper-failures -->
+#### Scenario: Failure causes are distinguishable
+
+- **WHEN** the request fails with an unreachable host, a rejected credential, an
+  unmounted route, a malformed request, an overload signal, or a server error
+- **THEN** the helper SHALL return a failed result whose reason distinguishes
+  those causes from one another
+- **AND** it SHALL NOT raise
+
+### Requirement: MCP-Only Transport Reports No Code Search
+
+Capability detection SHALL continue to report code search as unavailable
+whenever availability cannot be proven from a status response. Detecting a
+connected coordination MCP server SHALL NOT by itself set the code-search
+capability flag.
+
+<!-- Scenario ID: coordination-bridge.code-search-mcp-only -->
+#### Scenario: MCP transport leaves code search false
+
+- **WHEN** HTTP detection fails and a connected coordination MCP server is
+  detected
+- **THEN** the code-search capability flag SHALL remain false
+- **AND** the other capability flags SHALL be unaffected
+
+<!-- Scenario ID: coordination-bridge.code-search-mcp-only-consumers -->
+#### Scenario: Consumers degrade rather than guess
+
+- **WHEN** a coding job assembles context under a non-HTTP transport
+- **THEN** semantic retrieval SHALL report an unavailable fallback naming the
+  transport as the cause
+- **AND** it SHALL NOT attempt a semantic query over that transport
+

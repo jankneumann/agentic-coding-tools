@@ -11,8 +11,11 @@ from consensus_synthesizer import (
     ConsensusSynthesizer,
     Finding,
     VendorResult,
+    _coverage_quorum_threshold,
+    _eligible_vendor_count,
     _jaccard,
     _paths_match,
+    _reviewed_files_from_coverage,
     _tokenize,
     _types_compatible,
     match_score,
@@ -33,12 +36,15 @@ def _finding(
     file_path: str | None = None,
     line_start: int | None = None,
     line_end: int | None = None,
+    existing_code: str | None = None,
+    axis: str = "correctness",
 ) -> Finding:
     return Finding(
         id=id, type=type, criticality=criticality,
         description=description, disposition=disposition,
         vendor=vendor, file_path=file_path,
         line_start=line_start, line_end=line_end,
+        existing_code=existing_code, axis=axis,
     )
 
 
@@ -114,6 +120,82 @@ class TestMatchScore:
         b = _finding(description="CSS alignment issue in header", vendor="grok")
         score, _ = match_score(a, b)
         assert score < 0.3
+
+
+class TestMatchScoreSnippet:
+    """add-deterministic-review-preprocessing: a shared existing_code
+    snippet outranks vendor line arithmetic — see design D3."""
+
+    def test_equal_snippets_match_despite_drifted_lines(self) -> None:
+        a = _finding(
+            file_path="src/foo.py", line_start=10, line_end=10,
+            existing_code="used_variable = compute()",
+        )
+        b = _finding(
+            file_path="src/foo.py", line_start=42, line_end=42, vendor="grok",
+            existing_code="used_variable = compute()",
+        )
+        score, basis = match_score(a, b)
+        assert score >= 0.9
+        assert basis == "snippet"
+
+    def test_equal_snippets_match_with_no_line_numbers_at_all(self) -> None:
+        a = _finding(file_path="src/foo.py", existing_code="x = 1\ny = 2")
+        b = _finding(file_path="src/foo.py", vendor="grok", existing_code="x = 1\ny = 2")
+        score, basis = match_score(a, b)
+        assert score >= 0.9
+        assert basis == "snippet"
+
+    def test_snippet_normalizes_whitespace_and_diff_markers(self) -> None:
+        a = _finding(file_path="src/foo.py", existing_code="  +used_variable = compute()  ")
+        b = _finding(
+            file_path="src/foo.py", vendor="grok",
+            existing_code="used_variable = compute()",
+        )
+        score, basis = match_score(a, b)
+        assert score >= 0.9
+        assert basis == "snippet"
+
+    def test_overlapping_lines_still_wins_over_snippet_band(self) -> None:
+        """location+type (0.95) stays the top band when it applies; the
+        snippet band (0.9) only fires when location does not match."""
+        a = _finding(
+            file_path="src/foo.py", line_start=10, line_end=10,
+            existing_code="used_variable = compute()",
+        )
+        b = _finding(
+            file_path="src/foo.py", line_start=10, line_end=10, vendor="grok",
+            existing_code="used_variable = compute()",
+        )
+        score, basis = match_score(a, b)
+        assert score == 0.95
+        assert basis == "location+type"
+
+    def test_different_files_do_not_match_on_snippet_alone(self) -> None:
+        a = _finding(file_path="src/foo.py", existing_code="shared_boilerplate = True")
+        b = _finding(
+            file_path="src/bar.py", vendor="grok",
+            existing_code="shared_boilerplate = True",
+        )
+        score, basis = match_score(a, b)
+        assert basis != "snippet"
+
+    def test_missing_snippet_on_one_side_falls_through(self) -> None:
+        a = _finding(file_path="src/foo.py", existing_code="x = 1")
+        b = _finding(file_path="src/foo.py", vendor="grok", existing_code=None)
+        score, basis = match_score(a, b)
+        assert basis != "snippet"
+
+    def test_axis_gate_still_applies_to_snippet_matches(self) -> None:
+        a = _finding(
+            file_path="src/foo.py", existing_code="x = 1", axis="correctness",
+        )
+        b = _finding(
+            file_path="src/foo.py", vendor="grok", existing_code="x = 1",
+            axis="security",
+        )
+        score, _ = match_score(a, b)
+        assert score == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -267,6 +349,82 @@ class TestCrossVendorFormatSkew:
 # ---------------------------------------------------------------------------
 # Consensus synthesis
 # ---------------------------------------------------------------------------
+
+class TestCoverageEligibility:
+    def test_full_coverage_vendor_always_counts(self) -> None:
+        vendors = [
+            VendorResult(vendor="codex", findings=[]),
+            VendorResult(vendor="grok", findings=[], reviewed_files=None),
+        ]
+        assert _eligible_vendor_count("src/api.py", vendors) == 2
+
+    def test_partial_vendor_excluded_for_unreviewed_file(self) -> None:
+        vendors = [
+            VendorResult(vendor="codex", findings=[]),
+            VendorResult(
+                vendor="grok", findings=[],
+                reviewed_files=frozenset({"src/a.py", "src/b.py"}),
+            ),
+        ]
+        assert _eligible_vendor_count("src/unreviewed.py", vendors) == 1
+
+    def test_partial_vendor_counted_for_reviewed_file(self) -> None:
+        vendors = [
+            VendorResult(vendor="codex", findings=[]),
+            VendorResult(
+                vendor="grok", findings=[],
+                reviewed_files=frozenset({"src/a.py"}),
+            ),
+        ]
+        assert _eligible_vendor_count("src/a.py", vendors) == 2
+
+    def test_no_file_path_cannot_be_gated(self) -> None:
+        vendors = [
+            VendorResult(vendor="codex", findings=[]),
+            VendorResult(vendor="grok", findings=[], reviewed_files=frozenset({"src/a.py"})),
+        ]
+        assert _eligible_vendor_count(None, vendors) == 2
+
+    def test_reviewed_files_from_coverage_below_threshold(self) -> None:
+        coverage = {"reviewed": ["src/a.py"], "skipped": [], "rate": 0.4}
+        result = _reviewed_files_from_coverage(coverage, threshold=0.8)
+        assert result == frozenset({"src/a.py"})
+
+    def test_reviewed_files_from_coverage_at_or_above_threshold_is_full(self) -> None:
+        coverage = {"reviewed": ["src/a.py"], "skipped": [], "rate": 0.8}
+        assert _reviewed_files_from_coverage(coverage, threshold=0.8) is None
+
+    def test_reviewed_files_from_coverage_missing_block_is_full(self) -> None:
+        assert _reviewed_files_from_coverage(None, threshold=0.8) is None
+
+    def test_reviewed_files_from_coverage_missing_rate_is_full(self) -> None:
+        coverage = {"reviewed": ["src/a.py"], "skipped": []}
+        assert _reviewed_files_from_coverage(coverage, threshold=0.8) is None
+
+    def test_coverage_quorum_threshold_has_a_sane_default(self) -> None:
+        assert 0.0 < _coverage_quorum_threshold() <= 1.0
+
+    def test_eligible_vendors_flows_into_consensus_finding_and_to_dict(self) -> None:
+        synth = ConsensusSynthesizer(quorum=2)
+        result = synth.synthesize(
+            review_type="plan",
+            target="test-feature",
+            vendor_results=[
+                VendorResult(vendor="codex", findings=[
+                    _finding(id=1, file_path="src/unreviewed.py", description="Lone finding on a file grok never reviewed"),
+                ]),
+                VendorResult(
+                    vendor="grok", findings=[],
+                    reviewed_files=frozenset({"src/other.py"}),
+                ),
+            ],
+        )
+        cf = result.consensus_findings[0]
+        assert cf.status == "unconfirmed"
+        assert cf.eligible_vendors == 1
+        d = synth.to_dict(result)
+        assert d["consensus_findings"][0]["eligible_vendors"] == 1
+
 
 class TestConsensusSynthesizer:
     def test_confirmed_finding(self) -> None:

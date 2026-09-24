@@ -1,0 +1,40 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "line_range": "33-34",
+      "existing_code": "'422':\n  $ref: '#/components/responses/Problem'",
+      "description": "The 422 response for POST /routing/select_model resolves to components/responses/Problem, whose schema is HTTPError with `detail: {type: string}` (v1.yaml lines 137-141, mirrored by the new generated `HTTPError(detail: str)` model). The actual 422 body emitted by FastAPI, and now deliberately mirrored by the MCP tool in coordination_mcp.py, carries `detail` as an array of error objects (`[{type, loc, msg, input}]`), as the new test_mcp_validation_error_matches_http_proxy_422_semantics asserts. Adding HTTPError to the parametrized requiredness test in test_contracts_generated.py makes the contract look verified while it still misdescribes the 422 payload. Fix: add an HTTPValidationError schema (detail: array of {loc, msg, type, input?}) and point the 422 response at it, regenerating models.py; keep HTTPError for 503/404.",
+      "resolution": "Introduce an HTTPValidationError schema in v1.yaml, reference it from the 422 response, regenerate contracts/generated/models.py, and extend the contract test to cover it.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/model_routing/test_api.py",
+      "line_range": {
+        "start": 348,
+        "end": 351
+      },
+      "existing_code": "patch(\n    \"src.coordination_mcp.http_proxy.proxy_select_model_for_task\",\n    new=AsyncMock(return_value=expected),\n),",
+      "description": "The proxied branch of the new 422 test mocks the HTTP proxy to return the `expected` literal, so `direct == proxied == expected` proves only that the direct path matches a hand-written dict; the HTTP-transport half is tautological. The direct assertion is still a real check of the new ValidationError handling, so this does not block, but the test name overstates what it verifies.",
+      "resolution": "Either drive the proxy branch through the FastAPI test client to capture the real 422 body, or rename the test to reflect that it pins the direct path to the documented shape.",
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

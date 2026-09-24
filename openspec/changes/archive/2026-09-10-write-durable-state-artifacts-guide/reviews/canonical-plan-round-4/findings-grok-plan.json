@@ -1,0 +1,135 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Prior confirmed round-3 blocker is resolved at its canonical source: openspec/changes/write-durable-state-artifacts-guide/session-log.md:11 now records Implementation D1 as 'Use portable repository-relative guide references' with the bare backticked path `docs/guides/state-artifacts.md` (no stable repository URL), and docs/decisions/skill-workflow.md:12 matches that body after architectural-tag stripping; PhaseRecord-derived index Source points at session-log D1.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action; D1 decision trace and generated skill-workflow index agree with landed GUIDE_REFERENCE.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/session-log.md",
+      "line_range": {
+        "start": 11,
+        "end": 11
+      }
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Exact eight-step rehydration ordering is structurally checked across docs/guides/state-artifacts.md:21-28, skills/supervise/SKILL.md:139-153, and design.md:39-46 (Bootstrap locator through Rebuild projections). skills/tests/state-artifacts/test_state_artifacts_guide.py pins ordered markers for the guide, supervise (including Rebuild projections), and design via test_guide_pins_rehydration_order_and_conflict_rules, test_supervise_rehydration_matches_canonical_order, and test_design_rehydration_matches_canonical_order.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action; order drift on any of the three sources fails the focused suite.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 40,
+        "end": 96
+      }
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Default CI collects the drift suite: skills/pyproject.toml testpaths includes tests/state-artifacts (line 129), tasks.md 1.3 owns that registration with ci_coverage proof, change-context.md adds skill-workflow.state-artifacts-ci-discovery traced to skills/tests/ci_coverage/test_ci_test_coverage.py, and focused pytest -k state-artifacts for that guard passes.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action; suite is reachable by default skills pytest collection.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/pyproject.toml",
+      "line_range": {
+        "start": 129,
+        "end": 129
+      }
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Fresh-checkout mirror skips and local byte-parity are accurately documented together: test_changed_skill_mirrors_are_byte_identical pytest.skips when .agents/.claude mirrors are absent; design.md:57 states ignored mirrors skip in fresh CI while install.sh --check covers portability and local install remains the byte-compare gate; change-context.md mirrors evidence row matches (local 12-file compare; CI 10 structural + 6 skipped).",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No action; CI no longer FileNotFoundErrors, and plan evidence states the skip/parity split explicitly.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 57,
+        "end": 57
+      }
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "work-packages.yaml wp-state-artifacts-docs declares context_impact.surfaces documentation, decisions, and semantic_code; locks.files and scope.write_allow name docs/decisions/skill-workflow.md; plan-findings.md reconciles that as the exact generated-output amendment; package validation reports VALID and openspec validate --strict passes.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action; package declaration matches the regenerated decision-index write.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 89,
+        "end": 92
+      }
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "description": "User review-destination authorization is audit-recorded in session-log Plan Fix decisions without secrets or merge authority: Decision 2 authorizes sharing diffs/context with defined multi-review harnesses (Claude, Codex, Antigravity, Pi/Openrouter, Grok) and explicitly excludes secrets, credentials, unrelated private data, and PR merge authority; Context restates the same boundary.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "No action; authorization is durable, bounded, and non-secret.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/session-log.md",
+      "line_range": {
+        "start": 44,
+        "end": 46
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Plan, scope, RED/GREEN, and proportional-validation claims are internally consistent after d2342a85: validation/red-state-artifacts.md keeps 9-fail/6-pass pre-guide RED; focused suite now collects/passes 16 tests matching change-context GREEN; design.md marks security/deploy/browser N/A; contracts/README.md declares no runtime contracts; verification tier B is focused pytest plus openspec/package gates; six skills use bare GUIDE_REFERENCE without github blob URLs.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action; evidence counts and N/A validation posture match the documentation-only product surface.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/change-context.md",
+      "line_range": {
+        "start": 26,
+        "end": 30
+      }
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: change-context.md Coverage Summary still reports Requirements traced / Tests mapped / Evidence collected as 6 after the same fix commit added the seventh Requirement Traceability Matrix row skill-workflow.state-artifacts-ci-discovery; the matrix above now has seven Req ID rows while the summary footer was not bumped.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Update the Coverage Summary counts to 7 to match the matrix row count added for CI discovery.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/change-context.md",
+      "line_range": {
+        "start": 32,
+        "end": 38
+      }
+    }
+  ]
+}

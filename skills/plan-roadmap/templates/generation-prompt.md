@@ -1,8 +1,9 @@
 # Roadmap Generation Prompt
 
-This is the **generation contract** handed to the premium model (a dispatched
-Claude subagent, or an external vendor such as `gpt-5.5` / `gemini-3.1-pro`)
-that turns a long-form proposal into a `roadmap.yaml`.
+This is the **generation contract** handed to the premium-tier generator (a
+dispatched Claude subagent, or an external `codex` / `gemini` vendor resolved
+from the premium tier in `archetypes.yaml`) that turns a long-form proposal
+into a `roadmap.yaml`.
 
 The orchestrator fills the two placeholders below and dispatches the result:
 

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T02:05:39.644078+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Resolved the migration 035 fresh-deploy blocker and work-package context declarations. Fresh rootless Podman, asyncpg apply and retry, live PostgreSQL projection, smoke, ZAP baseline, and HTTP E2E all passed; unrelated architecture and legacy fresh-schema warnings remain documented.",
+    "completed_work": [
+      "fresh Podman deploy",
+      "migration apply and retry",
+      "live PostgreSQL projection tests",
+      "smoke",
+      "ZAP baseline DAST",
+      "HTTP E2E",
+      "package and spec gates"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Normalize explicit migration boundaries inside the runner",
+        "rationale": "psql needs BEGIN and COMMIT for LOCK TABLE while asyncpg must retain ownership of the atomic migration and tracking transaction",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Resume autopilot VAL_REVIEW"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/database/migrations/035_work_queue_projection.sql",
+        "description": "Atomic psql migration"
+      },
+      {
+        "path": "agent-coordinator/src/migrations.py",
+        "description": "Runner transaction normalization"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+        "description": "Validation-fix evidence"
+      }
+    ]
+  }
+}

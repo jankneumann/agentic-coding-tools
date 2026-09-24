@@ -15,12 +15,33 @@ sys.path.insert(0, str(SCRIPTS))
 from merge_plan import MergePlanValidationError, validate_plan  # noqa: E402
 
 
+def _state(**overrides: object) -> dict:
+    state = {
+        "outcome": "pending",
+        "needs_revalidation": False,
+        "claimed_by": None,
+        "staleness": "fresh",
+        "ci_state": "clean",
+        "ci_failure_class": None,
+        "unresolved_comments": 0,
+        "unresolved_comment_summary": None,
+        "vendor_verdict": None,
+        "iterate_consensus_path": None,
+        "blocking_reason": None,
+    }
+    state.update(overrides)
+    return state
+
+
 def valid_plan() -> dict:
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "generated_at": "2026-08-19T12:00:00+00:00",
         "storage_tier": "file",
         "base_branch": "main",
+        "approved_at": None,
+        "last_merged_pr": None,
+        "compact_requested": False,
         "nodes": [
             {
                 "pr": 10,
@@ -32,18 +53,12 @@ def valid_plan() -> dict:
                     "depends_on": [],
                     "gates": ["proposal_acceptance"],
                     "changed_files": ["src/a.py"],
+                    "kind": "implementation",
+                    "change_id": "first",
+                    "remediation_skill": "iterate-on-implementation",
+                    "kind_overridden": False,
                 },
-                "state": {
-                    "outcome": "pending",
-                    "needs_revalidation": False,
-                    "claimed_by": None,
-                    "staleness": "fresh",
-                    "ci_state": "clean",
-                    "unresolved_comments": 0,
-                    "unresolved_comment_summary": None,
-                    "vendor_verdict": None,
-                    "blocking_reason": None,
-                },
+                "state": _state(),
             },
             {
                 "pr": 11,
@@ -55,18 +70,12 @@ def valid_plan() -> dict:
                     "depends_on": [10],
                     "gates": [],
                     "changed_files": ["src/a.py"],
+                    "kind": "automation",
+                    "change_id": None,
+                    "remediation_skill": "none",
+                    "kind_overridden": False,
                 },
-                "state": {
-                    "outcome": "pending",
-                    "needs_revalidation": False,
-                    "claimed_by": None,
-                    "staleness": "fresh",
-                    "ci_state": "clean",
-                    "unresolved_comments": 0,
-                    "unresolved_comment_summary": None,
-                    "vendor_verdict": None,
-                    "blocking_reason": None,
-                },
+                "state": _state(),
             },
         ],
     }
@@ -74,6 +83,24 @@ def valid_plan() -> dict:
 
 def test_plan_validates_against_shipped_contract() -> None:
     validate_plan(valid_plan())
+
+
+def test_schema_1_0_documents_are_rejected() -> None:
+    plan = valid_plan()
+    plan["schema_version"] = "1.0"
+
+    with pytest.raises(MergePlanValidationError, match="1.1"):
+        validate_plan(plan)
+
+
+def test_kind_fields_round_trip_on_valid_plan() -> None:
+    plan = valid_plan()
+    validate_plan(plan)
+    assert plan["nodes"][0]["definition"]["kind"] == "implementation"
+    assert plan["nodes"][0]["definition"]["remediation_skill"] == (
+        "iterate-on-implementation"
+    )
+    assert plan["nodes"][1]["definition"]["kind"] == "automation"
 
 
 @pytest.mark.parametrize(

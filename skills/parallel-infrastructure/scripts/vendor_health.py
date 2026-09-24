@@ -81,7 +81,7 @@ def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
     # Check 4: API key availability (CLI-declared env var, SDK section, or
     # direct api_key). cli.api_key_env is a credential the CLI itself needs
     # to serve a request (pi: OPENROUTER_API_KEY, issue #383).
-    sdk = agent_config.get("sdk", {})
+    sdk = agent_config.get("sdk") or {}
     cli_api_key_env = cli.get("api_key_env")
     api_key_env = cli_api_key_env or sdk.get("api_key_env")
     if api_key_env:
@@ -103,6 +103,10 @@ def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
         health.healthy = health.cli_installed and health.api_key_available
     else:
         health.healthy = health.cli_installed or health.api_key_available
+
+    has_probe_method = bool(command or api_key_env or agent_config.get("api_key"))
+    if not has_probe_method:
+        health.error = "no_probe_method"
 
     return health
 
@@ -162,9 +166,6 @@ def check_all_vendors(agents_yaml_path: Path | None = None) -> HealthReport:
 
     report = HealthReport()
     for agent_id, agent_config in agents.items():
-        # Only check agents with CLI sections
-        if "cli" not in agent_config:
-            continue
         health = check_vendor(agent_id, agent_config)
         report.vendors.append(health)
 

@@ -1,0 +1,19 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Round-3 remediation boundary is closed with no remaining blocking defect. (1) `proxy_complete_work` omits ambient `**_agent_identity()` so the body has neither `agent_id` nor `agent_type`; HTTP `/work/submit` (`claim_immediately`) and `/work/complete` both resolve `resolve_identity(principal, None, None)`, covered by `test_proxy_complete_work_leaves_identity_to_authenticated_principal` and `test_complete_work_passes_resolved_identity_when_body_omits_agent_id` / `test_submit_work_atomic_claim_uses_server_resolved_identity`. (2) Async submit and status `OSError` paths call `_complete_completion_ledger(success=False, ...)` via `fail()` / direct completion, covered by `test_async_submit_oserror_completes_claimed_ledger` and `test_poll_oserror_completes_claimed_ledger`. (3) Succeeded-envelope ingestion failure plus ledger-completion failure returns `\"{ingested.error}; Completion ledger update failed before result consumption: {ledger_error}\"`, covered by `test_poll_preserves_ingestion_error_when_ledger_completion_fails`. Focused remediation tests passed here (5/5); prior contracts remain intact in the worktree/patch: structured `vendor-envelope-v1`, atomic `043_atomic_submit_claim.sql` (`SECURITY INVOKER`, reserved projection-key rejection, `service_role` grant), API parity for claim/complete identity, lock `release-by-agent` cleanup, SDK-only remote Codex scope, and ledger/async observability fields.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No further remediation required on the round-3 boundary; proceed with convergence.",
+      "package_id": "whole-branch",
+      "evidence_class": "judgment"
+    }
+  ]
+}

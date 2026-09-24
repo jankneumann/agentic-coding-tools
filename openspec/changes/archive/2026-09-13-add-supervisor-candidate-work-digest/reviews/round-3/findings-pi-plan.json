@@ -1,0 +1,167 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: All round-2 blocking issues have been properly addressed. Lifecycle maintenance now bypasses unchanged reuse and rebuilds before SENSE, ensuring terminal pruning doesn't leave stale digests.",
+      "resolution": "Verified fixed in design.md D1 and spec.md scenarios",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 28,
+        "end": 35
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Staleness derivation now properly defined using Git commit timestamps for tracked artifacts, with clear null/degraded behavior for untracked/modified artifacts.",
+      "resolution": "Fixed in design.md D2 and spec.md requirements",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 55,
+        "end": 62
+      }
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: Refiner priority contract inconsistency resolved. Explicit priority and insertion position are now correctly specified as independent concepts.",
+      "resolution": "Removed conflicting claims in proposal.md and aligned spec",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "line_range": {
+        "start": 120,
+        "end": 125
+      }
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: Oversized stub handling now properly defined with complete canonical manifest bounding and pre-dispatch failure with `oversized:<stub_key>` reporting.",
+      "resolution": "Implemented in spec.md and design.md D8",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 9,
+        "end": 13
+      }
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: Multi-batch and ready-frontier instructions properly replaced with single-manifest protocol and strict all-status index requirements.",
+      "resolution": "Updated in design.md D2 and spec.md dependency readiness sections",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 63,
+        "end": 69
+      }
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: Cached scored_at vs maintenance as_of conflict resolved with proper separation of generated_at for cache validation and state_updated_at for lifecycle rebuilds.",
+      "resolution": "Schema updated in digest.schema.json and behavior specified in design.md D6",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json",
+      "line_range": {
+        "start": 72,
+        "end": 73
+      }
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: Multi-file publication and failure retry fully specified with durable roll-forward journal, digest-last commit marker, and startup recovery protocols.",
+      "resolution": "Implemented in spec.md and design.md D8",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 25,
+        "end": 28
+      }
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: Full ranking policy now properly exposed in digest.json schema with complete weights specification including penalty caps, risk direction, bucket orders, and tie-breakers.",
+      "resolution": "Fixed in digest.schema.json weights properties",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json",
+      "line_range": {
+        "start": 74,
+        "end": 84
+      }
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: prov: key support now properly handled in digest schema with nullable suggested_change_id to accommodate prov: keys that don't have change IDs.",
+      "resolution": "Schema updated to allow null suggested_change_id",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json",
+      "line_range": {
+        "start": 20,
+        "end": 20
+      }
+    },
+    {
+      "id": 10,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: Dry-run behavior now properly reconciled with pre-fingerprint maintenance pass, with maintenance results computed but not persisted under dry-run.",
+      "resolution": "Specified in design.md D1 and spec.md dry-run behavior",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 32,
+        "end": 35
+      }
+    }
+  ]
+}

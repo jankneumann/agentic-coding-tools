@@ -55,12 +55,33 @@ SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 # any setup where the bundle is stale or absent. The bundled copies are
 # kept in sync by the precommit hook (TODO if drift becomes an issue;
 # for now, a quick manual diff before merge is sufficient).
+def _change_dir(repo_root: Path, change_id: str) -> Path:
+    """Locate a change's directory whether it is active or archived.
+
+    Mirrors ``skills/tests/_shared/openspec_paths.py``; inlined because
+    ``src/`` is the Docker runtime package and must not reach into the test
+    tree. See ``docs/guides/openspec-path-stability.md``.
+
+    Without this the canonical fallback below silently stopped resolving when
+    ``add-coordinator-kanban-viz`` was archived on 2026-05-22 — and because
+    ``_load_schema`` degrades to an empty schema when no root loads, a deploy
+    missing the bundled copy would have validated every write against no
+    constraints at all. A fallback that fails exactly when the thing it backs
+    up is missing is worse than no fallback, because it reads as one.
+    """
+    changes = repo_root / "openspec" / "changes"
+    active = changes / change_id
+    if active.is_dir():
+        return active
+    archived = sorted(changes.glob(f"archive/*-{change_id}"))
+    return archived[-1] if archived else active
+
+
 _SCHEMA_ROOTS: list[Path] = [
     Path(__file__).resolve().parent / "schemas" / "kanban_viz",
-    Path(__file__).resolve().parents[2]
-    / "openspec"
-    / "changes"
-    / "add-coordinator-kanban-viz"
+    _change_dir(
+        Path(__file__).resolve().parents[2], "add-coordinator-kanban-viz"
+    )
     / "contracts"
     / "schemas",
 ]

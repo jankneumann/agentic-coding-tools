@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-10T15:37:05.407929+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "local-only persistence required by execution policy",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "All required non-deployable validation gates passed: 465 focused tests, Ruff, strict OpenSpec, package/context/scope checks, install portability, and CLI smoke. Architecture graph refresh and monolithic cross-skill collection remain documented advisory degradations unrelated to ri-16 behavior.",
+    "completed_work": [
+      "spec",
+      "evidence",
+      "security review",
+      "focused regression",
+      "scope",
+      "portability"
+    ],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [
+      "Create the pull request and park at the human merge gate"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-cross-roadmap-readiness-resolver/validation-report.md",
+        "description": "validation evidence"
+      }
+    ]
+  }
+}

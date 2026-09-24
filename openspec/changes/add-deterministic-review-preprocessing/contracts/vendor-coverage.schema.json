@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/vendor-coverage.schema.json",
+  "title": "Coverage block and anchor fields added to review-findings",
+  "description": "Fragment contract. The canonical review-findings schema gains an optional top-level `coverage` object and optional per-finding `existing_code` and `line_resolution` fields with exactly these shapes.",
+  "type": "object",
+  "properties": {
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewed", "skipped"],
+      "properties": {
+        "reviewed": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "reason"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "rate": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "finding_fragment": {
+      "type": "object",
+      "properties": {
+        "existing_code": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Verbatim excerpt of one or more consecutive lines from the reviewed diff. Leading diff markers and indentation are ignored during resolution."
+        },
+        "line_resolution": {
+          "type": "string",
+          "enum": ["vendor", "hunk_new", "hunk_old", "file", "unresolved"]
+        }
+      }
+    }
+  }
+}

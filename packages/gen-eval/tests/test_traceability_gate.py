@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "fixtures" / "traceabil
 import check_traceability as gate  # noqa: E402
 from builders import (  # noqa: E402
     op,
+    write_delta,
     write_exclusions,
     write_openapi_doc,
     write_spec,
@@ -428,3 +429,104 @@ class TestMalformedInputAndDiscovery:
         result = _run(tmp_path)
         assert result.exit_code == 0
         assert not any("widget" in e for e in result.errors)
+
+
+# ---------------------------------------------------------------------------
+# Union-mode selection — `--change ""` must mean union, not "a change named ''"
+# ---------------------------------------------------------------------------
+
+
+class TestUnionModeSelection:
+    """The CI sweep asks for union mode by passing an empty ``--change``.
+
+    `_effective_headings_in_scope` selected the mode with ``change_id is not
+    None`` while `_format_report` labelled it with a truthiness test, so an
+    empty string took the *shadow* path against a change directory that cannot
+    exist — archive-only, no delta shadowed — under a header reading "union of
+    on-branch deltas". `_union_effective_headings` was therefore unreachable
+    from CI for the whole life of the sweep, and because the post-merge run
+    exits 0 unconditionally, nothing contradicted the header.
+
+    These pin the two spellings together at the argument boundary, so the
+    resolver cannot disagree with the report again.
+    """
+
+    def _fixture(self, tmp_path: Path) -> None:
+        """An ADDED requirement that exists only in an in-flight delta.
+
+        Union mode must see it; shadow-with-a-nonexistent-id must not. That is
+        the whole difference between the two modes, so it is the whole fixture.
+        """
+        write_spec(tmp_path / "specs", "widget", ["Alpha"])
+        write_delta(
+            tmp_path / "changes", "add-beta", "widget", added=["Beta"]
+        )
+        write_exclusions(
+            tmp_path / "contracts",
+            "widget",
+            [{"requirement": "widget.alpha", "reason": "no CLI surface"}],
+        )
+        write_openapi_doc(tmp_path / "contracts", "widget", "svc.yaml", [])
+
+    def test_empty_change_resolves_the_union_not_an_empty_shadow(
+        self, tmp_path: Path
+    ) -> None:
+        self._fixture(tmp_path)
+
+        # RED first: under archive-only resolution `widget.beta` does not exist,
+        # so the union-mode caller cannot even be told it is uncited.
+        omitted = _run(tmp_path, change_id=None)
+        empty = _run(tmp_path, change_id="")
+
+        assert any("widget.beta" in f for f in omitted.reverse_failures), (
+            "omitting --change must union in the in-flight delta"
+        )
+        assert any("widget.beta" in f for f in empty.reverse_failures), (
+            'passing --change "" must resolve the union too; it resolved an '
+            "empty shadow (archive-only) until 2026-09-09"
+        )
+
+    def test_the_two_spellings_produce_the_same_verdict(self, tmp_path: Path) -> None:
+        self._fixture(tmp_path)
+
+        omitted = _run(tmp_path, change_id=None)
+        empty = _run(tmp_path, change_id="")
+
+        assert empty.exit_code == omitted.exit_code
+        assert sorted(empty.reverse_failures) == sorted(omitted.reverse_failures)
+        assert sorted(empty.errors) == sorted(omitted.errors)
+
+    def test_the_argument_parser_normalizes_the_blank_form(self) -> None:
+        """Normalizing at the boundary is what makes the two agree.
+
+        Asserted on the parser rather than on `run_gate` so the guarantee holds
+        for every caller, including the CI fragment that spells it `run_gate ""`.
+        """
+        assert gate._change_id_or_union("") is None
+        assert gate._change_id_or_union("add-beta") == "add-beta"
+
+    def test_a_named_change_still_shadows_only_that_change(
+        self, tmp_path: Path
+    ) -> None:
+        """The fix must not collapse shadow mode into union mode.
+
+        Blocking CI invocations depend on `--change <id>` shadowing exactly one
+        delta; if the normalization leaked into those, every PR would start
+        evaluating every in-flight change at once.
+        """
+        write_spec(tmp_path / "specs", "widget", ["Alpha"])
+        write_delta(tmp_path / "changes", "add-beta", "widget", added=["Beta"])
+        write_delta(tmp_path / "changes", "add-gamma", "widget", added=["Gamma"])
+        write_exclusions(
+            tmp_path / "contracts",
+            "widget",
+            [{"requirement": "widget.alpha", "reason": "no CLI surface"}],
+        )
+        write_openapi_doc(tmp_path / "contracts", "widget", "svc.yaml", [])
+
+        scoped = _run(tmp_path, change_id="add-beta")
+        assert any("widget.beta" in f for f in scoped.reverse_failures)
+        assert not any("widget.gamma" in f for f in scoped.reverse_failures), (
+            "shadow mode must not see a sibling change's delta"
+        )
+

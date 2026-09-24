@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-14T05:02:46.184134+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "local durable fallback requested for finalization",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented ri-12 candidate-work sidecars, deterministic multi-producer ranking, lifecycle-aware roadmap intake, and the review-driven stability and failure-boundary hardening needed for convergence.",
+    "completed_work": [
+      "Implemented shared schema validation, canonical persistence, immutable identity, lifecycle collection, dependency resolution, and atomic collision guards.",
+      "Integrated bug-scrub, improve-harness, and explore-feature sidecars with repeatable prioritize-proposals intake and transaction-safe plan-roadmap mapping.",
+      "Closed all confirmed multi-vendor findings through seven bounded implementation-review rounds; final Codex review returned zero findings and Claude confirmed the remaining design with one test-only typing nit fixed.",
+      "Preserved rejected raw vendor outputs in ignored per-round caches and restored unintended reviewer writes to tracked findings.json."
+    ],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [
+      "Run and record final validation gates, push the branch, merge the approved pull request, and reconcile supervisor roadmap ri-12."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/shared/candidate_work.py",
+        "description": "shared candidate-work runtime"
+      },
+      {
+        "path": "skills/tests/candidate-work/test_cross_skill_integration.py",
+        "description": "producer-to-ranking-to-roadmap integration"
+      }
+    ]
+  }
+}

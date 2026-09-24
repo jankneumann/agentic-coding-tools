@@ -1,0 +1,187 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 82,
+        "end": 95
+      },
+      "description": "test_design_rehydration_matches_canonical_order reads the ephemeral change artifact openspec/changes/write-durable-state-artifacts-guide/design.md, but the suite is registered in the default CI collection (skills/pyproject.toml:129 lists \"tests/state-artifacts\"). Archival moves changes to openspec/changes/archive/<date>-<change-id>/ (confirmed by the existing entries such as openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service), so the first cleanup-feature run turns this into a permanent FileNotFoundError on every subsequent CI run of the default suite. This directly contradicts the plan's own selling point at proposal.md:31, 'references remain stable after change archival', and violates the convention the repository already documented at skills/tests/context-engineering/test_promoted_semantic_context_contracts.py:104-107: 'If $id pointed at openspec/changes/<id>/... the reference would resolve into a directory that archival moves \u2014 the exact drift the promoted location prevents.' The assertion is also redundant: test_guide_pins_rehydration_order_and_conflict_rules (lines 40-57) already pins the identical eight numbered markers against the durable guide.",
+      "resolution": "Delete test_design_rehydration_matches_canonical_order. The durable drift boundary is docs/guides/state-artifacts.md, which is already covered. If design-document alignment must be checked at all, do it as a one-time plan-review step, not as a permanently collected test that reads an active change directory."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 98,
+        "end": 106
+      },
+      "description": "The spec scenario 'Runtime skill mirrors are installed' (specs/skill-workflow/spec.md:54-57) has no gate that can fail when installation did not happen. test_changed_skill_mirrors_are_byte_identical calls pytest.skip when either mirror path is absent, and .agents/skills/ and .claude/skills/ are gitignored (.gitignore:280-281). A fresh git worktree and a fresh CI checkout therefore both lack the mirrors, so all six parametrized cases skip and the package verification command at work-packages.yaml:110 reports green whether or not task 3.1 ran. The test only detects staleness on machines that already installed the mirrors; it never detects non-installation. Design risk mitigation at design.md:57 acknowledges the CI skip but treats byte comparison as a 'pre-push local gate' without any mechanism that proves the local gate ran.",
+      "resolution": "Make the mirror assertion fail-loud where mirrors are expected: gate the skip on an explicit opt-in signal (an environment marker set by the local pre-push path, or a task-3.1 evidence file recording the install.sh invocation and resulting checksums) so that a skip in the intended environment becomes a failure. Alternatively add the install step to the package verification command so the mirrors exist before the byte comparison runs."
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 135,
+        "end": 143
+      },
+      "description": "The 'No-contract context impact is rationalized' verification step invokes validate_context_impact.py with --changed-file pointing at exactly one path (the contracts README). Two consequences follow from the validator's own logic. First, infer_surfaces (skills/validate-packages/scripts/context_impact.py:285-313) only derives surfaces from the files it is given, so with one README the implied set is exactly {apis}; the package's three declared surfaces (documentation, decisions, semantic_code) are never exercised, and a newly implied surface from any other file in the diff cannot be detected. The step is therefore near-tautological as a drift gate. Second, spurious_rationale is a failing status (validate_context_impact.py FAILING_STATUSES) and spurious is computed as set(rationale) - set(implied), so the same package exits 1 under any invocation where the README is not in the changed set, including a re-run scoped to a later base after the README is committed. The repository convention is --base main, used both by skills/validate-packages/SKILL.md:37 and by the archived reference package at openspec/changes/archive/2026-07-26-add-work-package-context-impact-declarations/work-packages.yaml:214.",
+      "resolution": "Change the verification command to --base main so the gate sees the real diff and the apis rationale is genuinely implied by the newly added contracts README. Keep the --changed-file form only as an additional narrow case if determinism is wanted, not as the sole invocation."
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 21,
+        "end": 21
+      },
+      "description": "The decision to leave the learning window unpinned is correct, but the chosen wording is not accurate and the delivered guide does not match the task. spec.md:21 makes it normative that the learning-context stage 'SHALL use the runtime-configured bounded recent-learning window', and tasks.md:35 lists 'the runtime-configured bounded recent-learning window' as required guide content. The delivered guide says only 'the bounded recent learning window' (docs/guides/state-artifacts.md:25), dropping the qualifier and never naming an owner. The actual referent is RECENCY_WINDOW = 3 at skills/roadmap-runtime/scripts/learning.py:27, consumed as the default of recency_window at line 137 and at skills/roadmap-runtime/scripts/context.py:55. A repository-wide search finds no non-default caller outside skills/tests/roadmap-runtime/test_learning.py, and no environment variable, CLI flag, or roadmap.yaml field feeds it. So there is no runtime configuration surface, and a reader following the spec will look for one that does not exist. Nothing in the focused suite tests this clause either.",
+      "resolution": "Restate the clause as an implementation-owned bound rather than a runtime-configured one, for example 'the bounded recent-learning window owned by roadmap-runtime', and have the guide name skills/roadmap-runtime/scripts/learning.py as the owner the way it already names docs/guides/work-queue-truth-projection.md for the queue boundary. Continue to keep the numeric default out of the normative text."
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 60,
+        "end": 63
+      },
+      "description": "The portability decision recorded at docs/decisions/skill-workflow.md:12 \u2014 installed skill payloads cannot use relative Markdown links that escape the skill directory, so skills carry the bare backticked repository path \u2014 is guarded by exactly one gate, and the plan never says which. test_canonical_skill_links_to_state_artifacts_guide asserts only that the substring 'docs/guides/state-artifacts.md' appears, which an escaping link such as ../../docs/guides/state-artifacts.md also satisfies. The real enforcement is _local_markdown_link_errors in skills/shared/validate_install_manifest.py:80-106 ('Markdown link escapes installed payload'), reachable only via bash skills/install.sh --check. design.md:57 cites install.sh --check for payload portability in the mirror-drift risk but never connects it to the reference-form decision, so removing that line from the tasks.md:67 validation matrix would silently drop the only guard.",
+      "resolution": "Either assert the non-escaping form directly in the focused test (reject a match preceded by ../), or record the coupling explicitly in design.md D1 so the install.sh --check step is understood as the enforcement point for the reference-form decision rather than a mirror-only concern."
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "correctness",
+      "disposition": "accept",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 21,
+        "end": 28
+      },
+      "description": "Positive observation. The eight-stage rehydration sequence is consistent across all four documents that carry it: docs/guides/state-artifacts.md:21-28, design.md:39-46, skills/supervise/SKILL.md:139-153, and the prose enumeration at specs/skill-workflow/spec.md:21. Stage names, stage count, and ordering match, and the ordering constraints asserted in the spec scenario (roadmap checkpoints before per-change loop state; projection rebuild only after advisory reconciliation) hold in every copy. proposal.md:13 summarizes the same shape without contradicting it. The only divergence is cosmetic: spec.md:21 writes the final stage as 'projection rebuild' where the numbered lists write 'Rebuild projections'. The structural tests pin the numbered form, which is the form both durable documents use.",
+      "resolution": "No change required."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "compatibility",
+      "disposition": "accept",
+      "file_path": "docs/guides/documentation.md",
+      "line_range": {
+        "start": 6,
+        "end": 6
+      },
+      "description": "Positive observation. The distinction between a repository-relative reference and a clickable link is applied correctly and deliberately. All six skill sources carry the bare backticked path (identical sentence at skills/autopilot/SKILL.md:17, skills/autopilot-roadmap/SKILL.md:16, skills/session-log/SKILL.md:15, skills/supervise/SKILL.md:17, skills/implement-feature/SKILL.md:22, skills/validate-feature/SKILL.md:22), because those files are copied into .agents/skills/<name>/ and .claude/skills/<name>/ where a relative link out of the skill directory cannot resolve. The documentation index uses a real clickable link, [Durable State Artifacts](state-artifacts.md) at docs/guides/documentation.md:6, which resolves correctly because both files sit in docs/guides/. The rationale is captured at docs/decisions/skill-workflow.md:12 and traced to its phase record at openspec/changes/write-durable-state-artifacts-guide/session-log.md:11.",
+      "resolution": "No change required. See finding 5 for the single unguarded aspect."
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "architecture",
+      "disposition": "accept",
+      "file_path": "skills/coordination-bridge/SKILL.md",
+      "line_range": {
+        "start": 58,
+        "end": 81
+      },
+      "description": "Positive observation on scope discipline. The six in-scope skills are the correct set. The only other skill that restates loop-state authority is coordination-bridge, whose Work-Queue Truth / Projection Contract section repeats that loop-state.json is authoritative and the queue is a derived projection. That restatement is legitimately owned by a sibling canonical guide: coordination-bridge defers to docs/guides/work-queue-truth-projection.md at line 81, and the state-artifacts guide defers the queue boundary to the same document at docs/guides/state-artifacts.md:15, so the two guides partition rather than duplicate. Its narrower authority list (phase, iteration, package status) is a subset of the guide's row and does not contradict it. The remaining skills that name checkpoint.json \u2014 plan-roadmap:87, refine-roadmap:88 and :128, archive-roadmap:13 and :117 \u2014 reference it only structurally as a directory entry or as protected execution state, not as ownership semantics. The exclusion was adjudicated on the record in plan-findings.md under the round 1 disposition.",
+      "resolution": "No change required."
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "resilience",
+      "disposition": "accept",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 30,
+        "end": 36
+      },
+      "description": "Positive observation. First-run absence and missing-state-after-claimed-progress are cleanly separated and consistent everywhere. The guide states both rules in the inventory rows (line 9 for loop state, line 10 for the checkpoint), restates the checkpoint case as a stage condition at line 23, and gives the general rule at lines 32-33. design.md:23 and design.md:41 phrase it identically, and skills/supervise/SKILL.md:148-149 carries the operational form. The two spec scenarios at specs/skill-workflow/spec.md:31-42 cover the two halves without overlap, and both forbid synthesizing canonical state from advisory sources. The guide is a superset of the spec here: it also documents first-run absence for loop state, which the spec only requires for the roadmap checkpoint. That is additive, not conflicting.",
+      "resolution": "No change required."
+    },
+    {
+      "id": 10,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "architecture",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md",
+      "line_range": {
+        "start": 1,
+        "end": 6
+      },
+      "description": "Positive observation on the no-contract declaration itself. The README states plainly that no OpenAPI, database, event, or generated-type contract applies and points at the skill-workflow delta plus design decisions D1-D4 as the behavioral contract. work-packages.yaml:12-13 carries an inline comment explaining why the schema-required contracts.openapi slot points at a prose stub, and the context_impact rationale at lines 95-98 supplies both a reason and an approved_by, which is exactly the shape evaluate() in validate_context_impact.py requires to turn an implied-but-undeclared apis surface into the passing 'rationalized' status rather than the failing 'undeclared' one. The declaration is coherent and honest about the schema constraint it is working around. The defect is in how that gate is invoked, not in the declaration; see finding 3.",
+      "resolution": "No change required to the README or the rationale block."
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "correctness",
+      "disposition": "accept",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 9,
+        "end": 13
+      },
+      "description": "Positive observation on factual accuracy. Every authority and writer claim in the inventory checks out against the runtime. Loop state: the fields named (phase, iteration, package status, gates, transition history) map to current_phase, iteration, packages_status, the gate_decisions/gate_verdict/goal_gate additions in schema version 5, and the append-only outcome log, all in the LoopState dataclass at skills/autopilot/scripts/autopilot.py:77-107; the named writer save_state exists at line 155 and runner.py apply-outcome is the cross-process path. Phase records and handoffs: PhaseRecord.write_both exists at skills/session-log/scripts/phase_record.py:355. The local handoff fallback path shape <phase>-<N>.json matches the live artifacts in this change's own handoffs directory (implementation-1.json, plan-fix-1.json). The supervisor mirror and cycle ledger paths match those used by skills/supervise/SKILL.md:139 and :147. Learning entries and their learning-log.md index match skills/roadmap-runtime/scripts/learning.py.",
+      "resolution": "No change required."
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "architecture",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 27,
+        "end": 89
+      },
+      "description": "Positive observation on parallelizability and scope. A single sequential package is the right decomposition here and is justified rather than asserted: the guide, the six skill references, the supervise ordering, the mirrors, and the structural test form one semantic drift boundary, and splitting them would put multiple agents into the same shared SKILL.md files (design.md:50). The package honors the repository's scope rules \u2014 write_allow is an explicit file-and-directory allowlist with no repository-wide write glob, read_allow is unrestricted as expected, and deny explicitly excludes agent-coordinator/src, agent-coordinator/database, and apps. The lock file list matches the write allowlist for canonical sources, and the mirror paths are allowlisted separately so install output does not trip the scope checker. The task graph is a clean chain (1.1 to 1.2/1.3, 2.1 to 2.2/2.3, then 3.1 to 3.2) with no dependency that inverts the RED-then-GREEN order.",
+      "resolution": "No change required."
+    }
+  ]
+}

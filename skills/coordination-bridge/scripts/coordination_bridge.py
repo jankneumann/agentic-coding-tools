@@ -11,6 +11,7 @@ import argparse
 import json
 import logging
 import os
+import re
 from typing import Any
 from urllib import error as url_error
 from urllib import parse as url_parse
@@ -449,9 +450,7 @@ def _skipped_operation(
         "status": "skipped",
         "operation": operation,
         "reason": reason,
-        "COORDINATOR_AVAILABLE": bool(
-            state and state.get("COORDINATOR_AVAILABLE", False)
-        ),
+        "COORDINATOR_AVAILABLE": bool(state and state.get("COORDINATOR_AVAILABLE", False)),
         "COORDINATION_TRANSPORT": (
             state.get("COORDINATION_TRANSPORT", "none") if state else "none"
         ),
@@ -482,10 +481,23 @@ def _normalize_operation_response(
             state=state,
         )
     if status_code in (401, 403):
+        # 401 and 403 mean different things and want different fixes: a
+        # rejected credential versus a valid credential doing something it may
+        # not. Collapsing both into "unauthorized" is why a 403 reading "API
+        # key is not permitted to act as requested agent_id" reached operators
+        # as "coordinator lock skipped (unauthorized)" and went undiagnosed for
+        # days. Carry the server's own explanation through.
+        detail = None
+        data = response.get("data")
+        if isinstance(data, dict):
+            raw_detail = data.get("detail")
+            if isinstance(raw_detail, str) and raw_detail:
+                detail = raw_detail[:200]
         return _skipped_operation(
             operation=operation,
-            reason="unauthorized",
+            reason="unauthorized" if status_code == 401 else "forbidden",
             state=state,
+            extra={"status_code": status_code, **({"detail": detail} if detail else {})},
         )
     if 200 <= status_code < 300:
         payload = response.get("data")
@@ -527,8 +539,11 @@ def _execute_single_endpoint_operation(
     payload: dict[str, Any] | None,
     http_url: str | None,
     api_key: str | None,
+    _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    state = detect_coordination(http_url=http_url, api_key=api_key)
+    state = _coordination_state or detect_coordination(
+        http_url=http_url, api_key=api_key
+    )
     if not state["COORDINATOR_AVAILABLE"]:
         return _skipped_operation(
             operation=operation,
@@ -553,6 +568,144 @@ def _execute_single_endpoint_operation(
         operation=operation,
         response=response,
         state=state,
+    )
+
+
+def _execute_vendor_registry_operation(
+    *,
+    operation: str,
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Execute a registry route without pretending errors are empty success."""
+    state = detect_coordination(http_url=http_url, api_key=api_key)
+    if not state["COORDINATOR_AVAILABLE"]:
+        return _skipped_operation(
+            operation=operation,
+            reason="coordinator_unavailable",
+            state=state,
+        )
+    response = _http_request(
+        method=method,
+        path=path,
+        payload=payload,
+        http_url=state.get("http_url"),
+        api_key=_resolve_api_key(api_key),
+    )
+    data = response.get("data")
+    status_code = response.get("status_code")
+    if isinstance(status_code, int) and status_code >= 500:
+        return {
+            "status": "error",
+            "operation": operation,
+            "reason": "server_error",
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+            "status_code": status_code,
+            "response": data,
+            "error": response.get("error"),
+        }
+    if isinstance(status_code, int) and 200 <= status_code < 300 and not isinstance(
+        data, dict
+    ):
+        return {
+            "status": "error",
+            "operation": operation,
+            "reason": "malformed_response",
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+            "status_code": status_code,
+            "response": data,
+            "error": "Coordinator returned a non-object registry payload",
+        }
+    if status_code == 404 and isinstance(data, dict):
+        detail = data.get("detail")
+        if detail == "unknown_vendor_lane":
+            return {
+                "status": "error",
+                "operation": operation,
+                "COORDINATOR_AVAILABLE": True,
+                "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+                "status_code": 404,
+                "response": data,
+                "error": detail,
+            }
+    return _normalize_operation_response(
+        operation=operation,
+        response=response,
+        state=state,
+    )
+
+
+def try_list_vendors(
+    *,
+    capability: str | None = None,
+    archetype: str | None = None,
+    dispatch_mode: str | None = None,
+    location: str | None = None,
+    available_only: bool = False,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Return configured vendor lanes through the native operation envelope."""
+    params: list[tuple[str, str]] = []
+    for name, value in (
+        ("capability", capability),
+        ("archetype", archetype),
+        ("dispatch_mode", dispatch_mode),
+        ("location", location),
+    ):
+        if value is not None:
+            params.append((name, value))
+    if available_only:
+        params.append(("available_only", "true"))
+    query = url_parse.urlencode(params)
+    path = f"/vendors?{query}" if query else "/vendors"
+    return _execute_vendor_registry_operation(
+        operation="list_vendors",
+        method="GET",
+        path=path,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_get_vendor_availability(
+    agent_id: str,
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Return one exact lane's availability without provider-name inference."""
+    quoted_agent_id = url_parse.quote(agent_id, safe="")
+    return _execute_vendor_registry_operation(
+        operation="get_vendor_availability",
+        method="GET",
+        path=f"/vendors/{quoted_agent_id}/availability",
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_report_vendor_rate_limit(
+    agent_id: str,
+    observation: dict[str, Any],
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Report a capacity observation for an exact configured lane."""
+    quoted_agent_id = url_parse.quote(agent_id, safe="")
+    return _execute_vendor_registry_operation(
+        operation="report_vendor_rate_limit",
+        method="POST",
+        path=f"/vendors/{quoted_agent_id}/rate-limit-observations",
+        payload=observation,
+        http_url=http_url,
+        api_key=api_key,
     )
 
 
@@ -612,6 +765,68 @@ def _execute_multi_endpoint_operation(
     )
 
 
+#: The coordinator's exact wording when an API key is bound to one identity and
+#: the request names another. Matching it keeps the retry below narrow: any
+#: other 403 is a real authorization failure and must not be retried.
+_IDENTITY_REFUSED = "not permitted to act as requested"
+
+
+def _identity_was_refused(result: dict[str, Any]) -> bool:
+    return result.get("reason") == "forbidden" and _IDENTITY_REFUSED in str(
+        result.get("detail") or ""
+    )
+
+
+def _lock_request(
+    *,
+    operation: str,
+    path: str,
+    payload: dict[str, Any],
+    identity: dict[str, Any],
+    http_url: str | None,
+    api_key: str | None,
+) -> dict[str, Any]:
+    """Send a lock request, retrying once without identity if it is refused.
+
+    Two deployment shapes have to work, and the client cannot tell them apart:
+
+    * a key listed in ``COORDINATION_API_KEY_IDENTITIES`` is *bound*, and
+      ``resolve_identity`` 403s on any request naming a different identity. The
+      caller cannot know the bound name, so it must send none.
+    * a key in ``COORDINATION_API_KEYS`` with no identity entry is *unbound*,
+      and the request's own identity is all the server has. Sending none there
+      collapses every agent to the ``cloud-agent`` default, so two agents could
+      release each other's locks.
+
+    Blanking unconditionally fixes the first and breaks the second. So the
+    caller's identity goes first, which is correct for an unbound key, and a
+    refusal -- the one error that means "you are bound" -- triggers a single
+    retry without it. Each deployment pays at most one extra round trip, and
+    only when the server has said the first attempt was wrong.
+    """
+    attempt = _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_LOCK",
+        method="POST",
+        path=path,
+        payload={**payload, **identity},
+        http_url=http_url,
+        api_key=api_key,
+    )
+    if not _identity_was_refused(attempt):
+        return attempt
+    blanked = dict.fromkeys(identity, "")
+    return _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_LOCK",
+        method="POST",
+        path=path,
+        payload={**payload, **blanked},
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def try_lock(
     *,
     file_path: str,
@@ -624,19 +839,16 @@ def try_lock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Acquire a coordinator lock when lock capability is available."""
-    return _execute_single_endpoint_operation(
+    return _lock_request(
         operation="try_lock",
-        capability_flag="CAN_LOCK",
-        method="POST",
         path="/locks/acquire",
         payload={
             "file_path": file_path,
-            "agent_id": agent_id,
-            "agent_type": agent_type,
             "session_id": session_id,
             "reason": reason,
             "ttl_minutes": ttl_minutes,
         },
+        identity={"agent_id": agent_id, "agent_type": agent_type},
         http_url=http_url,
         api_key=api_key,
     )
@@ -650,15 +862,13 @@ def try_unlock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Release a coordinator lock when lock capability is available."""
-    return _execute_single_endpoint_operation(
+    # Same binding rule as acquire: a release naming an identity the key is not
+    # bound to is refused, stranding the lock until its TTL expires.
+    return _lock_request(
         operation="try_unlock",
-        capability_flag="CAN_LOCK",
-        method="POST",
         path="/locks/release",
-        payload={
-            "file_path": file_path,
-            "agent_id": agent_id,
-        },
+        payload={"file_path": file_path},
+        identity={"agent_id": agent_id},
         http_url=http_url,
         api_key=api_key,
     )
@@ -671,10 +881,17 @@ def try_submit_work(
     input_data: dict[str, Any] | None = None,
     priority: int = 5,
     depends_on: list[str] | None = None,
+    projection_key: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
+    claim_immediately: bool = False,
     http_url: str | None = None,
     api_key: str | None = None,
+    _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Submit queue work when queue capability is available."""
+    validation_reason = _validate_projection_payload(projection_key, input_data, projection_labels)
+    if validation_reason is not None:
+        return {"status": "failed", "reason": validation_reason}
     return _execute_single_endpoint_operation(
         operation="try_submit_work",
         capability_flag="CAN_QUEUE_WORK",
@@ -686,16 +903,125 @@ def try_submit_work(
             "input_data": input_data,
             "priority": priority,
             "depends_on": depends_on,
+            **({"claim_immediately": True} if claim_immediately else {}),
+            **({"projection_key": projection_key} if projection_key is not None else {}),
+            **(
+                {"projection_labels": projection_labels}
+                if projection_labels is not None
+                else {}
+            ),
         },
         http_url=http_url,
         api_key=api_key,
+        _coordination_state=_coordination_state,
+    )
+
+
+_PROJECTION_IDENTITY_FIELDS = frozenset({"change_id", "phase", "transition_sequence"})
+_PROJECTION_PHASES = frozenset(
+    {
+        "INIT",
+        "GATEKEEPER",
+        "PLAN",
+        "PLAN_ITERATE",
+        "PLAN_REVIEW",
+        "PLAN_FIX",
+        "IMPLEMENT",
+        "IMPL_ITERATE",
+        "IMPL_REVIEW",
+        "IMPL_FIX",
+        "VALIDATE",
+        "VAL_REVIEW",
+        "VAL_FIX",
+        "SUBMIT_PR",
+        "ESCALATE",
+        "DONE",
+    }
+)
+
+
+def _validate_projection_payload(
+    projection_key: dict[str, Any] | None,
+    input_data: dict[str, Any] | None,
+    projection_labels: list[str] | None = None,
+) -> str | None:
+    """Return a no-raise failure reason for invalid projection identity."""
+    if projection_key is not None:
+        if set(projection_key) != _PROJECTION_IDENTITY_FIELDS:
+            return "invalid_projection_key"
+        change_id = projection_key["change_id"]
+        phase = projection_key["phase"]
+        sequence = projection_key["transition_sequence"]
+        if (
+            not isinstance(change_id, str)
+            or re.fullmatch(r"[a-z0-9][a-z0-9-]{0,127}", change_id) is None
+        ):
+            return "invalid_projection_key"
+        if phase not in _PROJECTION_PHASES:
+            return "invalid_projection_key"
+        if (
+            isinstance(sequence, bool)
+            or not isinstance(sequence, int)
+            or not 0 <= sequence <= 2147483647
+        ):
+            return "invalid_projection_key"
+    if projection_labels is not None:
+        if projection_key is None or projection_labels != [
+            f"change:{projection_key['change_id']}",
+            "projection:autopilot-phase",
+        ]:
+            return "invalid_projection_labels"
+    duplicated = _PROJECTION_IDENTITY_FIELDS.intersection(input_data or {})
+    if duplicated:
+        return "reserved_projection_key"
+    return None
+
+
+def try_reconcile_work_projection(
+    *,
+    projection_key: dict[str, Any],
+    projection_labels: list[str] | None = None,
+    task_type: str,
+    task_description: str,
+    input_data: dict[str, Any] | None = None,
+    priority: int = 5,
+    agent_requirements: dict[str, Any] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    _coordination_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Reconcile a queue projection without raising transport failures."""
+    validation_reason = _validate_projection_payload(projection_key, input_data, projection_labels)
+    if validation_reason is not None:
+        return {"status": "failed", "reason": validation_reason}
+    return _execute_single_endpoint_operation(
+        operation="try_reconcile_work_projection",
+        capability_flag="CAN_QUEUE_WORK",
+        method="POST",
+        path="/work/reconcile",
+        payload={
+            "projection_key": projection_key,
+            **(
+                {"projection_labels": projection_labels}
+                if projection_labels is not None
+                else {}
+            ),
+            "task_type": task_type,
+            "task_description": task_description,
+            "input_data": input_data,
+            "priority": priority,
+            "agent_requirements": agent_requirements,
+        },
+        http_url=http_url,
+        api_key=api_key,
+        _coordination_state=_coordination_state,
     )
 
 
 def try_get_work(
     *,
-    agent_id: str,
-    agent_type: str,
+    agent_id: str | None,
+    agent_type: str | None,
     task_types: list[str] | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
@@ -707,8 +1033,8 @@ def try_get_work(
         method="POST",
         path="/work/claim",
         payload={
-            "agent_id": agent_id,
-            "agent_type": agent_type,
+            **({"agent_id": agent_id} if agent_id is not None else {}),
+            **({"agent_type": agent_type} if agent_type is not None else {}),
             "task_types": task_types,
         },
         http_url=http_url,
@@ -719,7 +1045,7 @@ def try_get_work(
 def try_complete_work(
     *,
     task_id: str,
-    agent_id: str,
+    agent_id: str | None,
     success: bool,
     result: dict[str, Any] | None = None,
     error_message: str | None = None,
@@ -734,7 +1060,7 @@ def try_complete_work(
         path="/work/complete",
         payload={
             "task_id": task_id,
-            "agent_id": agent_id,
+            **({"agent_id": agent_id} if agent_id is not None else {}),
             "success": success,
             "result": result,
             "error_message": error_message,
@@ -1018,17 +1344,20 @@ def _github_issue_dispatch(operation: str, **kwargs: Any) -> dict[str, Any] | No
         client = github_issues._default_client()
     except RuntimeError:
         return github_issues._unconfigured(operation)
-    method = getattr(client, {
-        "try_issue_create": "create",
-        "try_issue_list": "list_issues",
-        "try_issue_show": "show",
-        "try_issue_update": "update",
-        "try_issue_close": "close",
-        "try_issue_comment": "comment",
-        "try_issue_ready": "ready",
-        "try_issue_blocked": "blocked",
-        "try_issue_search": "search",
-    }[operation])
+    method = getattr(
+        client,
+        {
+            "try_issue_create": "create",
+            "try_issue_list": "list_issues",
+            "try_issue_show": "show",
+            "try_issue_update": "update",
+            "try_issue_close": "close",
+            "try_issue_comment": "comment",
+            "try_issue_ready": "ready",
+            "try_issue_blocked": "blocked",
+            "try_issue_search": "search",
+        }[operation],
+    )
     return method(**kwargs)
 
 
@@ -1131,6 +1460,47 @@ def try_issue_list(
     )
 
 
+def _require_projection_operation_success(
+    result: dict[str, Any], *, default_reason: str
+) -> dict[str, Any]:
+    """Treat HTTP-200 issue-service rejections as projection failures."""
+    if result.get("status") != "ok":
+        return result
+    response = result.get("response")
+    if isinstance(response, dict) and response.get("success") is True:
+        return result
+    reason = response.get("reason") if isinstance(response, dict) else None
+    return {
+        **result,
+        "status": "failed",
+        "reason": str(reason or default_reason)[:200],
+    }
+
+
+def try_projection_issue_list(
+    *,
+    labels: list[str],
+    limit: int = 100,
+    http_url: str,
+    api_key: str | None = None,
+    _coordination_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """List projection-owned issue rows via the coordinator only."""
+    result = _execute_single_endpoint_operation(
+        operation="try_projection_issue_list",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/list",
+        payload={"labels": labels, "limit": min(max(limit, 1), 100)},
+        http_url=http_url,
+        api_key=api_key,
+        _coordination_state=_coordination_state,
+    )
+    return _require_projection_operation_success(
+        result, default_reason="issue_list_rejected"
+    )
+
+
 def try_issue_show(
     *,
     issue_id: str,
@@ -1205,6 +1575,30 @@ def try_issue_update(
     )
 
 
+def try_projection_issue_update(
+    *,
+    issue_id: str,
+    labels: list[str],
+    http_url: str,
+    api_key: str | None = None,
+    _coordination_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Replace adapter-owned projection labels via the coordinator only."""
+    result = _execute_single_endpoint_operation(
+        operation="try_projection_issue_update",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/update",
+        payload={"issue_id": issue_id, "labels": labels},
+        http_url=http_url,
+        api_key=api_key,
+        _coordination_state=_coordination_state,
+    )
+    return _require_projection_operation_success(
+        result, default_reason="issue_update_rejected"
+    )
+
+
 def try_issue_close(
     *,
     issue_id: str | None = None,
@@ -1273,9 +1667,7 @@ def try_issue_ready(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """List issues with no unresolved dependencies via GitHub or the coordinator."""
-    github = _github_issue_dispatch(
-        "try_issue_ready", parent_id=parent_id, limit=limit
-    )
+    github = _github_issue_dispatch("try_issue_ready", parent_id=parent_id, limit=limit)
     if github is not None:
         return github
     payload: dict[str, Any] = {}
@@ -1372,9 +1764,7 @@ def classify_code_search_state(state: Any) -> dict[str, Any] | None:
     if state == _CODE_SEARCH_READY_STATE:
         return None
     key = state if isinstance(state, str) else ""
-    trigger, reason = _CODE_SEARCH_STATE_FALLBACKS.get(
-        key, _CODE_SEARCH_UNKNOWN_STATE_FALLBACK
-    )
+    trigger, reason = _CODE_SEARCH_STATE_FALLBACKS.get(key, _CODE_SEARCH_UNKNOWN_STATE_FALLBACK)
     return _code_search_fallback(
         trigger=trigger,
         reason=reason,
@@ -1386,9 +1776,7 @@ def _code_search_transport_fallback(reason: str) -> dict[str, Any]:
     """Fallback record for an outcome that never produced a response state."""
     return _code_search_fallback(
         trigger="unavailable",
-        reason=_CODE_SEARCH_REASON_FALLBACKS.get(
-            reason, _CODE_SEARCH_DEFAULT_FALLBACK_REASON
-        ),
+        reason=_CODE_SEARCH_REASON_FALLBACKS.get(reason, _CODE_SEARCH_DEFAULT_FALLBACK_REASON),
         state=None,
     )
 
@@ -1529,9 +1917,7 @@ def try_code_search(
 
     status_code = response.get("status_code")
     if status_code is None:
-        return _failed_code_search(
-            reason="coordinator_unreachable", state=state, response=response
-        )
+        return _failed_code_search(reason="coordinator_unreachable", state=state, response=response)
     if not 200 <= status_code < 300:
         reason = _CODE_SEARCH_STATUS_REASONS.get(status_code)
         if reason is None:
@@ -1540,17 +1926,11 @@ def try_code_search(
 
     data = response.get("data")
     if not isinstance(data, dict) or not isinstance(data.get("state"), str):
-        return _failed_code_search(
-            reason="malformed_response", state=state, response=response
-        )
+        return _failed_code_search(reason="malformed_response", state=state, response=response)
 
     wire_state: str = data["state"]
-    if wire_state == _CODE_SEARCH_READY_STATE and not _code_search_ready_is_consistent(
-        data
-    ):
-        return _failed_code_search(
-            reason="malformed_response", state=state, response=response
-        )
+    if wire_state == _CODE_SEARCH_READY_STATE and not _code_search_ready_is_consistent(data):
+        return _failed_code_search(reason="malformed_response", state=state, response=response)
 
     return {
         "status": "ok",
@@ -1583,9 +1963,19 @@ def try_resolve_archetype_for_phase(
     timeout, non-200 status, malformed response). Failures emit a structured
     WARNING via the module logger and never raise.
 
+    Only the four keys above are required. Any further key the coordinator
+    sends (``provider``, ``write_capable``, ``thinking``, ``procedure_mode``)
+    is passed through unchanged. ``procedure_mode`` (OpenSpec add-skill-audit,
+    D3) is optional: an older coordinator omits it and callers treat the mode
+    as ``guided``. The bridge never injects the mode sentence itself; the
+    coordinator has already appended it to ``system_prompt`` when the mode is
+    not ``guided``, so forwarding ``system_prompt`` as-is is sufficient.
+
     Spec: openspec/changes/add-per-phase-archetype-resolution/specs/
           agent-coordinator/spec.md -- Phase Archetype Resolution Bridge Helper.
-    Design decisions: D4 (bridge helper), D9 (failure mode).
+          openspec/changes/add-skill-audit/specs/agent-archetypes/spec.md --
+          Procedure Mode Prompt Injection ("Bridge tolerates an older coordinator").
+    Design decisions: D4 (bridge helper), D9 (failure mode); add-skill-audit D3.
     """
     resolved_url = _resolve_http_url(http_url)
     if not resolved_url:
@@ -1646,6 +2036,142 @@ def try_resolve_archetype_for_phase(
         return None
 
     return data
+
+
+_SELECT_MODEL_REQUIRED_FIELDS = ("decision_id", "selected", "fallback")
+
+
+def try_select_model_for_task(
+    task_signals: dict[str, Any],
+    *,
+    routing_profile: dict[str, Any] | None = None,
+    objective_profile: str | None = None,
+    weight_overrides: dict[str, Any] | None = None,
+    allow_exploration: bool = True,
+    static_provider: str | None = None,
+    static_model: str | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    repo_root: Any = None,
+) -> dict[str, Any] | None:
+    """Select a model/lane for a task, falling back to a local static route.
+
+    Tries ``POST /routing/select_model`` first. Local fallback triggers ONLY
+    when the coordinator is genuinely unreachable -- missing/disallowed URL,
+    network error, or timeout, all of which ``_http_request`` reports as
+    ``status_code=None`` -- or when it returns a 200 with a malformed body. A
+    concrete HTTP error the coordinator actually returned (422 for an invalid
+    typed profile, 503 "no feasible candidate", etc.) is its real,
+    authoritative answer: routing locally after one would silently mask a
+    caller error or contradict a semantic "no candidate" verdict with a
+    fabricated local one, defeating the point of the typed validation
+    boundary. Design D8 restricts fallback to "transport timeout/
+    unreachability" for exactly this reason (Codex review on PR #605). This
+    helper never surfaces the coordinator's error body -- callers that need
+    it should call the HTTP API directly.
+
+    Local fallback also requires the caller to have supplied its own
+    already-resolved ``static_provider``/``static_model``. Returns the
+    coordinator's response dict on success; the local
+    ``routing_fallback.local_static_route`` result (``source="local-static"``,
+    ``fallback=True``) only when unreachable; and ``None`` otherwise -- no
+    static provider/model, a concrete coordinator answer, or no exact local
+    lane -- the same "no signal, use harness defaults" contract as
+    ``try_resolve_archetype_for_phase``. Never raises.
+
+    Spec: openspec/changes/implement-the-task-router-vendor-x-location-x-model/
+          specs/task-routing/spec.md -- Requirement: Honest local fallback.
+    Design decisions: D6 (additive assignment/provenance), D8 (local fallback).
+    """
+    payload: dict[str, Any] = {"task_signals": task_signals}
+    if routing_profile is not None:
+        payload["routing_profile"] = routing_profile
+    if objective_profile is not None:
+        payload["objective_profile"] = objective_profile
+    if weight_overrides is not None:
+        payload["weight_overrides"] = weight_overrides
+    payload["allow_exploration"] = allow_exploration
+
+    resolved_url = _resolve_http_url(http_url)
+    if not resolved_url:
+        logger.warning(
+            "try_select_model_for_task failed: missing_http_url; falling back "
+            "to local-static routing when a static provider/model was supplied"
+        )
+    else:
+        response = _http_request(
+            method="POST",
+            path="/routing/select_model",
+            payload=payload,
+            http_url=resolved_url,
+            api_key=_resolve_api_key(api_key),
+            timeout=timeout,
+        )
+        status = response.get("status_code")
+        data = response.get("data")
+        if status == 200 and isinstance(data, dict) and all(
+            k in data for k in _SELECT_MODEL_REQUIRED_FIELDS
+        ):
+            return data
+        if status is not None and status != 200:
+            # The coordinator is reachable and gave a concrete, authoritative
+            # answer -- even an error -- never second-guess it with a locally
+            # fabricated assignment.
+            logger.warning(
+                "try_select_model_for_task coordinator returned HTTP status=%s "
+                "error=%s; treating as authoritative, not falling back to "
+                "local-static routing",
+                status,
+                response.get("error"),
+            )
+            return None
+        if status == 200:
+            # 200 with a malformed body is not an authoritative answer -- it's
+            # a broken response, so it degrades the same as unreachability.
+            logger.warning(
+                "try_select_model_for_task coordinator returned a malformed "
+                "200 response: %r; falling back to local-static routing when "
+                "a static provider/model was supplied",
+                data,
+            )
+        else:
+            logger.warning(
+                "try_select_model_for_task coordinator unreachable: error=%s; "
+                "falling back to local-static routing when a static "
+                "provider/model was supplied",
+                response.get("error"),
+            )
+
+    if not static_provider or not static_model:
+        logger.warning(
+            "try_select_model_for_task: no static_provider/static_model supplied; "
+            "cannot fall back to local-static routing"
+        )
+        return None
+
+    try:
+        import routing_fallback
+    except ImportError:
+        logger.warning("try_select_model_for_task: routing_fallback module unavailable")
+        return None
+
+    try:
+        return routing_fallback.local_static_route(
+            task_signals,
+            static_provider=static_provider,
+            static_model=static_model,
+            routing_profile=routing_profile,
+            repo_root=repo_root,
+        )
+    except routing_fallback.LocalRoutingFallbackError as exc:
+        logger.warning("try_select_model_for_task: local-static fallback failed: %s", exc)
+        return None
+    except (FileNotFoundError, ValueError) as exc:
+        logger.warning(
+            "try_select_model_for_task: local-static config invalid or missing: %s", exc
+        )
+        return None
 
 
 def _main(argv: list[str] | None = None) -> int:

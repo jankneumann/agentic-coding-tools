@@ -137,3 +137,101 @@ def test_existing_required_fields_preserved():
 def test_schema_is_valid_jsonschema():
     """Sanity check: the schema is itself a valid Draft 2020-12 schema."""
     Draft202012Validator.check_schema(SCHEMA)
+
+
+def test_prompt_contract_required_matches_schema():
+    from review_findings_schema import prompt_contract
+
+    required, enums = prompt_contract()
+    finding = _finding_schema()
+    assert set(required) == set(finding["required"])
+    assert "axis" in required
+    assert "severity" in required
+    assert "criticality" in enums
+    assert "severity" in enums
+
+
+def test_existing_code_and_line_resolution_are_optional():
+    """add-deterministic-review-preprocessing: existing_code anchor and its
+    resolution marker are optional per-finding fields, not required — every
+    emitter that predates this change stays valid."""
+    finding = _finding_schema()
+    props = finding["properties"]
+    assert "existing_code" in props
+    assert props["existing_code"]["type"] == "string"
+    assert "line_resolution" in props
+    assert set(props["line_resolution"]["enum"]) == {
+        "vendor", "hunk_new", "hunk_old", "file", "unresolved",
+    }
+    required = finding["required"]
+    assert "existing_code" not in required
+    assert "line_resolution" not in required
+
+
+def test_coverage_block_is_optional_and_top_level():
+    coverage = SCHEMA["properties"].get("coverage")
+    assert coverage is not None, "review-findings.schema.json must define `coverage`"
+    assert coverage["type"] == "object"
+    assert "reviewed" in coverage["properties"]
+    assert "skipped" in coverage["properties"]
+    assert "coverage" not in SCHEMA["required"]
+
+
+def test_snippet_and_coverage_validate_together():
+    """A payload with both fields, and one with neither, both pass."""
+    validator = Draft202012Validator(SCHEMA)
+    minimal = {
+        "review_type": "implementation",
+        "target": "demo",
+        "findings": [{
+            "id": 1, "type": "correctness", "criticality": "high",
+            "description": "x", "disposition": "fix", "axis": "correctness",
+            "severity": "critical",
+        }],
+    }
+    validator.validate(minimal)
+
+    full = {
+        "review_type": "implementation",
+        "target": "demo",
+        "reviewer_vendor": "ocr",
+        "coverage": {
+            "reviewed": ["a.py"],
+            "skipped": [{"path": "b.py", "reason": "too_large"}],
+            "rate": 0.5,
+        },
+        "findings": [{
+            "id": 1, "type": "correctness", "criticality": "high",
+            "description": "x", "disposition": "fix", "axis": "correctness",
+            "severity": "critical", "existing_code": "x = 1",
+            "line_resolution": "hunk_new",
+        }],
+    }
+    validator.validate(full)
+
+
+def test_new_fields_present_in_mirror_and_derived_schema():
+    mirror = json.loads(MIRROR_SCHEMA_PATH.read_text())
+    mirror_props = mirror["properties"]["findings"]["items"]["properties"]
+    assert "existing_code" in mirror_props
+    assert "line_resolution" in mirror_props
+    assert "coverage" in mirror["properties"]
+
+
+def test_prompt_contract_block_names_axis_and_severity():
+    from review_findings_schema import prompt_contract_block
+
+    block = prompt_contract_block()
+    assert "axis" in block
+    assert "severity" in block
+    assert "criticality" in block
+
+
+def test_prompt_contract_block_requests_coverage_as_optional():
+    from review_findings_schema import prompt_contract_block
+
+    block = prompt_contract_block()
+    assert "coverage" in block
+    assert "OPTIONAL" in block
+    assert "reviewed" in block
+    assert "skipped" in block

@@ -172,14 +172,60 @@ def _mark_downstream(plan: dict[str, Any], merged_pr: int) -> list[int]:
     return sorted(downstream)
 
 
-def _delegation_commands(pr_number: int, branch: str) -> list[str]:
-    change_id = (
+def _delegation_commands(node: dict[str, Any], branch: str) -> list[str]:
+    definition = node["definition"]
+    pr_number = int(node["pr"])
+    change_id = definition.get("change_id") or (
         branch.removeprefix("openspec/") if branch.startswith("openspec/") else f"pr-{pr_number}"
     )
-    return [
-        f"/iterate-on-implementation {change_id}",
-        f'/quick-task "Address unresolved review comments on PR #{pr_number}"',
-    ]
+    skill = definition.get("remediation_skill")
+    if skill == "iterate-on-plan":
+        return [f"/iterate-on-plan {change_id} --vendor-review"]
+    if skill == "iterate-on-implementation":
+        return [f"/iterate-on-implementation {change_id} --vendor-review"]
+    return [f'/quick-task "Address unresolved review comments on PR #{pr_number}"']
+
+
+def _review_evidence(review: dict[str, Any]) -> dict[str, Any]:
+    """Compact, operator-readable record of the vendor review a result acted on.
+
+    The full verdict is persisted in ``state["vendor_verdict"]``; this copy rides
+    on the result so a merge through an eligible review is visible without
+    opening the plan file (PR #484 merged with 23 unconfirmed findings while the
+    result said only ``merged``). Vendor errors are clipped: a billing error can
+    carry a whole JSON body.
+    """
+    consensus = review.get("consensus")
+    summary = consensus.get("summary") if isinstance(consensus, dict) else None
+    vendors = []
+    for vendor in review.get("vendors") or []:
+        if not isinstance(vendor, dict):
+            continue
+        error = vendor.get("error")
+        vendors.append({
+            "vendor": vendor.get("vendor"),
+            "success": vendor.get("success"),
+            "findings_count": vendor.get("findings_count"),
+            "error": str(error)[:200] if error else None,
+        })
+    return {
+        "eligible": (review.get("eligibility") or {}).get("eligible"),
+        "skipped": bool(review.get("skipped")),
+        "error": review.get("error"),
+        "vendors": vendors,
+        "summary": summary,
+        "workspace_guard": review.get("workspace_guard"),
+    }
+
+
+def _iterate_consensus_current(node: dict[str, Any], live: dict[str, Any]) -> bool:
+    path = node["state"].get("iterate_consensus_path")
+    if not path:
+        return False
+    verdict = node["state"].get("vendor_verdict") or {}
+    head = live.get("head_sha")
+    recorded = verdict.get("head_sha")
+    return bool(head) and recorded == head
 
 
 def _persist_pending(
@@ -219,6 +265,7 @@ def execute_node(
     pr_number: int,
     *,
     approve_gate: bool = False,
+    proposal_accepted: bool = False,
     claim_id: str | None = None,
     store: FilePlanStore | None = None,
     dependencies: ExecutionDependencies = DEFAULT_DEPENDENCIES,
@@ -273,7 +320,23 @@ def execute_node(
 
     plan_gates = list(definition["gates"])
     openspec_gate = node["origin"] == "openspec" or "proposal_acceptance" in plan_gates
-    if openspec_gate or ((not node["auto_executable"] or plan_gates) and not approve_gate):
+    if openspec_gate and not proposal_accepted:
+        surfaced_gates = plan_gates or ["proposal_acceptance"]
+        reason = (
+            "OpenSpec proposal acceptance must be completed by its approval workflow"
+        )
+        conflict = record_preclaim_blocker(store, pr_number, reason)
+        if conflict:
+            return conflict
+        return {
+            "action": "human_gate",
+            "outcome": state["outcome"],
+            "pr": pr_number,
+            "gates": surfaced_gates,
+            "reason": reason,
+            "override_allowed": False,
+        }
+    if (not node["auto_executable"] or plan_gates) and not approve_gate and not proposal_accepted:
         surfaced_gates = plan_gates or ["requires_human_approval"]
         reason = (
             "OpenSpec proposal acceptance must be completed by its approval workflow"
@@ -417,29 +480,43 @@ def execute_node(
             "outcome": "pending",
             "pr": pr_number,
             "reason": reason,
-            "delegation": _delegation_commands(pr_number, str(live.get("branch", ""))),
+            "delegation": _delegation_commands(node, str(live.get("branch", ""))),
         }
 
-    try:
-        review = dependencies.review_vendor(pr_number, node["origin"], comments)
-    except Exception as exc:  # noqa: BLE001 - dispatch failures block
+    skip_vendor_review = (
+        definition.get("kind") == "automation"
+        or definition.get("remediation_skill") == "none"
+        or _iterate_consensus_current(node, live)
+    )
+    if skip_vendor_review:
         review = {
-            "eligibility": {"eligible": True, "reason": "review_required"},
-            "dispatched": False,
-            "vendors": [],
+            "eligibility": {"eligible": False, "reason": "skipped"},
             "consensus": None,
-            "error": f"{type(exc).__name__}: {exc}",
+            "skipped": True,
         }
+    else:
+        try:
+            review = dependencies.review_vendor(pr_number, node["origin"], comments)
+        except Exception as exc:  # noqa: BLE001 - dispatch failures block
+            review = {
+                "eligibility": {"eligible": True, "reason": "review_required"},
+                "dispatched": False,
+                "vendors": [],
+                "consensus": None,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        state["vendor_verdict"] = review
+        vendor_reason = vendor_review_block_reason(review)
+        if vendor_reason:
+            _persist_pending(store, plan, state, vendor_reason)
+            return {
+                "action": "vendor_review_gate",
+                "outcome": "pending",
+                "pr": pr_number,
+                "reason": vendor_reason,
+                "vendor_review": _review_evidence(review),
+            }
     state["vendor_verdict"] = review
-    vendor_reason = vendor_review_block_reason(review)
-    if vendor_reason:
-        _persist_pending(store, plan, state, vendor_reason)
-        return {
-            "action": "vendor_review_gate",
-            "outcome": "pending",
-            "pr": pr_number,
-            "reason": vendor_reason,
-        }
 
     result = dependencies.merge(pr_number, node["strategy"])
     if not result.get("success"):
@@ -460,6 +537,8 @@ def execute_node(
     state["outcome"] = "merged"
     state["claimed_by"] = None
     state["blocking_reason"] = None
+    plan["last_merged_pr"] = pr_number
+    plan["compact_requested"] = True
     downstream = _mark_downstream(plan, pr_number)
     store.save(plan)
     return {
@@ -467,7 +546,9 @@ def execute_node(
         "outcome": "merged",
         "pr": pr_number,
         "downstream_revalidation": downstream,
+        "compact_requested": True,
         "merge": result,
+        "vendor_review": _review_evidence(review),
     }
 
 
@@ -484,12 +565,18 @@ def main() -> int:
         "--claim-id",
         help="Stable execution claim id; reuse it only to resume the same attempt",
     )
+    parser.add_argument(
+        "--proposal-accepted",
+        action="store_true",
+        help="Record that the dedicated OpenSpec proposal-acceptance workflow completed",
+    )
     args = parser.parse_args()
 
     result = execute_node(
         args.execute,
         args.pr,
         approve_gate=args.approve_gate,
+        proposal_accepted=args.proposal_accepted,
         claim_id=args.claim_id,
     )
     print(json.dumps(result, indent=2))

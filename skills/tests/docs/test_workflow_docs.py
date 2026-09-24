@@ -20,11 +20,16 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SKILLS_WORKFLOW_DOC = REPO_ROOT / "docs" / "skills-workflow.md"
 CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
+#: Since 2026-09-08 the guidelines (and so the TOC link to the workflow guide)
+#: live in AGENTS.md; CLAUDE.md imports them with `@AGENTS.md`. Before that
+#: AGENTS.md was a *symlink to* CLAUDE.md, so there was only one file and no
+#: place for Claude-specific notes that other agents should not read.
+GUIDELINES_MD = REPO_ROOT / "AGENTS.md"
 #: Since `5fe437b1 feat(context): restructure CLAUDE.md into TOC + topic docs`,
-#: CLAUDE.md is a table of contents and the workflow diagram it used to inline
-#: lives here. The invariant these tests hold is unchanged -- an operator who
-#: starts at CLAUDE.md can reach /prototype-feature -- but it is now satisfied
-#: by a link plus a diagram in two files rather than by one file.
+#: the guidelines file is a table of contents and the workflow diagram it used
+#: to inline lives here. The invariant these tests hold is unchanged -- an
+#: operator who starts at CLAUDE.md can reach /prototype-feature -- but it is
+#: now satisfied by two links and a diagram across three files.
 WORKFLOW_GUIDE = REPO_ROOT / "docs" / "guides" / "workflow.md"
 
 
@@ -36,6 +41,11 @@ def workflow_doc() -> str:
 @pytest.fixture(scope="module")
 def claude_md() -> str:
     return CLAUDE_MD.read_text()
+
+
+@pytest.fixture(scope="module")
+def guidelines_md() -> str:
+    return GUIDELINES_MD.read_text()
 
 
 @pytest.fixture(scope="module")
@@ -105,17 +115,27 @@ class TestSkillsWorkflowDocPrinciple:
 class TestClaudeMdWorkflowDiagramUpdated:
     """The CLAUDE.md -> workflow-diagram chain must still reach the prototype stage.
 
-    CLAUDE.md no longer inlines the diagram, so "is it in CLAUDE.md" is the
-    wrong question; asking it let these tests pass vacuously right up until
-    they were first run. The reader's path is what matters: CLAUDE.md must
-    link to the guide, and the guide must carry the references in order.
+    The guidelines file no longer inlines the diagram, so "is it in CLAUDE.md"
+    is the wrong question; asking it let these tests pass vacuously right up
+    until they were first run. The reader's path is what matters, and it now
+    has two hops: CLAUDE.md imports AGENTS.md, AGENTS.md links to the guide,
+    and the guide carries the references in order. Both hops are asserted --
+    checking only the second would let CLAUDE.md silently stop importing the
+    guidelines with every test here still green.
     """
 
-    def test_claude_md_links_to_the_workflow_guide(self, claude_md: str) -> None:
-        # Without this link the guide is unreachable from the entry point and
-        # the two tests below would be checking an orphaned file.
-        assert "docs/guides/workflow.md" in claude_md, (
-            "CLAUDE.md must link to docs/guides/workflow.md -- it is the "
+    def test_claude_md_imports_the_guidelines(self, claude_md: str) -> None:
+        # First hop. Without it AGENTS.md is unreachable from the Claude entry
+        # point and everything below is checking an orphaned chain.
+        assert "@AGENTS.md" in claude_md, (
+            "CLAUDE.md must import the guidelines with `@AGENTS.md`"
+        )
+
+    def test_guidelines_link_to_the_workflow_guide(self, guidelines_md: str) -> None:
+        # Second hop. Without this link the guide is unreachable and the two
+        # tests below would be checking an orphaned file.
+        assert "docs/guides/workflow.md" in guidelines_md, (
+            "AGENTS.md must link to docs/guides/workflow.md -- it is the "
             "pointer that replaced the inlined workflow diagram"
         )
 

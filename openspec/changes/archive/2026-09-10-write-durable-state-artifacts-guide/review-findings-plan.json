@@ -1,0 +1,51 @@
+{
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Design D4, task 3.2, the work-package description, and plan-findings consistently require synchronizing the feature branch with current main before consuming the existing openspec_paths helper and guard.",
+      "resolution": "No action; preserve the explicit prerequisite.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The package does not create or own shared path infrastructure; read_allow already permits consuming it, while write_allow remains limited to the approved documentation and test surface.",
+      "resolution": "No action; retain the current write boundary.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 3.2 specifies change_dir(ROOT, CHANGE_ID) and task 3.3 plus package verification run both state-artifact and OpenSpec path-stability tests after branch synchronization.",
+      "resolution": "No plan change; implement the unchecked tasks in the next phase.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Full --base main context-impact validation passes with capabilities, decisions, documentation, and semantic_code declared and only the schema-required API stub rationalized.",
+      "resolution": "No action; retain the full base-relative gate.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

@@ -71,7 +71,7 @@ WRITE_ACTIONS = frozenset({
 # Admin actions requiring trust_level >= MIN_ADMIN_TRUST (TrustLevel.ELEVATED)
 ADMIN_ACTIONS = frozenset({
     "force_push", "delete_branch", "cleanup_agents",
-    "rollback_policy",
+    "rollback_policy", "publish_work_projection",
 })
 
 # Known-allowed network domains (matches default Cedar policies)
@@ -732,7 +732,24 @@ class CedarPolicyEngine:
     ) -> PolicyDecision:
         """Internal check_operation logic (no metrics)."""
         ctx = context or {}
-        trust_level = ctx.get("trust_level", 1)
+        trust_level = ctx.get("trust_level")
+        if trust_level is None:
+            from .trust_resolution import TrustResolutionError, resolve_trust_level
+
+            try:
+                trust_level = await resolve_trust_level(agent_id, agent_type)
+            except TrustResolutionError as exc:
+                decision = PolicyDecision.deny(f"trust_resolution_failed: {exc}")
+                await self._log_policy_decision(
+                    agent_id=agent_id,
+                    agent_type=agent_type,
+                    operation=operation,
+                    resource=resource,
+                    context=ctx,
+                    decision=decision,
+                    engine="cedar",
+                )
+                return decision
 
         try:
             policies = await self._load_policies()

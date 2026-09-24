@@ -1,0 +1,109 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The admission rule abstraction is cleanly relocated to roadmap-runtime/scripts/readiness.py as a single authority, allowing autopilot-roadmap and resolve_readiness.py to import it without module name collisions.",
+      "resolution": "Accept design D1 and tasks 1.1-1.2 as specified.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 14
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Checkpoint terminal state (completed_items and failed_items) remains authoritative over roadmap definition status without consulting advisory artifacts (learnings, handoffs, queue state), mtimes, or timestamps.",
+      "resolution": "Accept design D2/D3 and spec scenarios for checkpoint precedence and determinism.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "line_range": {
+        "start": 15,
+        "end": 22
+      }
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Typed external_depends_on edges require effective completion in the referenced workspace, and invalid or identity-mismatched checkpoints fail closed by withholding readiness entries and emitting bounded diagnostics.",
+      "resolution": "Accept design D2 and spec requirement Checkpoint-Authoritative Cross-Roadmap Edges.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/specs/roadmap-orchestration/spec.md",
+      "line_range": {
+        "start": 27,
+        "end": 49
+      }
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The readiness result contract defines deterministic SHA-256 source_fingerprint generation, top-level stale boolean, and sorted diagnostic items including checkpoint_absent for valid first-run workspaces.",
+      "resolution": "Accept design D3 and readiness-result.schema.json contract definition.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/contracts/readiness-result.schema.json",
+      "line_range": {
+        "start": 1,
+        "end": 52
+      }
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Global ordering by (priority, roadmap_id, item_id) is established for flat output while supervise cycle_state.py retains a grouped compatibility view over canonical resolver output.",
+      "resolution": "Accept design D4 and task 2.3 delegation model.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "line_range": {
+        "start": 31,
+        "end": 35
+      }
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The plan artifacts, tasks, single sequential work package wp-readiness-runtime, file lock set, dependency commit 39cb6a3e87f591d488f52f0e04563406df21584b, and validation commands are coherent and pass strict schema validation.",
+      "resolution": "Accept work-packages.yaml and tasks.md execution structure.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/work-packages.yaml",
+      "line_range": {
+        "start": 26,
+        "end": 131
+      }
+    }
+  ]
+}

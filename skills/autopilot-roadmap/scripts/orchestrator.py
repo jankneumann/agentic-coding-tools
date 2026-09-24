@@ -12,13 +12,18 @@ the SKILL.md prompt layer provides the dispatch_fn that invokes
 
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import logging
+import re
+import secrets
 import sys
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Protocol, Union
+from typing import Any, Callable, Protocol, Sequence, Union
+
 
 _SKILLS_ROOT = Path(__file__).resolve().parent.parent.parent
 _RUNTIME_DIR = _SKILLS_ROOT / "roadmap-runtime" / "scripts"
@@ -30,26 +35,43 @@ if str(_SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(_SKILLS_ROOT))
 
 from checkpoint import CheckpointManager  # type: ignore[import-untyped]
+from dispatch_scheduler import (  # type: ignore[import-untyped]
+    ReadyDispatchItem,
+    select_safe_ready_batch,
+)
 from learning import write_entry  # type: ignore[import-untyped]
+from readiness import _get_ready_items  # type: ignore[import-untyped]
 from models import (  # type: ignore[import-untyped]
     CheckpointPhase,
     ItemStatus,
     LearningDecision,
     LearningEntry,
     LearningPhase,
+    PolicyAction,
     Roadmap,
     RoadmapItem,
     completed_external_refs,
     load_roadmap,
     save_roadmap,
+    validate_delegated_dispatch_attempt,
 )
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
+_BRIDGE_DIR = _SKILLS_ROOT / "coordination-bridge" / "scripts"
+if str(_BRIDGE_DIR) not in sys.path:
+    sys.path.insert(0, str(_BRIDGE_DIR))
 
-from policy import PolicyDecision, VendorLimit, evaluate_policy  # type: ignore[import-untyped]
+from coordination_bridge import try_list_vendors  # type: ignore[import-untyped]
+from policy import (  # type: ignore[import-untyped]
+    PolicyDecision,
+    VendorLimit,
+    filter_registry_lanes,
+    select_registry_lane,
+)
 from replanner import replan  # type: ignore[import-untyped]
+from sanitizer import sanitize_dict  # type: ignore[import-untyped]
 from shared.trust_posture import Gate  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -102,6 +124,684 @@ def _normalize_outcome(result: DispatchResult) -> tuple[str, bool]:
     return str(result), False
 
 
+IsolationResolver = Callable[[RoadmapItem], Mapping[str, Any]]
+_RESULT_REQUIRED = {
+    "schema_version",
+    "dispatch_id",
+    "change_id",
+    "attempt",
+    "lease_generation",
+    "outcome",
+}
+_RESULT_ALLOWED = _RESULT_REQUIRED | {
+    "replan",
+    "handoff_id",
+    "worktree_path",
+    "branch",
+    "parked",
+    "evidence",
+}
+_EXACT_CHANGE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_BATCH_ID = re.compile(r"^batch-[0-9a-f]{24}$")
+_RESULT_OUTCOME = re.compile(r"^(success|failed:.+|vendor_limit:[^:]+:.+|parked)$")
+_DATE_TIME = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$"
+)
+_HEX_40 = re.compile(r"^[0-9a-f]{40}$")
+_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
+_TERMINAL_ATTEMPT_STATUSES = {"completed", "failed", "parked"}
+_RESERVED_DISPATCH_CONTEXT_KEYS = frozenset(
+    {
+        "attempt",
+        "change_id",
+        "dispatch_id",
+        "dispatch_result",
+        "execution_mode",
+        "isolation",
+        "item_id",
+        "lease_generation",
+        "roadmap_id",
+        "scope",
+    }
+)
+_APPLICATION_STATES = (
+    "result_bound",
+    "callback_started",
+    "callback_acknowledged",
+    "terminal_persisted",
+    "effects_applied",
+)
+_UNRESOLVED_ATTEMPT_STATUSES = {
+    "prepared",
+    "claimed",
+    "acknowledged",
+    "launched",
+    "quarantined",
+    "parked",
+}
+
+
+def _load_or_create_execution_state(
+    workspace: Path,
+    repo_root: Path,
+) -> tuple[Roadmap, CheckpointManager, Any]:
+    roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
+    manager = CheckpointManager(workspace, repo_root)
+    checkpoint = manager.load() if manager.exists() else manager.create(roadmap)
+    return roadmap, manager, checkpoint
+
+
+def _copy_context(context: Mapping[str, Any] | None) -> dict[str, Any]:
+    value = copy.deepcopy(dict(context or {}))
+    collisions = sorted(value.keys() & _RESERVED_DISPATCH_CONTEXT_KEYS)
+    if collisions:
+        raise ValueError(
+            f"dispatch context contains reserved keys: {', '.join(collisions)}"
+        )
+    return value
+
+
+def _validated_isolation(value: Mapping[str, Any]) -> dict[str, str]:
+    isolation = dict(value)
+    if set(isolation) != {"mode", "worktree_path", "branch"}:
+        raise ValueError("isolation must contain exactly mode, worktree_path, and branch")
+    if isolation["mode"] not in {"managed_worktree", "harness_provided"}:
+        raise ValueError("unsupported isolation mode")
+    if not isinstance(isolation["worktree_path"], str) or not isolation["worktree_path"]:
+        raise ValueError("isolation worktree_path must be non-empty")
+    if not isinstance(isolation["branch"], str) or not isolation["branch"]:
+        raise ValueError("isolation branch must be non-empty")
+    return isolation  # type: ignore[return-value]
+
+
+def _next_attempt_number(checkpoint: Any, item_id: str) -> int:
+    return 1 + max(
+        (
+            int(attempt["attempt"])
+            for attempt in checkpoint.dispatch_attempts
+            if attempt.get("item_id") == item_id
+        ),
+        default=0,
+    )
+
+
+def _request_from_attempt(
+    roadmap_id: str,
+    attempt: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "dispatch_id": attempt["dispatch_id"],
+        "roadmap_id": roadmap_id,
+        "item_id": attempt["item_id"],
+        "change_id": attempt["change_id"],
+        "phase": attempt["phase"],
+        "attempt": attempt["attempt"],
+        "launch_token": attempt["launch_token"],
+        "lease_generation": attempt["lease_generation"],
+        "launch_marker_path": attempt["launch_marker_path"],
+        "scope": copy.deepcopy(attempt["scope"]),
+        "isolation": copy.deepcopy(attempt["isolation"]),
+        "context": copy.deepcopy(attempt["context"]),
+    }
+
+
+def prepare_delegated_batch(
+    workspace: Path,
+    *,
+    repo_root: Path,
+    isolation_resolver: IsolationResolver,
+    context: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Persist one scope-safe generation batch without invoking ``dispatch_fn``."""
+    base_context = _copy_context(context)
+    roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
+    unresolved_items = {
+        attempt["item_id"]
+        for attempt in checkpoint.dispatch_attempts
+        if attempt.get("status") in _UNRESOLVED_ATTEMPT_STATUSES
+    }
+    ready = [
+        item
+        for item in _get_ready_items(
+            roadmap,
+            checkpoint,
+            completed_external_refs(repo_root),
+        )
+        if item.item_id not in unresolved_items
+    ]
+    positions = {item.item_id: index for index, item in enumerate(roadmap.items)}
+    plan = select_safe_ready_batch(
+        repo_root,
+        [
+            ReadyDispatchItem(
+                item.item_id, item.change_id, item.priority, positions[item.item_id]
+            )
+            for item in ready
+        ],
+        forced_serial_item_ids=checkpoint.serial_indeterminate_items,
+    )
+    failures = [
+        {"item_id": failure.item_id, "reason": failure.reason}
+        for failure in plan.failures
+    ]
+    if not plan.items:
+        return {
+            "batch_id": None,
+            "requests": [],
+            "failures": failures,
+            "deferred_item_ids": list(plan.deferred_item_ids),
+        }
+
+    by_id = {item.item_id: item for item in roadmap.items}
+    generation_specs: list[tuple[Any, RoadmapItem, int, dict[str, str]]] = []
+    for selected in plan.items:
+        item = by_id[selected.item_id]
+        try:
+            isolation = _validated_isolation(isolation_resolver(item))
+        except Exception as exc:
+            failures.append(
+                {
+                    "item_id": item.item_id,
+                    "reason": f"isolation_resolution_failed:{type(exc).__name__[:64]}",
+                }
+            )
+            continue
+        generation_specs.append(
+            (selected, item, _next_attempt_number(checkpoint, item.item_id), isolation)
+        )
+    pending_serial_items = set(checkpoint.serial_indeterminate_items)
+    pending_serial_items.update(plan.serial_item_ids)
+    pending_serial_items.difference_update(
+        item.item_id for _, item, _, _ in generation_specs
+    )
+    checkpoint.serial_indeterminate_items = sorted(pending_serial_items)
+    if not generation_specs:
+        manager.save(checkpoint)
+        return {
+            "batch_id": None,
+            "requests": [],
+            "failures": failures,
+            "deferred_item_ids": list(plan.deferred_item_ids),
+        }
+    digest_input = json.dumps(
+        [
+            [roadmap.roadmap_id, item.item_id, attempt_number]
+            for _, item, attempt_number, _ in generation_specs
+        ],
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    batch_id = f"batch-{hashlib.sha256(digest_input.encode()).hexdigest()[:24]}"
+    prepared: list[dict[str, Any]] = []
+    dispatch_ids: list[str] = []
+    for selected, item, attempt_number, isolation in generation_specs:
+        dispatch_id = f"{batch_id}:{item.item_id}:attempt-{attempt_number}"
+        dispatch_ids.append(dispatch_id)
+        prepared.append(
+            {
+                "dispatch_id": dispatch_id,
+                "item_id": item.item_id,
+                "change_id": selected.change_id,
+                "phase": "autopilot",
+                "attempt": attempt_number,
+                "status": "prepared",
+                "prepared_at": datetime.now(timezone.utc).isoformat(),
+                "launch_token": secrets.token_urlsafe(24),
+                "launch_marker_path": (
+                    f".supervised-dispatch/{item.change_id}/"
+                    f"{item.item_id}-attempt-{attempt_number}.marker"
+                ),
+                "lease_generation": 1,
+                "launch_history": [],
+                "scope": selected.scope.to_request_scope(),
+                "isolation": isolation,
+                "context": copy.deepcopy(base_context),
+            }
+        )
+
+    for attempt in prepared:
+        validate_delegated_dispatch_attempt(attempt)
+
+    existing_ids = {attempt["dispatch_id"] for attempt in checkpoint.dispatch_attempts}
+    if existing_ids.intersection(dispatch_ids):
+        raise ValueError("duplicate delegated dispatch generation")
+    checkpoint.dispatch_attempts.extend(copy.deepcopy(prepared))
+    manager.save(checkpoint)
+    for attempt in prepared:
+        by_id[attempt["item_id"]].status = ItemStatus.IN_PROGRESS
+    save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
+
+    return {
+        "batch_id": batch_id,
+        "requests": [
+            _request_from_attempt(roadmap.roadmap_id, attempt) for attempt in prepared
+        ],
+        "failures": failures,
+        "deferred_item_ids": list(plan.deferred_item_ids),
+    }
+
+
+def _validate_dispatch_result(result: Mapping[str, Any]) -> dict[str, Any]:
+    value = copy.deepcopy(dict(result))
+    missing = _RESULT_REQUIRED - value.keys()
+    extra = value.keys() - _RESULT_ALLOWED
+    if missing or extra:
+        raise ValueError(
+            "invalid supervised dispatch result fields: "
+            f"missing={sorted(missing)} extra={sorted(extra)}"
+        )
+    if isinstance(value["schema_version"], bool) or value["schema_version"] != 1:
+        raise ValueError("invalid supervised dispatch result schema_version")
+    if not isinstance(value["dispatch_id"], str) or not 1 <= len(value["dispatch_id"]) <= 256:
+        raise ValueError("invalid supervised dispatch result dispatch_id")
+    change_id = value["change_id"]
+    if (
+        not isinstance(change_id, str)
+        or len(change_id) > 160
+        or _EXACT_CHANGE_ID.fullmatch(change_id) is None
+    ):
+        raise ValueError("invalid supervised dispatch result change_id")
+    for field in ("attempt", "lease_generation"):
+        number = value[field]
+        if isinstance(number, bool) or not isinstance(number, int) or number < 1:
+            raise ValueError(f"invalid supervised dispatch result {field}")
+    outcome = value["outcome"]
+    if (
+        not isinstance(outcome, str)
+        or len(outcome) > 1024
+        or _RESULT_OUTCOME.fullmatch(outcome) is None
+    ):
+        raise ValueError("invalid supervised dispatch result outcome")
+    if "replan" in value and not isinstance(value["replan"], bool):
+        raise ValueError("invalid supervised dispatch result replan")
+    if "handoff_id" in value and (
+        value["handoff_id"] is not None
+        and (
+            not isinstance(value["handoff_id"], str)
+            or len(value["handoff_id"]) > 256
+        )
+    ):
+        raise ValueError("invalid supervised dispatch result handoff_id")
+    for field in ("worktree_path", "branch"):
+        if field in value and (
+            not isinstance(value[field], str) or not value[field]
+        ):
+            raise ValueError(f"invalid supervised dispatch result {field}")
+    if "evidence" in value:
+        evidence = value["evidence"]
+        if not isinstance(evidence, dict) or set(evidence) - {
+            "loop_state_path",
+            "commit",
+            "loop_state_digest",
+        }:
+            raise ValueError("invalid supervised dispatch result evidence")
+        if not isinstance(evidence.get("loop_state_path"), str) or not evidence["loop_state_path"]:
+            raise ValueError("invalid supervised dispatch result loop_state_path")
+        if (
+            not isinstance(evidence.get("commit"), str)
+            or _HEX_40.fullmatch(evidence["commit"]) is None
+        ):
+            raise ValueError("invalid supervised dispatch result commit")
+        if (
+            not isinstance(evidence.get("loop_state_digest"), str)
+            or _HEX_64.fullmatch(evidence["loop_state_digest"]) is None
+        ):
+            raise ValueError("invalid supervised dispatch result loop_state_digest")
+    if outcome in {"success", "parked"}:
+        required = {"worktree_path", "branch", "evidence"}
+        if not required <= value.keys():
+            raise ValueError(f"invalid {outcome} dispatch result evidence")
+    if outcome == "success" and (
+        not isinstance(value.get("handoff_id"), str) or not value["handoff_id"]
+    ):
+        raise ValueError("invalid success dispatch result handoff_id")
+    if outcome == "parked":
+        parked = value.get("parked")
+        if (
+            not isinstance(parked, dict)
+            or set(parked) - {"kind", "reason", "gate", "deadline", "resume_hint"}
+            or parked.get("kind") not in {"pending_gate", "policy_pause"}
+            or not isinstance(parked.get("reason"), str)
+            or not parked["reason"]
+            or len(parked["reason"]) > 1024
+            or not _valid_nullable_string(parked, "gate", 128)
+            or not _valid_nullable_string(parked, "resume_hint", 512)
+            or not _valid_nullable_date_time(parked, "deadline")
+        ):
+            raise ValueError("invalid parked dispatch result")
+    elif "parked" in value:
+        raise ValueError("non-parked dispatch result cannot contain parked state")
+    return value
+
+
+def _valid_nullable_string(value: Mapping[str, Any], field: str, limit: int) -> bool:
+    candidate = value.get(field)
+    return field not in value or candidate is None or (
+        isinstance(candidate, str) and len(candidate) <= limit
+    )
+
+
+def _valid_nullable_date_time(value: Mapping[str, Any], field: str) -> bool:
+    candidate = value.get(field)
+    if field not in value or candidate is None:
+        return True
+    if not isinstance(candidate, str) or _DATE_TIME.fullmatch(candidate) is None:
+        return False
+    try:
+        datetime.fromisoformat(candidate.replace("Z", "+00:00").replace("z", "+00:00"))
+    except ValueError:
+        return False
+    return True
+
+
+def _result_digest(result: Mapping[str, Any]) -> str:
+    canonical = json.dumps(
+        result,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _new_application_journal(result: Mapping[str, Any]) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    return {
+        "schema_version": 1,
+        "state": "result_bound",
+        "result": copy.deepcopy(dict(result)),
+        "result_digest": _result_digest(result),
+        "bound_at": now,
+    }
+
+
+def _advance_application_journal(journal: dict[str, Any], state: str) -> None:
+    current = journal.get("state")
+    if current not in _APPLICATION_STATES or state not in _APPLICATION_STATES:
+        raise ValueError("invalid delegated application journal state")
+    if _APPLICATION_STATES.index(state) < _APPLICATION_STATES.index(current):
+        raise ValueError("delegated application journal cannot move backward")
+    journal["state"] = state
+    timestamp_field = {
+        "callback_started": "callback_started_at",
+        "callback_acknowledged": "callback_acknowledged_at",
+        "terminal_persisted": "terminal_persisted_at",
+        "effects_applied": "effects_applied_at",
+    }.get(state)
+    if timestamp_field is not None:
+        journal.setdefault(timestamp_field, datetime.now(timezone.utc).isoformat())
+
+
+def _bound_application_journal(
+    attempt: Mapping[str, Any],
+    result: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    journal = attempt.get("application_journal")
+    if journal is None:
+        return None
+    prior_result = journal.get("result") if isinstance(journal, dict) else None
+    prior_generation = (
+        prior_result.get("lease_generation") if isinstance(prior_result, dict) else None
+    )
+    current_generation = result.get("lease_generation")
+    if (
+        attempt.get("status") == "launched"
+        and isinstance(attempt.get("continuation"), dict)
+        and isinstance(journal, dict)
+        and journal.get("state") == "effects_applied"
+        and isinstance(prior_result, dict)
+        and prior_result.get("outcome") == "parked"
+        and isinstance(prior_generation, int)
+        and isinstance(current_generation, int)
+        and prior_generation < current_generation == attempt.get("lease_generation")
+        and all(
+            prior_result.get(field) == result.get(field)
+            for field in ("dispatch_id", "change_id", "attempt")
+        )
+    ):
+        return None
+    if (
+        not isinstance(journal, dict)
+        or journal.get("result") != result
+        or journal.get("result_digest") != _result_digest(result)
+    ):
+        raise ValueError(f"bound dispatch result mismatch for {attempt['dispatch_id']}")
+    return journal
+
+
+def _batch_attempts(checkpoint: Any, batch_id: str) -> list[dict[str, Any]]:
+    if not isinstance(batch_id, str) or _BATCH_ID.fullmatch(batch_id) is None:
+        raise ValueError(f"invalid delegated batch id: {batch_id}")
+    prefix = f"{batch_id}:"
+    attempts = [
+        attempt
+        for attempt in checkpoint.dispatch_attempts
+        if str(attempt.get("dispatch_id", "")).startswith(prefix)
+    ]
+    if not attempts:
+        raise ValueError(f"unknown delegated batch: {batch_id}")
+    return attempts
+
+
+def _validate_exact_result(
+    attempt: Mapping[str, Any],
+    result: Mapping[str, Any],
+) -> None:
+    for field in ("change_id", "attempt", "lease_generation"):
+        if result[field] != attempt[field]:
+            raise ValueError(f"{field} mismatch for dispatch {attempt['dispatch_id']}")
+    isolation = attempt["isolation"]
+    for field in ("worktree_path", "branch"):
+        if field in result and result[field] != isolation[field]:
+            raise ValueError(f"{field} mismatch for dispatch {attempt['dispatch_id']}")
+
+
+def _dispatch_context(
+    roadmap_id: str,
+    attempt: Mapping[str, Any],
+    result: Mapping[str, Any],
+) -> dict[str, Any]:
+    context = copy.deepcopy(attempt["context"])
+    context.update(
+        {
+            "item_id": attempt["item_id"],
+            "roadmap_id": roadmap_id,
+            "change_id": attempt["change_id"],
+            "dispatch_id": attempt["dispatch_id"],
+            "attempt": attempt["attempt"],
+            "lease_generation": attempt["lease_generation"],
+            "scope": copy.deepcopy(attempt["scope"]),
+            "isolation": copy.deepcopy(attempt["isolation"]),
+            "execution_mode": "delegated_lifecycle",
+            "dispatch_result": copy.deepcopy(result),
+        }
+    )
+    return context
+
+
+def _terminal_attempt(
+    attempt: Mapping[str, Any],
+    result: Mapping[str, Any],
+) -> dict[str, Any]:
+    terminal = copy.deepcopy(dict(attempt))
+    now = datetime.now(timezone.utc).isoformat()
+    if "lease" in terminal:
+        terminal["lease"]["state"] = "released"
+    outcome = result["outcome"]
+    terminal.update(outcome=outcome, resolved_at=now)
+    if outcome == "success":
+        terminal.update(status="completed", handoff_id=result["handoff_id"])
+    elif outcome == "parked":
+        terminal.update(status="parked", parked=copy.deepcopy(result["parked"]))
+    else:
+        terminal["status"] = "failed"
+    terminal.pop("continuation", None)
+    journal = terminal.get("application_journal")
+    if not isinstance(journal, dict):
+        raise ValueError("terminal dispatch attempt requires an application journal")
+    _advance_application_journal(journal, "terminal_persisted")
+    validate_delegated_dispatch_attempt(terminal)
+    return terminal
+
+
+def apply_delegated_batch(
+    workspace: Path,
+    batch_id: str,
+    results: Sequence[Mapping[str, Any]],
+    dispatch_fn: DispatchFn,
+    *,
+    repo_root: Path,
+    gate_evaluator: GateEvaluator | None = None,
+) -> dict[str, Any]:
+    """Validate and apply one exact persisted batch through ``dispatch_fn`` once."""
+    roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
+    attempts = _batch_attempts(checkpoint, batch_id)
+    if all(
+        attempt["status"] in _TERMINAL_ATTEMPT_STATUSES
+        and attempt.get("application_journal", {}).get("state") == "effects_applied"
+        for attempt in attempts
+    ):
+        raise ValueError(f"delegated batch already applied: {batch_id}")
+
+    validated = [_validate_dispatch_result(result) for result in results]
+    dispatch_ids = [result["dispatch_id"] for result in validated]
+    if len(dispatch_ids) != len(set(dispatch_ids)):
+        raise ValueError("duplicate dispatch result")
+    expected_ids = {attempt["dispatch_id"] for attempt in attempts}
+    if set(dispatch_ids) != expected_ids:
+        raise ValueError("result membership mismatch for delegated batch")
+    result_by_id = {result["dispatch_id"]: result for result in validated}
+    for attempt in attempts:
+        result = result_by_id[attempt["dispatch_id"]]
+        _validate_exact_result(attempt, result)
+        _bound_application_journal(attempt, result)
+        if attempt["status"] in _TERMINAL_ATTEMPT_STATUSES:
+            if attempt.get("outcome") != result["outcome"]:
+                raise ValueError(f"terminal outcome mismatch for {attempt['dispatch_id']}")
+        elif attempt["status"] != "launched":
+            raise ValueError(f"dispatch attempt not launched: {attempt['dispatch_id']}")
+
+    completed: list[str] = []
+    failed: list[str] = []
+    parked: list[str] = []
+    gate_decisions: list[dict[str, Any]] = []
+    replan_state: dict[str, Any] = {}
+    by_id = {item.item_id: item for item in roadmap.items}
+    for attempt in attempts:
+        result = result_by_id[attempt["dispatch_id"]]
+        journal = _bound_application_journal(attempt, result)
+        if attempt["status"] in _TERMINAL_ATTEMPT_STATUSES:
+            if journal is None:
+                journal = _new_application_journal(result)
+                for state in (
+                    "callback_started",
+                    "callback_acknowledged",
+                    "terminal_persisted",
+                ):
+                    _advance_application_journal(journal, state)
+                attempt["application_journal"] = journal
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
+            elif journal["state"] not in {"terminal_persisted", "effects_applied"}:
+                raise ValueError(
+                    f"terminal application journal mismatch for {attempt['dispatch_id']}"
+                )
+        else:
+            if journal is None:
+                journal = _new_application_journal(result)
+                attempt["application_journal"] = journal
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
+
+            should_dispatch = False
+            if journal["state"] == "result_bound":
+                _advance_application_journal(journal, "callback_started")
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
+                should_dispatch = True
+            elif journal["state"] == "callback_started":
+                # Invocation may already have happened. The bound result is
+                # authoritative, so recovery favors at-most-once callback delivery.
+                pass
+            elif journal["state"] != "callback_acknowledged":
+                raise ValueError(
+                    f"launched application journal mismatch for {attempt['dispatch_id']}"
+                )
+
+            if should_dispatch:
+                context = _dispatch_context(roadmap.roadmap_id, attempt, result)
+                dispatched_outcome, replan_signal = _normalize_outcome(
+                    dispatch_fn(attempt["item_id"], "autopilot", context)
+                )
+                if dispatched_outcome != result["outcome"]:
+                    raise ValueError(
+                        f"dispatch outcome mismatch for {attempt['dispatch_id']}"
+                    )
+                if replan_signal != bool(result.get("replan", False)):
+                    raise ValueError(
+                        f"dispatch replan mismatch for {attempt['dispatch_id']}"
+                    )
+
+            if journal["state"] == "callback_started":
+                _advance_application_journal(journal, "callback_acknowledged")
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
+
+            terminal = _terminal_attempt(attempt, result)
+            attempt.clear()
+            attempt.update(terminal)
+            journal = attempt["application_journal"]
+            manager.save(checkpoint)
+
+        if journal["state"] == "effects_applied":
+            continue
+        item_id = attempt["item_id"]
+        dispatched_outcome = result["outcome"]
+        replan_signal = bool(result.get("replan", False))
+        if dispatched_outcome == "success":
+            manager.complete_item(checkpoint, item_id)
+            by_id[item_id].status = ItemStatus.COMPLETED
+            _write_success_learning(workspace, item_id)
+            completed.append(item_id)
+        elif dispatched_outcome == "parked":
+            by_id[item_id].status = ItemStatus.IN_PROGRESS
+            parked.append(item_id)
+        else:
+            reason = (
+                dispatched_outcome.split(":", 1)[1]
+                if ":" in dispatched_outcome
+                else dispatched_outcome
+            )
+            _handle_failure(
+                item_id=item_id,
+                reason=reason,
+                replan=replan_signal,
+                roadmap=roadmap,
+                checkpoint=checkpoint,
+                mgr=manager,
+                workspace=workspace,
+                repo_root=repo_root,
+                gate_evaluator=gate_evaluator,
+                gate_decisions=gate_decisions,
+                replan_state=replan_state,
+            )
+            failed.append(item_id)
+        save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
+        _advance_application_journal(journal, "effects_applied")
+        validate_delegated_dispatch_attempt(attempt)
+        manager.save(checkpoint)
+
+    return {
+        "batch_id": batch_id,
+        "completed_item_ids": completed,
+        "failed_item_ids": failed,
+        "parked_item_ids": parked,
+        "gate_decisions": gate_decisions,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Gate evaluation seam
 # ---------------------------------------------------------------------------
@@ -139,6 +839,9 @@ def execute_roadmap(
     dispatch_fn: DispatchFn | None = None,
     on_policy_decision: Callable[[PolicyDecision], None] | None = None,
     gate_evaluator: GateEvaluator | None = None,
+    registry_provider: Callable[..., dict[str, Any]] | None = None,
+    agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None = None,
+    routing_location: str | None = None,
 ) -> dict[str, Any]:
     """Execute a roadmap from the given workspace.
 
@@ -167,6 +870,7 @@ def execute_roadmap(
     ``replan_requested`` and ``replan_request`` describes the handoff file.
     """
     dispatch = dispatch_fn or _default_dispatch
+    registry = registry_provider or try_list_vendors
     policy_decisions: list[dict[str, Any]] = []
     gate_decisions: list[dict[str, Any]] = []
     # Mutable because _execute_item_phases reports "the run must stop and hand
@@ -191,6 +895,23 @@ def execute_roadmap(
     else:
         checkpoint = mgr.create(roadmap)
         logger.info("Created new checkpoint for %s", roadmap.roadmap_id)
+
+    if _pause_is_active(checkpoint.pause_state):
+        logger.info(
+            "roadmap.policy_pause_active: vendor=%s resume_at=%s",
+            checkpoint.pause_state.get("blocked_vendor"),
+            checkpoint.pause_state.get("expected_resume_at"),
+        )
+        return _build_summary(
+            roadmap,
+            checkpoint,
+            policy_decisions,
+            gate_decisions,
+            replan_state,
+        )
+    if checkpoint.pause_state.get("paused"):
+        checkpoint.pause_state = {}
+        mgr.save(checkpoint)
 
     # Track vendor switch attempts per item
     switch_attempts: dict[str, int] = {}
@@ -247,7 +968,14 @@ def execute_roadmap(
             gate_evaluator=gate_evaluator,
             gate_decisions=gate_decisions,
             replan_state=replan_state,
+            registry_provider=registry,
+            agents_yaml_fallback=agents_yaml_fallback,
+            routing_location=routing_location,
         )
+
+        if checkpoint.pause_state.get("paused"):
+            save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
+            break
 
         if replan_state.get("requested"):
             # The gate said proceed: the roadmap's remaining shape is now the
@@ -297,6 +1025,9 @@ def _execute_item_phases(
     gate_evaluator: GateEvaluator | None,
     gate_decisions: list[dict[str, Any]],
     replan_state: dict[str, Any],
+    registry_provider: Callable[..., dict[str, Any]],
+    agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None,
+    routing_location: str | None,
 ) -> bool:
     """Walk an item through its phases. Returns True if item completed."""
     start_idx = _ITEM_PHASES.index(start_phase) if start_phase in _ITEM_PHASES else 0
@@ -322,69 +1053,132 @@ def _execute_item_phases(
             break
 
         mgr.advance_phase(checkpoint, phase)
+        selected_agent_id: str | None = None
 
-        context = {
-            "item_id": item_id,
-            "roadmap_id": roadmap.roadmap_id,
-            "completed_items": list(checkpoint.completed_items),
-        }
-
-        outcome, replan_signal = _normalize_outcome(dispatch(item_id, phase.value, context))
-
-        if outcome == "success":
-            logger.info("item.phase_success: item=%s phase=%s", item_id, phase.value)
-            continue
-
-        if outcome.startswith("failed:"):
-            reason = outcome[len("failed:"):]
-            logger.warning("item.phase_failed: item=%s phase=%s reason=%s", item_id, phase.value, reason)
-            _fail(reason, replan=replan_signal)
-            return False
-
-        if outcome.startswith("vendor_limit:"):
-            parts = outcome.split(":", 2)
-            vendor = parts[1] if len(parts) > 1 else "unknown"
-            reason = parts[2] if len(parts) > 2 else "rate limit"
-
-            decision = _handle_vendor_limit(
-                roadmap=roadmap,
-                item_id=item_id,
-                vendor=vendor,
-                reason=reason,
-                switch_attempts=switch_attempts,
-            )
-            policy_decisions.append({
+        while True:
+            context = {
                 "item_id": item_id,
-                "phase": phase.value,
-                "decision": {
-                    "action": decision.action,
-                    "reason": decision.reason,
-                    "from_vendor": decision.from_vendor,
-                    "to_vendor": decision.to_vendor,
-                },
-            })
-            if on_policy_decision:
-                on_policy_decision(decision)
+                "roadmap_id": roadmap.roadmap_id,
+                "completed_items": list(checkpoint.completed_items),
+            }
+            if selected_agent_id is not None:
+                # dispatch_agent_id is the roadmap routing contract;
+                # agent_id is the additive provider/phase carrier field.
+                context["dispatch_agent_id"] = selected_agent_id
+                context["agent_id"] = selected_agent_id
 
-            if decision.action == "fail_closed":
-                # A vendor-policy stop is not a plan problem — no replan signal.
-                _fail(f"Policy fail_closed: {decision.reason}")
+            dispatch_result = dispatch(item_id, phase.value, context)
+            outcome, replan_signal = _normalize_outcome(dispatch_result)
+            dispatch_metadata = (
+                dispatch_result if isinstance(dispatch_result, Mapping) else {}
+            )
+            dispatch_agent_id = (
+                dispatch_metadata.get("dispatch_agent_id")
+                or dispatch_metadata.get("agent_id")
+            )
+            capacity_reset_at = _capacity_reset_at(dispatch_metadata)
+
+            if outcome == "success":
+                logger.info(
+                    "item.phase_success: item=%s phase=%s", item_id, phase.value
+                )
+                break
+
+            if outcome.startswith("failed:"):
+                reason = outcome[len("failed:"):]
+                logger.warning(
+                    "item.phase_failed: item=%s phase=%s reason=%s",
+                    item_id,
+                    phase.value,
+                    reason,
+                )
+                _fail(reason, replan=replan_signal)
                 return False
 
-            # For "wait" and "switch" — the orchestrator records the decision
-            # but the actual vendor routing is handled by the prompt layer
-            # via the dispatch_fn on the next call. We continue the phase loop
-            # to let the dispatch_fn retry with the new context.
-            logger.info(
-                "policy.applied: item=%s action=%s vendor=%s->%s",
-                item_id, decision.action, decision.from_vendor, decision.to_vendor,
-            )
-            continue
+            if outcome.startswith("vendor_limit:"):
+                parts = outcome.split(":", 2)
+                vendor = parts[1] if len(parts) > 1 else "unknown"
+                reason = parts[2] if len(parts) > 2 else "rate limit"
 
-        # Unknown outcome — treat as failure
-        logger.warning("item.unknown_outcome: item=%s outcome=%s", item_id, outcome)
-        _fail(f"Unknown dispatch outcome: {outcome}")
-        return False
+                decision = _handle_vendor_limit(
+                    roadmap=roadmap,
+                    item_id=item_id,
+                    vendor=vendor,
+                    reason=reason,
+                    switch_attempts=switch_attempts,
+                    registry_provider=registry_provider,
+                    agents_yaml_fallback=agents_yaml_fallback,
+                    phase=phase.value,
+                    dispatch_agent_id=(
+                        str(dispatch_agent_id)
+                        if dispatch_agent_id is not None
+                        else None
+                    ),
+                    model=dispatch_metadata.get("model"),
+                    prompt_tokens=dispatch_metadata.get("prompt_tokens"),
+                    completion_tokens=dispatch_metadata.get("completion_tokens"),
+                    location=routing_location,
+                    reset_at=capacity_reset_at,
+                )
+                report_status = dispatch_metadata.get("capacity_report_status")
+                if dispatch_agent_id is None:
+                    durable_persistence = "skipped_ambiguous"
+                elif report_status in {"persisted", "failed", "skipped"}:
+                    durable_persistence = str(report_status)
+                else:
+                    durable_persistence = "delegated_unconfirmed"
+                policy_decisions.append({
+                    "item_id": item_id,
+                    "phase": phase.value,
+                    "decision": {
+                        "action": decision.action,
+                        "reason": decision.reason,
+                        "from_vendor": decision.from_vendor,
+                        "to_vendor": decision.to_vendor,
+                        "to_agent_id": decision.to_agent_id,
+                        "expected_cost_delta_usd": decision.expected_cost_delta_usd,
+                        "cost_guard": decision.cost_guard,
+                        "legacy_provider_scope": dispatch_agent_id is None,
+                        "durable_persistence": durable_persistence,
+                    },
+                })
+                if on_policy_decision:
+                    on_policy_decision(decision)
+
+                if decision.action == "fail_closed":
+                    # A vendor-policy stop is not a plan problem.
+                    _fail(f"Policy fail_closed: {decision.reason}")
+                    return False
+                if decision.action == "wait":
+                    _persist_policy_pause(
+                        checkpoint=checkpoint,
+                        mgr=mgr,
+                        decision=decision,
+                        expected_resume_at=capacity_reset_at,
+                    )
+                    return False
+
+                # Retry this exact phase. Switches carry the selected lane through
+                # both the roadmap and provider field names at the boundary.
+                if decision.action == "switch":
+                    selected_agent_id = decision.to_agent_id
+                elif dispatch_agent_id is not None:
+                    selected_agent_id = str(dispatch_agent_id)
+                logger.info(
+                    "policy.applied: item=%s action=%s vendor=%s->%s",
+                    item_id,
+                    decision.action,
+                    decision.from_vendor,
+                    decision.to_vendor,
+                )
+                continue
+
+            # Unknown outcome -- treat as failure.
+            logger.warning(
+                "item.unknown_outcome: item=%s outcome=%s", item_id, outcome
+            )
+            _fail(f"Unknown dispatch outcome: {outcome}")
+            return False
 
     return True
 
@@ -532,45 +1326,62 @@ def _repo_relative(path: Path, repo_root: Path | None) -> str:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _get_ready_items(
-    roadmap: Roadmap,
+def _parse_reset_at(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _capacity_reset_at(metadata: Mapping[str, Any]) -> str | None:
+    reset_at = metadata.get("capacity_reset_at")
+    if _parse_reset_at(reset_at) is not None:
+        return str(reset_at)
+
+    retry_after = metadata.get("capacity_retry_after_seconds")
+    if (
+        isinstance(retry_after, (int, float))
+        and not isinstance(retry_after, bool)
+        and retry_after >= 0
+    ):
+        return (
+            datetime.now(timezone.utc) + timedelta(seconds=float(retry_after))
+        ).isoformat()
+    return None
+
+
+def _pause_is_active(pause_state: Mapping[str, Any]) -> bool:
+    if not pause_state.get("paused"):
+        return False
+    expected_resume_at = pause_state.get("expected_resume_at")
+    parsed = _parse_reset_at(expected_resume_at)
+    if parsed is None:
+        return True
+    return datetime.now(timezone.utc) < parsed
+
+
+def _persist_policy_pause(
+    *,
     checkpoint: Any,
-    external_completed: set[str] | None = None,
-) -> list[RoadmapItem]:
-    """Get items ready for execution, excluding already completed ones.
-
-    ``external_completed`` is the set of cross-roadmap item_refs
-    ``<roadmap-id>:<item-id>`` whose referenced item has reached ``completed``
-    (see :func:`models.completed_external_refs`). An item's
-    ``external_depends_on`` refs must all be in that set for the item to be
-    ready — so an item whose only remaining blocker is an external prerequisite
-    becomes ready automatically when that prerequisite completes, with no
-    manual status edit. ``superseded`` items are never ready (their status is
-    not in the executable set), and neither is an item carrying a non-empty
-    ``superseded_by`` edge whose status was never flipped — mirrors
-    :meth:`Roadmap.ready_items`. Deterministic and side-effect-free.
-    """
-    external_completed = external_completed or set()
-    completed_ids = set(checkpoint.completed_items)
-    failed_ids = {f.item_id for f in checkpoint.failed_items}
-    skip_ids = completed_ids | failed_ids
-
-    # Items whose deps are all completed and status allows execution
-    ready = []
-    for item in roadmap.items:
-        if item.item_id in skip_ids:
-            continue
-        if item.superseded_by:
-            continue
-        if item.status in (ItemStatus.APPROVED, ItemStatus.IN_PROGRESS):
-            if all(dep in completed_ids for dep in item.depends_on) and all(
-                ref in external_completed for ref in item.external_depends_on
-            ):
-                ready.append(item)
-
-    # Sort by priority (lower = higher priority)
-    ready.sort(key=lambda i: i.priority)
-    return ready
+    mgr: CheckpointManager,
+    decision: PolicyDecision,
+    expected_resume_at: str | None,
+) -> None:
+    pause_state: dict[str, Any] = {
+        "paused": True,
+        "reason": decision.reason,
+        "paused_at": datetime.now(timezone.utc).isoformat(),
+        "blocked_vendor": decision.from_vendor,
+    }
+    if expected_resume_at is not None:
+        pause_state["expected_resume_at"] = expected_resume_at
+    checkpoint.pause_state = sanitize_dict(pause_state)
+    mgr.save(checkpoint)
 
 
 def _handle_vendor_limit(
@@ -579,26 +1390,104 @@ def _handle_vendor_limit(
     vendor: str,
     reason: str,
     switch_attempts: dict[str, int],
+    *,
+    registry_provider: Callable[..., dict[str, Any]] = try_list_vendors,
+    agents_yaml_fallback: Callable[..., list[dict[str, Any]]] | None = None,
+    phase: str = "implementing",
+    dispatch_agent_id: str | None = None,
+    model: str | None = None,
+    prompt_tokens: int | None = None,
+    completion_tokens: int | None = None,
+    location: str | None = None,
+    reset_at: str | None = None,
 ) -> PolicyDecision:
-    """Delegate to the policy engine for a vendor limit event."""
-    limit = VendorLimit(vendor=vendor, reason=reason)
-    attempts = switch_attempts.get(item_id, 0)
+    """Honor WAIT directly or select an exact alternate registry lane.
 
-    # Available vendors placeholder — in real usage, the prompt layer
-    # would provide this from vendor-status checks
-    available = ["claude", "codex", "antigravity", "grok", "pi"]
-    available = [v for v in available if v != vendor]
+    WAIT does not require registry availability because it preserves the current lane.
+    """
+    vendor_limit = VendorLimit(vendor=vendor, reason=reason, reset_at=reset_at)
+    if roadmap.policy.default_action == PolicyAction.WAIT:
+        return select_registry_lane(
+            policy=roadmap.policy,
+            vendor_limit=vendor_limit,
+            lanes=(),
+            switch_attempts=switch_attempts.get(item_id, 0),
+        )
 
-    decision = evaluate_policy(
-        policy=roadmap.policy,
-        vendor_limit=limit,
-        available_vendors=available,
-        switch_attempts=attempts,
+    item = next((candidate for candidate in roadmap.items if candidate.item_id == item_id), None)
+    capability = item.capability if item is not None else None
+    archetype = {
+        "planning": "architect",
+        "implementing": "implementer",
+        "reviewing": "reviewer",
+        "validating": "validator",
+    }.get(phase)
+    dispatch_mode = "review" if phase == "reviewing" else "alternative"
+    filters = {
+        "capability": capability,
+        "archetype": archetype,
+        "dispatch_mode": dispatch_mode,
+        "location": location,
+        "available_only": False,
+    }
+    response = registry_provider(**filters)
+    allow_unknown = False
+    lanes: list[dict[str, Any]] = []
+    if response.get("status") == "ok":
+        payload = response.get("response")
+        if isinstance(payload, dict) and isinstance(payload.get("vendors"), list):
+            lanes = [lane for lane in payload["vendors"] if isinstance(lane, dict)]
+        else:
+            response = {"status": "error", "reason": "malformed_response"}
+    if response.get("status") != "ok":
+        if agents_yaml_fallback is None:
+            return PolicyDecision(
+                action="fail_closed",
+                reason=(
+                    "Vendor registry unavailable: "
+                    f"{response.get('reason') or response.get('error') or 'unknown'}"
+                ),
+                from_vendor=vendor,
+                cost_guard="unavailable",
+            )
+        lanes = agents_yaml_fallback(**filters)
+        allow_unknown = True
+        logger.warning("roadmap.registry_fallback: item=%s source=agents_yaml", item_id)
+
+    eligible = filter_registry_lanes(
+        lanes,
+        capability=capability,
+        archetype=archetype,
+        dispatch_mode=dispatch_mode,
+        location=location,
+        model=model,
+        allow_unknown=allow_unknown,
     )
-
+    excluded_agent_ids = {dispatch_agent_id} if dispatch_agent_id else set()
+    excluded_policy_vendors = set()
+    if dispatch_agent_id is None:
+        excluded_policy_vendors.add(vendor)
+        logger.warning(
+            "roadmap.vendor_limit_ambiguous: item=%s policy_vendor=%s "
+            "durable_persistence=skipped",
+            item_id,
+            vendor,
+        )
+    decision = select_registry_lane(
+        policy=roadmap.policy,
+        vendor_limit=vendor_limit,
+        lanes=eligible,
+        switch_attempts=switch_attempts.get(item_id, 0),
+        from_agent_id=dispatch_agent_id,
+        model=model,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        allow_unknown=allow_unknown,
+        excluded_agent_ids=excluded_agent_ids,
+        excluded_policy_vendors=excluded_policy_vendors,
+    )
     if decision.action == "switch":
-        switch_attempts[item_id] = attempts + 1
-
+        switch_attempts[item_id] = switch_attempts.get(item_id, 0) + 1
     return decision
 
 
@@ -683,6 +1572,9 @@ def _build_summary(
         "policy_decisions": policy_decisions,
         "gate_decisions": list(gate_decisions or []),
     }
+    if checkpoint.pause_state.get("paused"):
+        summary["status"] = "paused"
+        summary["pause_state"] = copy.deepcopy(checkpoint.pause_state)
     if replan_state.get("requested"):
         # The run stopped deliberately to hand off to the host; that is a
         # different outcome from "blocked_all" and the host branches on it.

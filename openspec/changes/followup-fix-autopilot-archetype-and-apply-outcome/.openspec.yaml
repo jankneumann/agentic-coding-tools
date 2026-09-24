@@ -1,0 +1,10 @@
+schema: feature-workflow
+created: 2026-09-08
+
+# No spec delta: every behavioural requirement this work depends on was already
+# merged into the `skill-workflow` capability by the parent change
+# `fix-autopilot-archetype-and-apply-outcome`. What survives here is
+# contributor-facing documentation propagation plus two explicitly-deferred
+# scoping decisions. Per `openspec validate`, a change that intentionally
+# modifies no specs declares that rather than inventing a requirement.
+skip_specs: true

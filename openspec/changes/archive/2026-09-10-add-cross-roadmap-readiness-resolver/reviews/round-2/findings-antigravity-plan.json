@@ -1,0 +1,75 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Design D2 and the roadmap-orchestration spec correctly distinguish hard-invalid checkpoint state (which withholds workspace items and external completion refs) from soft roadmap/checkpoint terminal-status divergence (which emits a stale diagnostic, but keeps the workspace resolvable and preserves checkpoint-authoritative readiness and external completion).",
+      "resolution": "Verified design.md (D2, D5) and specs/roadmap-orchestration/spec.md scenarios for invalid checkpoints and terminal state overrides; no changes needed.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "line_range": {
+        "start": 18,
+        "end": 19
+      }
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "The readiness result contract schema in readiness-result.schema.json includes diagnostic enum codes roadmap_invalid and duplicate_roadmap_id, matching the D5 CLI boundary specification for malformed roadmaps and duplicate declared roadmap IDs.",
+      "resolution": "Verified contracts/readiness-result.schema.json diagnostic code enum additions; no changes needed.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/contracts/readiness-result.schema.json",
+      "line_range": {
+        "start": 20,
+        "end": 30
+      }
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Design D3 completely specifies the source_fingerprint projection schema, canonical key and list sorting, compact JSON separators, trailing newline, absent-checkpoint sentinel, and raw-byte SHA-256 fallback for malformed files, ensuring byte-stable output without relying on timestamps or mtimes.",
+      "resolution": "Verified design.md D3 specification and spec.md Deterministic Readiness Projection requirements; no changes needed.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "line_range": {
+        "start": 23,
+        "end": 29
+      }
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The round 1 remediations are fully consistent with the normative checkpoint override scenario in spec.md, task coverage in tasks.md (tasks 2.1 and 2.2), and single-package scope in work-packages.yaml (wp-readiness-runtime).",
+      "resolution": "Verified alignment across spec.md, tasks.md, and work-packages.yaml; no changes needed.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/work-packages.yaml",
+      "line_range": {
+        "start": 27,
+        "end": 131
+      }
+    }
+  ]
+}

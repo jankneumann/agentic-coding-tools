@@ -124,6 +124,7 @@ def test_heavy_adapter_uses_pinned_v1_app_contexts_without_target_mount():
     assert "IdGenerator" not in source
 
 
+@pytest.mark.requires_embedder
 @pytest.mark.asyncio
 async def test_final_read_rejects_transient_worktree_content_before_chunking(
     tmp_path: Path,

@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 import yaml
 from jsonschema import validate
 
+from src.isolation_contract import ISOLATION_MODES, IsolationMode, validate_isolation
 from src.profile_loader import _INTERPOLATION_RE, _load_secrets_file, interpolate
 from src.trust_levels import MAX_TRUST, MIN_TRUST, TrustLevel
 
@@ -73,61 +74,42 @@ DEFAULT_LOCAL_HOST_CLASS: dict[str, Any] = {
 }
 _REVIEWED_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# Tier entries are either a bare model-id string or {"model": ..., "thinking": ...}.
-# Thinking level is part of the model definition, not a dispatch afterthought:
-# it shifts both cost and capability enough that a standard model at xhigh
-# thinking can out-cost a premium model at medium. Cost-per-successful-task
-# tuning happens by editing these entries — never by editing tests, which must
-# derive expectations from this map / archetypes.yaml rather than literals.
+# Emergency fallback ONLY — used when archetypes.yaml cannot be loaded.
+# The authored tier→model map lives solely in archetypes.yaml::model_aliases.
+# get_provider_model_map() prefers that YAML; do not edit roster values here
+# to "keep in sync". Tests must derive expectations from the loaded YAML.
 DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
     "schema_version": 2,
     "tiers": list(ALL_MODEL_TIERS),
     "providers": {
         "claude_code": {
             "frontier": "fable",
-            "premium": "opus",
+            "premium": {"model": "fable", "thinking": "medium"},
             "standard": "sonnet",
             "economy": "haiku",
         },
         "codex": {
             "frontier": {"model": "gpt-5.6-sol", "thinking": "xhigh"},
-            "premium": {"model": "gpt-5.6-sol", "thinking": "medium"},
+            "premium": {"model": "gpt-5.6-sol", "thinking": "high"},
             "standard": "gpt-5.6-terra",
             "economy": "gpt-5.6-luna",
         },
-        # Roster per contracts/roster.md; tier slugs resolved empirically in
-        # Phase 1 (design.md § Empirical CLI findings, E1/E5/E8) and signed off
-        # by the operator at checkpoint 1.4 (2026-07-23).
         "antigravity": {
-            # agy `models` catalog (E1); one model across three effort levels.
-            # Effort is baked into the slug suffix, not a separate flag.
-            # `frontier` omitted — falls back to premium (operator, 2026-07-23).
-            "premium": "gemini-3.6-flash-high",
+            "premium": "gemini-3.8-flash-high",
             "standard": "gemini-3.6-flash-medium",
             "economy": "gemini-3.6-flash-low",
         },
         "grok": {
-            # Single model `grok-4.5` (E5); tiers differ only by thinking budget,
-            # translated to `--reasoning-effort` by the dispatching adapter.
             "premium": {"model": "grok-4.5", "thinking": "high"},
             "standard": {"model": "grok-4.5", "thinking": "medium"},
             "economy": {"model": "grok-4.5", "thinking": "low"},
         },
         "pi": {
-            # OpenRouter `<publisher>/<model>` slugs (spec configuration.2).
-            # `standard` fixed to qwen/qwen3-coder by roadmap ri-01; frontier is
-            # Kimi 3 (E8). premium/economy stay in the qwen3-coder family.
             "frontier": "moonshotai/kimi-k3",
-            "premium": "qwen/qwen3-coder-plus",
+            "premium": "nvidia/nemotron-3-ultra-550b-a55b",
             "standard": "qwen/qwen3-coder",
             "economy": "qwen/qwen3-coder-flash",
         },
-        # Always-on local host (GB10 class). This is the tier -> model-id view
-        # of `model_aliases.local` in archetypes.yaml; the parameter metadata
-        # and operator review date live there, where startup validation
-        # enforces the MoE-first hardware rule (D4). `frontier`/`premium` are
-        # deliberately omitted — they degrade to the best defined tier. Keep
-        # both in sync; a test asserts the two rosters agree.
         "local": {
             "standard": "gpt-oss-120b",
             "economy": "qwen3-coder-30b-a3b",
@@ -243,6 +225,33 @@ NON_TERMINAL_PHASES: tuple[str, ...] = (
 )
 
 # ---------------------------------------------------------------------------
+# Procedure mode (OpenSpec change add-skill-audit, design D3)
+#
+# How much of a skill's written procedure an agent running under an archetype
+# is expected to follow. It is a property of the archetype (the role), not of
+# the tier it escalates to. `guided` is the default and appends nothing, so a
+# roster that never declares the field resolves byte-identically to before.
+# The sentences are defined once, here, and injected at exactly one place:
+# resolve_archetype_for_phase. Tests import these constants rather than
+# restating the text.
+# ---------------------------------------------------------------------------
+
+PROCEDURE_MODES: tuple[str, ...] = ("verbatim", "guided", "goal-directed")
+DEFAULT_PROCEDURE_MODE = "guided"
+PROCEDURE_MODE_SENTENCES: dict[str, str] = {
+    "verbatim": (
+        "Follow the skill's written procedure step by step; do not skip, "
+        "reorder, or merge steps."
+    ),
+    "goal-directed": (
+        "Satisfy the skill's acceptance probes by whatever route is sound; "
+        "where you deviate from the written procedure, record each deviation "
+        "as a session-log Decision with capability `skill-procedure-deviation`."
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
 # JSON Schema for archetypes.yaml validation
 # ---------------------------------------------------------------------------
 
@@ -251,11 +260,12 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
     "required": ["schema_version", "archetypes"],
     "properties": {
         # schema_version selects optional structure: v2 enables phase_mapping (OpenSpec
-        # add-per-phase-archetype-resolution), v3 adds model_aliases / tier models. Note:
+        # add-per-phase-archetype-resolution), v3 adds model_aliases / tier models, v4
+        # adds the optional per-archetype `procedure_mode` (add-skill-audit D3). Note:
         # `write_capable` is REQUIRED on every archetype regardless of version (fail-loud,
         # design D3 — no implicit default). A pre-existing v1 file that omits it must add
         # `write_capable` on migration; the version does NOT grandfather the field away.
-        "schema_version": {"type": "integer", "enum": [1, 2, 3]},
+        "schema_version": {"type": "integer", "enum": [1, 2, 3, 4]},
         # Host class of the machine serving the `local` provider. Optional:
         # absent means the GB10 defaults apply (DEFAULT_LOCAL_HOST_CLASS).
         "local_host_class": _LOCAL_HOST_CLASS_SCHEMA,
@@ -302,6 +312,12 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                     # on every archetype (design D3 / D3.1 — no implicit default;
                     # a missing field fails schema validation, i.e. fail-loud).
                     "write_capable": {"type": "boolean"},
+                    # Optional; omitted means DEFAULT_PROCEDURE_MODE. Any other
+                    # value fails validation naming the archetype and the value.
+                    "procedure_mode": {
+                        "type": "string",
+                        "enum": list(PROCEDURE_MODES),
+                    },
                     "escalation": {
                         "type": ["object", "null"],
                         "properties": {
@@ -361,10 +377,12 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 VALID_TRANSPORTS = {"mcp", "http"}
-VALID_ISOLATION_MODES = {"worktree", "sandbox", "none"}
+VALID_ISOLATION_MODES = frozenset(ISOLATION_MODES)
+VALID_ENDPOINT_KINDS = {"vendor-cli", "vendor-sdk", "openrouter", "local"}
+VALID_LOCATIONS = {"local", "cloud", "unknown"}
 VALID_CAPABILITIES = {
     "lock", "queue", "memory", "guardrails", "handoff", "discover", "audit",
-    "feature_registry",
+    "feature_registry", "vendor_limit_reporter",
 }
 
 AGENTS_SCHEMA: dict[str, Any] = {
@@ -414,6 +432,14 @@ AGENTS_SCHEMA: dict[str, Any] = {
                     },
                     "api_key": {"type": "string"},
                     "openbao_role_id": {"type": "string", "minLength": 1},
+                    "endpoint_kind": {
+                        "type": "string",
+                        "enum": sorted(VALID_ENDPOINT_KINDS),
+                    },
+                    "base_url": {"type": "string", "format": "uri"},
+                    "location": {"type": "string", "enum": sorted(VALID_LOCATIONS)},
+                    "policy_vendor": {"type": "string", "minLength": 1},
+                    "catalog_vendor": {"type": ["string", "null"], "minLength": 1},
                     "capabilities": {
                         "type": "array",
                         "minItems": 1,
@@ -464,21 +490,24 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                             "minItems": 1,
                                         },
                                         "async": {"type": "boolean"},
+                                        "isolation": {
+                                            "type": "string",
+                                            "enum": list(ISOLATION_MODES),
+                                        },
                                         "poll": {
                                             "type": "object",
                                             "required": [
                                                 "command_template",
-                                                "task_id_pattern",
-                                                "success_pattern",
+                                                "result_protocol",
                                             ],
                                             "properties": {
                                                 "command_template": {
                                                     "type": "array",
                                                     "items": {"type": "string"},
                                                 },
-                                                "task_id_pattern": {"type": "string"},
-                                                "success_pattern": {"type": "string"},
-                                                "failure_pattern": {"type": "string"},
+                                                "result_protocol": {
+                                                    "const": "vendor-envelope-v1"
+                                                },
                                                 "interval_seconds": {"type": "integer"},
                                                 "timeout_seconds": {"type": "integer"},
                                             },
@@ -524,18 +553,10 @@ AGENTS_SCHEMA: dict[str, Any] = {
 
 @dataclass
 class PollConfig:
-    """Polling configuration for async dispatch modes.
-
-    The dispatcher extracts a task ID from the dispatch command's output
-    using ``task_id_pattern``, substitutes it into ``command_template``,
-    and polls until ``success_pattern`` or ``failure_pattern`` matches
-    or ``timeout_seconds`` is reached.
-    """
+    """Polling configuration for versioned JSON vendor envelopes."""
 
     command_template: list[str]
-    task_id_pattern: str
-    success_pattern: str
-    failure_pattern: str = "failed|error"
+    result_protocol: str = "vendor-envelope-v1"
     interval_seconds: int = 30
     timeout_seconds: int = 600
 
@@ -547,6 +568,7 @@ class ModeConfig:
     args: list[str]
     async_dispatch: bool = False
     poll: PollConfig | None = None
+    isolation: IsolationMode | None = None
 
 
 @dataclass
@@ -601,9 +623,14 @@ class AgentEntry:
     transport: str
     capabilities: list[str]
     description: str
-    isolation: str = "none"
+    isolation: IsolationMode = "none"
     api_key: str | None = None
     openbao_role_id: str | None = None
+    endpoint_kind: str | None = None
+    base_url: str | None = None
+    location: str = "unknown"
+    policy_vendor: str | None = None
+    catalog_vendor: str | None = None
     archetypes: list[str] = field(default_factory=list)
     cli: CliConfig | None = None
     sdk: SdkConfig | None = None
@@ -631,8 +658,9 @@ class EscalationConfig:
 class ArchetypeConfig:
     """A named agent archetype from ``archetypes.yaml``.
 
-    Bundles model preference, system prompt, and optional complexity
-    escalation rules.
+    Bundles model preference, system prompt, optional complexity escalation
+    rules, and the procedure mode (one of :data:`PROCEDURE_MODES`; defaults
+    to :data:`DEFAULT_PROCEDURE_MODE` when the YAML omits it).
     """
 
     name: str
@@ -640,6 +668,7 @@ class ArchetypeConfig:
     system_prompt: str
     write_capable: bool = False
     escalation: EscalationConfig | None = None
+    procedure_mode: str = DEFAULT_PROCEDURE_MODE
 
 
 @dataclass
@@ -685,6 +714,9 @@ class ResolvedArchetype:
     provider: str | None = None
     write_capable: bool = False
     thinking: str | None = None
+    # The resolved archetype's procedure mode (add-skill-audit D3). Escalation
+    # never changes it: it belongs to the archetype, not to the tier.
+    procedure_mode: str = DEFAULT_PROCEDURE_MODE
 
 
 class ProviderModelMappingError(ValueError):
@@ -839,11 +871,7 @@ def load_agents_config(
                 if raw_poll:
                     poll_config = PollConfig(
                         command_template=raw_poll["command_template"],
-                        task_id_pattern=raw_poll["task_id_pattern"],
-                        success_pattern=raw_poll["success_pattern"],
-                        failure_pattern=raw_poll.get(
-                            "failure_pattern", "failed|error",
-                        ),
+                        result_protocol=raw_poll["result_protocol"],
                         interval_seconds=raw_poll.get(
                             "interval_seconds", 30,
                         ),
@@ -854,6 +882,7 @@ def load_agents_config(
                 return ModeConfig(
                     args=mode_data["args"],
                     async_dispatch=mode_data.get("async", False),
+                    isolation=mode_data.get("isolation"),
                     poll=poll_config,
                 )
 
@@ -896,6 +925,11 @@ def load_agents_config(
                 archetypes=agent_data.get("archetypes", []),
                 api_key=resolved_key,
                 openbao_role_id=agent_data.get("openbao_role_id"),
+                endpoint_kind=agent_data.get("endpoint_kind"),
+                base_url=agent_data.get("base_url"),
+                location=agent_data.get("location", "unknown"),
+                policy_vendor=agent_data.get("policy_vendor", agent_data["type"]),
+                catalog_vendor=agent_data.get("catalog_vendor"),
                 cli=cli_config,
                 sdk=sdk_config,
             )
@@ -1050,6 +1084,7 @@ CAPABILITY_OPERATIONS: dict[str, tuple[str, ...]] = {
     "discover": ("register_session", "discover_agents", "heartbeat"),
     "audit": ("query_audit",),
     "feature_registry": ("register_feature", "deregister_feature"),
+    "vendor_limit_reporter": ("report_vendor_rate_limit",),
 }
 
 #: Operations granted by *trust level* rather than by capability, as
@@ -1067,6 +1102,8 @@ TRUST_DERIVED_OPERATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
             "run_pre_merge_checks",
             "mark_merged",
             "remove_from_merge_queue",
+            "publish_work_projection",
+            "report_vendor_rate_limit",
         ),
     ),
 )
@@ -1792,7 +1829,7 @@ def reset_agents_config() -> None:
 def get_dispatch_configs(
     agents: list[AgentEntry] | None = None,
 ) -> dict[str, Any]:
-    """Return dispatch configs for agents with a ``cli`` or ``sdk`` section.
+    """Return configs for agents with a dispatch transport or routable endpoint.
 
     Shared serialization logic used by both MCP and HTTP endpoints.
     Returns a dict with ``agents`` key containing a list of agent
@@ -1803,7 +1840,10 @@ def get_dispatch_configs(
 
     agents_out: list[dict[str, Any]] = []
     for entry in agents:
-        if entry.cli is None and entry.sdk is None:
+        routable_endpoint = (
+            entry.endpoint_kind in {"openrouter", "local"} and entry.base_url
+        )
+        if entry.cli is None and entry.sdk is None and not routable_endpoint:
             continue
         sdk_out: dict[str, Any] | None = None
         if entry.sdk:
@@ -1823,11 +1863,14 @@ def get_dispatch_configs(
                     name: {
                         "args": mc.args,
                         "async": mc.async_dispatch,
+                        **(
+                            {"isolation": mc.isolation}
+                            if mc.isolation is not None
+                            else {}
+                        ),
                         **({"poll": {
                             "command_template": mc.poll.command_template,
-                            "task_id_pattern": mc.poll.task_id_pattern,
-                            "success_pattern": mc.poll.success_pattern,
-                            "failure_pattern": mc.poll.failure_pattern,
+                            "result_protocol": mc.poll.result_protocol,
                             "interval_seconds": mc.poll.interval_seconds,
                             "timeout_seconds": mc.poll.timeout_seconds,
                         }} if mc.poll else {}),
@@ -1846,6 +1889,8 @@ def get_dispatch_configs(
             "type": entry.type,
             "transport": entry.transport,
             "openbao_role_id": entry.openbao_role_id,
+            "endpoint_kind": entry.endpoint_kind,
+            "base_url": entry.base_url,
             "cli": cli_out,
             "sdk": sdk_out,
         })
@@ -1857,15 +1902,26 @@ def get_dispatch_configs(
 # Isolation helpers
 # ---------------------------------------------------------------------------
 
-def get_agent_isolation(agent_type: str) -> str | None:
-    """Return the isolation mode for *agent_type*, or ``None`` if not found.
+def get_agent_isolation(
+    agent_type: str,
+    dispatch_mode: str | None = None,
+    *,
+    agent_id: str | None = None,
+) -> IsolationMode | None:
+    """Return isolation for an exact agent/mode, or ``None`` if not found.
 
-    Searches through loaded agent entries and returns the ``isolation``
-    field of the first agent whose ``type`` matches *agent_type*.
+    The legacy one-argument call retains first-type-match behavior. Callers
+    that know the selected lane pass ``agent_id`` to avoid YAML-order coupling.
     """
     for agent in get_agents_config():
-        if agent.type == agent_type:
-            return agent.isolation
+        if agent.type != agent_type or (agent_id is not None and agent.name != agent_id):
+            continue
+        configured: object = agent.isolation
+        if dispatch_mode is not None and agent.cli is not None:
+            mode = agent.cli.dispatch_modes.get(dispatch_mode)
+            if mode is not None and mode.isolation is not None:
+                configured = mode.isolation
+        return validate_isolation(configured, rung="agents_yaml")
     return None
 
 
@@ -2070,12 +2126,22 @@ def load_archetypes_config(
                 f"write-capable worker archetypes and never edits code, specs, "
                 f"tests, or configuration directly. Got write_capable: true."
             )
+        # Optional per-archetype procedure mode (add-skill-audit D3). The JSON
+        # schema already rejects unknown values; this guard keeps the error
+        # structured if the two ever drift.
+        procedure_mode = data.get("procedure_mode", DEFAULT_PROCEDURE_MODE)
+        if procedure_mode not in PROCEDURE_MODES:
+            raise ValueError(
+                f"archetype {name!r} declares unknown procedure_mode "
+                f"{procedure_mode!r}; expected one of {', '.join(PROCEDURE_MODES)}"
+            )
         result[name] = ArchetypeConfig(
             name=name,
             model=data["model"],
             system_prompt=data["system_prompt"],
             write_capable=write_capable,
             escalation=esc_config,
+            procedure_mode=procedure_mode,
         )
 
     # Phase mapping (optional, schema_version=2). Validate archetype refs after
@@ -2212,7 +2278,31 @@ def _normalize_provider_model_map(raw_map: dict[str, Any] | None) -> dict[str, A
 
 
 def get_provider_model_map() -> dict[str, Any]:
-    """Return the currently loaded provider model map or defaults."""
+    """Return the authored provider model map from ``archetypes.yaml``.
+
+    Loads ``archetypes.yaml`` on first access when the cache is cold so
+    callers never silently use the embedded emergency fallback while the
+    YAML file is present. The emergency ``DEFAULT_PROVIDER_MODEL_MAP`` is
+    returned only when the YAML path is missing or fails to load.
+    """
+    global _provider_model_map
+    if _provider_model_map is None:
+        path = _default_archetypes_path()
+        if path.exists():
+            try:
+                load_archetypes_config(path)
+            except Exception:  # noqa: BLE001 — fall back loudly
+                logger.exception(
+                    "Failed to load archetypes.yaml from %s; using emergency "
+                    "DEFAULT_PROVIDER_MODEL_MAP",
+                    path,
+                )
+        else:
+            logger.warning(
+                "archetypes.yaml not found at %s — using emergency "
+                "DEFAULT_PROVIDER_MODEL_MAP",
+                path,
+            )
     if _provider_model_map is None:
         return _normalize_provider_model_map(None)
     return _provider_model_map
@@ -2487,7 +2577,7 @@ def _resolve_model_spec(
 # ---------------------------------------------------------------------------
 
 
-def resolve_archetype_for_phase(
+def _resolve_archetype_for_phase_static(
     phase: str,
     signals: dict[str, Any] | None = None,
     *,
@@ -2507,7 +2597,11 @@ def resolve_archetype_for_phase(
 
     Returns:
         A :class:`ResolvedArchetype` carrying the model, system prompt,
-        archetype name, and a reasons trace.
+        archetype name, procedure mode, and a reasons trace. For a non-guided
+        ``procedure_mode`` the archetype's ``system_prompt`` is returned with
+        the mode's sentence from :data:`PROCEDURE_MODE_SENTENCES` appended
+        after one blank line (add-skill-audit D3). This is the only injection
+        point; ``guided`` returns the prompt unchanged.
 
     Raises:
         KeyError: If *phase* is not present in ``phase_mapping``.
@@ -2585,12 +2679,152 @@ def resolve_archetype_for_phase(
     if not escalation_reasons:
         reasons.append("no escalation triggered")
 
+    # Procedure-mode injection (add-skill-audit D3): the single place the
+    # mode sentence enters a prompt. `guided` has no sentence and leaves the
+    # archetype prompt byte-identical. The mode is read from the archetype,
+    # so escalation to another tier cannot change it.
+    system_prompt = archetype.system_prompt
+    sentence = PROCEDURE_MODE_SENTENCES.get(archetype.procedure_mode)
+    if sentence is not None:
+        system_prompt = system_prompt.rstrip("\n") + "\n\n" + sentence
+
     return ResolvedArchetype(
         model=spec.model,
-        system_prompt=archetype.system_prompt,
+        system_prompt=system_prompt,
         archetype=archetype.name,
         reasons=reasons,
         provider=provider,
         write_capable=archetype.write_capable,
         thinking=spec.thinking,
+        procedure_mode=archetype.procedure_mode,
+    )
+
+
+def _adaptive_routing_enabled() -> bool:
+    return os.environ.get("ROUTING_ADAPTIVE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _adaptive_task_signals(
+    phase: str,
+    signals: dict[str, Any] | None,
+    static: ResolvedArchetype,
+) -> dict[str, Any]:
+    mapping = _phase_mapping if _phase_mapping is not None else {}
+    entry = mapping.get(phase)
+    allowed = set(entry.signals) if entry is not None else set()
+    supplied = signals or {}
+    filtered = {key: value for key, value in supplied.items() if key in allowed}
+    modality = supplied.get("modality", "programmatic")
+    if modality not in {"interactive", "programmatic"}:
+        modality = "programmatic"
+    complexity = str(filtered.get("complexity", "medium"))
+    return {
+        "archetype": static.archetype,
+        "phase": phase,
+        "task_type": f"{static.archetype}/{complexity}-complexity",
+        **filtered,
+        "modality": modality,
+    }
+
+
+def _bounded_adaptive_resolution(
+    *,
+    task_signals: dict[str, Any],
+    static_model: str,
+    provider: str | None,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    """Call the synchronous adaptive seam without exceeding the fallback SLA."""
+    import queue
+    import threading
+
+    outcomes: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
+
+    def _call() -> None:
+        try:
+            from .model_routing.api import resolve_phase_model
+
+            outcomes.put(
+                (
+                    True,
+                    resolve_phase_model(
+                        task_signals=task_signals,
+                        static_model=static_model,
+                        provider=provider,
+                        timeout_seconds=timeout_seconds,
+                    ),
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - caller degrades to static
+            outcomes.put((False, exc))
+
+    thread = threading.Thread(target=_call, name="adaptive-model-router", daemon=True)
+    thread.start()
+    try:
+        ok, outcome = outcomes.get(timeout=timeout_seconds)
+    except queue.Empty as exc:
+        raise TimeoutError("adaptive model routing timed out") from exc
+    if not ok:
+        raise outcome
+    if not isinstance(outcome, dict):
+        raise TypeError("adaptive model routing returned a non-object response")
+    return outcome
+
+
+def resolve_archetype_for_phase(
+    phase: str,
+    signals: dict[str, Any] | None = None,
+    *,
+    provider: str | None = None,
+) -> ResolvedArchetype:
+    """Resolve statically, optionally replacing only the selected model.
+
+    ``ROUTING_ADAPTIVE`` defaults off. Errors, malformed responses, and the
+    bounded timeout all return the exact static object, preserving the legacy
+    policy path as the rollback mechanism (adaptive-router D2).
+    """
+    static = _resolve_archetype_for_phase_static(phase, signals, provider=provider)
+    if not _adaptive_routing_enabled():
+        return static
+
+    try:
+        timeout_seconds = max(
+            0.001,
+            min(2.0, float(os.environ.get("ROUTING_ADAPTIVE_TIMEOUT_SECONDS", "2"))),
+        )
+        routed = _bounded_adaptive_resolution(
+            task_signals=_adaptive_task_signals(phase, signals, static),
+            static_model=static.model,
+            provider=provider,
+            timeout_seconds=timeout_seconds,
+        )
+        selected = routed.get("selected")
+        if not isinstance(selected, dict):
+            raise ValueError("adaptive response has no selected candidate")
+        model = selected.get("model")
+        if not isinstance(model, str) or not model:
+            raise ValueError("adaptive response selected candidate has no model")
+        selected_provider = selected.get("vendor")
+        if not isinstance(selected_provider, str) or not selected_provider:
+            selected_provider = provider
+    except Exception as exc:  # noqa: BLE001 - fallback is the design contract
+        logger.warning("Adaptive model routing failed; using static tier: %s", exc)
+        return static
+
+    return ResolvedArchetype(
+        model=model,
+        system_prompt=static.system_prompt,
+        archetype=static.archetype,
+        reasons=[
+            *static.reasons,
+            f"adaptive routing selected vendor={selected_provider} model={model}",
+        ],
+        provider=selected_provider,
+        write_capable=static.write_capable,
+        thinking=static.thinking,
     )
