@@ -68,6 +68,7 @@ def _run_metadata() -> dict:
         "databaseId": 42,
         "headSha": "a" * 40,
         "conclusion": "success",
+        "event": "push",
         "workflowPath": ".github/workflows/sandbox-runtime.yml",
         "jobs": [
             {"databaseId": 101, "name": "sandbox-runtime (linux)", "conclusion": "success"},
@@ -94,6 +95,7 @@ def test_verifies_exact_run_job_platform_and_artifact_identity(tmp_path: Path) -
     [
         ("headSha", "b" * 40, "head SHA"),
         ("conclusion", "failure", "conclusion"),
+        ("event", "pull_request", "push-triggered"),
         ("workflowPath", ".github/workflows/other.yml", "workflow path"),
     ],
 )
@@ -216,9 +218,15 @@ def test_rejects_missing_or_tampered_filesystem_evidence(
 
 def test_select_run_requires_exact_successful_head() -> None:
     runs = [
-        {"databaseId": 40, "headSha": "b" * 40, "conclusion": "success"},
-        {"databaseId": 41, "headSha": "a" * 40, "conclusion": "failure"},
-        {"databaseId": 42, "headSha": "a" * 40, "conclusion": "success"},
+        {"databaseId": 40, "headSha": "b" * 40, "conclusion": "success", "event": "push"},
+        {"databaseId": 41, "headSha": "a" * 40, "conclusion": "failure", "event": "push"},
+        {"databaseId": 42, "headSha": "a" * 40, "conclusion": "success", "event": "push"},
+        {
+            "databaseId": 43,
+            "headSha": "a" * 40,
+            "conclusion": "success",
+            "event": "pull_request",
+        },
     ]
     assert verifier.select_authoritative_run(runs, "a" * 40)["databaseId"] == 42
     with pytest.raises(verifier.EvidenceError, match="successful workflow run"):
