@@ -111,10 +111,10 @@
   and compared with static. [S]
   **Spec scenarios**: agent-archetypes.6, model-routing.1
   **Dependencies**: 5.2
-- [ ] Checkpoint: run the full coordinator suite (`pytest -m "not e2e and not integration"`), `mypy --strict src/`, and `ruff check .`.
+- [x] Checkpoint: run the full coordinator suite (`pytest -m "not e2e and not integration"`), `mypy --strict src/`, and `ruff check .`.
 
 ## 6. Documentation
 
-- [ ] 6.1 Document `ROUTING_INCUMBENT_MARGIN` and the retention reason vocabulary in the
+- [x] 6.1 Document `ROUTING_INCUMBENT_MARGIN` and the retention reason vocabulary in the
   environment-variable section of `agent-coordinator/CLAUDE.md`. [XS]
   **Dependencies**: 5.3
