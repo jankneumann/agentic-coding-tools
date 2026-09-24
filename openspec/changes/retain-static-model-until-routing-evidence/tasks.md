@@ -55,7 +55,7 @@
 
 ## 4. Service and API surface
 
-- [ ] 4.1 Write failing service and API tests: `SelectModelRequest.incumbent` is accepted, and
+- [x] 4.1 Write failing service and API tests: `SelectModelRequest.incumbent` is accepted, and
   `ROUTING_INCUMBENT_MARGIN` is read with default 0.05 and rejected when negative. The response
   carries `retention` only when an incumbent is supplied, and the persisted decision row includes
   `retention` and validates against the v1.2 decision-record schema. A null `selected` is persisted
@@ -64,7 +64,7 @@
   **Contracts**: contracts/openapi/v1.2.yaml, contracts/events/routing-decision-record.schema.json
   **Design decisions**: D3, D5
   **Dependencies**: 3.2, 1.2
-- [ ] 4.2 Wire retention into `RoutingService.select_model` in `model_routing/api.py`: request
+- [x] 4.2 Wire retention into `RoutingService.select_model` in `model_routing/api.py`: request
   field, margin knob, retention step, `retention` payload, nullable `selected`, and decision
   persistence on both the plain and assignment paths. [M]
   **Dependencies**: 4.1

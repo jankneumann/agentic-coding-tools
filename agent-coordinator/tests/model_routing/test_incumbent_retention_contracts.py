@@ -215,3 +215,12 @@ def test_generated_models_match_overlay_fields() -> None:
     schemas = _schemas()
     for name in ("Incumbent", "Retention"):
         assert fields[name] == set(schemas[name]["properties"]), name
+
+
+def test_record_allows_null_assignment_only_with_null_selected() -> None:
+    retention = {"retained": True, "reason": "incumbent-unresolved", "margin": 0.05}
+    _record_validator().validate(_record(None, retention=retention, assignment=None))
+    with pytest.raises(ValidationError):
+        _record_validator().validate(
+            _record({}, retention={**retention, "reason": "no-evidence"}, assignment=None)
+        )
