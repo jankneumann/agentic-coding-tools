@@ -642,3 +642,120 @@ async def test_seeded_database_survives_the_first_run_pass(migrated_database) ->
     assert recorded == len(discover_migrations()), (
         "the first-run pass stopped early and left migrations unrecorded"
     )
+
+
+def _routing_decision(decision_id: str, **overrides: object) -> dict:
+    provenance = {
+        "source": "coordinator",
+        "policy_version": "dg04-v1",
+        "policy_checksum": "a" * 64,
+    }
+    return {
+        "decision_id": decision_id,
+        "request": {"task_signals": {"archetype": "architect"}, "allow_exploration": False},
+        "selected": None,
+        "assignment": None,
+        "provenance": provenance,
+        "retention": {
+            "retained": True,
+            "reason": "incumbent-unresolved",
+            "margin": 0.05,
+            "incumbent_score": None,
+        },
+        "alternatives": [],
+        "excluded": [],
+        "exploration": False,
+        "fallback": False,
+        "policy_version": "linear-utility-v1",
+        "budget_state": {},
+        **overrides,
+    }
+
+
+def _agentless_link(decision_id: str) -> dict:
+    return {
+        "decision_id": decision_id,
+        "selected_agent_id": None,
+        "selected_model": None,
+        "routing_policy_version": "dg04-v1",
+        "routing_policy_checksum": "a" * 64,
+        "source": "coordinator",
+        "success": True,
+    }
+
+
+async def _record(conn: asyncpg.Connection, decision: dict, link: dict) -> None:
+    await conn.fetchval(
+        "SELECT record_routing_decision_with_audit($1::jsonb, $2::jsonb)",
+        json.dumps(decision),
+        json.dumps(link),
+    )
+
+
+async def test_044_persists_a_catalogless_retention(migrated_database) -> None:
+    """Migration 044: a kept incumbent with no catalog row persists with a null
+    selection, its retention record, and an agentless audit link."""
+    dsn, _applied = migrated_database
+    decision_id = str(uuid.uuid4())
+
+    conn = await _connect(dsn)
+    try:
+        await _record(conn, _routing_decision(decision_id), _agentless_link(decision_id))
+        row = await conn.fetchrow(
+            "SELECT selected, retention FROM routing_decisions WHERE decision_id = $1::uuid",
+            decision_id,
+        )
+        assert row is not None
+        assert row["selected"] is None  # SQL NULL, not a JSON null
+        assert json.loads(row["retention"])["reason"] == "incumbent-unresolved"
+    finally:
+        await conn.close()
+
+
+async def test_044_rejects_a_null_selection_without_retention(migrated_database) -> None:
+    dsn, _applied = migrated_database
+    decision_id = str(uuid.uuid4())
+    decision = _routing_decision(decision_id)
+    del decision["retention"]
+
+    conn = await _connect(dsn)
+    try:
+        with pytest.raises(asyncpg.CheckViolationError):
+            await _record(conn, decision, _agentless_link(decision_id))
+    finally:
+        await conn.close()
+
+
+async def test_044_keeps_the_042_selected_decision_path(migrated_database) -> None:
+    """A normal selection (no retention) still records exactly as under 042."""
+    dsn, _applied = migrated_database
+    decision_id = str(uuid.uuid4())
+    selected = {
+        "vendor": "codex",
+        "model": "gpt-5.6-terra",
+        "endpoint_kind": "vendor-cli",
+        "score": 0.8,
+        "assignment": {"agent_id": "codex-local"},
+        "provenance": {
+            "source": "coordinator",
+            "policy_version": "dg04-v1",
+            "policy_checksum": "a" * 64,
+        },
+    }
+    decision = _routing_decision(decision_id, selected=selected)
+    del decision["retention"]
+    link = {
+        **_agentless_link(decision_id),
+        "selected_agent_id": "codex-local",
+        "selected_model": "gpt-5.6-terra",
+    }
+
+    conn = await _connect(dsn)
+    try:
+        await _record(conn, decision, link)
+        row = await conn.fetchrow(
+            "SELECT retention FROM routing_decisions WHERE decision_id = $1::uuid", decision_id
+        )
+        assert row is not None and row["retention"] is None
+    finally:
+        await conn.close()

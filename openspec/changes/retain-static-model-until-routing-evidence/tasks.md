@@ -74,7 +74,7 @@
   **Dependencies**: 4.2
 - [x] 4.4 Add the `incumbent` parameter to the MCP tool and the HTTP proxy. [S]
   **Dependencies**: 4.3
-- [ ] 4.5 Write a failing static test for migration 044: it adds nullable `retention`, drops
+- [x] 4.5 Write a failing static test for migration 044: it adds nullable `retention`, drops
   NOT NULL on `selected` behind the `selected IS NOT NULL OR retention IS NOT NULL` CHECK, and
   replaces `record_routing_decision_with_audit` to insert `retention` with the COALESCE'd
   policy fields. [XS]
@@ -82,17 +82,17 @@
   **Contracts**: contracts/db/schema.sql
   **Design decisions**: D8
   **Dependencies**: 4.2
-- [ ] 4.6 Write `database/migrations/044_routing_decision_retention.sql`. [S]
+- [x] 4.6 Write `database/migrations/044_routing_decision_retention.sql`. [S]
   **Dependencies**: 4.5
-- [ ] 4.7 Write failing `CatalogService.record_decision_and_audit` tests for a null `selected`:
+- [x] 4.7 Write failing `CatalogService.record_decision_and_audit` tests for a null `selected`:
   the audit link has a null agent and model and takes its policy fields from the top-level
   `provenance`. [XS]
   **Spec scenarios**: model-routing.5, model-routing.7
   **Design decisions**: D8
   **Dependencies**: 4.6
-- [ ] 4.8 Handle a null `selected` in `record_decision_and_audit` (`model_routing/catalog.py`). [XS]
+- [x] 4.8 Handle a null `selected` in `record_decision_and_audit` (`model_routing/catalog.py`). [XS]
   **Dependencies**: 4.7
-- [ ] Checkpoint: run `tests/model_routing/` plus the MCP parity tests, and confirm the diff stays inside `model_routing/`, `coordination_mcp.py`, `http_proxy.py`, migration 044 and contracts.
+- [x] Checkpoint: run `tests/model_routing/` plus the MCP parity tests, and confirm the diff stays inside `model_routing/`, `coordination_mcp.py`, `http_proxy.py`, migration 044 and contracts.
 
 ## 5. Client delegation
 
