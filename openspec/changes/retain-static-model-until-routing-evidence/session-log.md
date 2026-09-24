@@ -42,3 +42,46 @@ Plan to make ROUTING_ADAPTIVE safe to enable: the live catalog has no priors/pri
 
 - Gate 1: Approach 1 (server-side incumbent retention) selected without modification.
 - Gate 2: plan approved as committed in bf751e9e; 16 coordinator task issues seeded (label `change:retain-static-model-until-routing-evidence`).
+
+---
+
+## Phase: Implementation (2026-09-24)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Add migration 044 instead of nesting retention in budget_state** `architectural: model-routing` — User choice mid-implementation; structured column plus CHECK makes a null selection representable only with its reason. Additive and safe in either deploy order.
+2. **Proxy and seam omit incumbent when absent** `architectural: model-routing` — A coordinator predating the field forbids unknown request keys even as null; omitting keeps new clients compatible with old servers.
+3. **Retention short-circuits to the static object on the client** `architectural: agent-archetypes` — Retention is a normal outcome, not a fallback; returning `static` preserves identity and avoids a false 'routing failed' warning.
+4. **evidenced flag on ScoredCandidate (not serialized)** `architectural: model-routing` — Exact D1 predicate needs benchmark_prior, which ScoredCandidate lacked; _candidate_payload copies explicit fields so the flag cannot leak.
+
+### Alternatives Considered
+- Nest retention in budget_state JSONB, never persist null selections: rejected because Drops the 'unresolved decision is still persisted' scenario and hides retention in an unrelated field.
+- Run live 044 checks against the shared local Postgres: rejected because Its fixture does not migrate, and migrating it would pin 044's checksum in a shared DB; used the throwaway migrated_database fixture instead.
+
+### Trade-offs
+- Accepted Scenario-level Req IDs in change-context.md over Requirement-level rows only because Matches tasks.md references; generate_contract_refs.py joins on requirement ordinals and both capabilities have one requirement.
+
+### Open Questions
+- [ ] Live smoke (step 6.4) skipped: the compose stack would boot against the shared :54322 Postgres and apply 044 there. validate-feature should run it on an isolated stack.
+- [ ] validate_flows checked 0 entrypoints because the architecture graph is stale (refresh DEGRADED at planning) — flow coverage is unverified, not passing.
+- [ ] Earlier analysis said ties break alphabetically; that is only the assignment path (agent_id/vendor/model). The plain path keeps catalog insertion order. Both ignore the task, which the control test pins.
+
+### Completed Work
+- tasks 1.1-6.1 (20/20)
+- migration 044 verified on a fresh migrated database
+- coordinator suite 2874 passed / 11 skipped; mypy --strict and ruff clean
+
+### Next Steps
+- /validate-feature retain-static-model-until-routing-evidence — isolated-stack smoke, then a live select_model read against coord.rotkohl.ai once deployed (expect retention.reason=no-evidence everywhere)
+- After deploy + 044 applied: ROUTING_ADAPTIVE can be enabled; watch routing_decisions.retention
+
+### Relevant Files
+- `agent-coordinator/src/model_routing/resolver.py` — has_evidence, apply_incumbent_retention
+- `agent-coordinator/src/model_routing/api.py` — select_model retention wiring, seam
+- `agent-coordinator/database/migrations/044_routing_decision_retention.sql` — retention column + audit RPC
+- `agent-coordinator/src/agents_config.py` — incumbent forwarding, static short-circuit
+
+### Context
+Implemented server-side incumbent retention: evidence predicate and retention rule in the resolver, evidenced-only exploration, incumbent/retention on select_model (HTTP, MCP, proxy), and client forwarding that returns the identical static object on retention. Deviation: routing_decisions has fixed columns, so migration 044 (nullable retention, CHECK-guarded nullable selected, updated audit RPC) was added with user approval.
+
