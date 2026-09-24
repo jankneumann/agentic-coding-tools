@@ -132,6 +132,8 @@ packages:
     locks:
       files:
         - "agent-coordinator/src/agents_config.py"
+        - "skills/shared/local_process_backend.py"
+        - "skills/shared/tests/test_local_process_backend.py"
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "skills/parallel-infrastructure/scripts/fact_check.py"
         - "skills/shared/vendor_process_surfaces.py"
@@ -160,6 +162,8 @@ packages:
     scope:
       write_allow:
         - "agent-coordinator/src/agents_config.py"
+        - "skills/shared/local_process_backend.py"
+        - "skills/shared/tests/test_local_process_backend.py"
         - "agent-coordinator/tests/test_agents_config_isolation.py"
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "skills/parallel-infrastructure/scripts/fact_check.py"
