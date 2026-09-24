@@ -71,7 +71,7 @@
   be read, allowed egress succeeds, denied/private/DNS-resolved egress fails, linked-worktree
   runtime discovery works, and one pinned configured vendor executable (`--version`) enters the
   backend. Authenticated per-lane client success remains a rollout precondition.
-- [ ] 5.2 Run the real SRT probe on capable Linux and macOS hosts and persist evidence; incapable
+- [x] 5.2 Run the real SRT probe on capable Linux and macOS hosts and persist evidence; incapable
   hosts must report exact missing prerequisites rather than silently skip. A push/PR-triggered
   `ubuntu-24.04` + `macos-14` matrix must pass for the exact pushed head SHA; after push, download
   and verify the authoritative GitHub run/artifacts without checking in self-referential evidence.
