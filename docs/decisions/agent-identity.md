@@ -7,6 +7,17 @@
 
 ## 2026-09-24 — restructure-openbao-per-agent-secrets
 
+### Phase: Plan
+
+**Project principals from the registry** — A single validated topology and explicit vendor catalog make provisioner, coordinator, and dispatch agree on names and access paths.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D1)
+
+---
+
+## 2026-09-24 — restructure-openbao-per-agent-secrets
+
 ### Phase: Plan Handoff
 
 **Declare vendor credential scope in the registry** — The operator approved explicit vendor_credentials on agent entries instead of inference from policy vendor or CLI configuration.

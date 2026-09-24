@@ -7,12 +7,34 @@
 
 ## 2026-09-24 — restructure-openbao-per-agent-secrets
 
+### Phase: Plan
+
+**Separate internal and principal OpenBao configurations** — The existing coordinator-internal loader keeps its flat secret and dynamic database contracts under renamed internal credentials; agent and vendor access uses typed principal adapters.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D2)
+
+---
+
+## 2026-09-24 — restructure-openbao-per-agent-secrets
+
 ### Phase: Plan Handoff
 
 **Deliver wrapped bootstrap bundles as protected files** — The operator approved one atomically written mode-0600 bundle per principal under an explicit mode-0700 directory, never stdout or git.
 
 - Status: `active`
 - Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D3)
+
+---
+
+## 2026-09-24 — restructure-openbao-per-agent-secrets
+
+### Phase: Plan
+
+**Freeze protected bootstrap and dispatch contracts** — Role-derived bundle, cache, and lock names plus explicit dispatch principal and vendor fields let independent work packages implement one wire contract.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D4)
 
 ---
 

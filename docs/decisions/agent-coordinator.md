@@ -16,6 +16,17 @@
 
 ---
 
+## 2026-09-24 — restructure-openbao-per-agent-secrets
+
+### Phase: Plan
+
+**Use bounded identity snapshot reload** — Install complete snapshots atomically every 30 seconds, allow at most 120 seconds of last-known-good authentication, then deny new keys until recovery.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D3)
+
+---
+
 ## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan

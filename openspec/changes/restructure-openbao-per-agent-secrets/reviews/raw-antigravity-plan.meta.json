@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "vendor": "antigravity",
+  "review_type": "plan",
+  "stdout_path": "raw-antigravity-plan.txt",
+  "byte_length": 20350,
+  "truncated": false,
+  "sha256": "1c81052081ab450431ad54139cc93df8625ff60774b579162f0fc85d8cded394",
+  "repair_attempted": false,
+  "coercions": []
+}

@@ -65,3 +65,47 @@
 ### Context
 Mid-plan handoff requested for a model switch. The dispatch-governance dg-07 implementation is merged and recorded complete. The stale PCA roadmap was reconciled through merged PR 626, making pca-02 the canonical ready item. Discovery defaults are approved and proposal.md is drafted, but Gate 1 approach selection has not yet been answered; do not generate specs, design, tasks, contracts, or work packages until it is.
 
+---
+
+## Phase: Plan (2026-09-24)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Project principals from the registry** `architectural: agent-identity` — A single validated topology and explicit vendor catalog make provisioner, coordinator, and dispatch agree on names and access paths.
+2. **Separate internal and principal OpenBao configurations** `architectural: configuration` — The existing coordinator-internal loader keeps its flat secret and dynamic database contracts under renamed internal credentials; agent and vendor access uses typed principal adapters.
+3. **Use bounded identity snapshot reload** `architectural: agent-coordinator` — Install complete snapshots atomically every 30 seconds, allow at most 120 seconds of last-known-good authentication, then deny new keys until recovery.
+4. **Freeze protected bootstrap and dispatch contracts** `architectural: configuration` — Role-derived bundle, cache, and lock names plus explicit dispatch principal and vendor fields let independent work packages implement one wire contract.
+
+### Alternatives Considered
+- Patch each existing client independently: rejected because Would preserve conflicting path and fallback logic.
+- OpenBao Agent sidecars in this phase: rejected because Would introduce a new supervision dependency outside the approved scope.
+
+### Trade-offs
+- Accepted CLI vendor environment delivery remains until pca-04 over Implementing CLI credential injection in pca-02 because The approved pca-02 boundary covers typed SDK and OpenAI-compatible lookup; pca-04 owns injection.
+- Accepted Serialized implementation work packages over Parallel package execution because Every worker must update the same tasks.md status file in its implementation commit.
+
+### Open Questions
+- [ ] Gate 2 plan approval is pending.
+- [ ] The identity-reader service principal and keyless dispatch wire shape are explicit plan assumptions for Gate 2 review.
+
+### Completed Work
+- Recorded Gate 1 approval of Approach 1.
+- Produced proposal, design, three strict delta specs, eight machine-readable contract files, TDD-ordered tasks, and six work packages.
+- Completed two independent vendor review rounds, resolved actionable findings, and validated all 53 spec scenarios have task references.
+- Strict OpenSpec and package scope validation passed.
+
+### Next Steps
+- After Gate 2 approval, seed coordinator tasks and invoke implement-feature for restructure-openbao-per-agent-secrets.
+- Begin with wp-contracts and wp-projection; do not implement before Gate 2 approval.
+
+### Relevant Files
+- `openspec/changes/restructure-openbao-per-agent-secrets/proposal.md` — Selected approach and scope
+- `openspec/changes/restructure-openbao-per-agent-secrets/design.md` — Architecture decisions
+- `openspec/changes/restructure-openbao-per-agent-secrets/tasks.md` — Implementation sequence
+- `openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml` — Package ownership and verification
+- `openspec/changes/restructure-openbao-per-agent-secrets/reviews/resolution-ledger.md` — Review dispositions
+
+### Context
+Approach 1 was approved at Gate 1. Completed a contract-first plan for registry-derived agent and service OpenBao principals, protected one-use bootstrap, typed credential access, atomic coordinator identity reload, and scoped dispatch; Gate 2 approval remains pending.
+
