@@ -18,7 +18,7 @@ suite, inspect the cumulative diff, and verify package scope.
   Emit `principal_id` and `vendor_credentials` in `get_dispatch_configs()`;
   update the endpoint fixture for keyed and keyless agents.
   **Dependencies**: 1.1.
-- [ ] 1.3 (S) Test typed OpenBao adapter behavior.
+- [x] 1.3 (S) Test typed OpenBao adapter behavior.
   **Spec scenarios**: CFG-01, CFG-03, CFG-04, CFG-05, CFG-06, CFG-07, CFG-16, CFG-17, CFG-20, CFG-23, CFG-24; COORD-07.
   Cover recovery from a fresh wrapped bundle after cached-token revocation or expiry, and reject reuse of the consumed bundle.
   **Contracts**: `contracts/bootstrap-bundle.schema.json`, `contracts/session-cache.schema.json`, `contracts/openbao-event.schema.json`.
