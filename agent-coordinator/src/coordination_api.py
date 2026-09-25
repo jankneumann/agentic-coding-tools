@@ -153,6 +153,11 @@ _vendor_registry: VendorRegistryService | None = None
 _identity_runtime: IdentityRuntime | None = None
 
 
+def get_identity_runtime() -> IdentityRuntime | None:
+    """Expose the installed snapshot for request attribution and health."""
+    return _identity_runtime
+
+
 def get_vendor_registry() -> VendorRegistryService:
     """Return the process-local registry service."""
     global _vendor_registry

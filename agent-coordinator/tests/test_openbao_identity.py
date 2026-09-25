@@ -7,10 +7,15 @@ import json
 import logging
 
 import pytest
-from openbao_credentials import BaoCredentialError, ErrorCode
+from openbao_credentials import ErrorCode
 
 from src.agents_config import AgentEntry
-from src.openbao_identity import IdentityRuntime, build_identity_snapshot, run_reload_loop
+from src.openbao_identity import (
+    IdentityRuntime,
+    IdentitySnapshotError,
+    build_identity_snapshot,
+    run_reload_loop,
+)
 
 
 def _agent(name: str, key: str | None, transport: str = "http") -> AgentEntry:
@@ -48,13 +53,29 @@ def test_complete_snapshot_includes_mcp_and_uses_reader_only() -> None:
     ]
 
 
-@pytest.mark.parametrize("keys", [{"alice": ""}, {"alice": "same", "bob": "same"}])
+@pytest.mark.parametrize("keys", [
+    {"alice": ""}, {"alice": " leading"}, {"alice": "trailing "},
+    {"alice": "same", "bob": "same"},
+])
 def test_incomplete_or_duplicate_snapshot_rejected(keys: dict[str, str]) -> None:
     reader = _Reader(keys)
     agents = [_agent(name, "${KEY}") for name in keys]
-    with pytest.raises(BaoCredentialError) as error:
+    with pytest.raises(IdentitySnapshotError) as error:
         build_identity_snapshot(reader, agents)
     assert error.value.code == ErrorCode.SECRET_MALFORMED
+    assert error.value.affected_principals == tuple(
+        f"spiffe://coordinator.rotkohl.ai/agent/{name}" for name in keys
+    )
+
+
+def test_missing_agent_document_identifies_principal_without_key() -> None:
+    reader = _Reader({})
+    with pytest.raises(IdentitySnapshotError) as error:
+        build_identity_snapshot(reader, [_agent("alice", "${KEY}")])
+    assert error.value.code == ErrorCode.SECRET_NOT_FOUND
+    assert error.value.affected_principals == (
+        "spiffe://coordinator.rotkohl.ai/agent/alice",
+    )
 
 
 def test_failed_candidate_never_replaces_snapshot_and_grace_is_monotonic(
@@ -155,6 +176,39 @@ def test_audit_failure_matches_frozen_event_contract(
     Draft202012Validator(schema).validate(record)
     assert record["error_code"] == "SECRET_MALFORMED"
     assert "alice" not in json.dumps(record)
+
+
+@pytest.mark.parametrize("keys, expected_principals", [
+    ({"alice": "private-key ", "bob": "other-key"}, ["alice"]),
+    ({"alice": "private-key", "bob": "private-key"}, ["alice", "bob"]),
+    ({"alice": "private-key"}, ["bob"]),
+])
+def test_candidate_failure_logs_safe_principals_once_and_one_contract_event(
+    keys: dict[str, str], expected_principals: list[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from jsonschema import Draft202012Validator
+    from openspec_paths import change_dir, repo_root_from
+
+    agents = [_agent("alice", "${KEY}"), _agent("bob", "${KEY}")]
+    reader = _Reader(keys)
+    runtime = IdentityRuntime(lambda: reader, lambda: agents)
+    with caplog.at_level(logging.WARNING):
+        assert runtime.reload() is False
+    diagnostics = [json.loads(line.split("OpenBao identity candidate rejected ", 1)[1])
+                   for line in caplog.messages if "OpenBao identity candidate rejected " in line]
+    assert len(diagnostics) == 1
+    assert diagnostics[0]["principal_ids"] == [
+        f"spiffe://coordinator.rotkohl.ai/agent/{name}" for name in expected_principals
+    ]
+    assert "private-key" not in caplog.text
+    events = [json.loads(line.split("OpenBao identity event ", 1)[1])
+              for line in caplog.messages if "OpenBao identity event " in line]
+    assert len(events) == 1
+    path = change_dir(repo_root_from(__file__, 2), "restructure-openbao-per-agent-secrets")
+    schema = json.loads((path / "contracts/openbao-event.schema.json").read_text())
+    Draft202012Validator(schema).validate(events[0])
+    assert events[0]["event"] == "openbao.identity.refresh_failed"
 
 
 @pytest.mark.asyncio

@@ -18,6 +18,7 @@ from openbao_credentials import (
     ErrorCode,
     OpenBaoClient,
     PrincipalOpenBaoConfig,
+    agent_principal_id,
 )
 
 if TYPE_CHECKING:
@@ -42,18 +43,40 @@ class IdentityReader(Protocol):
     def read_agent_key(self, name: str) -> str: ...
 
 
+class IdentitySnapshotError(BaoCredentialError):
+    """Sanitized candidate failure with safe canonical affected principals."""
+
+    def __init__(self, code: ErrorCode, principals: tuple[str, ...]) -> None:
+        super().__init__(code, "identity")
+        self.affected_principals = principals
+
+
 def build_identity_snapshot(
     reader: IdentityReader, agents: list[AgentEntry]
 ) -> dict[str, dict[str, str]]:
     """Read every keyed agent document; reject incomplete or ambiguous maps."""
     reader.ensure_session(IDENTITY_PRINCIPAL, IDENTITY_ROLE)
     result: dict[str, dict[str, str]] = {}
+    owners: dict[str, str] = {}
     for agent in agents:
         if agent.api_key is None:
             continue
-        key = reader.read_agent_key(agent.name)
-        if not isinstance(key, str) or not key.strip() or key in result:
-            raise BaoCredentialError(ErrorCode.SECRET_MALFORMED, "identity")
+        principal_id = agent_principal_id(agent.name)
+        try:
+            key = reader.read_agent_key(agent.name)
+        except BaoCredentialError as exc:
+            raise IdentitySnapshotError(exc.code, (principal_id,)) from None
+        except KeyError:
+            raise IdentitySnapshotError(ErrorCode.SECRET_NOT_FOUND, (principal_id,)) from None
+        except Exception:  # noqa: BLE001 — backend detail must never escape
+            raise IdentitySnapshotError(ErrorCode.BACKEND_UNAVAILABLE, (principal_id,)) from None
+        if not isinstance(key, str) or not key or key.strip() != key:
+            raise IdentitySnapshotError(ErrorCode.SECRET_MALFORMED, (principal_id,))
+        if key in result:
+            raise IdentitySnapshotError(
+                ErrorCode.SECRET_MALFORMED, (owners[key], principal_id)
+            )
+        owners[key] = principal_id
         result[key] = {"agent_id": agent.name, "agent_type": agent.type}
     return result
 
@@ -149,6 +172,12 @@ class IdentityRuntime:
                 else ErrorCode.CONFIGURATION_INVALID
             )
             self._state = IdentityState(previous.identities, previous.installed_at, True)
+            if isinstance(exc, IdentitySnapshotError):
+                _LOGGER.warning(
+                    "OpenBao identity candidate rejected %s",
+                    json.dumps({"error_code": exc.code.value,
+                                "principal_ids": exc.affected_principals}, sort_keys=True),
+                )
             if self.preflight_blockers:
                 _LOGGER.warning("OpenBao cutover blocked by unbound static entries: %s",
                                 ", ".join(self.preflight_blockers))
