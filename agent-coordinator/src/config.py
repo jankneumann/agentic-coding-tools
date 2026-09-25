@@ -252,8 +252,8 @@ class OpenBaoConfig:
 
     Environment variables:
         BAO_ADDR: OpenBao server URL (e.g., http://localhost:8200)
-        BAO_ROLE_ID: AppRole role ID for authentication
-        BAO_SECRET_ID: AppRole secret ID for authentication
+        BAO_INTERNAL_ROLE_ID: Internal AppRole role ID for authentication
+        BAO_INTERNAL_SECRET_ID: Internal AppRole secret ID for authentication
         BAO_MOUNT_PATH: KV v2 mount path (default: "secret")
         BAO_SECRET_PATH: Secret data path (default: "coordinator")
         BAO_TIMEOUT: Connection timeout in seconds (default: 5)
@@ -272,8 +272,8 @@ class OpenBaoConfig:
     def from_env(cls) -> OpenBaoConfig:
         return cls(
             addr=os.environ.get("BAO_ADDR", ""),
-            role_id=os.environ.get("BAO_ROLE_ID", ""),
-            secret_id=os.environ.get("BAO_SECRET_ID", ""),
+            role_id=os.environ.get("BAO_INTERNAL_ROLE_ID", ""),
+            secret_id=os.environ.get("BAO_INTERNAL_SECRET_ID", ""),
             mount_path=os.environ.get("BAO_MOUNT_PATH", "secret"),
             secret_path=os.environ.get("BAO_SECRET_PATH", "coordinator"),
             timeout=int(os.environ.get("BAO_TIMEOUT", "5")),
@@ -289,17 +289,19 @@ class OpenBaoConfig:
 
         Raises:
             RuntimeError: If OpenBao is not configured (BAO_ADDR not set).
-            ValueError: If BAO_ROLE_ID or BAO_SECRET_ID is missing.
+            ValueError: If BAO_INTERNAL_ROLE_ID or BAO_INTERNAL_SECRET_ID is missing.
             ConnectionError: If the server is unreachable within the timeout.
         """
         if not self.is_enabled():
             raise RuntimeError("OpenBao is not configured")
 
         if not self.role_id:
-            raise ValueError("BAO_ROLE_ID environment variable is required when BAO_ADDR is set")
+            raise ValueError(
+                "BAO_INTERNAL_ROLE_ID environment variable is required when BAO_ADDR is set"
+            )
         if not self.secret_id:
             raise ValueError(
-                "BAO_SECRET_ID environment variable is required when BAO_ADDR is set"
+                "BAO_INTERNAL_SECRET_ID environment variable is required when BAO_ADDR is set"
             )
 
         import hvac
@@ -311,13 +313,11 @@ class OpenBaoConfig:
             # Distinguish connection errors from auth errors
             exc_str = str(exc)
             if "connect" in exc_str.lower() or "timeout" in exc_str.lower():
-                raise ConnectionError(
-                    f"OpenBao unreachable at {self.addr}: {exc}"
-                ) from exc
+                raise ConnectionError(f"OpenBao unreachable at {self.addr}") from None
             raise RuntimeError(
                 f"OpenBao authentication failed at {self.addr} "
-                f"(role_id={self.role_id!r}): {exc}"
-            ) from exc
+                f"(role_id={self.role_id!r})"
+            ) from None
 
         if not client.is_authenticated():
             raise RuntimeError(
