@@ -226,7 +226,9 @@ API_PORT=8081
 # Both are OPTIONAL. When unset, the identity map and the accepted-key allowlist are
 # derived from agents.yaml — the registry is the single source of truth for agent
 # identity and trust (see "Registry-derived identity" below). Setting the vars
-# explicitly still overrides the registry, which is also the rollback lever.
+# explicitly overrides the registry only when BAO_ADDR is unset. In OpenBao
+# mode the Bao identity snapshot is the sole accepted-key allowlist; these
+# values cannot restore or bypass a rotated key.
 COORDINATION_API_KEYS=key1,key2
 COORDINATION_API_KEY_IDENTITIES={"key1": {"agent_id": "agent-1", "agent_type": "codex"}}
 
