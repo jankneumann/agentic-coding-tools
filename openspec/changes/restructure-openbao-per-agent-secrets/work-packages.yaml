@@ -2,7 +2,7 @@ schema_version: 1
 feature:
   id: restructure-openbao-per-agent-secrets
   title: Registry-derived OpenBao principals
-  plan_revision: 8
+  plan_revision: 9
   created_by: codex
   deployable: true
 contracts:
@@ -107,7 +107,7 @@ packages:
   - package_id: wp-seeding
     title: Per-principal provisioning and protected bootstrap
     task_type: backend
-    description: Tasks 2.1-2.4. Migrate the seeder through an explicit source-key map to topology projection, exact policies, wrapped bundles, auditable reconciliation, and explicit legacy cutover.
+    description: Tasks 2.1-2.4. Migrate the seeder and its Makefile entry points through an explicit source-key map to topology projection, exact policies, wrapped bundles, auditable reconciliation, and explicit legacy cutover.
     priority: 3
     depends_on: [wp-projection]
     locks:
@@ -116,7 +116,7 @@ packages:
       ttl_minutes: 120
       reason: Exclusive owner of OpenBao mutation code
     scope:
-      write_allow: ["skills/bao-vault/scripts/bao_seed.py", "skills/bao-vault/scripts/tests/**", "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"]
+      write_allow: ["skills/bao-vault/scripts/bao_seed.py", "skills/bao-vault/scripts/tests/**", "agent-coordinator/Makefile", "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"]
       read_allow: ["**"]
     worktree: {name: pca02-seeding, mode: isolated}
     timeout_minutes: 150
