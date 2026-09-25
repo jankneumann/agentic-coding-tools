@@ -4,7 +4,7 @@ The first pass returned schema-valid findings from Codex, Antigravity, Claude
 Code, and Grok. Pi returned an invalid JSON schema payload; its output was
 excluded from consensus. Reviewers read the plan while it was being revised,
 so several findings refer to an earlier revision. The current plan revision is
-`7` in `work-packages.yaml`.
+`8` in `work-packages.yaml`.
 
 | Finding cluster | Resolution in current plan |
 |---|---|
@@ -29,3 +29,5 @@ At implementation contract freeze, `wp-contracts` found the audit schema permitt
 Projection implementation review found cached-token recovery could not use a newly delivered bundle. Revision 6 adds `bootstrap_token_sha256` to the protected session cache and requires server validity checking plus digest-gated rebootstrap under the lock. It also enforces explicit registry credential declarations; both findings block projection integration until tested.
 
 Revision 7 expands `wp-projection` to the existing `test_agents_config_isolation.py` fixture, whose temporary registry YAML must declare the newly required vendor catalog. Its verification command now runs that test. No production scope changed.
+
+Revision 8 adds `test_setup_cloud.py` to wp-projection scope and verification because its temporary registry fixture must declare the now-required catalog. Three valid vendor implementation reviews also identified wrapping unwrap authentication, periodic-token renewal cadence, and InvalidRequest classification; these are being fixed before projection integration.

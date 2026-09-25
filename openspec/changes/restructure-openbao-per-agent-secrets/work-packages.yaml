@@ -2,7 +2,7 @@ schema_version: 1
 feature:
   id: restructure-openbao-per-agent-secrets
   title: Registry-derived OpenBao principals
-  plan_revision: 7
+  plan_revision: 8
   created_by: codex
   deployable: true
 contracts:
@@ -71,6 +71,7 @@ packages:
         - "agent-coordinator/src/agents_config.py"
         - "agent-coordinator/tests/test_agents_config.py"
         - "agent-coordinator/tests/test_agents_config_isolation.py"
+        - "agent-coordinator/tests/test_setup_cloud.py"
         - "agent-coordinator/tests/test_registry_projection.py"
         - "agent-coordinator/tests/model_routing/test_agent_endpoints.py"
         - "agent-coordinator/pyproject.toml"
@@ -94,7 +95,7 @@ packages:
           evidence: {artifacts: [], result_keys: [projection_tests_passed]}
         - name: Registry projection tests
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_registry_projection.py agent-coordinator/tests/model_routing/test_agent_endpoints.py -q"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_setup_cloud.py agent-coordinator/tests/test_registry_projection.py agent-coordinator/tests/model_routing/test_agent_endpoints.py -q"
           evidence: {artifacts: [], result_keys: [registry_tests_passed]}
         - name: Docker import coverage
           kind: command
