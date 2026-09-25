@@ -16,6 +16,7 @@ dependencies = [
     # Shared seam for calibrated System One (TypeSafe Jev) decisions.
     # Fallback-only for now; no vendor SDK pulled in transitively.
     "system-one-decisions",
+    "openbao-credentials",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +38,7 @@ test = [
 
 [tool.uv.sources]
 system-one-decisions = { path = "../packages/system-one-decisions" }
+openbao-credentials = { path = "../packages/openbao-credentials" }
 
 [tool.uv]
 override-dependencies = [

@@ -12,7 +12,7 @@ suite, inspect the cumulative diff, and verify package scope.
   **Contracts**: `contracts/principal-topology.schema.json`, `contracts/agent-secret.schema.json`, `contracts/vendor-secret.schema.json`.
   **Design decisions**: D1.
   **Dependencies**: `wp-contracts`.
-- [ ] 1.2 (M) Implement canonical registry principal projection.
+- [x] 1.2 (M) Implement canonical registry principal projection.
   Add the top-level `credential_vendors` catalog and per-agent
   `vendor_credentials`; remove `openbao_role_id` overrides from the roster.
   Emit `principal_id` and `vendor_credentials` in `get_dispatch_configs()`;

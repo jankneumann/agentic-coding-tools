@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 from jsonschema import validate
+from openbao_credentials import agent_principal_id, project_principals
 
 from src.isolation_contract import ISOLATION_MODES, IsolationMode, validate_isolation
 from src.profile_loader import _INTERPOLATION_RE, _load_secrets_file, interpolate
@@ -389,6 +390,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["agents"],
     "properties": {
+        "credential_vendors": {
+            "type": "array",
+            "uniqueItems": True,
+            "items": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+        },
         "policies": {
             "type": "object",
             "additionalProperties": {
@@ -431,7 +437,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         "enum": sorted(VALID_ISOLATION_MODES),
                     },
                     "api_key": {"type": "string"},
-                    "openbao_role_id": {"type": "string", "minLength": 1},
+                    "vendor_credentials": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+                    },
                     "endpoint_kind": {
                         "type": "string",
                         "enum": sorted(VALID_ENDPOINT_KINDS),
@@ -625,7 +635,7 @@ class AgentEntry:
     description: str
     isolation: IsolationMode = "none"
     api_key: str | None = None
-    openbao_role_id: str | None = None
+    vendor_credentials: tuple[str, ...] = ()
     endpoint_kind: str | None = None
     base_url: str | None = None
     location: str = "unknown"
@@ -825,6 +835,12 @@ def load_agents_config(
         raise ValueError("Empty agents.yaml file")
 
     validate(instance=raw, schema=AGENTS_SCHEMA)
+    # Validate the cross-entry catalog and names once, before interpolation.
+    # Legacy fixture registries without a catalog have no vendor scopes.
+    project_principals({
+        "credential_vendors": raw.get("credential_vendors", []),
+        "agents": raw["agents"],
+    })
 
     secrets = _load_secrets_file(secrets_path)
     entries: list[AgentEntry] = []
@@ -858,9 +874,8 @@ def load_agents_config(
         resolved_key: str | None = None
         if raw_key:
             resolved_key = interpolate(raw_key, secrets)
-            # Keep unresolved ${VAR} placeholders so that
-            # _resolve_api_key_from_openbao() can extract the variable
-            # name and fetch the secret from OpenBao at runtime.
+            # Preserve unresolved placeholders for static development mode.
+            # Configured Bao identity reload reads the projected per-agent path.
 
         cli_config: CliConfig | None = None
         raw_cli = agent_data.get("cli")
@@ -924,7 +939,7 @@ def load_agents_config(
                 isolation=agent_data.get("isolation", "none"),
                 archetypes=agent_data.get("archetypes", []),
                 api_key=resolved_key,
-                openbao_role_id=agent_data.get("openbao_role_id"),
+                vendor_credentials=tuple(sorted(agent_data.get("vendor_credentials", []))),
                 endpoint_kind=agent_data.get("endpoint_kind"),
                 base_url=agent_data.get("base_url"),
                 location=agent_data.get("location", "unknown"),
@@ -941,57 +956,6 @@ def load_agents_config(
 # ---------------------------------------------------------------------------
 # API key identity generation
 # ---------------------------------------------------------------------------
-
-def _resolve_api_key_from_openbao(agent: AgentEntry) -> str | None:
-    """Resolve an agent's API key from OpenBao using its AppRole.
-
-    When the agent has an ``openbao_role_id`` and OpenBao is enabled,
-    authenticates with the agent's AppRole and reads secrets. Falls back
-    to the coordinator's shared token when no per-agent role is configured.
-    """
-    from src.config import OpenBaoConfig
-
-    bao_config = OpenBaoConfig.from_env()
-    if not bao_config.is_enabled():
-        return None
-
-    if not agent.openbao_role_id:
-        # Use shared coordinator secrets — api_key already resolved from shared pool
-        return agent.api_key
-
-    try:
-        import hvac
-
-        # Authenticate with the agent's own AppRole, not the global coordinator token.
-        # The agent's secret_id is expected in BAO_SECRET_ID (shared bootstrap secret)
-        # while the role_id comes from the per-agent openbao_role_id field.
-        client = hvac.Client(url=bao_config.addr, timeout=bao_config.timeout)
-        client.auth.approle.login(
-            role_id=agent.openbao_role_id,
-            secret_id=bao_config.secret_id,
-        )
-        response = client.secrets.kv.v2.read_secret_version(
-            path=bao_config.secret_path,
-            mount_point=bao_config.mount_path,
-        )
-        data = response.get("data", {}).get("data", {})
-        # Look for agent-specific key pattern or the interpolation source
-        raw_key = agent.api_key
-        if raw_key and _INTERPOLATION_RE.search(raw_key):
-            var_name = _INTERPOLATION_RE.search(raw_key).group(1)  # type: ignore[union-attr]
-            resolved = data.get(var_name)
-            if isinstance(resolved, str) and resolved:
-                return resolved
-        return agent.api_key
-    except Exception:  # noqa: BLE001
-        logger.warning(
-            "Failed to resolve API key from OpenBao for agent '%s' — "
-            "falling back to static resolution",
-            agent.name,
-            exc_info=True,
-        )
-        return agent.api_key
-
 
 class DuplicateApiKeyError(ValueError):
     """Two registry agents resolve to the same API key (design D6).
@@ -1021,8 +985,8 @@ def get_api_key_identities(
     HTTP-proxy fallback makes local agents HTTP principals in practice, so
     ``transport`` is dispatch metadata only and does not gate identity.
 
-    When OpenBao is enabled, attempts to resolve API keys from OpenBao
-    for agents with ``openbao_role_id``. Falls back to static interpolation.
+    In configured Bao mode the identity-reader snapshot owns authentication,
+    so this static map is deliberately empty.
 
     Returns:
         Dict mapping resolved API key values to
@@ -1034,16 +998,12 @@ def get_api_key_identities(
     if agents is None:
         agents = load_agents_config()
 
-    # Check if OpenBao is available for key resolution
-    openbao_enabled = bool(os.environ.get("BAO_ADDR"))
+    if os.environ.get("BAO_ADDR"):
+        return {}
 
     identities: dict[str, dict[str, str]] = {}
     for agent in agents:
         key = agent.api_key
-        if openbao_enabled and agent.openbao_role_id:
-            resolved = _resolve_api_key_from_openbao(agent)
-            if resolved:
-                key = resolved
 
         if not key:
             continue
@@ -1888,7 +1848,8 @@ def get_dispatch_configs(
             "agent_id": entry.name,
             "type": entry.type,
             "transport": entry.transport,
-            "openbao_role_id": entry.openbao_role_id,
+            "principal_id": agent_principal_id(entry.name) if entry.api_key else None,
+            "vendor_credentials": list(entry.vendor_credentials),
             "endpoint_kind": entry.endpoint_kind,
             "base_url": entry.base_url,
             "cli": cli_out,

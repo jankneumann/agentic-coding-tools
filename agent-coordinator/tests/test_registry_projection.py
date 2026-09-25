@@ -749,3 +749,26 @@ class TestInvariantCatchesGhostProfile:
             if r.get("enabled") and str(r["name"]) not in declared
         ]
         assert unclassified == ["evaluator"]
+
+
+def test_openbao_topology_matches_bundled_registry() -> None:
+    """D1: the immutable projection follows the authored credential catalog."""
+    import json
+    from pathlib import Path
+
+    import yaml
+    from jsonschema import Draft202012Validator
+
+    from openbao_credentials import project_principals
+
+    root = Path(__file__).resolve().parents[2]
+    raw = yaml.safe_load((root / "agent-coordinator/agents.yaml").read_text())
+    topology = project_principals(raw)
+    contract = json.loads((
+        root / "openspec/changes/restructure-openbao-per-agent-secrets/contracts"
+        / "principal-topology.schema.json"
+    ).read_text())
+    Draft202012Validator(contract).validate(topology.to_dict())
+    keyed = {agent.name for agent in load_agents_config() if agent.api_key}
+    projected = {p.name for p in topology.principals if p.kind == "agent"}
+    assert keyed == projected
