@@ -38,22 +38,22 @@ suite, inspect the cumulative diff, and verify package scope.
 
 ## 2. Provision and migrate (`wp-seeding`)
 
-- [ ] 2.1 (S) Test explicit migration-map preflight.
+- [x] 2.1 (S) Test explicit migration-map preflight.
   **Spec scenarios**: AI-02, AI-07, AI-09, AI-10; CFG-08, CFG-12, CFG-13, CFG-18.
   Reject migration-map agent keys that disagree with registry `api_key` placeholders.
   **Contracts**: `contracts/principal-topology.schema.json`, `contracts/migration-map.schema.json`.
   **Design decisions**: D1, D3, D6.
   **Dependencies**: 1.2.
-- [ ] 2.2 (M) Implement mapped per-principal provisioning.
+- [x] 2.2 (M) Implement mapped per-principal provisioning.
   **Dependencies**: 2.1, 1.4.
-- [ ] 2.3 (S) Test protected bootstrap delivery.
+- [x] 2.3 (S) Test protected bootstrap delivery.
   **Spec scenarios**: CFG-05, CFG-06, CFG-09, CFG-10, CFG-11, CFG-23.
   **Contracts**: `contracts/bootstrap-bundle.schema.json`, `contracts/openbao-event.schema.json`.
   **Design decisions**: D3.
   **Dependencies**: 1.4.
-- [ ] 2.4 (M) Implement audited bootstrap reconciliation.
+- [x] 2.4 (M) Implement audited bootstrap reconciliation.
   **Dependencies**: 2.2, 2.3.
-- [ ] Checkpoint: run seeder tests, review diff, verify scope.
+- [x] Checkpoint: run seeder tests, review diff, verify scope.
 
 ## 3. Reload coordinator identities (`wp-coordinator`)
 
