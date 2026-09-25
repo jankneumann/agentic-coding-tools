@@ -1,0 +1,148 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "compatibility",
+      "axis": "compatibility",
+      "severity": "critical",
+      "criticality": "high",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/api_key_resolver.py",
+      "line_range": {
+        "start": 9,
+        "end": 14
+      },
+      "existing_code": "from openbao_credentials import (\n    BaoCredentialError,\n    ErrorCode,\n    OpenBaoClient,\n    PrincipalOpenBaoConfig,\n)",
+      "description": "Keyless CLI dispatch now hard-depends on the shared openbao_credentials package. api_key_resolver.py imports it at module top, and review_dispatcher.py additionally runs `from openbao_credentials import BaoCredentialError` unconditionally inside dispatch_and_wait (line 2979), so the import executes even when every reviewer is a CLI vendor and BAO_ADDR is unset. The previous resolver imported hvac lazily inside the Bao branch and degraded gracefully. Every orchestrator skill (autopilot SKILL.md:175, iterate-on-implementation SKILL.md:482/507, parallel-review-plan SKILL.md:250, parallel-infrastructure SKILL.md:103) documents launching the dispatcher with plain `python3`, and the runtime copies under .agents/skills serve non-Claude harnesses with no skills/.venv. In this very worktree the skills venv has neither path dependency installed, so `python3 review_dispatcher.py` in pure CLI mode raises ImportError at dispatch time (the importlib fallback at lines 2940-2951 re-executes the module and propagates the same ImportError). This regresses CFG-02 (non-OpenBao profile remains compatible) and CFG-25 (CLI processes retain their existing contract). Fix: import openbao_credentials lazily inside the configured-Bao branch of resolve() and inside _resolve_dispatch_key's except clause (or catch a locally defined base), so absence of the package only matters when BAO_ADDR is set.",
+      "resolution": "Move the openbao_credentials imports into the BAO_ADDR-configured code path in ApiKeyResolver.resolve and into _resolve_dispatch_key; add a test that dispatch_and_wait with only CLI adapters succeeds when `openbao_credentials` is absent from sys.modules (patch.dict sys.modules with None)."
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "axis": "correctness",
+      "severity": "nit",
+      "criticality": "medium",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2605,
+        "end": 2607
+      },
+      "existing_code": "credential_requests[agent[\"agent_id\"]] = (principal_id, sdk[\"package\"])\nif sdk.get(\"api_key_env\"):\n    credential_envs[(principal_id, sdk[\"package\"])] = sdk[\"api_key_env\"]",
+      "description": "The SDK tier uses the pip package name (`sdk.package`) as the credential vendor id that is authorized against `vendor_credentials` and read at `vendors/<vendor>`. The registry's authorization vocabulary is the `credential_vendors` catalog (anthropic, openai, openrouter, xai). These coincide today only because the two dispatchable SDK agents use packages `anthropic` and `openai`. SdkVendorAdapter already supports `google-generativeai`, and a future xAI SDK agent would declare `vendor_credentials: [xai]` while its package would be `openai` or `xai-sdk`: the lookup would either always be denied, or an xAI request would be authorized under the `openai` scope and read the OpenAI vendor key. D1 states the catalog, not package or CLI fields, defines the vendor vocabulary. Not a blocker for the current registry, but the mapping should be explicit.",
+      "resolution": "Carry an explicit credential vendor id in the dispatch config (e.g. `sdk.credential_vendor`, or derive from the single-element vendor_credentials when unambiguous) rather than reusing the package name; add a test for a package/vendor mismatch being rejected at config load."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "axis": "observability",
+      "severity": "optional",
+      "criticality": "low",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 3114,
+        "end": 3119
+      },
+      "existing_code": "# A keyless local endpoint has no credential to request.\nif (openai_adapter.endpoint_kind == \"local\" and principal_id is None\n    and not self.openai_key_envs.get(reviewer.agent_id)):\n    api_key, lookup_error = None, None\nelse:\n    api_key, lookup_error = _resolve_dispatch_key(principal_id, vendor_id)",
+      "description": "In configured-Bao mode an endpoint agent without a registry `api_key` (null principal) but with an `api_key_env`, or any openrouter agent without a registry key, is sent to `resolve(None, vendor)`, which raises CONFIGURATION_INVALID with category `principal`. Failing closed is correct per D2, but the surfaced error `OpenBao credential lookup failed: CONFIGURATION_INVALID` points the operator at Bao configuration when the actual cause is that the agent has no registry principal. There is no test for the openrouter-without-principal case.",
+      "resolution": "Short-circuit before the resolver when principal_id is None in configured mode and return a distinct AUTH error such as `agent has no registry principal; cannot request vendor credential`, and add a test for an openrouter agent with principal_id None under BAO_ADDR."
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "axis": "architecture",
+      "severity": "optional",
+      "criticality": "low",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/api_key_resolver.py",
+      "line_range": {
+        "start": 16,
+        "end": 16
+      },
+      "existing_code": "_AGENT_ID = re.compile(r\"^spiffe://coordinator\\.rotkohl\\.ai/agent/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)$\")",
+      "description": "The resolver re-derives the Bao role name (`agent-<name>`) from the SPIFFE ID with a private regex and f-string (line 47) instead of using the shared topology's encoding. D1 says name encoding is centralized in the openbao_credentials package. The duplicated rule matches today (same slug pattern as topology._SLUG and adapter._PRINCIPAL) but will drift silently if the role-name encoding ever changes. Acceptable for pca-02 given the resolver only has the principal id, not the registry.",
+      "resolution": "Optionally expose a `role_name_for_principal(principal_id)` helper from openbao_credentials.topology and call it here."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "criticality": "low",
+      "disposition": "escalate",
+      "evidence_class": "judgment",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 2914,
+        "end": 2921
+      },
+      "description": "The main skill-workflow spec still requires `ApiKeyResolver` to attempt OpenBao first using the agent's `openbao_role_id` and to fall back to the environment variable. This change ships deltas only for agent-coordinator, agent-identity, and configuration, so after archive the canonical spec will contradict the implemented `resolve(principal_id, vendor_id)` contract. Outside wp-dispatch's write scope; belongs to wp-integration or an update-specs pass.",
+      "resolution": "Add a skill-workflow delta (or update-specs follow-up) replacing the openbao_role_id resolution requirement with the principal-scoped contract."
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "axis": "security",
+      "severity": "fyi",
+      "criticality": "low",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/api_key_resolver.py",
+      "line_range": {
+        "start": 38,
+        "end": 41
+      },
+      "existing_code": "if not os.environ.get(\"BAO_ADDR\"):\n    env_name = self._env_by_request.get((principal_id, vendor_id), \"\")\n    return os.environ.get(env_name) or None if env_name else None",
+      "description": "In non-Bao mode the resolver never consults `scopes`, so a vendor outside an agent's `vendor_credentials` still resolves from its configured env var. This is consistent with CFG-02 (development path unchanged) and no Bao read occurs, but the class docstring claims authorization happens before any read. Documenting that scope enforcement is configured-mode only would avoid a false sense of enforcement in dev.",
+      "resolution": "Clarify the docstring, or apply the scope check in both modes if the team wants dev parity."
+    },
+    {
+      "id": 7,
+      "type": "style",
+      "axis": "readability",
+      "severity": "optional",
+      "criticality": "low",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2516,
+        "end": 2523
+      },
+      "description": "`credential_envs` is keyed by `(principal_id, vendor_id)`; two keyless SDK agents with the same package but different `api_key_env` collapse to one entry (last wins). Only affects the non-Bao development path and the current registry has no such pair, but keying by agent_id (as `credential_requests` already is) would remove the ambiguity.",
+      "resolution": "Key the env map by agent_id and look the tuple up per reviewer, or document the constraint."
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "axis": "observability",
+      "severity": "fyi",
+      "criticality": "low",
+      "disposition": "escalate",
+      "evidence_class": "judgment",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml",
+      "line_range": {
+        "start": 202,
+        "end": 202
+      },
+      "description": "The worker's claim of 180 passing tests could not be independently reproduced: the sandbox denied the pytest invocation, and this worktree's skills/.venv has neither `openbao_credentials` nor `system_one_decisions` installed under site-packages although both are declared as path dependencies in skills/pyproject.toml and uv.lock. The package verification command as written would fail with ImportError in this worktree until `uv sync` is run in skills/. The orchestrator should re-run the verification step after syncing before accepting the evidence key `dispatch_tests_passed`.",
+      "resolution": "Run `cd skills && uv sync` then the verification command from work-packages.yaml, and record the actual count."
+    }
+  ]
+}
