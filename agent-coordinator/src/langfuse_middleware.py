@@ -97,7 +97,13 @@ class LangfuseTracingMiddleware(BaseHTTPMiddleware):
 
 def _resolve_agent_id(request: Request) -> str:
     """Extract agent identity from the request API key."""
-    api_key = request.headers.get("x-api-key")
+    from .coordination_api import _extract_api_key
+
+    api_key = _extract_api_key(
+        request.headers.get("x-api-key"),
+        request.headers.get("authorization"),
+        request.headers.get("x-coordinator-api-key"),
+    )
     if not api_key:
         return "anonymous"
 
@@ -105,7 +111,15 @@ def _resolve_agent_id(request: Request) -> str:
         from .config import get_config
 
         config = get_config()
-        identity = config.api.api_key_identities.get(api_key, {})
+        if config.openbao.is_enabled():
+            from .coordination_api import get_identity_runtime
+
+            runtime = get_identity_runtime()
+            identity = runtime.lookup(api_key) if runtime is not None else None
+        else:
+            identity = config.api.api_key_identities.get(api_key)
+        if identity is None:
+            return "cloud-agent"
         return identity.get("agent_id", "cloud-agent")
     except Exception:
         return "cloud-agent"
