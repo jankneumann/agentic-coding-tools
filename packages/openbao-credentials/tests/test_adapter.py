@@ -1,5 +1,6 @@
 """D2/D3 adapter contract: exact paths, wrapped bootstrap, and cache reuse."""
 
+import hashlib
 import json
 import os
 from datetime import UTC, datetime, timedelta
@@ -8,7 +9,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from jsonschema import Draft202012Validator
-
 from openbao_credentials import (
     BaoCredentialError,
     ErrorCode,
@@ -29,14 +29,14 @@ def protected_dir(tmp_path: Path) -> Path:
     return root
 
 
-def bundle(root: Path, *, claimed_path: str | None = None) -> None:
+def bundle(root: Path, *, token: str = "wrap-sensitive", claimed_path: str | None = None) -> None:
     payload = {
         "version": 1,
         "principal_id": PID,
         "role_name": ROLE,
         "role_id": "role-id-sensitive",
         "wrapped_secret_id": {
-            "token": "wrap-sensitive",
+            "token": token,
             "creation_path": claimed_path or f"auth/approle/role/{ROLE}/secret-id",
             "creation_time": datetime.now(UTC).isoformat(),
             "ttl_seconds": 120,
@@ -56,6 +56,9 @@ def fake_client() -> MagicMock:
     client.sys.unwrap.return_value = {"data": {"secret_id": "secret-id-sensitive"}}
     client.auth.approle.login.return_value = {
         "auth": {"client_token": "client-sensitive", "renewable": True, "lease_duration": 3600}
+    }
+    client.auth.token.lookup_self.return_value = {
+        "data": {"ttl": 3600, "renewable": True}
     }
     return client
 
@@ -88,6 +91,7 @@ def test_bootstrap_reuses_protected_session_without_second_unwrap(tmp_path: Path
     second = adapter(root, client).ensure_session(PID, ROLE)
     assert first.client_token == second.client_token == "client-sensitive"
     client.sys.unwrap.assert_called_once_with(token="wrap-sensitive")
+    client.auth.token.lookup_self.assert_called_once_with()
     cache = bootstrap_paths(root, ROLE).session
     assert cache.stat().st_mode & 0o777 == 0o600
     assert bootstrap_paths(root, ROLE).lock.stat().st_mode & 0o777 == 0o600
@@ -114,6 +118,7 @@ def test_expired_cache_requires_rebootstrap_not_consumed_bundle(tmp_path: Path) 
         "version": 1, "principal_id": PID, "client_token": "old",
         "renewable": True, "period_seconds": 3600,
         "lease_expires_at": (datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+        "bootstrap_token_sha256": hashlib.sha256(b"wrap-sensitive").hexdigest(),
     }))
     cache.chmod(0o600)
     client = fake_client()
@@ -201,6 +206,7 @@ def test_session_renews_under_lock(tmp_path: Path) -> None:
         "version": 1, "principal_id": PID, "client_token": "old-sensitive",
         "renewable": True, "period_seconds": 3600,
         "lease_expires_at": (datetime.now(UTC) + timedelta(seconds=30)).isoformat(),
+        "bootstrap_token_sha256": hashlib.sha256(b"old-wrap").hexdigest(),
     }))
     cache.chmod(0o600)
     client = fake_client()
@@ -220,3 +226,100 @@ def test_from_env_rejects_malformed_timeout(monkeypatch: pytest.MonkeyPatch, tmp
     with pytest.raises(BaoCredentialError) as failure:
         PrincipalOpenBaoConfig.from_env()
     assert failure.value.code == ErrorCode.CONFIGURATION_INVALID
+
+
+def test_expired_cache_recovers_only_from_fresh_bundle(tmp_path: Path) -> None:
+    root = protected_dir(tmp_path)
+    bundle(root)
+    client = fake_client()
+    typed = adapter(root, client)
+    first = typed.ensure_session(PID, ROLE)
+    cache = bootstrap_paths(root, ROLE).session
+    expired = first.to_dict()
+    expired["lease_expires_at"] = (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
+    cache.write_text(json.dumps(expired))
+    cache.chmod(0o600)
+    bundle(root, token="new-wrap-sensitive")
+    client.sys.unwrap.return_value = {"data": {"secret_id": "new-secret-id"}}
+    client.auth.approle.login.return_value = {
+        "auth": {"client_token": "new-client-sensitive", "renewable": True, "lease_duration": 3600}
+    }
+    client.adapter.post.return_value = {
+        "data": {"creation_path": f"auth/approle/role/{ROLE}/secret-id"}
+    }
+    recovered = typed.ensure_session(PID, ROLE)
+    assert recovered.client_token == "new-client-sensitive"
+    assert recovered.bootstrap_token_sha256 != first.bootstrap_token_sha256
+    assert client.sys.unwrap.call_count == 2
+    assert json.loads(cache.read_text())["bootstrap_token_sha256"] == recovered.bootstrap_token_sha256
+
+
+def test_consumed_bundle_is_rejected_before_unwrap(tmp_path: Path) -> None:
+    root = protected_dir(tmp_path)
+    bundle(root)
+    client = fake_client()
+    typed = adapter(root, client)
+    first = typed.ensure_session(PID, ROLE)
+    cache = bootstrap_paths(root, ROLE).session
+    expired = first.to_dict()
+    expired["lease_expires_at"] = (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
+    cache.write_text(json.dumps(expired))
+    with pytest.raises(BaoCredentialError) as failure:
+        typed.ensure_session(PID, ROLE)
+    assert failure.value.code == ErrorCode.TOKEN_EXPIRED
+    assert client.sys.unwrap.call_count == 1
+
+
+def test_revoked_but_locally_valid_token_requires_fresh_bundle(tmp_path: Path) -> None:
+    import hvac
+
+    root = protected_dir(tmp_path)
+    bundle(root)
+    client = fake_client()
+    typed = adapter(root, client)
+    typed.ensure_session(PID, ROLE)
+    bundle(root, token="replacement-wrap")
+    client.auth.token.lookup_self.side_effect = hvac.exceptions.Unauthorized()
+    client.auth.approle.login.return_value = {
+        "auth": {"client_token": "replacement-client", "renewable": True, "lease_duration": 3600}
+    }
+    recovered = typed.ensure_session(PID, ROLE)
+    assert recovered.client_token == "replacement-client"
+    assert client.sys.unwrap.call_count == 2
+
+
+def test_transport_failure_does_not_consume_new_bundle(tmp_path: Path) -> None:
+    import requests.exceptions
+
+    root = protected_dir(tmp_path)
+    bundle(root)
+    client = fake_client()
+    typed = adapter(root, client)
+    typed.ensure_session(PID, ROLE)
+    bundle(root, token="replacement-wrap")
+    client.auth.token.lookup_self.side_effect = requests.exceptions.Timeout("raw sensitive")
+    with pytest.raises(BaoCredentialError) as failure:
+        typed.ensure_session(PID, ROLE)
+    assert failure.value.code == ErrorCode.TIMEOUT
+    assert "raw sensitive" not in str(failure.value)
+    assert client.sys.unwrap.call_count == 1
+
+
+def test_renewal_timeout_preserves_new_bundle(tmp_path: Path) -> None:
+    import requests.exceptions
+
+    root = protected_dir(tmp_path)
+    bundle(root)
+    client = fake_client()
+    typed = adapter(root, client)
+    first = typed.ensure_session(PID, ROLE)
+    cache = bootstrap_paths(root, ROLE).session
+    near_expiry = first.to_dict()
+    near_expiry["lease_expires_at"] = (datetime.now(UTC) + timedelta(seconds=30)).isoformat()
+    cache.write_text(json.dumps(near_expiry))
+    bundle(root, token="replacement-wrap")
+    client.auth.token.renew_self.side_effect = requests.exceptions.Timeout()
+    with pytest.raises(BaoCredentialError) as failure:
+        typed.ensure_session(PID, ROLE)
+    assert failure.value.code == ErrorCode.TIMEOUT
+    assert client.sys.unwrap.call_count == 1

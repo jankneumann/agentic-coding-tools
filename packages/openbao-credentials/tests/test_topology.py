@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
-
 from openbao_credentials import ProjectionError, project_principals
 
 CONTRACT = (
@@ -51,6 +50,8 @@ def test_projection_validates_schema_and_exact_scopes() -> None:
     lambda r: r["agents"].update({"bad_name": {"api_key": "key"}}),
     lambda r: r["agents"]["local-endpoint"].update(vendor_credentials=["openai"]),
     lambda r: r.update(credential_vendors=["openai", "openai"]),
+    lambda r: r.pop("credential_vendors"),
+    lambda r: r["agents"]["codex-local"].pop("vendor_credentials"),
 ])
 def test_projection_rejects_unsafe_registry(mutation) -> None:
     raw = registry()

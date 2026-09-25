@@ -388,7 +388,7 @@ VALID_CAPABILITIES = {
 
 AGENTS_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["agents"],
+    "required": ["agents", "credential_vendors"],
     "properties": {
         "credential_vendors": {
             "type": "array",
@@ -436,7 +436,7 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         "type": "string",
                         "enum": sorted(VALID_ISOLATION_MODES),
                     },
-                    "api_key": {"type": "string"},
+                    "api_key": {"type": "string", "minLength": 1},
                     "vendor_credentials": {
                         "type": "array",
                         "uniqueItems": True,
@@ -549,6 +549,12 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         "additionalProperties": False,
                     },
                 },
+                "allOf": [
+                    {
+                        "if": {"required": ["api_key"]},
+                        "then": {"required": ["vendor_credentials"]},
+                    },
+                ],
                 "additionalProperties": False,
             },
         },
@@ -836,9 +842,8 @@ def load_agents_config(
 
     validate(instance=raw, schema=AGENTS_SCHEMA)
     # Validate the cross-entry catalog and names once, before interpolation.
-    # Legacy fixture registries without a catalog have no vendor scopes.
     project_principals({
-        "credential_vendors": raw.get("credential_vendors", []),
+        "credential_vendors": raw["credential_vendors"],
         "agents": raw["agents"],
     })
 

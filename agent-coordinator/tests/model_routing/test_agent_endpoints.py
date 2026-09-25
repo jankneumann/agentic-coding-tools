@@ -13,6 +13,7 @@ from src.agents_config import AgentEntry, get_dispatch_configs, load_agents_conf
 def _write_agent(path: Path, *, endpoint_kind: str, base_url: str | None = None) -> None:
     base_url_line = f'    base_url: "{base_url}"\n' if base_url is not None else ""
     path.write_text(
+        "credential_vendors: []\n"
         "agents:\n"
         "  test-agent:\n"
         "    type: codex\n"
