@@ -114,7 +114,7 @@ def _load_secrets_file(secrets_path: Path) -> dict[str, str]:
 def _load_secrets_openbao() -> dict[str, str]:
     """Load secrets from OpenBao KV v2, returning a flat str→str dict.
 
-    Requires ``BAO_ADDR``, ``BAO_ROLE_ID``, and ``BAO_SECRET_ID`` environment
+    Requires ``BAO_ADDR``, ``BAO_INTERNAL_ROLE_ID``, and ``BAO_INTERNAL_SECRET_ID`` environment
     variables to be set.
 
     Raises:
@@ -132,11 +132,11 @@ def _load_secrets_openbao() -> dict[str, str]:
             path=bao_config.secret_path,
             mount_point=bao_config.mount_path,
         )
-    except Exception as exc:
+    except Exception:
         raise RuntimeError(
             f"Failed to read secrets from OpenBao at {bao_config.addr} "
-            f"(mount={bao_config.mount_path!r}, path={bao_config.secret_path!r}): {exc}"
-        ) from exc
+            f"(mount={bao_config.mount_path!r}, path={bao_config.secret_path!r})"
+        ) from None
 
     data = response.get("data", {}).get("data", {})
     if not isinstance(data, dict):

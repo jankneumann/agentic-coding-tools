@@ -79,14 +79,14 @@ suite, inspect the cumulative diff, and verify package scope.
   **Dependencies**: 3.4.
 - [x] 3.6 (S) Wire identity readiness into HTTP authentication.
   **Dependencies**: 3.5.
-- [ ] 3.7 (S) Test isolated coordinator-internal Bao loading.
+- [x] 3.7 (S) Test isolated coordinator-internal Bao loading.
   **Spec scenarios**: CFG-19, CFG-21, CFG-22, CFG-26, CFG-27; CFG-02.
   **Design decisions**: D5.
   **Dependencies**: 1.4.
-- [ ] 3.8 (S) Rename internal Bao credential inputs in `profile_loader.py` and `config.py`;
+- [x] 3.8 (S) Rename internal Bao credential inputs in `profile_loader.py` and `config.py`;
   retain `OpenBaoConfig` methods and update `test_openbao_config.py`.
   **Dependencies**: 3.7.
-- [ ] Checkpoint: run coordinator profile tests, review diff, verify scope.
+- [x] Checkpoint: run coordinator profile tests, review diff, verify scope.
 
 ## 4. Scope dispatch lookup (`wp-dispatch`)
 
