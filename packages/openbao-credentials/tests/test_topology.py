@@ -5,12 +5,10 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from openspec_paths import change_dir, repo_root_from
 from openbao_credentials import ProjectionError, project_principals
 
-CONTRACT = (
-    Path(__file__).resolve().parents[3]
-    / "openspec/changes/restructure-openbao-per-agent-secrets/contracts/principal-topology.schema.json"
-)
+CONTRACT = change_dir(repo_root_from(__file__, 3), "restructure-openbao-per-agent-secrets") / "contracts" / "principal-topology.schema.json"
 
 
 def registry() -> dict:
