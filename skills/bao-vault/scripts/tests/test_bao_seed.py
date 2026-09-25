@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from bao_seed import (
-    _default_config_path, apply_reconciliation, plan_reconciliation,
+    _CHANGE_ID, _default_config_path, _schema_dir, apply_reconciliation, plan_reconciliation,
     seed_approles, seed_db_engine, seed_secrets,
 )
 
@@ -24,6 +24,16 @@ def test_portable_config_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     configured = tmp_path / "config" / "agents.yaml"
     monkeypatch.setenv("AGENTS_YAML", str(configured))
     assert _default_config_path("AGENTS_YAML", "agents.yaml") == configured
+
+
+def test_schema_lookup_survives_change_archival(tmp_path: Path) -> None:
+    changes = tmp_path / "openspec" / "changes"
+    archived = changes / "archive" / f"2026-09-25-{_CHANGE_ID}" / "contracts"
+    archived.mkdir(parents=True)
+    assert _schema_dir(tmp_path) == archived
+    active = changes / _CHANGE_ID / "contracts"
+    active.mkdir(parents=True)
+    assert _schema_dir(tmp_path) == active
 
 
 def _write(path: Path, content: str) -> None:

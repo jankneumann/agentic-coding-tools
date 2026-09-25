@@ -1,24 +1,15 @@
 #!/usr/bin/env python3
-"""Bootstrap seeding script for OpenBao.
-
-Reads `.secrets.yaml` and `agents.yaml`, then populates OpenBao with:
-- KV v2 secrets from `.secrets.yaml`
-- AppRoles from `agents.yaml` (every agent declaring an `api_key`)
-- Database secrets engine configuration (with --with-db-engine)
+"""Reconcile per-principal OpenBao credentials from an explicit migration map.
 
 Usage:
-    BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token python bao-seed.py
-    BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token python bao-seed.py --dry-run
-    BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token python bao-seed.py --with-db-engine
+    python bao_seed.py --migration-map migration.yaml --bootstrap-dir /secure/bao --dry-run
+    BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token python bao_seed.py --migration-map migration.yaml --bootstrap-dir /secure/bao
 
-Environment variables:
-    BAO_ADDR: OpenBao server URL (required)
-    BAO_TOKEN: Root/admin token for seeding (required)
-    BAO_MOUNT_PATH: KV v2 mount path (default: "secret")
-    BAO_SECRET_PATH: Secret data path (default: "coordinator")
-    BAO_TOKEN_TTL: Token TTL for AppRoles in seconds (default: 3600)
-    BAO_SECRETS_FILE: Path to the secrets YAML (default: ./.secrets.yaml)
-    AGENTS_YAML: Path to agents.yaml (default: ./agents.yaml)
+Inputs can also be selected with --secrets-path and --agents-path. BAO_MOUNT_PATH
+defaults to "secret". BAO_BOOTSTRAP_DIR can replace --bootstrap-dir. Apply requires
+BAO_ADDR and BAO_TOKEN; a dry-run does not connect to OpenBao. Cutover additionally
+requires --confirm-cutover, --internal-role-name, BAO_INTERNAL_ROLE_ID, and
+BAO_INTERNAL_SECRET_ID.
 """
 
 from __future__ import annotations
@@ -43,7 +34,7 @@ from openbao_credentials import PrincipalTopology, bootstrap_paths, project_prin
 
 logger = logging.getLogger(__name__)
 
-_SCHEMA_DIR = Path(__file__).resolve().parents[3] / "openspec/changes/restructure-openbao-per-agent-secrets/contracts"
+_CHANGE_ID = "restructure-openbao-per-agent-secrets"
 _SOURCE = re.compile(r"^[A-Z][A-Z0-9_]*$")
 _ROLE = re.compile(r"^(agent|service)-[a-z][a-z0-9-]*$")
 _PLACEHOLDER = re.compile(r"^\$\{([A-Z][A-Z0-9_]*)\}$")
@@ -88,8 +79,21 @@ def _read_mapping(path: Path) -> dict[str, Any]:
     return data
 
 
+def _schema_dir(repo_root: Path | None = None) -> Path:
+    """Find this change's contracts before or after OpenSpec archival."""
+    root = repo_root or Path(__file__).resolve().parents[3]
+    changes = root / "openspec" / "changes"
+    active = changes / _CHANGE_ID / "contracts"
+    if active.is_dir():
+        return active
+    archived = sorted((changes / "archive").glob(f"*-{_CHANGE_ID}/contracts"), reverse=True)
+    if archived:
+        return archived[0]
+    raise FileNotFoundError(f"OpenBao contracts for {_CHANGE_ID} were not found")
+
+
 def _validate_schema(data: dict[str, Any], name: str) -> None:
-    schema = json.loads((_SCHEMA_DIR / name).read_text(encoding="utf-8"))
+    schema = json.loads((_schema_dir() / name).read_text(encoding="utf-8"))
     errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(data))
     if errors:
         raise ValueError(f"{name}: {errors[0].message}")
