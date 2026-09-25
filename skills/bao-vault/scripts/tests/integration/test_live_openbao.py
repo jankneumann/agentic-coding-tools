@@ -252,31 +252,36 @@ def test_coordinator_live_snapshot_rotation_and_readiness(live) -> None:
         root.secrets.kv.v2.create_or_update_secret(path="agents/bob", secret={"api_key": "bob-secret"}, mount_point="secret")
 
 
-def test_periodic_token_renews_past_original_lease(live) -> None:
+def test_periodic_token_renews_past_auth_mount_max_ttl(live) -> None:
     root, directory, _ = live
     role_name = "agent-renewal"
     principal_id = "spiffe://coordinator.rotkohl.ai/agent/renewal"
-    root.auth.approle.create_or_update_approle(
-        role_name=role_name, token_policies=["agent-alice"],
-        token_period="4s", token_max_ttl="0s", secret_id_num_uses=1,
-    )
-    role_id = root.auth.approle.read_role_id(role_name=role_name)["data"]["role_id"]
-    wrap = root.auth.approle.generate_secret_id(role_name=role_name, wrap_ttl="300s")["wrap_info"]
-    bundle = {"version": 1, "principal_id": principal_id, "role_name": role_name,
-              "role_id": role_id, "wrapped_secret_id": {
-                  "token": wrap["token"], "creation_path": wrap["creation_path"],
-                  "creation_time": wrap["creation_time"], "ttl_seconds": wrap["ttl"]}}
-    path = bootstrap_paths(directory, role_name).bundle
-    path.write_text(json.dumps(bundle), encoding="utf-8")
-    path.chmod(0o600)
-    reader = _reader(live, role_name)
-    initial = reader.ensure_session(principal_id, role_name)
-    assert initial.period_seconds == 4
-    time.sleep(2.2)
-    renewed = _reader(live, role_name).ensure_session(principal_id, role_name)
-    assert renewed.client_token == initial.client_token
-    assert renewed.lease_expires_at > initial.lease_expires_at
-    time.sleep(2.2)
-    after_original_lease = _reader(live, role_name)
-    assert after_original_lease.ensure_session(principal_id, role_name).client_token == initial.client_token
-    assert after_original_lease.read_agent_key("alice") == "alice-secret"
+    prior_max_ttl = root.sys.read_auth_method_tuning(path="approle")["data"]["max_lease_ttl"]
+    root.sys.tune_auth_method(path="approle", max_lease_ttl="5s")
+    try:
+        root.auth.approle.create_or_update_approle(
+            role_name=role_name, token_policies=["agent-alice"],
+            token_period="4s", token_max_ttl="0s", secret_id_num_uses=1,
+        )
+        role_id = root.auth.approle.read_role_id(role_name=role_name)["data"]["role_id"]
+        wrap = root.auth.approle.generate_secret_id(role_name=role_name, wrap_ttl="300s")["wrap_info"]
+        bundle = {"version": 1, "principal_id": principal_id, "role_name": role_name,
+                  "role_id": role_id, "wrapped_secret_id": {
+                      "token": wrap["token"], "creation_path": wrap["creation_path"],
+                      "creation_time": wrap["creation_time"], "ttl_seconds": wrap["ttl"]}}
+        path = bootstrap_paths(directory, role_name).bundle
+        path.write_text(json.dumps(bundle), encoding="utf-8")
+        path.chmod(0o600)
+        reader = _reader(live, role_name)
+        initial = reader.ensure_session(principal_id, role_name)
+        assert initial.period_seconds == 4
+        for _ in range(3):
+            time.sleep(2.0)
+            renewed = _reader(live, role_name).ensure_session(principal_id, role_name)
+            assert renewed.client_token == initial.client_token
+            assert renewed.lease_expires_at > initial.lease_expires_at
+        after_mount_max = _reader(live, role_name)
+        after_mount_max.ensure_session(principal_id, role_name)
+        assert after_mount_max.read_agent_key("alice") == "alice-secret"
+    finally:
+        root.sys.tune_auth_method(path="approle", max_lease_ttl=f"{prior_max_ttl}s")
