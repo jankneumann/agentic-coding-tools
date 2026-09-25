@@ -1,0 +1,241 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 163,
+        "end": 163
+      },
+      "existing_code": "if len(set(aliases.values())) != len(aliases) or any(not _ROLE.fullmatch(alias) for alias in aliases.values()):",
+      "description": "`legacy_role_aliases` values are validated against `_ROLE` (line 39, `^(agent|service)-[a-z][a-z0-9-]*$`), but migration-map.schema.json declares them as `^[a-z][a-z0-9-]*$`, and the pre-migration seeder created AppRoles named by bare agent name (e.g. `codex-cloud`). Any real legacy alias fails preflight with 'invalid or colliding legacy role alias'. Because the cutover guard (lines 279-285) refuses when any AppRole outside `owned_retirements` still carries `coordinator-read`, an operator can never confirm cutover on a deployment that has the old roles without deleting them by hand outside the audited path. No unit test and no live smoke exercises aliases.",
+      "resolution": "Validate aliases with the schema's slug pattern and add a test where a bare-name legacy alias is retired during cutover."
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "resilience",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 37,
+        "end": 37
+      },
+      "existing_code": "_SCHEMA_DIR = Path(__file__).resolve().parents[3] / \"openspec/changes/restructure-openbao-per-agent-secrets/contracts\"",
+      "description": "Runtime schema validation (every plan, audit event, and bundle) reads schemas from the literal `openspec/changes/<change-id>/contracts` directory. Archival moves it to `openspec/changes/archive/<date>-<id>/`, so `make bao-seed` and every apply will raise FileNotFoundError once the change lands. `parents[3]` is also wrong for the `install.sh` runtime copies under `.claude/skills/`. AGENTS.md forbids pinning this path even in tests.",
+      "resolution": "Ship the schemas as package data in `openbao-credentials` or resolve via change_dir()-style discovery; add a test that validation works with the change directory absent."
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "compatibility",
+      "disposition": "escalate",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/Makefile",
+      "line_range": {
+        "start": 97,
+        "end": 105
+      },
+      "existing_code": "$(MAKE) bao-seed",
+      "description": "The rewritten seeder never writes `retained_internal` keys anywhere. The previous seeder populated `secret/coordinator` from `.secrets.yaml`, and the dev server from `make bao-dev` is ephemeral, so nothing now seeds the internal document that `_load_secrets()`, `langfuse_env.sh`, and `_verify_internal_handoff` (reads `coordinator` with raise_on_deleted_version) depend on. In a fresh dev environment cutover cannot be verified and internal Bao interpolation silently disappears from the dev workflow. D3/D5 are ambiguous on whether 'retained for internal use' means written or merely left alone; needs a plan-owner decision.",
+      "resolution": "Either write retained_internal keys to `<mount>/coordinator` or document a separate internal-seeding step for bao-dev; record the choice in the choices ledger."
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 339,
+        "end": 354
+      },
+      "existing_code": "mutate(\"openbao.principal.retired\", \"retire\", internal_id, \"policy\", lambda: client.sys.delete_policy(name=\"coordinator-read\"))",
+      "description": "Within one --confirm-cutover invocation the seeder re-points the internal AppRole, proves a fresh login works, and immediately deletes `coordinator-read`. Tokens already issued to a running coordinator or langfuse helper still carry the old policy name, so deleting it strips their read capability until re-login. D6 orders 'cut over consumers, observe reload, then retire'; collapsing install-and-retire into one step removes that window.",
+      "resolution": "Gate `coordinator-read` deletion behind a second explicit step or document that cutover requires internal-loader restart in the same window."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "correctness",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/tests/test_bao_seed.py",
+      "line_range": {
+        "start": 117,
+        "end": 153
+      },
+      "existing_code": "monkeypatch.setattr(\"bao_seed._verify_internal_handoff\", lambda *args: None)",
+      "description": "No test exercises `legacy_role_aliases` (preflight, preview, or retirement), which is why finding 1 escaped. The only cutover test stubs `_verify_internal_handoff`, so the 'internal policy proven before shared policy deletion' ordering is asserted only by mock-call index.",
+      "resolution": "Add a cutover test with a bare-name legacy alias, and one leaving `_verify_internal_handoff` live with a mocked hvac.Client to assert it runs between the internal role update and delete_policy."
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 339,
+        "end": 339
+      },
+      "existing_code": "internal_policy = f'path \"{plan.topology.mount}/data/coordinator\" {{\\n  capabilities = [\"read\"]\\n}}\\n'",
+      "description": "Internal-only policy and handoff read hardcode `coordinator`, while the internal loader (D5, OpenBaoConfig) still honors `BAO_SECRET_PATH` and the previous seeder derived its policy from it. A non-default BAO_SECRET_PATH deployment gets a policy for the wrong path and a handoff that can never pass. Fails closed, so not a blocker.",
+      "resolution": "Read BAO_SECRET_PATH (default coordinator) for both the policy path and the handoff read, validated by the mount segment regex."
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "security",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 95,
+        "end": 99
+      },
+      "existing_code": "raise ValueError(f\"{name}: {errors[0].message}\")",
+      "description": "`_validate_schema` embeds the first jsonschema error message. For bootstrap-bundle validation jsonschema quotes the offending instance value on type/minLength failures, so a malformed server response (non-string token or role_id) would put x-sensitive material into the traceback main() lets reach stderr.",
+      "resolution": "For the bundle report only json_path/validator, not error.message."
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 313,
+        "end": 315
+      },
+      "existing_code": "token_num_uses=0, secret_id_num_uses=1))",
+      "description": "Principal roles set secret_id_num_uses=1 but no secret_id_ttl. Every apply issues a fresh wrapped SecretID and overwrites the previous bundle; an unconsumed prior SecretID stays valid server-side indefinitely after its 300s wrapping token expires, accumulating across re-seeds.",
+      "resolution": "Set secret_id_ttl to a small multiple of the wrap TTL."
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 355,
+        "end": 357
+      },
+      "existing_code": "_atomic_json(plan.bootstrap_dir / \"managed-state.json\", {\"version\": 1, \"agents\": owned})",
+      "description": "Managed state is written only after all mutations succeed. If apply fails after creating roles/policies/paths for newly keyed agents, those resources exist in Bao but are unrecorded, so a later registry removal never retires them.",
+      "resolution": "Record ownership before mutation and drop retired names only after deletion succeeds."
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 262,
+        "end": 262
+      },
+      "existing_code": "if not isinstance(mount, dict) or mount.get(\"type\") != \"kv\" or mount.get(\"options\", {}).get(\"version\") != \"2\":",
+      "description": "OpenBao reports `options: null` for KV-v1 and several non-KV mounts; `mount.get('options', {})` returns None in that case, so preflight raises AttributeError instead of the intended 'configured mount is not KV-v2' ValueError (CFG-16).",
+      "resolution": "Use `(mount.get('options') or {}).get('version')`."
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "compatibility",
+      "disposition": "escalate",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 390,
+        "end": 570
+      },
+      "existing_code": "def seed_db_engine(",
+      "description": "seed_secrets/seed_approles/seed_db_engine are unreachable from the CLI but remain (still tested), and --with-db-engine is gone. The module docstring (lines 1-22), skills/bao-vault/SKILL.md, docs/openbao-secret-management.md, and .secrets.yaml.example still document the removed invocation, and the main agent-identity spec still names `bao-seed.py --with-db-engine` as the database-engine provisioning path, which the delta does not modify. Docs/SKILL.md are outside this package's write scope.",
+      "resolution": "Delete dead functions and tests (or keep a separate db-engine subcommand), fix the docstring in scope, route doc/spec updates to wp-integration."
+    },
+    {
+      "id": 12,
+      "type": "style",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/Makefile",
+      "line_range": {
+        "start": 87,
+        "end": 97
+      },
+      "existing_code": "bao-dev: ## Start OpenBao dev server and reconcile from an explicit migration map",
+      "description": "bao-dev starts the container and waits up to 15s before delegating to bao-seed, where the required-variable check lives; plain `make bao-dev` leaves a running empty OpenBao and then errors.",
+      "resolution": "Move the two `test -n` guards to a shared prerequisite target so bao-dev fails fast."
+    },
+    {
+      "id": 13,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "observability",
+      "disposition": "accept",
+      "package_id": "wp-seeding",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 300,
+        "end": 303
+      },
+      "existing_code": "lambda: client.sys.enable_auth_method(\"approle\"))",
+      "description": "Enabling the AppRole auth method is audited as openbao.principal.created for the identity-reader with resource `role`, misattributing a mount-level mutation to one principal. The event schema has no mount resource, so this is a contract limitation, not a code error.",
+      "resolution": "Accept; consider a `mount` resource value in a future contract revision."
+    }
+  ]
+}
