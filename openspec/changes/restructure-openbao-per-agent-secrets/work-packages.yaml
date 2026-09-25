@@ -2,7 +2,7 @@ schema_version: 1
 feature:
   id: restructure-openbao-per-agent-secrets
   title: Registry-derived OpenBao principals
-  plan_revision: 9
+  plan_revision: 10
   created_by: codex
   deployable: true
 contracts:
@@ -134,7 +134,7 @@ packages:
   - package_id: wp-coordinator
     title: Atomic coordinator identity reload
     task_type: backend
-    description: Tasks 3.1-3.8. Consume the identity-reader adapter; implement one atomic accepted-key snapshot, bounded grace, readiness, sanitized audit, and isolated internal profile loading.
+    description: Tasks 3.1-3.8. Consume the identity-reader adapter; implement one atomic accepted-key snapshot, bounded grace, readiness, sanitized audit, snapshot-backed Langfuse attribution, and isolated internal profile loading.
     priority: 3
     depends_on: [wp-seeding]
     locks:
@@ -149,11 +149,13 @@ packages:
         - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/src/openbao_identity.py"
         - "agent-coordinator/src/profile_loader.py"
+        - "agent-coordinator/src/langfuse_middleware.py"
         - "agent-coordinator/tests/test_openbao_config.py"
         - "agent-coordinator/tests/test_coordination_api.py"
         - "agent-coordinator/tests/test_openbao_identity.py"
         - "agent-coordinator/tests/test_agents_config.py"
         - "agent-coordinator/tests/test_profile_loader.py"
+        - "agent-coordinator/tests/test_langfuse_middleware.py"
         - "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
       read_allow: ["**"]
     worktree: {name: pca02-coordinator, mode: isolated}

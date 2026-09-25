@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "feature_id": "restructure-openbao-per-agent-secrets",
+  "package_id": "wp-coordinator",
+  "plan_revision": 10,
+  "contracts_revision": 6,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "agent-coordinator/src/coordination_api.py",
+      "agent-coordinator/src/config.py"
+    ],
+    "keys": [
+      "api:GET /ready",
+      "feature:pca02:identity"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "agent-coordinator/src/config.py",
+      "agent-coordinator/src/agents_config.py",
+      "agent-coordinator/src/coordination_api.py",
+      "agent-coordinator/src/openbao_identity.py",
+      "agent-coordinator/src/profile_loader.py",
+      "agent-coordinator/tests/test_openbao_config.py",
+      "agent-coordinator/tests/test_coordination_api.py",
+      "agent-coordinator/tests/test_openbao_identity.py",
+      "agent-coordinator/tests/test_agents_config.py",
+      "agent-coordinator/tests/test_profile_loader.py",
+      "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": []
+  },
+  "files_modified": [
+    "agent-coordinator/src/config.py",
+    "agent-coordinator/src/coordination_api.py",
+    "agent-coordinator/src/openbao_identity.py",
+    "agent-coordinator/src/profile_loader.py",
+    "agent-coordinator/tests/test_agents_config.py",
+    "agent-coordinator/tests/test_coordination_api.py",
+    "agent-coordinator/tests/test_openbao_config.py",
+    "agent-coordinator/tests/test_openbao_identity.py",
+    "agent-coordinator/tests/test_profile_loader.py",
+    "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "cdaef0ad"
+    },
+    "head": {
+      "commit": "f1cd473b",
+      "branch": "openspec/restructure-openbao-per-agent-secrets--wp-coordinator",
+      "worktree": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets--wp-coordinator"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Coordinator identity and API tests",
+        "kind": "command",
+        "command": "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_openbao_config.py agent-coordinator/tests/test_openbao_identity.py agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_profile_loader.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "test_count": 223
+          }
+        }
+      },
+      {
+        "name": "Strict OpenSpec",
+        "kind": "command",
+        "command": "openspec validate restructure-openbao-per-agent-secrets --strict",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {}
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "Focused package tests 223 passed. Full coordinator suite has 32 Cedar/differential policy failures; parent baseline reproduces the exact same 32 (parent 2872 passed, worker 2884 passed, 43 skipped). Independent review and vendor review pending. context_impact declaration is unmigrated."
+}
