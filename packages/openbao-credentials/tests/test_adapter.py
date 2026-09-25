@@ -90,7 +90,7 @@ def test_bootstrap_reuses_protected_session_without_second_unwrap(tmp_path: Path
     first = adapter(root, client).ensure_session(PID, ROLE)
     second = adapter(root, client).ensure_session(PID, ROLE)
     assert first.client_token == second.client_token == "client-sensitive"
-    client.sys.unwrap.assert_called_once_with(token="wrap-sensitive")
+    client.sys.unwrap.assert_called_once_with()
     client.auth.token.lookup_self.assert_called_once_with()
     cache = bootstrap_paths(root, ROLE).session
     assert cache.stat().st_mode & 0o777 == 0o600
@@ -137,7 +137,7 @@ def test_kv_v2_reads_only_single_api_key_payload(tmp_path: Path) -> None:
     assert typed.read_api_key("vendors/openai") == "key-sensitive"
     assert "key-sensitive" not in repr(typed.read_vendor_secret("openai"))
     client.secrets.kv.v2.read_secret_version.assert_called_with(
-        path="vendors/openai", mount_point="secret"
+        path="vendors/openai", mount_point="secret", raise_on_deleted_version=True
     )
     client.secrets.kv.v2.read_secret_version.return_value = {
         "data": {"data": {"api_key": "key-sensitive", "extra": "bad"}}
@@ -213,6 +213,7 @@ def test_session_renews_under_lock(tmp_path: Path) -> None:
     client.auth.token.renew_self.return_value = {
         "auth": {"client_token": "renewed-sensitive", "renewable": True, "lease_duration": 3600}
     }
+    client.auth.token.lookup_self.return_value = {"data": {"ttl": 30, "renewable": True}}
     session = adapter(root, client).ensure_session(PID, ROLE)
     assert session.client_token == "renewed-sensitive"
     assert json.loads(cache.read_text())["client_token"] == "renewed-sensitive"
@@ -305,8 +306,8 @@ def test_recovery_clears_revoked_client_token_before_wrapping_calls(tmp_path: Pa
         return {"data": {"creation_path": f"auth/approle/role/{ROLE}/secret-id"}}
 
     def unwrap(*args, **kwargs):
-        assert client.token is None
-        assert kwargs == {"token": "replacement-wrap"}
+        assert client.token == "replacement-wrap"
+        assert args == () and kwargs == {}
         return {"data": {"secret_id": "replacement-secret-id"}}
 
     client.adapter.post.side_effect = lookup
@@ -347,7 +348,52 @@ def test_renewal_timeout_preserves_new_bundle(tmp_path: Path) -> None:
     cache.write_text(json.dumps(near_expiry))
     bundle(root, token="replacement-wrap")
     client.auth.token.renew_self.side_effect = requests.exceptions.Timeout()
+    client.auth.token.lookup_self.return_value = {"data": {"ttl": 30, "renewable": True}}
     with pytest.raises(BaoCredentialError) as failure:
         typed.ensure_session(PID, ROLE)
     assert failure.value.code == ErrorCode.TIMEOUT
     assert client.sys.unwrap.call_count == 1
+
+
+def test_server_ttl_renews_at_half_period_on_ten_minute_cadence(tmp_path: Path) -> None:
+    root = protected_dir(tmp_path)
+    bundle(root)
+    client = fake_client()
+    typed = adapter(root, client)
+    typed.ensure_session(PID, ROLE)
+    client.auth.token.renew_self.return_value = {
+        "auth": {"client_token": "client-sensitive", "renewable": True, "lease_duration": 3600}
+    }
+    for ttl in (3000, 2400, 1800):
+        client.auth.token.lookup_self.return_value = {
+            "data": {"ttl": ttl, "renewable": True}
+        }
+        typed.ensure_session(PID, ROLE)
+    client.auth.token.renew_self.assert_called_once_with()
+    client.sys.unwrap.assert_called_once_with()
+
+
+@pytest.mark.parametrize("stage, expected", [
+    ("lookup", ErrorCode.BOOTSTRAP_INVALID),
+    ("unwrap", ErrorCode.BOOTSTRAP_INVALID),
+    ("login", ErrorCode.AUTHENTICATION_FAILED),
+])
+def test_invalid_request_is_classified_by_bootstrap_stage(
+    tmp_path: Path, stage: str, expected: ErrorCode
+) -> None:
+    import hvac
+
+    root = protected_dir(tmp_path)
+    bundle(root)
+    client = fake_client()
+    error = hvac.exceptions.InvalidRequest("raw backend detail")
+    if stage == "lookup":
+        client.adapter.post.side_effect = error
+    elif stage == "unwrap":
+        client.sys.unwrap.side_effect = error
+    else:
+        client.auth.approle.login.side_effect = error
+    with pytest.raises(BaoCredentialError) as failure:
+        adapter(root, client).ensure_session(PID, ROLE)
+    assert failure.value.code == expected
+    assert "raw backend detail" not in str(failure.value)

@@ -48,6 +48,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test-openbao-credentials:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: packages/openbao-credentials
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Test shared OpenBao credentials package
+        run: uv run pytest tests -q
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
