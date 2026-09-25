@@ -1,0 +1,371 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "wp-seeding",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 13,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 9,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: `plan_reconciliation()` validates `legacy_role_aliases` values using `_ROLE` (`^(agent|service)-[a-z][a-z0-9-]*$`), rejecting authentic pre-migration AppRole names (such as `claude-web` or `codex-cloud`) that lack the newly introduced `agent-`/`service-` prefix. This violates `contracts/migration-map.schema.json`, which defines `slugMapping` as `^[a-z][a-z0-9-]*$`. Furthermore, if an alias were prefixed with `agent-`, line 161 would immediately reject it as a collision with projected roles. As a result, any valid migration map defining legacy aliases for cutover deterministically fails preflight with `ValueError: invalid or colliding legacy role alias`, blocking cutover of existing un-prefixed roles.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: schema loading hard-codes `openspec/changes/restructure-openbao-per-agent-secrets/contracts`. OpenSpec archival moves that tree under `openspec/changes/archive/<date>-restructure-openbao-per-agent-secrets/`, so every apply/preflight that validates migration maps, topologies, bundles, or audit events fails the day the change is archived rather than when the contract drifts.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 3,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 3
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Nit: `make bao-seed` hardcodes invocation flags and does not accept or forward optional cutover flags (such as `BAO_SEED_FLAGS`), preventing operators from executing `--confirm-cutover` and `--internal-role-name` via Makefile entry points.",
+      "eligible_vendors": 3,
+      "vendor_dispositions": {
+        "antigravity": "fix",
+        "claude_code": "escalate",
+        "grok": "escalate"
+      }
+    },
+    {
+      "id": 4,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 7
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "none: Migration map preflight completeness enforces strict bijection across flat secrets, exact registry `${VAR}` placeholders without fallback expressions, keyed agents, and catalog vendors. Every source key is accounted for exactly once or designated as retained internal. Dry-run previews and audit emissions leak no secrets, tokens, or hashes.",
+      "eligible_vendors": 3,
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "grok": "accept",
+        "claude_code": "fix"
+      }
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Runtime schema validation (every plan, audit event, and bundle) reads schemas from the literal `openspec/changes/<change-id>/contracts` directory. Archival moves it to `openspec/changes/archive/<date>-<id>/`, so `make bao-seed` and every apply will raise FileNotFoundError once the change lands. `parents[3]` is also wrong for the `install.sh` runtime copies under `.claude/skills/`. AGENTS.md forbids pinning this path even in tests.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: Cutover policy creation (`coordinator-internal-read`), internal AppRole update (`internal_role_name`), and shared policy retirement (`coordinator-read`) audit mutations using `internal_id = \"spiffe://coordinator.rotkohl.ai/service/identity-reader\"`. AI-11 explicitly forbids `service/identity-reader` from accessing `secret/data/coordinator` or receiving non-agent policies. Attributing these actions to `service/identity-reader` misattributes internal coordinator credential handoff and shared-policy retirement to the identity reader in the audit log. Additionally, line 297 attributes enabling the AppRole auth engine to `openbao.principal.created` for `service/identity-reader`.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Within one --confirm-cutover invocation the seeder re-points the internal AppRole, proves a fresh login works, and immediately deletes `coordinator-read`. Tokens already issued to a running coordinator or langfuse helper still carry the old policy name, so deleting it strips their read capability until re-login. D6 orders 'cut over consumers, observe reload, then retire'; collapsing install-and-retire into one step removes that window.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "No test exercises `legacy_role_aliases` (preflight, preview, or retirement), which is why finding 1 escaped. The only cutover test stubs `_verify_internal_handoff`, so the 'internal policy proven before shared policy deletion' ordering is asserted only by mock-call index.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: `seed_secrets`, `seed_approles`, and `seed_db_engine` remain importable and covered by tests even though `main()` no longer calls them. `seed_approles` still creates the shared `coordinator-read` policy and AppRoles named from `openbao_role_id`/agent slug, which conflicts with D3 exact-scope provisioning and makes it easy to reintroduce the legacy path beside the new reconciler.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 10,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 8
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: AppRole response-wrapping and bootstrap delivery are implemented securely: SecretIDs are issued single-use (`secret_id_num_uses=1`) wrapped for 300s, validated against server creation paths (`auth/approle/role/<role>/secret-id`), and written atomically to mode-0600 bundles beneath mode-0700 directories via mkstemp + fchmod + fsync + replace with directory fsync. Periodic token configuration (`token_period`, `token_num_uses=0`) aligns with OpenBao token renewal semantics. Internal cutover handoff strictly verifies login and read access under the isolated policy before retiring legacy `coordinator-read` without mutating the admin client token or deleting coordinator data.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Internal-only policy and handoff read hardcode `coordinator`, while the internal loader (D5, OpenBaoConfig) still honors `BAO_SECRET_PATH` and the previous seeder derived its policy from it. A non-default BAO_SECRET_PATH deployment gets a policy for the wrong path and a handoff that can never pass. Fails closed, so not a blocker.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "`_validate_schema` embeds the first jsonschema error message. For bootstrap-bundle validation jsonschema quotes the offending instance value on type/minLength failures, so a malformed server response (non-string token or role_id) would put x-sensitive material into the traceback main() lets reach stderr.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Principal roles set secret_id_num_uses=1 but no secret_id_ttl. Every apply issues a fresh wrapped SecretID and overwrites the previous bundle; an unconsumed prior SecretID stays valid server-side indefinitely after its 300s wrapping token expires, accumulating across re-seeds.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Managed state is written only after all mutations succeed. If apply fails after creating roles/policies/paths for newly keyed agents, those resources exist in Bao but are unrecorded, so a later registry removal never retires them.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 15,
+      "status": "disagreement",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 9
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "escalate",
+      "description": "OpenBao reports `options: null` for KV-v1 and several non-KV mounts; `mount.get('options', {})` returns None in that case, so preflight raises AttributeError instead of the intended 'configured mount is not KV-v2' ValueError (CFG-16).",
+      "eligible_vendors": 3,
+      "vendor_dispositions": {
+        "claude_code": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "seed_secrets/seed_approles/seed_db_engine are unreachable from the CLI but remain (still tested), and --with-db-engine is gone. The module docstring (lines 1-22), skills/bao-vault/SKILL.md, docs/openbao-secret-management.md, and .secrets.yaml.example still document the removed invocation, and the main agent-identity spec still names `bao-seed.py --with-db-engine` as the database-engine provisioning path, which the delta does not modify. Docs/SKILL.md are outside this package's write scope.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "bao-dev starts the container and waits up to 15s before delegating to bao-seed, where the required-variable check lives; plain `make bao-dev` leaves a running empty OpenBao and then errors.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Enabling the AppRole auth method is audited as openbao.principal.created for the identity-reader with resource `role`, misattributing a mount-level mutation to one principal. The event schema has no mount resource, so this is a contract limitation, not a code error.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: the module docstring still documents the pre-migration CLI (`bao-seed.py` without `--migration-map`, `--with-db-engine`, flat coordinator seeding) even though `main()` requires `--migration-map` and `--bootstrap-dir`/`BAO_BOOTSTRAP_DIR`.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: apply rejects a wrapping `creation_path` that does not equal `auth/approle/role/<role>/secret-id`, but no unit test asserts that failure path or the sanitized `openbao.bootstrap.rejected` audit event. Regressions here would only show up in live wrapping tests.",
+      "eligible_vendors": 3
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 20,
+    "confirmed_count": 2,
+    "unconfirmed_count": 15,
+    "disagreement_count": 3,
+    "blocking_count": 0,
+    "advisory_count": 20
+  }
+}
