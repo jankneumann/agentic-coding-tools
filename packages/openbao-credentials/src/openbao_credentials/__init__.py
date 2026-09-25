@@ -7,6 +7,15 @@ from .topology import (
     agent_principal_id,
     project_principals,
 )
+from .adapter import (
+    BaoCredentialError,
+    BootstrapPaths,
+    ErrorCode,
+    OpenBaoClient,
+    PrincipalOpenBaoConfig,
+    Session,
+    bootstrap_paths,
+)
 
 __all__ = [
     "Principal",
@@ -14,4 +23,11 @@ __all__ = [
     "ProjectionError",
     "agent_principal_id",
     "project_principals",
+    "BaoCredentialError",
+    "BootstrapPaths",
+    "ErrorCode",
+    "OpenBaoClient",
+    "PrincipalOpenBaoConfig",
+    "Session",
+    "bootstrap_paths",
 ]
