@@ -31,10 +31,10 @@ suite, inspect the cumulative diff, and verify package scope.
   **Spec scenarios**: CFG-03, COORD-06.
   **Design decisions**: D2, D6.
   **Dependencies**: 1.4.
-- [ ] 1.6 (S) Bundle the shared package in the coordinator Docker build.
+- [x] 1.6 (S) Bundle the shared package in the coordinator Docker build.
   Update the Dockerfile builder COPY plus the CI container smoke module list.
   **Dependencies**: 1.5.
-- [ ] Checkpoint: run projection, adapter, plus container import checks; review diff, verify scope.
+- [x] Checkpoint: run projection, adapter, plus container import checks; review diff, verify scope.
 
 ## 2. Provision and migrate (`wp-seeding`)
 

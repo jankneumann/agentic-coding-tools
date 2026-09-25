@@ -21,3 +21,8 @@ def test_coordinator_declares_noneditable_package_source() -> None:
     assert manifest["tool"]["uv"]["sources"]["openbao-credentials"] == {
         "path": "../packages/openbao-credentials"
     }
+
+
+def test_ci_container_smoke_imports_shared_package() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+    assert "'openbao_credentials'," in workflow

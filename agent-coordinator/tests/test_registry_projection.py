@@ -758,7 +758,6 @@ def test_openbao_topology_matches_bundled_registry() -> None:
 
     import yaml
     from jsonschema import Draft202012Validator
-
     from openbao_credentials import project_principals
 
     root = Path(__file__).resolve().parents[2]
