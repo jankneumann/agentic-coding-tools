@@ -32,8 +32,8 @@ def test_configured_bao_reads_authorized_vendor(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "ambient-key")
     client = MagicMock()
     client.read_vendor_key.return_value = "bao-key"
-    with patch("api_key_resolver.OpenBaoClient", return_value=client) as client_type:
-        with patch("api_key_resolver.PrincipalOpenBaoConfig.from_env"):
+    with patch("openbao_credentials.OpenBaoClient", return_value=client) as client_type:
+        with patch("openbao_credentials.PrincipalOpenBaoConfig.from_env"):
             assert ApiKeyResolver(SCOPES, ENV).resolve(PRINCIPAL, "anthropic") == "bao-key"
     client.ensure_session.assert_called_once_with(PRINCIPAL, "agent-claude-remote")
     client.read_vendor_key.assert_called_once_with("anthropic")
@@ -42,7 +42,7 @@ def test_configured_bao_reads_authorized_vendor(monkeypatch: pytest.MonkeyPatch)
 
 def test_undeclared_vendor_is_rejected_before_bao_read(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
-    with patch("api_key_resolver.OpenBaoClient") as client_type:
+    with patch("openbao_credentials.OpenBaoClient") as client_type:
         with pytest.raises(BaoCredentialError) as exc:
             ApiKeyResolver(SCOPES, ENV).resolve(PRINCIPAL, "openai")
     assert exc.value.code == ErrorCode.AUTHORIZATION_DENIED
@@ -52,8 +52,8 @@ def test_undeclared_vendor_is_rejected_before_bao_read(monkeypatch: pytest.Monke
 def test_bao_failure_cannot_fall_back_to_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "ambient-key")
-    with patch("api_key_resolver.OpenBaoClient", side_effect=BaoCredentialError(ErrorCode.BACKEND_UNAVAILABLE)):
-        with patch("api_key_resolver.PrincipalOpenBaoConfig.from_env"):
+    with patch("openbao_credentials.OpenBaoClient", side_effect=BaoCredentialError(ErrorCode.BACKEND_UNAVAILABLE)):
+        with patch("openbao_credentials.PrincipalOpenBaoConfig.from_env"):
             with pytest.raises(BaoCredentialError) as exc:
                 ApiKeyResolver(SCOPES, ENV).resolve(PRINCIPAL, "anthropic")
     assert exc.value.code == ErrorCode.BACKEND_UNAVAILABLE
