@@ -20,6 +20,7 @@ suite, inspect the cumulative diff, and verify package scope.
   **Dependencies**: 1.1.
 - [ ] 1.3 (S) Test typed OpenBao adapter behavior.
   **Spec scenarios**: CFG-01, CFG-03, CFG-04, CFG-05, CFG-06, CFG-07, CFG-16, CFG-17, CFG-20, CFG-23, CFG-24; COORD-07.
+  Cover recovery from a fresh wrapped bundle after cached-token revocation or expiry, and reject reuse of the consumed bundle.
   **Contracts**: `contracts/bootstrap-bundle.schema.json`, `contracts/session-cache.schema.json`, `contracts/openbao-event.schema.json`.
   **Design decisions**: D2, D3.
   Include a fake for server-side wrapping lookup and reject a forged bundle path before unwrap.
