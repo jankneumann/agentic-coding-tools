@@ -28,7 +28,7 @@ def _agent(name: str) -> AgentEntry:
                       transport="http", capabilities=[], description="", api_key="${KEY}")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def live(tmp_path_factory: pytest.TempPathFactory):
     addr = os.environ["BAO_ADDR"]
     root = hvac.Client(url=addr, token=os.environ["BAO_TOKEN"])
