@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "feature_id": "restructure-openbao-per-agent-secrets",
+  "package_id": "wp-contracts",
+  "plan_revision": 8,
+  "contracts_revision": 6,
+  "status": "completed",
+  "locks": {
+    "files": [],
+    "keys": [
+      "contract:openbao-principal-topology",
+      "contract:openbao-bootstrap",
+      "contract:openbao-session-cache",
+      "contract:openbao-migration-map",
+      "contract:openbao-secret-payloads",
+      "api:GET /ready",
+      "api:GET /agents/dispatch-configs"
+    ]
+  },
+  "scope": {
+    "write_allow": [],
+    "read_allow": [
+      "openspec/changes/restructure-openbao-per-agent-secrets/**"
+    ],
+    "deny": []
+  },
+  "files_modified": [],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "6638dc80"
+    },
+    "head": {
+      "commit": "6638dc80",
+      "branch": "openspec/restructure-openbao-per-agent-secrets"
+    }
+  },
+  "verification": {
+    "tier": "C",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Parse schemas and OpenAPI",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -c 'import json,yaml; from pathlib import Path; p=Path(\"openspec/changes/restructure-openbao-per-agent-secrets/contracts\"); [json.loads(x.read_text()) for x in p.glob(\"*.json\")]; yaml.safe_load((p/\"openapi/v1.yaml\").read_text())'",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "schema_count": 7,
+            "openapi_paths": 2
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "Read-only contract freeze validation after plan revision 7 and contracts revision 6. Audit event and session cache schemas include review fixes."
+}

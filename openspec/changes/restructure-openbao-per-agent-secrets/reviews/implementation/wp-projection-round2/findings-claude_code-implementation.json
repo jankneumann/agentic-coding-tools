@@ -1,0 +1,125 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "package_id": "wp-projection",
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: `_bootstrap()` unwraps with `self.client.sys.unwrap(token=wrapped['token'])` while the hvac client carries no client token on first bootstrap (`hvac.Client(url=..., timeout=...)` sets none) or the stale/revoked cached token on the `_recover()` path (`_check_cached_token`/`_renew` leave it set). `sys/wrapping/unwrap` is an authenticated path in OpenBao/Vault: a body-only `token` with no `X-Vault-Token` header is rejected with `missing client token`, and a revoked header token is rejected with `permission denied` before the handler runs (the official Go client works around exactly this by setting the wrapping token as the client token when none is set; hvac does not). `sys/wrapping/lookup` is unauthenticated, but on the recovery path it is also sent with the revoked token in the header. Net effect: CFG-05 single-use login and CFG-07 fresh-bundle recovery can never succeed against a real server; the MagicMock-based tests hide it and misclassify the failure as AUTHORIZATION_DENIED/BACKEND_UNAVAILABLE.",
+      "resolution": "Run lookup and unwrap with the wrapping token as the authenticating token: set `self.client.token = wrapped['token']` (or use a dedicated `hvac.Client(url, timeout, token=wrapped['token'])`) and call `sys.unwrap()` with no body token; clear the token before `auth.approle.login`. Extend the fake so `sys.unwrap` asserts the client token equals the wrapping token and the login call runs with the token cleared.",
+      "disposition": "fix",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "line_range": {
+        "start": 338,
+        "end": 348
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "package_id": "wp-projection",
+      "axis": "resilience",
+      "severity": "critical",
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: cached-token renewal only fires when `lease_expires_at <= now + 60s`. For the CFG-17 short-lived dispatch pattern the periodic token is only renewed if an invocation happens to land in the last 60 seconds of a period (3600 s by projection default); a consumer dispatching every 10 minutes never renews, the token lapses after one period, `_recover()` finds the same consumed bundle digest and raises TOKEN_EXPIRED, and the operator must re-run the seeder to deliver a fresh wrapped bundle every hour. The server-reported `ttl` from `lookup_self` is discarded after the `<= 0` check, so the local timestamp is the only renewal signal.",
+      "resolution": "Renew whenever the server `ttl` from `lookup_self` is below half the period (or unconditionally on every `ensure_session`, which is cheap for periodic tokens and resets the period), and persist the refreshed lease. Add a test where the cache expires 30 minutes out and assert `renew_self` is called.",
+      "disposition": "fix",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "line_range": {
+        "start": 280,
+        "end": 283
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "package_id": "wp-projection",
+      "axis": "observability",
+      "severity": "nit",
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: error classification for the bootstrap path never produces AUTHENTICATION_FAILED in practice. OpenBao answers an AppRole login with a bad or consumed SecretID with HTTP 400 (hvac `InvalidRequest`), and a lookup/unwrap of an already-consumed wrapping token also with 400; both fall through `_classify()` to BACKEND_UNAVAILABLE. The `auth=True` branch only triggers on `Unauthorized` (401), which the server does not emit for token failures (it uses 403). Operators get a 'backend down' code for a bad bootstrap, and the spec's stable typed error for authentication is unreachable.",
+      "resolution": "Map `hvac.exceptions.InvalidRequest` raised during lookup/unwrap to BOOTSTRAP_INVALID and during `approle.login` to AUTHENTICATION_FAILED; add fake cases for each.",
+      "disposition": "fix",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "line_range": {
+        "start": 175,
+        "end": 186
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "package_id": "wp-projection",
+      "axis": "correctness",
+      "severity": "optional",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Optional: no CI job runs `packages/openbao-credentials/tests`. Sibling packages (gen-eval, code-search, system-one-decisions) each have a package-level pytest job in `ci.yml`, and `ci.yml` is in this package's write scope. The adapter and topology suites only run through the work-package verification step, so a post-merge regression in the shared credential boundary would not be caught by CI.",
+      "resolution": "Add an `openbao-credentials-tests` job modeled on `system-one-decisions-tests` (uv sync with the dev group, `uv run pytest`).",
+      "disposition": "fix",
+      "file_path": ".github/workflows/ci.yml",
+      "line_range": {
+        "start": 868,
+        "end": 888
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "package_id": "wp-projection",
+      "axis": "compatibility",
+      "severity": "nit",
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Nit: `read_secret()` calls `read_secret_version(path=..., mount_point=...)` without `raise_on_deleted_version`; under the pinned hvac 2.4.0 that emits a DeprecationWarning on every credential read and the default flips in hvac 3.",
+      "resolution": "Pass `raise_on_deleted_version=True` explicitly so a soft-deleted document surfaces as SECRET_NOT_FOUND rather than as a malformed payload, and the warning disappears.",
+      "disposition": "fix",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "line_range": {
+        "start": 229,
+        "end": 231
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "package_id": "wp-projection",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: `get_api_key_identities()` now returns `{}` whenever `BAO_ADDR` is set, and `ApiConfig.from_env()` derives the accepted-key allowlist from that map. At this commit a deployment with `BAO_ADDR` configured authenticates no registry agent until wp-coordinator installs the identity-reader snapshot. This is the intended AI-05 fail-closed behavior inside the serialized DAG, but the package is not independently deployable; the rollout must land wp-coordinator before enabling `BAO_ADDR` on the coordinator.",
+      "resolution": "No code change; note it in the migration ordering for wp-integration.",
+      "disposition": "accept",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "line_range": {
+        "start": 1006,
+        "end": 1007
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "package_id": "wp-projection",
+      "axis": "security",
+      "severity": "none",
+      "type": "security",
+      "criticality": "low",
+      "description": "none: the bootstrap and cache hardening is done well: server-side wrapping lookup is compared exactly against the expected `auth/approle/role/<role>/secret-id` path before unwrap (CFG-24), the consumed-bundle SHA-256 digest is compared under the lock before any recovery login (CFG-07), files are opened with `O_NOFOLLOW` after `lstat` mode/ownership checks, cache writes are mkstemp plus fsync plus rename, and `Session`/`SecretPayload` hide secret fields from `repr`. The topology projection is pure, order-independent, and rejects `openbao_role_id`, unknown or duplicate vendors, and keyless agents with vendor grants, matching AI-01/02/08/13/14/17.",
+      "disposition": "accept",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "line_range": {
+        "start": 411,
+        "end": 432
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

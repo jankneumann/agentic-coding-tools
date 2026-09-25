@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "feature_id": "restructure-openbao-per-agent-secrets",
+  "package_id": "wp-projection",
+  "plan_revision": 8,
+  "contracts_revision": 6,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "agent-coordinator/agents.yaml",
+      "agent-coordinator/src/agents_config.py"
+    ],
+    "keys": [
+      "contract:openbao-python-adapter"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "packages/openbao-credentials/**",
+      "agent-coordinator/agents.yaml",
+      "agent-coordinator/src/agents_config.py",
+      "agent-coordinator/tests/test_agents_config.py",
+      "agent-coordinator/tests/test_agents_config_isolation.py",
+      "agent-coordinator/tests/test_setup_cloud.py",
+      "agent-coordinator/tests/test_registry_projection.py",
+      "agent-coordinator/tests/model_routing/test_agent_endpoints.py",
+      "agent-coordinator/pyproject.toml",
+      "agent-coordinator/uv.lock",
+      "skills/pyproject.toml",
+      "skills/uv.lock",
+      "agent-coordinator/Dockerfile",
+      ".github/workflows/ci.yml",
+      "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": []
+  },
+  "files_modified": [
+    ".github/workflows/ci.yml",
+    "agent-coordinator/Dockerfile",
+    "agent-coordinator/agents.yaml",
+    "agent-coordinator/pyproject.toml",
+    "agent-coordinator/src/agents_config.py",
+    "agent-coordinator/tests/model_routing/test_agent_endpoints.py",
+    "agent-coordinator/tests/test_agents_config.py",
+    "agent-coordinator/tests/test_agents_config_isolation.py",
+    "agent-coordinator/tests/test_registry_projection.py",
+    "agent-coordinator/tests/test_setup_cloud.py",
+    "agent-coordinator/uv.lock",
+    "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md",
+    "packages/openbao-credentials/pyproject.toml",
+    "packages/openbao-credentials/src/openbao_credentials/__init__.py",
+    "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+    "packages/openbao-credentials/src/openbao_credentials/topology.py",
+    "packages/openbao-credentials/tests/test_adapter.py",
+    "packages/openbao-credentials/tests/test_container_import.py",
+    "packages/openbao-credentials/tests/test_topology.py",
+    "packages/openbao-credentials/uv.lock",
+    "skills/pyproject.toml",
+    "skills/uv.lock"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "2e3054fd"
+    },
+    "head": {
+      "commit": "31fbdb0c",
+      "branch": "openspec/restructure-openbao-per-agent-secrets--wp-projection",
+      "worktree": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets--wp-projection"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Projection and adapter tests",
+        "kind": "command",
+        "command": "uv run --project packages/openbao-credentials pytest packages/openbao-credentials/tests -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "test_count": 35
+          }
+        }
+      },
+      {
+        "name": "Registry projection tests",
+        "kind": "command",
+        "command": "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_setup_cloud.py agent-coordinator/tests/test_registry_projection.py agent-coordinator/tests/model_routing/test_agent_endpoints.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "test_count": 157
+          }
+        }
+      },
+      {
+        "name": "Docker import coverage",
+        "kind": "command",
+        "command": ".venv/bin/python scripts/check_docker_imports.py --data-dir cedar --data-dir profiles --verbose",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {}
+        },
+        "cwd": "agent-coordinator"
+      },
+      {
+        "name": "Strict OpenSpec",
+        "kind": "command",
+        "command": "openspec validate restructure-openbao-per-agent-secrets --strict",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {}
+        }
+      },
+      {
+        "name": "Ruff",
+        "kind": "command",
+        "command": "uv run ruff check packages/openbao-credentials agent-coordinator/src/agents_config.py",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {}
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "Package tests and registry/setup tests passed on 31fbdb0c. Vendor review quorum 3/4 on earlier tip; all actionable findings fixed in final tip and independent final audit passed. Docker daemon smoke build unavailable due socket permissions; static import coverage passed and CI smoke import added. Context-impact declaration is unmigrated."
+}
