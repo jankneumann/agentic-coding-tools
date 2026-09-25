@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 
 _CHANGE_ID = "restructure-openbao-per-agent-secrets"
 _SOURCE = re.compile(r"^[A-Z][A-Z0-9_]*$")
-_ROLE = re.compile(r"^(agent|service)-[a-z][a-z0-9-]*$")
+_ROLE = re.compile(r"^[a-z][a-z0-9-]*$")
+_INTERNAL_PATH = re.compile(r"^[a-z][a-z0-9-]*(?:/[a-z][a-z0-9-]*)*$")
 _PLACEHOLDER = re.compile(r"^\$\{([A-Z][A-Z0-9_]*)\}$")
 
 
@@ -96,7 +97,9 @@ def _validate_schema(data: dict[str, Any], name: str) -> None:
     schema = json.loads((_schema_dir() / name).read_text(encoding="utf-8"))
     errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(data))
     if errors:
-        raise ValueError(f"{name}: {errors[0].message}")
+        error = errors[0]
+        location = ".".join(str(segment) for segment in error.absolute_path) or "root"
+        raise ValueError(f"{name}: invalid {location} ({error.validator})")
 
 
 def _protected_directory(path: Path) -> None:
@@ -222,7 +225,9 @@ def _login_internal(client: Any, role_id: str, secret_id: str) -> dict[str, Any]
         raise ValueError("configured internal AppRole credentials cannot authenticate") from None
 
 
-def _verify_internal_handoff(client: Any, mount: str, role_id: str, secret_id: str) -> None:
+def _verify_internal_handoff(
+    client: Any, mount: str, role_id: str, secret_id: str, internal_path: str = "coordinator",
+) -> None:
     """Prove configured credentials can read internal data with the new policy."""
     import hvac
 
@@ -234,7 +239,7 @@ def _verify_internal_handoff(client: Any, mount: str, role_id: str, secret_id: s
         reader = hvac.Client(url=client.url, token=auth["client_token"])
         try:
             result = reader.secrets.kv.v2.read_secret_version(
-                path="coordinator", mount_point=mount, raise_on_deleted_version=True,
+                path=internal_path, mount_point=mount, raise_on_deleted_version=True,
             )
             if not isinstance(result, dict) or not isinstance(result.get("data", {}).get("data"), dict):
                 raise ValueError("invalid internal document")
@@ -254,12 +259,16 @@ def apply_reconciliation(
         raise ValueError("cutover requires explicit internal AppRole name")
     internal_role_id = os.environ.get("BAO_INTERNAL_ROLE_ID", "")
     internal_secret_id = os.environ.get("BAO_INTERNAL_SECRET_ID", "")
+    internal_path = os.environ.get("BAO_SECRET_PATH", "coordinator")
+    if confirm_cutover and not _INTERNAL_PATH.fullmatch(internal_path):
+        raise ValueError("invalid BAO_SECRET_PATH for internal cutover")
     if confirm_cutover and (not internal_role_id or not internal_secret_id):
         raise ValueError("cutover requires BAO_INTERNAL_ROLE_ID and BAO_INTERNAL_SECRET_ID")
     mounts = client.sys.list_mounted_secrets_engines()
     mounts = mounts.get("data", mounts) if isinstance(mounts, dict) else {}
     mount = mounts.get(f"{plan.topology.mount}/")
-    if not isinstance(mount, dict) or mount.get("type") != "kv" or mount.get("options", {}).get("version") != "2":
+    options = mount.get("options") if isinstance(mount, dict) else None
+    if not isinstance(mount, dict) or mount.get("type") != "kv" or not isinstance(options, dict) or options.get("version") != "2":
         raise ValueError("configured mount is not KV-v2")
     if confirm_cutover:
         current_internal = client.auth.approle.read_role(role_name=internal_role_name)
@@ -312,7 +321,7 @@ def apply_reconciliation(
         mutate("openbao.principal.updated", "update", principal.principal_id, "role",
                lambda p=principal: client.auth.approle.create_or_update_approle(
                    role_name=p.role_name, token_policies=[p.policy_name], token_period=f"{p.token_period_seconds}s",
-                   token_num_uses=0, secret_id_num_uses=1))
+                   token_num_uses=0, secret_id_num_uses=1, secret_id_ttl="600s"))
     for name, value in sorted(plan.agent_values.items()):
         principal = next(p for p in plan.topology.principals if p.kind == "agent" and p.name == name)
         mutate("openbao.principal.updated", "update", principal.principal_id, "agent_path",
@@ -336,13 +345,13 @@ def apply_reconciliation(
         mutate("openbao.bootstrap.issued", "issue", principal.principal_id, "bootstrap",
                lambda p=principal, b=bundle: _atomic_json(bootstrap_paths(plan.bootstrap_dir, p.role_name).bundle, b))
     if confirm_cutover:
-        internal_policy = f'path "{plan.topology.mount}/data/coordinator" {{\n  capabilities = ["read"]\n}}\n'
+        internal_policy = f'path "{plan.topology.mount}/data/{internal_path}" {{\n  capabilities = ["read"]\n}}\n'
         internal_id = "spiffe://coordinator.rotkohl.ai/service/identity-reader"
         mutate("openbao.principal.updated", "update", internal_id, "policy",
                lambda: client.sys.create_or_update_policy(name="coordinator-internal-read", policy=internal_policy))
         mutate("openbao.principal.updated", "update", internal_id, "role",
                lambda: client.auth.approle.create_or_update_approle(role_name=internal_role_name, token_policies=["coordinator-internal-read"]))
-        _verify_internal_handoff(client, plan.topology.mount, internal_role_id, internal_secret_id)
+        _verify_internal_handoff(client, plan.topology.mount, internal_role_id, internal_secret_id, internal_path)
         for name in plan.retired_agents:
             principal_id = f"spiffe://coordinator.rotkohl.ai/agent/{name}"
             mutate("openbao.principal.retired", "retire", principal_id, "role", lambda n=name: client.auth.approle.delete_role(role_name=f"agent-{n}"))

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -12,7 +13,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from bao_seed import (
-    _CHANGE_ID, _default_config_path, _schema_dir, apply_reconciliation, plan_reconciliation,
+    _CHANGE_ID, _default_config_path, _schema_dir, _validate_schema,
+    apply_reconciliation, plan_reconciliation,
     seed_approles, seed_db_engine, seed_secrets,
 )
 
@@ -34,6 +36,24 @@ def test_schema_lookup_survives_change_archival(tmp_path: Path) -> None:
     active = changes / _CHANGE_ID / "contracts"
     active.mkdir(parents=True)
     assert _schema_dir(tmp_path) == active
+
+
+def test_schema_error_does_not_echo_secret_value() -> None:
+    with pytest.raises(ValueError) as error:
+        _validate_schema({"version": 1, "agents": {}, "vendors": {},
+                          "retained_internal": "private-secret-value"}, "migration-map.schema.json")
+    assert "private-secret-value" not in str(error.value)
+
+
+def test_bao_dev_rejects_missing_inputs_before_container_start() -> None:
+    coordinator = Path(__file__).resolve().parents[4] / "agent-coordinator"
+    result = subprocess.run(
+        ["make", "-C", str(coordinator), "bao-dev", "BAO_MIGRATION_MAP=", "BAO_BOOTSTRAP_DIR="],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode != 0
+    assert "BAO_MIGRATION_MAP is required" in result.stderr
+    assert "compose" not in result.stdout.lower()
 
 
 def _write(path: Path, content: str) -> None:
@@ -124,6 +144,7 @@ class TestMigrationReconciliation:
             assert bundle.stat().st_mode & 0o777 == 0o600
             assert "wrapped-" in bundle.read_text()
         assert client.sys.create_or_update_policy.call_count == 3
+        assert all(call.kwargs["secret_id_ttl"] == "600s" for call in client.auth.approle.create_or_update_approle.call_args_list)
         policies = {call.kwargs["name"]: call.kwargs["policy"] for call in client.sys.create_or_update_policy.call_args_list}
         assert policies["agent-claude-web"] == 'path "secret/data/agents/claude-web" {\n  capabilities = ["read"]\n}\npath "secret/data/vendors/anthropic" {\n  capabilities = ["read"]\n}\n'
         assert "secret/data/vendors" not in policies["service-identity-reader"]
@@ -141,7 +162,7 @@ class TestMigrationReconciliation:
         client.auth.approle.generate_secret_id.side_effect = lambda role_name, **kw: {"wrap_info": {"token": role_name, "creation_path": f"auth/approle/role/{role_name}/secret-id", "creation_time": "2026-01-01T00:00:00Z", "ttl": 300}}
         apply_reconciliation(client, plan)
         _write(agents, "credential_vendors: [anthropic]\nagents: {}\n")
-        _write(mapping, "version: 1\nagents: {}\nvendors: {anthropic: ANTHROPIC_KEY}\nretained_internal: [DB_PASSWORD, CLAUDE_WEB_KEY]\n")
+        _write(mapping, "version: 1\nagents: {}\nvendors: {anthropic: ANTHROPIC_KEY}\nlegacy_role_aliases: {claude-web: claude-web}\nretained_internal: [DB_PASSWORD, CLAUDE_WEB_KEY]\n")
         retired = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
         assert "agent-claude-web" in retired.preview()
         apply_reconciliation(client, retired)
@@ -155,9 +176,14 @@ class TestMigrationReconciliation:
         client.auth.approle.login.return_value = {"auth": {"client_token": "internal-token", "policies": ["default", "coordinator-internal-read"]}}
         monkeypatch.setenv("BAO_INTERNAL_ROLE_ID", "internal-role-id")
         monkeypatch.setenv("BAO_INTERNAL_SECRET_ID", "internal-secret-id")
-        monkeypatch.setattr("bao_seed._verify_internal_handoff", lambda *args: None)
+        monkeypatch.setenv("BAO_SECRET_PATH", "internal/config")
+        handoffs: list[tuple] = []
+        monkeypatch.setattr("bao_seed._verify_internal_handoff", lambda *args: handoffs.append(args))
         apply_reconciliation(client, retired, confirm_cutover=True, internal_role_name="coordinator-internal")
-        client.auth.approle.delete_role.assert_called_once_with(role_name="agent-claude-web")
+        assert [call.kwargs["role_name"] for call in client.auth.approle.delete_role.call_args_list] == ["agent-claude-web", "claude-web"]
+        assert handoffs[0][-1] == "internal/config"
+        internal_policy = next(call.kwargs["policy"] for call in client.sys.create_or_update_policy.call_args_list if call.kwargs["name"] == "coordinator-internal-read")
+        assert 'secret/data/internal/config' in internal_policy
         policy_create = next(i for i, call in enumerate(client.mock_calls) if call[0] == "sys.create_or_update_policy" and call.kwargs.get("name") == "coordinator-internal-read")
         legacy_delete = next(i for i, call in enumerate(client.mock_calls) if call[0] == "sys.delete_policy" and call.kwargs.get("name") == "coordinator-read")
         assert policy_create < legacy_delete
@@ -196,6 +222,15 @@ class TestMigrationReconciliation:
         plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
         assert plan.retained_internal == ("DB_PASSWORD",)
 
+    def test_null_mount_options_fail_cleanly(self, tmp_path: Path) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        client = MagicMock()
+        client.sys.list_mounted_secrets_engines.return_value = {"secret/": {"type": "kv", "options": None}}
+        with pytest.raises(ValueError, match="not KV-v2"):
+            apply_reconciliation(client, plan)
+        client.sys.create_or_update_policy.assert_not_called()
+
     def test_wrapped_auth_methods_are_recognized(self, tmp_path: Path) -> None:
         agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
         plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
@@ -219,11 +254,11 @@ class TestMigrationReconciliation:
         constructor = MagicMock(return_value=reader)
         monkeypatch.setattr(hvac, "Client", constructor)
 
-        _verify_internal_handoff(admin, "secret", "role-id", "secret-id")
+        _verify_internal_handoff(admin, "secret", "role-id", "secret-id", "internal/config")
 
         constructor.assert_called_once_with(url=admin.url, token="short-lived-token")
         reader.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            path="coordinator", mount_point="secret", raise_on_deleted_version=True,
+            path="internal/config", mount_point="secret", raise_on_deleted_version=True,
         )
         reader.auth.token.revoke_self.assert_called_once_with()
         admin.auth.approle.login.assert_called_once_with(role_id="role-id", secret_id="secret-id", use_token=False)
