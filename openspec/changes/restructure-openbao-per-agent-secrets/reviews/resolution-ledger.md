@@ -4,7 +4,7 @@ The first pass returned schema-valid findings from Codex, Antigravity, Claude
 Code, and Grok. Pi returned an invalid JSON schema payload; its output was
 excluded from consensus. Reviewers read the plan while it was being revised,
 so several findings refer to an earlier revision. The current plan revision is
-`4` in `work-packages.yaml`.
+`5` in `work-packages.yaml`.
 
 | Finding cluster | Resolution in current plan |
 |---|---|
@@ -23,3 +23,5 @@ The independent Codex convergence audit found two remaining wording/sequence
 issues. Both were fixed: the README now names mount-relative logical paths,
 and task 5.3 no longer claims to test the Langfuse helper before task 5.7
 migrates it. A second vendor pass yielded valid Claude Code and Grok findings. Antigravity timed out and Pi returned an invalid payload; neither was counted. The second-pass consensus has no multi-vendor blocking agreement, but all actionable single-vendor findings were independently checked and resolved: the dispatch-config wire now carries `principal_id` and `vendor_credentials`; role-derived bundle/session/lock names are fixed; server-side wrapping lookup is explicit; the endpoint fixture is in the producer package; migration-map agent keys must match registry placeholders; the CLI credential boundary is stated; vendor keys must be staged into the protected seed input; and the Docker copy is builder-only. Grok's inherited config-contract finding led to a separate internal `OpenBaoConfig` requirement and principal configuration requirement, with explicit failure scenarios and `config.py` ownership. The Docker COPY and README path findings had already been fixed before the second reviewer read a stable revision.
+
+At implementation contract freeze, `wp-contracts` found the audit schema permitted a principal mutation without `principal_id` or `resource`. Revision 5 adds a conditional required-field rule for principal and bootstrap events; representative negative and positive examples were validated before projection dispatch.
