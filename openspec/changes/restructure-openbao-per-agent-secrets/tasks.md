@@ -90,15 +90,15 @@ suite, inspect the cumulative diff, and verify package scope.
 
 ## 4. Scope dispatch lookup (`wp-dispatch`)
 
-- [ ] 4.1 (S) Test scoped dispatch credential lookup.
+- [x] 4.1 (S) Test scoped dispatch credential lookup.
   **Spec scenarios**: AI-01, AI-08, AI-16, AI-17; CFG-01, CFG-02, CFG-03, CFG-04, CFG-17, CFG-25.
   **Contracts**: `contracts/principal-topology.schema.json`, `contracts/session-cache.schema.json`, `contracts/openbao-event.schema.json`.
   **Design decisions**: D1, D2.
   **Dependencies**: 1.4.
-- [ ] 4.2 (M) Update dispatch resolver plus both `review_dispatcher.py` call sites; consume
+- [x] 4.2 (M) Update dispatch resolver plus both `review_dispatcher.py` call sites; consume
   `principal_id` and `vendor_credentials` from API and direct registry shapes.
   **Dependencies**: 4.1.
-- [ ] Checkpoint: run dispatch resolver tests, review diff, verify scope.
+- [x] Checkpoint: run dispatch resolver tests, review diff, verify scope.
 
 ## 5. Live conformance and operator cutover (`wp-integration`)
 

@@ -1855,12 +1855,10 @@ class SdkVendorAdapter:
         agent_id: str,
         vendor: str,
         sdk_config: SdkConfig,
-        openbao_role_id: str | None = None,
     ) -> None:
         self.agent_id = agent_id
         self.vendor = vendor
         self.sdk_config = sdk_config
-        self.openbao_role_id = openbao_role_id
 
     def can_dispatch(self, mode: str) -> bool:
         """Check if SDK dispatch is available for the given mode.
@@ -2503,13 +2501,27 @@ class ReviewOrchestrator:
         sdk_adapters: dict[str, SdkVendorAdapter] | None = None,
         openai_adapters: dict[str, Any] | None = None,
         openai_key_envs: dict[str, str] | None = None,
-        openai_role_ids: dict[str, str | None] | None = None,
+        credential_requests: dict[str, tuple[str | None, str]] | None = None,
+        credential_scopes: dict[str, tuple[str, ...]] | None = None,
+        credential_envs: dict[tuple[str | None, str], str] | None = None,
+        openai_credential_requests: dict[str, tuple[str | None, str]] | None = None,
     ) -> None:
         self.adapters = adapters
         self.sdk_adapters = sdk_adapters or {}
         self.openai_adapters = openai_adapters or {}
         self.openai_key_envs = openai_key_envs or {}
-        self.openai_role_ids = openai_role_ids or {}
+        self.credential_requests = credential_requests or {
+            agent_id: (None, adapter.sdk_config.package)
+            for agent_id, adapter in self.sdk_adapters.items()
+            if isinstance(adapter, SdkVendorAdapter)
+        }
+        self.openai_credential_requests = openai_credential_requests or {}
+        self.credential_scopes = credential_scopes or {}
+        self.credential_envs = credential_envs or {
+            (None, adapter.sdk_config.package): adapter.sdk_config.api_key_env
+            for adapter in self.sdk_adapters.values()
+            if isinstance(adapter, SdkVendorAdapter) and adapter.sdk_config.api_key_env
+        }
 
     @classmethod
     def from_config_dict(cls, data: dict[str, Any]) -> "ReviewOrchestrator":
@@ -2523,7 +2535,10 @@ class ReviewOrchestrator:
         sdk_adapters: dict[str, SdkVendorAdapter] = {}
         openai_adapters: dict[str, Any] = {}
         openai_key_envs: dict[str, str] = {}
-        openai_role_ids: dict[str, str | None] = {}
+        credential_requests: dict[str, tuple[str | None, str]] = {}
+        openai_credential_requests: dict[str, tuple[str | None, str]] = {}
+        credential_scopes: dict[str, tuple[str, ...]] = {}
+        credential_envs: dict[tuple[str | None, str], str] = {}
         for agent in data.get("agents", []):
             cli = agent.get("cli")
             sdk = agent.get("sdk")
@@ -2533,6 +2548,10 @@ class ReviewOrchestrator:
                 endpoint_kind in {"openrouter", "local"} and base_url
             ):
                 continue
+
+            principal_id = agent.get("principal_id")
+            if principal_id is not None:
+                credential_scopes[principal_id] = tuple(agent.get("vendor_credentials") or ())
 
             # Build CLI adapter
             if cli:
@@ -2582,8 +2601,10 @@ class ReviewOrchestrator:
                         api_key_env=sdk.get("api_key_env", ""),
                         max_tokens=sdk.get("max_tokens", 16384),
                     ),
-                    openbao_role_id=agent.get("openbao_role_id"),
                 )
+                credential_requests[agent["agent_id"]] = (principal_id, sdk["package"])
+                if sdk.get("api_key_env"):
+                    credential_envs[(principal_id, sdk["package"])] = sdk["api_key_env"]
 
             if endpoint_kind in {"openrouter", "local"} and base_url:
                 from openai_compat_adapter import OpenAICompatAdapter
@@ -2617,10 +2638,15 @@ class ReviewOrchestrator:
                             else ""
                         )
                     )
-                    openai_role_ids[agent_id] = agent.get("openbao_role_id")
+                    vendor_id = "openrouter" if endpoint_kind == "openrouter" else "local"
+                    openai_credential_requests[agent_id] = (principal_id, vendor_id)
+                    if openai_key_envs[agent_id]:
+                        credential_envs[(principal_id, vendor_id)] = openai_key_envs[agent_id]
 
         return cls(
-            adapters, sdk_adapters, openai_adapters, openai_key_envs, openai_role_ids
+            adapters, sdk_adapters, openai_adapters, openai_key_envs,
+            credential_requests, credential_scopes, credential_envs,
+            openai_credential_requests,
         )
 
     @staticmethod
@@ -2656,7 +2682,11 @@ class ReviewOrchestrator:
                 "agent_id": agent_id,
                 "type": agent.get("type"),
                 "transport": agent.get("transport", "mcp"),
-                "openbao_role_id": agent.get("openbao_role_id"),
+                "principal_id": (
+                    f"spiffe://coordinator.rotkohl.ai/agent/{agent_id}"
+                    if agent.get("api_key") else None
+                ),
+                "vendor_credentials": sorted(agent.get("vendor_credentials") or []),
                 "endpoint_kind": endpoint_kind,
                 "base_url": base_url,
                 "api_key_env": agent.get("api_key_env"),
@@ -2943,7 +2973,19 @@ class ReviewOrchestrator:
                 f"are a single vendor's opinion with no consensus cross-check.",
             )
 
-        api_key_resolver = ApiKeyResolver()
+        api_key_resolver = ApiKeyResolver(
+            self.credential_scopes, self.credential_envs,
+        )
+        from openbao_credentials import BaoCredentialError
+
+        def _resolve_dispatch_key(
+            principal_id: str | None, vendor_id: str,
+        ) -> tuple[str | None, str | None]:
+            try:
+                return api_key_resolver.resolve(principal_id, vendor_id), None
+            except BaoCredentialError as exc:
+                return None, f"OpenBao credential lookup failed: {exc.code.value}"
+
         cwd = Path(cwd)
         packet = Path(packet_path) if packet_path is not None else None
         if packet is not None:
@@ -3024,10 +3066,10 @@ class ReviewOrchestrator:
             elif reviewer.dispatch_tier == "sdk":
                 sdk_adapter = self.sdk_adapters[reviewer.agent_id]
                 sdk_adapter._capacity_callback = report_vendor_limit_result
-                api_key = api_key_resolver.resolve(
-                    sdk_adapter.openbao_role_id,
-                    sdk_adapter.sdk_config.api_key_env,
+                principal_id, vendor_id = self.credential_requests.get(
+                    reviewer.agent_id, (None, sdk_adapter.sdk_config.package),
                 )
+                api_key, lookup_error = _resolve_dispatch_key(principal_id, vendor_id)
                 logger.info(
                     "SDK dispatching %s review to %s (key: %s)",
                     review_type, reviewer.agent_id,
@@ -3041,10 +3083,11 @@ class ReviewOrchestrator:
                         idx,
                         reviewer.vendor,
                         vendor_timeout,
-                        lambda v=reviewer.vendor: ReviewResult(
+                        lambda v=reviewer.vendor, e=lookup_error: ReviewResult(
                             vendor=v,
                             success=False,
-                            error="No API key available for SDK dispatch",
+                            error=e or "No API key available for SDK dispatch",
+                            error_class=ErrorClass.AUTH,
                         ),
                     ))
                     continue
@@ -3065,10 +3108,15 @@ class ReviewOrchestrator:
 
             elif reviewer.dispatch_tier == "openai":
                 openai_adapter = self.openai_adapters[reviewer.agent_id]
-                api_key = api_key_resolver.resolve(
-                    self.openai_role_ids.get(reviewer.agent_id),
-                    self.openai_key_envs.get(reviewer.agent_id, ""),
+                principal_id, vendor_id = self.openai_credential_requests.get(
+                    reviewer.agent_id, (None, "local"),
                 )
+                # A keyless local endpoint has no credential to request.
+                if (openai_adapter.endpoint_kind == "local" and principal_id is None
+                    and not self.openai_key_envs.get(reviewer.agent_id)):
+                    api_key, lookup_error = None, None
+                else:
+                    api_key, lookup_error = _resolve_dispatch_key(principal_id, vendor_id)
                 logger.info(
                     "OpenAI-compatible dispatching %s review to %s (key: %s)",
                     review_type,
@@ -3078,6 +3126,15 @@ class ReviewOrchestrator:
                 idx = next_index
                 next_index += 1
                 job_agent_ids[idx] = reviewer.agent_id
+                if lookup_error:
+                    sync_jobs.append((
+                        idx, reviewer.vendor, vendor_timeout,
+                        lambda v=reviewer.vendor, e=lookup_error: ReviewResult(
+                            vendor=v, success=False, error=e,
+                            error_class=ErrorClass.AUTH,
+                        ),
+                    ))
+                    continue
                 sync_jobs.append((
                     idx,
                     reviewer.vendor,
