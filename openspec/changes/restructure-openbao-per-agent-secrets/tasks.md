@@ -102,28 +102,28 @@ suite, inspect the cumulative diff, and verify package scope.
 
 ## 5. Live conformance and operator cutover (`wp-integration`)
 
-- [ ] 5.1 (S) Pin the live OpenBao fixture.
+- [x] 5.1 (S) Pin the live OpenBao fixture.
   Add a floating-tag guard and a dedicated runner that fails when the server is
   unavailable or zero tests run; it must not inherit PostgREST skip behavior.
   **Spec scenarios**: CFG-15.
   **Design decisions**: D6.
   **Dependencies**: 2.4, 3.6, 4.2.
-- [ ] 5.2 (M) Test live principal policy isolation.
+- [x] 5.2 (M) Test live principal policy isolation.
   **Spec scenarios**: AI-06, AI-08, AI-10, AI-11, AI-12, AI-13, AI-14; CFG-14.
   **Contracts**: `contracts/principal-topology.schema.json`, `contracts/agent-secret.schema.json`, `contracts/vendor-secret.schema.json`.
   **Design decisions**: D1, D3, D6.
   **Dependencies**: 5.1.
-- [ ] 5.3 (M) Test live bootstrap lifecycle failures, including server-side wrapping lookup.
+- [x] 5.3 (M) Test live bootstrap lifecycle failures, including server-side wrapping lookup.
   **Spec scenarios**: CFG-05, CFG-06, CFG-07, CFG-14, CFG-16, CFG-17, CFG-18, CFG-20, CFG-23, CFG-24; COORD-07.
   **Contracts**: `contracts/bootstrap-bundle.schema.json`, `contracts/session-cache.schema.json`, `contracts/migration-map.schema.json`, `contracts/openbao-event.schema.json`.
   **Design decisions**: D2, D3, D5, D6.
   **Dependencies**: 5.2.
-- [ ] Checkpoint: run live policy plus bootstrap matrix, review diff, verify scope.
-- [ ] 5.4 (S) Test live coordinator key rotation.
+- [x] Checkpoint: run live policy plus bootstrap matrix, review diff, verify scope.
+- [x] 5.4 (S) Test live coordinator key rotation.
   **Spec scenarios**: COORD-01, COORD-02, COORD-03, COORD-05, COORD-09, COORD-10; CFG-14.
   **Design decisions**: D4, D6.
   **Dependencies**: 5.3.
-- [ ] 5.5 (S) Document OpenBao cutover procedure.
+- [x] 5.5 (S) Document OpenBao cutover procedure.
   Update `docs/openbao-secret-management.md`, coordinator setup examples, and
   `agent-coordinator/CLAUDE.md` and `.secrets.yaml.example`; stage vendor keys
   currently only in deployment environment into the protected flat secrets file
@@ -132,14 +132,14 @@ suite, inspect the cumulative diff, and verify package scope.
   **Spec scenarios**: CFG-07, CFG-08, CFG-09, CFG-12, CFG-13, CFG-17, CFG-18, CFG-19.
   **Design decisions**: D3, D5, D6.
   **Dependencies**: 5.3.
-- [ ] 5.6 (S) Test the Langfuse internal Bao helper.
+- [x] 5.6 (S) Test the Langfuse internal Bao helper.
   **Spec scenarios**: CFG-19.
   **Design decisions**: D5.
   **Dependencies**: 3.8.
-- [ ] Checkpoint: run rotation plus internal helper tests, review diff, verify scope.
-- [ ] 5.7 (S) Migrate `langfuse_env.sh` to isolated internal credential inputs.
+- [x] Checkpoint: run rotation plus internal helper tests, review diff, verify scope.
+- [x] 5.7 (S) Migrate `langfuse_env.sh` to isolated internal credential inputs.
   **Dependencies**: 5.6.
-- [ ] 5.8 (S) Run final validation gates.
+- [x] 5.8 (S) Run final validation gates.
   **Spec scenarios**: AI-01..14, AI-16..17, CFG-01..27, COORD-01..10.
   **Design decisions**: D6.
   **Dependencies**: 5.4, 5.5, 5.7.
