@@ -138,10 +138,10 @@ def _load_secrets_openbao() -> dict[str, str]:
             f"(mount={bao_config.mount_path!r}, path={bao_config.secret_path!r})"
         ) from None
 
-    data = response.get("data", {}).get("data", {})
+    outer = response.get("data") if isinstance(response, dict) else None
+    data = outer.get("data") if isinstance(outer, dict) else None
     if not isinstance(data, dict):
-        logger.warning("OpenBao secret data is not a mapping — returning empty dict")
-        return {}
+        raise RuntimeError("OpenBao internal secret document is missing or malformed")
 
     result: dict[str, str] = {}
     for k, v in data.items():
