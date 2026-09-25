@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from jsonschema import ValidationError
 
 from src.agents_config import (
     ALL_MODEL_TIERS as ALL_TIERS,
@@ -27,6 +28,7 @@ from src.agents_config import (
 # ---------------------------------------------------------------------------
 
 VALID_AGENTS_YAML = """\
+credential_vendors: []
 agents:
   test-local:
     type: claude_code
@@ -42,6 +44,7 @@ agents:
     trust_level: 2
     transport: http
     api_key: "${TEST_API_KEY}"
+    vendor_credentials: []
     capabilities: [lock, queue]
     description: Test cloud agent
 """
@@ -397,6 +400,7 @@ class TestGetAgentConfig:
     def test_partial_interpolation_preserved(self, tmp_path: Path) -> None:
         """api_key with embedded unresolved ${VAR} is preserved for OpenBao."""
         yaml_content = """\
+credential_vendors: []
 agents:
   test-partial:
     type: codex
@@ -404,6 +408,7 @@ agents:
     trust_level: 2
     transport: http
     api_key: "prefix-${UNRESOLVED_KEY}"
+    vendor_credentials: []
     capabilities: [lock]
     description: Test partial interpolation
 """
@@ -419,8 +424,21 @@ agents:
 
 
 class TestPrincipalProjection:
+    def test_catalog_required(self, tmp_path: Path) -> None:
+        path = tmp_path / "agents.yaml"
+        path.write_text(VALID_AGENTS_YAML.replace("credential_vendors: []\n", "", 1))
+        with pytest.raises(ValidationError):
+            load_agents_config(path, secrets_path=tmp_path / "none")
+
+    def test_keyed_agent_scope_must_be_explicit(self, tmp_path: Path) -> None:
+        path = tmp_path / "agents.yaml"
+        path.write_text(VALID_AGENTS_YAML.replace("    vendor_credentials: []\n", "", 1))
+        with pytest.raises(ValidationError):
+            load_agents_config(path, secrets_path=tmp_path / "none")
+
     def test_legacy_openbao_role_id_rejected(self, tmp_path: Path) -> None:
         yaml_content = """\
+credential_vendors: []
 agents:
   test-cloud:
     type: codex
@@ -428,6 +446,7 @@ agents:
     trust_level: 2
     transport: http
     api_key: "${API_KEY}"
+    vendor_credentials: []
     openbao_role_id: test-cloud
     capabilities: [lock]
     description: Agent with OpenBao role
@@ -540,6 +559,7 @@ class TestApiKeysAutoPopulation:
 # ---------------------------------------------------------------------------
 
 AGENTS_WITH_CLI_YAML = """\
+credential_vendors: []
 agents:
   test-with-cli:
     type: codex
@@ -642,6 +662,7 @@ class TestCliConfig:
     def test_cli_model_with_explicit_value(self, tmp_path: Path) -> None:
         """Agent with explicit model value (not null) parses correctly."""
         yaml_content = """\
+credential_vendors: []
 agents:
   test-explicit-model:
     type: codex
@@ -675,6 +696,7 @@ agents:
 # ---------------------------------------------------------------------------
 
 AGENTS_WITH_SDK_YAML = """\
+credential_vendors: []
 agents:
   test-remote:
     type: codex
@@ -753,6 +775,7 @@ class TestSdkConfig:
     def test_sdk_defaults_applied(self, tmp_path: Path) -> None:
         """SDK section with only required fields gets correct defaults."""
         yaml_content = """\
+credential_vendors: []
 agents:
   test-minimal-sdk:
     type: codex

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -99,6 +100,7 @@ class Session:
     renewable: bool
     period_seconds: int
     lease_expires_at: datetime
+    bootstrap_token_sha256: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -108,6 +110,7 @@ class Session:
             "renewable": self.renewable,
             "period_seconds": self.period_seconds,
             "lease_expires_at": self.lease_expires_at.isoformat(),
+            "bootstrap_token_sha256": self.bootstrap_token_sha256,
         }
 
 
@@ -272,12 +275,18 @@ class OpenBaoClient:
             if paths.session.exists() or paths.session.is_symlink():
                 session = self._load_session(paths.session, principal_id)
                 if session.lease_expires_at <= datetime.now(UTC):
-                    raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session")
-                if session.lease_expires_at <= datetime.now(UTC) + timedelta(seconds=60):
-                    session = self._renew(session)
-                    _atomic_private_json(paths.session, session.to_dict())
-                self.client.token = session.client_token
-                return session
+                    return self._recover(paths, session, principal_id, role_name)
+                try:
+                    self._check_cached_token(session)
+                    if session.lease_expires_at <= datetime.now(UTC) + timedelta(seconds=60):
+                        session = self._renew(session)
+                        _atomic_private_json(paths.session, session.to_dict())
+                    self.client.token = session.client_token
+                    return session
+                except BaoCredentialError as exc:
+                    if exc.code != ErrorCode.TOKEN_EXPIRED:
+                        raise
+                    return self._recover(paths, session, principal_id, role_name)
             session = self._bootstrap(paths.bundle, principal_id, role_name)
             _atomic_private_json(paths.session, session.to_dict())
             self.client.token = session.client_token
@@ -291,14 +300,19 @@ class OpenBaoClient:
         try:
             if (value.get("version") != 1 or value.get("principal_id") != principal_id
                 or value.get("renewable") is not True or set(value) != {
-                    "version", "principal_id", "client_token", "renewable", "period_seconds", "lease_expires_at"
+                    "version", "principal_id", "client_token", "renewable", "period_seconds",
+                    "lease_expires_at", "bootstrap_token_sha256"
                 }):
                 raise ValueError("invalid session")
             token = value["client_token"]
             period = value["period_seconds"]
             if not isinstance(token, str) or not token or not isinstance(period, int) or period < 1:
                 raise ValueError("invalid session")
-            return Session(principal_id, token, True, period, _datetime(value["lease_expires_at"]))
+            digest = value["bootstrap_token_sha256"]
+            if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+                raise ValueError("invalid bootstrap digest")
+            return Session(principal_id, token, True, period,
+                           _datetime(value["lease_expires_at"]), digest)
         except (ValueError, KeyError, TypeError):
             raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "session") from None
 
@@ -342,6 +356,7 @@ class OpenBaoClient:
                 principal_id=principal_id, client_token=token, renewable=True,
                 period_seconds=period,
                 lease_expires_at=datetime.now(UTC) + timedelta(seconds=period),
+                bootstrap_token_sha256=hashlib.sha256(wrapped["token"].encode()).hexdigest(),
             )
         except BaoCredentialError:
             raise
@@ -359,8 +374,59 @@ class OpenBaoClient:
             if not isinstance(period, int) or period < 1 or auth.get("renewable") is not True:
                 raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session")
             token = auth.get("client_token") or session.client_token
-            return Session(session.principal_id, token, True, period, datetime.now(UTC) + timedelta(seconds=period))
+            return Session(session.principal_id, token, True, period,
+                           datetime.now(UTC) + timedelta(seconds=period),
+                           session.bootstrap_token_sha256)
         except BaoCredentialError:
             raise
-        except Exception:
+        except (hvac.exceptions.Unauthorized, hvac.exceptions.Forbidden):
             raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session") from None
+        except (KeyError, TypeError, ValueError):
+            raise BaoCredentialError(ErrorCode.BACKEND_UNAVAILABLE, "session") from None
+        except Exception as exc:
+            raise _classify(exc) from None
+
+    def _check_cached_token(self, session: Session) -> None:
+        """Ask OpenBao before trusting a locally unexpired cache entry."""
+        self.client.token = session.client_token
+        try:
+            response = self.client.auth.token.lookup_self()
+            data = response["data"]
+            if not isinstance(data, dict):
+                raise ValueError("invalid lookup")
+            ttl = data.get("ttl")
+            if not isinstance(ttl, int) or data.get("renewable") is not True:
+                raise ValueError("invalid lookup")
+            if ttl <= 0:
+                raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session")
+        except BaoCredentialError:
+            raise
+        except (hvac.exceptions.Unauthorized, hvac.exceptions.Forbidden):
+            raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session") from None
+        except (KeyError, TypeError, ValueError):
+            raise BaoCredentialError(ErrorCode.BACKEND_UNAVAILABLE, "session") from None
+        except Exception as exc:
+            raise _classify(exc) from None
+
+    def _recover(
+        self, paths: BootstrapPaths, old: Session, principal_id: str, role_name: str
+    ) -> Session:
+        """Use only a newly delivered bundle after token expiry or revocation."""
+        try:
+            bundle = _read_private_json(paths.bundle, "bootstrap")
+            token = bundle["wrapped_secret_id"]["token"]
+            if not isinstance(token, str) or not token:
+                raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap")
+            digest = hashlib.sha256(token.encode()).hexdigest()
+            if digest == old.bootstrap_token_sha256:
+                raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session")
+        except BaoCredentialError as exc:
+            if exc.code == ErrorCode.BOOTSTRAP_INVALID and not paths.bundle.exists():
+                raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session") from None
+            raise
+        except (KeyError, TypeError):
+            raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap") from None
+        session = self._bootstrap(paths.bundle, principal_id, role_name)
+        _atomic_private_json(paths.session, session.to_dict())
+        self.client.token = session.client_token
+        return session

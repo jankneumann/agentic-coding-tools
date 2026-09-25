@@ -108,13 +108,21 @@ def project_principals(registry: Any, mount: str = "secret") -> PrincipalTopolog
         names.add(name)
         if _field(agent, "openbao_role_id") is not None:
             raise ProjectionError("manual openbao_role_id is forbidden")
-        declared = _field(agent, "vendor_credentials", [])
+        api_key = _field(agent, "api_key")
+        if api_key is not None and (not isinstance(api_key, str) or not api_key):
+            raise ProjectionError("invalid agent API key declaration")
+        has_api_key = api_key is not None
+        declared = _field(agent, "vendor_credentials", None)
+        if has_api_key and declared is None:
+            raise ProjectionError("keyed agent requires explicit vendor_credentials")
+        if declared is None:
+            declared = []
         if not isinstance(declared, (list, tuple)) or any(
             not isinstance(v, str) or v not in vendors for v in declared
         ) or len(declared) != len(set(declared)):
             raise ProjectionError("invalid, duplicate, or undeclared vendor credential")
         agent_vendors = tuple(sorted(declared))
-        if not _field(agent, "api_key"):
+        if not has_api_key:
             if agent_vendors:
                 raise ProjectionError("keyless agent cannot declare vendor credentials")
             continue
