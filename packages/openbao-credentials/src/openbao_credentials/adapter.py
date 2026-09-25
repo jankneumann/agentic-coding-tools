@@ -227,7 +227,8 @@ class OpenBaoClient:
             raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "path")
         try:
             response = self.client.secrets.kv.v2.read_secret_version(
-                path=logical_path, mount_point=self.config.mount
+                path=logical_path, mount_point=self.config.mount,
+                raise_on_deleted_version=True,
             )
         except Exception as exc:
             raise _classify(exc) from None
@@ -277,8 +278,8 @@ class OpenBaoClient:
                 if session.lease_expires_at <= datetime.now(UTC):
                     return self._recover(paths, session, principal_id, role_name)
                 try:
-                    self._check_cached_token(session)
-                    if session.lease_expires_at <= datetime.now(UTC) + timedelta(seconds=60):
+                    remaining = self._check_cached_token(session)
+                    if remaining <= session.period_seconds / 2:
                         session = self._renew(session)
                         _atomic_private_json(paths.session, session.to_dict())
                     self.client.token = session.client_token
@@ -334,10 +335,10 @@ class OpenBaoClient:
                 raise ValueError("invalid bundle")
         except (KeyError, TypeError, ValueError):
             raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap") from None
+        stage = "lookup"
         try:
             # A revoked cached token may still be set after lookup-self fails.
-            # Wrapping lookup and unwrap authenticate with the wrapping token,
-            # never with the stale AppRole client token.
+            # Lookup sends the wrapping token in JSON without an auth header.
             self.client.token = None
             lookup = self.client.adapter.post(
                 "/v1/sys/wrapping/lookup", json={"token": wrapped["token"]}
@@ -345,10 +346,16 @@ class OpenBaoClient:
             server_path = lookup.get("data", {}).get("creation_path")
             if server_path != expected_path:
                 raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap")
-            unwrapped = self.client.sys.unwrap(token=wrapped["token"])
+            # hvac's unwrap(token=...) places the token in the JSON body. Bao
+            # expects it in X-Vault-Token for this endpoint. Never send both.
+            stage = "unwrap"
+            self.client.token = wrapped["token"]
+            unwrapped = self.client.sys.unwrap()
             secret_id = unwrapped["data"]["secret_id"]
             if not isinstance(secret_id, str) or not secret_id:
                 raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap")
+            stage = "login"
+            self.client.token = None
             login = self.client.auth.approle.login(role_id=bundle["role_id"], secret_id=secret_id)
             auth = login["auth"]
             token = auth["client_token"]
@@ -364,6 +371,10 @@ class OpenBaoClient:
             )
         except BaoCredentialError:
             raise
+        except (hvac.exceptions.InvalidRequest, hvac.exceptions.Forbidden, hvac.exceptions.Unauthorized):
+            code = (ErrorCode.AUTHENTICATION_FAILED if stage == "login"
+                    else ErrorCode.BOOTSTRAP_INVALID)
+            raise BaoCredentialError(code, "bootstrap") from None
         except (KeyError, TypeError, ValueError):
             raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap") from None
         except Exception as exc:
@@ -390,7 +401,7 @@ class OpenBaoClient:
         except Exception as exc:
             raise _classify(exc) from None
 
-    def _check_cached_token(self, session: Session) -> None:
+    def _check_cached_token(self, session: Session) -> int:
         """Ask OpenBao before trusting a locally unexpired cache entry."""
         self.client.token = session.client_token
         try:
@@ -399,10 +410,11 @@ class OpenBaoClient:
             if not isinstance(data, dict):
                 raise ValueError("invalid lookup")
             ttl = data.get("ttl")
-            if not isinstance(ttl, int) or data.get("renewable") is not True:
+            if type(ttl) is not int or data.get("renewable") is not True:
                 raise ValueError("invalid lookup")
             if ttl <= 0:
                 raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session")
+            return ttl
         except BaoCredentialError:
             raise
         except (hvac.exceptions.Unauthorized, hvac.exceptions.Forbidden):
