@@ -288,6 +288,34 @@ def test_revoked_but_locally_valid_token_requires_fresh_bundle(tmp_path: Path) -
     assert client.sys.unwrap.call_count == 2
 
 
+def test_recovery_clears_revoked_client_token_before_wrapping_calls(tmp_path: Path) -> None:
+    import hvac
+
+    root = protected_dir(tmp_path)
+    bundle(root)
+    client = fake_client()
+    typed = adapter(root, client)
+    typed.ensure_session(PID, ROLE)
+    bundle(root, token="replacement-wrap")
+    client.auth.token.lookup_self.side_effect = hvac.exceptions.Unauthorized()
+
+    def lookup(*args, **kwargs):
+        assert client.token is None
+        assert kwargs == {"json": {"token": "replacement-wrap"}}
+        return {"data": {"creation_path": f"auth/approle/role/{ROLE}/secret-id"}}
+
+    def unwrap(*args, **kwargs):
+        assert client.token is None
+        assert kwargs == {"token": "replacement-wrap"}
+        return {"data": {"secret_id": "replacement-secret-id"}}
+
+    client.adapter.post.side_effect = lookup
+    client.sys.unwrap.side_effect = unwrap
+    recovered = typed.ensure_session(PID, ROLE)
+    assert recovered.client_token == "client-sensitive"
+    assert client.token == "client-sensitive"
+
+
 def test_transport_failure_does_not_consume_new_bundle(tmp_path: Path) -> None:
     import requests.exceptions
 
