@@ -2619,6 +2619,7 @@ def test_single_model_exhaustion_is_reported_only_by_collector(
 def test_direct_registry_dispatch_shape_has_explicit_principal_and_scope(tmp_path: Path) -> None:
     registry = tmp_path / "agents.yaml"
     registry.write_text(
+        "credential_vendors: [anthropic]\n"
         "agents:\n"
         "  claude-remote:\n"
         "    type: claude_code\n"
@@ -2753,3 +2754,21 @@ def test_configured_bao_sdk_failure_is_sanitized_and_does_not_dispatch(
     assert "BACKEND_UNAVAILABLE" in (results[0].error or "")
     assert "ambient-key" not in (results[0].error or "")
     adapter.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize("agent", [
+    "    api_key: ${KEY}\n    vendor_credentials: [unknown]\n",
+    "    vendor_credentials: [anthropic]\n",
+])
+def test_direct_registry_rejects_invalid_vendor_scope(tmp_path: Path, agent: str) -> None:
+    registry = tmp_path / "agents.yaml"
+    registry.write_text(
+        "credential_vendors: [anthropic]\n"
+        "agents:\n"
+        "  local:\n"
+        "    type: local\n"
+        "    endpoint_kind: local\n"
+        "    base_url: http://localhost:11434/v1\n"
+        f"{agent}"
+    )
+    assert ReviewOrchestrator._config_from_agents_yaml(registry) is None

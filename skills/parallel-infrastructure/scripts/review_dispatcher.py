@@ -2668,6 +2668,19 @@ class ReviewOrchestrator:
         except (OSError, yaml.YAMLError) as exc:
             logger.warning("agents.yaml load error from %s: %s", path, exc)
             return None
+        from openbao_credentials import ProjectionError, project_principals
+
+        try:
+            topology = project_principals(
+                raw, mount=os.environ.get("BAO_MOUNT_PATH", "secret"),
+            )
+        except ProjectionError as exc:
+            logger.warning("agents.yaml projection failed for %s: %s", path, exc)
+            return None
+        principals_by_name = {
+            principal.name: principal for principal in topology.principals
+            if principal.kind == "agent"
+        }
         agents_out: list[dict[str, Any]] = []
         for agent_id, agent in (raw.get("agents") or {}).items():
             cli = agent.get("cli")
@@ -2678,15 +2691,13 @@ class ReviewOrchestrator:
                 endpoint_kind in {"openrouter", "local"} and base_url
             ):
                 continue
+            principal = principals_by_name.get(agent_id)
             agents_out.append({
                 "agent_id": agent_id,
                 "type": agent.get("type"),
                 "transport": agent.get("transport", "mcp"),
-                "principal_id": (
-                    f"spiffe://coordinator.rotkohl.ai/agent/{agent_id}"
-                    if agent.get("api_key") else None
-                ),
-                "vendor_credentials": sorted(agent.get("vendor_credentials") or []),
+                "principal_id": principal.principal_id if principal else None,
+                "vendor_credentials": list(principal.vendor_credentials) if principal else [],
                 "endpoint_kind": endpoint_kind,
                 "base_url": base_url,
                 "api_key_env": agent.get("api_key_env"),
