@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -85,6 +86,8 @@ class IdentityRuntime:
         self._required_static_keys = required_static_keys
         self.preflight_blockers: tuple[str, ...] = ()
         self._state = IdentityState(MappingProxyType({}), None, True)
+        self._expiry_lock = threading.Lock()
+        self._expired_at: float | None = None
 
     @property
     def state(self) -> IdentityState:
@@ -101,17 +104,29 @@ class IdentityRuntime:
     def readiness(self) -> tuple[str, bool]:
         """Read one state for both component status and routability."""
         state = self._state
-        usable = (
-            state.installed_at is not None
-            and time.monotonic() - state.installed_at <= GRACE_SECONDS
-        )
+        usable = self._usable_state(state)
         return ("ready" if usable and not state.failed else "degraded", usable)
 
     def lookup(self, key: str) -> Mapping[str, str] | None:
         state = self._state
-        if state.installed_at is None or time.monotonic() - state.installed_at > GRACE_SECONDS:
+        if not self._usable_state(state):
             return None
         return state.identities.get(key)
+
+    def _usable_state(self, state: IdentityState) -> bool:
+        if state.installed_at is None:
+            return False
+        age = time.monotonic() - state.installed_at
+        if age <= GRACE_SECONDS:
+            return True
+        # Readiness and auth may race at the boundary. Serialize only the
+        # transition event; ordinary lookups remain lock-free.
+        with self._expiry_lock:
+            if self._state is state and self._expired_at != state.installed_at:
+                self._expired_at = state.installed_at
+                self._emit("snapshot_expired", "failure", action="expire",
+                           code=ErrorCode.TOKEN_EXPIRED)
+        return False
 
     def reload(self) -> bool:
         """Build a complete candidate before one state assignment."""
@@ -147,13 +162,16 @@ class IdentityRuntime:
         self._emit("refresh_succeeded", "success")
         return True
 
-    def _emit(self, event: str, outcome: str, *, code: ErrorCode | None = None) -> None:
+    def _emit(
+        self, event: str, outcome: str, *, action: str = "refresh",
+        code: ErrorCode | None = None,
+    ) -> None:
         state = self._state
         record: dict[str, object] = {
             "version": 1,
             "event": f"openbao.identity.{event}",
             "occurred_at": datetime.now(UTC).isoformat(),
-            "action": "refresh",
+            "action": action,
             "outcome": outcome,
             "principal_id": IDENTITY_PRINCIPAL,
             "resource": "identity_snapshot",

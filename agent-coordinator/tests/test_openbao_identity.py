@@ -85,6 +85,35 @@ def test_failed_candidate_never_replaces_snapshot_and_grace_is_monotonic(
     assert runtime.lookup("rotated") is not None
 
 
+def test_grace_expiry_emits_one_sanitized_contract_event(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture,
+) -> None:
+    from jsonschema import Draft202012Validator
+    from openspec_paths import change_dir, repo_root_from
+
+    now = [100.0]
+    monkeypatch.setattr("src.openbao_identity.time.monotonic", lambda: now[0])
+    runtime = IdentityRuntime(lambda: _Reader({"alice": "private-key"}),
+                              lambda: [_agent("alice", "${KEY}")])
+    assert runtime.reload()
+    now[0] = 220.0
+    assert runtime.lookup("private-key") is not None  # inclusive boundary
+    now[0] = 220.001
+    with caplog.at_level(logging.WARNING):
+        assert runtime.lookup("private-key") is None
+        assert runtime.readiness() == ("degraded", False)
+        assert runtime.lookup("private-key") is None
+    records = [json.loads(line.split("OpenBao identity event ", 1)[1])
+               for line in caplog.messages if "OpenBao identity event " in line]
+    assert len(records) == 1
+    assert records[0]["event"] == "openbao.identity.snapshot_expired"
+    assert records[0]["action"] == "expire"
+    assert "private-key" not in json.dumps(records)
+    path = change_dir(repo_root_from(__file__, 2), "restructure-openbao-per-agent-secrets")
+    Draft202012Validator(json.loads((path / "contracts/openbao-event.schema.json").read_text()))\
+        .validate(records[0])
+
+
 def test_startup_failure_has_no_usable_snapshot() -> None:
     runtime = IdentityRuntime(lambda: _Reader({"alice": ""}),
                               lambda: [_agent("alice", "${KEY}")])
