@@ -572,6 +572,7 @@ jobs:
               # system_one_decisions — shared seam for calibrated System One
               # (TypeSafe Jev) decisions, fallback-only for now.
               'system_one_decisions',
+              'openbao_credentials',
           ]
 
           failures = []
