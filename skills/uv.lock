@@ -494,12 +494,13 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "hvac", specifier = ">=2.4.0,<3" },
-    { name = "jsonschema", marker = "extra == 'test'", specifier = ">=4.26.0" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0" },
+requires-dist = [{ name = "hvac", specifier = ">=2.4.0,<3" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jsonschema", specifier = ">=4.26.0" },
+    { name = "pytest", specifier = ">=9.0" },
 ]
-provides-extras = ["test"]
 
 [[package]]
 name = "packaging"
