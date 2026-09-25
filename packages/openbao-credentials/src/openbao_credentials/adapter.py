@@ -335,6 +335,10 @@ class OpenBaoClient:
         except (KeyError, TypeError, ValueError):
             raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap") from None
         try:
+            # A revoked cached token may still be set after lookup-self fails.
+            # Wrapping lookup and unwrap authenticate with the wrapping token,
+            # never with the stale AppRole client token.
+            self.client.token = None
             lookup = self.client.adapter.post(
                 "/v1/sys/wrapping/lookup", json={"token": wrapped["token"]}
             )
