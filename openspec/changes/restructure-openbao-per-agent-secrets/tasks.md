@@ -27,7 +27,7 @@ suite, inspect the cumulative diff, and verify package scope.
   **Dependencies**: `wp-contracts`.
 - [x] 1.4 (M) Implement shared OpenBao adapter boundary.
   **Dependencies**: 1.3.
-- [ ] 1.5 (S) Test the shared package in coordinator container imports.
+- [x] 1.5 (S) Test the shared package in coordinator container imports.
   **Spec scenarios**: CFG-03, COORD-06.
   **Design decisions**: D2, D6.
   **Dependencies**: 1.4.
