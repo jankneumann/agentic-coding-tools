@@ -30,6 +30,25 @@
     "vendor_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "snapshot_age_seconds": { "type": "number", "minimum": 0 }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "enum": [
+              "openbao.principal.created",
+              "openbao.principal.updated",
+              "openbao.principal.retired",
+              "openbao.bootstrap.issued",
+              "openbao.bootstrap.rejected"
+            ]
+          }
+        },
+        "required": ["event"]
+      },
+      "then": { "required": ["principal_id", "resource"] }
+    }
+  ],
   "$defs": {
     "errorCode": {
       "type": "string",
