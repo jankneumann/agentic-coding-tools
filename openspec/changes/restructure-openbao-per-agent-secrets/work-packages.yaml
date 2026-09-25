@@ -2,11 +2,11 @@ schema_version: 1
 feature:
   id: restructure-openbao-per-agent-secrets
   title: Registry-derived OpenBao principals
-  plan_revision: 5
+  plan_revision: 6
   created_by: codex
   deployable: true
 contracts:
-  revision: 5
+  revision: 6
   openapi:
     primary: openspec/changes/restructure-openbao-per-agent-secrets/contracts/openapi/v1.yaml
     files:

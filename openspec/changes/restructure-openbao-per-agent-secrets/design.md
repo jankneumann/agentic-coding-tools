@@ -114,8 +114,11 @@ token in a separate protected 0600 session file beneath the same 0700 directory.
 An interprocess lock serializes token read/renew/replace and the first unwrap;
 the second process reuses the valid token, not the consumed bundle. Atomic
 replacement and symlink refusal apply to this cache too. A token at maximum
-lease expiry or failed renewal invalidates the cache and requires an authorized fresh
-wrapped bundle. Tests cover sequential and simultaneous dispatch processes.
+lease expiry, revocation, or failed renewal invalidates the cache and requires an authorized fresh
+wrapped bundle. The cache records the consumed wrapping-token SHA-256 digest.
+Under the lock, the adapter checks cached-token validity against OpenBao; it
+compares a candidate bundle digest before any new unwrap and refuses the same
+consumed bundle. Tests cover sequential and simultaneous dispatch processes.
 The cache format is `contracts/session-cache.schema.json`.
 
 Retired managed agents and pre-migration role aliases are identified through
