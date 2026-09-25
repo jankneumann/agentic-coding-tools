@@ -131,3 +131,51 @@ Approach 1 was approved at Gate 1. Completed a contract-first plan for registry-
 ### Context
 The operator approved the complete Approach 1 plan and explicitly authorized proceeding to implementation. The coordinator is available, and the approved task list has been seeded.
 
+---
+
+## Phase: Implementation (2026-09-25)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Canonical principal projection** `architectural: agent-identity` — The registry catalog and keyed agent roster are projected once into deterministic agent and service principals; consumers use that contract.
+2. **One-use protected bootstrap** `architectural: configuration` — Each principal receives a wrapped SecretID bundle and protected renewable-token cache; failed or revoked sessions require a fresh bundle.
+3. **Atomic identity reload** `architectural: agent-coordinator` — The coordinator installs only complete key snapshots, preserves a bounded last-good grace, and reports identity readiness separately.
+4. **Scoped dispatch credentials** `architectural: skill-workflow` — SDK and OpenAI-compatible dispatch authorize principal/vendor grants before Bao reads; CLI processes retain ambient credentials and non-Bao development uses configured environment keys.
+
+### Alternatives Considered
+- Shared static agent SecretID or coordinator identity override: rejected because it bypasses principal isolation and cannot safely survive one-use bootstrap or key rotation
+
+### Trade-offs
+- Accepted Explicit pinned live fixture and operator migration map over implicit credential discovery because they make policy boundaries, cutover and rollback auditable
+
+### Open Questions
+- [ ] The evidence consistency rule rejects two planned sequential shared-file edits; issue #628 tracks a narrow plan-time ownership or handoff contract.
+- [ ] Full deployment, smoke, security and E2E validation remains for the PR validation phase.
+- [ ] Canonical base specs should be reconciled when this change is archived.
+
+### Completed Work
+- Shared topology and typed Bao adapter; registry and container wiring.
+- Per-principal seeder, wrapped bootstrap, cutover preflight and protected reconciliation.
+- Coordinator atomic identity snapshots, readiness and internal credential isolation.
+- Scoped dispatch resolver and compatibility fixes.
+- Pinned live OpenBao matrix (8 passed), CI job, Langfuse helper migration and operator cutover guide.
+- Three-vendor review quorums and independent audits for all implementation packages; actionable findings resolved.
+
+### Next Steps
+- Review the PR and run full validate-feature deploy/smoke/security/E2E phases.
+- Keep issue #628 visible as the only implementation-stage evidence exception.
+- After merge, archive the change and reconcile canonical specs with its deltas.
+
+### Relevant Files
+- `packages/openbao-credentials/src/openbao_credentials/topology.py` — canonical projection
+- `packages/openbao-credentials/src/openbao_credentials/adapter.py` — credential boundary
+- `skills/bao-vault/scripts/bao_seed.py` — reconciliation and cutover
+- `agent-coordinator/src/openbao_identity.py` — atomic snapshot and readiness
+- `skills/parallel-infrastructure/scripts/api_key_resolver.py` — dispatch key lookup
+- `skills/bao-vault/scripts/tests/integration/test_live_openbao.py` — real-server conformance matrix
+- `docs/openbao-secret-management.md` — operator migration and rollback
+
+### Context
+Implemented the approved contract-first OpenBao principal projection across provisioning, coordinator identity reload, SDK dispatch, and live cutover. Eight pinned live OpenBao tests pass, including two-process one-use bootstrap and periodic renewal beyond the auth-mount max TTL; three-vendor reviews and independent audits found no remaining implementation blocker.
+

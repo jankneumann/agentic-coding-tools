@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-25 — restructure-openbao-per-agent-secrets
+
+### Phase: Implementation
+
+**Scoped dispatch credentials** — SDK and OpenAI-compatible dispatch authorize principal/vendor grants before Bao reads; CLI processes retain ambient credentials and non-Bao development uses configured environment keys.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D4)
+
+---
+
 ## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Implementation

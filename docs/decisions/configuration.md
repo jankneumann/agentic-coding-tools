@@ -16,6 +16,17 @@
 
 ---
 
+## 2026-09-25 — restructure-openbao-per-agent-secrets
+
+### Phase: Implementation
+
+**One-use protected bootstrap** — Each principal receives a wrapped SecretID bundle and protected renewable-token cache; failed or revoked sessions require a fresh bundle.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D2)
+
+---
+
 ## 2026-09-24 — restructure-openbao-per-agent-secrets
 
 ### Phase: Plan

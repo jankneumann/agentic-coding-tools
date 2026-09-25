@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-25T02:48:37.876831+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented the approved contract-first OpenBao principal projection across provisioning, coordinator identity reload, SDK dispatch, and live cutover. Eight pinned live OpenBao tests pass, including two-process one-use bootstrap and periodic renewal beyond the auth-mount max TTL; three-vendor reviews and independent audits found no remaining implementation blocker.",
+    "completed_work": [
+      "Shared topology and typed Bao adapter; registry and container wiring.",
+      "Per-principal seeder, wrapped bootstrap, cutover preflight and protected reconciliation.",
+      "Coordinator atomic identity snapshots, readiness and internal credential isolation.",
+      "Scoped dispatch resolver and compatibility fixes.",
+      "Pinned live OpenBao matrix (8 passed), CI job, Langfuse helper migration and operator cutover guide.",
+      "Three-vendor review quorums and independent audits for all implementation packages; actionable findings resolved."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Canonical principal projection",
+        "rationale": "The registry catalog and keyed agent roster are projected once into deterministic agent and service principals; consumers use that contract.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "One-use protected bootstrap",
+        "rationale": "Each principal receives a wrapped SecretID bundle and protected renewable-token cache; failed or revoked sessions require a fresh bundle.",
+        "capability": "configuration",
+        "supersedes": null
+      },
+      {
+        "title": "Atomic identity reload",
+        "rationale": "The coordinator installs only complete key snapshots, preserves a bounded last-good grace, and reports identity readiness separately.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Scoped dispatch credentials",
+        "rationale": "SDK and OpenAI-compatible dispatch authorize principal/vendor grants before Bao reads; CLI processes retain ambient credentials and non-Bao development uses configured environment keys.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Review the PR and run full validate-feature deploy/smoke/security/E2E phases.",
+      "Keep issue #628 visible as the only implementation-stage evidence exception.",
+      "After merge, archive the change and reconcile canonical specs with its deltas."
+    ],
+    "relevant_files": [
+      {
+        "path": "packages/openbao-credentials/src/openbao_credentials/topology.py",
+        "description": "canonical projection"
+      },
+      {
+        "path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+        "description": "credential boundary"
+      },
+      {
+        "path": "skills/bao-vault/scripts/bao_seed.py",
+        "description": "reconciliation and cutover"
+      },
+      {
+        "path": "agent-coordinator/src/openbao_identity.py",
+        "description": "atomic snapshot and readiness"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/api_key_resolver.py",
+        "description": "dispatch key lookup"
+      },
+      {
+        "path": "skills/bao-vault/scripts/tests/integration/test_live_openbao.py",
+        "description": "real-server conformance matrix"
+      },
+      {
+        "path": "docs/openbao-secret-management.md",
+        "description": "operator migration and rollback"
+      }
+    ]
+  }
+}
