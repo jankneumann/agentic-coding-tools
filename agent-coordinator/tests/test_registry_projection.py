@@ -764,7 +764,12 @@ def test_openbao_topology_matches_bundled_registry() -> None:
     root = Path(__file__).resolve().parents[2]
     raw = yaml.safe_load((root / "agent-coordinator/agents.yaml").read_text())
     topology = project_principals(raw)
-    contract = json.loads((change_dir(root, "restructure-openbao-per-agent-secrets") / "contracts" / "principal-topology.schema.json").read_text())
+    contract_path = (
+        change_dir(root, "restructure-openbao-per-agent-secrets")
+        / "contracts"
+        / "principal-topology.schema.json"
+    )
+    contract = json.loads(contract_path.read_text())
     Draft202012Validator(contract).validate(topology.to_dict())
     keyed = {agent.name for agent in load_agents_config() if agent.api_key}
     projected = {p.name for p in topology.principals if p.kind == "agent"}
