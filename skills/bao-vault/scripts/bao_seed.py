@@ -24,14 +24,269 @@ Environment variables:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
+import re
+import stat
 import sys
+import tempfile
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Callable
 
 import yaml
+from jsonschema import Draft202012Validator, FormatChecker
+from openbao_credentials import PrincipalTopology, bootstrap_paths, project_principals
 
 logger = logging.getLogger(__name__)
+
+_SCHEMA_DIR = Path(__file__).resolve().parents[3] / "openspec/changes/restructure-openbao-per-agent-secrets/contracts"
+_SOURCE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+_ROLE = re.compile(r"^(agent|service)-[a-z][a-z0-9-]*$")
+_PLACEHOLDER = re.compile(r"^\$\{([A-Z][A-Z0-9_]*)\}$")
+
+
+@dataclass(frozen=True)
+class ReconciliationPlan:
+    topology: PrincipalTopology
+    agent_values: dict[str, str] = field(repr=False)
+    vendor_values: dict[str, str] = field(repr=False)
+    retained_internal: tuple[str, ...]
+    bootstrap_dir: Path
+    retired_agents: tuple[str, ...]
+    legacy_role_aliases: dict[str, str]
+
+    def preview(self) -> str:
+        """Describe the whole mutation set without credential material."""
+        lines = [f"mount: {self.topology.mount}"]
+        for principal in self.topology.principals:
+            lines.append(f"reconcile role {principal.role_name}, policy {principal.policy_name} ")
+            lines.append(f"  read scope: {', '.join(principal.read_paths) or '(none)'}")
+            lines.append(f"  bootstrap: {principal.role_name}.bundle.json")
+        for name in sorted(self.agent_values):
+            lines.append(f"reconcile agent path agents/{name}")
+        for name in sorted(self.vendor_values):
+            lines.append(f"reconcile vendor path vendors/{name}")
+        for name in self.retired_agents:
+            lines.append(f"retire owned agent role agent-{name}, policy agent-{name}, path agents/{name} after confirmed cutover")
+        for name, alias in sorted(self.legacy_role_aliases.items()):
+            lines.append(f"retire legacy role alias {alias} for {name} after confirmed cutover")
+        lines.append("retire coordinator-read policy after confirmed cutover and internal role handoff")
+        return "\n".join(lines)
+
+
+def _read_mapping(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        raise ValueError(f"missing input file: {path}")
+    with path.open(encoding="utf-8") as stream:
+        data = yaml.safe_load(stream)
+    if not isinstance(data, dict):
+        raise ValueError(f"input must be a mapping: {path}")
+    return data
+
+
+def _validate_schema(data: dict[str, Any], name: str) -> None:
+    schema = json.loads((_SCHEMA_DIR / name).read_text(encoding="utf-8"))
+    errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(data))
+    if errors:
+        raise ValueError(f"{name}: {errors[0].message}")
+
+
+def _protected_directory(path: Path) -> None:
+    if path.is_symlink():
+        raise ValueError("bootstrap directory must not be a symlink")
+    if path.exists() and (not path.is_dir() or stat.S_IMODE(path.stat().st_mode) != 0o700):
+        raise ValueError("bootstrap directory must be mode 0700")
+    if not path.parent.is_dir():
+        raise ValueError("bootstrap directory parent does not exist")
+    for filename in ("managed-state.json",):
+        target = path / filename
+        if target.is_symlink() or (target.exists() and (not target.is_file() or stat.S_IMODE(target.stat().st_mode) != 0o600)):
+            raise ValueError(f"unsafe bootstrap destination: {filename}")
+
+
+def _managed_state(path: Path) -> dict[str, Any]:
+    state_path = path / "managed-state.json"
+    if not state_path.exists():
+        return {"version": 1, "agents": []}
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    if not isinstance(state, dict) or state.get("version") != 1 or not isinstance(state.get("agents"), list):
+        raise ValueError("invalid managed state")
+    if any(not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", name) for name in state["agents"]):
+        raise ValueError("invalid managed agent name")
+    return state
+
+
+def plan_reconciliation(
+    agents_path: Path, secrets_path: Path, migration_map_path: Path,
+    bootstrap_dir: Path, mount_path: str = "secret", *,
+    confirm_cutover: bool = False, internal_role_name: str | None = None,
+) -> ReconciliationPlan:
+    """Validate all local inputs and destinations without mutating Bao or disk."""
+    registry = _read_mapping(agents_path)
+    flat = _read_mapping(secrets_path)
+    migration = _read_mapping(migration_map_path)
+    _validate_schema(migration, "migration-map.schema.json")
+    topology = project_principals(registry, mount=mount_path)
+    _validate_schema(topology.to_dict(), "principal-topology.schema.json")
+    keyed = {p.name for p in topology.principals if p.kind == "agent"}
+    if set(migration["agents"]) != keyed or set(migration["vendors"]) != set(topology.vendors):
+        raise ValueError("migration map must cover every keyed agent and declared vendor exactly")
+    for name in keyed:
+        declared = registry["agents"][name].get("api_key")
+        match = _PLACEHOLDER.fullmatch(declared) if isinstance(declared, str) else None
+        if match is None or migration["agents"][name] != match.group(1):
+            raise ValueError(f"agent {name} source key disagrees with exact registry placeholder")
+    sources = list(migration["agents"].values()) + list(migration["vendors"].values()) + migration["retained_internal"]
+    if len(sources) != len(set(sources)):
+        raise ValueError("duplicate source key in migration map")
+    if set(sources) != set(flat):
+        raise ValueError(f"missing or unaccounted source keys: {', '.join(sorted(set(sources) ^ set(flat)))}")
+    if any(not isinstance(key, str) or not _SOURCE.fullmatch(key) for key in flat):
+        raise ValueError("invalid flat source key")
+    if any(not isinstance(flat[key], str) or not flat[key] for key in sources):
+        raise ValueError("every mapped source must hold a nonempty string")
+    _protected_directory(bootstrap_dir)
+    prior = _managed_state(bootstrap_dir)
+    retired = tuple(sorted(set(prior["agents"]) - keyed))
+    aliases = migration.get("legacy_role_aliases", {})
+    if set(aliases) - (keyed | set(retired)):
+        raise ValueError("legacy role alias must belong to a mapped or owned agent")
+    if len(set(aliases.values())) != len(aliases) or any(not _ROLE.fullmatch(alias) for alias in aliases.values()):
+        raise ValueError("invalid or colliding legacy role alias")
+    if set(aliases.values()) & {p.role_name for p in topology.principals}:
+        raise ValueError("legacy role alias collides with projected role")
+    if confirm_cutover and (not internal_role_name or not re.fullmatch(r"[a-z][a-z0-9-]*", internal_role_name)):
+        raise ValueError("cutover requires explicit internal AppRole name")
+    if internal_role_name in {p.role_name for p in topology.principals} or internal_role_name in aliases.values():
+        raise ValueError("internal AppRole collides with managed role")
+    for principal in topology.principals:
+        paths = bootstrap_paths(bootstrap_dir, principal.role_name)
+        for target in (paths.bundle, paths.session, paths.lock):
+            if target.is_symlink() or (target.exists() and (not target.is_file() or stat.S_IMODE(target.stat().st_mode) != 0o600)):
+                raise ValueError(f"unsafe bootstrap destination: {target.name}")
+    return ReconciliationPlan(
+        topology=topology,
+        agent_values={name: flat[key] for name, key in migration["agents"].items()},
+        vendor_values={name: flat[key] for name, key in migration["vendors"].items()},
+        retained_internal=tuple(migration["retained_internal"]), bootstrap_dir=bootstrap_dir,
+        retired_agents=retired, legacy_role_aliases=dict(aliases),
+    )
+
+
+def _atomic_json(path: Path, data: dict[str, Any]) -> None:
+    """Atomically replace a protected JSON file; never follow a destination symlink."""
+    if path.is_symlink():
+        raise ValueError(f"unsafe destination: {path.name}")
+    descriptor, temp = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            json.dump(data, stream, separators=(",", ":"))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if os.path.exists(temp):
+            os.unlink(temp)
+
+
+def _event(event: str, action: str, outcome: str, principal_id: str, resource: str) -> dict[str, Any]:
+    value = {"version": 1, "event": event, "occurred_at": datetime.now(timezone.utc).isoformat(),
+             "action": action, "outcome": outcome, "principal_id": principal_id, "resource": resource}
+    _validate_schema(value, "openbao-event.schema.json")
+    return value
+
+
+def apply_reconciliation(
+    client: Any, plan: ReconciliationPlan, *, confirm_cutover: bool = False,
+    internal_role_name: str | None = None, audit: Callable[[dict[str, Any]], None] | None = None,
+) -> None:
+    """Apply a validated plan, recording sanitized outcome for each mutation."""
+    audit = audit or (lambda record: print(json.dumps(record, sort_keys=True)))
+    if confirm_cutover and (not internal_role_name or not re.fullmatch(r"[a-z][a-z0-9-]*", internal_role_name)):
+        raise ValueError("cutover requires explicit internal AppRole name")
+    mounts = client.sys.list_mounted_secrets_engines()
+    mounts = mounts.get("data", mounts) if isinstance(mounts, dict) else {}
+    mount = mounts.get(f"{plan.topology.mount}/")
+    if not isinstance(mount, dict) or mount.get("type") != "kv" or mount.get("options", {}).get("version") != "2":
+        raise ValueError("configured mount is not KV-v2")
+    if confirm_cutover:
+        current_internal = client.auth.approle.read_role(role_name=internal_role_name)
+        if not isinstance(current_internal, dict) or not isinstance(current_internal.get("data"), dict):
+            raise ValueError("internal AppRole must exist before cutover")
+    plan.bootstrap_dir.mkdir(mode=0o700, exist_ok=True)
+    _protected_directory(plan.bootstrap_dir)
+    def mutate(event: str, action: str, principal_id: str, resource: str, operation: Callable[[], Any]) -> Any:
+        try:
+            result = operation()
+        except Exception:
+            audit(_event(event, action, "failure", principal_id, resource))
+            raise
+        audit(_event(event, action, "success", principal_id, resource))
+        return result
+
+    if "approle/" not in client.sys.list_auth_methods():
+        mutate("openbao.principal.created", "create",
+               "spiffe://coordinator.rotkohl.ai/service/identity-reader", "role",
+               lambda: client.sys.enable_auth_method("approle"))
+
+    for principal in plan.topology.principals:
+        policy = "".join(f'path "{path}" {{\n  capabilities = ["read"]\n}}\n' for path in principal.read_paths)
+        mutate("openbao.principal.updated", "update", principal.principal_id, "policy",
+               lambda p=principal, hcl=policy: client.sys.create_or_update_policy(name=p.policy_name, policy=hcl))
+        mutate("openbao.principal.updated", "update", principal.principal_id, "role",
+               lambda p=principal: client.auth.approle.create_or_update_approle(
+                   role_name=p.role_name, token_policies=[p.policy_name], token_period=f"{p.token_period_seconds}s",
+                   token_num_uses=0, secret_id_num_uses=1))
+    for name, value in sorted(plan.agent_values.items()):
+        principal = next(p for p in plan.topology.principals if p.kind == "agent" and p.name == name)
+        mutate("openbao.principal.updated", "update", principal.principal_id, "agent_path",
+               lambda n=name, v=value: client.secrets.kv.v2.create_or_update_secret(path=f"agents/{n}", secret={"api_key": v}, mount_point=plan.topology.mount))
+    gateway = plan.topology.by_id("spiffe://coordinator.rotkohl.ai/service/egress-gateway")
+    for name, value in sorted(plan.vendor_values.items()):
+        mutate("openbao.principal.updated", "update", gateway.principal_id, "vendor_path",
+               lambda n=name, v=value: client.secrets.kv.v2.create_or_update_secret(path=f"vendors/{n}", secret={"api_key": v}, mount_point=plan.topology.mount))
+    for principal in plan.topology.principals:
+        role_id = client.auth.approle.read_role_id(role_name=principal.role_name)["data"]["role_id"]
+        response = client.auth.approle.generate_secret_id(role_name=principal.role_name, wrap_ttl="300s")
+        wrap = response["wrap_info"]
+        bundle = {"version": 1, "principal_id": principal.principal_id, "role_name": principal.role_name,
+                  "role_id": role_id, "wrapped_secret_id": {"token": wrap["token"],
+                  "creation_path": wrap["creation_path"], "creation_time": wrap["creation_time"], "ttl_seconds": wrap["ttl"]}}
+        expected = f"auth/approle/role/{principal.role_name}/secret-id"
+        if wrap["creation_path"] != expected:
+            audit(_event("openbao.bootstrap.rejected", "reject", "failure", principal.principal_id, "bootstrap"))
+            raise ValueError("unexpected wrapping creation path")
+        _validate_schema(bundle, "bootstrap-bundle.schema.json")
+        mutate("openbao.bootstrap.issued", "issue", principal.principal_id, "bootstrap",
+               lambda p=principal, b=bundle: _atomic_json(bootstrap_paths(plan.bootstrap_dir, p.role_name).bundle, b))
+    if confirm_cutover:
+        internal_policy = f'path "{plan.topology.mount}/data/coordinator" {{\n  capabilities = ["read"]\n}}\n'
+        internal_id = "spiffe://coordinator.rotkohl.ai/service/identity-reader"
+        mutate("openbao.principal.updated", "update", internal_id, "policy",
+               lambda: client.sys.create_or_update_policy(name="coordinator-internal-read", policy=internal_policy))
+        mutate("openbao.principal.updated", "update", internal_id, "role",
+               lambda: client.auth.approle.create_or_update_approle(role_name=internal_role_name, token_policies=["coordinator-internal-read"]))
+        for name in plan.retired_agents:
+            principal_id = f"spiffe://coordinator.rotkohl.ai/agent/{name}"
+            mutate("openbao.principal.retired", "retire", principal_id, "role", lambda n=name: client.auth.approle.delete_role(role_name=f"agent-{n}"))
+            mutate("openbao.principal.retired", "retire", principal_id, "policy", lambda n=name: client.sys.delete_policy(name=f"agent-{n}"))
+            mutate("openbao.principal.retired", "retire", principal_id, "agent_path", lambda n=name: client.secrets.kv.v2.delete_metadata_and_all_versions(path=f"agents/{n}", mount_point=plan.topology.mount))
+        for name, alias in sorted(plan.legacy_role_aliases.items()):
+            principal_id = f"spiffe://coordinator.rotkohl.ai/agent/{name}"
+            mutate("openbao.principal.retired", "retire", principal_id, "role", lambda r=alias: client.auth.approle.delete_role(role_name=r))
+        mutate("openbao.principal.retired", "retire", internal_id, "policy", lambda: client.sys.delete_policy(name="coordinator-read"))
+    current_agents = sorted(p.name for p in plan.topology.principals if p.kind == "agent")
+    owned = current_agents if confirm_cutover else sorted(set(current_agents) | set(plan.retired_agents))
+    _atomic_json(plan.bootstrap_dir / "managed-state.json", {"version": 1, "agents": owned})
 
 def _default_config_path(env_name: str, filename: str) -> Path:
     """Resolve explicit configuration before a consumer-local default."""
@@ -248,20 +503,24 @@ def seed_db_engine(
 
 
 def main() -> None:
-    """Main entry point for bao-seed.py."""
+    """Reconcile namespaced principal credentials from an explicit migration map."""
     parser = argparse.ArgumentParser(
-        description="Seed OpenBao with secrets and AppRoles from project config files."
+        description="Provision per-principal OpenBao credentials from an explicit migration map."
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Preview changes without writing to OpenBao",
     )
-    parser.add_argument(
-        "--with-db-engine",
-        action="store_true",
-        help="Configure the database secrets engine for PostgreSQL",
-    )
+    parser.add_argument("--migration-map", type=Path, required=True,
+                        help="Versioned mapping of flat source keys to agents and vendors")
+    parser.add_argument("--bootstrap-dir", type=Path,
+                        default=Path(os.environ.get("BAO_BOOTSTRAP_DIR", "")) if os.environ.get("BAO_BOOTSTRAP_DIR") else None,
+                        help="Protected directory for principal bootstrap bundles")
+    parser.add_argument("--confirm-cutover", action="store_true",
+                        help="Retire only owned legacy agent access after explicit cutover")
+    parser.add_argument("--internal-role-name", type=str,
+                        help="Existing internal AppRole to isolate before shared policy retirement")
     parser.add_argument(
         "--secrets-path",
         type=Path,
@@ -281,34 +540,16 @@ def main() -> None:
     agents_path = args.agents_path or _default_config_path("AGENTS_YAML", "agents.yaml")
 
     mount_path = os.environ.get("BAO_MOUNT_PATH", "secret")
-    secret_path = os.environ.get("BAO_SECRET_PATH", "coordinator")
-    token_ttl = int(os.environ.get("BAO_TOKEN_TTL", "3600"))
-
-    if args.dry_run:
-        print("=== DRY RUN MODE ===\n")
-        client = None
-    else:
-        client = _get_client()
-
-    # Step 1: Seed secrets from .secrets.yaml
-    print("--- Seeding secrets ---")
-    seed_secrets(client, secrets_path, mount_path, secret_path, dry_run=args.dry_run)
-    print()
-
-    # Step 2: Create AppRoles from agents.yaml
-    print("--- Seeding AppRoles ---")
-    seed_approles(
-        client, agents_path, mount_path, secret_path, token_ttl, dry_run=args.dry_run
+    if args.bootstrap_dir is None:
+        parser.error("--bootstrap-dir or BAO_BOOTSTRAP_DIR is required")
+    plan = plan_reconciliation(
+        agents_path, secrets_path, args.migration_map, args.bootstrap_dir, mount_path,
+        confirm_cutover=args.confirm_cutover, internal_role_name=args.internal_role_name,
     )
-    print()
-
-    # Step 3: Configure database engine (optional)
-    if args.with_db_engine:
-        print("--- Configuring database secrets engine ---")
-        seed_db_engine(client, dry_run=args.dry_run)
-        print()
-
-    print("Done.")
+    print(plan.preview())
+    if not args.dry_run:
+        apply_reconciliation(_get_client(), plan, confirm_cutover=args.confirm_cutover,
+                             internal_role_name=args.internal_role_name)
 
 
 if __name__ == "__main__":

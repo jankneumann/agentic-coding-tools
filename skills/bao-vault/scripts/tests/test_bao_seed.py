@@ -11,7 +11,10 @@ import pytest
 # Add scripts directory to path for import
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bao_seed import _default_config_path, seed_approles, seed_db_engine, seed_secrets
+from bao_seed import (
+    _default_config_path, apply_reconciliation, plan_reconciliation,
+    seed_approles, seed_db_engine, seed_secrets,
+)
 
 
 def test_portable_config_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -26,6 +29,108 @@ def test_portable_config_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
 def _write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
+
+
+def _migration_inputs(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
+    agents = tmp_path / "agents.yaml"
+    secrets = tmp_path / ".secrets.yaml"
+    mapping = tmp_path / "migration.yaml"
+    bootstrap = tmp_path / "bootstrap"
+    _write(agents, """credential_vendors: [anthropic]
+agents:
+  claude-web:
+    api_key: ${CLAUDE_WEB_KEY}
+    vendor_credentials: [anthropic]
+  endpoint:
+    vendor_credentials: []
+""")
+    _write(secrets, "CLAUDE_WEB_KEY: agent-secret\nANTHROPIC_KEY: vendor-secret\nDB_PASSWORD: internal-secret\n")
+    _write(mapping, """version: 1
+agents: {claude-web: CLAUDE_WEB_KEY}
+vendors: {anthropic: ANTHROPIC_KEY}
+retained_internal: [DB_PASSWORD]
+""")
+    return agents, secrets, mapping, bootstrap
+
+
+class TestMigrationReconciliation:
+    def test_preflight_requires_exact_placeholder_and_source_coverage(self, tmp_path: Path) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        assert {p.role_name for p in plan.topology.principals} == {
+            "agent-claude-web", "service-identity-reader", "service-egress-gateway"
+        }
+        assert "agent-secret" not in plan.preview()
+        assert not bootstrap.exists()
+
+        _write(mapping, "version: 1\nagents: {claude-web: ANTHROPIC_KEY}\nvendors: {anthropic: ANTHROPIC_KEY}\nretained_internal: [DB_PASSWORD]\n")
+        with pytest.raises(ValueError, match="source key|placeholder|duplicate"):
+            plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        _write(mapping, "version: 1\nagents: {claude-web: CLAUDE_WEB_KEY}\nvendors: {anthropic: ANTHROPIC_KEY}\nretained_internal: []\n")
+        with pytest.raises(ValueError, match="unaccounted"):
+            plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+
+    def test_rejects_unsafe_directory_and_fallback_expression(self, tmp_path: Path) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        bootstrap.mkdir(mode=0o755)
+        with pytest.raises(ValueError, match="0700"):
+            plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        bootstrap.chmod(0o700)
+        _write(agents, "credential_vendors: [anthropic]\nagents: {claude-web: {api_key: '${CLAUDE_WEB_KEY:-fallback}', vendor_credentials: [anthropic]}}\n")
+        with pytest.raises(ValueError, match="placeholder"):
+            plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+
+    def test_apply_exact_policies_wrapped_bundles_and_audit(self, tmp_path: Path) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        client = MagicMock()
+        client.sys.list_mounted_secrets_engines.return_value = {"data": {"secret/": {"type": "kv", "options": {"version": "2"}}}}
+        client.sys.list_auth_methods.return_value = {"approle/": {}}
+        client.auth.approle.read_role_id.side_effect = lambda role_name: {"data": {"role_id": f"role-{role_name}"}}
+        client.auth.approle.generate_secret_id.return_value = {"wrap_info": {"token": "wrapped-token", "creation_path": "auth/approle/role/agent-claude-web/secret-id", "creation_time": "2026-01-01T00:00:00Z", "ttl": 300}}
+        def wrap_secret_id(**kwargs):
+            role_name = kwargs["role_name"]
+            return {"wrap_info": {"token": f"wrapped-{role_name}", "creation_path": f"auth/approle/role/{role_name}/secret-id", "creation_time": "2026-01-01T00:00:00Z", "ttl": 300}}
+        client.auth.approle.generate_secret_id.side_effect = wrap_secret_id
+        events: list[dict] = []
+        apply_reconciliation(client, plan, audit=events.append)
+        assert bootstrap.stat().st_mode & 0o777 == 0o700
+        for principal in plan.topology.principals:
+            bundle = bootstrap / f"{principal.role_name}.bundle.json"
+            assert bundle.stat().st_mode & 0o777 == 0o600
+            assert "wrapped-" in bundle.read_text()
+        assert client.sys.create_or_update_policy.call_count == 3
+        policies = {call.kwargs["name"]: call.kwargs["policy"] for call in client.sys.create_or_update_policy.call_args_list}
+        assert policies["agent-claude-web"] == 'path "secret/data/agents/claude-web" {\n  capabilities = ["read"]\n}\npath "secret/data/vendors/anthropic" {\n  capabilities = ["read"]\n}\n'
+        assert "secret/data/vendors" not in policies["service-identity-reader"]
+        assert "secret/data/agents" not in policies["service-egress-gateway"]
+        assert client.secrets.kv.v2.create_or_update_secret.call_count == 2
+        assert all("agent-secret" not in str(e) and "wrapped-" not in str(e) for e in events)
+
+    def test_cutover_requires_owned_state_and_preserves_coordinator_data(self, tmp_path: Path) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        client = MagicMock()
+        client.sys.list_mounted_secrets_engines.return_value = {"secret/": {"type": "kv", "options": {"version": "2"}}}
+        client.sys.list_auth_methods.return_value = {"approle/": {}}
+        client.auth.approle.read_role_id.side_effect = lambda role_name: {"data": {"role_id": role_name}}
+        client.auth.approle.generate_secret_id.side_effect = lambda role_name, **kw: {"wrap_info": {"token": role_name, "creation_path": f"auth/approle/role/{role_name}/secret-id", "creation_time": "2026-01-01T00:00:00Z", "ttl": 300}}
+        apply_reconciliation(client, plan)
+        _write(agents, "credential_vendors: [anthropic]\nagents: {}\n")
+        _write(mapping, "version: 1\nagents: {}\nvendors: {anthropic: ANTHROPIC_KEY}\nretained_internal: [DB_PASSWORD, CLAUDE_WEB_KEY]\n")
+        retired = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        assert "agent-claude-web" in retired.preview()
+        apply_reconciliation(client, retired)
+        client.auth.approle.delete_role.assert_not_called()
+        with pytest.raises(ValueError, match="internal AppRole"):
+            plan_reconciliation(agents, secrets, mapping, bootstrap, "secret", confirm_cutover=True)
+        client.auth.approle.read_role.return_value = {"data": {"policies": ["coordinator-read"]}}
+        apply_reconciliation(client, retired, confirm_cutover=True, internal_role_name="coordinator-internal")
+        client.auth.approle.delete_role.assert_called_once_with(role_name="agent-claude-web")
+        policy_create = next(i for i, call in enumerate(client.mock_calls) if call[0] == "sys.create_or_update_policy" and call.kwargs.get("name") == "coordinator-internal-read")
+        legacy_delete = next(i for i, call in enumerate(client.mock_calls) if call[0] == "sys.delete_policy" and call.kwargs.get("name") == "coordinator-read")
+        assert policy_create < legacy_delete
+        assert all(call.kwargs.get("path") != "coordinator" for call in client.secrets.kv.v2.delete_metadata_and_all_versions.call_args_list)
 
 
 # ---------------------------------------------------------------------------
