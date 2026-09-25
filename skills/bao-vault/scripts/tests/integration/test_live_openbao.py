@@ -16,6 +16,10 @@ import yaml
 from openbao_credentials import BaoCredentialError, ErrorCode, OpenBaoClient, PrincipalOpenBaoConfig, bootstrap_paths
 
 ROOT = Path(__file__).resolve().parents[5]
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("BAO_ADDR"),
+    reason="live OpenBao tests run through run_live_matrix.sh",
+)
 sys.path.insert(0, str(ROOT / "skills/bao-vault/scripts"))
 sys.path.insert(0, str(ROOT / "agent-coordinator"))
 

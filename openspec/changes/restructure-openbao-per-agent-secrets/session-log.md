@@ -178,4 +178,3 @@ The operator approved the complete Approach 1 plan and explicitly authorized pro
 
 ### Context
 Implemented the approved contract-first OpenBao principal projection across provisioning, coordinator identity reload, SDK dispatch, and live cutover. Eight pinned live OpenBao tests pass, including two-process one-use bootstrap and periodic renewal beyond the auth-mount max TTL; three-vendor reviews and independent audits found no remaining implementation blocker.
-
