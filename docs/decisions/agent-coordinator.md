@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-25 — restructure-openbao-per-agent-secrets
+
+### Phase: Implementation
+
+**Atomic identity reload** — The coordinator installs only complete key snapshots, preserves a bounded last-good grace, and reports identity readiness separately.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D3)
+
+---
+
 ## 2026-09-24 — restructure-openbao-per-agent-secrets
 
 ### Phase: Plan Handoff

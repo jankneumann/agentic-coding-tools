@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-25 — restructure-openbao-per-agent-secrets
+
+### Phase: Implementation
+
+**Canonical principal projection** — The registry catalog and keyed agent roster are projected once into deterministic agent and service principals; consumers use that contract.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D1)
+
+---
+
 ## 2026-09-24 — restructure-openbao-per-agent-secrets
 
 ### Phase: Plan
