@@ -7,7 +7,7 @@ suite, inspect the cumulative diff, and verify package scope.
 
 ## 1. Freeze projection and adapter contracts (`wp-projection`)
 
-- [ ] 1.1 (S) Test principal topology projection.
+- [x] 1.1 (S) Test principal topology projection.
   **Spec scenarios**: AI-01, AI-02, AI-07, AI-08, AI-09, AI-11, AI-12, AI-13, AI-14, AI-16, AI-17; CFG-03, CFG-16, CFG-20.
   **Contracts**: `contracts/principal-topology.schema.json`, `contracts/agent-secret.schema.json`, `contracts/vendor-secret.schema.json`.
   **Design decisions**: D1.
