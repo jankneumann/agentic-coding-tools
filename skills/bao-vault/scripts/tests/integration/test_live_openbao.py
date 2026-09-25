@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -60,7 +61,7 @@ def live(tmp_path_factory: pytest.TempPathFactory):
     return root, directory, plan
 
 
-def _reader(live, role_name: str) -> OpenBaoClient:
+def _reader(live) -> OpenBaoClient:
     root, directory, _ = live
     return OpenBaoClient(PrincipalOpenBaoConfig(addr=root.url, bootstrap_dir=directory))
 
@@ -71,7 +72,7 @@ def _principal(live, role_name: str):
 
 def _login(live, role_name: str) -> OpenBaoClient:
     principal = _principal(live, role_name)
-    reader = _reader(live, role_name)
+    reader = _reader(live)
     reader.ensure_session(principal.principal_id, principal.role_name)
     return reader
 
@@ -114,6 +115,9 @@ def test_exact_agent_and_service_policy_isolation(live) -> None:
         assert error.value.code == ErrorCode.AUTHORIZATION_DENIED
     for client in (alice, bob, identity, gateway):
         with pytest.raises(hvac.exceptions.Forbidden):
+            client.client.secrets.kv.v2.read_secret_version(
+                path="coordinator", mount_point="secret", raise_on_deleted_version=True)
+        with pytest.raises(hvac.exceptions.Forbidden):
             client.client.secrets.kv.v2.create_or_update_secret(
                 path="agents/alice", secret={"api_key": "overwrite"}, mount_point="secret")
         with pytest.raises(hvac.exceptions.Forbidden):
@@ -131,17 +135,57 @@ def test_wrap_lookup_replay_and_fresh_recovery(live) -> None:
     assert paths.bundle.stat().st_mode & 0o777 == 0o600
     root.auth.token.revoke(token=first.client_token)
     with pytest.raises(BaoCredentialError) as error:
-        _reader(live, principal.role_name).ensure_session(principal.principal_id, principal.role_name)
+        _reader(live).ensure_session(principal.principal_id, principal.role_name)
     assert error.value.code == ErrorCode.TOKEN_EXPIRED
     _fresh_bundle(live, principal.role_name)
-    recovered = _reader(live, principal.role_name).ensure_session(principal.principal_id, principal.role_name)
+    recovered = _reader(live).ensure_session(principal.principal_id, principal.role_name)
     assert recovered.client_token != first.client_token
     assert recovered.bootstrap_token_sha256 != first.bootstrap_token_sha256
-    assert _reader(live, principal.role_name).ensure_session(principal.principal_id, principal.role_name).client_token == recovered.client_token
+    assert _reader(live).ensure_session(principal.principal_id, principal.role_name).client_token == recovered.client_token
     root.auth.token.revoke(token=recovered.client_token)
     with pytest.raises(BaoCredentialError) as error:
-        _reader(live, principal.role_name).ensure_session(principal.principal_id, principal.role_name)
+        _reader(live).ensure_session(principal.principal_id, principal.role_name)
     assert error.value.code == ErrorCode.TOKEN_EXPIRED
+
+
+def test_simultaneous_processes_unwrap_and_login_only_once(live) -> None:
+    root, directory, _ = live
+    principal = _principal(live, "agent-alice")
+    paths = bootstrap_paths(directory, principal.role_name)
+    assert not paths.session.exists()
+    script = Path(__file__).with_name("concurrent_client.py")
+    start = directory / "contention-start"
+    children = []
+    try:
+        for index in range(2):
+            ready = directory / f"contention-ready-{index}"
+            child = subprocess.Popen(
+                [sys.executable, str(script), root.url, str(directory),
+                 principal.principal_id, principal.role_name, str(ready), str(start)],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                env={**os.environ, "BAO_TOKEN": ""},
+            )
+            children.append((child, ready))
+        deadline = time.monotonic() + 10
+        while not all(ready.exists() for _, ready in children):
+            assert time.monotonic() < deadline, "child processes did not reach the start barrier"
+            time.sleep(0.01)
+        start.touch()
+        results = []
+        for child, _ in children:
+            stdout, stderr = child.communicate(timeout=15)
+            assert child.returncode == 0, stderr
+            results.append(json.loads(stdout))
+        assert results[0]["token_digest"] == results[1]["token_digest"]
+        assert sum(result["unwrap"] for result in results) == 1
+        assert sum(result["login"] for result in results) == 1
+        assert sorted((result["unwrap"], result["login"]) for result in results) == [(0, 0), (1, 1)]
+        assert paths.session.stat().st_mode & 0o777 == 0o600
+    finally:
+        for child, _ in children:
+            if child.poll() is None:
+                child.kill()
+                child.communicate()
 
 
 def test_wrap_forgery_rejected_before_unwrap(live) -> None:
@@ -159,13 +203,13 @@ def test_wrap_forgery_rejected_before_unwrap(live) -> None:
         bundle["wrapped_secret_id"]["creation_path"] = "auth/approle/role/agent-alice/secret-id"
         paths.bundle.write_text(json.dumps(bundle), encoding="utf-8")
         with pytest.raises(BaoCredentialError) as error:
-            _reader(live, role_name).ensure_session(principal.principal_id, role_name)
+            _reader(live).ensure_session(principal.principal_id, role_name)
         assert error.value.code == ErrorCode.BOOTSTRAP_INVALID
         # The server still knows the token: local creation-path check preceded unwrap.
         assert root.adapter.post("/v1/sys/wrapping/lookup", json={"token": real_token})["data"]["creation_path"] == f"auth/approle/role/{role_name}/secret-id"
         bundle["wrapped_secret_id"]["creation_path"] = f"auth/approle/role/{role_name}/secret-id"
         paths.bundle.write_text(json.dumps(bundle), encoding="utf-8")
-        assert _reader(live, role_name).ensure_session(principal.principal_id, role_name).client_token
+        assert _reader(live).ensure_session(principal.principal_id, role_name).client_token
     finally:
         paths.session.write_bytes(old_session)
         paths.session.chmod(0o600)
@@ -191,7 +235,7 @@ def test_server_side_wrap_creation_path_rejected(live) -> None:
         paths.bundle.write_text(json.dumps(bundle), encoding="utf-8")
         paths.bundle.chmod(0o600)
         with pytest.raises(BaoCredentialError) as error:
-            _reader(live, role_name).ensure_session(principal.principal_id, role_name)
+            _reader(live).ensure_session(principal.principal_id, role_name)
         assert error.value.code == ErrorCode.BOOTSTRAP_INVALID
         assert root.adapter.post("/v1/sys/wrapping/lookup", json={"token": forged["token"]})["data"]["creation_path"] == "sys/wrapping/wrap"
     finally:
@@ -210,30 +254,36 @@ def test_langfuse_internal_role_only_reads_coordinator(live) -> None:
         policy='path "secret/data/coordinator" { capabilities = ["read"] }')
     root.auth.approle.create_or_update_approle(role_name="coordinator-internal",
         token_policies=["coordinator-internal-read"])
-    role_id = root.auth.approle.read_role_id(role_name="coordinator-internal")["data"]["role_id"]
-    secret_id = root.auth.approle.generate_secret_id(role_name="coordinator-internal")["data"]["secret_id"]
-    auth = root.auth.approle.login(role_id=role_id, secret_id=secret_id, use_token=False)["auth"]
-    internal = hvac.Client(url=root.url, token=auth["client_token"])
-    assert internal.secrets.kv.v2.read_secret_version(path="coordinator", mount_point="secret", raise_on_deleted_version=True)["data"]["data"]["LANGFUSE_PUBLIC_KEY"] == "public-live"
-    with pytest.raises(hvac.exceptions.Forbidden):
-        internal.secrets.kv.v2.read_secret_version(path="agents/alice", mount_point="secret", raise_on_deleted_version=True)
-    helper = ROOT / "skills/bao-vault/scripts/langfuse_env.sh"
-    env = {**os.environ, "BAO_ADDR": root.url, "BAO_INTERNAL_ROLE_ID": role_id,
-           "BAO_INTERNAL_SECRET_ID": secret_id, "BAO_TOKEN": "", "BAO_ROLE_ID": "legacy-wrong",
-           "BAO_SECRET_ID": "legacy-wrong", "LANGFUSE_PUBLIC_KEY": "", "LANGFUSE_SECRET_KEY": "",
-           "LANGFUSE_HOST": ""}
-    result = subprocess.run(["bash", str(helper)], env=env, capture_output=True, text=True, check=True)
-    assert "LANGFUSE_PUBLIC_KEY=public-live" in result.stdout
-    assert "LANGFUSE_SECRET_KEY=secret-live" in result.stdout
-    assert "legacy-wrong" not in result.stdout + result.stderr
+    try:
+        role_id = root.auth.approle.read_role_id(role_name="coordinator-internal")["data"]["role_id"]
+        secret_id = root.auth.approle.generate_secret_id(role_name="coordinator-internal")["data"]["secret_id"]
+        auth = root.auth.approle.login(role_id=role_id, secret_id=secret_id, use_token=False)["auth"]
+        internal = hvac.Client(url=root.url, token=auth["client_token"])
+        assert internal.secrets.kv.v2.read_secret_version(path="coordinator", mount_point="secret", raise_on_deleted_version=True)["data"]["data"]["LANGFUSE_PUBLIC_KEY"] == "public-live"
+        with pytest.raises(hvac.exceptions.Forbidden):
+            internal.secrets.kv.v2.read_secret_version(path="agents/alice", mount_point="secret", raise_on_deleted_version=True)
+        helper = ROOT / "skills/bao-vault/scripts/langfuse_env.sh"
+        env = {**os.environ, "BAO_ADDR": root.url, "BAO_INTERNAL_ROLE_ID": role_id,
+               "BAO_INTERNAL_SECRET_ID": secret_id, "BAO_TOKEN": "", "BAO_ROLE_ID": "legacy-wrong",
+               "BAO_SECRET_ID": "legacy-wrong", "LANGFUSE_PUBLIC_KEY": "", "LANGFUSE_SECRET_KEY": "",
+               "LANGFUSE_HOST": ""}
+        result = subprocess.run(["bash", str(helper)], env=env, capture_output=True, text=True, check=True)
+        assert "LANGFUSE_PUBLIC_KEY=public-live" in result.stdout
+        assert "LANGFUSE_SECRET_KEY=secret-live" in result.stdout
+        assert "legacy-wrong" not in result.stdout + result.stderr
+    finally:
+        root.auth.approle.delete_role(role_name="coordinator-internal")
+        root.sys.delete_policy(name="coordinator-internal-read")
+        root.secrets.kv.v2.delete_metadata_and_all_versions(path="coordinator", mount_point="secret")
 
 
-def test_coordinator_live_snapshot_rotation_and_readiness(live) -> None:
+def test_coordinator_live_snapshot_rotation_and_readiness(live, caplog: pytest.LogCaptureFixture) -> None:
     root, directory, _ = live
     # The identity reader has already bootstrapped; each reload is a real Bao read.
     runtime = IdentityRuntime(
         lambda: OpenBaoClient(PrincipalOpenBaoConfig(addr=root.url, bootstrap_dir=directory)),
         lambda: [_agent("alice"), _agent("bob")],
+        required_static_keys=("alice-secret", "bob-secret"),
     )
     assert runtime.reload()
     assert runtime.readiness() == ("ready", True)
@@ -250,6 +300,22 @@ def test_coordinator_live_snapshot_rotation_and_readiness(live) -> None:
     finally:
         root.secrets.kv.v2.create_or_update_secret(path="agents/alice", secret={"api_key": "alice-secret"}, mount_point="secret")
         root.secrets.kv.v2.create_or_update_secret(path="agents/bob", secret={"api_key": "bob-secret"}, mount_point="secret")
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert runtime.reload()
+    assert runtime.readiness() == ("ready", True)
+    assert runtime.lookup("alice-rotated") is None
+    assert runtime.lookup("alice-secret") is not None
+    assert caplog.text.count("openbao.identity.refresh_succeeded") == 1
+
+    blocked = IdentityRuntime(
+        lambda: OpenBaoClient(PrincipalOpenBaoConfig(addr=root.url, bootstrap_dir=directory)),
+        lambda: [_agent("alice"), _agent("bob")],
+        required_static_keys=("unbound-static-key",),
+    )
+    assert not blocked.reload()
+    assert blocked.lookup("unbound-static-key") is None
+    assert blocked.readiness() == ("degraded", False)
 
 
 def test_periodic_token_renews_past_auth_mount_max_ttl(live) -> None:
@@ -272,16 +338,19 @@ def test_periodic_token_renews_past_auth_mount_max_ttl(live) -> None:
         path = bootstrap_paths(directory, role_name).bundle
         path.write_text(json.dumps(bundle), encoding="utf-8")
         path.chmod(0o600)
-        reader = _reader(live, role_name)
+        reader = _reader(live)
         initial = reader.ensure_session(principal_id, role_name)
         assert initial.period_seconds == 4
+        previous_expiry = initial.lease_expires_at
         for _ in range(3):
             time.sleep(2.0)
-            renewed = _reader(live, role_name).ensure_session(principal_id, role_name)
+            renewed = _reader(live).ensure_session(principal_id, role_name)
             assert renewed.client_token == initial.client_token
-            assert renewed.lease_expires_at > initial.lease_expires_at
-        after_mount_max = _reader(live, role_name)
+            assert renewed.lease_expires_at > previous_expiry
+            previous_expiry = renewed.lease_expires_at
+        after_mount_max = _reader(live)
         after_mount_max.ensure_session(principal_id, role_name)
         assert after_mount_max.read_agent_key("alice") == "alice-secret"
     finally:
+        root.auth.approle.delete_role(role_name=role_name)
         root.sys.tune_auth_method(path="approle", max_lease_ttl=f"{prior_max_ttl}s")

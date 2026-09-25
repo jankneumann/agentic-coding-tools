@@ -23,7 +23,10 @@ container="$($engine run --rm -d -p 127.0.0.1::8200 \
   -e BAO_DEV_ROOT_TOKEN_ID=dev-root-token \
   -e BAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200 \
   "$image" server -dev)"
-cleanup() { "$engine" stop "$container" >/dev/null 2>&1 || true; }
+cleanup() {
+  "$engine" stop "$container" >/dev/null 2>&1 || true
+  if [[ -n "${report:-}" ]]; then rm -f "$report"; fi
+}
 trap cleanup EXIT
 port="$($engine port "$container" 8200/tcp | awk -F: '{print $NF}' | head -n 1)"
 [[ "$port" =~ ^[0-9]+$ ]] || { echo 'OpenBao host port unavailable' >&2; exit 1; }
@@ -38,4 +41,15 @@ done
 python_bin="$repo_root/skills/.venv/bin/python"
 [[ -x "$python_bin" ]] || { echo 'Run uv sync --project skills first' >&2; exit 1; }
 cd "$repo_root"
-"$python_bin" -m pytest skills/bao-vault/scripts/tests/integration -q
+report="$(mktemp)"
+"$python_bin" -m pytest skills/bao-vault/scripts/tests/integration -q --junitxml="$report"
+"$python_bin" - "$report" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+cases = ET.parse(sys.argv[1]).findall(".//testcase")
+passed = sum(case.find("skipped") is None and case.find("failure") is None
+             and case.find("error") is None for case in cases)
+if passed == 0:
+    raise SystemExit("Live OpenBao matrix collected no passing tests")
+PY
