@@ -70,6 +70,20 @@ class TestMigrationReconciliation:
         with pytest.raises(ValueError, match="unaccounted"):
             plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
 
+    def test_cli_dry_run_requires_explicit_map_and_bootstrap(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+        from bao_seed import main
+
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        monkeypatch.setattr(sys, "argv", ["bao_seed.py", "--dry-run", "--agents-path", str(agents),
+                                             "--secrets-path", str(secrets), "--migration-map", str(mapping),
+                                             "--bootstrap-dir", str(bootstrap)])
+        monkeypatch.setattr("bao_seed._get_client", lambda: pytest.fail("dry-run must not connect to OpenBao"))
+        main()
+        output = capsys.readouterr().out
+        assert "agent-claude-web" in output
+        assert "agent-secret" not in output
+        assert not bootstrap.exists()
+
     def test_rejects_unsafe_directory_and_fallback_expression(self, tmp_path: Path) -> None:
         agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
         bootstrap.mkdir(mode=0o755)
@@ -107,7 +121,7 @@ class TestMigrationReconciliation:
         assert client.secrets.kv.v2.create_or_update_secret.call_count == 2
         assert all("agent-secret" not in str(e) and "wrapped-" not in str(e) for e in events)
 
-    def test_cutover_requires_owned_state_and_preserves_coordinator_data(self, tmp_path: Path) -> None:
+    def test_cutover_requires_owned_state_and_preserves_coordinator_data(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
         plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
         client = MagicMock()
@@ -124,13 +138,85 @@ class TestMigrationReconciliation:
         client.auth.approle.delete_role.assert_not_called()
         with pytest.raises(ValueError, match="internal AppRole"):
             plan_reconciliation(agents, secrets, mapping, bootstrap, "secret", confirm_cutover=True)
-        client.auth.approle.read_role.return_value = {"data": {"policies": ["coordinator-read"]}}
+        client.auth.approle.read_role.return_value = {"data": {"token_policies": ["coordinator-read"], "secret_id_num_uses": 0}}
+        client.auth.approle.read_role_id.side_effect = None
+        client.auth.approle.read_role_id.return_value = {"data": {"role_id": "internal-role-id"}}
+        client.auth.approle.list_roles.return_value = {"data": {"keys": ["coordinator-internal", "agent-claude-web"]}}
+        client.auth.approle.login.return_value = {"auth": {"client_token": "internal-token", "policies": ["default", "coordinator-internal-read"]}}
+        monkeypatch.setenv("BAO_INTERNAL_ROLE_ID", "internal-role-id")
+        monkeypatch.setenv("BAO_INTERNAL_SECRET_ID", "internal-secret-id")
+        monkeypatch.setattr("bao_seed._verify_internal_handoff", lambda *args: None)
         apply_reconciliation(client, retired, confirm_cutover=True, internal_role_name="coordinator-internal")
         client.auth.approle.delete_role.assert_called_once_with(role_name="agent-claude-web")
         policy_create = next(i for i, call in enumerate(client.mock_calls) if call[0] == "sys.create_or_update_policy" and call.kwargs.get("name") == "coordinator-internal-read")
         legacy_delete = next(i for i, call in enumerate(client.mock_calls) if call[0] == "sys.delete_policy" and call.kwargs.get("name") == "coordinator-read")
         assert policy_create < legacy_delete
         assert all(call.kwargs.get("path") != "coordinator" for call in client.secrets.kv.v2.delete_metadata_and_all_versions.call_args_list)
+
+    def test_cutover_rejects_unknown_shared_policy_user_before_mutation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        client = MagicMock()
+        client.sys.list_mounted_secrets_engines.return_value = {"secret/": {"type": "kv", "options": {"version": "2"}}}
+        client.auth.approle.read_role.return_value = {"data": {"token_policies": ["coordinator-read"], "secret_id_num_uses": 0}}
+        client.auth.approle.read_role_id.return_value = {"data": {"role_id": "internal-role-id"}}
+        client.auth.approle.list_roles.return_value = {"data": {"keys": ["coordinator-internal", "unrelated"]}}
+        monkeypatch.setenv("BAO_INTERNAL_ROLE_ID", "internal-role-id")
+        monkeypatch.setenv("BAO_INTERNAL_SECRET_ID", "internal-secret-id")
+        with pytest.raises(ValueError, match="unexpected AppRole"):
+            apply_reconciliation(client, plan, confirm_cutover=True, internal_role_name="coordinator-internal")
+        client.sys.create_or_update_policy.assert_not_called()
+
+    def test_cutover_rejects_single_use_internal_secret_id(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        client = MagicMock()
+        client.sys.list_mounted_secrets_engines.return_value = {"secret/": {"type": "kv", "options": {"version": "2"}}}
+        client.auth.approle.read_role.return_value = {"data": {"token_policies": ["coordinator-read"], "secret_id_num_uses": 1}}
+        monkeypatch.setenv("BAO_INTERNAL_ROLE_ID", "internal-role-id")
+        monkeypatch.setenv("BAO_INTERNAL_SECRET_ID", "internal-secret-id")
+        with pytest.raises(ValueError, match="reusable SecretIDs"):
+            apply_reconciliation(client, plan, confirm_cutover=True, internal_role_name="coordinator-internal")
+        client.auth.approle.login.assert_not_called()
+        client.sys.create_or_update_policy.assert_not_called()
+
+    def test_retained_internal_may_be_empty(self, tmp_path: Path) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        _write(secrets, "CLAUDE_WEB_KEY: agent-secret\nANTHROPIC_KEY: vendor-secret\nDB_PASSWORD: ''\n")
+        plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        assert plan.retained_internal == ("DB_PASSWORD",)
+
+    def test_wrapped_auth_methods_are_recognized(self, tmp_path: Path) -> None:
+        agents, secrets, mapping, bootstrap = _migration_inputs(tmp_path)
+        plan = plan_reconciliation(agents, secrets, mapping, bootstrap, "secret")
+        client = MagicMock()
+        client.sys.list_mounted_secrets_engines.return_value = {"secret/": {"type": "kv", "options": {"version": "2"}}}
+        client.sys.list_auth_methods.return_value = {"data": {"approle/": {}}}
+        client.auth.approle.read_role_id.side_effect = lambda role_name: {"data": {"role_id": role_name}}
+        client.auth.approle.generate_secret_id.side_effect = lambda role_name, **kw: {"wrap_info": {"token": role_name, "creation_path": f"auth/approle/role/{role_name}/secret-id", "creation_time": "2026-01-01T00:00:00Z", "ttl": 300}}
+        apply_reconciliation(client, plan, audit=lambda e: None)
+        client.sys.enable_auth_method.assert_not_called()
+
+    def test_internal_handoff_reads_with_fresh_token_then_revokes_it(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from bao_seed import _verify_internal_handoff
+        import hvac
+
+        admin = MagicMock()
+        admin.url = "http://127.0.0.1:8200"
+        admin.auth.approle.login.return_value = {"auth": {"client_token": "short-lived-token", "policies": ["default", "coordinator-internal-read"]}}
+        reader = MagicMock()
+        reader.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"DB_PASSWORD": "unused"}}}
+        constructor = MagicMock(return_value=reader)
+        monkeypatch.setattr(hvac, "Client", constructor)
+
+        _verify_internal_handoff(admin, "secret", "role-id", "secret-id")
+
+        constructor.assert_called_once_with(url=admin.url, token="short-lived-token")
+        reader.secrets.kv.v2.read_secret_version.assert_called_once_with(
+            path="coordinator", mount_point="secret", raise_on_deleted_version=True,
+        )
+        reader.auth.token.revoke_self.assert_called_once_with()
+        admin.auth.approle.login.assert_called_once_with(role_id="role-id", secret_id="secret-id", use_token=False)
 
 
 # ---------------------------------------------------------------------------
