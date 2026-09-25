@@ -2,6 +2,15 @@
 
 ## Project Summary
 
+For OpenBao work, use [the cutover guide](../docs/openbao-secret-management.md).
+`agents.yaml` projects one role and policy per keyed agent and separate
+identity-reader and egress-gateway service roles. Set `BAO_BOOTSTRAP_DIR` for
+principal-specific wrapped bundles. `BAO_INTERNAL_ROLE_ID` and
+`BAO_INTERNAL_SECRET_ID` authenticate only coordinator-internal reads at
+`secret/coordinator`; they never authenticate agent or vendor reads. OpenBao
+mode fails closed and does not accept a shared SecretID or static API-key
+override.
+
 This is a **multi-agent coordination system** that enables AI coding agents (Claude Code, Codex, Antigravity, Grok, Pi) to collaborate safely on shared codebases. It provides:
 
 - **File locking** - Prevent merge conflicts when multiple agents edit files
