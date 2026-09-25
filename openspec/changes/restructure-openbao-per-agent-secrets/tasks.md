@@ -57,27 +57,27 @@ suite, inspect the cumulative diff, and verify package scope.
 
 ## 3. Reload coordinator identities (`wp-coordinator`)
 
-- [ ] 3.1 (S) Test complete identity snapshot construction.
+- [x] 3.1 (S) Test complete identity snapshot construction.
   **Spec scenarios**: AI-03, AI-04, AI-05; CFG-02, CFG-04; COORD-02, COORD-06, COORD-09.
   **Contracts**: `contracts/principal-topology.schema.json`, `contracts/openbao-event.schema.json`.
   **Design decisions**: D2, D4.
   **Dependencies**: 1.4.
-- [ ] 3.2 (M) Implement identity-reader snapshot loading.
+- [x] 3.2 (M) Implement identity-reader snapshot loading.
   **Dependencies**: 3.1.
-- [ ] 3.3 (S) Test bounded identity reload lifecycle.
+- [x] 3.3 (S) Test bounded identity reload lifecycle.
   **Spec scenarios**: COORD-01, COORD-03, COORD-04, COORD-05.
   **Contracts**: `contracts/openbao-event.schema.json`, `contracts/openapi/v1.yaml`.
   **Design decisions**: D4.
   **Dependencies**: 3.2.
-- [ ] 3.4 (M) Implement atomic identity reload lifecycle.
+- [x] 3.4 (M) Implement atomic identity reload lifecycle.
   **Dependencies**: 3.3.
-- [ ] Checkpoint: run coordinator identity/API tests, review diff, verify scope.
-- [ ] 3.5 (S) Test component readiness response.
+- [x] Checkpoint: run coordinator identity/API tests, review diff, verify scope.
+- [x] 3.5 (S) Test component readiness response.
   **Spec scenarios**: COORD-06, COORD-07, COORD-08, COORD-09, COORD-10.
   **Contracts**: `contracts/openbao-event.schema.json`, `contracts/openapi/v1.yaml`.
   **Design decisions**: D4, D5.
   **Dependencies**: 3.4.
-- [ ] 3.6 (S) Wire identity readiness into HTTP authentication.
+- [x] 3.6 (S) Wire identity readiness into HTTP authentication.
   **Dependencies**: 3.5.
 - [ ] 3.7 (S) Test isolated coordinator-internal Bao loading.
   **Spec scenarios**: CFG-19, CFG-21, CFG-22, CFG-26, CFG-27; CFG-02.

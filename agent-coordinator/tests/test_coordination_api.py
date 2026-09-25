@@ -83,6 +83,54 @@ def test_invalid_api_key_returns_401(client: TestClient) -> None:
     assert response.status_code == 401
 
 
+def test_bao_snapshot_is_only_allowlist_and_ready_uses_same_state(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src import coordination_api
+    from src.config import get_config
+    from src.openbao_identity import IdentityRuntime
+
+    cfg = get_config()
+    cfg.openbao.addr = "http://bao.test:8200"
+    reader_keys = {"agent": "bao-key"}
+
+    class Reader:
+        def ensure_session(self, *_args: object) -> None:
+            pass
+
+        def read_agent_key(self, _name: str) -> str:
+            return reader_keys["agent"]
+
+    from src.agents_config import AgentEntry
+
+    agent = AgentEntry(name="agent", type="codex", profile="agent", trust_level=1,
+                       transport="mcp", capabilities=[], description="", api_key="${STATIC}")
+    runtime = IdentityRuntime(lambda: Reader(), lambda: [agent])
+    monkeypatch.setattr(coordination_api, "_identity_runtime", runtime)
+    cfg.api.api_key_identities["override-key"] = {"agent_id": "wrong", "agent_type": "codex"}
+    cfg.api.api_keys.append("override-key")
+    assert client.get("/ready").status_code == 503
+    assert client.get("/ready").json()["identity"] == "degraded"
+    for key in (_TEST_KEY, "override-key"):
+        assert client.post("/locks/acquire", headers={"X-API-Key": key}, json={
+            "file_path": "x", "agent_id": "agent", "agent_type": "codex"
+        }).status_code == 401
+
+    runtime.reload()
+    assert client.get("/ready").json()["identity"] == "ready"
+    assert client.get("/ready").status_code == 200
+    assert coordination_api._principal_for_api_key("bao-key")["agent_id"] == "agent"
+    with pytest.raises(HTTPException) as denied:
+        coordination_api._principal_for_api_key("override-key")
+    assert denied.value.status_code == 401
+
+    reader_keys["agent"] = ""
+    runtime.reload()
+    degraded = client.get("/ready")
+    assert degraded.status_code == 200
+    assert degraded.json()["identity"] == "degraded"
+
+
 def test_resolve_identity_blocks_spoofed_agent_id() -> None:
     principal: dict[str, Any] = {"agent_id": "bound-agent", "agent_type": "codex"}
     with pytest.raises(HTTPException) as exc_info:

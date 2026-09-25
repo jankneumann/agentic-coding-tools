@@ -1664,3 +1664,19 @@ class TestProcedureModeLoading:
             raw["schema_version"] = 4
 
         assert load_archetypes_config(_write_local_yaml(tmp_path, mutate))
+
+
+def test_bao_mode_ignores_explicit_static_identity_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.config import ApiConfig
+
+    monkeypatch.setenv("BAO_ADDR", "http://bao:8200")
+    monkeypatch.setenv("COORDINATION_API_KEYS", "static-key")
+    monkeypatch.setenv(
+        "COORDINATION_API_KEY_IDENTITIES",
+        '{"static-key":{"agent_id":"fake","agent_type":"codex"}}',
+    )
+    config = ApiConfig.from_env()
+    assert config.api_keys == ["static-key"]  # preserved for cutover preflight
+    assert config.api_key_identities == {}

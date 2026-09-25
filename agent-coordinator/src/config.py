@@ -417,7 +417,11 @@ class ApiConfig:
 
         raw_identities = os.environ.get("COORDINATION_API_KEY_IDENTITIES")
         identities: dict[str, dict[str, str]] = {}
-        if raw_identities:
+        if os.environ.get("BAO_ADDR"):
+            # A configured Bao reader owns the complete key-to-principal map.
+            # Keep static keys for cutover diagnostics, never for auth.
+            identities = {}
+        elif raw_identities:
             try:
                 identities = json.loads(raw_identities)
             except json.JSONDecodeError:
