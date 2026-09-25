@@ -1,0 +1,185 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "axis": "observability",
+      "severity": "nit",
+      "criticality": "medium",
+      "disposition": "fix",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/openbao_identity.py",
+      "line_range": {
+        "start": 54,
+        "end": 56
+      },
+      "existing_code": "key = reader.read_agent_key(agent.name)\nif not isinstance(key, str) or not key.strip() or key in result:\n    raise BaoCredentialError(ErrorCode.SECRET_MALFORMED, \"identity\")",
+      "evidence_class": "judgment",
+      "description": "AI-04 requires the rejected candidate snapshot to be 'rejected with a sanitized error identifying the affected principal(s)', and the COORD audit requirement asks for 'principal/path identifier when safe'. build_identity_snapshot raises a bare SECRET_MALFORMED with no agent name, the refresh_failed event's principal_id is always the identity-reader itself, and test_audit_failure_matches_frozen_event_contract asserts the agent name is absent. With N keyed agents an operator cannot tell which document is empty, malformed, or a duplicate, and a per-agent AUTHORIZATION_DENIED (COORD-07) is equally anonymous. Agent names are registry data, not secrets. Carry the affected agent name(s) in the BaoCredentialError category or a separate sanitized log field (the event schema's principal_id can hold spiffe://.../agent/<name>) and flip the test assertion to require the name while still asserting the key value is absent.",
+      "resolution": "Attach the affected agent name(s) (never the key) to the raised error / warning log; adjust the contract test to assert presence of the principal identifier and absence of key material."
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "axis": "observability",
+      "severity": "nit",
+      "criticality": "medium",
+      "disposition": "fix",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/openbao_identity.py",
+      "line_range": {
+        "start": 131,
+        "end": 141
+      },
+      "existing_code": "except Exception as exc:  # noqa: BLE001 \u2014 failed candidate must not replace state\n    code = (\n        exc.code if isinstance(exc, BaoCredentialError)\n        else ErrorCode.CONFIGURATION_INVALID\n    )",
+      "evidence_class": "judgment",
+      "description": "The blanket except maps every non-adapter exception (agents.yaml schema/validation error, DuplicateApiKeyError-style ValueError, FileNotFoundError, or a programming error in the loader) to CONFIGURATION_INVALID and logs only that code; the exception type and traceback are dropped entirely. Combined with the default reader factory raising CONFIGURATION_INVALID for a missing BAO_BOOTSTRAP_DIR, an operator staring at a 503 loop sees the identical 'CONFIGURATION_INVALID' line every 30 seconds with no way to distinguish 'bootstrap dir missing' from 'agents.yaml invalid' from 'bug'. Logging type(exc).__name__ for non-BaoCredentialError exceptions (or exc_info for that branch only) is sanitized and sufficient; adapter errors already carry only code/category.",
+      "resolution": "For non-BaoCredentialError exceptions log the exception class name (and optionally exc_info) alongside the sanitized event; keep BaoCredentialError logging code-only."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "axis": "correctness",
+      "severity": "optional",
+      "criticality": "low",
+      "disposition": "fix",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/openbao_identity.py",
+      "line_range": {
+        "start": 55,
+        "end": 55
+      },
+      "existing_code": "if not isinstance(key, str) or not key.strip() or key in result:",
+      "evidence_class": "judgment",
+      "description": "A KV document whose api_key has leading/trailing whitespace (e.g. a trailing newline from a shell-seeded value) passes the check (only all-whitespace is rejected) and is stored unstripped. _extract_api_key strips every incoming header value, so that key can never match: the agent is silently locked out while /ready reports identity: ready and refresh_succeeded is audited. Either reject key != key.strip() as SECRET_MALFORMED (consistent with the 'exactly one nonempty string' contract) or normalise consistently on both sides.",
+      "resolution": "Treat key != key.strip() as SECRET_MALFORMED in build_identity_snapshot and add a unit case."
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "axis": "correctness",
+      "severity": "optional",
+      "criticality": "low",
+      "disposition": "fix",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/tests/test_openbao_identity.py",
+      "line_range": {
+        "start": 53,
+        "end": 60
+      },
+      "existing_code": "@pytest.mark.parametrize(\"keys\", [{\"alice\": \"\"}, {\"alice\": \"same\", \"bob\": \"same\"}])\ndef test_incomplete_or_duplicate_snapshot_rejected(keys: dict[str, str]) -> None:",
+      "evidence_class": "judgment",
+      "description": "Task 3.5 lists COORD-07 (reader receives an OpenBao permission denial \u2192 readiness degraded and audit error_code AUTHORIZATION_DENIED), but no test drives a BaoCredentialError(AUTHORIZATION_DENIED) or a read-side exception (SECRET_NOT_FOUND, TIMEOUT) through reload(); every failure test uses an empty-string key (SECRET_MALFORMED) or the preflight path. The generic `exc.code` propagation in reload() looks right, but the scenario is unproven. Similarly, no test asserts create_coordination_api() constructs the runtime with required_static_keys from cfg.api.api_keys (the API test monkeypatches the runtime in), so the wiring at coordination_api.py:783-786 is untested.",
+      "resolution": "Add a parametrized reload failure test whose fake reader raises BaoCredentialError(AUTHORIZATION_DENIED) / (SECRET_NOT_FOUND) / (TIMEOUT) and assert the emitted error_code and degraded readiness; add one test that builds the app with BAO_ADDR set and asserts preflight_blockers derive from COORDINATION_API_KEYS."
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "axis": "observability",
+      "severity": "fyi",
+      "criticality": "low",
+      "disposition": "escalate",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/langfuse_middleware.py",
+      "line_range": {
+        "start": 107,
+        "end": 109
+      },
+      "existing_code": "config = get_config()\nidentity = config.api.api_key_identities.get(api_key, {})\nreturn identity.get(\"agent_id\", \"cloud-agent\")",
+      "evidence_class": "judgment",
+      "description": "ApiConfig.from_env now forces api_key_identities to {} whenever BAO_ADDR is set, but the Langfuse middleware still resolves trace attribution from that map, so in configured Bao mode every authenticated request is traced as 'cloud-agent'. Not an authorization issue (verify_api_key is the only auth path and it uses the snapshot), but it is a silent observability regression introduced by this package's config change. langfuse_middleware.py is outside wp-coordinator's write_allow, so this needs a follow-up or scope extension: resolve via the IdentityRuntime lookup (or the principal already attached by verify_api_key) when Bao is enabled.",
+      "resolution": "Follow-up: have _resolve_agent_id consult the installed identity snapshot in Bao mode; file as deferred work if out of scope for this package."
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "criticality": "low",
+      "disposition": "escalate",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/config.py",
+      "line_range": {
+        "start": 420,
+        "end": 423
+      },
+      "existing_code": "if os.environ.get(\"BAO_ADDR\"):\n    # A configured Bao reader owns the complete key-to-principal map.\n    # Keep static keys for cutover diagnostics, never for auth.\n    identities = {}",
+      "evidence_class": "judgment",
+      "description": "BAO_ADDR is now a single switch that (a) selects the internal secret/coordinator loader, (b) requires BAO_INTERNAL_ROLE_ID/SECRET_ID instead of BAO_ROLE_ID/SECRET_ID, and (c) makes the identity-reader snapshot the sole allowlist, which in turn requires BAO_BOOTSTRAP_DIR plus a delivered service-identity-reader bundle. A deployment that set BAO_ADDR only for the internal loader (the pre-change documented usage) will, on upgrade, fail profile load on the missing renamed variables and, once those are fixed, 401 every request and serve /ready 503 until the reader bundle exists, with CONFIGURATION_INVALID audited every 30s. This is consistent with D4/D5 (fail closed, no fallback) but the coupling is not called out anywhere an operator reads: docs/openbao-secret-management.md:186-187 still instruct exporting BAO_ROLE_ID/BAO_SECRET_ID for the coordinator, and skills/bao-vault/scripts/langfuse_env.sh still authenticates with the legacy names. Neither file is in this package's write_allow; the migration/docs package should own the note and rename.",
+      "resolution": "Ensure the deployment/docs package documents the three-way coupling on BAO_ADDR and updates the operator docs and langfuse_env.sh to the BAO_INTERNAL_* names (or explicitly records langfuse_env.sh as a deliberate legacy holdout)."
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "axis": "resilience",
+      "severity": "fyi",
+      "criticality": "low",
+      "disposition": "accept",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/openbao_identity.py",
+      "line_range": {
+        "start": 32,
+        "end": 36
+      },
+      "existing_code": "async def run_reload_loop(runtime: IdentityRuntime, interval: float = RELOAD_SECONDS) -> None:\n    \"\"\"Refresh off the event loop until the server cancels this task.\"\"\"\n    while True:\n        await asyncio.sleep(interval)\n        await asyncio.to_thread(runtime.reload)",
+      "evidence_class": "judgment",
+      "description": "Every hvac call in the reader is bounded by BAO_TIMEOUT, but OpenBaoClient.ensure_session takes an unbounded blocking fcntl.flock(LOCK_EX) on <bootstrap_dir>/service-identity-reader.lock. If another process holds that lock (a second uvicorn worker mid-bootstrap that stalls, or a stuck sidecar sharing the directory), the reload thread blocks forever: no refresh_failed event is emitted, readiness silently ages past 120s into 503, and the loop never re-fires. The spec's 'any failed read emits one sanitized failure event' therefore has a hang-shaped gap. Acceptable for pca-02 given single-process deployment and the adapter being owned by another package; worth a bounded wait or a watchdog on reload duration later.",
+      "resolution": "Accept for now; consider a non-blocking flock with bounded retry in the adapter, or a reload-duration alarm in the coordinator, as follow-up."
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "axis": "observability",
+      "severity": "fyi",
+      "criticality": "low",
+      "disposition": "accept",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/openbao_identity.py",
+      "line_range": {
+        "start": 110,
+        "end": 114
+      },
+      "existing_code": "def lookup(self, key: str) -> Mapping[str, str] | None:\n    state = self._state\n    if state.installed_at is None or time.monotonic() - state.installed_at > GRACE_SECONDS:\n        return None\n    return state.identities.get(key)",
+      "evidence_class": "judgment",
+      "description": "In the reviewed range (cdaef0ad..424cd958) grace expiry is enforced correctly and monotonically, but no openbao.identity.snapshot_expired event is emitted when the 120s window lapses; only the periodic refresh_failed events (with snapshot_age_seconds) reveal it. The event contract reserves that event for exactly this transition. Already resolved in the follow-up commit f1cd473b (fix(openbao): audit expiry and reject malformed internal data), which adds a lock-serialized one-shot expiry event; recorded here so the consensus step knows the reviewed range is one commit stale on this point. Note for that follow-up: it reuses error_code TOKEN_EXPIRED for a snapshot (not a token) expiry because the frozen enum has no snapshot-specific code; acceptable but worth a comment.",
+      "resolution": "No action on the reviewed range; verified fixed at f1cd473b."
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "axis": "correctness",
+      "severity": "fyi",
+      "criticality": "low",
+      "disposition": "accept",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md",
+      "line_range": {
+        "start": 76,
+        "end": 76
+      },
+      "existing_code": "- [x] Checkpoint: run coordinator identity/API tests, review diff, verify scope.",
+      "evidence_class": "judgment",
+      "description": "Reviewer status, not a code defect: the sandbox denied executing the package verification command (pytest over the five listed test files) as well as ruff and mypy, so the two checkpoint claims in tasks.md are unverified by this review. Static reading of the tests and code found no failing assertion, and the diff touches only files inside wp-coordinator's write_allow (config.py, coordination_api.py, openbao_identity.py, profile_loader.py, the five test files, tasks.md), so scope is clean. The verification step should be re-run by the orchestrator before treating coordinator_tests_passed as evidence."
+    },
+    {
+      "id": 10,
+      "type": "security",
+      "axis": "security",
+      "severity": "none",
+      "criticality": "low",
+      "disposition": "accept",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 670,
+        "end": 676
+      },
+      "existing_code": "if config.openbao.is_enabled():\n    # The installed snapshot is the complete allowlist in Bao mode. A\n    # static key or JSON identity cannot authorize a request here.\n    runtime = _identity_runtime\n    identity = runtime.lookup(resolved_key) if runtime is not None else None\n    if identity is None:\n        raise HTTPException(status_code=401, detail=\"Invalid API key\")",
+      "evidence_class": "judgment",
+      "description": "Positive verification, no defect: static-key bypass is closed on every path examined. verify_api_key and optional_api_key are the only HTTP auth entry points and both route through _principal_for_api_key; no other module consults config.api.api_keys for authorization (grep over src/); ApiConfig blanks the identity map and get_api_key_identities returns {} under BAO_ADDR; the runtime applies the 120s age gate before the map lookup (COORD-04); a None runtime under Bao mode denies rather than falls through; sanitized create_client/_load_secrets_openbao errors no longer echo hvac responses; and the internal AppRole inputs (BAO_INTERNAL_*) are read only by OpenBaoConfig, never by the identity reader, which uses PrincipalOpenBaoConfig and the bootstrap bundle (D5 separation holds). No genuine blockers found in this package."
+    }
+  ]
+}
