@@ -24,6 +24,7 @@ Environment variables:
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import logging
 import os
@@ -146,8 +147,9 @@ def plan_reconciliation(
         raise ValueError(f"missing or unaccounted source keys: {', '.join(sorted(set(sources) ^ set(flat)))}")
     if any(not isinstance(key, str) or not _SOURCE.fullmatch(key) for key in flat):
         raise ValueError("invalid flat source key")
-    if any(not isinstance(flat[key], str) or not flat[key] for key in sources):
-        raise ValueError("every mapped source must hold a nonempty string")
+    destination_sources = list(migration["agents"].values()) + list(migration["vendors"].values())
+    if any(not isinstance(flat[key], str) or not flat[key] for key in destination_sources):
+        raise ValueError("every agent or vendor destination must hold a nonempty string")
     _protected_directory(bootstrap_dir)
     prior = _managed_state(bootstrap_dir)
     retired = tuple(sorted(set(prior["agents"]) - keyed))
@@ -205,6 +207,39 @@ def _event(event: str, action: str, outcome: str, principal_id: str, resource: s
     return value
 
 
+def _login_internal(client: Any, role_id: str, secret_id: str) -> dict[str, Any]:
+    try:
+        response = client.auth.approle.login(role_id=role_id, secret_id=secret_id, use_token=False)
+        auth = response["auth"]
+        if not isinstance(auth.get("client_token"), str) or not auth["client_token"]:
+            raise ValueError("missing token")
+        return auth
+    except Exception:
+        raise ValueError("configured internal AppRole credentials cannot authenticate") from None
+
+
+def _verify_internal_handoff(client: Any, mount: str, role_id: str, secret_id: str) -> None:
+    """Prove configured credentials can read internal data with the new policy."""
+    import hvac
+
+    auth = _login_internal(client, role_id, secret_id)
+    policies = auth.get("policies")
+    if not isinstance(policies, list) or "coordinator-internal-read" not in policies or "coordinator-read" in policies:
+        raise ValueError("internal token does not have isolated policy")
+    try:
+        reader = hvac.Client(url=client.url, token=auth["client_token"])
+        try:
+            result = reader.secrets.kv.v2.read_secret_version(
+                path="coordinator", mount_point=mount, raise_on_deleted_version=True,
+            )
+            if not isinstance(result, dict) or not isinstance(result.get("data", {}).get("data"), dict):
+                raise ValueError("invalid internal document")
+        finally:
+            reader.auth.token.revoke_self()
+    except Exception:
+        raise ValueError("internal credentials cannot read coordinator path under isolated policy") from None
+
+
 def apply_reconciliation(
     client: Any, plan: ReconciliationPlan, *, confirm_cutover: bool = False,
     internal_role_name: str | None = None, audit: Callable[[dict[str, Any]], None] | None = None,
@@ -213,6 +248,10 @@ def apply_reconciliation(
     audit = audit or (lambda record: print(json.dumps(record, sort_keys=True)))
     if confirm_cutover and (not internal_role_name or not re.fullmatch(r"[a-z][a-z0-9-]*", internal_role_name)):
         raise ValueError("cutover requires explicit internal AppRole name")
+    internal_role_id = os.environ.get("BAO_INTERNAL_ROLE_ID", "")
+    internal_secret_id = os.environ.get("BAO_INTERNAL_SECRET_ID", "")
+    if confirm_cutover and (not internal_role_id or not internal_secret_id):
+        raise ValueError("cutover requires BAO_INTERNAL_ROLE_ID and BAO_INTERNAL_SECRET_ID")
     mounts = client.sys.list_mounted_secrets_engines()
     mounts = mounts.get("data", mounts) if isinstance(mounts, dict) else {}
     mount = mounts.get(f"{plan.topology.mount}/")
@@ -222,6 +261,25 @@ def apply_reconciliation(
         current_internal = client.auth.approle.read_role(role_name=internal_role_name)
         if not isinstance(current_internal, dict) or not isinstance(current_internal.get("data"), dict):
             raise ValueError("internal AppRole must exist before cutover")
+        if current_internal["data"].get("secret_id_num_uses") != 0:
+            raise ValueError("internal AppRole must have reusable SecretIDs for handoff")
+        server_role_id = client.auth.approle.read_role_id(role_name=internal_role_name)["data"]["role_id"]
+        if not hmac.compare_digest(server_role_id, internal_role_id):
+            raise ValueError("configured internal RoleID does not match selected AppRole")
+        roles_response = client.auth.approle.list_roles()
+        role_names = roles_response.get("data", {}).get("keys") if isinstance(roles_response, dict) else None
+        if not isinstance(role_names, list):
+            raise ValueError("cannot enumerate AppRoles for safe cutover")
+        owned_retirements = {f"agent-{name}" for name in plan.retired_agents} | set(plan.legacy_role_aliases.values())
+        for role_name in role_names:
+            role_response = client.auth.approle.read_role(role_name=role_name)
+            policies = role_response.get("data", {}).get("token_policies") if isinstance(role_response, dict) else None
+            if not isinstance(policies, list):
+                raise ValueError("cannot inspect AppRole policies for safe cutover")
+            if "coordinator-read" in policies and role_name not in owned_retirements and role_name != internal_role_name:
+                raise ValueError(f"unexpected AppRole still uses coordinator-read: {role_name}")
+        # The one credential proof runs after installing the isolated policy,
+        # preserving finite-use SecretIDs and keeping shared-policy deletion gated.
     plan.bootstrap_dir.mkdir(mode=0o700, exist_ok=True)
     _protected_directory(plan.bootstrap_dir)
     def mutate(event: str, action: str, principal_id: str, resource: str, operation: Callable[[], Any]) -> Any:
@@ -233,13 +291,18 @@ def apply_reconciliation(
         audit(_event(event, action, "success", principal_id, resource))
         return result
 
-    if "approle/" not in client.sys.list_auth_methods():
+    auth_methods = client.sys.list_auth_methods()
+    auth_methods = auth_methods.get("data", auth_methods) if isinstance(auth_methods, dict) else {}
+    if "approle/" not in auth_methods:
         mutate("openbao.principal.created", "create",
                "spiffe://coordinator.rotkohl.ai/service/identity-reader", "role",
                lambda: client.sys.enable_auth_method("approle"))
 
     for principal in plan.topology.principals:
         policy = "".join(f'path "{path}" {{\n  capabilities = ["read"]\n}}\n' for path in principal.read_paths)
+        if not policy:
+            # Bao rejects an empty policy. A deny-only stanza grants no data path.
+            policy = 'path "sys/health" {\n  capabilities = ["deny"]\n}\n'
         mutate("openbao.principal.updated", "update", principal.principal_id, "policy",
                lambda p=principal, hcl=policy: client.sys.create_or_update_policy(name=p.policy_name, policy=hcl))
         mutate("openbao.principal.updated", "update", principal.principal_id, "role",
@@ -275,6 +338,7 @@ def apply_reconciliation(
                lambda: client.sys.create_or_update_policy(name="coordinator-internal-read", policy=internal_policy))
         mutate("openbao.principal.updated", "update", internal_id, "role",
                lambda: client.auth.approle.create_or_update_approle(role_name=internal_role_name, token_policies=["coordinator-internal-read"]))
+        _verify_internal_handoff(client, plan.topology.mount, internal_role_id, internal_secret_id)
         for name in plan.retired_agents:
             principal_id = f"spiffe://coordinator.rotkohl.ai/agent/{name}"
             mutate("openbao.principal.retired", "retire", principal_id, "role", lambda n=name: client.auth.approle.delete_role(role_name=f"agent-{n}"))
