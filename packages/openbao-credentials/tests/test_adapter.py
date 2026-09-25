@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from jsonschema import Draft202012Validator
+from openspec_paths import change_dir, repo_root_from
 from openbao_credentials import (
     BaoCredentialError,
     ErrorCode,
@@ -17,8 +18,7 @@ from openbao_credentials import (
     bootstrap_paths,
 )
 
-ROOT = Path(__file__).resolve().parents[3]
-CONTRACTS = ROOT / "openspec/changes/restructure-openbao-per-agent-secrets/contracts"
+CONTRACTS = change_dir(repo_root_from(__file__, 3), "restructure-openbao-per-agent-secrets") / "contracts"
 PID = "spiffe://coordinator.rotkohl.ai/agent/codex-local"
 ROLE = "agent-codex-local"
 
