@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_id": "restructure-openbao-per-agent-secrets",
   "package_id": "wp-projection",
-  "plan_revision": 8,
+  "plan_revision": 9,
   "contracts_revision": 6,
   "status": "completed",
   "locks": {
