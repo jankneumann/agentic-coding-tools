@@ -2503,7 +2503,6 @@ class ReviewOrchestrator:
         openai_key_envs: dict[str, str] | None = None,
         credential_requests: dict[str, tuple[str | None, str]] | None = None,
         credential_scopes: dict[str, tuple[str, ...]] | None = None,
-        credential_envs: dict[tuple[str | None, str], str] | None = None,
         openai_credential_requests: dict[str, tuple[str | None, str]] | None = None,
     ) -> None:
         self.adapters = adapters
@@ -2517,11 +2516,6 @@ class ReviewOrchestrator:
         }
         self.openai_credential_requests = openai_credential_requests or {}
         self.credential_scopes = credential_scopes or {}
-        self.credential_envs = credential_envs or {
-            (None, adapter.sdk_config.package): adapter.sdk_config.api_key_env
-            for adapter in self.sdk_adapters.values()
-            if isinstance(adapter, SdkVendorAdapter) and adapter.sdk_config.api_key_env
-        }
 
     @classmethod
     def from_config_dict(cls, data: dict[str, Any]) -> "ReviewOrchestrator":
@@ -2538,7 +2532,6 @@ class ReviewOrchestrator:
         credential_requests: dict[str, tuple[str | None, str]] = {}
         openai_credential_requests: dict[str, tuple[str | None, str]] = {}
         credential_scopes: dict[str, tuple[str, ...]] = {}
-        credential_envs: dict[tuple[str | None, str], str] = {}
         for agent in data.get("agents", []):
             cli = agent.get("cli")
             sdk = agent.get("sdk")
@@ -2603,8 +2596,6 @@ class ReviewOrchestrator:
                     ),
                 )
                 credential_requests[agent["agent_id"]] = (principal_id, sdk["package"])
-                if sdk.get("api_key_env"):
-                    credential_envs[(principal_id, sdk["package"])] = sdk["api_key_env"]
 
             if endpoint_kind in {"openrouter", "local"} and base_url:
                 from openai_compat_adapter import OpenAICompatAdapter
@@ -2640,13 +2631,10 @@ class ReviewOrchestrator:
                     )
                     vendor_id = "openrouter" if endpoint_kind == "openrouter" else "local"
                     openai_credential_requests[agent_id] = (principal_id, vendor_id)
-                    if openai_key_envs[agent_id]:
-                        credential_envs[(principal_id, vendor_id)] = openai_key_envs[agent_id]
 
         return cls(
             adapters, sdk_adapters, openai_adapters, openai_key_envs,
-            credential_requests, credential_scopes, credential_envs,
-            openai_credential_requests,
+            credential_requests, credential_scopes, openai_credential_requests,
         )
 
     @staticmethod
@@ -2984,16 +2972,23 @@ class ReviewOrchestrator:
                 f"are a single vendor's opinion with no consensus cross-check.",
             )
 
-        api_key_resolver = ApiKeyResolver(
-            self.credential_scopes, self.credential_envs,
-        )
-        from openbao_credentials import BaoCredentialError
-
         def _resolve_dispatch_key(
-            principal_id: str | None, vendor_id: str,
+            principal_id: str | None, vendor_id: str, env_name: str,
         ) -> tuple[str | None, str | None]:
+            # Keep development keys bound to this selected agent. A shared
+            # (principal, vendor) map can collide for legacy null principals.
+            resolver = ApiKeyResolver(
+                self.credential_scopes,
+                {(principal_id, vendor_id): env_name} if env_name else {},
+            )
+            if not os.environ.get("BAO_ADDR"):
+                return resolver.resolve(principal_id, vendor_id), None
             try:
-                return api_key_resolver.resolve(principal_id, vendor_id), None
+                from openbao_credentials import BaoCredentialError
+            except ImportError:
+                return None, "OpenBao credential adapter unavailable"
+            try:
+                return resolver.resolve(principal_id, vendor_id), None
             except BaoCredentialError as exc:
                 return None, f"OpenBao credential lookup failed: {exc.code.value}"
 
@@ -3080,7 +3075,9 @@ class ReviewOrchestrator:
                 principal_id, vendor_id = self.credential_requests.get(
                     reviewer.agent_id, (None, sdk_adapter.sdk_config.package),
                 )
-                api_key, lookup_error = _resolve_dispatch_key(principal_id, vendor_id)
+                api_key, lookup_error = _resolve_dispatch_key(
+                    principal_id, vendor_id, sdk_adapter.sdk_config.api_key_env,
+                )
                 logger.info(
                     "SDK dispatching %s review to %s (key: %s)",
                     review_type, reviewer.agent_id,
@@ -3127,7 +3124,10 @@ class ReviewOrchestrator:
                     and not self.openai_key_envs.get(reviewer.agent_id)):
                     api_key, lookup_error = None, None
                 else:
-                    api_key, lookup_error = _resolve_dispatch_key(principal_id, vendor_id)
+                    api_key, lookup_error = _resolve_dispatch_key(
+                        principal_id, vendor_id,
+                        self.openai_key_envs.get(reviewer.agent_id, ""),
+                    )
                 logger.info(
                     "OpenAI-compatible dispatching %s review to %s (key: %s)",
                     review_type,

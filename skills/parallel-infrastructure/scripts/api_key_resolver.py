@@ -6,13 +6,6 @@ import os
 import re
 from collections.abc import Mapping, Sequence
 
-from openbao_credentials import (
-    BaoCredentialError,
-    ErrorCode,
-    OpenBaoClient,
-    PrincipalOpenBaoConfig,
-)
-
 _AGENT_ID = re.compile(r"^spiffe://coordinator\.rotkohl\.ai/agent/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)$")
 
 
@@ -37,6 +30,13 @@ class ApiKeyResolver:
         if not os.environ.get("BAO_ADDR"):
             env_name = self._env_by_request.get((principal_id, vendor_id), "")
             return os.environ.get(env_name) or None if env_name else None
+
+        from openbao_credentials import (
+            BaoCredentialError,
+            ErrorCode,
+            OpenBaoClient,
+            PrincipalOpenBaoConfig,
+        )
 
         match = _AGENT_ID.fullmatch(principal_id or "")
         if match is None:
