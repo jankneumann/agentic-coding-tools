@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
-from openbao_credentials import ProjectionError, project_principals
 
+from openbao_credentials import ProjectionError, project_principals
 
 CONTRACT = (
     Path(__file__).resolve().parents[3]

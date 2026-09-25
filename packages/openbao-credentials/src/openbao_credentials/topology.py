@@ -7,8 +7,9 @@ The projection accepts either the raw ``agents.yaml`` mapping or an object with
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import Any, Mapping
+from typing import Any
 
 _SLUG = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 _MOUNT = re.compile(r"^[a-z][a-z0-9-]*$")

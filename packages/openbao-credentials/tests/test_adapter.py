@@ -17,7 +17,6 @@ from openbao_credentials import (
     bootstrap_paths,
 )
 
-
 ROOT = Path(__file__).resolve().parents[3]
 CONTRACTS = ROOT / "openspec/changes/restructure-openbao-per-agent-secrets/contracts"
 PID = "spiffe://coordinator.rotkohl.ai/agent/codex-local"
@@ -131,7 +130,8 @@ def test_kv_v2_reads_only_single_api_key_payload(tmp_path: Path) -> None:
     }
     typed = adapter(protected_dir(tmp_path), client)
     assert typed.read_api_key("vendors/openai") == "key-sensitive"
-    client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+    assert "key-sensitive" not in repr(typed.read_vendor_secret("openai"))
+    client.secrets.kv.v2.read_secret_version.assert_called_with(
         path="vendors/openai", mount_point="secret"
     )
     client.secrets.kv.v2.read_secret_version.return_value = {
@@ -159,4 +159,64 @@ def test_config_requires_protected_root(tmp_path: Path) -> None:
     os.chmod(root, 0o755)
     with pytest.raises(BaoCredentialError) as failure:
         adapter(root, fake_client()).ensure_session(PID, ROLE)
+    assert failure.value.code == ErrorCode.CONFIGURATION_INVALID
+
+
+def test_mount_preflight_requires_kv_v2(tmp_path: Path) -> None:
+    client = fake_client()
+    typed = adapter(protected_dir(tmp_path), client)
+    client.sys.list_mounted_secrets_engines.return_value = {
+        "data": {"secret/": {"type": "kv", "options": {"version": "1"}}}
+    }
+    with pytest.raises(BaoCredentialError) as failure:
+        typed.verify_kv_v2_mount()
+    assert failure.value.code == ErrorCode.CONFIGURATION_INVALID
+    client.sys.list_mounted_secrets_engines.return_value["data"]["secret/"]["options"]["version"] = "2"
+    typed.verify_kv_v2_mount()
+
+
+def test_error_codes_distinguish_policy_and_missing_secret(tmp_path: Path) -> None:
+    import hvac
+    import requests.exceptions
+
+    client = fake_client()
+    typed = adapter(protected_dir(tmp_path), client)
+    for exception, expected in (
+        (hvac.exceptions.Forbidden(), ErrorCode.AUTHORIZATION_DENIED),
+        (hvac.exceptions.InvalidPath(), ErrorCode.SECRET_NOT_FOUND),
+        (TimeoutError(), ErrorCode.TIMEOUT),
+        (requests.exceptions.Timeout("backend detail sensitive"), ErrorCode.TIMEOUT),
+    ):
+        client.secrets.kv.v2.read_secret_version.side_effect = exception
+        with pytest.raises(BaoCredentialError) as failure:
+            typed.read_vendor_key("openai")
+        assert failure.value.code == expected
+        assert "backend detail sensitive" not in str(failure.value)
+
+
+def test_session_renews_under_lock(tmp_path: Path) -> None:
+    root = protected_dir(tmp_path)
+    cache = bootstrap_paths(root, ROLE).session
+    cache.write_text(json.dumps({
+        "version": 1, "principal_id": PID, "client_token": "old-sensitive",
+        "renewable": True, "period_seconds": 3600,
+        "lease_expires_at": (datetime.now(UTC) + timedelta(seconds=30)).isoformat(),
+    }))
+    cache.chmod(0o600)
+    client = fake_client()
+    client.auth.token.renew_self.return_value = {
+        "auth": {"client_token": "renewed-sensitive", "renewable": True, "lease_duration": 3600}
+    }
+    session = adapter(root, client).ensure_session(PID, ROLE)
+    assert session.client_token == "renewed-sensitive"
+    assert json.loads(cache.read_text())["client_token"] == "renewed-sensitive"
+    client.sys.unwrap.assert_not_called()
+
+
+def test_from_env_rejects_malformed_timeout(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://127.0.0.1:8200")
+    monkeypatch.setenv("BAO_BOOTSTRAP_DIR", str(tmp_path))
+    monkeypatch.setenv("BAO_TIMEOUT", "not-a-number")
+    with pytest.raises(BaoCredentialError) as failure:
+        PrincipalOpenBaoConfig.from_env()
     assert failure.value.code == ErrorCode.CONFIGURATION_INVALID

@@ -25,7 +25,7 @@ suite, inspect the cumulative diff, and verify package scope.
   **Design decisions**: D2, D3.
   Include a fake for server-side wrapping lookup and reject a forged bundle path before unwrap.
   **Dependencies**: `wp-contracts`.
-- [ ] 1.4 (M) Implement shared OpenBao adapter boundary.
+- [x] 1.4 (M) Implement shared OpenBao adapter boundary.
   **Dependencies**: 1.3.
 - [ ] 1.5 (S) Test the shared package in coordinator container imports.
   **Spec scenarios**: CFG-03, COORD-06.
