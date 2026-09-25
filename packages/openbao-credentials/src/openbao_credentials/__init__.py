@@ -1,20 +1,21 @@
 """Shared, typed OpenBao credentials boundary."""
 
-from .topology import (
-    Principal,
-    PrincipalTopology,
-    ProjectionError,
-    agent_principal_id,
-    project_principals,
-)
 from .adapter import (
     BaoCredentialError,
     BootstrapPaths,
     ErrorCode,
     OpenBaoClient,
     PrincipalOpenBaoConfig,
+    SecretPayload,
     Session,
     bootstrap_paths,
+)
+from .topology import (
+    Principal,
+    PrincipalTopology,
+    ProjectionError,
+    agent_principal_id,
+    project_principals,
 )
 
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "OpenBaoClient",
     "PrincipalOpenBaoConfig",
     "Session",
+    "SecretPayload",
     "bootstrap_paths",
 ]

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import hvac
+import requests.exceptions
 
 _ROLE = re.compile(r"^(agent|service)-[a-z][a-z0-9-]*$")
 _MOUNT = re.compile(r"^[a-z][a-z0-9-]*$")
@@ -56,11 +57,15 @@ class PrincipalOpenBaoConfig:
         directory = os.environ.get("BAO_BOOTSTRAP_DIR", "")
         if not addr or not directory:
             raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "configuration")
+        try:
+            timeout = float(os.environ.get("BAO_TIMEOUT", "5"))
+        except ValueError:
+            raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "configuration") from None
         return cls(
             addr=addr,
             mount=os.environ.get("BAO_MOUNT_PATH", "secret"),
             bootstrap_dir=Path(directory),
-            timeout=float(os.environ.get("BAO_TIMEOUT", "5")),
+            timeout=timeout,
         )
 
     def validate(self) -> None:
@@ -106,6 +111,13 @@ class Session:
         }
 
 
+@dataclass(frozen=True)
+class SecretPayload:
+    """The only allowed KV-v2 data payload for an agent or vendor path."""
+
+    api_key: str = field(repr=False)
+
+
 def _datetime(value: Any) -> datetime:
     if not isinstance(value, str):
         raise ValueError("invalid timestamp")
@@ -130,10 +142,10 @@ def _read_private_json(path: Path, category: str) -> dict[str, Any]:
         if not isinstance(value, dict):
             raise ValueError("not object")
         return value
-    except FileNotFoundError as exc:
-        raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, category) from exc
-    except (OSError, ValueError, TypeError) as exc:
-        raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, category) from exc
+    except FileNotFoundError:
+        raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, category) from None
+    except (OSError, ValueError, TypeError):
+        raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, category) from None
 
 
 def _atomic_private_json(path: Path, value: dict[str, Any]) -> None:
@@ -166,7 +178,7 @@ def _classify(exc: Exception, *, auth: bool = False) -> BaoCredentialError:
         return BaoCredentialError(ErrorCode.SECRET_NOT_FOUND)
     if isinstance(exc, hvac.exceptions.Unauthorized):
         return BaoCredentialError(ErrorCode.AUTHENTICATION_FAILED if auth else ErrorCode.TOKEN_EXPIRED)
-    if isinstance(exc, TimeoutError):
+    if isinstance(exc, (TimeoutError, requests.exceptions.Timeout)):
         return BaoCredentialError(ErrorCode.TIMEOUT)
     return BaoCredentialError(ErrorCode.BACKEND_UNAVAILABLE)
 
@@ -185,13 +197,28 @@ class OpenBaoClient:
             raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "bootstrap")
         try:
             info = directory.lstat()
-            if not stat.S_ISDIR(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o700:
+            if (not stat.S_ISDIR(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o700
+                or info.st_uid != os.geteuid()):
                 raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "bootstrap")
-        except OSError as exc:
-            raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "bootstrap") from exc
+        except OSError:
+            raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "bootstrap") from None
         return bootstrap_paths(directory, role_name)
 
-    def read_api_key(self, logical_path: str) -> str:
+    def verify_kv_v2_mount(self) -> None:
+        """Preflight the configured mount using a provisioner-capable token."""
+        try:
+            response = self.client.sys.list_mounted_secrets_engines()
+            mounts = response.get("data", response)
+            mounted = mounts.get(f"{self.config.mount}/")
+            if (not isinstance(mounted, dict) or mounted.get("type") != "kv"
+                or mounted.get("options", {}).get("version") != "2"):
+                raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "mount")
+        except BaoCredentialError:
+            raise
+        except Exception as exc:
+            raise _classify(exc) from None
+
+    def read_secret(self, logical_path: str) -> SecretPayload:
         """Read one exact KV-v2 agent/vendor payload at a mount-relative path."""
         if not _LOGICAL.fullmatch(logical_path):
             raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "path")
@@ -200,24 +227,33 @@ class OpenBaoClient:
                 path=logical_path, mount_point=self.config.mount
             )
         except Exception as exc:
-            raise _classify(exc) from exc
+            raise _classify(exc) from None
         try:
             payload = response["data"]["data"]
             if set(payload) != {"api_key"} or not isinstance(payload["api_key"], str) or not payload["api_key"]:
                 raise ValueError("invalid payload")
-            return payload["api_key"]
-        except (KeyError, TypeError, ValueError) as exc:
-            raise BaoCredentialError(ErrorCode.SECRET_MALFORMED, "credential") from exc
+            return SecretPayload(api_key=payload["api_key"])
+        except (KeyError, TypeError, ValueError):
+            raise BaoCredentialError(ErrorCode.SECRET_MALFORMED, "credential") from None
 
-    def read_agent_key(self, name: str) -> str:
+    def read_api_key(self, logical_path: str) -> str:
+        return self.read_secret(logical_path).api_key
+
+    def read_agent_secret(self, name: str) -> SecretPayload:
         if not re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", name):
             raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "path")
-        return self.read_api_key(f"agents/{name}")
+        return self.read_secret(f"agents/{name}")
 
-    def read_vendor_key(self, vendor_id: str) -> str:
+    def read_vendor_secret(self, vendor_id: str) -> SecretPayload:
         if not re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", vendor_id):
             raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "path")
-        return self.read_api_key(f"vendors/{vendor_id}")
+        return self.read_secret(f"vendors/{vendor_id}")
+
+    def read_agent_key(self, name: str) -> str:
+        return self.read_agent_secret(name).api_key
+
+    def read_vendor_key(self, vendor_id: str) -> str:
+        return self.read_vendor_secret(vendor_id).api_key
 
     def ensure_session(self, principal_id: str, role_name: str) -> Session:
         """Serialize first unwrap/renewal across processes and reuse valid tokens."""
@@ -229,8 +265,8 @@ class OpenBaoClient:
             if not _regular_private(paths.lock):
                 os.close(lock_fd)
                 raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "session")
-        except OSError as exc:
-            raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "session") from exc
+        except OSError:
+            raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, "session") from None
         try:
             fcntl.flock(lock_fd, fcntl.LOCK_EX)
             if paths.session.exists() or paths.session.is_symlink():
@@ -263,15 +299,17 @@ class OpenBaoClient:
             if not isinstance(token, str) or not token or not isinstance(period, int) or period < 1:
                 raise ValueError("invalid session")
             return Session(principal_id, token, True, period, _datetime(value["lease_expires_at"]))
-        except (ValueError, KeyError, TypeError) as exc:
-            raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "session") from exc
+        except (ValueError, KeyError, TypeError):
+            raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "session") from None
 
     def _bootstrap(self, path: Path, principal_id: str, role_name: str) -> Session:
         bundle = _read_private_json(path, "bootstrap")
         try:
             wrapped = bundle["wrapped_secret_id"]
             expected_path = f"auth/approle/role/{role_name}/secret-id"
-            if (bundle.get("version") != 1 or bundle.get("principal_id") != principal_id
+            if (set(bundle) != {"version", "principal_id", "role_name", "role_id", "wrapped_secret_id"}
+                or set(wrapped) != {"token", "creation_path", "creation_time", "ttl_seconds"}
+                or bundle.get("version") != 1 or bundle.get("principal_id") != principal_id
                 or bundle.get("role_name") != role_name or not isinstance(bundle.get("role_id"), str)
                 or not bundle["role_id"] or not isinstance(wrapped, dict)
                 or wrapped.get("creation_path") != expected_path
@@ -280,8 +318,8 @@ class OpenBaoClient:
                 or wrapped["ttl_seconds"] < 1
                 or _datetime(wrapped["creation_time"]) + timedelta(seconds=wrapped["ttl_seconds"]) <= datetime.now(UTC)):
                 raise ValueError("invalid bundle")
-        except (KeyError, TypeError, ValueError) as exc:
-            raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap") from exc
+        except (KeyError, TypeError, ValueError):
+            raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap") from None
         try:
             lookup = self.client.adapter.post(
                 "/v1/sys/wrapping/lookup", json={"token": wrapped["token"]}
@@ -307,10 +345,10 @@ class OpenBaoClient:
             )
         except BaoCredentialError:
             raise
-        except (KeyError, TypeError, ValueError) as exc:
-            raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap") from exc
+        except (KeyError, TypeError, ValueError):
+            raise BaoCredentialError(ErrorCode.BOOTSTRAP_INVALID, "bootstrap") from None
         except Exception as exc:
-            raise _classify(exc, auth=True) from exc
+            raise _classify(exc, auth=True) from None
 
     def _renew(self, session: Session) -> Session:
         self.client.token = session.client_token
@@ -324,5 +362,5 @@ class OpenBaoClient:
             return Session(session.principal_id, token, True, period, datetime.now(UTC) + timedelta(seconds=period))
         except BaoCredentialError:
             raise
-        except Exception as exc:
-            raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session") from exc
+        except Exception:
+            raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, "session") from None
