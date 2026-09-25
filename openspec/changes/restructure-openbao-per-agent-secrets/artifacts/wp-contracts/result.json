@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_id": "restructure-openbao-per-agent-secrets",
   "package_id": "wp-contracts",
-  "plan_revision": 9,
+  "plan_revision": 10,
   "contracts_revision": 6,
   "status": "completed",
   "locks": {
