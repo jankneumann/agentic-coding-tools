@@ -589,6 +589,7 @@ class RoutingService:
                 ]
                 best_tier = min((tier[0] for _, tier in tiered if tier is not None), default=None)
                 for candidate, tier in tiered:
+                    assert candidate.assignment is not None
                     if tier is None or tier[0] != best_tier:
                         assignment_excluded.append(
                             ExcludedAssignmentInput(
@@ -697,6 +698,11 @@ class RoutingService:
             assignment = selected["assignment"] if selected is not None else None
             assert selected is None or isinstance(assignment, dict)
             assert evaluation is not None
+            cost_tier = (
+                self.policy.cost_tier(assignment["location"], assignment["endpoint_kind"])
+                if assignment is not None and isinstance(self.policy, RoutingPolicy)
+                else None
+            )
             provenance = {
                 "source": "coordinator",
                 "policy_version": self.policy.version,
@@ -715,14 +721,7 @@ class RoutingService:
                     if assignment is not None
                     else None
                 ),
-                "cost_tier": (
-                    self.policy.cost_tier(assignment["location"], assignment["endpoint_kind"])[1]
-                    if assignment is not None
-                    and isinstance(self.policy, RoutingPolicy)
-                    and self.policy.cost_tier(assignment["location"], assignment["endpoint_kind"])
-                    is not None
-                    else None
-                ),
+                "cost_tier": cost_tier[1] if cost_tier is not None else None,
             }
             payload["assignment"] = assignment
             payload["provenance"] = provenance
