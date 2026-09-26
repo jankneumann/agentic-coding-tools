@@ -1,0 +1,191 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: host_id scoping is incomplete and spoofable. Spec/DB/OpenAPI require leases to record host_id and require it on POST /ports/reconcile, but PortAllocateRequest has no host_id, task 2.10b only adds the column and reconcile field, seed.sql never sets it, and design/session-log leave provenance undecided. With NULL host_id on every allocated row, host-scoped reconcile cannot release orphans. If host_id is later taken as a client-supplied reconcile string with no bind-at-allocate or authenticated host identity, any API-key holder can pass another host's id and release that host's aged leases \u2014 recreating the fleet-wide DoS the host_id fix was meant to close.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Add host_id to allocate (request + PortAllocation + status), require the client to send it on acquire, persist it on INSERT, update seed fixtures, and decide a non-spoofable provenance (e.g. bind host_id at allocate to the authenticated principal / a coordinator-issued host token; reject reconcile host_id that does not match the caller's bound host). Document the choice in design and close the session-log open question.",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/standardize-port-leases/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 211,
+        "end": 245
+      }
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: ownership on POST /ports/conflict is bypassed by the unknown-session path. A non-owner targeting a peer session gets not_lease_owner, but Conflict report for unknown session still blocks the slot for any port. Because session_id values are public on unauthenticated GET /ports/status, an API-key holder invents a fresh session_id (or avoids known ones) and walks ports in the allocator range to force every slot into conflict_block_minutes cooling \u2014 the same peer-disruption/DoS the ownership check claimed to prevent.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Require conflict reports to reference a lease the caller owns (or whose port falls inside the caller's current block). For unknown session_id, return success without blocking, or require an alternate authenticated adopt path; add a regression test that a non-owner cannot shrink the pool via fabricated session ids.",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/standardize-port-leases/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 281,
+        "end": 284
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Release of another agent's lease simultaneously requires error not_lease_owner and that the response SHALL NOT reveal whether the named session exists. Unknown sessions return success:true (idempotent); not_lease_owner therefore reveals existence. OpenAPI release prose repeats both claims in one paragraph while examples emit not_lease_owner. Implementers cannot satisfy both; preferring the no-reveal reading would return success:true for not-owned releases and mute the ownership signal.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Drop the shall-not-reveal clause (session_id is already public via GET /ports/status). Keep not_lease_owner for not-owned releases, success:true only for missing leases, and align the OpenAPI description with the examples.",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/standardize-port-leases/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 47,
+        "end": 51
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: After the REST-vs-API_PORT split, kanban wiring is still inconsistent. The ADDED Kanban dev server requirement says address the coordinator at API_BASE_URL, but its scenario sets VITE_COORDINATOR_URL=http://localhost:10001 (REST, offset +1). Task 4.5 still says e2e orchestrator uses leased API_BASE_URL, contradicting the fixed Hermetic E2E requirement that MUST NOT target API_BASE_URL. VITE_COORDINATOR_URL is also absent from port-lease-env.schema.json, so which contract key maps to the vite URL is undefined.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Make the dev-server SHALL match the scenario (SUPABASE_URL / AGENT_COORDINATOR_REST_PORT, default localhost:8081). Rewrite task 4.5 to assert e2e against the leased REST port. Document the mapping from lease env to VITE_COORDINATOR_URL in the kanban tasks/docs (or add the key to the contract if it is meant to be emitted).",
+      "package_id": "wp-consumers",
+      "file_path": "openspec/changes/standardize-port-leases/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 53,
+        "end": 60
+      }
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: port-lease-client Host reconciliation never mentions host_id. Coordinator reconcile now requires host_id and scopes by it, but the client capability, CLI reconcile scenarios, and bridge helper tasks do not require discovering/sending a host_id on acquire or reconcile. wp-skills-client can ship a reconcile that the coordinator always 422s or that omits scoping data.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Extend port-lease-client reconcile (and acquire) scenarios to obtain and send the same host_id persisted on the lease; wire try_reconcile_ports / CLI flags accordingly; add a client test that the coordinator request body includes host_id.",
+      "package_id": "wp-skills-client",
+      "file_path": "openspec/changes/standardize-port-leases/specs/port-lease-client/spec.md",
+      "line_range": {
+        "start": 82,
+        "end": 94
+      }
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: Design Risks still mitigates concurrent file+coordinator outage overlap with Same arithmetic (D7) plus bind probe (D6) make an overlap fail loudly, which is exactly the reasoning D7's partition rewrite rejected. The decision body correctly requires PORT_ALLOC_FILE_SLOT_BASE; the risk table was not updated and will mislead implementers.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Replace that mitigation with the disjoint-range rule (and note the reduced per-backend pool as the residual trade-off).",
+      "package_id": "wp-skills-client",
+      "file_path": "openspec/changes/standardize-port-leases/design.md",
+      "line_range": {
+        "start": 186,
+        "end": 186
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Design D3 still says cleanup_dead_agents releases leases for the agents it disconnects, i.e. agent-keyed language, after the plan switched reclaim to session_id (schema release_port_leases_for_sessions, Heartbeat requirement, task notes). Same file D2 still says session id primary key while contracts/db/schema.sql primary-keys slot and only UNIQUEs session_id, and D2's column list omits host_id.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Rewrite D3 to release by stale session_id; fix D2 to primary key slot, unique session_id, and include host_id.",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/standardize-port-leases/design.md",
+      "line_range": {
+        "start": 59,
+        "end": 65
+      }
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The 1024-65535 port bound was applied to the env schema, PortConflictRequest.port, and reconcile db_port, but PortAllocation and PortStatusEntry port fields remain plain unbounded integers, so allocate/status can still describe privileged or unbindable ports that the env contract would reject.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Add minimum: 1024 and maximum: 65535 to all five port properties on PortAllocation and PortStatusEntry (and keep a contract test that the three artifacts agree).",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/standardize-port-leases/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 275,
+        "end": 286
+      }
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: seed.sql inserts active, expired, and blocked rows without host_id after host_id was added to the table. Host-scoping tests in 2.10a have no fixture for same-host vs cross-host leases, and NULL host_id rows are ambiguous under the new reconcile predicate.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Seed at least two hosts (e.g. gx10 vs cloud-a) on active rows and document that blocked rows either inherit a host_id or are intentionally global.",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/standardize-port-leases/contracts/db/seed.sql",
+      "line_range": {
+        "start": 1,
+        "end": 12
+      }
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: Design D7 names the pool PORT_ALLOC_SLOTS, while the agent-coordinator configuration scenarios and port-lease-client requirement use PORT_ALLOC_MAX_SESSIONS. Implementers following design alone will look for an env var that does not exist.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Rename D7 (and the risk text) to PORT_ALLOC_MAX_SESSIONS everywhere.",
+      "file_path": "openspec/changes/standardize-port-leases/design.md",
+      "line_range": {
+        "start": 105,
+        "end": 106
+      }
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: Proposal reconcile text still matches compose projects on an ac-/validate- prefix, but every contract and spec locks compose_project_name to ^ac-[0-9a-f]{8}$. The validate- branch looks like leftover file-registry naming and can confuse client filter implementation.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Either drop validate- from the proposal or define when that prefix is still emitted.",
+      "file_path": "openspec/changes/standardize-port-leases/proposal.md",
+      "line_range": {
+        "start": 49,
+        "end": 50
+      }
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Disjoint PORT_ALLOC_FILE_SLOT_BASE ranges, session-keyed cleanup, and the mirrored REST-vs-API_PORT consumer split are clearly motivated and testable; those prior fixes are directionally right once the host_id allocate path, conflict unknown-session hole, and remaining cross-artifact contradictions above are closed.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Keep those design choices; fold the follow-up fixes into the same packages before implementation."
+    }
+  ]
+}

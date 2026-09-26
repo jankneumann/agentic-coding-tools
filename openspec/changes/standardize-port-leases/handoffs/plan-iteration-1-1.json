@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-04T11:41:03.107583+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Addressed 5 unresolved reviewer findings on PR #467 plus 11 further findings from three parallel analysis agents (completeness, consistency/testability, security/feasibility). Two independent CRITICAL security gaps were found and closed: mutating lease operations had no ownership check while GET /ports/status publishes session_id unauthenticated, and POST /ports/reconcile applied one client's host report to every lease in the system.",
+    "completed_work": [
+      "[high] design: D7 file-backend fallback now allocates from a disjoint slot range",
+      "[high] contract: release_port_leases_for_agents -> release_port_leases_for_sessions",
+      "[high] spec: kanban e2e targets the compose-published REST port, not API_PORT",
+      "[high] contract: reconcile now requires slot or db_port to identify a block",
+      "[medium] contract: port pattern bounded to 1024-65535, verified exhaustively",
+      "[critical] security: ownership check on release/conflict, new not_lease_owner error",
+      "[critical] security: reconcile scoped by host_id, in spec, openapi and db schema",
+      "[critical] consistency: validate-feature deploy health check and ZAP target use API_PORT",
+      "[critical] completeness: Port lease reconciliation added to the proposal Impact section",
+      "[high] completeness: blocked slots now have a cooling-period expiry and startup prune",
+      "[high] feasibility: allocation made atomic across worker processes with PK-conflict retry",
+      "[high] feasibility: task added implementing stack_launcher.py --concurrency-proof",
+      "[medium] completeness: isolation gate precedence over the duplicate-session short-circuit",
+      "[medium] completeness: release-path persistence-failure scenario",
+      "[medium] consistency: proposal backend order includes the isolation short-circuit",
+      "[medium] consistency: port-literal gate scope reconciled between proposal and spec",
+      "[low] testability: replaced non-measurable 'correctly' with checkable outcomes"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Partition the slot space between backends",
+        "rationale": "D7 claimed identical arithmetic prevents overlap. True sequentially, false concurrently: during a coordinator outage the file registry cannot see ledger leases and selects the same slots. PORT_ALLOC_FILE_SLOT_BASE gives each backend a disjoint range.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Release port leases by session_id, never agent_id",
+        "rationale": "One agent_id routinely holds several concurrent sessions; releasing by identity reclaims a live session's block, contradicting the plan's own 'Active agent not affected by cleanup' scenario.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Scope every mutating lease op to the owning agent",
+        "rationale": "GET /ports/status is deliberately unauthenticated and returns session_id and agent_id, so session_id is public by design. Mirrors release_lock's existing AND locked_by = p_agent_id guard.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Scope reconcile to a host_id",
+        "rationale": "A cloud agent cannot see a local host's containers, so its report is legitimately empty; unscoped it would release every local lease fleet-wide.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Fix the two port-offset bugs in opposite directions",
+        "rationale": "kanban runs the coordinator in a container on AGENT_COORDINATOR_REST_PORT but targeted API_PORT; validate-feature deploy runs it on the host on API_PORT but health-checked AGENT_COORDINATOR_REST_PORT. Same confusion, mirrored.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep the concurrency gate automated",
+        "rationale": "wp-integration invokes --concurrency-proof with expect_exit_code 0 but no task implemented it. Added the task rather than downgrading the gate to the manual run, since concurrent allocation is the property the capability exists to guarantee.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}
