@@ -1,107 +1,123 @@
 {
-  "generated_at": "2026-09-22T13:06:06+00:00",
+  "generated_at": "2026-09-26T00:40:41+00:00",
   "threshold": 5,
-  "total_high_impact": 123,
+  "total_high_impact": 140,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 183
+      "dependent_count": 188
     },
     {
       "id": "py:http_proxy._error_response",
-      "dependent_count": 111
+      "dependent_count": 115
     },
     {
       "id": "py:http_proxy.get_client",
-      "dependent_count": 111
+      "dependent_count": 115
     },
     {
       "id": "py:http_proxy._request",
-      "dependent_count": 110
+      "dependent_count": 114
     },
     {
       "id": "py:http_proxy._agent_identity",
-      "dependent_count": 70
-    },
-    {
-      "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 45
+      "dependent_count": 68
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 44
+      "dependent_count": 50
+    },
+    {
+      "id": "py:policy_engine.get_policy_engine",
+      "dependent_count": 48
     },
     {
       "id": "py:config",
-      "dependent_count": 32
-    },
-    {
-      "id": "py:coordination_api.resolve_identity",
-      "dependent_count": 32
+      "dependent_count": 41
     },
     {
       "id": "py:teams.CrewManifest.validate",
-      "dependent_count": 32
+      "dependent_count": 39
+    },
+    {
+      "id": "py:db_postgres",
+      "dependent_count": 36
+    },
+    {
+      "id": "py:coordination_api.resolve_identity",
+      "dependent_count": 35
+    },
+    {
+      "id": "py:db",
+      "dependent_count": 35
+    },
+    {
+      "id": "py:coordination_api.authorize_operation",
+      "dependent_count": 31
+    },
+    {
+      "id": "py:db.create_db_client",
+      "dependent_count": 31
+    },
+    {
+      "id": "py:db.get_db",
+      "dependent_count": 30
+    },
+    {
+      "id": "py:profile_loader.interpolate",
+      "dependent_count": 30
     },
     {
       "id": "py:coordination_cli._print_dict",
       "dependent_count": 29
     },
     {
-      "id": "py:coordination_api.authorize_operation",
-      "dependent_count": 28
+      "id": "py:profile_loader._load_secrets_file",
+      "dependent_count": 29
     },
     {
       "id": "py:coordination_cli._output",
       "dependent_count": 28
     },
     {
-      "id": "py:db.create_db_client",
-      "dependent_count": 28
+      "id": "py:audit",
+      "dependent_count": 26
     },
     {
-      "id": "py:db.get_db",
-      "dependent_count": 27
-    },
-    {
-      "id": "py:profile_loader.interpolate",
-      "dependent_count": 27
+      "id": "py:audit_triage",
+      "dependent_count": 26
     },
     {
       "id": "py:coordination_cli._run",
       "dependent_count": 26
     },
     {
-      "id": "py:db_postgres",
-      "dependent_count": 26
-    },
-    {
-      "id": "py:profile_loader._load_secrets_file",
-      "dependent_count": 26
-    },
-    {
-      "id": "py:db",
+      "id": "py:agents_config._default_agents_path",
       "dependent_count": 25
     },
     {
-      "id": "py:agents_config._default_agents_path",
-      "dependent_count": 22
-    },
-    {
       "id": "py:agents_config._default_secrets_path",
-      "dependent_count": 22
+      "dependent_count": 25
     },
     {
       "id": "py:agents_config.load_agents_config._parse_mode",
-      "dependent_count": 22
+      "dependent_count": 25
     },
     {
       "id": "py:agents_config.load_agents_config",
+      "dependent_count": 24
+    },
+    {
+      "id": "py:code_search_authorization",
       "dependent_count": 21
     },
     {
       "id": "py:code_search_authorization._is_normalized_relative",
       "dependent_count": 21
+    },
+    {
+      "id": "py:code_search",
+      "dependent_count": 20
     },
     {
       "id": "py:code_search_authorization.validate_safe_glob",
@@ -112,6 +128,10 @@
       "dependent_count": 20
     },
     {
+      "id": "py:code_search_runtime",
+      "dependent_count": 19
+    },
+    {
       "id": "py:feature_registry.get_feature_registry_service",
       "dependent_count": 19
     },
@@ -120,11 +140,31 @@
       "dependent_count": 19
     },
     {
-      "id": "py:audit",
-      "dependent_count": 17
+      "id": "py:agents_config",
+      "dependent_count": 18
     },
     {
-      "id": "py:audit_triage",
+      "id": "py:agents_config.get_agents_config",
+      "dependent_count": 18
+    },
+    {
+      "id": "py:http_proxy",
+      "dependent_count": 18
+    },
+    {
+      "id": "py:isolation_contract",
+      "dependent_count": 18
+    },
+    {
+      "id": "py:model_routing.api",
+      "dependent_count": 18
+    },
+    {
+      "id": "py:vendor_registry",
+      "dependent_count": 18
+    },
+    {
+      "id": "py:agents_config._served_local_roster",
       "dependent_count": 17
     },
     {
@@ -132,36 +172,44 @@
       "dependent_count": 17
     },
     {
+      "id": "py:agents_config._as_positive_number",
+      "dependent_count": 16
+    },
+    {
+      "id": "py:agents_config._with_served_local_roster",
+      "dependent_count": 16
+    },
+    {
       "id": "py:profiles.get_profiles_service",
       "dependent_count": 16
     },
     {
-      "id": "py:agents_config.get_agents_config",
+      "id": "py:agents_config._default_archetypes_path",
       "dependent_count": 15
+    },
+    {
+      "id": "py:agents_config._normalize_provider_model_map",
+      "dependent_count": 15
+    },
+    {
+      "id": "py:agents_config._validate_local_roster",
+      "dependent_count": 15
+    },
+    {
+      "id": "py:locks.get_lock_service",
+      "dependent_count": 15
+    },
+    {
+      "id": "py:agents_config.load_archetypes_config",
+      "dependent_count": 14
     },
     {
       "id": "py:openspec_proposals_api._run_git",
       "dependent_count": 14
     },
     {
-      "id": "py:locks.get_lock_service",
-      "dependent_count": 13
-    },
-    {
-      "id": "py:agents_config._served_local_roster",
-      "dependent_count": 12
-    },
-    {
       "id": "py:code_search_authorization.glob_to_postgres_regex",
       "dependent_count": 12
-    },
-    {
-      "id": "py:agents_config._as_positive_number",
-      "dependent_count": 11
-    },
-    {
-      "id": "py:agents_config._with_served_local_roster",
-      "dependent_count": 11
     },
     {
       "id": "py:discovery.get_discovery_service",
@@ -172,15 +220,7 @@
       "dependent_count": 11
     },
     {
-      "id": "py:agents_config._default_archetypes_path",
-      "dependent_count": 10
-    },
-    {
-      "id": "py:agents_config._normalize_provider_model_map",
-      "dependent_count": 10
-    },
-    {
-      "id": "py:agents_config._validate_local_roster",
+      "id": "py:agents_config.get_provider_model_map",
       "dependent_count": 10
     },
     {
@@ -188,15 +228,15 @@
       "dependent_count": 10
     },
     {
-      "id": "py:agents_config",
-      "dependent_count": 9
+      "id": "py:profiles",
+      "dependent_count": 10
+    },
+    {
+      "id": "py:telemetry",
+      "dependent_count": 10
     },
     {
       "id": "py:agents_config.get_agent_config",
-      "dependent_count": 9
-    },
-    {
-      "id": "py:agents_config.load_archetypes_config",
       "dependent_count": 9
     },
     {
@@ -205,6 +245,10 @@
     },
     {
       "id": "py:guardrails.get_guardrails_service",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:network_policies",
       "dependent_count": 9
     },
     {
@@ -224,16 +268,20 @@
       "dependent_count": 9
     },
     {
-      "id": "py:profiles",
-      "dependent_count": 9
-    },
-    {
-      "id": "py:telemetry",
-      "dependent_count": 9
-    },
-    {
       "id": "py:telemetry.get_tracer",
       "dependent_count": 9
+    },
+    {
+      "id": "py:trust_levels",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:trust_resolution",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:agents_config._tier_entry_to_spec",
+      "dependent_count": 8
     },
     {
       "id": "py:code_search_runtime._grant_resolver_from_env.resolve",
@@ -260,7 +308,7 @@
       "dependent_count": 8
     },
     {
-      "id": "py:network_policies",
+      "id": "py:model_routing.api.get_routing_service",
       "dependent_count": 8
     },
     {
@@ -272,15 +320,11 @@
       "dependent_count": 8
     },
     {
+      "id": "py:policy_engine",
+      "dependent_count": 8
+    },
+    {
       "id": "py:telemetry.start_span",
-      "dependent_count": 8
-    },
-    {
-      "id": "py:trust_levels",
-      "dependent_count": 8
-    },
-    {
-      "id": "py:trust_resolution",
       "dependent_count": 8
     },
     {
@@ -288,11 +332,7 @@
       "dependent_count": 8
     },
     {
-      "id": "py:agents_config._tier_entry_to_spec",
-      "dependent_count": 7
-    },
-    {
-      "id": "py:agents_config.get_provider_model_map",
+      "id": "py:agents_config._best_defined_tier",
       "dependent_count": 7
     },
     {
@@ -332,10 +372,6 @@
       "dependent_count": 7
     },
     {
-      "id": "py:policy_engine",
-      "dependent_count": 7
-    },
-    {
       "id": "py:port_allocator.get_port_allocator",
       "dependent_count": 7
     },
@@ -348,7 +384,11 @@
       "dependent_count": 7
     },
     {
-      "id": "py:agents_config._best_defined_tier",
+      "id": "py:vendor_registry._utc_datetime",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:agents_config.resolve_provider_model_spec",
       "dependent_count": 6
     },
     {
@@ -361,6 +401,10 @@
     },
     {
       "id": "py:config._default_workdir_root",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:coordination_api._extract_api_key",
       "dependent_count": 6
     },
     {
@@ -384,6 +428,10 @@
       "dependent_count": 6
     },
     {
+      "id": "py:feature_registry",
+      "dependent_count": 6
+    },
+    {
       "id": "py:github_openspec_fetcher._do_fetch",
       "dependent_count": 6
     },
@@ -400,15 +448,11 @@
       "dependent_count": 6
     },
     {
-      "id": "py:agents_config.resolve_provider_model_spec",
-      "dependent_count": 5
+      "id": "py:vendor_registry._iso",
+      "dependent_count": 6
     },
     {
       "id": "py:code_search.code_search_enabled",
-      "dependent_count": 5
-    },
-    {
-      "id": "py:code_search_authorization",
       "dependent_count": 5
     },
     {
@@ -424,6 +468,14 @@
       "dependent_count": 5
     },
     {
+      "id": "py:coordination_api._vendor_problem",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:event_bus",
+      "dependent_count": 5
+    },
+    {
       "id": "py:event_stream.sse_event_generator._normalize_status",
       "dependent_count": 5
     },
@@ -432,7 +484,7 @@
       "dependent_count": 5
     },
     {
-      "id": "py:feature_registry",
+      "id": "py:git_adapter",
       "dependent_count": 5
     },
     {
@@ -441,6 +493,14 @@
     },
     {
       "id": "py:github_prs_api._fetch_reviews",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:guardrails",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:isolation_contract.validate_isolation",
       "dependent_count": 5
     },
     {
@@ -468,6 +528,10 @@
       "dependent_count": 5
     },
     {
+      "id": "py:merge_train_types",
+      "dependent_count": 5
+    },
+    {
       "id": "py:migrations._checksum",
       "dependent_count": 5
     },
@@ -481,6 +545,10 @@
     },
     {
       "id": "py:migrations.discover_migrations",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:model_routing.catalog.encode_filter_value",
       "dependent_count": 5
     },
     {

@@ -178,3 +178,26 @@ The operator approved the complete Approach 1 plan and explicitly authorized pro
 
 ### Context
 Implemented the approved contract-first OpenBao principal projection across provisioning, coordinator identity reload, SDK dispatch, and live cutover. Eight pinned live OpenBao tests pass, including two-process one-use bootstrap and periodic renewal beyond the auth-mount max TTL; three-vendor reviews and independent audits found no remaining implementation blocker.
+
+---
+
+## Phase: Cleanup (2026-09-26)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use explicit force override for pre-merge validation gate** — The operator requested merge with --force after the gate and active-agent guard were surfaced. CI checks passed; local Docker access was unavailable for the missing validation phases.
+2. **Preserve OpenSpec commit history with rebase merge** — The feature PR contains conventional commits that preserve implementation and review history.
+
+### Completed Work
+- merge PR #629
+- verify merged PR and CI state
+- check open tasks and choices
+
+### Next Steps
+- archive the change and update base specs
+- run deployment smoke, security, and E2E validation before rollout
+
+### Context
+PR #629 merged to main with rebase. The user explicitly authorized --force while smoke, security, and E2E validation remained missing; Docker was unavailable locally. All proposal tasks were complete, and post-merge archive and spec convergence are in progress.
+
