@@ -53,7 +53,7 @@ build-backend = "uv_build"
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
-    "ruff>=0.6",
+    "ruff>=0.16.8",
     "mypy>=1.13",
     # Validates emitted reports/descriptors against the published JSON Schema
     # contract in tests/test_contract_schemas.py. Deliberately a dev dep, not a
