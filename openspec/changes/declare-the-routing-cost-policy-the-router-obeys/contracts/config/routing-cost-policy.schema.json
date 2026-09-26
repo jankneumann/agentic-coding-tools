@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "CostTier": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "enum": [
+            "subscription-local",
+            "subscription-cloud",
+            "metered-api"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "location": {
+          "enum": [
+            "local",
+            "cloud",
+            "unknown"
+          ],
+          "title": "Location",
+          "type": "string"
+        },
+        "endpoint_kinds": {
+          "items": {
+            "enum": [
+              "vendor-cli",
+              "vendor-sdk",
+              "openrouter",
+              "local"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Endpoint Kinds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "location",
+        "endpoint_kinds"
+      ],
+      "title": "CostTier",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "tiers": {
+      "items": {
+        "$ref": "#/$defs/CostTier"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "title": "Tiers",
+      "type": "array"
+    }
+  },
+  "required": [
+    "tiers"
+  ],
+  "title": "CostPolicy",
+  "type": "object"
+}
