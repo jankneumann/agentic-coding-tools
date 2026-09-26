@@ -1,5 +1,20 @@
 schema_version: 1
-policy_version: dg04-v1
+policy_version: ri18-v1
+
+# First feasible tier wins. Availability and model eligibility are checked by
+# the registry before this ladder is applied; exhausted subscription windows
+# therefore fall through to the next tier. Utility ranks only within a tier.
+cost_policy:
+  tiers:
+    - id: subscription-local
+      location: local
+      endpoint_kinds: [vendor-cli]
+    - id: subscription-cloud
+      location: cloud
+      endpoint_kinds: [vendor-sdk]
+    - id: metered-api
+      location: local
+      endpoint_kinds: [openrouter]
 
 defaults:
   dispatch_mode: quick
