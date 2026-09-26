@@ -1,0 +1,41 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Moving the isolation hooks to the skills-root conftest makes them apply coherently to both central tests/<skill> suites and in-skill scripts/tests suites. The suite-specific module cache and runtime reactivation directly address collection-order eviction, and the two minimal cross-tree reproducers plus the 4,775-test infrastructure run provide strong regression evidence.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-authority-recovery",
+      "file_path": "skills/conftest.py",
+      "line_range": {
+        "start": 49,
+        "end": 116
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Ownership is centralized at the common pytest ancestor while skills/tests/conftest.py remains an explicit ownership marker, avoiding duplicate hook implementations. Every modified path is covered by wp-authority-recovery.write_allow and none matches the package deny glob.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "wp-authority-recovery",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "line_range": {
+        "start": 65,
+        "end": 70
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

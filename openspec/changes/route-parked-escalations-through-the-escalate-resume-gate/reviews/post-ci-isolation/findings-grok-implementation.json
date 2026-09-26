@@ -1,0 +1,90 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive: Moving flat-module isolation from skills/tests/conftest.py to skills/conftest.py correctly extends pytest hook coverage to both tests/<skill>/ and <skill>/scripts/tests trees in one shared process, which matches the failure mode (script-level suites poisoned by later tests/ imports).",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive: _suite_for now distinguishes tests/<leaf>, <skill>/scripts/tests, and <skill>/tests layouts, and leaf extraction via suite.split('/', 1)[-1] keeps dependency lookup keyed by skill name for both suite id shapes.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "_SCRIPT_DEPENDENCIES gained 'refresh-architecture': ('project-context-runtime',) which was absent from the previous tests/conftest map. The new isolation repro explicitly pairs refresh-architecture/scripts/tests with tests/roadmap-runtime; without this edge, adapter imports can still resolve the wrong flat modules after suite switches. Confirm this is intentional and complete versus other script-level suites that import foreign flat modules.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "skills/conftest.py",
+      "line_range": {
+        "start": 41,
+        "end": 44
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Positive: work-packages.yaml adds skills/conftest.py to the package path allowlist alongside skills/tests/conftest.py, so the relocated hook file stays inside declared ri-06 scope rather than becoming an undeclared out-of-package edit.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive: Dedicated isolation coverage now includes the exact post-validation failure shape (scripts/tests then tests/) via subprocess pytest pairs, and reported evidence (2 reds green, isolation 3 passed, infrastructure 4775 passed / 13 skipped, Ruff clean) supports the fix under full-suite load.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "skills/tests/_shared/test_flat_module_isolation.py",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "skills/tests/conftest.py is reduced to a pointer docstring with no hooks. That is compatible while skills/conftest.py remains loaded, but a future collector that only loads the tests/ tree conftest (or deletes the root file without restoring hooks) would silently lose isolation. Consider a one-line re-export or explicit comment that deletion is unsafe, or a guard test that skills/conftest.py defines pytest_collectstart/pytest_runtest_setup.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "fyi",
+      "file_path": "skills/tests/conftest.py",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "_SCRIPT_DEPENDENCIES remains a manually maintained adjacency list duplicated in spirit across skill coupling. Adding refresh-architecture is correct for this bug, but growth of scripts/tests suites will keep requiring hand updates; no automated completeness check exists. Acceptable for this isolation hotfix; track as follow-up if more cross-skill flat imports appear.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "file_path": "skills/conftest.py",
+      "line_range": {
+        "start": 21,
+        "end": 46
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

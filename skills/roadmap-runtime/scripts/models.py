@@ -792,6 +792,7 @@ class Checkpoint:
     pause_state: dict[str, Any] = field(default_factory=dict)
     serial_indeterminate_items: list[str] = field(default_factory=list)
     dispatch_attempts: list[dict[str, Any]] = field(default_factory=list)
+    gate_decisions: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -821,6 +822,8 @@ class Checkpoint:
             ):
                 raise ValueError("serial indeterminate item ids must be unique bounded strings")
             d["serial_indeterminate_items"] = list(self.serial_indeterminate_items)
+        if self.gate_decisions:
+            d["gate_decisions"] = json.loads(json.dumps(self.gate_decisions))
         if self.dispatch_attempts:
             for attempt in self.dispatch_attempts:
                 validate_delegated_dispatch_attempt(attempt)
@@ -863,6 +866,7 @@ class Checkpoint:
             pause_state=data.get("pause_state", {}),
             serial_indeterminate_items=list(serial_indeterminate_items),
             dispatch_attempts=json.loads(json.dumps(dispatch_attempts)),
+            gate_decisions=json.loads(json.dumps(data.get("gate_decisions", []))),
         )
 
     @classmethod

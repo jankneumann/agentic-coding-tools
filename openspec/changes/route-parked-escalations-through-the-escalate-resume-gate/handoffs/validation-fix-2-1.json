@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-16T13:38:27.940295+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "autopilot-phase-validation-fixer",
+    "session_id": "ri06-val-fix2-20260916",
+    "summary": "Closed the three confirmed VAL_REVIEW blockers at implementation commit 3e1293d9; 620 focused and 6,319 full-suite tests pass. The single architecture advisory is preserved with qualified provenance.",
+    "completed_work": [
+      "Implemented exact bounded proceed, blocked, and already-routed route results with one durable decision.",
+      "Made prepared policy-pause retry state reachable through its durable proceed reference without restoring the cleared journal.",
+      "Added direct complete-batch, multi-resume, automatic/manual race, concurrent blocked mirror, and projection-failure rehydrate tests.",
+      "Rebuilt 14-scenario traceability and qualified the preserved architecture artifact."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Treat checkpoint gate_decisions as rehydrate authority",
+        "rationale": "Mirror projection is derived and repairable; rehydrate removes ledger-owned stale entries and rebuilds current normalized blocked entries.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Resume canonical validation review."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/change-context.md",
+        "description": "Named 14-scenario behavioral evidence"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/artifacts/wp-authority-recovery/result.json",
+        "description": "Canonical package result"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md",
+        "description": "VAL_FIX validation evidence"
+      }
+    ]
+  }
+}
