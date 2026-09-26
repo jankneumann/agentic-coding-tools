@@ -486,6 +486,23 @@ wheels = [
 ]
 
 [[package]]
+name = "openbao-credentials"
+version = "0.1.0"
+source = { directory = "../packages/openbao-credentials" }
+dependencies = [
+    { name = "hvac" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "hvac", specifier = ">=2.4.0,<3" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jsonschema", specifier = ">=4.26.0" },
+    { name = "pytest", specifier = ">=9.0" },
+]
+
+[[package]]
 name = "packaging"
 version = "26.0"
 source = { registry = "https://pypi.org/simple" }
@@ -825,6 +842,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "hvac" },
     { name = "jsonschema" },
+    { name = "openbao-credentials" },
     { name = "pyyaml" },
     { name = "system-one-decisions" },
     { name = "tree-sitter" },
@@ -856,6 +874,7 @@ requires-dist = [
     { name = "hvac", specifier = ">=2.4.0" },
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "openai", marker = "extra == 'sdk'", specifier = ">=2.31.0" },
+    { name = "openbao-credentials", directory = "../packages/openbao-credentials" },
     { name = "pyjwt", extras = ["crypto"], marker = "extra == 'test'", specifier = ">=2.13.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.3" },
     { name = "pyyaml", specifier = ">=6.0" },

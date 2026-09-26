@@ -39,6 +39,7 @@ from .code_search_runtime import (
     stop_code_search_runtime,
 )
 from .config import get_config
+from .openbao_identity import IdentityRuntime, run_reload_loop
 from .port_allocator import get_port_allocator
 
 # Trust resolution lives in src/trust_resolution.py so that the HTTP write
@@ -149,6 +150,12 @@ class VendorRateLimitObservationRequest(BaseModel):
 
 
 _vendor_registry: VendorRegistryService | None = None
+_identity_runtime: IdentityRuntime | None = None
+
+
+def get_identity_runtime() -> IdentityRuntime | None:
+    """Expose the installed snapshot for request attribution and health."""
+    return _identity_runtime
 
 
 def get_vendor_registry() -> VendorRegistryService:
@@ -665,9 +672,17 @@ def _extract_api_key(
 def _principal_for_api_key(resolved_key: str) -> dict[str, Any]:
     """Return the coordinator principal bound to an API key."""
     config = get_config()
-    if resolved_key not in config.api.api_keys:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    identity = config.api.api_key_identities.get(resolved_key, {})
+    if config.openbao.is_enabled():
+        # The installed snapshot is the complete allowlist in Bao mode. A
+        # static key or JSON identity cannot authorize a request here.
+        runtime = _identity_runtime
+        identity = runtime.lookup(resolved_key) if runtime is not None else None
+        if identity is None:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+    else:
+        if resolved_key not in config.api.api_keys:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        identity = config.api.api_key_identities.get(resolved_key, {})
     return {
         "api_key": resolved_key,
         "agent_id": identity.get("agent_id"),
@@ -768,6 +783,12 @@ def create_coordination_api() -> FastAPI:
     from contextlib import asynccontextmanager
 
     logger = logging.getLogger(__name__)
+    global _identity_runtime
+    cfg = get_config()
+    _identity_runtime = (
+        IdentityRuntime(required_static_keys=tuple(cfg.api.api_keys))
+        if cfg.openbao.is_enabled() else None
+    )
 
     from .langfuse_tracing import init_langfuse, shutdown_langfuse
     from .sse_log_redaction import install_token_redaction_filter
@@ -784,6 +805,12 @@ def create_coordination_api() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        identity_task: asyncio.Task[None] | None = None
+        identity_runtime = _identity_runtime
+        if identity_runtime is not None:
+            # Startup failure is routable only after a complete refresh. Keep
+            # the server up to expose degraded readiness and retry every 30s.
+            await asyncio.to_thread(identity_runtime.reload)
         # Apply pending database migrations on startup
         from .migrations import ensure_schema
 
@@ -871,9 +898,18 @@ def create_coordination_api() -> FastAPI:
                     exc_info=True,
                 )
 
+        if identity_runtime is not None:
+            identity_task = asyncio.create_task(run_reload_loop(identity_runtime))
+
         yield
 
         # Shutdown merge watcher, sweeper, watchdog, notifier, event bus, langfuse
+        try:
+            if identity_task is not None:
+                identity_task.cancel()
+                await asyncio.gather(identity_task, return_exceptions=True)
+        except Exception:  # noqa: BLE001
+            pass
         try:
             await merge_watcher.stop()
         except Exception:  # noqa: BLE001
@@ -3793,9 +3829,18 @@ def create_coordination_api() -> FastAPI:
         from fastapi.responses import JSONResponse
 
         db_status = await _database_health()
-        status = "ok" if db_status == "connected" else "degraded"
-        payload = {"status": status, "db": db_status, "version": "0.2.0"}
-        if db_status != "connected":
+        bao_enabled = get_config().openbao.is_enabled()
+        runtime = _identity_runtime if bao_enabled else None
+        identity_status, identity_usable = (
+            runtime.readiness() if runtime is not None
+            else (("degraded", False) if bao_enabled else ("disabled", True))
+        )
+        status = "ok" if db_status == "connected" and identity_status != "degraded" else "degraded"
+        payload = {
+            "status": status, "db": db_status,
+            "identity": identity_status, "version": "0.2.0",
+        }
+        if db_status != "connected" or not identity_usable:
             return JSONResponse(status_code=503, content=payload)
         return payload
 

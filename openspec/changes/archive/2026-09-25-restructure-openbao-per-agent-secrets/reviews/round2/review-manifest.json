@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-09-24T23:44:03Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 600.1285754172131,
+      "error": "Timeout after 600s",
+      "error_class": "transient",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 351.1802248810418,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 224.97509484319016,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 65.94567528925836,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a0d5c4-dc47-75ad-800c-5e610db824fb\",\"timestamp\":\"2026-09-24T23:34:03.591Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Review the CURRENT pca-02 plan in this checkout independently. The prior plan review led to revisions; read files afresh and do not assume old findings",
+      "error_class": "vendor_unavailable",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 8,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-plan.json",
+      "finding_count": 4,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    }
+  ]
+}

@@ -32,6 +32,7 @@ dependencies = [
     { name = "httpx" },
     { name = "hvac" },
     { name = "jsonschema" },
+    { name = "openbao-credentials" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "system-one-decisions" },
@@ -106,6 +107,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=2.1.0" },
     { name = "mypy", marker = "extra == 'test'", specifier = ">=2.1.0" },
     { name = "openai", marker = "extra == 'sdk'", specifier = ">=2.53.0" },
+    { name = "openbao-credentials", directory = "../packages/openbao-credentials" },
     { name = "opentelemetry-api", marker = "extra == 'observability'", specifier = ">=1.44.0" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'observability'", specifier = ">=1.44.0" },
     { name = "opentelemetry-exporter-prometheus", marker = "extra == 'observability'", specifier = ">=0.65b0" },
@@ -1602,6 +1604,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/02/2e/58d83848dd1a79cb92ed8e63f6ba901ca282c5f09d04af9423ec26c56fd7/openapi_pydantic-0.5.1.tar.gz", hash = "sha256:ff6835af6bde7a459fb93eb93bb92b8749b754fc6e51b2f1590a19dc3005ee0d", size = 60892, upload-time = "2025-01-08T19:29:27.083Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/cf/03675d8bd8ecbf4445504d8071adab19f5f993676795708e36402ab38263/openapi_pydantic-0.5.1-py3-none-any.whl", hash = "sha256:a3a09ef4586f5bd760a8df7f43028b60cafb6d9f61de2acba9574766255ab146", size = 96381, upload-time = "2025-01-08T19:29:25.275Z" },
+]
+
+[[package]]
+name = "openbao-credentials"
+version = "0.1.0"
+source = { directory = "../packages/openbao-credentials" }
+dependencies = [
+    { name = "hvac" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "hvac", specifier = ">=2.4.0,<3" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jsonschema", specifier = ">=4.26.0" },
+    { name = "pytest", specifier = ">=9.0" },
 ]
 
 [[package]]

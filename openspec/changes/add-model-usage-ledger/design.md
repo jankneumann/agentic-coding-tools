@@ -101,6 +101,19 @@ for other harnesses).
 an accepted source for the router's spend ledger and feedback posteriors, and the "no transcript
 parsing in v1" sentence is struck.
 
+## D14 — The migration sequence number is assigned at implementation, not here
+
+The migration is `<NNN>_model_usage_ledger.sql`, with `<NNN>` taken when the file is
+created. The highest occupied sequence as of 2026-09-26 is `044`.
+
+This plan was renumbered twice while waiting for approval — `035` on 2026-09-03, `037` on
+2026-09-04 — and the sibling change #467 was renumbered a third time when `044` was taken
+within two days of it choosing that number. `main` moves roughly thirty commits a day, so a
+number picked at planning time is a guess about merge order that decays for as long as the
+proposal waits. Naming the file by intent costs nothing and removes the collision class
+rather than re-detecting it. See issue #637, which also proposes a uniqueness guard for the
+two duplicates already on `main` (`026` x3, `035` x2).
+
 ## D13 — `cost_usd` is always derived; a vendor-billed figure never moves into it
 
 The plan-review remediation constrained priced rows to `estimated IS TRUE`, and raised whether that

@@ -1,0 +1,166 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: `plan_reconciliation` rejects `legacy_role_aliases` values unless they match `^(agent|service)-[a-z][a-z0-9-]*$`, but `migration-map.schema.json` and contracts/README define aliases as pre-migration role overrides matching `^[a-z][a-z0-9-]*$`. The pre-pca-02 seeder created AppRoles named with the agent slug (for example `claude-web`), not `agent-claude-web`. Cutover safety then requires those names in `legacy_role_aliases` before deleting `coordinator-read`; schema-valid maps with real legacy names fail preflight, so confirmed cutover cannot retire the roles that still hold shared coordinator access.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Validate alias values with the migration-map schema pattern (or the historical AppRole name charset), keep the collision check against projected `agent-|service-` role names, and add a cutover test that retires an alias named like `claude-web`.",
+      "package_id": "wp-seeding",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 48,
+        "end": 160
+      },
+      "evidence_class": "judgment",
+      "existing_code": "_ROLE = re.compile(r\"^(agent|service)-[a-z][a-z0-9-]*$\")\n    if len(set(aliases.values())) != len(aliases) or any(not _ROLE.fullmatch(alias) for alias in aliases.values()):\n        raise ValueError(\"invalid or colliding legacy role alias\")"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "critical",
+      "description": "Critical: schema loading hard-codes `openspec/changes/restructure-openbao-per-agent-secrets/contracts`. OpenSpec archival moves that tree under `openspec/changes/archive/<date>-restructure-openbao-per-agent-secrets/`, so every apply/preflight that validates migration maps, topologies, bundles, or audit events fails the day the change is archived rather than when the contract drifts.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Resolve contracts from the active change directory first, then the newest matching archive glob (or relocate the frozen schemas next to the runtime package). Add a unit test that proves archival lookup still works.",
+      "package_id": "wp-seeding",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 46,
+        "end": 46
+      },
+      "evidence_class": "judgment",
+      "existing_code": "_SCHEMA_DIR = Path(__file__).resolve().parents[3] / \"openspec/changes/restructure-openbao-per-agent-secrets/contracts\""
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: `make bao-dev` now only runs the migration-map reconciler and never writes retained internal keys to `secret/coordinator`. Design D3 correctly keeps apply away from unrelated coordinator data, but this Makefile change removes the previous one-command path that populated the internal document `profile_loader` and `langfuse_env.sh` still read. Fresh local OpenBao brought up with `bao-dev` therefore has agent/vendor paths and bundles while the coordinator-internal path stays empty, breaking internal interpolation until an undocumented manual seed.",
+      "disposition": "escalate",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Keep principal reconciliation free of coordinator writes, but restore an explicit Makefile companion step/target that writes only migration-map `retained_internal` keys to `BAO_SECRET_PATH` (root/admin token), and document the required `BAO_MIGRATION_MAP`/`BAO_BOOTSTRAP_DIR` plus that companion step. Escalate if ownership should move to wp-integration task 5.5 instead of this package.",
+      "package_id": "wp-seeding",
+      "file_path": "agent-coordinator/Makefile",
+      "line_range": {
+        "start": 86,
+        "end": 105
+      },
+      "evidence_class": "judgment",
+      "existing_code": "bao-dev: ## Start OpenBao dev server and reconcile from an explicit migration map\n$(MAKE) bao-seed\n\nbao-seed: ## Reconcile OpenBao; requires BAO_MIGRATION_MAP and BAO_BOOTSTRAP_DIR"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: `seed_secrets`, `seed_approles`, and `seed_db_engine` remain importable and covered by tests even though `main()` no longer calls them. `seed_approles` still creates the shared `coordinator-read` policy and AppRoles named from `openbao_role_id`/agent slug, which conflicts with D3 exact-scope provisioning and makes it easy to reintroduce the legacy path beside the new reconciler.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Delete the unused helpers and their tests from this package, or move them behind an explicitly named legacy module that is not part of the supported CLI.",
+      "package_id": "wp-seeding",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 386,
+        "end": 495
+      },
+      "evidence_class": "judgment",
+      "existing_code": "def seed_approles(\n    client,  # type: ignore[no-untyped-def]\n    agents_path: Path,\n    mount_path: str,\n    secret_path: str,\n    token_ttl: int,\n    dry_run: bool = False,\n) -> None:"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: the module docstring still documents the pre-migration CLI (`bao-seed.py` without `--migration-map`, `--with-db-engine`, flat coordinator seeding) even though `main()` requires `--migration-map` and `--bootstrap-dir`/`BAO_BOOTSTRAP_DIR`.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Replace the docstring with the reconciliation CLI, required env vars, and cutover flags that `main()` actually implements.",
+      "package_id": "wp-seeding",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 1,
+        "end": 22
+      },
+      "evidence_class": "judgment",
+      "existing_code": "\"\"\"Bootstrap seeding script for OpenBao.\n\nReads `.secrets.yaml` and `agents.yaml`, then populates OpenBao with:\n- KV v2 secrets from `.secrets.yaml`\n- AppRoles from `agents.yaml` (every agent declaring an `api_key`)\n- Database secrets engine configuration (with --with-db-engine)"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: apply rejects a wrapping `creation_path` that does not equal `auth/approle/role/<role>/secret-id`, but no unit test asserts that failure path or the sanitized `openbao.bootstrap.rejected` audit event. Regressions here would only show up in live wrapping tests.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Add a focused test that returns a mismatched `wrap_info.creation_path`, expects `ValueError`, and checks the rejected audit event contains no wrapping token.",
+      "package_id": "wp-seeding",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 327,
+        "end": 330
+      },
+      "evidence_class": "judgment",
+      "existing_code": "if wrap[\"creation_path\"] != expected:\n            audit(_event(\"openbao.bootstrap.rejected\", \"reject\", \"failure\", principal.principal_id, \"bootstrap\"))\n            raise ValueError(\"unexpected wrapping creation path\")"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: migration-map preflight matches D1/CFG-18: schema validation, exact keyed-agent and vendor coverage, registry `${VAR}` placeholder equality, duplicate/unaccounted source detection, nonempty agent/vendor values, bootstrap 0700/0600 and symlink refusal, and managed-state retirement tracking without mutating OpenBao on dry-run.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep the preflight gates; no change required.",
+      "package_id": "wp-seeding",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 123,
+        "end": 178
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: AppRole bootstrap delivery follows D3/CFG-09: `secret_id_num_uses=1`, `wrap_ttl=300s`, exact creation-path check before bundle write, `token_period` without explicit max TTL, atomic 0600 bundle replace under 0700, and audit events that omit API keys and wrapping tokens.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Keep the wrapping and protected-file sequence; no change required.",
+      "package_id": "wp-seeding",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 301,
+        "end": 333
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: cutover ordering matches D3/D5/CFG-13: reusable internal SecretIDs and RoleID digest check, refuse unexpected `coordinator-read` AppRoles, install `coordinator-internal-read` and prove handoff with a fresh token that is revoked, retire only owned agent roles/policies/paths plus declared aliases, delete `coordinator-read` last, and never delete the `coordinator` KV path.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep the gated cutover sequence; no change required beyond the legacy-alias naming fix in finding 1.",
+      "package_id": "wp-seeding",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "line_range": {
+        "start": 260,
+        "end": 350
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

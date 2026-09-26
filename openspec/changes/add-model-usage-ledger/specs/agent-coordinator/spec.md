@@ -5,7 +5,7 @@
 ### Requirement: Usage Ledger Persistence
 
 The coordinator SHALL persist model usage in four additive tables created by migration
-`045_model_usage_ledger.sql`: `usage_records`, `dispatch_records`, `transcript_events`, and
+`<NNN>_model_usage_ledger.sql`: `usage_records`, `dispatch_records`, `transcript_events`, and
 `usage_ingest_state`, following the existing migration conventions (`IF NOT EXISTS`, single
 transaction, checksum-tracked, never edited after apply). The migration SHALL also replace the
 `agent_sessions.phase_archetype` CHECK constraint with one accepting every archetype in

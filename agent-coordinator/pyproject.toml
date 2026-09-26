@@ -30,6 +30,7 @@ dependencies = [
     # Shared seam for calibrated System One (TypeSafe Jev) decisions.
     # Fallback-only for now; no vendor SDK pulled in transitively.
     "system-one-decisions",
+    "openbao-credentials",
     # DatabaseConfig.from_env() defaults DB_BACKEND to "postgres" (#456's
     # own change — every deployment doc and coord-env report `postgres`,
     # and src/migrations.py only supports it). That default has to work on
@@ -147,6 +148,7 @@ override-dependencies = [
 gen-eval = { path = "../packages/gen-eval" }
 code-search-pkg = { path = "../packages/code-search" }
 system-one-decisions = { path = "../packages/system-one-decisions" }
+openbao-credentials = { path = "../packages/openbao-credentials" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

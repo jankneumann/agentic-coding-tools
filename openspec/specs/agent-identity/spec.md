@@ -5,81 +5,45 @@ TBD - created by archiving change add-coordinator-profiles. Update Purpose after
 ## Requirements
 ### Requirement: Declarative Agent Configuration
 
-The coordinator SHALL treat `agents.yaml` as the single source of truth for agent identity,
-trust levels, permissions, and API key mapping — for **every** agent, regardless of declared
-transport. All runtime authorization state (identity map entries, `agent_profiles` rows,
-policy tier inputs) SHALL be derived projections of this file, never independently authored.
+`agent-coordinator/agents.yaml` SHALL remain the canonical source for every agent identity, regardless of transport. Every keyed agent SHALL declare an `api_key` placeholder and an explicit `vendor_credentials` list of canonical vendor identifiers; an empty list SHALL mean no vendor credential access. The schema SHALL reject unknown vendors, duplicate list members, duplicate agent names, and `openbao_role_id` overrides. An agent's `policy_vendor`, `catalog_vendor`, transport, CLI, or SDK configuration SHALL NOT implicitly grant vendor credentials. Existing profile and trust projections SHALL remain derived from the same registry.
 
-- `agents.yaml` SHALL reside at `agent-coordinator/agents.yaml`
-- Each agent entry SHALL declare: `type`, `profile` (matching `agent_profiles.name` in DB),
-  `trust_level` (0–4 per the Unified Trust Scale), `transport` (`mcp` or `http`),
-  `capabilities` (list), and `description`
-- `transport` SHALL describe the agent's preferred channel only; it SHALL NOT gate whether
-  the agent receives an identity or profile projection (MCP agents reach the HTTP API via
-  the proxy fallback and are therefore HTTP principals)
-- Agents MAY declare `api_key: ${VAR}` referencing a secret
-- The file SHALL be validated against a JSON schema (following the `teams.py` pattern)
-- Duplicate agent names SHALL be rejected
+The registry SHALL declare a top-level `credential_vendors` catalog of allowed vendor identifiers. Projection SHALL reject IDs outside this catalog; `policy_vendor`, `catalog_vendor`, transport, and SDK fields SHALL NOT extend the catalog or grant credential access.
 
-#### Scenario: agents.yaml loads and validates
-- **WHEN** `agents.yaml` exists with valid entries
-- **THEN** the config SHALL parse all agent definitions
-- **AND** each agent SHALL be accessible via `get_agent_config(agent_id)`
+#### Scenario: AI-01 Explicit vendor scope
 
-#### Scenario: Duplicate agent name rejected
-- **WHEN** `agents.yaml` contains two entries with the same name
-- **THEN** a `ValueError` SHALL be raised identifying the duplicate
+- **WHEN** an agent declares `vendor_credentials: [openai]` and a different `policy_vendor`
+- **THEN** its credential policy SHALL include only its own agent path and the OpenAI vendor path
+- **AND** neither vendor field SHALL add any other path
 
-#### Scenario: agents.yaml missing (graceful)
-- **WHEN** `agents.yaml` does not exist
-- **THEN** the system SHALL fall back to env-var-based identity (`AGENT_ID`, `AGENT_TYPE`)
-- **AND** no error SHALL be raised
+#### Scenario: AI-02 Invalid principal declaration
 
-#### Scenario: MCP-transport agent receives identity projection
-- **WHEN** `agents.yaml` defines `grok-local` with `transport: mcp` and a resolvable `api_key`
-- **THEN** `get_api_key_identities()` SHALL include the resolved key mapped to
-  `{"agent_id": "grok-local", "agent_type": "grok"}`
+- **WHEN** an entry has a duplicate or unknown vendor, or declares `openbao_role_id`
+- **THEN** schema or projection validation SHALL fail before any OpenBao mutation
+
+#### Scenario: AI-13 Unknown credential vendor
+
+- **WHEN** an agent names a vendor absent from `credential_vendors`
+- **THEN** registry projection SHALL fail before any OpenBao mutation
 
 ### Requirement: API Key Identity Generation
 
-`get_api_key_identities()` SHALL generate identity mappings for all agents with resolvable
-API keys, regardless of transport, and SHALL support resolving API keys from OpenBao when
-enabled.
+The coordinator SHALL build API-key identities for all keyed registry agents, regardless of transport, from each agent's own `secret/agents/<name>` KV-v2 document when OpenBao is configured. A dedicated coordinator identity-reader service principal SHALL authenticate independently and have read access only to declared agent data paths; it SHALL NOT use an agent AppRole, the egress-gateway AppRole, or a global shared secret. A missing, invalid, or duplicate key SHALL fail the complete snapshot build, never silently omit an expected agent or accept a partial snapshot. The output mapping SHALL retain `{key: {agent_id, agent_type}}`; the existing explicit `COORDINATION_API_KEY_IDENTITIES` override MAY be used only when OpenBao is not configured. Static file or environment resolution SHALL remain available only in non-OpenBao mode.
 
-- The identity map SHALL include every agent whose `api_key` resolves to a concrete value;
-  the former restriction to `transport: "http"` agents is removed
-- When OpenBao is enabled and an agent's `api_key` field references a `${VAR}` placeholder,
-  the value SHALL be resolved from OpenBao instead of `.secrets.yaml`
-- The output format (`{key: {agent_id, agent_type}}` JSON dict) SHALL remain identical
-- When `COORDINATION_API_KEY_IDENTITIES` is set as an explicit env var, it SHALL still
-  override agents.yaml (existing precedence preserved — this is also the rollback lever)
-- Unresolved `${VAR}` placeholders SHALL be excluded from the identity map
-- Duplicate resolved keys across agents SHALL be rejected at load time with an error
-  identifying both agents (replacing the current last-writer-wins warning)
+#### Scenario: AI-03 Complete identity projection
 
-#### Scenario: Full-roster identity map
-- **WHEN** `agents.yaml` declares five local and two remote agents, all with resolvable keys
-- **THEN** `get_api_key_identities()` SHALL return seven entries
+- **WHEN** all keyed agents have distinct valid keys in their own KV-v2 documents
+- **THEN** one immutable identity map SHALL include every keyed registry agent, including MCP agents
 
-#### Scenario: API key resolved from OpenBao
-- **WHEN** OpenBao is enabled (`BAO_ADDR` set)
-- **AND** an agent's `api_key` is `${CODEX_KEY}` with `openbao_role_id` set
-- **THEN** `get_api_key_identities()` SHALL resolve the key from OpenBao
-- **AND** the identity map SHALL contain the resolved key mapped to the agent
+#### Scenario: AI-04 Incomplete projection fails closed
 
-#### Scenario: API key resolution falls back without OpenBao
-- **WHEN** OpenBao is not enabled
-- **AND** an agent's `api_key` is resolved from `.secrets.yaml`
-- **THEN** `get_api_key_identities()` SHALL use the statically resolved key
-- **AND** unresolved `${VAR}` placeholders SHALL be excluded from the identity map
+- **WHEN** one agent document is missing, has a malformed key, or duplicates another agent's key
+- **THEN** the complete candidate snapshot SHALL be rejected with a sanitized error identifying the affected principal(s)
+- **AND** no partial candidate SHALL replace the installed map
 
-#### Scenario: Duplicate key rejected
-- **WHEN** two agents' `api_key` fields resolve to the same value
-- **THEN** identity generation SHALL fail with an error naming both agents
+#### Scenario: AI-05 Configured OpenBao has no static fallback
 
-#### Scenario: Agent without a key is excluded
-- **WHEN** an agent declares no `api_key`
-- **THEN** it SHALL contribute no identity row, whatever its transport
+- **WHEN** OpenBao is configured and a lookup fails
+- **THEN** `.secrets.yaml`, ambient key variables, and `COORDINATION_API_KEY_IDENTITIES` SHALL NOT supply that agent's identity
 
 ### Requirement: MCP Environment Generation
 
@@ -95,33 +59,23 @@ The agents config SHALL generate MCP registration environment variables for loca
 
 ### Requirement: OpenBao AppRole per Agent
 
-The agent identity system SHALL support mapping each agent declaration in `agents.yaml` to an OpenBao AppRole, enabling per-agent credential scoping and automatic revocation.
+Each keyed registry agent SHALL project exactly one AppRole, policy, and `secret/agents/<name>` data path, independent of transport. The canonical SPIFFE ID `spiffe://coordinator.rotkohl.ai/agent/<name>` SHALL be retained for audit and authorization; a deterministic, reversible-or-recorded Bao-safe encoding SHALL produce role and policy names, and projection SHALL reject name collisions. An agent policy SHALL grant `read` only on its own `secret/data/agents/<name>` and the `secret/data/vendors/<vendor>` paths explicitly listed in `vendor_credentials`; it SHALL grant no access to another agent path, unrelated vendor path, `secret/data/coordinator`, or KV-v2 metadata/list paths. Token TTL SHALL remain bounded by the configured token policy, including revocation of any dynamic database child leases when the parent token is revoked. Expiration and renewal SHALL follow OpenBao token semantics; a single-use SecretID SHALL never be reused for a second login.
 
-- Each agent entry in `agents.yaml` MAY declare an `openbao_role_id` field
-- When `openbao_role_id` is present and OpenBao is enabled, the agent SHALL authenticate to OpenBao using that AppRole
-- AppRole policies SHALL grant each agent read access to the coordinator secrets path (shared `secret/data/coordinator` for MVP; per-agent sub-path scoping is a future enhancement)
-- Agent tokens obtained via AppRole auth SHALL have a TTL configured via `BAO_TOKEN_TTL` (default: 1 hour, max: 24 hours)
-- `BAO_TOKEN_TTL` SHALL be configurable per-agent via `agents.yaml` or globally via environment variable
-- Token revocation relies on OpenBao's built-in TTL expiry: when the token TTL elapses without renewal, the token and its child leases are automatically revoked by OpenBao — no explicit coordinator action is required
-- For early revocation (agent crash or explicit session end), the coordinator MAY call the OpenBao token revoke API, but this is a best-effort optimization, not a required behavior
+#### Scenario: AI-06 Principal isolation matrix
 
-#### Scenario: Agent authenticates via AppRole
-- **WHEN** `agents.yaml` defines `codex-cloud` with `openbao_role_id: "codex-cloud"`
-- **AND** OpenBao is enabled (`BAO_ADDR` set)
-- **THEN** the agent identity system SHALL authenticate to OpenBao with the `codex-cloud` AppRole
-- **AND** the resulting token SHALL only have access to secrets scoped by the `codex-cloud` policy
+- **WHEN** agent A and agent B authenticate with their respective AppRoles
+- **THEN** each SHALL read its own agent data path
+- **AND** reads of the other agent path or any undeclared vendor path SHALL be denied
 
-#### Scenario: Agent without openbao_role_id uses shared credentials
-- **WHEN** `agents.yaml` defines `claude-code-local` without `openbao_role_id`
-- **AND** OpenBao is enabled
-- **THEN** the agent SHALL use the coordinator's shared OpenBao token for secret resolution
-- **AND** no per-agent scoping SHALL be applied
+#### Scenario: AI-07 Naming collision blocks projection
 
-#### Scenario: Agent token expires and credentials revoke
-- **WHEN** an agent's OpenBao token TTL elapses without renewal
-- **THEN** OpenBao SHALL automatically revoke the token
-- **AND** any dynamic database credentials generated by that token SHALL become invalid
-- **AND** no coordinator action SHALL be required for revocation
+- **WHEN** two canonical principals encode to the same Bao role or policy name
+- **THEN** dry-run and apply SHALL fail before mutation and report both canonical identifiers without credential values
+
+#### Scenario: AI-08 Agent has no vendor grant
+
+- **WHEN** a keyed agent declares `vendor_credentials: []`
+- **THEN** its policy SHALL contain no vendor path grants
 
 ### Requirement: Dynamic Database Credentials per Agent
 
@@ -257,56 +211,57 @@ in a single Python module consumed by every validator and enforcement point.
 
 ### Requirement: Registry Projection Invariant
 
-CI SHALL enforce that every agent declared in `agents.yaml` fully materializes its runtime
-projections, so that a half-onboarded harness is a test failure rather than a runtime
-surprise.
+CI SHALL verify the existing profile and identity projections and, for every keyed registry agent, exactly one deterministic AppRole, policy, agent path, and explicit vendor scope. The invariant SHALL fail on missing or extra projected principals, grants, or naming collisions. Service principals SHALL be checked separately from registry agents.
 
-- A test SHALL assert, for every registry agent: (a) profile sync produces an enabled
-  `agent_profiles` row with the declared trust level, (b) an identity map entry exists or
-  the agent's key is explicitly declared unresolvable in the test environment, (c) the
-  `profile` name referenced by the entry resolves after sync, (d) the agent **resolves** to a
-  profile carrying its declared trust level when looked up the way `get_agent_profile()` does
-  — explicit assignment first, then the `agent_type` fallback — so that a projection which is
-  present but unreachable fails CI
-- The test SHALL assert that every enabled profile row (post-sync) is either declared by
-  the registry or named in the unmanaged-profile allowlist, so a role profile nobody
-  considered fails CI rather than being silently disabled or silently tolerated
-- The test SHALL fail when a new harness is added to `agents.yaml` without the projections
-  materializing
+#### Scenario: AI-09 Half-onboarded credential projection
 
-#### Scenario: Half-onboarded harness caught in CI
-- **WHEN** a new agent entry is added referencing a profile the sync cannot derive
-  (e.g., malformed capabilities)
-- **THEN** the registry-projection test SHALL fail identifying the agent and the missing
-  projection
-
-#### Scenario: Ghost profile caught in CI
-- **WHEN** a migration seeds an enabled profile row for a type absent from the registry
-- **THEN** the registry-projection test SHALL fail identifying the orphan row
+- **WHEN** a new keyed agent is added without a valid vendor scope or deterministic credential projection
+- **THEN** the projection test SHALL fail and identify that agent and missing or invalid projection
 
 ### Requirement: Harness Key Coverage
 
-Every harness in the shipped roster SHALL carry its own coordinator key, covering the
-locations that harness runs in, and every derivation over those credentials SHALL
-select on the credential rather than on transport.
+Every shipped harness SHALL retain a distinct coordinator API key across its declared locations. AppRole provisioning SHALL select keyed agents regardless of transport and SHALL additionally enforce their explicit vendor scope. A registry agent without an `api_key` SHALL receive no agent AppRole.
 
-- `claude_code`, `codex`, and `grok` SHALL be keyed in both locations (local and remote)
-- `antigravity` and `pi` SHALL be keyed local-only; no remote entry SHALL exist for them
-- AppRole creation (`bao_seed.py`) SHALL select agents by the presence of `api_key`, so the
-  AppRole set and the identity map cover the same agents
-- A remote entry MAY omit `cli` when its dispatch shape has not been verified against the
-  real CLI; such an entry provides identity and credential only
+#### Scenario: AI-10 MCP agent receives AppRole
 
-#### Scenario: Roster is fully keyed
-- **WHEN** `agents.yaml` is loaded
-- **THEN** every agent entry SHALL declare an `api_key`
-- **AND** no two entries SHALL reference the same key variable
+- **WHEN** a keyed MCP agent appears in `agents.yaml`
+- **THEN** the provisioner SHALL create its deterministic AppRole and policy
 
-#### Scenario: AppRoles follow the credential
-- **WHEN** `seed_approles()` runs against an `agents.yaml` where `grok-local` declares an `api_key` and `transport: mcp`
-- **THEN** an AppRole SHALL be created for `grok-local`
+### Requirement: OpenBao Service Principals
 
-#### Scenario: Agent without a key gets no AppRole
-- **WHEN** `seed_approles()` runs against an `agents.yaml` entry that declares no `api_key`
-- **THEN** no AppRole SHALL be created for it, whatever its transport
+Provisioning SHALL create two separate service principals: `spiffe://coordinator.rotkohl.ai/service/identity-reader` and `spiffe://coordinator.rotkohl.ai/service/egress-gateway`. The identity reader SHALL read the KV-v2 data paths of declared keyed agents only. The egress gateway SHALL read configured vendor data paths only. Neither SHALL inherit the other's grants, read `secret/data/coordinator`, or receive an agent policy. These principals SHALL receive independently wrapped, single-use bootstrap bundles under the same protection rules as agents. The egress gateway principal is the pca-02 dependency supplied to dg-08; proxy routing and per-dispatch authorization are outside this contract.
 
+Service read paths SHALL be exact: the gateway SHALL receive the sorted union of all agents' declared `vendor_credentials`, and the identity reader SHALL receive the declared keyed agent data paths. Neither service policy SHALL use a wildcard to include undeclared paths.
+
+#### Scenario: AI-11 Identity reader cannot read vendors
+
+- **WHEN** the identity reader authenticates
+- **THEN** it SHALL read declared agent data paths
+- **AND** a vendor read SHALL be denied
+
+#### Scenario: AI-12 Egress gateway cannot read agents
+
+- **WHEN** the egress gateway authenticates
+- **THEN** it SHALL read configured vendor data paths
+- **AND** every agent data-path read SHALL be denied
+
+#### Scenario: AI-14 Service policy projection stays exact
+
+- **WHEN** an agent or vendor is added or retired in the registry
+- **THEN** service read paths SHALL be recomputed from the complete current projection
+- **AND** no undeclared agent or vendor path SHALL be added by a wildcard
+
+### Requirement: Dispatch Principal Wire Contract
+
+`get_dispatch_configs()` and `GET /agents/dispatch-configs` SHALL emit a canonical `principal_id` and explicit sorted `vendor_credentials` for every dispatchable registry entry, preserving existing transport fields and omitting `openbao_role_id`. Direct registry loading by the dispatcher SHALL construct the same shape. A keyless endpoint-only entry SHALL have a null principal ID and empty vendor scope. Neither wire response nor direct projection SHALL contain an API key or bootstrap token.
+
+#### Scenario: AI-16 Keyed dispatch principal
+
+- **WHEN** a keyed registry agent is projected into a dispatch config
+- **THEN** the API and direct loader SHALL expose its canonical SPIFFE ID and explicit vendor credential scope
+- **AND** neither SHALL expose `openbao_role_id` or secret material
+
+#### Scenario: AI-17 Keyless endpoint dispatch
+
+- **WHEN** a keyless endpoint agent is projected into a dispatch config
+- **THEN** its `principal_id` SHALL be null and `vendor_credentials` SHALL be empty

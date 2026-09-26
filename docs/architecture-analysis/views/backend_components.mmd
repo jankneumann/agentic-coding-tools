@@ -1,6 +1,6 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
-    agents_config["agents_config (63 symbols)"]
+    agents_config["agents_config (67 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (18 symbols)"]
@@ -11,9 +11,9 @@ flowchart TB
     code_search_authorization["code_search_authorization (40 symbols)"]
     code_search_runtime["code_search_runtime (45 symbols)"]
     config["config (45 symbols)"]
-    coordination_api["coordination_api (156 symbols)"]
+    coordination_api["coordination_api (168 symbols)"]
     coordination_cli["coordination_cli (35 symbols)"]
-    coordination_mcp["coordination_mcp (81 symbols)"]
+    coordination_mcp["coordination_mcp (82 symbols)"]
     db["db (23 symbols)"]
     db_postgres["db_postgres (20 symbols)"]
     discovery["discovery (20 symbols)"]
@@ -30,12 +30,13 @@ flowchart TB
     guardrails["guardrails (16 symbols)"]
     handoffs["handoffs (14 symbols)"]
     help_service["help_service (6 symbols)"]
-    http_proxy["http_proxy (70 symbols)"]
+    http_proxy["http_proxy (73 symbols)"]
+    isolation_contract["isolation_contract (6 symbols)"]
     issue_service["issue_service (27 symbols)"]
     kanban_viz_files["kanban_viz_files (11 symbols)"]
     langfuse_middleware["langfuse_middleware (5 symbols)"]
     langfuse_tracing["langfuse_tracing (10 symbols)"]
-    locks["locks (19 symbols)"]
+    locks["locks (20 symbols)"]
     memory["memory (13 symbols)"]
     merge_queue["merge_queue (17 symbols)"]
     merge_train["merge_train (30 symbols)"]
@@ -44,9 +45,16 @@ flowchart TB
     merge_watcher["merge_watcher (8 symbols)"]
     migrations["migrations (7 symbols)"]
     model_routing____init__["model_routing.__init__ (1 symbols)"]
+    model_routing__api["model_routing.api (54 symbols)"]
+    model_routing__catalog["model_routing.catalog (22 symbols)"]
+    model_routing__configured_catalog["model_routing.configured_catalog (6 symbols)"]
     model_routing__exploration["model_routing.exploration (5 symbols)"]
     model_routing__feedback["model_routing.feedback (8 symbols)"]
-    model_routing__resolver["model_routing.resolver (11 symbols)"]
+    model_routing__ledger["model_routing.ledger (13 symbols)"]
+    model_routing__local_endpoints["model_routing.local_endpoints (11 symbols)"]
+    model_routing__refresher["model_routing.refresher (9 symbols)"]
+    model_routing__resolver["model_routing.resolver (18 symbols)"]
+    model_routing__routing_policy["model_routing.routing_policy (19 symbols)"]
     network_policies["network_policies (8 symbols)"]
     notifications____init__["notifications.__init__ (1 symbols)"]
     notifications__base["notifications.base (10 symbols)"]
@@ -56,6 +64,7 @@ flowchart TB
     notifications__telegram["notifications.telegram (11 symbols)"]
     notifications__templates["notifications.templates (11 symbols)"]
     notifications__webhook["notifications.webhook (8 symbols)"]
+    openbao_identity["openbao_identity (20 symbols)"]
     openspec_proposals_api["openspec_proposals_api (16 symbols)"]
     openspec_sources["openspec_sources (10 symbols)"]
     policy_engine["policy_engine (36 symbols)"]
@@ -71,15 +80,17 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (14 symbols)"]
     telemetry["telemetry (20 symbols)"]
-    tests__test_architecture["tests.test_architecture (52 symbols)"]
     trust_levels["trust_levels (2 symbols)"]
     trust_resolution["trust_resolution (5 symbols)"]
-    watchdog["watchdog (18 symbols)"]
-    work_queue["work_queue (31 symbols)"]
+    vendor_registry["vendor_registry (30 symbols)"]
+    watchdog["watchdog (28 symbols)"]
+    work_queue["work_queue (32 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
     agents_config -->|"call"| audit
     agents_config -->|"call"| config
     agents_config -->|"call"| db
+    agents_config -->|"call"| isolation_contract
+    agents_config -->|"call, import"| model_routing__api
     agents_config -->|"call"| profile_loader
     agents_config -->|"call"| profiles
     agents_config -->|"call"| teams
@@ -122,7 +133,9 @@ flowchart TB
     coordination_api -->|"call, import"| merge_train_service
     coordination_api -->|"call, import"| merge_watcher
     coordination_api -->|"call, import"| migrations
+    coordination_api -->|"call, import"| model_routing__api
     coordination_api -->|"call, import"| notifications__notifier
+    coordination_api -->|"call, import"| openbao_identity
     coordination_api -->|"call, import"| openspec_proposals_api
     coordination_api -->|"call, import"| policy_engine
     coordination_api -->|"call, import"| port_allocator
@@ -133,6 +146,7 @@ flowchart TB
     coordination_api -->|"import"| sync_points
     coordination_api -->|"call, import"| telemetry
     coordination_api -->|"call, import"| trust_resolution
+    coordination_api -->|"import"| vendor_registry
     coordination_api -->|"call, import"| watchdog
     coordination_api -->|"call, import"| work_queue
     coordination_api -->|"import"| worktrees_view
@@ -168,6 +182,7 @@ flowchart TB
     coordination_mcp -->|"import"| merge_train
     coordination_mcp -->|"call, import"| merge_train_service
     coordination_mcp -->|"call, import"| migrations
+    coordination_mcp -->|"call, import"| model_routing__api
     coordination_mcp -->|"call, import"| policy_engine
     coordination_mcp -->|"call, import"| port_allocator
     coordination_mcp -->|"call, import"| profiles
@@ -208,6 +223,7 @@ flowchart TB
     issue_service -->|"call"| discovery
     kanban_viz_files -->|"call, import"| config
     langfuse_middleware -->|"call, import"| config
+    langfuse_middleware -->|"call, import"| coordination_api
     langfuse_middleware -->|"call, import"| langfuse_tracing
     langfuse_tracing -->|"call, import"| config
     locks -->|"call"| approval
@@ -235,6 +251,22 @@ flowchart TB
     merge_train_service -->|"import"| merge_train_types
     merge_train_service -->|"import"| refresh_rpc_client
     migrations -->|"call, import"| config
+    model_routing__api -->|"call, import"| audit
+    model_routing__api -->|"import"| http_proxy
+    model_routing__api -->|"call"| model_routing__catalog
+    model_routing__api -->|"call"| model_routing__exploration
+    model_routing__api -->|"call"| model_routing__ledger
+    model_routing__api -->|"call"| model_routing__resolver
+    model_routing__api -->|"call"| model_routing__routing_policy
+    model_routing__api -->|"import"| vendor_registry
+    model_routing__catalog -->|"call, import"| db
+    model_routing__configured_catalog -->|"call, import"| agents_config
+    model_routing__configured_catalog -->|"call"| model_routing__catalog
+    model_routing__ledger -->|"call, import"| db
+    model_routing__ledger -->|"call"| model_routing__catalog
+    model_routing__local_endpoints -->|"call, import"| agents_config
+    model_routing__resolver -->|"call"| isolation_contract
+    model_routing__routing_policy -->|"call, import"| agents_config
     network_policies -->|"call, import"| config
     network_policies -->|"call, import"| db
     notifications__gmail -->|"call"| db
@@ -242,6 +274,7 @@ flowchart TB
     notifications__gmail -->|"call"| notifications__templates
     notifications__gmail -->|"call"| status
     notifications__notifier -->|"call"| notifications__templates
+    openbao_identity -->|"import"| agents_config
     openspec_proposals_api -->|"call"| github_openspec_fetcher
     openspec_proposals_api -->|"call"| openspec_sources
     openspec_sources -->|"call"| openspec_proposals_api
@@ -266,8 +299,18 @@ flowchart TB
     trust_resolution -->|"call, import"| audit
     trust_resolution -->|"call, import"| config
     trust_resolution -->|"call, import"| profiles
+    vendor_registry -->|"call, import"| agents_config
+    vendor_registry -->|"call, import"| db
+    vendor_registry -->|"call, import"| isolation_contract
+    watchdog -->|"call, import"| audit
     watchdog -->|"call, import"| db
     watchdog -->|"call, import"| event_bus
+    watchdog -->|"import"| model_routing__catalog
+    watchdog -->|"import"| model_routing__configured_catalog
+    watchdog -->|"import"| model_routing__ledger
+    watchdog -->|"import"| model_routing__local_endpoints
+    watchdog -->|"import"| model_routing__refresher
+    watchdog -->|"import"| vendor_registry
     work_queue -->|"call, import"| agents_config
     work_queue -->|"call, import"| audit
     work_queue -->|"call, import"| config
