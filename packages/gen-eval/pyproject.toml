@@ -13,7 +13,7 @@ dependencies = [
     "pydantic>=2.13",
     "pyyaml>=6.0",
     "jinja2>=3.1.6",
-    "jsonpath-ng>=1.6",
+    "jsonpath-ng>=1.8.0",
     "httpx>=0.28",
 ]
 
