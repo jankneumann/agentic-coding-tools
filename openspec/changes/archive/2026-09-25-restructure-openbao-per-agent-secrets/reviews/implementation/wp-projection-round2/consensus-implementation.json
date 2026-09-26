@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "wp-projection",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: `_bootstrap()` unwraps with `self.client.sys.unwrap(token=wrapped['token'])` while the hvac client carries no client token on first bootstrap (`hvac.Client(url=..., timeout=...)` sets none) or the stale/revoked cached token on the `_recover()` path (`_check_cached_token`/`_renew` leave it set). `sys/wrapping/unwrap` is an authenticated path in OpenBao/Vault: a body-only `token` with no `X-Vault-Token` header is rejected with `missing client token`, and a revoked header token is rejected with `permission denied` before the handler runs (the official Go client works around exactly this by setting the wrapping token as the client token when none is set; hvac does not). `sys/wrapping/lookup` is unauthenticated, but on the recovery path it is also sent with the revoked token in the header. Net effect: CFG-05 single-use login and CFG-07 fresh-bundle recovery can never succeed against a real server; the MagicMock-based tests hide it and misclassify the failure as AUTHORIZATION_DENIED/BACKEND_UNAVAILABLE.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: _classify() does not map hvac.exceptions.InvalidRequest (HTTP 400) to AUTHENTICATION_FAILED on rejected AppRole login or BOOTSTRAP_INVALID on expired/consumed wrapping lookup/unwrap, falling through to BACKEND_UNAVAILABLE.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: Adding credential_vendors as a required top-level property in AGENTS_SCHEMA causes load_agents_config() to fail with ValidationError on existing test suite agent-coordinator/tests/test_setup_cloud.py.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: cached-token renewal only fires when `lease_expires_at <= now + 60s`. For the CFG-17 short-lived dispatch pattern the periodic token is only renewed if an invocation happens to land in the last 60 seconds of a period (3600 s by projection default); a consumer dispatching every 10 minutes never renews, the token lapses after one period, `_recover()` finds the same consumed bundle digest and raises TOKEN_EXPIRED, and the operator must re-run the seeder to deliver a fresh wrapped bundle every hour. The server-reported `ttl` from `lookup_self` is discarded after the `<= 0` check, so the local timestamp is the only renewal signal.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: error classification for the bootstrap path never produces AUTHENTICATION_FAILED in practice. OpenBao answers an AppRole login with a bad or consumed SecretID with HTTP 400 (hvac `InvalidRequest`), and a lookup/unwrap of an already-consumed wrapping token also with 400; both fall through `_classify()` to BACKEND_UNAVAILABLE. The `auth=True` branch only triggers on `Unauthorized` (401), which the server does not emit for token failures (it uses 403). Operators get a 'backend down' code for a bad bootstrap, and the spec's stable typed error for authentication is unreachable.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: no CI job runs `packages/openbao-credentials/tests`. Sibling packages (gen-eval, code-search, system-one-decisions) each have a package-level pytest job in `ci.yml`, and `ci.yml` is in this package's write scope. The adapter and topology suites only run through the work-package verification step, so a post-merge regression in the shared credential boundary would not be caught by CI.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: `read_secret()` calls `read_secret_version(path=..., mount_point=...)` without `raise_on_deleted_version`; under the pinned hvac 2.4.0 that emits a DeprecationWarning on every credential read and the default flips in hvac 3.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: `get_api_key_identities()` now returns `{}` whenever `BAO_ADDR` is set, and `ApiConfig.from_env()` derives the accepted-key allowlist from that map. At this commit a deployment with `BAO_ADDR` configured authenticates no registry agent until wp-coordinator installs the identity-reader snapshot. This is the intended AI-05 fail-closed behavior inside the serialized DAG, but the package is not independently deployable; the rollout must land wp-coordinator before enabling `BAO_ADDR` on the coordinator.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 9,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: the bootstrap and cache hardening is done well: server-side wrapping lookup is compared exactly against the expected `auth/approle/role/<role>/secret-id` path before unwrap (CFG-24), the consumed-bundle SHA-256 digest is compared under the lock before any recovery login (CFG-07), files are opened with `O_NOFOLLOW` after `lstat` mode/ownership checks, cache writes are mkstemp plus fsync plus rename, and `Session`/`SecretPayload` hide secret fields from `repr`. The topology projection is pure, order-independent, and rejects `openbao_role_id`, unknown or duplicate vendors, and keyless agents with vendor grants, matching AI-01/02/08/13/14/17.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: after a successful `lookup_self`, renewal still keys only off local `lease_expires_at`, ignoring the server `ttl` already fetched in `_check_cached_token`. If local expiry and server TTL diverge (clock skew, external renew), the adapter can skip renew while server TTL is already inside the 60s window, then force a fresh-bundle recovery moments later instead of renewing the still-valid periodic token.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: explicit vendor declarations and Docker packaging comply with D1/D6 for this package: `credential_vendors` plus required per-keyed-agent `vendor_credentials`, legacy `openbao_role_id` rejected, exact KV-v2 `{api_key}` reads, Dockerfile COPY of `packages/openbao-credentials` before `uv sync --locked`, and CI smoke import of `openbao_credentials`.",
+      "eligible_vendors": 3
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 11,
+    "confirmed_count": 2,
+    "unconfirmed_count": 9,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 11
+  }
+}

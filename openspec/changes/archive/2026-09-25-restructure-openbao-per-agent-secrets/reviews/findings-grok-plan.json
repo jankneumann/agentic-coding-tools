@@ -1,0 +1,209 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: AI-01/AI-02 require rejecting unknown `vendor_credentials` and AI-01's example uses `[openai]`, but the plan never defines the canonical vendor identifier allowlist or its relationship to existing `policy_vendor`/`catalog_vendor` values (`claude`, `codex`, `grok`, \u2026) and env key names (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`). Implementers cannot write a deterministic schema/projection rejection or choose `secret/vendors/<vendor>` path names without inventing that vocabulary.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add a normative vendor-id registry (enum or referenced catalog) to `contracts/principal-topology.schema.json` / README and the agent-identity delta: list allowed slugs, map each to its KV path and credential field name, and rewrite AI-01 to use an allowlisted example that matches real agents.yaml consumers.",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/specs/agent-identity/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 18
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: CFG-03 requires hvac logical KV-v2 paths `agents/<name>` and `vendors/<vendor>` at mount `secret`, but `principal-topology.schema.json` `agent_kv_path` and contracts/README require `secret/agents/<name>`. Passing the schema form into `client.secrets.kv.v2.read_secret_version(path=..., mount_point=\"secret\")` yields `secret/data/secret/agents/...`, breaking every adapter read and policy alignment test.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Make one normative path model: store mount-relative logical paths as `agents/<name>` / `vendors/<vendor>` in the topology contract; keep full ACL paths only in `read_paths` as `secret/data/...`. Update CFG-03, README, schema patterns, and AI AppRole wording so they agree.",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/principal-topology.schema.json",
+      "line_range": {
+        "start": 52,
+        "end": 54
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: `wp-dispatch` write_allow covers only `api_key_resolver.py` (+ its test), but live callers in `skills/parallel-infrastructure/scripts/review_dispatcher.py` still construct SDK adapters with `openbao_role_id` and call `ApiKeyResolver.resolve(openbao_role_id, api_key_env)`. After `wp-projection` removes `openbao_role_id` from `agents.yaml`/schema and dispatch switches to principal+vendor lookup, those call sites remain out of scope and keep the old fail-open contract.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Extend `wp-dispatch` write_allow/locks/verification to include `review_dispatcher.py` and its tests (or add a dependent package). Specify the new resolver signature (principal id + vendor id) and require callers to stop reading `openbao_role_id`.",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml",
+      "line_range": {
+        "start": 147,
+        "end": 174
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: Proposal BREAKING removes shared `BAO_SECRET_ID`, and CFG says it no longer selects a shared agent credential, but current `profile_loader._load_secrets_openbao()` and `skills/bao-vault/scripts/langfuse_env.sh` still authenticate with `BAO_ROLE_ID`+`BAO_SECRET_ID` and read `BAO_SECRET_PATH` defaulting to `coordinator` for non-agent secrets. Neither file appears in any package write_allow, while `OpenBaoConfig.create_client()` (owned by `wp-coordinator`) is their shared auth entrypoint\u2014so implementing the BREAKING change as written either strands coordinator-internal secret loading or forces out-of-scope edits.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Explicitly split auth stories in the delta: identity-reader bootstrap for API-key snapshots vs retained coordinator-internal AppRole/token for `secret/data/coordinator` (or migrate that path too). Add `profile_loader.py`, `langfuse_env.sh`, and bao-vault SKILL docs to the owning package scopes, and narrow BREAKING language so it does not imply deleting every `BAO_SECRET_ID` consumer without a replacement.",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/proposal.md",
+      "line_range": {
+        "start": 52,
+        "end": 55
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: COORD-03 requires readiness to become degraded on a failed refresh while the last-known-good snapshot remains authoritative for authentication for up to 120s, and the OpenAPI delta returns HTTP 503 whenever a required component is degraded. That couples soft degradation to hard probe failure: transient OpenBao blips within the grace window will 503 `/ready` (breaking `skills/validate-feature` smoke expectations and likely orchestrator traffic shedding) even though API-key auth is still supposed to succeed.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "resolution": "Separate probe severity from auth grace: either keep `/ready` HTTP 200 with `identity: degraded` while the snapshot is still within 120s and only 503 after expiry/startup failure, or introduce a distinct identity health field that does not fail the overall ready gate during grace. Update COORD-03/COORD-06, OpenAPI examples, and migration notes accordingly.",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 26,
+        "end": 32
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: CFG OpenBao Secret Backend and COORD credential-failure requirements list timeout as a distinct classified failure alongside backend-unavailable, but `openbao-event.schema.json` `error_code` has no timeout member (only `BACKEND_UNAVAILABLE`). Adapters and audit assertions cannot satisfy the specs without overloading another code or inventing a non-contractual value.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "resolution": "Add `TIMEOUT` (or `REQUEST_TIMEOUT`) to the shared error_code enum and README taxonomy, or rewrite the specs to state that timeouts map to `BACKEND_UNAVAILABLE` with a required sanitized context field.",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/openbao-event.schema.json",
+      "line_range": {
+        "start": 31,
+        "end": 44
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Service principal AI-11/AI-12 and contracts/README say the egress gateway reads each configured vendor data path, but nothing states how that configured set is derived (union of all agents' `vendor_credentials`, a separate topology field, or operator config). Without that rule, gateway policy projection and the live denial matrix are underspecified.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Add a SHALL clause and README projection rule: e.g. egress-gateway `read_paths` SHALL be the sorted unique union of all declared `vendor_credentials` (and fail dry-run if empty when gateway is required).",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/README.md",
+      "line_range": {
+        "start": 9,
+        "end": 10
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: OpenAPI readiness `identity` enum includes `disabled`, but COORD requirements/scenarios only discuss `ready`/`degraded`. Current non-OpenBao deployments must keep `/ready` healthy; without a defined `disabled` meaning (BAO_ADDR absent) implementers may mark identity degraded/503 whenever OpenBao is off.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Add a COORD scenario: when OpenBao is not configured, `identity` SHALL be `disabled` and SHALL NOT by itself make overall readiness degraded; wire task 3.5/3.6 to assert that branch.",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 47,
+        "end": 49
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: Existing AppRoles are named from `openbao_role_id` values that differ from registry keys (e.g. `claude-local` \u2192 role `claude-code-local`), while the new contract mandates `agent-<name>` (`agent-claude-local`). CFG-10/CFG-13 cover retiring removed agents and deleting `secret/coordinator`, but the first cutover retirement of legacy role/policy names from the `openbao_role_id` era is not specified, so dry-run/apply can leave orphaned roles or fail ownership checks.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Document first-migration ownership: treat prior `openbao_role_id` AppRoles/policies as managed legacy aliases to retire after confirmed cutover (or explicitly rename with an audited plan), and add a CFG scenario plus seeding dry-run assertions for those leftovers.",
+      "package_id": "wp-seeding",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/specs/configuration/spec.md",
+      "line_range": {
+        "start": 72,
+        "end": 76
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: `wp-projection` mutates `agent-coordinator/src/agents_config.py` and lists `test_agents_config.py` in write_allow, but its verification step only runs `packages/openbao-credentials` tests\u2014so registry schema/`vendor_credentials`/`openbao_role_id` rejection regressions in the coordinator package can merge green.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional",
+      "resolution": "Add a verification command that runs `agent-coordinator/tests/test_agents_config.py` (and any new projection-invariant test) alongside the shared-package suite.",
+      "package_id": "wp-projection",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml",
+      "line_range": {
+        "start": 79,
+        "end": 85
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Approach 1's shared typed adapter boundary with frozen schemas before consumers, plus a DAG that freezes contracts then fans out seeding/coordinator/dispatch over disjoint write scopes, matches the actual three-client drift problem in `bao_seed.py`, `agents_config.py`, and `api_key_resolver.py` without coupling their runtimes.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Retain the contract-first package split; address the consumer-scope gaps above without collapsing back into per-client patches.",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 50
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Bounded identity degradation (30s refresh, \u2264120s last-known-good via monotonic age, then deny-new-auth with sanitized audit) is specified with testable COORD scenarios and clock-controlled unit seams, which is the right control for hot reload without dual-read migration.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Keep the numeric bounds; only adjust how readiness HTTP status relates to the in-grace degraded state (finding 5).",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/design.md",
+      "line_range": {
+        "start": 81,
+        "end": 93
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

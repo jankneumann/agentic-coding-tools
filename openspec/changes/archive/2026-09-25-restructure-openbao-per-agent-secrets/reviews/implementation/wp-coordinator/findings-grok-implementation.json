@@ -1,0 +1,130 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Nit: agent-coordinator/src/profile_loader.py:141-144 treats a non-mapping KV-v2 data payload as success by warning and returning {}. Task 3.7 cites CFG-22 fail-closed internal loading; a malformed secret/coordinator document therefore starts the process with an empty secrets map instead of raising, which can mask a bad mount/path/response shape behind missing interpolations.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "If response/data/data is missing or not a dict, raise a sanitized RuntimeError (no raw hvac body) and cover the shapes in test_profile_loader.",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/profile_loader.py",
+      "line_range": {
+        "start": 141,
+        "end": 144
+      },
+      "evidence_class": "judgment",
+      "existing_code": "data = response.get(\"data\", {}).get(\"data\", {})\n    if not isinstance(data, dict):\n        logger.warning(\"OpenBao secret data is not a mapping \u2014 returning empty dict\")\n        return {}"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: agent-coordinator/src/openbao_identity.py:54-55 rejects incomplete/duplicate keys with BaoCredentialError(SECRET_MALFORMED, \"identity\") and the audited refresh_failed record never names the failing registry agent. AI-04 requires the sanitized error to identify the affected principal(s); safe SPIFFE/agent_path identifiers are allowed by the event contract and would make COORD-02 failures operable.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "resolution": "Include the failing agent SPIFFE or agents/<name> path in the raised error context and/or openbao.identity.refresh_failed resource/principal fields without logging key material; assert the identifier appears and the raw key does not.",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/openbao_identity.py",
+      "line_range": {
+        "start": 54,
+        "end": 55
+      },
+      "evidence_class": "judgment",
+      "existing_code": "if not isinstance(key, str) or not key.strip() or key in result:\n            raise BaoCredentialError(ErrorCode.SECRET_MALFORMED, \"identity\")"
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Optional: when the monotonic grace window elapses, lookup/readiness deny authentication and flip identity to degraded, but IdentityRuntime never emits openbao.identity.snapshot_expired even though contracts/openbao-event.schema.json defines that event and action=expire. Operators must infer expiry from /ready alone after the last refresh_failed.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "optional",
+      "resolution": "On the first transition past GRACE_SECONDS for an installed snapshot, emit one schema-valid openbao.identity.snapshot_expired failure event (no key material) and add a contract test for single emission under concurrent lookup/readiness.",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/openbao_identity.py",
+      "line_range": {
+        "start": 110,
+        "end": 114
+      },
+      "evidence_class": "judgment",
+      "existing_code": "def lookup(self, key: str) -> Mapping[str, str] | None:\n        state = self._state\n        if state.installed_at is None or time.monotonic() - state.installed_at > GRACE_SECONDS:\n            return None\n        return state.identities.get(key)"
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Optional: clearing config.api.api_key_identities whenever BAO_ADDR is set leaves langfuse_middleware._resolve_agent_id reading an empty map, so authenticated Bao-mode requests are traced as agent_id cloud-agent. Auth correctly uses the snapshot; this is telemetry mis-attribution only. langfuse_middleware.py is outside wp-coordinator write_allow.",
+      "disposition": "escalate",
+      "axis": "observability",
+      "severity": "optional",
+      "resolution": "Escalate to extend write_allow or a follow-up package so _resolve_agent_id consults IdentityRuntime.lookup (or another snapshot-backed helper) in Bao mode.",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/langfuse_middleware.py",
+      "line_range": {
+        "start": 108,
+        "end": 109
+      },
+      "evidence_class": "judgment",
+      "existing_code": "identity = config.api.api_key_identities.get(api_key, {})\n        return identity.get(\"agent_id\", \"cloud-agent\")"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Bao-mode request authorization matches D4/COORD-09: _principal_for_api_key uses only IdentityRuntime.lookup, ApiConfig drops static COORDINATION_API_KEY_IDENTITIES when BAO_ADDR is set, and cutover preflight blocks unbound COORDINATION_API_KEYS entries before the first install.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "No change.",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 670,
+        "end": 676
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: atomic snapshot install, monotonic 120s grace shared by lookup and readiness, /ready identity ready|degraded|disabled with 200-during-grace / 503-when-unusable, and schema-valid sanitized refresh_* audit events match D4 and contracts/openapi/v1.yaml plus openbao-event.schema.json.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change.",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/openbao_identity.py",
+      "line_range": {
+        "start": 101,
+        "end": 148
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: D5 separation holds \u2014 OpenBaoConfig/profile_loader authenticate only with BAO_INTERNAL_ROLE_ID/BAO_INTERNAL_SECRET_ID against secret/coordinator, while identity reload uses PrincipalOpenBaoConfig + identity-reader; legacy BAO_ROLE_ID/BAO_SECRET_ID cannot authenticate the internal loader.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No change.",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/config.py",
+      "line_range": {
+        "start": 272,
+        "end": 276
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

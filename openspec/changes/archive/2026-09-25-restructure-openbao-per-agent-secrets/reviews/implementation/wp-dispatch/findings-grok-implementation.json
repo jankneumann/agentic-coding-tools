@@ -1,0 +1,129 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_dispatcher.py:_config_from_agents_yaml hand-builds principal_id from api_key presence and copies vendor_credentials from raw YAML instead of projecting through openbao_credentials.project_principals(). This diverges from D1/AI-16 (API and direct loader must emit the same canonical shape) and can emit AI-17-illegal keyless rows with non-empty vendor_credentials, accept keyed agents missing explicit vendor_credentials, and skip credential_vendors / openbao_role_id rejection that projection enforces.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Load topology via project_principals(raw, mount=...) and set principal_id/vendor_credentials from the matching agent principal (or null/[] when absent); fail closed on ProjectionError. Cover with a registry fixture that includes credential_vendors and a negative case for keyless+vendor_credentials.",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2685,
+        "end": 2689
+      },
+      "evidence_class": "judgment",
+      "existing_code": "\"principal_id\": (\n    f\"spiffe://coordinator.rotkohl.ai/agent/{agent_id}\"\n    if agent.get(\"api_key\") else None\n),\n\"vendor_credentials\": sorted(agent.get(\"vendor_credentials\") or []),"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Optional: CFG-25 requires CLI dispatch to retain ambient credentials and never treat a Bao miss as a reason to switch SDK traffic to env keys. The CLI branch correctly skips ApiKeyResolver, but the wp-dispatch suite has no assertion that a CLI-tier dispatch with BAO_ADDR set leaves ApiKeyResolver.resolve uncalled.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Add a focused test that dispatches a CLI-only reviewer under BAO_ADDR and asserts ApiKeyResolver.resolve is not invoked.",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 3016,
+        "end": 3064
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "FYI: from_config_dict uses sdk[\"package\"] as the resolve() vendor_id for SDK tiers while OpenAI-compatible tiers hard-code openrouter|local. Current agents.yaml aligns package names with credential_vendors, so authz fails closed on mismatch, but the SDK path couples the Python package field to the D1 credential-vendor vocabulary without an explicit mapping.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi",
+      "resolution": "Keep as convention if package is guaranteed to equal a credential_vendors entry; otherwise introduce an explicit vendor_id on the SDK wire shape or map package\u2192vendor at config load and reject unknowns.",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2605,
+        "end": 2607
+      },
+      "evidence_class": "judgment",
+      "existing_code": "credential_requests[agent[\"agent_id\"]] = (principal_id, sdk[\"package\"])\nif sdk.get(\"api_key_env\"):\n    credential_envs[(principal_id, sdk[\"package\"])] = sdk[\"api_key_env\"]"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: OpenAI-compatible dispatch fails only when lookup_error is set, then still calls openai_adapter.dispatch with api_key=None when the non-Bao env key is missing. SDK dispatch treats any missing key as AUTH and does not dispatch. Harmless for keyless local (explicit skip), but asymmetric for openrouter/local keyed non-Bao misses.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "For non-keyless OpenAI-compatible reviewers, mirror the SDK gate: if not api_key after resolve, emit AUTH and continue without dispatching.",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 3129,
+        "end": 3150
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: ApiKeyResolver.resolve authorizes vendor_id against credential_scopes before constructing OpenBaoClient, and configured Bao failures raise BaoCredentialError without consulting ambient env, BAO_SECRET_ID, or secret/coordinator \u2014 matching CFG-01/CFG-04 and D2.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Retain the authorize-then-read order and the no-fallback Bao path in future edits.",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/api_key_resolver.py",
+      "line_range": {
+        "start": 41,
+        "end": 49
+      },
+      "evidence_class": "judgment",
+      "existing_code": "match = _AGENT_ID.fullmatch(principal_id or \"\")\nif match is None:\n    raise BaoCredentialError(ErrorCode.CONFIGURATION_INVALID, \"principal\")\nif vendor_id not in self._scopes.get(principal_id, ()):\n    raise BaoCredentialError(ErrorCode.AUTHORIZATION_DENIED, \"vendor\")\n\nclient = OpenBaoClient(PrincipalOpenBaoConfig.from_env())\nclient.ensure_session(principal_id, f\"agent-{match.group(1)}\")\nreturn client.read_vendor_key(vendor_id)"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Both SDK and OpenAI-compatible call sites now resolve via principal_id+vendor_id; keyless local endpoints skip Bao lookup entirely under BAO_ADDR; CLI tier never enters the resolver path; openbao_role_id is removed from adapters and direct/API config shapes.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-dispatch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 3066,
+        "end": 3119
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Package scope is clean \u2014 bb77ca4d..96827d55 only touches write_allow paths for wp-dispatch (api_key_resolver.py, review_dispatcher.py, their tests, and tasks.md).",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml",
+      "line_range": {
+        "start": 186,
+        "end": 191
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

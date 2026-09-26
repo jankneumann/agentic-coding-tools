@@ -1355,7 +1355,6 @@ def _sdk_adapter(
         agent_id=agent_id,
         vendor=vendor,
         sdk_config=_sdk_config(**kwargs),  # type: ignore[arg-type]
-        openbao_role_id="test-role",
     )
 
 
@@ -2615,3 +2614,220 @@ def test_single_model_exhaustion_is_reported_only_by_collector(
 
     assert results[0].error_class == ErrorClass.CAPACITY
     report.assert_called_once_with(results[0])
+
+
+def test_direct_registry_dispatch_shape_has_explicit_principal_and_scope(tmp_path: Path) -> None:
+    registry = tmp_path / "agents.yaml"
+    registry.write_text(
+        "credential_vendors: [anthropic]\n"
+        "agents:\n"
+        "  claude-remote:\n"
+        "    type: claude_code\n"
+        "    api_key: ${CLAUDE_WEB_API_KEY}\n"
+        "    vendor_credentials: [anthropic]\n"
+        "    sdk: {package: anthropic, model: claude-test}\n"
+        "  local:\n"
+        "    type: local\n"
+        "    endpoint_kind: local\n"
+        "    base_url: http://localhost:11434/v1\n"
+    )
+    data = ReviewOrchestrator._config_from_agents_yaml(registry)
+    assert data is not None
+    by_id = {entry["agent_id"]: entry for entry in data["agents"]}
+    assert by_id["claude-remote"]["principal_id"] == (
+        "spiffe://coordinator.rotkohl.ai/agent/claude-remote"
+    )
+    assert by_id["claude-remote"]["vendor_credentials"] == ["anthropic"]
+    assert by_id["local"]["principal_id"] is None
+    assert by_id["local"]["vendor_credentials"] == []
+    assert "openbao_role_id" not in by_id["claude-remote"]
+
+
+def test_sdk_config_uses_principal_and_vendor_scope() -> None:
+    orchestrator = ReviewOrchestrator.from_config_dict({
+        "agents": [{
+            "agent_id": "claude-remote", "type": "claude_code",
+            "principal_id": "spiffe://coordinator.rotkohl.ai/agent/claude-remote",
+            "vendor_credentials": ["anthropic"],
+            "sdk": {"package": "anthropic", "model": "claude-test", "api_key_env": "ANTHROPIC_API_KEY"},
+        }],
+    })
+    assert orchestrator.credential_requests["claude-remote"] == (
+        "spiffe://coordinator.rotkohl.ai/agent/claude-remote", "anthropic"
+    )
+    assert orchestrator.credential_scopes[
+        "spiffe://coordinator.rotkohl.ai/agent/claude-remote"
+    ] == ("anthropic",)
+
+
+def test_openrouter_config_uses_openrouter_vendor_id() -> None:
+    orchestrator = ReviewOrchestrator.from_config_dict({
+        "agents": [{
+            "agent_id": "pi-local", "type": "pi",
+            "principal_id": "spiffe://coordinator.rotkohl.ai/agent/pi-local",
+            "vendor_credentials": ["openrouter"],
+            "endpoint_kind": "openrouter", "base_url": "https://openrouter.ai/api/v1",
+        }],
+    })
+    assert orchestrator.openai_credential_requests["pi-local"] == (
+        "spiffe://coordinator.rotkohl.ai/agent/pi-local", "openrouter"
+    )
+
+
+def test_sdk_dispatch_resolves_scoped_principal_and_vendor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    orchestrator = ReviewOrchestrator.from_config_dict({"agents": [{
+        "agent_id": "claude-remote", "type": "claude_code",
+        "principal_id": "spiffe://coordinator.rotkohl.ai/agent/claude-remote",
+        "vendor_credentials": ["anthropic"],
+        "sdk": {"package": "anthropic", "model": "claude-test"},
+    }]})
+    adapter = orchestrator.sdk_adapters["claude-remote"]
+    adapter.can_dispatch = MagicMock(return_value=True)
+    adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="claude_code", success=True))
+    with patch("api_key_resolver.ApiKeyResolver.resolve", return_value="bao-key") as resolve:
+        results = orchestrator.dispatch_and_wait("implementation", "review", "review", tmp_path)
+    assert results[0].success is True
+    resolve.assert_called_once_with(
+        "spiffe://coordinator.rotkohl.ai/agent/claude-remote", "anthropic"
+    )
+    assert adapter.dispatch.call_args.args[-1] == "bao-key"
+
+
+def test_openai_dispatch_resolves_scoped_principal_and_vendor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    orchestrator = ReviewOrchestrator.from_config_dict({"agents": [{
+        "agent_id": "pi-local", "type": "pi",
+        "principal_id": "spiffe://coordinator.rotkohl.ai/agent/pi-local",
+        "vendor_credentials": ["openrouter"],
+        "endpoint_kind": "openrouter", "base_url": "https://openrouter.ai/api/v1",
+    }]})
+    adapter = orchestrator.openai_adapters["pi-local"]
+    adapter.can_dispatch = MagicMock(return_value=True)
+    adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="pi", success=True))
+    with patch("api_key_resolver.ApiKeyResolver.resolve", return_value="bao-key") as resolve:
+        results = orchestrator.dispatch_and_wait("implementation", "review", "review", tmp_path)
+    assert results[0].success is True
+    resolve.assert_called_once_with("spiffe://coordinator.rotkohl.ai/agent/pi-local", "openrouter")
+    assert adapter.dispatch.call_args.args[-1] == "bao-key"
+
+
+def test_configured_bao_keyless_local_endpoint_needs_no_lookup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    orchestrator = ReviewOrchestrator.from_config_dict({"agents": [{
+        "agent_id": "local", "type": "local", "principal_id": None,
+        "vendor_credentials": [], "endpoint_kind": "local",
+        "base_url": "http://127.0.0.1:11434/v1",
+    }]})
+    adapter = orchestrator.openai_adapters["local"]
+    adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="local", success=True))
+    with patch("api_key_resolver.ApiKeyResolver.resolve") as resolve:
+        results = orchestrator.dispatch_and_wait("implementation", "review", "review", tmp_path)
+    assert results[0].success is True
+    resolve.assert_not_called()
+    assert adapter.dispatch.call_args.args[-1] is None
+
+
+def test_configured_bao_sdk_failure_is_sanitized_and_does_not_dispatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from openbao_credentials import BaoCredentialError, ErrorCode
+
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "ambient-key")
+    orchestrator = ReviewOrchestrator.from_config_dict({"agents": [{
+        "agent_id": "claude-remote", "type": "claude_code",
+        "principal_id": "spiffe://coordinator.rotkohl.ai/agent/claude-remote",
+        "vendor_credentials": ["anthropic"],
+        "sdk": {"package": "anthropic", "model": "claude-test", "api_key_env": "ANTHROPIC_API_KEY"},
+    }]})
+    adapter = orchestrator.sdk_adapters["claude-remote"]
+    adapter.can_dispatch = MagicMock(return_value=True)
+    adapter.dispatch = MagicMock()
+    with patch(
+        "api_key_resolver.ApiKeyResolver.resolve",
+        side_effect=BaoCredentialError(ErrorCode.BACKEND_UNAVAILABLE),
+    ):
+        results = orchestrator.dispatch_and_wait("implementation", "review", "review", tmp_path)
+    assert results[0].success is False
+    assert results[0].error_class == ErrorClass.AUTH
+    assert "BACKEND_UNAVAILABLE" in (results[0].error or "")
+    assert "ambient-key" not in (results[0].error or "")
+    adapter.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize("agent", [
+    "    api_key: ${KEY}\n    vendor_credentials: [unknown]\n",
+    "    vendor_credentials: [anthropic]\n",
+])
+def test_direct_registry_rejects_invalid_vendor_scope(tmp_path: Path, agent: str) -> None:
+    registry = tmp_path / "agents.yaml"
+    registry.write_text(
+        "credential_vendors: [anthropic]\n"
+        "agents:\n"
+        "  local:\n"
+        "    type: local\n"
+        "    endpoint_kind: local\n"
+        "    base_url: http://localhost:11434/v1\n"
+        f"{agent}"
+    )
+    assert ReviewOrchestrator._config_from_agents_yaml(registry) is None
+
+
+def test_cli_only_dispatch_does_not_import_openbao_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("BAO_ADDR", raising=False)
+    adapter = _adapter("codex-local", "codex", command="codex")
+    adapter.can_dispatch = MagicMock(return_value=True)
+    adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="codex", success=True))
+    orchestrator = ReviewOrchestrator({"codex-local": adapter})
+    with patch.dict("sys.modules", {"openbao_credentials": None}):
+        results = orchestrator.dispatch_and_wait("implementation", "review", "review", tmp_path)
+    assert results[0].success is True
+
+
+def test_non_bao_sdk_same_vendor_keeps_selected_agents_env_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("BAO_ADDR", raising=False)
+    monkeypatch.setenv("FIRST_KEY", "first-key")
+    monkeypatch.setenv("SECOND_KEY", "second-key")
+    orchestrator = ReviewOrchestrator.from_config_dict({"agents": [
+        {"agent_id": "first", "type": "claude_code", "sdk": {
+            "package": "anthropic", "model": "claude-test", "api_key_env": "FIRST_KEY",
+        }},
+        {"agent_id": "second", "type": "claude_code", "sdk": {
+            "package": "anthropic", "model": "claude-test", "api_key_env": "SECOND_KEY",
+        }},
+    ]})
+    for adapter in orchestrator.sdk_adapters.values():
+        adapter.can_dispatch = MagicMock(return_value=True)
+        adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="claude_code", success=True))
+    results = orchestrator.dispatch_and_wait("implementation", "review", "review", tmp_path)
+    assert results[0].success is True
+    assert orchestrator.sdk_adapters["first"].dispatch.call_args.args[-1] == "first-key"
+    orchestrator.sdk_adapters["second"].dispatch.assert_not_called()
+
+
+def test_configured_bao_missing_adapter_does_not_use_ambient_sdk_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "ambient-key")
+    orchestrator = ReviewOrchestrator.from_config_dict({"agents": [{
+        "agent_id": "claude-remote", "type": "claude_code",
+        "principal_id": "spiffe://coordinator.rotkohl.ai/agent/claude-remote",
+        "vendor_credentials": ["anthropic"],
+        "sdk": {"package": "anthropic", "model": "claude-test", "api_key_env": "ANTHROPIC_API_KEY"},
+    }]})
+    adapter = orchestrator.sdk_adapters["claude-remote"]
+    adapter.can_dispatch = MagicMock(return_value=True)
+    adapter.dispatch = MagicMock()
+    with patch.dict("sys.modules", {"openbao_credentials": None}):
+        results = orchestrator.dispatch_and_wait("implementation", "review", "review", tmp_path)
+    assert results[0].success is False
+    assert results[0].error_class == ErrorClass.AUTH
+    assert "adapter unavailable" in (results[0].error or "")
+    assert "ambient-key" not in (results[0].error or "")
+    adapter.dispatch.assert_not_called()

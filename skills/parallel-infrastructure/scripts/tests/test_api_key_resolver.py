@@ -1,79 +1,70 @@
-"""Tests for api_key_resolver — secure API key resolution."""
+"""Scoped SDK credential lookup."""
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 from api_key_resolver import ApiKeyResolver
+from openbao_credentials import BaoCredentialError, ErrorCode
 
 
-class TestApiKeyResolver:
-    def test_resolve_from_env_var(self) -> None:
-        """Resolve from environment variable when OpenBao unavailable."""
-        resolver = ApiKeyResolver()
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test-123"}, clear=False):
-            key = resolver.resolve(None, "ANTHROPIC_API_KEY")
-        assert key == "sk-test-123"
+PRINCIPAL = "spiffe://coordinator.rotkohl.ai/agent/claude-remote"
+SCOPES = {PRINCIPAL: ("anthropic",)}
+ENV = {(PRINCIPAL, "anthropic"): "ANTHROPIC_API_KEY"}
 
-    def test_resolve_none_when_nothing_available(self) -> None:
-        """Return None when neither OpenBao nor env var is available."""
-        resolver = ApiKeyResolver()
-        with patch.dict(os.environ, {}, clear=True):
-            key = resolver.resolve(None, "NONEXISTENT_KEY")
-        assert key is None
 
-    def test_resolve_caches_result(self) -> None:
-        """Subsequent calls return cached value."""
-        resolver = ApiKeyResolver()
-        with patch.dict(os.environ, {"MY_KEY": "val1"}, clear=False):
-            key1 = resolver.resolve(None, "MY_KEY")
-        # Even after removing env var, cache returns old value
-        with patch.dict(os.environ, {}, clear=True):
-            key2 = resolver.resolve(None, "MY_KEY")
-        assert key1 == "val1"
-        assert key2 == "val1"
+def test_non_bao_uses_configured_environment_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BAO_ADDR", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "development-key")
+    assert ApiKeyResolver(SCOPES, ENV).resolve(PRINCIPAL, "anthropic") == "development-key"
 
-    def test_resolve_openbao_preferred(self) -> None:
-        """OpenBao is preferred over env var when available."""
-        _resolver = ApiKeyResolver()
-        mock_hvac = MagicMock()
-        mock_client = MagicMock()
-        mock_hvac.Client.return_value = mock_client
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {
-            "data": {"data": {"ANTHROPIC_API_KEY": "bao-secret-key"}},
-        }
 
-        with patch.dict(os.environ, {
-            "BAO_ADDR": "http://localhost:8200",
-            "BAO_SECRET_ID": "test-secret",
-            "ANTHROPIC_API_KEY": "env-key",
-        }, clear=False):
-            with patch.dict("sys.modules", {"hvac": mock_hvac}):
-                # Need a fresh resolver to avoid cache
-                resolver2 = ApiKeyResolver()
-                key = resolver2.resolve("claude-code-web", "ANTHROPIC_API_KEY")
-        assert key == "bao-secret-key"
+def test_non_bao_missing_key_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BAO_ADDR", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert ApiKeyResolver(SCOPES, ENV).resolve(PRINCIPAL, "anthropic") is None
 
-    def test_resolve_falls_back_to_env_when_openbao_fails(self) -> None:
-        """Falls back to env var when OpenBao resolution raises."""
-        _resolver = ApiKeyResolver()
-        mock_hvac = MagicMock()
-        mock_hvac.Client.side_effect = Exception("Connection refused")
 
-        with patch.dict(os.environ, {
-            "BAO_ADDR": "http://localhost:8200",
-            "BAO_SECRET_ID": "test-secret",
-            "ANTHROPIC_API_KEY": "env-fallback",
-        }, clear=False):
-            with patch.dict("sys.modules", {"hvac": mock_hvac}):
-                resolver2 = ApiKeyResolver()
-                key = resolver2.resolve("claude-code-web", "ANTHROPIC_API_KEY")
-        assert key == "env-fallback"
+def test_configured_bao_reads_authorized_vendor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "ambient-key")
+    client = MagicMock()
+    client.read_vendor_key.return_value = "bao-key"
+    with patch("openbao_credentials.OpenBaoClient", return_value=client) as client_type:
+        with patch("openbao_credentials.PrincipalOpenBaoConfig.from_env"):
+            assert ApiKeyResolver(SCOPES, ENV).resolve(PRINCIPAL, "anthropic") == "bao-key"
+    client.ensure_session.assert_called_once_with(PRINCIPAL, "agent-claude-remote")
+    client.read_vendor_key.assert_called_once_with("anthropic")
+    client_type.assert_called_once()
 
-    def test_resolve_with_empty_api_key_env(self) -> None:
-        """Returns None when api_key_env is empty."""
-        resolver = ApiKeyResolver()
-        key = resolver.resolve(None, "")
-        assert key is None
+
+def test_undeclared_vendor_is_rejected_before_bao_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    with patch("openbao_credentials.OpenBaoClient") as client_type:
+        with pytest.raises(BaoCredentialError) as exc:
+            ApiKeyResolver(SCOPES, ENV).resolve(PRINCIPAL, "openai")
+    assert exc.value.code == ErrorCode.AUTHORIZATION_DENIED
+    client_type.assert_not_called()
+
+
+def test_bao_failure_cannot_fall_back_to_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "ambient-key")
+    with patch("openbao_credentials.OpenBaoClient", side_effect=BaoCredentialError(ErrorCode.BACKEND_UNAVAILABLE)):
+        with patch("openbao_credentials.PrincipalOpenBaoConfig.from_env"):
+            with pytest.raises(BaoCredentialError) as exc:
+                ApiKeyResolver(SCOPES, ENV).resolve(PRINCIPAL, "anthropic")
+    assert exc.value.code == ErrorCode.BACKEND_UNAVAILABLE
+
+
+def test_bao_requires_principal(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+    with pytest.raises(BaoCredentialError):
+        ApiKeyResolver(SCOPES, ENV).resolve(None, "anthropic")
+
+
+def test_non_bao_keyless_local_endpoint_needs_no_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BAO_ADDR", raising=False)
+    assert ApiKeyResolver({}, {}).resolve(None, "local") is None

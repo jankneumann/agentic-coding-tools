@@ -2,6 +2,15 @@
 
 ## Project Summary
 
+For OpenBao work, use [the cutover guide](../docs/openbao-secret-management.md).
+`agents.yaml` projects one role and policy per keyed agent and separate
+identity-reader and egress-gateway service roles. Set `BAO_BOOTSTRAP_DIR` for
+principal-specific wrapped bundles. `BAO_INTERNAL_ROLE_ID` and
+`BAO_INTERNAL_SECRET_ID` authenticate only coordinator-internal reads at
+`secret/coordinator`; they never authenticate agent or vendor reads. OpenBao
+mode fails closed and does not accept a shared SecretID or static API-key
+override.
+
 This is a **multi-agent coordination system** that enables AI coding agents (Claude Code, Codex, Antigravity, Grok, Pi) to collaborate safely on shared codebases. It provides:
 
 - **File locking** - Prevent merge conflicts when multiple agents edit files
@@ -217,7 +226,9 @@ API_PORT=8081
 # Both are OPTIONAL. When unset, the identity map and the accepted-key allowlist are
 # derived from agents.yaml — the registry is the single source of truth for agent
 # identity and trust (see "Registry-derived identity" below). Setting the vars
-# explicitly still overrides the registry, which is also the rollback lever.
+# explicitly overrides the registry only when BAO_ADDR is unset. In OpenBao
+# mode the Bao identity snapshot is the sole accepted-key allowlist; these
+# values cannot restore or bypass a rotated key.
 COORDINATION_API_KEYS=key1,key2
 COORDINATION_API_KEY_IDENTITIES={"key1": {"agent_id": "agent-1", "agent_type": "codex"}}
 
@@ -272,6 +283,18 @@ TELEGRAM_BOT_TOKEN=...                   # Optional: Telegram Bot API token
 TELEGRAM_CHAT_ID=...                     # Optional: Telegram chat to notify
 WEBHOOK_URL=https://ntfy.sh/my-topic     # Optional: generic webhook endpoint
 WATCHDOG_INTERVAL_SECONDS=60             # Watchdog check frequency (default 60)
+
+# Adaptive model routing
+ROUTING_ADAPTIVE=off                     # CLIENT side: on/true/1/yes delegates phase model resolution
+                                         # to POST /routing/select_model; unset/off = static tiers
+ROUTING_ADAPTIVE_TIMEOUT_SECONDS=2       # CLIENT side: bound on the router call (max 2); timeout = static
+ROUTING_INCUMBENT_MARGIN=0.05            # SERVER side: utility lead an evidenced challenger needs over
+                                         # the static incumbent. Evidence = posterior samples >= 1 or a
+                                         # benchmark prior > 0; with none, the static model is kept.
+                                         # Every decision records retention.reason: no-evidence,
+                                         # below-margin, challenger-evidenced-above-margin,
+                                         # incumbent-unresolved, incumbent-infeasible-evidenced-alternative,
+                                         # incumbent-infeasible-no-evidenced-alternative, exploration-evidenced
 ```
 
 ## Current Implementation Status

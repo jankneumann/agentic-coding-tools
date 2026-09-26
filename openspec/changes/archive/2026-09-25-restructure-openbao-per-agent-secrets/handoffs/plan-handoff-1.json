@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-24T23:06:35.843521+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Mid-plan handoff requested for a model switch. The dispatch-governance dg-07 implementation is merged and recorded complete. The stale PCA roadmap was reconciled through merged PR 626, making pca-02 the canonical ready item. Discovery defaults are approved and proposal.md is drafted, but Gate 1 approach selection has not yet been answered; do not generate specs, design, tasks, contracts, or work packages until it is.",
+    "completed_work": [
+      "Merged dg-07 PR 625 and pushed roadmap completion commit 4b6304d5 to openspec/add-adaptive-model-router.",
+      "Merged PCA reconciliation PR 626 into main; pca-01 is completed and pca-02 is the canonical planning checkpoint.",
+      "Created managed worktree .git-worktrees/restructure-openbao-per-agent-secrets on branch openspec/restructure-openbao-per-agent-secrets.",
+      "Ran three read-only planning explorations covering specs, code/test seams, and architecture boundaries.",
+      "Verified Python 3.12+, hvac 2.4.0 in both lockfiles, and identified the mutable OpenBao latest image as a reproducibility gap.",
+      "Fetched official OpenBao response-wrapping, AppRole, KV-v2 policy, audit, and hvac 2.4.0 KV documentation.",
+      "Created proposal.md with three approaches and measurable NFRs; no post-Gate-1 artifacts have been generated."
+    ],
+    "in_progress": [
+      "Plan-feature Gate 1 direction approval for pca-02.",
+      "The change scaffold and proposal are intentionally uncommitted until the complete approved plan is generated."
+    ],
+    "decisions": [
+      {
+        "title": "Use bounded last-known-good identity reload",
+        "rationale": "The operator approved a 30-second refresh cadence, at most 120 seconds of stale acceptance, audited degradation, then denial of new authentication.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Declare vendor credential scope in the registry",
+        "rationale": "The operator approved explicit vendor_credentials on agent entries instead of inference from policy vendor or CLI configuration.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "Deliver wrapped bootstrap bundles as protected files",
+        "rationale": "The operator approved one atomically written mode-0600 bundle per principal under an explicit mode-0700 directory, never stdout or git.",
+        "capability": "configuration",
+        "supersedes": null
+      },
+      {
+        "title": "Keep the pca-02 to dg-08 boundary narrow",
+        "rationale": "pca-02 supplies the egress-gateway AppRole, vendor-only policy, and wrapped bootstrap; iron-proxy and per-dispatch proxy-token authorization remain dg-08 and pca-04 work.",
+        "capability": "agent-identity",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Read this handoff and openspec/changes/restructure-openbao-per-agent-secrets/proposal.md.",
+      "Ask the operator to select Gate 1 if no answer followed this handoff; recommend Approach 1.",
+      "After approval, replace the pending Selected Approach section and generate strict delta specs for agent-identity, configuration, and agent-coordinator.",
+      "Generate design.md, machine-readable topology/bootstrap/audit contracts, TDD-ordered tasks.md, and a contract-first work-package DAG.",
+      "Run multi-vendor plan review to convergence, strict OpenSpec/package validation, write the final Plan phase record, commit, push, and request Gate 2 approval before implementation.",
+      "Do not implement pca-03 session tokens, dg-08 iron-proxy, or pca-04 proxy-token issuance in pca-02."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/restructure-openbao-per-agent-secrets/proposal.md",
+        "description": "Draft direction proposal; Gate 1 pending."
+      },
+      {
+        "path": "openspec/roadmaps/principal-credential-architecture/roadmap.yaml",
+        "description": "Canonical PCA DAG; pca-02 is approved."
+      },
+      {
+        "path": "openspec/roadmaps/principal-credential-architecture/checkpoint.json",
+        "description": "Current item pca-02, phase planning."
+      },
+      {
+        "path": "openspec/roadmaps/dispatch-governance/roadmap.yaml",
+        "description": "dg-08 external dependency contract."
+      },
+      {
+        "path": "skills/bao-vault/scripts/bao_seed.py",
+        "description": "Current shared-path provisioning implementation."
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/api_key_resolver.py",
+        "description": "Current shared-secret and fail-open dispatch resolver."
+      },
+      {
+        "path": "agent-coordinator/src/agents_config.py",
+        "description": "Current registry identity and fail-open OpenBao resolution."
+      },
+      {
+        "path": "agent-coordinator/src/config.py",
+        "description": "Global OpenBao configuration and static ApiConfig snapshot."
+      },
+      {
+        "path": "agent-coordinator/src/coordination_api.py",
+        "description": "Natural lifespan seam for periodic identity reload."
+      },
+      {
+        "path": "docs/openbao-secret-management.md",
+        "description": "Current shared-topology operator guide requiring migration."
+      }
+    ],
+    "supervisor_record": {
+      "worktree": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets",
+      "branch": "openspec/restructure-openbao-per-agent-secrets",
+      "roadmap_id": "principal-credential-architecture",
+      "item_id": "pca-02",
+      "phase": "planning",
+      "gate": "direction_approval",
+      "recommended_approach": "Approach 1: Contract-first principal projection with typed adapters",
+      "user_authorizations": [
+        "GitHub writes under github.com/jankneumann are authorized",
+        "diff and validation evidence may be sent to all configured vendor-panel harnesses",
+        "orchestrator sub-agent dispatch is pre-authorized by AGENTS.md"
+      ],
+      "official_sources": [
+        "https://openbao.org/docs/concepts/response-wrapping/",
+        "https://openbao.org/docs/secrets/kv/kv-v2/",
+        "https://openbao.org/docs/next/auth/approle/",
+        "https://openbao.org/docs/agent-and-proxy/autoauth/methods/approle/",
+        "https://python-hvac.org/en/stable/usage/secrets_engines/kv.html"
+      ]
+    }
+  }
+}

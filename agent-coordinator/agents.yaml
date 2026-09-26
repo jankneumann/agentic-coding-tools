@@ -11,10 +11,9 @@
 # The review_type (plan vs implementation) determines what is being
 # reviewed/generated; the dispatch mode controls sandbox permissions.
 #
-# The optional `sdk` section configures SDK-based API dispatch as a
-# fallback when the vendor's CLI is not installed.  API keys are resolved
-# via OpenBao at runtime (using `openbao_role_id`), falling back to the
-# environment variable named in `api_key_env`.
+# The optional `sdk` section configures SDK-based API dispatch. Credential
+# access comes from the explicit `vendor_credentials` list below, independent
+# of policy and catalog vendor labels.
 #
 # The optional `archetypes` field declares which agent archetypes (defined in
 # archetypes.yaml) this agent can fulfill. When set, the coordinator work
@@ -49,6 +48,8 @@ policies:
     fallback: warn_and_continue
     scope: per_change
 
+credential_vendors: [anthropic, openai, openrouter, xai]
+
 agents:
   # ---------------------------------------------------------------------------
   # Claude Code
@@ -64,7 +65,7 @@ agents:
     trust_level: 3
     transport: mcp
     api_key: "${CLAUDE_LOCAL_API_KEY}"
-    openbao_role_id: claude-code-local
+    vendor_credentials: []
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     # supervisor / gatekeeper are read-only adjudication roles and validator
@@ -113,7 +114,7 @@ agents:
     transport: http
     isolation: none
     api_key: "${CLAUDE_WEB_API_KEY}"
-    openbao_role_id: claude-code-web
+    vendor_credentials: [anthropic]
     capabilities: [lock, queue, memory, guardrails, handoff, discover, feature_registry, vendor_limit_reporter]
     archetypes: [analyst, implementer, reviewer, documenter]
     description: Remote Claude Code agent (runs on Anthropic infrastructure)
@@ -153,7 +154,7 @@ agents:
     trust_level: 3
     transport: mcp
     api_key: "${CODEX_LOCAL_API_KEY}"
-    openbao_role_id: codex-local
+    vendor_credentials: []
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     # validator: teams.yaml rosters it to [claude_code, codex]. Keeping a second
@@ -187,7 +188,7 @@ agents:
     transport: http
     isolation: sandbox
     api_key: "${CODEX_API_KEY}"
-    openbao_role_id: codex-cloud
+    vendor_credentials: [openai]
     # `discover` restored 2026-08-14: the registry projection derives
     # allowed_operations from these capabilities, and omitting `discover` would
     # have dropped register_session/heartbeat/discover_agents from the synced
@@ -224,7 +225,7 @@ agents:
     trust_level: 3
     transport: mcp
     api_key: "${ANTIGRAVITY_LOCAL_API_KEY}"
-    openbao_role_id: antigravity-local
+    vendor_credentials: []
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
@@ -279,7 +280,7 @@ agents:
     trust_level: 3
     transport: mcp
     api_key: "${GROK_LOCAL_API_KEY}"
-    openbao_role_id: grok-local
+    vendor_credentials: []
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
@@ -334,7 +335,7 @@ agents:
     transport: http
     isolation: sandbox
     api_key: "${GROK_REMOTE_API_KEY}"
-    openbao_role_id: grok-cloud
+    vendor_credentials: [xai]
     capabilities: [lock, queue, memory, guardrails, handoff, feature_registry, vendor_limit_reporter]
     archetypes: [implementer, reviewer]
     description: Remote Grok agent (runs on xAI infrastructure)
@@ -364,7 +365,7 @@ agents:
     trust_level: 3
     transport: mcp
     api_key: "${PI_LOCAL_API_KEY}"
-    openbao_role_id: pi-local
+    vendor_credentials: [openrouter]
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]

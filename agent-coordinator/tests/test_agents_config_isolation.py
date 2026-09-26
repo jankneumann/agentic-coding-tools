@@ -31,6 +31,7 @@ def agents_yaml_with_isolation(tmp_path: Path) -> Path:
     """Create a minimal agents.yaml with isolation fields."""
     p = tmp_path / "agents.yaml"
     p.write_text(textwrap.dedent("""\
+        credential_vendors: []
         agents:
           local-agent:
             type: claude_code
@@ -67,6 +68,7 @@ def agents_yaml_without_isolation(tmp_path: Path) -> Path:
     """Create agents.yaml without isolation fields (tests default)."""
     p = tmp_path / "agents.yaml"
     p.write_text(textwrap.dedent("""\
+        credential_vendors: []
         agents:
           bare-agent:
             type: claude_code
@@ -198,6 +200,7 @@ def test_mode_config_accepts_an_optional_isolation_override() -> None:
 def _mode_aware_agents_yaml(tmp_path: Path) -> Path:
     path = tmp_path / "agents.yaml"
     path.write_text(textwrap.dedent("""\
+        credential_vendors: []
         agents:
           codex-local:
             type: codex

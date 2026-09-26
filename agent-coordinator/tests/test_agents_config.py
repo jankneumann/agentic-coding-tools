@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from jsonschema import ValidationError
 
 from src.agents_config import (
     ALL_MODEL_TIERS as ALL_TIERS,
@@ -27,6 +28,7 @@ from src.agents_config import (
 # ---------------------------------------------------------------------------
 
 VALID_AGENTS_YAML = """\
+credential_vendors: []
 agents:
   test-local:
     type: claude_code
@@ -42,6 +44,7 @@ agents:
     trust_level: 2
     transport: http
     api_key: "${TEST_API_KEY}"
+    vendor_credentials: []
     capabilities: [lock, queue]
     description: Test cloud agent
 """
@@ -397,6 +400,7 @@ class TestGetAgentConfig:
     def test_partial_interpolation_preserved(self, tmp_path: Path) -> None:
         """api_key with embedded unresolved ${VAR} is preserved for OpenBao."""
         yaml_content = """\
+credential_vendors: []
 agents:
   test-partial:
     type: codex
@@ -404,6 +408,7 @@ agents:
     trust_level: 2
     transport: http
     api_key: "prefix-${UNRESOLVED_KEY}"
+    vendor_credentials: []
     capabilities: [lock]
     description: Test partial interpolation
 """
@@ -418,9 +423,22 @@ agents:
 # ---------------------------------------------------------------------------
 
 
-class TestOpenbaoRoleId:
-    def test_openbao_role_id_loaded(self, tmp_path: Path) -> None:
+class TestPrincipalProjection:
+    def test_catalog_required(self, tmp_path: Path) -> None:
+        path = tmp_path / "agents.yaml"
+        path.write_text(VALID_AGENTS_YAML.replace("credential_vendors: []\n", "", 1))
+        with pytest.raises(ValidationError):
+            load_agents_config(path, secrets_path=tmp_path / "none")
+
+    def test_keyed_agent_scope_must_be_explicit(self, tmp_path: Path) -> None:
+        path = tmp_path / "agents.yaml"
+        path.write_text(VALID_AGENTS_YAML.replace("    vendor_credentials: []\n", "", 1))
+        with pytest.raises(ValidationError):
+            load_agents_config(path, secrets_path=tmp_path / "none")
+
+    def test_legacy_openbao_role_id_rejected(self, tmp_path: Path) -> None:
         yaml_content = """\
+credential_vendors: []
 agents:
   test-cloud:
     type: codex
@@ -428,21 +446,22 @@ agents:
     trust_level: 2
     transport: http
     api_key: "${API_KEY}"
+    vendor_credentials: []
     openbao_role_id: test-cloud
     capabilities: [lock]
     description: Agent with OpenBao role
 """
         agents_file = tmp_path / "agents.yaml"
         _write(agents_file, yaml_content)
-        agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
-        assert agents[0].openbao_role_id == "test-cloud"
+        with pytest.raises(Exception):
+            load_agents_config(agents_file, secrets_path=tmp_path / "none")
 
-    def test_openbao_role_id_optional(self, tmp_path: Path) -> None:
+    def test_vendor_credentials_default_empty(self, tmp_path: Path) -> None:
         agents_file = tmp_path / "agents.yaml"
         _write(agents_file, VALID_AGENTS_YAML)
         agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
-        assert agents[0].openbao_role_id is None
-        assert agents[1].openbao_role_id is None
+        assert agents[0].vendor_credentials == ()
+        assert agents[1].vendor_credentials == ()
 
 
 class TestOpenbaoApiKeyResolution:
@@ -453,34 +472,28 @@ class TestOpenbaoApiKeyResolution:
             AgentEntry(
                 name="c1", type="codex", profile="p", trust_level=2,
                 transport="http", capabilities=[], description="d",
-                api_key="static-key", openbao_role_id="c1",
+                api_key="static-key",
             ),
         ]
         result = get_api_key_identities(agents)
         assert result == {"static-key": {"agent_id": "c1", "agent_type": "codex"}}
 
-    @patch("src.agents_config._resolve_api_key_from_openbao")
-    def test_identities_with_openbao(
-        self, mock_resolve: MagicMock, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """With BAO_ADDR, resolves keys from OpenBao for agents with role_id."""
+    def test_identities_with_openbao(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Static identity map must not authenticate in configured Bao mode."""
         monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
-        mock_resolve.return_value = "openbao-key"
         agents = [
             AgentEntry(
                 name="c1", type="codex", profile="p", trust_level=2,
                 transport="http", capabilities=[], description="d",
-                api_key="${CODEX_KEY}", openbao_role_id="c1",
+                api_key="static-key",
             ),
         ]
-        result = get_api_key_identities(agents)
-        assert "openbao-key" in result
-        assert result["openbao-key"]["agent_id"] == "c1"
+        assert get_api_key_identities(agents) == {}
 
-    def test_agent_without_role_uses_shared(
+    def test_agent_without_bao_uses_static(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Agent without openbao_role_id uses static key even with BAO_ADDR set."""
+        """Static interpolation remains available outside configured Bao mode."""
         monkeypatch.delenv("BAO_ADDR", raising=False)
         agents = [
             AgentEntry(
@@ -491,60 +504,6 @@ class TestOpenbaoApiKeyResolution:
         ]
         result = get_api_key_identities(agents)
         assert result == {"shared-key": {"agent_id": "no-role", "agent_type": "codex"}}
-
-    def test_resolve_uses_agent_role_id(
-        self, monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """_resolve_api_key_from_openbao authenticates with the agent's own role_id."""
-        from src.agents_config import _resolve_api_key_from_openbao
-
-        mock_config = MagicMock()
-        mock_config.is_enabled.return_value = True
-        mock_config.addr = "http://localhost:8200"
-        mock_config.timeout = 5
-        mock_config.secret_id = "shared-secret"
-        mock_config.secret_path = "coordinator"
-        mock_config.mount_path = "secret"
-
-        mock_client = MagicMock()
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {
-            "data": {"data": {"MY_KEY": "resolved-value"}}
-        }
-
-        mock_hvac = MagicMock()
-        mock_hvac.Client.return_value = mock_client
-
-        with patch("src.config.OpenBaoConfig.from_env", return_value=mock_config), \
-             patch.dict("sys.modules", {"hvac": mock_hvac}):
-            agent = AgentEntry(
-                name="c1", type="codex", profile="p", trust_level=2,
-                transport="http", capabilities=[], description="d",
-                api_key="${MY_KEY}", openbao_role_id="agent-c1-role",
-            )
-            result = _resolve_api_key_from_openbao(agent)
-            assert result == "resolved-value"
-            # Verify it used the agent's role_id, not the global one
-            mock_client.auth.approle.login.assert_called_once_with(
-                role_id="agent-c1-role", secret_id="shared-secret",
-            )
-
-    @patch("src.agents_config._resolve_api_key_from_openbao")
-    def test_openbao_failure_falls_back(
-        self, mock_resolve: MagicMock, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """OpenBao failure falls back to static key."""
-        monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
-        mock_resolve.return_value = "fallback-key"
-        agents = [
-            AgentEntry(
-                name="c1", type="codex", profile="p", trust_level=2,
-                transport="http", capabilities=[], description="d",
-                api_key="fallback-key", openbao_role_id="c1",
-            ),
-        ]
-        result = get_api_key_identities(agents)
-        assert "fallback-key" in result
-
 
 # ---------------------------------------------------------------------------
 # ApiConfig auto-population of api_keys from agents.yaml
@@ -600,6 +559,7 @@ class TestApiKeysAutoPopulation:
 # ---------------------------------------------------------------------------
 
 AGENTS_WITH_CLI_YAML = """\
+credential_vendors: []
 agents:
   test-with-cli:
     type: codex
@@ -702,6 +662,7 @@ class TestCliConfig:
     def test_cli_model_with_explicit_value(self, tmp_path: Path) -> None:
         """Agent with explicit model value (not null) parses correctly."""
         yaml_content = """\
+credential_vendors: []
 agents:
   test-explicit-model:
     type: codex
@@ -735,6 +696,7 @@ agents:
 # ---------------------------------------------------------------------------
 
 AGENTS_WITH_SDK_YAML = """\
+credential_vendors: []
 agents:
   test-remote:
     type: codex
@@ -813,6 +775,7 @@ class TestSdkConfig:
     def test_sdk_defaults_applied(self, tmp_path: Path) -> None:
         """SDK section with only required fields gets correct defaults."""
         yaml_content = """\
+credential_vendors: []
 agents:
   test-minimal-sdk:
     type: codex
@@ -1701,3 +1664,19 @@ class TestProcedureModeLoading:
             raw["schema_version"] = 4
 
         assert load_archetypes_config(_write_local_yaml(tmp_path, mutate))
+
+
+def test_bao_mode_ignores_explicit_static_identity_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.config import ApiConfig
+
+    monkeypatch.setenv("BAO_ADDR", "http://bao:8200")
+    monkeypatch.setenv("COORDINATION_API_KEYS", "static-key")
+    monkeypatch.setenv(
+        "COORDINATION_API_KEY_IDENTITIES",
+        '{"static-key":{"agent_id":"fake","agent_type":"codex"}}',
+    )
+    config = ApiConfig.from_env()
+    assert config.api_keys == ["static-key"]  # preserved for cutover preflight
+    assert config.api_key_identities == {}

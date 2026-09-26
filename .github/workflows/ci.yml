@@ -48,6 +48,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test-openbao-credentials:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: packages/openbao-credentials
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Test shared OpenBao credentials package
+        run: uv run pytest tests -q
+
+  test-openbao-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install locked skill dependencies
+        run: uv sync --project skills --locked --all-extras
+
+      - name: Test isolated Langfuse credentials helper
+        run: skills/.venv/bin/python -m pytest skills/bao-vault/scripts/tests/test_langfuse_env.py -q
+
+      - name: Run pinned live OpenBao conformance matrix
+        run: bash skills/bao-vault/scripts/tests/integration/run_live_matrix.sh
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -572,6 +615,7 @@ jobs:
               # system_one_decisions — shared seam for calibrated System One
               # (TypeSafe Jev) decisions, fallback-only for now.
               'system_one_decisions',
+              'openbao_credentials',
           ]
 
           failures = []

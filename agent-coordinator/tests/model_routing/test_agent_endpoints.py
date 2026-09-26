@@ -13,6 +13,7 @@ from src.agents_config import AgentEntry, get_dispatch_configs, load_agents_conf
 def _write_agent(path: Path, *, endpoint_kind: str, base_url: str | None = None) -> None:
     base_url_line = f'    base_url: "{base_url}"\n' if base_url is not None else ""
     path.write_text(
+        "credential_vendors: []\n"
         "agents:\n"
         "  test-agent:\n"
         "    type: codex\n"
@@ -68,7 +69,8 @@ def test_dispatch_config_includes_endpoint_only_agent() -> None:
                 "agent_id": "local-openai",
                 "type": "local",
                 "transport": "http",
-                "openbao_role_id": None,
+                "principal_id": None,
+                "vendor_credentials": [],
                 "endpoint_kind": "local",
                 "base_url": "http://127.0.0.1:11434/v1",
                 "cli": None,
@@ -76,6 +78,23 @@ def test_dispatch_config_includes_endpoint_only_agent() -> None:
             }
         ]
     }
+
+
+def test_dispatch_config_projects_keyed_agent_scope() -> None:
+    from src.agents_config import SdkConfig
+
+    agent = AgentEntry(
+        name="codex-remote", type="codex", profile="codex_remote",
+        trust_level=2, transport="http", capabilities=["discover"],
+        description="Remote SDK", api_key="${CODEX_KEY}",
+        vendor_credentials=("openai",),
+        sdk=SdkConfig(package="openai", model="gpt-test"),
+    )
+    [record] = get_dispatch_configs([agent])["agents"]
+    assert record["principal_id"] == "spiffe://coordinator.rotkohl.ai/agent/codex-remote"
+    assert record["vendor_credentials"] == ["openai"]
+    assert "openbao_role_id" not in record
+    assert "api_key" not in record
 
 
 def test_bundled_registry_declares_lane_identity_and_reporter_capability() -> None:

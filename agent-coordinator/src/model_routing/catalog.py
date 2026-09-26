@@ -198,12 +198,19 @@ class CatalogService:
     async def record_decision_and_audit(self, decision: dict[str, Any]) -> dict[str, Any]:
         """Atomically persist the authoritative decision and its link-only audit event."""
         selected = decision["selected"]
-        assignment = selected["assignment"]
-        provenance = selected["provenance"]
+        # A retained incumbent with no feasible catalog row has no selection;
+        # its link names no agent or model and takes the decision's provenance
+        # (migration 044 derives the same expected link).
+        if selected is None:
+            assignment = {"agent_id": None}
+            provenance = decision["provenance"]
+        else:
+            assignment = selected["assignment"]
+            provenance = selected["provenance"]
         audit_link = {
             "decision_id": decision["decision_id"],
             "selected_agent_id": assignment["agent_id"],
-            "selected_model": selected["model"],
+            "selected_model": selected["model"] if selected is not None else None,
             "routing_policy_version": provenance["policy_version"],
             "routing_policy_checksum": provenance["policy_checksum"],
             "source": provenance["source"],

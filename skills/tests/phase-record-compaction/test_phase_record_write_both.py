@@ -127,14 +127,77 @@ class TestStep3CoordinatorSuccess:
         result = rec.write_both(coordinator_writer=writer)
         assert result.warnings == []
 
-    def test_bridge_wrapper_response_shape_extracts_id(self, workdir: Path) -> None:
-        """The coordination_bridge wraps responses as {available, result, ...}."""
-        writer = _StubWriter(
-            response={"available": True, "result": {"handoff_id": "wrapped-id"}}
+
+
+def _bridge_normalized(status_code: int | None, data: Any = None, error: Any = None) -> dict[str, Any]:
+    """Run the real bridge normalizer over a recorded /handoffs/write response.
+
+    Stubbing the writer with a hand-written shape is how #627 went unnoticed:
+    the stub returned a bare ``{"handoff_id": ...}`` the real bridge never does.
+    """
+    import importlib.util
+
+    path = REPO_ROOT / "skills/coordination-bridge/scripts/coordination_bridge.py"
+    spec = importlib.util.spec_from_file_location("_bridge_for_phase_record_tests", path)
+    assert spec is not None and spec.loader is not None
+    bridge = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bridge)
+    return bridge._normalize_operation_response(
+        operation="try_handoff_write",
+        response={"status_code": status_code, "data": data, "error": error},
+        state={"COORDINATION_TRANSPORT": "http"},
+    )
+
+
+class TestRealBridgeResponseShapes:
+    """Regression for #627: the bridge nests the id under data/response."""
+
+    def test_successful_write_extracts_id(self, workdir: Path) -> None:
+        response = _bridge_normalized(
+            200, {"success": True, "handoff_id": "416a2d92-uuid", "error": None}
         )
-        rec = _record()
-        result = rec.write_both(coordinator_writer=writer)
-        assert result.handoff_id == "wrapped-id"
+        result = _record().write_both(coordinator_writer=_StubWriter(response=response))
+        assert result.handoff_id == "416a2d92-uuid"
+        assert result.handoff_local_path is None
+        assert result.warnings == []
+        assert not (workdir / "openspec/changes/my-change/handoffs").exists()
+
+    def test_service_level_failure_surfaces_its_error(self, workdir: Path) -> None:
+        response = _bridge_normalized(
+            200, {"success": False, "handoff_id": None, "error": "session not found"}
+        )
+        result = _record().write_both(coordinator_writer=_StubWriter(response=response))
+        assert result.handoff_id is None
+        assert result.handoff_local_path is not None
+        assert any("session not found" in w for w in result.warnings)
+
+    def test_success_false_with_id_is_not_trusted(self, workdir: Path) -> None:
+        response = _bridge_normalized(
+            200, {"success": False, "handoff_id": "stale", "error": "rolled back"}
+        )
+        result = _record().write_both(coordinator_writer=_StubWriter(response=response))
+        assert result.handoff_id is None
+        assert any("rolled back" in w for w in result.warnings)
+
+    def test_unreachable_names_the_skip_reason(self, workdir: Path) -> None:
+        response = _bridge_normalized(None, error="connection refused")
+        result = _record().write_both(coordinator_writer=_StubWriter(response=response))
+        assert result.handoff_id is None
+        assert any("connection refused" in w for w in result.warnings)
+
+    def test_forbidden_names_reason_and_status(self, workdir: Path) -> None:
+        response = _bridge_normalized(403, {"detail": "agent_id mismatch"})
+        result = _record().write_both(coordinator_writer=_StubWriter(response=response))
+        assert result.handoff_id is None
+        (warning,) = [w for w in result.warnings if "step_3_coordinator" in w]
+        assert "agent_id mismatch" in warning
+        assert "unspecified" not in warning
+
+    def test_http_error_includes_status_code(self, workdir: Path) -> None:
+        response = _bridge_normalized(422, {"detail": [{"msg": "field required"}]})
+        result = _record().write_both(coordinator_writer=_StubWriter(response=response))
+        assert result.handoff_id is None
+        assert any("422" in w for w in result.warnings)
 
 
 class TestStep3CoordinatorUnavailableFallback:

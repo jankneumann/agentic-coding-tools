@@ -54,7 +54,9 @@ session id primary key, agent id, slot index, five ports, project name, `isolati
 `allocated_at`, `expires_at`, `blocked_until`. `PortAllocatorService` keeps its in-memory dict as
 the hot path and writes through when `get_db()` is configured. On startup it loads unexpired rows
 and prunes expired ones. Write failure aborts the allocation. Blocked slots are rows with a null
-session and a non-null `blocked_until`. The migration is `044_port_leases.sql`.
+session and a non-null `blocked_until`. The migration is `<NNN>_port_leases.sql`, where `<NNN>` is the next free sequence number **assigned when the file is created**, not now.
+
+This plan has been renumbered three times — `035` on 2026-09-03, `036` on 2026-09-04, `044` on 2026-09-24 — and `044` was taken by `044_routing_decision_retention.sql` within two days. `main` moves roughly thirty commits a day, so any number chosen at planning time is a guess about merge order that goes stale while the proposal waits for approval. Pinning it here buys nothing and costs a renumber per week. The highest occupied sequence as of 2026-09-26 is `044`; the implementer takes the next free one and nothing else in this plan needs to change. See issue #637.
 
 ### D3. Leases belong to sessions; heartbeat refreshes, cleanup releases
 

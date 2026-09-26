@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-23T13:50:27.070908+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Plan to make ROUTING_ADAPTIVE safe to enable: the live catalog has no priors/prices/latency, so every candidate ties and sort order plus unbudgeted 10% exploration would replace tuned static models with arbitrary ones. Selected server-side incumbent retention in select_model: the static model is kept unless an evidenced challenger beats it by ROUTING_INCUMBENT_MARGIN (default 0.05); exploration is evidenced-only; every outcome is persisted as a retention reason.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Server-side incumbent retention in select_model (Gate 1, Approach 1)",
+        "rationale": "Persists every kept-static outcome in the decision ledger and gates all callers (phase resolution, MCP, HTTP) in one place.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Evidence = posterior sample_size >= 1 or benchmark_prior > 0; absolute margin 0.05, ties to incumbent",
+        "rationale": "Exactly the inputs blend_quality reads; with both empty a candidate's score is uninformative. User chose evidence + absolute margin.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Infeasible incumbent yields best evidenced challenger, else static; no evidence-free pick ever",
+        "rationale": "User choice: no arbitrary failover while the catalog is empty; failover remains a dispatch-layer concern.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Exploration restricted to evidenced candidates",
+        "rationale": "Keeps the learning mechanism for every caller while making it inert on an empty catalog.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Unresolvable incumbent (no provider, tier name) keeps static with reason incumbent-unresolved and null selected",
+        "rationale": "No alias table; null selected makes pre-change clients fall back to the exact static result via D2.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Sequential tier despite coordinator availability",
+        "rationale": "User requested sequential; chain-shaped task graph inside one module gains nothing from parallel packages.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/implement-feature retain-static-model-until-routing-evidence \u2014 start with tasks 1.1 and 2.1 (contract and evidence-predicate tests)."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/retain-static-model-until-routing-evidence/proposal.md",
+        "description": "approved direction"
+      },
+      {
+        "path": "openspec/changes/retain-static-model-until-routing-evidence/design.md",
+        "description": "D1-D7 incl. retention table"
+      },
+      {
+        "path": "openspec/changes/retain-static-model-until-routing-evidence/contracts/openapi/v1.2.yaml",
+        "description": "additive select_model overlay"
+      }
+    ]
+  }
+}

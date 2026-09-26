@@ -39,6 +39,9 @@ COPY packages/code-search/ /packages/code-search/
 # Shared seam for calibrated System One (TypeSafe Jev) decisions — another
 # non-editable sibling path dependency, same reason as gen-eval/code-search.
 COPY packages/system-one-decisions/ /packages/system-one-decisions/
+# The typed OpenBao package is another non-editable sibling dependency.
+# uv installs its wheel into .venv, which the runtime stage copies below.
+COPY packages/openbao-credentials/ /packages/openbao-credentials/
 
 WORKDIR /app
 

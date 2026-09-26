@@ -51,12 +51,6 @@
           "type": "JSONB",
           "nullable": true,
           "default": "'{}'"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -112,58 +106,70 @@
           "default": "5"
         },
         {
-          "name": "enable",
-          "type": "UNKNOWN",
+          "name": "depends_on",
+          "type": "UUID[]",
           "nullable": true,
           "default": null
         },
         {
-          "name": "labels",
+          "name": "status",
           "type": "TEXT",
           "nullable": true,
-          "default": "'{}'"
+          "default": "'pending'"
         },
         {
-          "name": "parent_id",
-          "type": "UUID",
+          "name": "result",
+          "type": "JSONB",
           "nullable": true,
           "default": null
         },
         {
-          "name": "issue_type",
-          "type": "TEXT",
-          "nullable": true,
-          "default": "'task'"
-        },
-        {
-          "name": "assignee",
+          "name": "error_message",
           "type": "TEXT",
           "nullable": true,
           "default": null
         },
         {
-          "name": "closed_at",
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "NOW()"
+        },
+        {
+          "name": "started_at",
           "type": "TIMESTAMPTZ",
           "nullable": true,
           "default": null
         },
         {
-          "name": "close_reason",
-          "type": "TEXT",
+          "name": "completed_at",
+          "type": "TIMESTAMPTZ",
           "nullable": true,
           "default": null
         },
         {
-          "name": "metadata",
-          "type": "JSONB",
+          "name": "deadline",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "attempt_count",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": "0"
+        },
+        {
+          "name": "max_attempts",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": "3"
+        },
+        {
+          "name": "IF",
+          "type": "NOT EXISTS labels TEXT[]",
           "nullable": true,
           "default": "'{}'"
-        },
-        {
-          "name": "agent_requirements",
-          "type": "JSONB",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -220,7 +226,7 @@
         },
         {
           "name": "files_modified",
-          "type": "TEXT",
+          "type": "TEXT[]",
           "nullable": true,
           "default": "'{}'"
         },
@@ -231,14 +237,8 @@
           "default": "'{}'"
         },
         {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
-        },
-        {
           "name": "capabilities",
-          "type": "TEXT",
+          "type": "TEXT[]",
           "nullable": true,
           "default": "'{}'"
         },
@@ -261,16 +261,10 @@
           "default": null
         },
         {
-          "name": "delegated_from",
-          "type": "TEXT",
+          "name": "IF",
+          "type": "NOT EXISTS delegated_from TEXT",
           "nullable": true,
           "default": "NULL"
-        },
-        {
-          "name": "phase_archetype",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -344,14 +338,8 @@
           "default": "NOW()"
         },
         {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "supervisor_record",
-          "type": "JSONB",
+          "name": "IF",
+          "type": "NOT EXISTS supervisor_record JSONB",
           "nullable": true,
           "default": "NULL"
         }
@@ -410,13 +398,13 @@
         },
         {
           "name": "lessons",
-          "type": "TEXT",
+          "type": "TEXT[]",
           "nullable": true,
           "default": null
         },
         {
           "name": "tags",
-          "type": "TEXT",
+          "type": "TEXT[]",
           "nullable": true,
           "default": "'{}'"
         },
@@ -431,12 +419,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -508,12 +490,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -540,19 +516,19 @@
         },
         {
           "name": "tier",
-          "type": "UNKNOWN",
+          "type": "verification_tier",
           "nullable": false,
           "default": null
         },
         {
           "name": "executor",
-          "type": "UNKNOWN",
+          "type": "verification_executor",
           "nullable": false,
           "default": null
         },
         {
           "name": "status",
-          "type": "UNKNOWN",
+          "type": "verification_status",
           "nullable": false,
           "default": "'pending'"
         },
@@ -591,12 +567,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -635,13 +605,13 @@
         },
         {
           "name": "tier",
-          "type": "UNKNOWN",
+          "type": "verification_tier",
           "nullable": false,
           "default": null
         },
         {
           "name": "executor",
-          "type": "UNKNOWN",
+          "type": "verification_executor",
           "nullable": false,
           "default": null
         },
@@ -668,12 +638,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -739,12 +703,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -822,12 +780,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -872,13 +824,13 @@
         },
         {
           "name": "allowed_operations",
-          "type": "TEXT",
+          "type": "TEXT[]",
           "nullable": true,
           "default": "'{}'"
         },
         {
           "name": "blocked_operations",
-          "type": "TEXT",
+          "type": "TEXT[]",
           "nullable": true,
           "default": "'{}'"
         },
@@ -931,14 +883,8 @@
           "default": "now()"
         },
         {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "synced_from_registry_at",
-          "type": "TIMESTAMPTZ",
+          "name": "IF",
+          "type": "NOT EXISTS synced_from_registry_at TIMESTAMPTZ",
           "nullable": true,
           "default": null
         }
@@ -982,12 +928,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -1061,14 +1001,8 @@
           "default": "now()"
         },
         {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "delegated_from",
-          "type": "TEXT",
+          "name": "IF",
+          "type": "NOT EXISTS delegated_from TEXT",
           "nullable": true,
           "default": "NULL"
         }
@@ -1130,12 +1064,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -1189,12 +1117,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -1256,14 +1178,8 @@
           "default": "now()"
         },
         {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "policy_version",
-          "type": "INTEGER",
+          "name": "IF",
+          "type": "NOT EXISTS policy_version INTEGER",
           "nullable": false,
           "default": "1"
         }
@@ -1319,12 +1235,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": true,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -1381,7 +1291,7 @@
         },
         {
           "name": "resource_claims",
-          "type": "TEXT",
+          "type": "TEXT[]",
           "nullable": false,
           "default": "'{}'"
         },
@@ -1396,6 +1306,12 @@
           "type": "INTEGER",
           "nullable": true,
           "default": "5"
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
         }
       ],
       "primary_key": [
@@ -1597,12 +1513,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -1697,12 +1607,6 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
         }
       ],
       "primary_key": [
@@ -1764,14 +1668,8 @@
           "default": "now()"
         },
         {
-          "name": "canonical_index_id",
-          "type": "UUID",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "git_common_dir_fingerprint",
-          "type": "TEXT",
+          "name": "IF",
+          "type": "NOT EXISTS canonical_index_id UUID",
           "nullable": true,
           "default": null
         }
@@ -1812,6 +1710,12 @@
         },
         {
           "name": "namespace_key",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "source_revision",
           "type": "TEXT",
           "nullable": false,
           "default": null
@@ -1907,26 +1811,14 @@
           "default": "now()"
         },
         {
-          "name": "policy_fingerprint",
-          "type": "TEXT",
+          "name": "CONSTRAINT",
+          "type": "code_search_indexes_natural_key",
           "nullable": true,
           "default": null
         },
         {
-          "name": "pipeline_fingerprint",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "embedder_fingerprint",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "parent_index_id",
-          "type": "UUID",
+          "name": "IF",
+          "type": "NOT EXISTS policy_fingerprint TEXT",
           "nullable": true,
           "default": null
         }
@@ -2002,7 +1894,11 @@
           "default": "0"
         }
       ],
-      "primary_key": [],
+      "primary_key": [
+        "index_id",
+        "attempt_count",
+        "file_path"
+      ],
       "file": "030_incremental_code_search_indexes.sql",
       "line": 175
     },
@@ -2065,7 +1961,10 @@
           "default": "0"
         }
       ],
-      "primary_key": [],
+      "primary_key": [
+        "index_id",
+        "file_path"
+      ],
       "file": "030_incremental_code_search_indexes.sql",
       "line": 210
     },
@@ -2126,6 +2025,480 @@
       ],
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 3
+    },
+    {
+      "name": "public.model_catalog",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "vendor",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "model",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "endpoint_kind",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "base_url",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "prompt_usd_per_mtok",
+          "type": "NUMERIC(12,6)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completion_usd_per_mtok",
+          "type": "NUMERIC(12,6)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "context_window",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "benchmark_priors",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "p50_latency_ms",
+          "type": "NUMERIC(10,2)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "available",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "TRUE"
+        },
+        {
+          "name": "quota_headroom_pct",
+          "type": "NUMERIC(5,2)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "quota_reset_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "quota_source",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "refreshed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "stale",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "040_model_routing.sql",
+      "line": 3
+    },
+    {
+      "name": "public.model_posteriors",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "catalog_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "task_type",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "metric",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "value",
+          "type": "DOUBLE PRECISION",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "sample_size",
+          "type": "DOUBLE PRECISION",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "half_life_days",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "30"
+        },
+        {
+          "name": "low_confidence",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "040_model_routing.sql",
+      "line": 28
+    },
+    {
+      "name": "public.routing_decisions",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "decision_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "request",
+          "type": "JSONB",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "selected",
+          "type": "JSONB",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "alternatives",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'[]'::jsonb"
+        },
+        {
+          "name": "excluded",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'[]'::jsonb"
+        },
+        {
+          "name": "exploration",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "fallback",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "policy_version",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "budget_state",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "outcome_ref",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "decision_id"
+      ],
+      "file": "040_model_routing.sql",
+      "line": 41
+    },
+    {
+      "name": "public.routing_spend_ledger",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "occurred_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "decision_id",
+          "type": "UUID",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "vendor",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "model",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "endpoint_kind",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "prompt_tokens",
+          "type": "BIGINT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completion_tokens",
+          "type": "BIGINT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "tokens_estimated",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "actual_usd",
+          "type": "NUMERIC(12,6)",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "counterfactual_usd",
+          "type": "NUMERIC(12,6)",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "exploration",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "generation_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "work_unit_ref",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "040_model_routing.sql",
+      "line": 58
+    },
+    {
+      "name": "public.vendor_probe_state",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "observation_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "source_agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "observed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "stale_after",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'{}'::jsonb"
+        }
+      ],
+      "primary_key": [
+        "agent_id"
+      ],
+      "file": "041_vendor_registry.sql",
+      "line": 3
+    },
+    {
+      "name": "public.vendor_rate_limits",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "observation_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "scope",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'lane'"
+        },
+        {
+          "name": "model",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "source_agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "observed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "reset_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "payload_hash",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'{}'::jsonb"
+        }
+      ],
+      "primary_key": [
+        "observation_id"
+      ],
+      "file": "041_vendor_registry.sql",
+      "line": 16
     }
   ],
   "foreign_keys": [
@@ -2192,7 +2565,7 @@
     {
       "from_table": "public.work_queue",
       "from_columns": [
-        "parent_id"
+        "IF"
       ],
       "to_table": "public.work_queue",
       "to_columns": [
@@ -2223,18 +2596,6 @@
         "repo_slug"
       ],
       "constraint_name": "",
-      "on_delete": "RESTRICT"
-    },
-    {
-      "from_table": "public.code_search_indexes",
-      "from_columns": [
-        "parent_index_id"
-      ],
-      "to_table": "public.code_search_indexes",
-      "to_columns": [
-        "index_id"
-      ],
-      "constraint_name": "code_search_indexes_parent_fk",
       "on_delete": "RESTRICT"
     },
     {
@@ -2272,6 +2633,30 @@
       ],
       "constraint_name": "",
       "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.model_posteriors",
+      "from_columns": [
+        "catalog_id"
+      ],
+      "to_table": "public.model_catalog",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.routing_spend_ledger",
+      "from_columns": [
+        "decision_id"
+      ],
+      "to_table": "public.routing_decisions",
+      "to_columns": [
+        "decision_id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
     }
   ],
   "indexes": [
@@ -2770,7 +3155,7 @@
       "name": "idx_feature_registry_merge_queue_gin",
       "table": "public.feature_registry",
       "columns": [
-        "(metadata -> 'merge_queue')"
+        "(metadata -> 'merge_queue'"
       ],
       "unique": false
     },
@@ -2778,7 +3163,7 @@
       "name": "idx_feature_registry_merge_queue_train_id",
       "table": "public.feature_registry",
       "columns": [
-        "(metadata -> 'merge_queue' ->> 'train_id')"
+        "(metadata -> 'merge_queue' ->> 'train_id'"
       ],
       "unique": false
     },
@@ -2786,7 +3171,7 @@
       "name": "idx_feature_registry_merge_queue_partition_id",
       "table": "public.feature_registry",
       "columns": [
-        "(metadata -> 'merge_queue' ->> 'partition_id')"
+        "(metadata -> 'merge_queue' ->> 'partition_id'"
       ],
       "unique": false
     },
@@ -2794,7 +3179,7 @@
       "name": "idx_feature_registry_merge_queue_train_position",
       "table": "public.feature_registry",
       "columns": [
-        "(((metadata -> 'merge_queue' ->> 'train_position'))::int)"
+        "(((metadata -> 'merge_queue' ->> 'train_position'"
       ],
       "unique": false
     },
@@ -2802,7 +3187,7 @@
       "name": "idx_work_queue_archetype",
       "table": "public.work_queue",
       "columns": [
-        "(agent_requirements->>'archetype')"
+        "(agent_requirements->>'archetype'"
       ],
       "unique": false
     },
@@ -2854,11 +3239,54 @@
       "name": "work_queue_projection_key_uidx",
       "table": "public.work_queue",
       "columns": [
-        "(input_data ->> 'change_id')",
-        "(input_data ->> 'phase')",
-        "(input_data ->> 'transition_sequence')"
+        "(input_data ->> 'change_id'"
       ],
       "unique": true
+    },
+    {
+      "name": "idx_model_catalog_routable",
+      "table": "public.model_catalog",
+      "columns": [
+        "available",
+        "endpoint_kind",
+        "vendor",
+        "model"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_routing_decisions_created",
+      "table": "public.routing_decisions",
+      "columns": [
+        "created_at"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_spend_ledger_month",
+      "table": "public.routing_spend_ledger",
+      "columns": [
+        "date_trunc('month'",
+        "occurred_at AT TIME ZONE 'UTC'"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_spend_ledger_occurred_at",
+      "table": "public.routing_spend_ledger",
+      "columns": [
+        "occurred_at"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_vendor_rate_limits_active",
+      "table": "public.vendor_rate_limits",
+      "columns": [
+        "agent_id",
+        "reset_at"
+      ],
+      "unique": false
     }
   ],
   "stored_functions": [
@@ -2866,893 +3294,277 @@
       "name": "auth.role",
       "file": "000_bootstrap.sql",
       "line": 47,
-      "language": "sql",
-      "parameters": [],
-      "return_type": "text",
-      "referenced_tables": []
+      "language": "sql"
     },
     {
       "name": "public.acquire_lock",
       "file": "001_core_schema.sql",
       "line": 98,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_FILE_PATH TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_SESSION_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_REASON TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_TTL_MINUTES INTEGER DEFAULT 120"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.file_locks",
-        "public.v_existing"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.release_lock",
       "file": "001_core_schema.sql",
       "line": 179,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_FILE_PATH TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.file_locks"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.complete_task",
       "file": "036_terminal_completion_guard.sql",
       "line": 1,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_TASK_ID UUID"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_SUCCESS BOOLEAN"
-        },
-        {
-          "name": "",
-          "type": "P_RESULT JSONB DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_ERROR_MESSAGE TEXT DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.v_current_status",
-        "public.work_queue"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.register_agent_session",
       "file": "003_agent_discovery.sql",
       "line": 16,
-      "language": "unknown",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_SESSION_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_CAPABILITIES TEXT[] DEFAULT '{}'"
-        },
-        {
-          "name": "",
-          "type": "P_CURRENT_TASK TEXT DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb as",
-      "referenced_tables": []
+      "language": "plpgsql"
     },
     {
       "name": "public.discover_agents",
       "file": "023_add_phase_archetype.sql",
       "line": 28,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_CAPABILITY TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_STATUS TEXT DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.agent_sessions",
-        "public.v_agents"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.agent_heartbeat",
       "file": "026_add_gatekeeper_archetype.sql",
       "line": 32,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_SESSION_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_PHASE_ARCHETYPE TEXT DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.agent_sessions"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.cleanup_dead_agents",
       "file": "003_agent_discovery.sql",
       "line": 112,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_STALE_THRESHOLD INTERVAL DEFAULT '15 MINUTES'"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.agent_sessions",
-        "public.file_locks",
-        "public.v_stale_agent_ids"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.store_episodic_memory",
       "file": "004_memory_tables.sql",
       "line": 57,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_SESSION_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_EVENT_TYPE TEXT DEFAULT 'DISCOVERY'"
-        },
-        {
-          "name": "",
-          "type": "P_SUMMARY TEXT DEFAULT ''"
-        },
-        {
-          "name": "",
-          "type": "P_DETAILS JSONB DEFAULT '{}'"
-        },
-        {
-          "name": "",
-          "type": "P_OUTCOME TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_LESSONS TEXT[] DEFAULT '{}'"
-        },
-        {
-          "name": "",
-          "type": "P_TAGS TEXT[] DEFAULT '{}'"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.memory_episodic",
-        "public.v_existing",
-        "public.v_memory_id"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.get_relevant_memories",
       "file": "004_memory_tables.sql",
       "line": 107,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_TAGS TEXT[] DEFAULT '{}'"
-        },
-        {
-          "name": "",
-          "type": "P_EVENT_TYPE TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_LIMIT INT DEFAULT 10"
-        },
-        {
-          "name": "",
-          "type": "P_MIN_RELEVANCE FLOAT DEFAULT 0.0"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.memory_episodic",
-        "public.v_result"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.get_pending_approvals",
       "file": "005_verification_tables.sql",
       "line": 134,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.approval_queue",
-        "public.changesets"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.approve_changeset",
       "file": "005_verification_tables.sql",
       "line": 157,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_APPROVAL_ID UUID"
-        },
-        {
-          "name": "",
-          "type": "P_REVIEWER TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_APPROVED BOOLEAN"
-        },
-        {
-          "name": "",
-          "type": "P_NOTES TEXT DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.approval_queue",
-        "public.changeset",
-        "public.changesets",
-        "public.v_changeset_id"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.check_guardrails",
       "file": "006_guardrails_tables.sql",
       "line": 66,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_OPERATION_TEXT TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_TRUST_LEVEL INT DEFAULT 2"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.guardrail_violations",
-        "public.operation_guardrails"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.get_agent_profile",
       "file": "007_agent_profiles.sql",
       "line": 80,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_TYPE TEXT DEFAULT 'CLAUDE_CODE'"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.agent_profile_assignments",
-        "public.agent_profiles",
-        "public.v_profile"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.raise_immutable_error",
       "file": "008_audit_log.sql",
       "line": 28,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger as",
-      "referenced_tables": [
-        "public.and"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.cleanup_old_audit_entries",
       "file": "008_audit_log.sql",
       "line": 45,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_RETENTION_DAYS INT DEFAULT 90"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.audit_log"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.is_domain_allowed",
       "file": "009_network_policies.sql",
       "line": 53,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_DOMAIN TEXT"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.agent_profile_assignments",
-        "public.network_access_log",
-        "public.network_policies",
-        "public.v_profile_id"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.update_cedar_policies_timestamp",
       "file": "010_cedar_policy_store.sql",
       "line": 19,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": []
+      "language": "plpgsql"
     },
     {
       "name": "public.register_feature",
       "file": "012_feature_registry.sql",
       "line": 34,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_FEATURE_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_TITLE TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT DEFAULT 'UNKNOWN'"
-        },
-        {
-          "name": "",
-          "type": "P_RESOURCE_CLAIMS TEXT[] DEFAULT '{}'"
-        },
-        {
-          "name": "",
-          "type": "P_BRANCH_NAME TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_MERGE_PRIORITY INTEGER DEFAULT 5"
-        },
-        {
-          "name": "",
-          "type": "P_METADATA JSONB DEFAULT '{}'"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.claims",
-        "public.feature_registry",
-        "public.set",
-        "public.v_result"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.deregister_feature",
       "file": "012_feature_registry.sql",
       "line": 86,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_FEATURE_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_STATUS TEXT DEFAULT 'COMPLETED'"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.feature_registry"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.capture_policy_history",
       "file": "013_dynamic_authorization.sql",
       "line": 65,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "public.cedar_policies_history"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.notify_policy_changed",
       "file": "013_dynamic_authorization.sql",
       "line": 91,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": []
+      "language": "plpgsql"
     },
     {
       "name": "public.notify_approval_queue_change",
       "file": "015_notification_triggers.sql",
       "line": 34,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "new.status"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.notify_work_queue_change",
       "file": "037_autopilot_phase_projection_visibility.sql",
       "line": 73,
-      "language": "unknown",
-      "parameters": [],
-      "return_type": "trigger as",
-      "referenced_tables": []
+      "language": "plpgsql"
     },
     {
       "name": "public.notify_agent_discovery_change",
       "file": "015_notification_triggers.sql",
       "line": 104,
-      "language": "unknown",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": []
+      "language": "plpgsql"
     },
     {
       "name": "public.notify_audit_log_change",
       "file": "025_notify_enrich_change_id.sql",
       "line": 118,
-      "language": "unknown",
-      "parameters": [],
-      "return_type": "trigger as",
-      "referenced_tables": []
+      "language": "plpgsql"
     },
     {
       "name": "public.code_search_indexes_set_storage_key",
       "file": "029_revision_aware_code_search_indexes.sql",
       "line": 78,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": []
+      "language": "plpgsql"
     },
     {
       "name": "public.code_search_registry_validate_canonical",
       "file": "029_revision_aware_code_search_indexes.sql",
       "line": 134,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "public.candidate",
-        "public.code_search_indexes"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.code_search_indexes_validate_canonical_target",
       "file": "029_revision_aware_code_search_indexes.sql",
       "line": 189,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "public.code_search_registry",
-        "public.registry"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.validate_code_search_repository_identity",
       "file": "030_incremental_code_search_indexes.sql",
       "line": 31,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "old.git_common_dir_fingerprint",
-        "old.repo_root"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.validate_code_search_parent",
       "file": "030_incremental_code_search_indexes.sql",
       "line": 248,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "old.parent_index_id",
-        "public.candidate",
-        "public.code_search_indexes"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.validate_code_search_parent_target",
       "file": "030_incremental_code_search_indexes.sql",
       "line": 330,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "public.code_search_indexes"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.write_handoff",
       "file": "034_handoff_supervisor_record.sql",
       "line": 18,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_NAME TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_SESSION_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_SUMMARY TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_COMPLETED_WORK JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_IN_PROGRESS JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_DECISIONS JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_NEXT_STEPS JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_RELEVANT_FILES JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_SUPERVISOR_RECORD JSONB DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.handoff_documents",
-        "public.v_handoff_id"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.read_handoff",
       "file": "034_handoff_supervisor_record.sql",
       "line": 51,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_NAME TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_LIMIT INT DEFAULT 1"
-        },
-        {
-          "name": "",
-          "type": "P_SUPERVISOR_ONLY BOOLEAN DEFAULT FALSE"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.handoff_documents",
-        "public.v_handoffs"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.claim_task",
       "file": "037_autopilot_phase_projection_visibility.sql",
       "line": 8,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_TASK_TYPES TEXT[] DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_ARCHETYPES TEXT[] DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_TRUST_LEVEL INTEGER DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_EXCLUDE_SUBMITTED_BY TEXT DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.p_exclude_submitted_by",
-        "public.skip",
-        "public.v_task",
-        "public.work_queue"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.submit_task",
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 46,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_TASK_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_DESCRIPTION TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_INPUT_DATA JSONB DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_PRIORITY INTEGER DEFAULT 5"
-        },
-        {
-          "name": "",
-          "type": "P_DEPENDS_ON UUID[] DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_DEADLINE TIMESTAMPTZ DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_PROJECTION_LABELS TEXT[] DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.v_head_phase",
-        "public.v_id",
-        "public.v_status",
-        "public.work_queue",
-        "public.work_queue_projection_heads",
-        "public.work_queue_projection_ownership"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.reconcile_work_projection",
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 220,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_CHANGE_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_PHASE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_TRANSITION_SEQUENCE INTEGER"
-        },
-        {
-          "name": "",
-          "type": "P_TASK_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_DESCRIPTION TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_INPUT_DATA JSONB"
-        },
-        {
-          "name": "",
-          "type": "P_PRIORITY INTEGER DEFAULT 5"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_PROJECTION_LABELS TEXT[] DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.cancelled",
-        "public.set",
-        "public.v_cancelled",
-        "public.v_head_seq",
-        "public.v_id",
-        "public.v_status",
-        "public.work_queue",
-        "public.work_queue_projection_heads",
-        "public.work_queue_projection_ownership"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.enforce_projection_label_ownership",
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 398,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": [
-        "public.work_queue_projection_ownership"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.mutate_issue_if_unowned",
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 419,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_ISSUE_ID UUID"
-        },
-        {
-          "name": "",
-          "type": "P_PATCH JSONB"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.jsonb_array_elements_text",
-        "public.v_issue",
-        "public.work_queue",
-        "public.work_queue_projection_ownership"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.close_issues_if_unowned",
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 468,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_REQUEST JSONB"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.jsonb_array_elements_text",
-        "public.unnest",
-        "public.v_issues",
-        "public.v_reason",
-        "public.work_queue",
-        "public.work_queue_projection_ownership"
-      ]
+      "language": "plpgsql"
     },
     {
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 533,
-      "language": "plpgsql",
-      "parameters": [],
-      "return_type": "trigger",
-      "referenced_tables": []
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.upsert_vendor_probe_state",
+      "file": "041_vendor_registry.sql",
+      "line": 33,
+      "language": "sql"
+    },
+    {
+      "name": "public.record_vendor_rate_limit",
+      "file": "041_vendor_registry.sql",
+      "line": 65,
+      "language": "sql"
+    },
+    {
+      "name": "public.compact_vendor_rate_limits",
+      "file": "041_vendor_registry.sql",
+      "line": 99,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.record_routing_decision_with_audit",
+      "file": "042_atomic_routing_audit.sql",
+      "line": 3,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.submit_claimed_task",
+      "file": "043_atomic_submit_claim.sql",
+      "line": 3,
+      "language": "plpgsql"
     }
   ],
   "triggers": [
@@ -3761,77 +3573,77 @@
       "table": "public.audit_log",
       "event": "UPDATE|DELETE",
       "timing": "BEFORE",
-      "function": "public.raise_immutable_error"
+      "function": "raise_immutable_error"
     },
     {
       "name": "cedar_policies_updated_at",
       "table": "public.cedar_policies",
       "event": "UPDATE",
       "timing": "BEFORE",
-      "function": "public.update_cedar_policies_timestamp"
+      "function": "update_cedar_policies_timestamp"
     },
     {
       "name": "cedar_entities_updated_at",
       "table": "public.cedar_entities",
       "event": "UPDATE",
       "timing": "BEFORE",
-      "function": "public.update_cedar_policies_timestamp"
+      "function": "update_cedar_policies_timestamp"
     },
     {
       "name": "trg_cedar_policies_history",
       "table": "public.cedar_policies",
       "event": "INSERT|UPDATE|DELETE",
       "timing": "BEFORE",
-      "function": "public.capture_policy_history"
+      "function": "capture_policy_history"
     },
     {
       "name": "trg_notify_policy_changed",
       "table": "public.cedar_policies",
       "event": "INSERT|UPDATE|DELETE",
       "timing": "AFTER",
-      "function": "public.notify_policy_changed"
+      "function": "notify_policy_changed"
     },
     {
       "name": "trg_approval_queue_notify",
       "table": "public.approval_queue",
       "event": "INSERT|UPDATE",
       "timing": "AFTER",
-      "function": "public.notify_approval_queue_change"
+      "function": "notify_approval_queue_change"
     },
     {
       "name": "trg_agent_discovery_notify",
       "table": "public.agent_sessions",
       "event": "INSERT|UPDATE",
       "timing": "AFTER",
-      "function": "public.notify_agent_discovery_change"
+      "function": "notify_agent_discovery_change"
     },
     {
       "name": "trg_audit_log_notify",
       "table": "public.audit_log",
       "event": "INSERT",
       "timing": "AFTER",
-      "function": "public.notify_audit_log_change"
+      "function": "notify_audit_log_change"
     },
     {
       "name": "trg_work_queue_notify",
       "table": "public.work_queue",
       "event": "UPDATE",
       "timing": "AFTER",
-      "function": "public.notify_work_queue_change"
+      "function": "notify_work_queue_change"
     },
     {
       "name": "trg_work_queue_projection_label_ownership",
       "table": "public.work_queue",
-      "event": "INSERT|UPDATE",
+      "event": "INSERT|UPDATE OF LABELS",
       "timing": "BEFORE",
-      "function": "public.enforce_projection_label_ownership"
+      "function": "enforce_projection_label_ownership"
     },
     {
       "name": "trg_work_queue_projection_insert_notify",
       "table": "public.work_queue",
       "event": "INSERT",
       "timing": "AFTER",
-      "function": "public.notify_projection_insert"
+      "function": "notify_projection_insert"
     }
   ],
   "fk_graph": [
@@ -3874,7 +3686,7 @@
       "from": "public.work_queue",
       "to": "public.work_queue",
       "columns": [
-        "parent_id"
+        "IF"
       ]
     },
     {
@@ -3889,13 +3701,6 @@
       "to": "public.code_search_registry",
       "columns": [
         "repo_slug"
-      ]
-    },
-    {
-      "from": "public.code_search_indexes",
-      "to": "public.code_search_indexes",
-      "columns": [
-        "parent_index_id"
       ]
     },
     {
@@ -3918,24 +3723,38 @@
       "columns": [
         "task_id"
       ]
+    },
+    {
+      "from": "public.model_posteriors",
+      "to": "public.model_catalog",
+      "columns": [
+        "catalog_id"
+      ]
+    },
+    {
+      "from": "public.routing_spend_ledger",
+      "to": "public.routing_decisions",
+      "columns": [
+        "decision_id"
+      ]
     }
   ],
   "summary": {
-    "total_tables": 29,
-    "total_columns": 302,
-    "total_foreign_keys": 12,
-    "total_indexes": 70,
+    "total_tables": 35,
+    "total_columns": 352,
+    "total_foreign_keys": 13,
+    "total_indexes": 75,
     "most_referenced_tables": [
       {
         "table": "public.work_queue",
         "references": 3
       },
       {
-        "table": "public.code_search_indexes",
-        "references": 3
+        "table": "public.agent_profiles",
+        "references": 2
       },
       {
-        "table": "public.agent_profiles",
+        "table": "public.code_search_indexes",
         "references": 2
       },
       {
@@ -3953,48 +3772,56 @@
       {
         "table": "public.code_search_registry",
         "references": 1
+      },
+      {
+        "table": "public.model_catalog",
+        "references": 1
+      },
+      {
+        "table": "public.routing_decisions",
+        "references": 1
       }
     ],
     "widest_tables": [
       {
         "table": "public.code_search_indexes",
-        "column_count": 24
-      },
-      {
-        "table": "public.agent_profiles",
-        "column_count": 17
-      },
-      {
-        "table": "public.agent_sessions",
-        "column_count": 16
+        "column_count": 23
       },
       {
         "table": "public.work_queue",
+        "column_count": 18
+      },
+      {
+        "table": "public.agent_profiles",
         "column_count": 16
       },
       {
+        "table": "public.model_catalog",
+        "column_count": 16
+      },
+      {
+        "table": "public.agent_sessions",
+        "column_count": 14
+      },
+      {
+        "table": "public.routing_spend_ledger",
+        "column_count": 14
+      },
+      {
         "table": "public.approval_queue",
-        "column_count": 13
+        "column_count": 12
       },
       {
         "table": "public.audit_log",
-        "column_count": 12
+        "column_count": 11
+      },
+      {
+        "table": "public.feature_registry",
+        "column_count": 11
       },
       {
         "table": "public.guardrail_violations",
-        "column_count": 12
-      },
-      {
-        "table": "public.handoff_documents",
-        "column_count": 12
-      },
-      {
-        "table": "public.memory_episodic",
-        "column_count": 12
-      },
-      {
-        "table": "public.verification_results",
-        "column_count": 12
+        "column_count": 11
       }
     ]
   }

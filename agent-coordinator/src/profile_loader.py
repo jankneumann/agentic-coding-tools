@@ -114,7 +114,7 @@ def _load_secrets_file(secrets_path: Path) -> dict[str, str]:
 def _load_secrets_openbao() -> dict[str, str]:
     """Load secrets from OpenBao KV v2, returning a flat str→str dict.
 
-    Requires ``BAO_ADDR``, ``BAO_ROLE_ID``, and ``BAO_SECRET_ID`` environment
+    Requires ``BAO_ADDR``, ``BAO_INTERNAL_ROLE_ID``, and ``BAO_INTERNAL_SECRET_ID`` environment
     variables to be set.
 
     Raises:
@@ -132,16 +132,16 @@ def _load_secrets_openbao() -> dict[str, str]:
             path=bao_config.secret_path,
             mount_point=bao_config.mount_path,
         )
-    except Exception as exc:
+    except Exception:
         raise RuntimeError(
             f"Failed to read secrets from OpenBao at {bao_config.addr} "
-            f"(mount={bao_config.mount_path!r}, path={bao_config.secret_path!r}): {exc}"
-        ) from exc
+            f"(mount={bao_config.mount_path!r}, path={bao_config.secret_path!r})"
+        ) from None
 
-    data = response.get("data", {}).get("data", {})
+    outer = response.get("data") if isinstance(response, dict) else None
+    data = outer.get("data") if isinstance(outer, dict) else None
     if not isinstance(data, dict):
-        logger.warning("OpenBao secret data is not a mapping — returning empty dict")
-        return {}
+        raise RuntimeError("OpenBao internal secret document is missing or malformed")
 
     result: dict[str, str] = {}
     for k, v in data.items():
