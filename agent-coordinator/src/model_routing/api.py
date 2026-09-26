@@ -13,14 +13,7 @@ from uuid import UUID, uuid4
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    SerializerFunctionWrapHandler,
-    model_serializer,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.isolation_contract import IsolationMode
 
@@ -249,16 +242,12 @@ class SelectModelResponse(BaseModel):
     # see CandidateResponse.assignment.
     assignment: RoutingAssignmentResponse | None = None
     provenance: RoutingProvenanceResponse | None = None
-    retention: RetentionResponse | None = None
-
-    @model_serializer(mode="wrap")
-    def _omit_absent_retention(self, handler: SerializerFunctionWrapHandler) -> Any:
-        # ``retention`` exists only for requests that supplied an incumbent;
-        # everyone else keeps the exact pre-change response shape.
-        data = handler(self)
-        if isinstance(data, dict) and data.get("retention") is None:
-            data.pop("retention", None)
-        return data
+    # ``retention`` exists only for requests that supplied an incumbent; everyone
+    # else keeps the exact pre-change response shape. A field-level exclusion
+    # (not a model serializer) keeps the published OpenAPI schema intact.
+    retention: RetentionResponse | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class UsageByModelResponse(BaseModel):

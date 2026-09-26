@@ -316,6 +316,36 @@ def test_http_select_model_serializes_null_selected_with_retention(client: TestC
     assert request.incumbent.model == "premium"
 
 
+def test_http_select_model_without_incumbent_omits_retention(client: TestClient) -> None:
+    service = AsyncMock()
+    service.select_model.return_value = {
+        "decision_id": "3f1b7c1e-9a3d-4f9d-8b1a-2c6e5d4a9b0c",
+        "selected": None,
+        "alternatives": [],
+        "exploration": False,
+        "fallback": False,
+        "excluded": [],
+    }
+    with patch("src.model_routing.api.get_routing_service", return_value=service):
+        response = client.post(
+            "/routing/select_model",
+            headers={"Authorization": "Bearer routing-test-key"},
+            json={"task_signals": {"archetype": "architect"}},
+        )
+
+    assert response.status_code == 200
+    assert "retention" not in response.json()
+
+
+def test_openapi_publishes_the_select_model_response_fields(client: TestClient) -> None:
+    # Omitting an absent ``retention`` must not cost the published contract its
+    # schema: a wrap serializer returning ``Any`` collapsed it to ``{}``.
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+    properties = schemas["SelectModelResponse"].get("properties", {})
+
+    assert {"decision_id", "selected", "alternatives", "retention"} <= set(properties)
+
+
 # ── MCP / HTTP-proxy parity (task 4.3) ───────────────────────────────────────
 
 _SELECTION = {
