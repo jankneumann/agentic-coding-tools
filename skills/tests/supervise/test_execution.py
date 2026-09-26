@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import ast
+import fcntl
 import hashlib
 import json
+import os
 import shutil
 import sys
+import tempfile
 import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -27,7 +30,7 @@ from models import Effort, ItemStatus, Roadmap, RoadmapItem  # noqa: E402
 import execution  # noqa: E402
 import gate_router  # noqa: E402
 from execution import ExecutionAdapter, ExecutionStateError  # noqa: E402
-from shared.approval_gate import ApprovalGate  # noqa: E402
+from shared.approval_gate import ApprovalDecision, ApprovalGate, Outcome, Resolution  # noqa: E402
 from shared.trust_posture import (  # noqa: E402
     Disposition,
     Gate,
@@ -1444,6 +1447,94 @@ def test_apply_accepts_exact_digest_and_uses_bounded_temp_result_only(tmp_path: 
     assert applied["completed_item_ids"] == ["ri-01"]
     durable = json.dumps(json.loads((workspace / "checkpoint.json").read_text()))
     assert "transcript" not in durable.lower()
+
+
+def test_apply_releases_workspace_lock_for_callback_and_replan_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    roadmap = Roadmap(
+        schema_version=1,
+        roadmap_id="roadmap-host-adapter",
+        source_proposal="proposal.md",
+        items=[
+            RoadmapItem(
+                "ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S,
+                change_id="change-alpha",
+            ),
+            RoadmapItem(
+                "ri-02", "Dependent", ItemStatus.APPROVED, 2, Effort.S,
+                depends_on=["ri-01"],
+            ),
+        ],
+    )
+    (workspace / "roadmap.yaml").write_text(yaml.safe_dump(roadmap.to_dict(), sort_keys=False))
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+
+    def assert_workspace_unlocked() -> None:
+        identity = hashlib.sha256(str(workspace.resolve()).encode()).hexdigest()
+        lock_path = (
+            Path(tempfile.gettempdir()) / "roadmap-checkpoint-locks" / f"{identity}.lock"
+        )
+        descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally:
+            os.close(descriptor)
+
+    observations: list[str] = []
+
+    def dispatch(_item: str, _phase: str, _context: dict[str, Any]) -> dict[str, Any]:
+        assert_workspace_unlocked()
+        observations.append("callback")
+        return {"outcome": "failed:needs redesign", "replan": True}
+
+    class ReplanGate:
+        def evaluate(self, gate: Gate, _context: dict[str, Any]) -> ApprovalDecision:
+            assert gate is Gate.REPLAN_REQUIRED
+            assert_workspace_unlocked()
+            observations.append("replan_gate")
+            return ApprovalDecision(
+                gate=gate,
+                outcome=Outcome.BLOCKED,
+                resolution=Resolution.POSTURE_BLOCK,
+                disposition=Disposition.BLOCK,
+                reason="fixture blocks replan",
+                posture_present=True,
+            )
+
+    monkeypatch.setitem(
+        execution.apply_delegated_batch.__globals__, "_build_default_gate_evaluator", ReplanGate
+    )
+    result = {
+        "schema_version": 1,
+        "dispatch_id": request["dispatch_id"],
+        "change_id": request["change_id"],
+        "attempt": request["attempt"],
+        "lease_generation": request["lease_generation"],
+        "outcome": "failed:needs redesign",
+        "replan": True,
+    }
+    applied = adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[result],
+        dispatch_fn=dispatch,
+        repo_root=repo,
+    )
+
+    assert observations == ["callback", "replan_gate"]
+    assert applied["failed_item_ids"] == ["ri-01"]
+    assert len(applied["gate_decisions"]) == 1
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text())
+    assert applied["gate_decisions"][0] in checkpoint["gate_decisions"]
+    statuses = {
+        item["item_id"]: item["status"]
+        for item in yaml.safe_load((workspace / "roadmap.yaml").read_text())["items"]
+    }
+    assert statuses["ri-02"] == "replan_required"
 
 
 def test_adapter_source_has_no_model_provider_or_network_boundary() -> None:

@@ -966,14 +966,13 @@ class ExecutionAdapter:
             if self.result_file_observer is not None:
                 self.result_file_observer(temporary_path)
             bounded_results = json.loads(temporary_path.read_text())
-            with workspace_state_lock(workspace):
-                applied = apply_delegated_batch(
-                    workspace,
-                    batch_id,
-                    bounded_results,
-                    dispatch_fn,
-                    repo_root=repo_root,
-                )
+            applied = apply_delegated_batch(
+                workspace,
+                batch_id,
+                bounded_results,
+                dispatch_fn,
+                repo_root=repo_root,
+            )
             applied["escalation_route"] = self.route_parked_escalations(
                 workspace, batch_id=batch_id, repo_root=repo_root
             )
