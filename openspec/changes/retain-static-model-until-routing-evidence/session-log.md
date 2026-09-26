@@ -85,3 +85,33 @@ Plan to make ROUTING_ADAPTIVE safe to enable: the live catalog has no priors/pri
 ### Context
 Implemented server-side incumbent retention: evidence predicate and retention rule in the resolver, evidenced-only exploration, incumbent/retention on select_model (HTTP, MCP, proxy), and client forwarding that returns the identical static object on retention. Deviation: routing_decisions has fixed columns, so migration 044 (nullable retention, CHECK-guarded nullable selected, updated audit RPC) was added with user approval.
 
+---
+
+## Phase: Validation (2026-09-26)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Accept DEGRADED Security for the merge gate** — OWASP dependency-check refused stale NVD data (15 days); the branch changes no dependency manifests and CI dependency audits passed. ZAP ran clean against the live API.
+2. **Record infeasible-lane retention as the live evidence, defer no-evidence** — Every catalog lane in the isolated container is lane:unavailable, so the retention table correctly reports incumbent-infeasible-no-evidenced-alternative; no-evidence needs feasible lanes and is left to the post-deploy coord.rotkohl.ai probe.
+3. **Do not commit regenerated architecture artifacts to this PR** — make architecture-refresh was used only to validate; the reported new cycle predates this branch (all edges on main from #417), and committing a full graph refresh would add a large unrelated diff.
+
+### Completed Work
+- deploy
+- smoke
+- security (degraded)
+- e2e
+- architecture
+- spec
+- logs
+- ci
+
+### Next Steps
+- Review and merge PR #624
+- Post-deploy: select_model probe on coord.rotkohl.ai expecting retention.reason=no-evidence
+- File: agent_discovery watchdog query targets a missing table (pre-existing)
+- File: validate-feature --ensure ignores PYTHON_SRC_DIR; flow validation checks 0 entrypoints
+
+### Context
+Validated PR #624 on an isolated compose stack (fresh volume; migration 044 applied to a throwaway DB, never :54322). Smoke 11/11, E2E 21/21, spec gates pass; the live probe ran 84 phase x provider calls through the real client with ROUTING_ADAPTIVE=1 and got 0 differences from static and a retention record for every decision. Security is DEGRADED because dependency-check had stale NVD data; no dependency manifests changed.
+
