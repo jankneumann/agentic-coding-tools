@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-09-24 — retain-static-model-until-routing-evidence
+## 2026-09-24 — 2026-09-27-retain-static-model-until-routing-evidence
 
 ### Phase: Implementation
 
 **Retention short-circuits to the static object on the client** — Retention is a normal outcome, not a fallback; returning `static` preserves identity and avoids a false 'routing failed' warning.
 
 - Status: `active`
-- Source: [openspec/changes/retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/retain-static-model-until-routing-evidence/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-27-retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/archive/2026-09-27-retain-static-model-until-routing-evidence/session-log.md) (D3)
 
 ---
 
