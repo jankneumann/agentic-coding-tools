@@ -5,25 +5,25 @@
 
 ---
 
-## 2026-09-14 — route-parked-escalations-through-the-escalate-resume-gate
+## 2026-09-14 — 2026-09-26-route-parked-escalations-through-the-escalate-resume-gate
 
 ### Phase: Plan Iteration 2
 
 **Use a shared checkpoint transaction for authority** — It prevents stale whole-snapshot writes without holding the lock during approval-service waiting.
 
 - Status: `active`
-- Source: [openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/session-log.md](/openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-26-route-parked-escalations-through-the-escalate-resume-gate/session-log.md](/openspec/changes/archive/2026-09-26-route-parked-escalations-through-the-escalate-resume-gate/session-log.md) (D1)
 
 ---
 
-## 2026-09-14 — route-parked-escalations-through-the-escalate-resume-gate
+## 2026-09-14 — 2026-09-26-route-parked-escalations-through-the-escalate-resume-gate
 
 ### Phase: Plan Iteration 2
 
 **Apply only the current unapplied batch cohort** — It preserves initial exactness and enables fresh results for resumed members after peers complete.
 
 - Status: `active`
-- Source: [openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/session-log.md](/openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-26-route-parked-escalations-through-the-escalate-resume-gate/session-log.md](/openspec/changes/archive/2026-09-26-route-parked-escalations-through-the-escalate-resume-gate/session-log.md) (D2)
 
 ---
 
