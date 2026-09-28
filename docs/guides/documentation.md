@@ -11,6 +11,7 @@ Read these before contributing infrastructure changes:
 
 ## Discovery & Reference
 
+- [Using Supervise](supervise.md) — Operator guide for intake, cycle digests, roadmap approval, and execution.
 - [Skills Catalogue](../skills-catalogue.md) — Discoverable index of every skill grouped by purpose; trigger + related + user_invocable per skill
 - [Agent Coordinator](../agent-coordinator.md) — Architecture overview, capabilities, design pointers
 - [Architecture Artifacts](../architecture-artifacts.md) — Auto-generated codebase analysis, key files, refresh commands
