@@ -188,6 +188,26 @@ async def test_evidenced_exploration_records_its_reason() -> None:
     assert result["retention"]["reason"] == "exploration-evidenced"
 
 
+@pytest.mark.asyncio
+async def test_exploration_never_lands_on_a_displaced_incumbent() -> None:
+    # terra displaces the evidenced incumbent (fable). Ranked after terra, fable
+    # would be the first exploration pick, and the decision would then report a
+    # non-retained "exploration" of the very model the caller already had.
+    service, _ = _plain_service(
+        [
+            _cand("claude_code", "fable", 0.03),
+            _cand("codex", "terra", 0.5),
+            _cand("grok", "g5", 0.02),
+        ],
+        rng=_AlwaysExplore(),
+    )
+    result = await service.select_model(_request())
+
+    assert result["selected"]["model"] == "g5"
+    assert result["exploration"] is True
+    assert result["retention"]["reason"] == "exploration-evidenced"
+
+
 # ── assignment (dg-04) path ──────────────────────────────────────────────────
 
 def _assignment_service(model: str) -> tuple[RoutingService, Any]:

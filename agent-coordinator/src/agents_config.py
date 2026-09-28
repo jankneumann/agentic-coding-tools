@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -2713,6 +2714,42 @@ def _catalog_vendor_for_provider(provider: str) -> str:
     return declared.pop() if len(declared) == 1 else provider
 
 
+def _provider_for_catalog_vendor(catalog_vendor: str) -> str | None:
+    """The agent type behind a model-catalog vendor (e.g. ``openrouter`` → ``pi``).
+
+    The inverse of ``_catalog_vendor_for_provider``. ``None`` when no configured
+    agent type, or more than one, lists models under that vendor: a routed
+    selection that names no single agent type cannot be dispatched, so the caller
+    falls back to static rather than guess.
+    """
+    types = {
+        agent.type
+        for agent in get_agents_config()
+        if (agent.catalog_vendor or agent.type) == catalog_vendor
+    }
+    return types.pop() if len(types) == 1 else None
+
+
+def _routed_provider(selected: Mapping[str, Any]) -> str:
+    """The agent type a routed selection dispatches to.
+
+    Prefers the assignment's ``vendor_type`` (already an agent type) and otherwise
+    maps the candidate's catalog ``vendor`` back to one.
+    """
+    assignment = selected.get("assignment")
+    if isinstance(assignment, Mapping):
+        vendor_type = assignment.get("vendor_type")
+        if isinstance(vendor_type, str) and vendor_type:
+            return vendor_type
+    vendor = selected.get("vendor")
+    if not isinstance(vendor, str) or not vendor:
+        raise ValueError("adaptive response selected candidate has no vendor")
+    provider = _provider_for_catalog_vendor(vendor)
+    if provider is None:
+        raise ValueError(f"adaptive selection vendor {vendor!r} maps to no single agent type")
+    return provider
+
+
 def _static_incumbent(static: ResolvedArchetype, provider: str | None) -> dict[str, Any]:
     """The static resolution, as the router's incumbent (design D2)."""
     return {
@@ -2805,9 +2842,7 @@ def resolve_archetype_for_phase(
         model = selected.get("model")
         if not isinstance(model, str) or not model:
             raise ValueError("adaptive response selected candidate has no model")
-        selected_provider = selected.get("vendor")
-        if not isinstance(selected_provider, str) or not selected_provider:
-            selected_provider = provider
+        selected_provider = _routed_provider(selected)
     except Exception as exc:  # noqa: BLE001 - fallback is the design contract
         logger.warning("Adaptive model routing failed; using static tier: %s", exc)
         return static
@@ -2823,4 +2858,5 @@ def resolve_archetype_for_phase(
         provider=selected_provider,
         write_capable=static.write_capable,
         thinking=static.thinking,
+        procedure_mode=static.procedure_mode,
     )
