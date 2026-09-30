@@ -206,41 +206,51 @@ leases SHALL carry the equivalent `AND agent_id = p_agent_id` guard.
 
 ### Requirement: Host binding for lease scoping
 
-An agent's `host_id` SHALL be bound on its first port-lease allocation and SHALL be immutable
-thereafter. Every subsequent `allocate_ports` and `POST /ports/reconcile` from that `agent_id`
-SHALL present the bound value, and the coordinator SHALL refuse a mismatch rather than acting on it.
+Allocation SHALL register the `(agent_id, host_id)` pair. `POST /ports/reconcile` SHALL be accepted
+only when the calling `agent_id` has at least one lease row for the named `host_id`, and SHALL be
+refused with 403 otherwise, releasing and blocking nothing.
 
-This mirrors `resolve_identity`, which already refuses a request whose stated `agent_id` or
-`agent_type` contradicts the binding on the API key. `host_id` is asserted the same way and refused
-the same way; only the source of the binding differs, because no host is declared in the registry.
+An agent MAY hold leases on several hosts over its lifetime; nothing binds one host to an
+`agent_id` permanently. A reimaged machine, a recreated container, or a stable `agent_id` used from
+a second machine SHALL all continue to work.
 
 Binding is what makes `host_id` a control rather than a label. Unbound, any key may name any host,
-and since reconcile releases every lease it does not see, one request could clear the fleet.
+and since reconcile releases every lease it does not see, one request could clear the fleet. The
+requirement is a **ledger row**, deliberately not a running stack: an orphaned lease is a ledger
+row, and orphaned leases are what reconcile exists to clean up, so the check holds in exactly the
+case that matters — a host whose compose projects died while its leases survived.
 
-#### Scenario: First allocation binds the host
-- **WHEN** an `agent_id` with no bound host calls `allocate_ports` with `host_id`
+#### Scenario: Allocation registers the pair
+- **WHEN** an `agent_id` calls `allocate_ports` with a `host_id`
 - **THEN** the allocation SHALL succeed
-- **AND** that `host_id` SHALL be recorded as the agent's binding
+- **AND** the `(agent_id, host_id)` pair SHALL be registered for that lease
 
-#### Scenario: Later allocation with a different host is refused
-- **WHEN** an `agent_id` with a bound host calls `allocate_ports` with a different `host_id`
-- **THEN** the service SHALL return 403
-- **AND** no lease SHALL be allocated
+#### Scenario: Same agent, a different host
+- **WHEN** an `agent_id` that already holds a lease on one host calls `allocate_ports` with a different `host_id`
+- **THEN** the allocation SHALL succeed
+- **AND** both pairs SHALL be registered
+- **AND** neither host's leases SHALL be affected by the other
 
-#### Scenario: Reconcile with a different host is refused
-- **WHEN** an `agent_id` with a bound host calls `POST /ports/reconcile` with a different `host_id`
+#### Scenario: Reconcile for a host the agent holds a lease on
+- **WHEN** an `agent_id` calls `POST /ports/reconcile` naming a `host_id` for which it holds at least one lease row
+- **THEN** the report SHALL be accepted
+- **AND** it SHALL affect only leases recorded against that `host_id`
+
+#### Scenario: Reconcile for a host the agent has no lease on is refused
+- **WHEN** an `agent_id` calls `POST /ports/reconcile` naming a `host_id` for which it holds no lease row
 - **THEN** the service SHALL return 403
 - **AND** no lease SHALL be released, blocked, or otherwise modified
 - **AND** this SHALL hold even for leases that genuinely are orphaned
 
-#### Scenario: Configured binding wins over first use
-- **WHEN** an agent's `api_key_identities` entry declares a `host_id`
-- **THEN** that value SHALL be the binding from the first request onward
-- **AND** a first allocation asserting a different `host_id` SHALL be refused rather than binding
+#### Scenario: Reconcile after the host's stacks have died
+- **WHEN** an `agent_id` holds lease rows for a host whose compose projects no longer run
+- **AND** it calls `POST /ports/reconcile` for that host reporting zero running projects
+- **THEN** the report SHALL be accepted, because the lease rows themselves satisfy the check
+- **AND** those orphaned leases SHALL be released
 
 #### Scenario: Binding does not leak across agents
-- **WHEN** two `agent_id`s bind different hosts
-- **THEN** each SHALL reconcile only its own host's leases
+- **WHEN** two `agent_id`s hold leases on different hosts
+- **THEN** each SHALL reconcile only the host it holds leases on
 - **AND** neither SHALL be able to affect the other's
 
 ### Requirement: Port lease persistence

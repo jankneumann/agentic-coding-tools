@@ -81,6 +81,22 @@ tighten. A worktree is not isolation for ports; when `add-isolation-posture-dete
 client reads its filesystem-isolation dimension through the `isolation_provided` compatibility
 property, so this change has no dependency on that change's internals.
 
+**Assumption, recorded because the gate depends on it:** every cloud agent gets its own network
+namespace. `isolation_provided` is a *filesystem*-isolation signal — `EnvironmentProfile.detect()`
+documents itself as answering "does the caller already have filesystem isolation?" — and this gate
+reuses it as a port-namespace signal. Those coincide only when an isolated environment also has its
+own ports.
+
+A container run with `--network host` would break that: filesystem-isolated, so refused a lease,
+yet sharing the host's port namespace, so the fixed compose defaults it falls back to would collide
+with whatever else is on that host. The operator has confirmed cloud agents always receive their own
+network namespace, so the signals coincide for every environment this change runs in and the gate is
+correct as written.
+
+If a host-networked harness is ever introduced, this gate needs a port-namespace signal distinct
+from the filesystem one; it must not be fixed by loosening the gate, which would let genuinely
+isolated sessions burn host slots out of a maximum of twenty.
+
 ### D6. Conflict reports block a slot for a cooling period
 
 A bind-probe failure is evidence that something outside the ledger holds the port. The client
@@ -150,16 +166,29 @@ time, and otherwise records the obligation in `deferred-tasks.md`.
 `gate-drift-with-mirrors-hooks-and-blocking-ci` gate. Runtime copies under `.claude/skills` and
 `.agents/skills` are never edited directly.
 
-### D12. `host_id` is client-asserted and bound on first use, enforced like `resolve_identity`
+### D12. `host_id` is client-asserted; the `(agent_id, host_id)` pair is what binds
 
 `host_id` scopes `POST /ports/reconcile` so one client's report cannot release another host's
 leases. The open question was its provenance: the client supplies it, so on its own nothing stops a
 client asserting a host it is not on — and reconcile's blast radius is every lease on the host it
 names.
 
-**Decision.** Keep the client assertion, and bind it. The first lease an `agent_id` allocates fixes
-that agent's `host_id`. Every later `allocate_ports` or `reconcile` from the same `agent_id` MUST
-present the same value; a mismatch is refused with 403 and the operation does not proceed.
+**Decision.** Keep the client assertion, and bind the `(agent_id, host_id)` **pair**. Allocation
+registers the pair. `POST /ports/reconcile` MAY name a host only if the calling `agent_id` has at
+least one lease row in the ledger for that host; otherwise it is refused with 403 and nothing is
+released or blocked.
+
+An earlier draft of this decision bound one host per `agent_id`, permanently: the first allocation
+fixed the agent's host and every later mismatch was refused. That assumed `agent_id` maps to exactly
+one host for the life of the agent, which is not true and was not stated. A reimaged machine, a
+recreated container, or a stable `agent_id` moving between dev boxes would all be refused 403
+forever after their first allocation. Binding the pair keeps the security property and drops the
+assumption.
+
+The pair form also dissolves the objection raised below against requiring a lease: the requirement
+is a **ledger row**, not a running stack. An orphaned lease *is* a ledger row — that is precisely
+what reconcile exists to clean up — so the requirement is satisfiable in the case that matters, a
+host whose compose projects died while its leases survived.
 
 This is deliberately the existing pattern rather than a new one. `resolve_identity`
 (`coordination_api.py:712`) already does exactly this for `agent_id` and `agent_type`: the caller
@@ -182,19 +211,23 @@ is not: `_principal_for_api_key` returns only `api_key`, `agent_id` and `agent_t
 means first inventing a principal-to-host registry and keeping it correct as agents move hosts —
 a new concept, with its own drift failure mode, to close a narrower gap than the binding does.
 
-*Require the caller to hold a live lease on the host it reports.* Proves presence rather than
-asserting it, but it cannot bootstrap: reconcile's most valuable moment is exactly when the ledger
-holds leases and the client holds none — after a crash, before anything is re-acquired. A rule that
-is unavailable in its primary use case is not a rule.
+*Require the caller to hold a **running stack** on the host it reports.* Proves presence rather
+than asserting it, and is the strongest option — but it cannot bootstrap. Reconcile's most valuable
+moment is exactly when the ledger holds leases and the host runs nothing: after a crash, before
+anything is re-acquired. A rule unavailable in its primary use case is not a rule.
+
+The pair binding above adopts the *useful* half of this idea — the caller must have a ledger lease
+for the host it names — without the half that cannot bootstrap.
 
 *Leave it unbound (the state before this decision).* Any key may name any host, so a single
 compromised key can release every lease on every host in the fleet.
 
 **What this does and does not buy.**
 
-Binding shrinks the blast radius from *every lease on any host* to *leases on the one host this key
-has already used*. It does not make the first assertion unforgeable: a key that has never allocated
-still chooses its own `host_id` once. That residual is the inherent limit of trust-on-first-use, and
+Binding shrinks the blast radius from *every lease on any host* to *leases on hosts this key
+already holds leases for*. It does not make an assertion unforgeable: a key allocating on a host for
+the first time still chooses that host's identifier, and a key that has never allocated cannot
+reconcile at all — which is correct, since it has nothing to reconcile. That residual is the inherent limit of trust-on-first-use, and
 it is the same exposure the repository already accepts for `agent_id`, which is likewise
 key-asserted when `api_key_identities` leaves it unbound.
 

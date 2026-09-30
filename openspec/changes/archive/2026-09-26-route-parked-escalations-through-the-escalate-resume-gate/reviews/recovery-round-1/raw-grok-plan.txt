@@ -1,0 +1,192 @@
+{
+  "text": "{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: Design D3 makes proceed clear generation-G terminal fields and `application_journal` in the same authoritative transaction as the decision append, and D6 derives the apply cohort from `journal.state != effects_applied`. The delta specs and `contracts/README.md` never require that journal clear: supervise only says “advance … to its next generation,” and roadmap-orchestration assumes a resumed G+1 member is applyable. An implementer who bumps generation without clearing the parked `effects_applied` journal leaves the member outside the required cohort and stranded again.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Add a SHALL (and WHEN/THEN) that an authorized policy-pause proceed atomically clears generation-G terminal fields including `application_journal`, and mirror that obligation in contracts/README.md and task 1.x assertions.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md\",\n      \"line_range\": {\n        \"start\": 22,\n        \"end\": 45\n      },\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"compatibility\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: The change only ADDS generation-scoped escalate_resume rules, but does not MODIFY the live `Supervise Gate Routing` prior-record subject key (`gate`, `roadmap_id`, `dispatch_id`) or the live `Resume an authorized parked attempt` scenario (dispatch/gate match only). After merge, the old SHALLs still require generation-blind reuse/resume while D3/D4 require generation-scoped subject locks, lookup, and `require_approval_ref` rejection—leaving contradictory normative text for the same seam.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Add OpenSpec MODIFIED requirements that extend prior-record identity and resume authorization with `lease_generation` (plus legacy generationless reuse), updating the existing resume scenario rather than only adding parallel ADDED text.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md\",\n      \"line_range\": {\n        \"start\": 34,\n        \"end\": 55\n      },\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"resilience\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: D3 and acceptance claim projection failure never rolls back authority and mirror loss is reconciled from the ledger on rehydrate/gate-log, but neither delta spec scenario nor tasks 1.1–1.3 prove a failed post-commit mirror write is rebuilt into `pending_gates` before an operator depends on the mirror. `gate-log` is also currently a read-only reporter, so naming it as a reconciliation trigger is behaviorally ambiguous.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Add a WHEN/THEN plus RED test: authority commit succeeds, mirror write fails, rehydrate (or an explicit repair path) restores the normalized pending gate from `gate_decisions`; drop or redefine any gate-log mutation claim.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md\",\n      \"line_range\": {\n        \"start\": 26,\n        \"end\": 27\n      },\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 4,\n      \"type\": \"correctness\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: Task 4.3 says “run fresh vendor-diverse plan review … before implementation begins” but depends on 4.1/4.2, which are post-implementation full-suite and OpenSpec validation. That DAG position cannot satisfy its own precondition and will either skip plan review or mis-order the gate.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Move plan-review convergence to a pre-implementation gate (or rewrite 4.3 as implementation-review) and fix dependencies so review cannot sit after validate-only work.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md\",\n      \"line_range\": {\n        \"start\": 48,\n        \"end\": 58\n      },\n      \"evidence_class\": \"deterministic\"\n    },\n    {\n      \"id\": 5,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: Design test strategy and task 1.3 require proving multiple resumed members as the current unapplied cohort, but `specs/roadmap-orchestration/spec.md` only specifies the single-resumed-member case. The multi-member resume contract that motivated D6 is therefore under-specified in the normative delta.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Add a WHEN/THEN where two members park, both are authorized to G+1 after peers complete, and apply admits exactly those current unapplied results while rejecting historical peers.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/roadmap-orchestration/spec.md\",\n      \"line_range\": {\n        \"start\": 13,\n        \"end\": 24\n      },\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 6,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"low\",\n      \"description\": \"Optional: Contracts define `already_routed` with `resumed_lease_generation`, and D1 requires reporting already-prepared policy-pause continuations that way, but supervise delta scenarios never name `already_routed` or the decided-vs-resumed generation fields. Retry/idempotency behavior is easy to implement inconsistently with the contract.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"optional\",\n      \"resolution\": \"Optional: add a supervise scenario for re-routing an already-prepared continuation that returns `already_routed` with both generation fields and no second notify/decision.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md\",\n      \"line_range\": {\n        \"start\": 16,\n        \"end\": 19\n      },\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 7,\n      \"type\": \"observability\",\n      \"criticality\": \"low\",\n      \"description\": \"Optional: The plan’s safety story hinges on stale-candidate no-ops, fresh-transaction rechecks, and post-commit mirror repair, but it specifies no structured log/metric/event fields for those outcomes. Operators cannot distinguish “did not route because stale” from “never attempted” without reading checkpoints.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"observability\",\n      \"severity\": \"optional\",\n      \"resolution\": \"Optional: require bounded structured events for stale_candidate, decision_reused, proceed_committed, and mirror_projection_failed keyed by dispatch_id and lease_generation.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md\",\n      \"line_range\": {\n        \"start\": 22,\n        \"end\": 27\n      },\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 8,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"The recovered authority boundary is coherent: one shared short checkpoint transaction folds `gate_decisions` into a single atomic payload, evaluate/wait stays outside that lock under a generation subject lock, and proceed rechecks the exact parked generation before committing decision-plus-resume together.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"architecture\",\n      \"severity\": \"none\",\n      \"resolution\": \"No change. Keep D2/D3, contracts checkpoint-transaction language, and tasks 1.1/1.2/2.1–2.3 as the binding CAS proof.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md\",\n      \"line_range\": {\n        \"start\": 15,\n        \"end\": 27\n      },\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 9,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"The resumed multi-member apply cohort fix is the right shape: required results are exactly the current non-`effects_applied` journal set, already-applied peers are omitted and rejected if resubmitted, and terminal-persisted-but-unapplied members remain required for crash recovery.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"correctness\",\n      \"severity\": \"none\",\n      \"resolution\": \"No change to D6’s membership rule; only close the journal-clear and multi-member scenario gaps above.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md\",\n      \"line_range\": {\n        \"start\": 41,\n        \"end\": 45\n      },\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 10,\n      \"type\": \"security\",\n      \"criticality\": \"low\",\n      \"description\": \"Legacy generation handling and policy-pause context sanitization are closed end to end in the plan artifacts: generationless records reuse once for the current park, later generations file new decisions and retire older mirrors, and every `resolve_parked` policy-pause path is constrained to the six-key allowlist with the fixed retry-budget reason.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"security\",\n      \"severity\": \"none\",\n      \"resolution\": \"No change. Keep D4/D5, contracts escalate-resume section, and supervise sanitization/legacy scenarios as written.\",\n      \"file_path\": \"openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md\",\n      \"line_range\": {\n        \"start\": 34,\n        \"end\": 55\n      },\n      \"evidence_class\": \"judgment\"\n    }\n  ]\n}",
+  "stopReason": "end_turn",
+  "sessionId": "01a0a0a0-6ddb-7e21-be91-990abaf6831a",
+  "requestId": "383b8bd2-5f8e-4210-a75d-5c02f77a86ee",
+  "thought": "The user wants me to review an OpenSpec plan for a specific change. I need to read the relevant documents under the change directory and return a JSON object with findings. Let me start by reading the...The user wants me to review the OpenSpec plan and return ONLY a JSON object. Looking at the user query more carefully:\nThere's already been multiple rounds of review. The user wants me to do an independent plan review focusing on specific areas. I should read the source documents carefully myself rather than just copy...Now I need to read the specs carefully for the focus areas mentioned by the user.The user wants me to independently review this plan focusing on:Interesting - the dispositions.md seems to be from an older round of review (round 3 adjudication) describing blockers that the current plan (plan_revision: 4) appears to have addressed. Looking at th...Let me carefully review the current plan for remaining gaps. The plan revision is 4 and appears to address the previous blockers. I need to find real remaining issues.\nI found a critical issue in the current code that the plan addresses: `record_gate_decision` does a sidecar write AFTER `save_checkpoint` via `_write_gate_decisions` which is a non-atomic read-modify-...{\n  \"findings\": [\n    {\n      \"id\": \"task-4.3-ordering\",\n      \"type\": \"architecture\",\n      \"criticality\": \"high\",\n      \"severity\": \"critical\",\n      \"axis\": \"correctness\",\n      \"description\": \"Task 4.3 ordering contradiction 4.3 ordering contradiction 4.3 ordering contradiction 4.Interesting finding in `_bound_application_journal`: There's already special-case logic for resumed generations where journal is effects_applied with parked outcome and prior_generation < current_gene...{\n  \"findings\": [\n    {\n      \"id\": \"journal-clearing-resume-interaction\",\n      \"type\": \"behavioral_failure\",\n      \"criticality\": \"high\",\n      \"description\": \"Existing _bound_application_journal special-case for resumed generations (effects_applied with parked outcome) conflicts with D3 resume clearing journal and D6 omitting effects_applied peers. Potential for partial cohort membership after resume when parked results advance to effects_applied.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\"\n    },\n    {\n      \"id\": \"nested-lock deadlock-risk\",\n      \"type\": \"architecture\",\n      \"criticality\": \"high\",\n      \"description\": \"Subject lock acquisition before workspace transaction lock creates potential deadlock with paths acquiring workspace lock first. Resume folding into router transaction and non-reentrant helpers mitigate but do not explicitly define global lock hierarchy.\",\n      \"disposition \": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"critical\"\n    },\n    {\n      \"id\": \"marker-removal-outside-transaction\",\n      \"type\": \"correctness\",\n      \"criticality\": \"medium\",\n      \"description\": \"Marker removal occurs outside checkpoint transaction. Crash between marker removal and checkpoint write could leave inconsistent state (parked attempt without marker vs marker without checkpoint entry).\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"nit\"\n    },\n    {\n      \"id\": \"schema-lease-generation-missing-delta \",\n      \"type\": \"spec_gap\",\n      \"criticality\": \"low\",\n      \"description\": \"lease_generation field addition not reflected in formal schema delta within contracts. Task 3.3 updates schema but no delta entry.\",\n      \"disposition\": \"regenerate\",\n      \"axis\": \"correctness\",\n \"severity\": \"fyi\"\n    },\n    {\n      \"id\": \"multi-member-resumed-cohort-spec-gap\",\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"roadmap-orchestration spec only documents single resumed member scenario. Design and tasks cover multi member cohort.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\"\n    },\n    {\n      \"id\": \"already-routed-vs-prepared-continuation\",\n      \"type\": \"spec_gap\",\n      \"criticality\": \"low\",\n      \"description\": \" Spec scenarios do not explicitly name already_routed in supervise delta scenarios. Contracts mention it.Important: `ExecutionAdapter.apply` is `@_serialized_transition` and calls `apply_delegated_batch` which does callbacks and saves - so the workspace lock IS held across callbacks today. Design D2 says...{\n  \"findings\": [\n    {\n      \"id\": \"lock-release-during-callbacks\",\n      \"type\": \"behavioral_failure\",\n      \"criticality\": \"high\",\n      \"description\": \"ExecutionAdapter.apply is @_serialized_transition and calls apply_delegated_batch which holds workspace lock across callbacks - but D2 and task 2.2 require release across dispatch_fn callbacks to enable concurrent transition during approval wait\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"critical\"\n    },\n    {\n      \"id\": \"journal-clear-not-in-spec\",\n      \" type\": \"spec_gap\",\n      \"criticality\": \"high\",\n      \"description\": \"Journal clear operation not documented in spec for multi-member apply cohort\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\"\n    },\n    {\n      \"id\": \" task-4.3-ordering\",\n      \"type\": \"architecture\",\n      \"criticality\": \"medium\",\n      \"description\": \"Task 4.There's an important existing main spec for resume:\n{\n  \"findings\": [\n    {\n      \"id\": \"resume-journal-clear-mismatch\",\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"Existing resume spec does not mention clearing application_journal, but design D3 and roadmap-orchestration delta require it for D6 cohort to work after proceed. Current code clears it via ExecutionAdapter.resume, yet delta spec omits the obligation.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\"\n    },\n    {\n      \"id\": \"resume-approval-ref-generation-check missing\",\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"Existing resume spec lacks lease_generation matching on approval_ref; change adds require_approval_ref generation check in D4.Let me find the existing exact batch membership requirement in the main specs.Interesting - the exact whole-batch membership appears to be implemented in code but maybe not fully in the archived main spec as \"exact membership of all batch attempts\". The ADDED requirement in the...I noticed another important conflict:\nThe user wants ONLY the JSON object as the response. I should output that now with no other prose.",
+  "usage": {
+    "input_tokens": 78186,
+    "cache_read_input_tokens": 732544,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 14832,
+    "reasoning_tokens": 11338,
+    "total_tokens": 825562
+  },
+  "num_turns": 15,
+  "total_cost_usd": 0.158143248,
+  "total_cost_usd_ticks": 1581432480,
+  "modelUsage": {
+    "grok-4.5-build": {
+      "inputTokens": 78186,
+      "outputTokens": 14832,
+      "cacheReadInputTokens": 732544,
+      "cacheCreationInputTokens": 0,
+      "modelCalls": 15,
+      "costUSD": 0.158143248
+    }
+  },
+  "structuredOutput": {
+    "findings": [
+      {
+        "id": 1,
+        "type": "spec_gap",
+        "criticality": "high",
+        "description": "Critical: Design D3 makes proceed clear generation-G terminal fields and `application_journal` in the same authoritative transaction as the decision append, and D6 derives the apply cohort from `journal.state != effects_applied`. The delta specs and `contracts/README.md` never require that journal clear: supervise only says “advance … to its next generation,” and roadmap-orchestration assumes a resumed G+1 member is applyable. An implementer who bumps generation without clearing the parked `effects_applied` journal leaves the member outside the required cohort and stranded again.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
+        "resolution": "Add a SHALL (and WHEN/THEN) that an authorized policy-pause proceed atomically clears generation-G terminal fields including `application_journal`, and mirror that obligation in contracts/README.md and task 1.x assertions.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+        "line_range": {
+          "start": 22,
+          "end": 45
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 2,
+        "type": "compatibility",
+        "criticality": "high",
+        "description": "Critical: The change only ADDS generation-scoped escalate_resume rules, but does not MODIFY the live `Supervise Gate Routing` prior-record subject key (`gate`, `roadmap_id`, `dispatch_id`) or the live `Resume an authorized parked attempt` scenario (dispatch/gate match only). After merge, the old SHALLs still require generation-blind reuse/resume while D3/D4 require generation-scoped subject locks, lookup, and `require_approval_ref` rejection—leaving contradictory normative text for the same seam.",
+        "disposition": "fix",
+        "axis": "compatibility",
+        "severity": "critical",
+        "resolution": "Add OpenSpec MODIFIED requirements that extend prior-record identity and resume authorization with `lease_generation` (plus legacy generationless reuse), updating the existing resume scenario rather than only adding parallel ADDED text.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+        "line_range": {
+          "start": 34,
+          "end": 55
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 3,
+        "type": "resilience",
+        "criticality": "medium",
+        "description": "Nit: D3 and acceptance claim projection failure never rolls back authority and mirror loss is reconciled from the ledger on rehydrate/gate-log, but neither delta spec scenario nor tasks 1.1–1.3 prove a failed post-commit mirror write is rebuilt into `pending_gates` before an operator depends on the mirror. `gate-log` is also currently a read-only reporter, so naming it as a reconciliation trigger is behaviorally ambiguous.",
+        "disposition": "fix",
+        "axis": "resilience",
+        "severity": "nit",
+        "resolution": "Add a WHEN/THEN plus RED test: authority commit succeeds, mirror write fails, rehydrate (or an explicit repair path) restores the normalized pending gate from `gate_decisions`; drop or redefine any gate-log mutation claim.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+        "line_range": {
+          "start": 26,
+          "end": 27
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 4,
+        "type": "correctness",
+        "criticality": "medium",
+        "description": "Nit: Task 4.3 says “run fresh vendor-diverse plan review … before implementation begins” but depends on 4.1/4.2, which are post-implementation full-suite and OpenSpec validation. That DAG position cannot satisfy its own precondition and will either skip plan review or mis-order the gate.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "nit",
+        "resolution": "Move plan-review convergence to a pre-implementation gate (or rewrite 4.3 as implementation-review) and fix dependencies so review cannot sit after validate-only work.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md",
+        "line_range": {
+          "start": 48,
+          "end": 58
+        },
+        "evidence_class": "deterministic"
+      },
+      {
+        "id": 5,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Nit: Design test strategy and task 1.3 require proving multiple resumed members as the current unapplied cohort, but `specs/roadmap-orchestration/spec.md` only specifies the single-resumed-member case. The multi-member resume contract that motivated D6 is therefore under-specified in the normative delta.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "nit",
+        "resolution": "Add a WHEN/THEN where two members park, both are authorized to G+1 after peers complete, and apply admits exactly those current unapplied results while rejecting historical peers.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/roadmap-orchestration/spec.md",
+        "line_range": {
+          "start": 13,
+          "end": 24
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 6,
+        "type": "spec_gap",
+        "criticality": "low",
+        "description": "Optional: Contracts define `already_routed` with `resumed_lease_generation`, and D1 requires reporting already-prepared policy-pause continuations that way, but supervise delta scenarios never name `already_routed` or the decided-vs-resumed generation fields. Retry/idempotency behavior is easy to implement inconsistently with the contract.",
+        "disposition": "accept",
+        "axis": "compatibility",
+        "severity": "optional",
+        "resolution": "Optional: add a supervise scenario for re-routing an already-prepared continuation that returns `already_routed` with both generation fields and no second notify/decision.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md",
+        "line_range": {
+          "start": 16,
+          "end": 19
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 7,
+        "type": "observability",
+        "criticality": "low",
+        "description": "Optional: The plan’s safety story hinges on stale-candidate no-ops, fresh-transaction rechecks, and post-commit mirror repair, but it specifies no structured log/metric/event fields for those outcomes. Operators cannot distinguish “did not route because stale” from “never attempted” without reading checkpoints.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "optional",
+        "resolution": "Optional: require bounded structured events for stale_candidate, decision_reused, proceed_committed, and mirror_projection_failed keyed by dispatch_id and lease_generation.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+        "line_range": {
+          "start": 22,
+          "end": 27
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 8,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "The recovered authority boundary is coherent: one shared short checkpoint transaction folds `gate_decisions` into a single atomic payload, evaluate/wait stays outside that lock under a generation subject lock, and proceed rechecks the exact parked generation before committing decision-plus-resume together.",
+        "disposition": "accept",
+        "axis": "architecture",
+        "severity": "none",
+        "resolution": "No change. Keep D2/D3, contracts checkpoint-transaction language, and tasks 1.1/1.2/2.1–2.3 as the binding CAS proof.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+        "line_range": {
+          "start": 15,
+          "end": 27
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 9,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "The resumed multi-member apply cohort fix is the right shape: required results are exactly the current non-`effects_applied` journal set, already-applied peers are omitted and rejected if resubmitted, and terminal-persisted-but-unapplied members remain required for crash recovery.",
+        "disposition": "accept",
+        "axis": "correctness",
+        "severity": "none",
+        "resolution": "No change to D6’s membership rule; only close the journal-clear and multi-member scenario gaps above.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+        "line_range": {
+          "start": 41,
+          "end": 45
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 10,
+        "type": "security",
+        "criticality": "low",
+        "description": "Legacy generation handling and policy-pause context sanitization are closed end to end in the plan artifacts: generationless records reuse once for the current park, later generations file new decisions and retire older mirrors, and every `resolve_parked` policy-pause path is constrained to the six-key allowlist with the fixed retry-budget reason.",
+        "disposition": "accept",
+        "axis": "security",
+        "severity": "none",
+        "resolution": "No change. Keep D4/D5, contracts escalate-resume section, and supervise sanitization/legacy scenarios as written.",
+        "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+        "line_range": {
+          "start": 34,
+          "end": 55
+        },
+        "evidence_class": "judgment"
+      }
+    ]
+  }
+}

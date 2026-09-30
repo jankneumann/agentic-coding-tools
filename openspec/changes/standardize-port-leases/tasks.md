@@ -140,18 +140,19 @@ survives as a single unit of work.
   between that and any API-key holder releasing a peer's lease mid-run.
 
 
-- [ ] 2.10d Bind `host_id` on first allocation and enforce it — record the binding per `agent_id`, refuse a mismatched `host_id` on `allocate_ports` or `reconcile` with 403 (mirroring `resolve_identity`), and let an `api_key_identities` `host_id` override first-use binding
-  **Spec scenarios**: agent-coordinator (Host binding for lease scoping) — all five
+- [ ] 2.10d Register the `(agent_id, host_id)` pair on allocation and gate reconcile on it — accept a reconcile report only when the calling `agent_id` holds at least one lease row for the named `host_id`, refuse with 403 otherwise, and let an `api_key_identities` `host_id` pin the value an agent may assert
+  **Spec scenarios**: agent-coordinator (Host binding for lease scoping) — all six
   **Design decisions**: D12
   **Contracts**: contracts/openapi/v1.yaml, contracts/db/schema.sql
   **Dependencies**: 2.10b
   **Files**: agent-coordinator/src/coordination_api.py, agent-coordinator/src/port_allocator.py, agent-coordinator/tests/test_port_allocator_api.py
   **Size**: M
 
-  Without the binding, `host_id` is a label the caller chooses, and reconcile releases every lease
-  it does not see — so one request from any valid key could clear the fleet. `resolve_identity`
-  already refuses a stated `agent_id` that contradicts its key binding; this is the same check with
-  the binding established on first use, because `agents.yaml` declares no host.
+  Gate on a ledger row, not a running stack. An orphaned lease is a ledger row, and orphaned leases
+  are exactly what reconcile cleans up, so requiring a live stack would make the rule unavailable in
+  its primary use case. Do NOT bind one host per `agent_id`: an agent may legitimately hold leases on
+  several hosts over time, and a permanent binding would 403 a reimaged machine or a recreated
+  container forever after its first allocation.
 - [ ] 2.10c Make slot selection safe across worker processes — retry against the next free slot on primary-key conflict instead of returning `database_unavailable`, and add a multi-**process** concurrency test
   **Spec scenarios**: agent-coordinator.7 (Slot selection is atomic across worker processes), agent-coordinator.7 (Concurrency is verified across processes, not only threads)
   **Dependencies**: 2.10

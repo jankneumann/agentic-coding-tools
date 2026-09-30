@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-09-26T00:40:41+00:00",
-  "git_sha": "31b8a93dd9cdc41c9bf8c82d67ec096c0b4b39b0",
+  "generated_at": "2026-09-27T22:44:36+00:00",
+  "git_sha": "a0e46fc8d0f680e0596ab95a4af805a36af3dac4",
   "stats": {
-    "total_nodes": 2199,
-    "total_edges": 1370,
+    "total_nodes": 2234,
+    "total_edges": 1379,
     "by_language": {
-      "python": 1680,
-      "sql": 519
+      "python": 1696,
+      "sql": 538
     },
     "by_kind": {
       "module": 87,
-      "class": 307,
-      "function": 1286,
+      "class": 313,
+      "function": 1296,
       "table": 35,
-      "column": 352,
+      "column": 371,
       "index": 75,
       "stored_function": 46,
       "trigger": 11
@@ -487,7 +487,7 @@
     },
     {
       "id": "py:teams.CrewManifest.validate",
-      "dependent_count": 39
+      "dependent_count": 41
     },
     {
       "id": "py:db_postgres",
@@ -502,6 +502,14 @@
       "dependent_count": 35
     },
     {
+      "id": "py:profile_loader.interpolate",
+      "dependent_count": 33
+    },
+    {
+      "id": "py:profile_loader._load_secrets_file",
+      "dependent_count": 32
+    },
+    {
       "id": "py:coordination_api.authorize_operation",
       "dependent_count": 31
     },
@@ -514,20 +522,28 @@
       "dependent_count": 30
     },
     {
-      "id": "py:profile_loader.interpolate",
-      "dependent_count": 30
-    },
-    {
       "id": "py:coordination_cli._print_dict",
       "dependent_count": 29
     },
     {
-      "id": "py:profile_loader._load_secrets_file",
-      "dependent_count": 29
+      "id": "py:agents_config._default_agents_path",
+      "dependent_count": 28
+    },
+    {
+      "id": "py:agents_config._default_secrets_path",
+      "dependent_count": 28
+    },
+    {
+      "id": "py:agents_config.load_agents_config._parse_mode",
+      "dependent_count": 28
     },
     {
       "id": "py:coordination_cli._output",
       "dependent_count": 28
+    },
+    {
+      "id": "py:agents_config.load_agents_config",
+      "dependent_count": 27
     },
     {
       "id": "py:audit",
@@ -542,20 +558,8 @@
       "dependent_count": 26
     },
     {
-      "id": "py:agents_config._default_agents_path",
-      "dependent_count": 25
-    },
-    {
-      "id": "py:agents_config._default_secrets_path",
-      "dependent_count": 25
-    },
-    {
-      "id": "py:agents_config.load_agents_config._parse_mode",
-      "dependent_count": 25
-    },
-    {
-      "id": "py:agents_config.load_agents_config",
-      "dependent_count": 24
+      "id": "py:agents_config.get_agents_config",
+      "dependent_count": 21
     },
     {
       "id": "py:code_search_authorization",
@@ -591,10 +595,6 @@
     },
     {
       "id": "py:agents_config",
-      "dependent_count": 18
-    },
-    {
-      "id": "py:agents_config.get_agents_config",
       "dependent_count": 18
     },
     {

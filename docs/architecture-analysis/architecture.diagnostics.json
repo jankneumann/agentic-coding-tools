@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-26T00:40:41+00:00",
+  "generated_at": "2026-09-27T22:44:36+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -810,7 +810,7 @@
       "message": "Entrypoint 'get_current_locks' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_current_locks",
       "file": "coordination_mcp.py",
-      "line": 2692,
+      "line": 2699,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -819,7 +819,7 @@
       "message": "Entrypoint 'get_recent_handoffs' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_recent_handoffs",
       "file": "coordination_mcp.py",
-      "line": 2718,
+      "line": 2725,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -828,7 +828,7 @@
       "message": "Entrypoint 'get_pending_work' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_pending_work",
       "file": "coordination_mcp.py",
-      "line": 2765,
+      "line": 2772,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -837,7 +837,7 @@
       "message": "Entrypoint 'get_recent_memories' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_recent_memories",
       "file": "coordination_mcp.py",
-      "line": 2797,
+      "line": 2804,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -846,7 +846,7 @@
       "message": "Entrypoint 'get_guardrail_patterns' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_guardrail_patterns",
       "file": "coordination_mcp.py",
-      "line": 2826,
+      "line": 2833,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -855,7 +855,7 @@
       "message": "Entrypoint 'get_current_profile' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_current_profile",
       "file": "coordination_mcp.py",
-      "line": 2856,
+      "line": 2863,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -864,7 +864,7 @@
       "message": "Entrypoint 'get_recent_audit' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_recent_audit",
       "file": "coordination_mcp.py",
-      "line": 2892,
+      "line": 2899,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -873,7 +873,7 @@
       "message": "Entrypoint 'get_active_features_resource' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_active_features_resource",
       "file": "coordination_mcp.py",
-      "line": 2921,
+      "line": 2928,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -882,7 +882,7 @@
       "message": "Entrypoint 'get_merge_queue_resource' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_merge_queue_resource",
       "file": "coordination_mcp.py",
-      "line": 2953,
+      "line": 2960,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -891,7 +891,7 @@
       "message": "Entrypoint 'get_gen_eval_coverage' has no downstream dependencies",
       "node_id": "py:coordination_mcp.get_gen_eval_coverage",
       "file": "coordination_mcp.py",
-      "line": 3159,
+      "line": 3166,
       "suggestion": "Add downstream calls or tag this entrypoint as 'pure' if it has no side effects"
     },
     {
@@ -900,7 +900,7 @@
       "message": "Entrypoint 'get_gen_eval_report' has no downstream dependencies",
       "node_id": "py:coordination_mcp.get_gen_eval_report",
       "file": "coordination_mcp.py",
-      "line": 3191,
+      "line": 3198,
       "suggestion": "Add downstream calls or tag this entrypoint as 'pure' if it has no side effects"
     },
     {
@@ -909,7 +909,7 @@
       "message": "Entrypoint 'coordinate_file_edit' has no downstream dependencies",
       "node_id": "py:coordination_mcp.coordinate_file_edit",
       "file": "coordination_mcp.py",
-      "line": 3238,
+      "line": 3245,
       "suggestion": "Add downstream calls or tag this entrypoint as 'pure' if it has no side effects"
     },
     {
@@ -918,7 +918,7 @@
       "message": "Entrypoint 'start_work_session' has no downstream dependencies",
       "node_id": "py:coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
-      "line": 3260,
+      "line": 3267,
       "suggestion": "Add downstream calls or tag this entrypoint as 'pure' if it has no side effects"
     },
     {
@@ -927,7 +927,7 @@
       "message": "Entrypoint 'select_model_endpoint' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:model_routing.api.install_routing_routes.select_model_endpoint",
       "file": "model_routing/api.py",
-      "line": 755,
+      "line": 926,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -936,7 +936,7 @@
       "message": "Entrypoint 'catalog_endpoint' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:model_routing.api.install_routing_routes.catalog_endpoint",
       "file": "model_routing/api.py",
-      "line": 766,
+      "line": 937,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -945,7 +945,7 @@
       "message": "Entrypoint 'decision_endpoint' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:model_routing.api.install_routing_routes.decision_endpoint",
       "file": "model_routing/api.py",
-      "line": 779,
+      "line": 950,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -954,7 +954,7 @@
       "message": "Entrypoint 'usage_endpoint' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:model_routing.api.install_routing_routes.usage_endpoint",
       "file": "model_routing/api.py",
-      "line": 800,
+      "line": 971,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -963,7 +963,7 @@
       "message": "Entrypoint 'feedback_endpoint' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:model_routing.api.install_routing_routes.feedback_endpoint",
       "file": "model_routing/api.py",
-      "line": 814,
+      "line": 985,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -1773,7 +1773,7 @@
       "message": "Backend route 'get_current_locks' has no frontend callers",
       "node_id": "py:coordination_mcp.get_current_locks",
       "file": "coordination_mcp.py",
-      "line": 2692,
+      "line": 2699,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1782,7 +1782,7 @@
       "message": "Backend route 'get_recent_handoffs' has no frontend callers",
       "node_id": "py:coordination_mcp.get_recent_handoffs",
       "file": "coordination_mcp.py",
-      "line": 2718,
+      "line": 2725,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1791,7 +1791,7 @@
       "message": "Backend route 'get_pending_work' has no frontend callers",
       "node_id": "py:coordination_mcp.get_pending_work",
       "file": "coordination_mcp.py",
-      "line": 2765,
+      "line": 2772,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1800,7 +1800,7 @@
       "message": "Backend route 'get_recent_memories' has no frontend callers",
       "node_id": "py:coordination_mcp.get_recent_memories",
       "file": "coordination_mcp.py",
-      "line": 2797,
+      "line": 2804,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1809,7 +1809,7 @@
       "message": "Backend route 'get_guardrail_patterns' has no frontend callers",
       "node_id": "py:coordination_mcp.get_guardrail_patterns",
       "file": "coordination_mcp.py",
-      "line": 2826,
+      "line": 2833,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1818,7 +1818,7 @@
       "message": "Backend route 'get_current_profile' has no frontend callers",
       "node_id": "py:coordination_mcp.get_current_profile",
       "file": "coordination_mcp.py",
-      "line": 2856,
+      "line": 2863,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1827,7 +1827,7 @@
       "message": "Backend route 'get_recent_audit' has no frontend callers",
       "node_id": "py:coordination_mcp.get_recent_audit",
       "file": "coordination_mcp.py",
-      "line": 2892,
+      "line": 2899,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1836,7 +1836,7 @@
       "message": "Backend route 'get_active_features_resource' has no frontend callers",
       "node_id": "py:coordination_mcp.get_active_features_resource",
       "file": "coordination_mcp.py",
-      "line": 2921,
+      "line": 2928,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1845,7 +1845,7 @@
       "message": "Backend route 'get_merge_queue_resource' has no frontend callers",
       "node_id": "py:coordination_mcp.get_merge_queue_resource",
       "file": "coordination_mcp.py",
-      "line": 2953,
+      "line": 2960,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1854,7 +1854,7 @@
       "message": "Backend route 'get_gen_eval_coverage' has no frontend callers",
       "node_id": "py:coordination_mcp.get_gen_eval_coverage",
       "file": "coordination_mcp.py",
-      "line": 3159,
+      "line": 3166,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1863,7 +1863,7 @@
       "message": "Backend route 'get_gen_eval_report' has no frontend callers",
       "node_id": "py:coordination_mcp.get_gen_eval_report",
       "file": "coordination_mcp.py",
-      "line": 3191,
+      "line": 3198,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1872,7 +1872,7 @@
       "message": "Backend route 'coordinate_file_edit' has no frontend callers",
       "node_id": "py:coordination_mcp.coordinate_file_edit",
       "file": "coordination_mcp.py",
-      "line": 3238,
+      "line": 3245,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1881,7 +1881,7 @@
       "message": "Backend route 'start_work_session' has no frontend callers",
       "node_id": "py:coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
-      "line": 3260,
+      "line": 3267,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1890,7 +1890,7 @@
       "message": "Backend route 'select_model_endpoint' has no frontend callers",
       "node_id": "py:model_routing.api.install_routing_routes.select_model_endpoint",
       "file": "model_routing/api.py",
-      "line": 755,
+      "line": 926,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1899,7 +1899,7 @@
       "message": "Backend route 'catalog_endpoint' has no frontend callers",
       "node_id": "py:model_routing.api.install_routing_routes.catalog_endpoint",
       "file": "model_routing/api.py",
-      "line": 766,
+      "line": 937,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1908,7 +1908,7 @@
       "message": "Backend route 'decision_endpoint' has no frontend callers",
       "node_id": "py:model_routing.api.install_routing_routes.decision_endpoint",
       "file": "model_routing/api.py",
-      "line": 779,
+      "line": 950,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1917,7 +1917,7 @@
       "message": "Backend route 'usage_endpoint' has no frontend callers",
       "node_id": "py:model_routing.api.install_routing_routes.usage_endpoint",
       "file": "model_routing/api.py",
-      "line": 800,
+      "line": 971,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1926,7 +1926,7 @@
       "message": "Backend route 'feedback_endpoint' has no frontend callers",
       "node_id": "py:model_routing.api.install_routing_routes.feedback_endpoint",
       "file": "model_routing/api.py",
-      "line": 814,
+      "line": 985,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -2499,10 +2499,28 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function '_catalog_vendor_for_provider' has no corresponding test references",
+      "node_id": "py:agents_config._catalog_vendor_for_provider",
+      "file": "agents_config.py",
+      "line": 2701,
+      "suggestion": "Add tests that reference '_catalog_vendor_for_provider' (e.g., test__catalog_vendor_for_provider or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_static_incumbent' has no corresponding test references",
+      "node_id": "py:agents_config._static_incumbent",
+      "file": "agents_config.py",
+      "line": 2716,
+      "suggestion": "Add tests that reference '_static_incumbent' (e.g., test__static_incumbent or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function '_bounded_adaptive_resolution' has no corresponding test references",
       "node_id": "py:agents_config._bounded_adaptive_resolution",
       "file": "agents_config.py",
-      "line": 2701,
+      "line": 2724,
       "suggestion": "Add tests that reference '_bounded_adaptive_resolution' (e.g., test__bounded_adaptive_resolution or import it in a test file)"
     },
     {
@@ -2511,7 +2529,7 @@
       "message": "Function '_call' has no corresponding test references",
       "node_id": "py:agents_config._bounded_adaptive_resolution._call",
       "file": "agents_config.py",
-      "line": 2714,
+      "line": 2738,
       "suggestion": "Add tests that reference '_call' (e.g., test__call or import it in a test file)"
     },
     {
@@ -2520,7 +2538,7 @@
       "message": "Function 'resolve_archetype_for_phase' has no corresponding test references",
       "node_id": "py:agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line": 2745,
+      "line": 2770,
       "suggestion": "Add tests that reference 'resolve_archetype_for_phase' (e.g., test_resolve_archetype_for_phase or import it in a test file)"
     },
     {
@@ -6336,7 +6354,7 @@
       "message": "Function 'get_agent_id' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_agent_id",
       "file": "coordination_mcp.py",
-      "line": 162,
+      "line": 169,
       "suggestion": "Add tests that reference 'get_agent_id' (e.g., test_get_agent_id or import it in a test file)"
     },
     {
@@ -6345,7 +6363,7 @@
       "message": "Function 'get_agent_type' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_agent_type",
       "file": "coordination_mcp.py",
-      "line": 167,
+      "line": 174,
       "suggestion": "Add tests that reference 'get_agent_type' (e.g., test_get_agent_type or import it in a test file)"
     },
     {
@@ -6354,7 +6372,7 @@
       "message": "Function 'acquire_lock' has no corresponding test references",
       "node_id": "py:coordination_mcp.acquire_lock",
       "file": "coordination_mcp.py",
-      "line": 178,
+      "line": 185,
       "suggestion": "Add tests that reference 'acquire_lock' (e.g., test_acquire_lock or import it in a test file)"
     },
     {
@@ -6363,7 +6381,7 @@
       "message": "Function 'release_lock' has no corresponding test references",
       "node_id": "py:coordination_mcp.release_lock",
       "file": "coordination_mcp.py",
-      "line": 232,
+      "line": 239,
       "suggestion": "Add tests that reference 'release_lock' (e.g., test_release_lock or import it in a test file)"
     },
     {
@@ -6372,7 +6390,7 @@
       "message": "Function 'check_locks' has no corresponding test references",
       "node_id": "py:coordination_mcp.check_locks",
       "file": "coordination_mcp.py",
-      "line": 260,
+      "line": 267,
       "suggestion": "Add tests that reference 'check_locks' (e.g., test_check_locks or import it in a test file)"
     },
     {
@@ -6381,7 +6399,7 @@
       "message": "Function 'get_work' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_work",
       "file": "coordination_mcp.py",
-      "line": 296,
+      "line": 303,
       "suggestion": "Add tests that reference 'get_work' (e.g., test_get_work or import it in a test file)"
     },
     {
@@ -6390,7 +6408,7 @@
       "message": "Function 'complete_work' has no corresponding test references",
       "node_id": "py:coordination_mcp.complete_work",
       "file": "coordination_mcp.py",
-      "line": 339,
+      "line": 346,
       "suggestion": "Add tests that reference 'complete_work' (e.g., test_complete_work or import it in a test file)"
     },
     {
@@ -6399,7 +6417,7 @@
       "message": "Function 'submit_work' has no corresponding test references",
       "node_id": "py:coordination_mcp.submit_work",
       "file": "coordination_mcp.py",
-      "line": 387,
+      "line": 394,
       "suggestion": "Add tests that reference 'submit_work' (e.g., test_submit_work or import it in a test file)"
     },
     {
@@ -6408,7 +6426,7 @@
       "message": "Function 'reconcile_work_projection' has no corresponding test references",
       "node_id": "py:coordination_mcp.reconcile_work_projection",
       "file": "coordination_mcp.py",
-      "line": 473,
+      "line": 480,
       "suggestion": "Add tests that reference 'reconcile_work_projection' (e.g., test_reconcile_work_projection or import it in a test file)"
     },
     {
@@ -6417,7 +6435,7 @@
       "message": "Function 'get_task' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_task",
       "file": "coordination_mcp.py",
-      "line": 515,
+      "line": 522,
       "suggestion": "Add tests that reference 'get_task' (e.g., test_get_task or import it in a test file)"
     },
     {
@@ -6426,7 +6444,7 @@
       "message": "Function 'issue_create' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_create",
       "file": "coordination_mcp.py",
-      "line": 571,
+      "line": 578,
       "suggestion": "Add tests that reference 'issue_create' (e.g., test_issue_create or import it in a test file)"
     },
     {
@@ -6435,7 +6453,7 @@
       "message": "Function 'issue_list' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_list",
       "file": "coordination_mcp.py",
-      "line": 649,
+      "line": 656,
       "suggestion": "Add tests that reference 'issue_list' (e.g., test_issue_list or import it in a test file)"
     },
     {
@@ -6444,7 +6462,7 @@
       "message": "Function 'issue_show' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_show",
       "file": "coordination_mcp.py",
-      "line": 706,
+      "line": 713,
       "suggestion": "Add tests that reference 'issue_show' (e.g., test_issue_show or import it in a test file)"
     },
     {
@@ -6453,7 +6471,7 @@
       "message": "Function 'issue_update' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_update",
       "file": "coordination_mcp.py",
-      "line": 733,
+      "line": 740,
       "suggestion": "Add tests that reference 'issue_update' (e.g., test_issue_update or import it in a test file)"
     },
     {
@@ -6462,7 +6480,7 @@
       "message": "Function 'issue_close' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_close",
       "file": "coordination_mcp.py",
-      "line": 801,
+      "line": 808,
       "suggestion": "Add tests that reference 'issue_close' (e.g., test_issue_close or import it in a test file)"
     },
     {
@@ -6471,7 +6489,7 @@
       "message": "Function 'issue_comment' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_comment",
       "file": "coordination_mcp.py",
-      "line": 854,
+      "line": 861,
       "suggestion": "Add tests that reference 'issue_comment' (e.g., test_issue_comment or import it in a test file)"
     },
     {
@@ -6480,7 +6498,7 @@
       "message": "Function 'issue_ready' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_ready",
       "file": "coordination_mcp.py",
-      "line": 889,
+      "line": 896,
       "suggestion": "Add tests that reference 'issue_ready' (e.g., test_issue_ready or import it in a test file)"
     },
     {
@@ -6489,7 +6507,7 @@
       "message": "Function 'issue_blocked' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_blocked",
       "file": "coordination_mcp.py",
-      "line": 931,
+      "line": 938,
       "suggestion": "Add tests that reference 'issue_blocked' (e.g., test_issue_blocked or import it in a test file)"
     },
     {
@@ -6498,7 +6516,7 @@
       "message": "Function 'issue_search' has no corresponding test references",
       "node_id": "py:coordination_mcp.issue_search",
       "file": "coordination_mcp.py",
-      "line": 959,
+      "line": 966,
       "suggestion": "Add tests that reference 'issue_search' (e.g., test_issue_search or import it in a test file)"
     },
     {
@@ -6507,7 +6525,7 @@
       "message": "Function 'write_handoff' has no corresponding test references",
       "node_id": "py:coordination_mcp.write_handoff",
       "file": "coordination_mcp.py",
-      "line": 1002,
+      "line": 1009,
       "suggestion": "Add tests that reference 'write_handoff' (e.g., test_write_handoff or import it in a test file)"
     },
     {
@@ -6516,7 +6534,7 @@
       "message": "Function 'read_handoff' has no corresponding test references",
       "node_id": "py:coordination_mcp.read_handoff",
       "file": "coordination_mcp.py",
-      "line": 1069,
+      "line": 1076,
       "suggestion": "Add tests that reference 'read_handoff' (e.g., test_read_handoff or import it in a test file)"
     },
     {
@@ -6525,7 +6543,7 @@
       "message": "Function 'register_session' has no corresponding test references",
       "node_id": "py:coordination_mcp.register_session",
       "file": "coordination_mcp.py",
-      "line": 1139,
+      "line": 1146,
       "suggestion": "Add tests that reference 'register_session' (e.g., test_register_session or import it in a test file)"
     },
     {
@@ -6534,7 +6552,7 @@
       "message": "Function 'discover_agents' has no corresponding test references",
       "node_id": "py:coordination_mcp.discover_agents",
       "file": "coordination_mcp.py",
-      "line": 1185,
+      "line": 1192,
       "suggestion": "Add tests that reference 'discover_agents' (e.g., test_discover_agents or import it in a test file)"
     },
     {
@@ -6543,7 +6561,7 @@
       "message": "Function 'heartbeat' has no corresponding test references",
       "node_id": "py:coordination_mcp.heartbeat",
       "file": "coordination_mcp.py",
-      "line": 1238,
+      "line": 1245,
       "suggestion": "Add tests that reference 'heartbeat' (e.g., test_heartbeat or import it in a test file)"
     },
     {
@@ -6552,7 +6570,7 @@
       "message": "Function 'cleanup_dead_agents' has no corresponding test references",
       "node_id": "py:coordination_mcp.cleanup_dead_agents",
       "file": "coordination_mcp.py",
-      "line": 1262,
+      "line": 1269,
       "suggestion": "Add tests that reference 'cleanup_dead_agents' (e.g., test_cleanup_dead_agents or import it in a test file)"
     },
     {
@@ -6561,7 +6579,7 @@
       "message": "Function 'remember' has no corresponding test references",
       "node_id": "py:coordination_mcp.remember",
       "file": "coordination_mcp.py",
-      "line": 1301,
+      "line": 1308,
       "suggestion": "Add tests that reference 'remember' (e.g., test_remember or import it in a test file)"
     },
     {
@@ -6570,7 +6588,7 @@
       "message": "Function 'recall' has no corresponding test references",
       "node_id": "py:coordination_mcp.recall",
       "file": "coordination_mcp.py",
-      "line": 1356,
+      "line": 1363,
       "suggestion": "Add tests that reference 'recall' (e.g., test_recall or import it in a test file)"
     },
     {
@@ -6579,7 +6597,7 @@
       "message": "Function 'check_guardrails' has no corresponding test references",
       "node_id": "py:coordination_mcp.check_guardrails",
       "file": "coordination_mcp.py",
-      "line": 1416,
+      "line": 1423,
       "suggestion": "Add tests that reference 'check_guardrails' (e.g., test_check_guardrails or import it in a test file)"
     },
     {
@@ -6588,7 +6606,7 @@
       "message": "Function 'get_my_profile' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_my_profile",
       "file": "coordination_mcp.py",
-      "line": 1487,
+      "line": 1494,
       "suggestion": "Add tests that reference 'get_my_profile' (e.g., test_get_my_profile or import it in a test file)"
     },
     {
@@ -6597,7 +6615,7 @@
       "message": "Function 'get_agent_dispatch_configs' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_agent_dispatch_configs",
       "file": "coordination_mcp.py",
-      "line": 1524,
+      "line": 1531,
       "suggestion": "Add tests that reference 'get_agent_dispatch_configs' (e.g., test_get_agent_dispatch_configs or import it in a test file)"
     },
     {
@@ -6606,7 +6624,7 @@
       "message": "Function 'query_audit' has no corresponding test references",
       "node_id": "py:coordination_mcp.query_audit",
       "file": "coordination_mcp.py",
-      "line": 1548,
+      "line": 1555,
       "suggestion": "Add tests that reference 'query_audit' (e.g., test_query_audit or import it in a test file)"
     },
     {
@@ -6615,7 +6633,7 @@
       "message": "Function 'check_policy' has no corresponding test references",
       "node_id": "py:coordination_mcp.check_policy",
       "file": "coordination_mcp.py",
-      "line": 1603,
+      "line": 1610,
       "suggestion": "Add tests that reference 'check_policy' (e.g., test_check_policy or import it in a test file)"
     },
     {
@@ -6624,7 +6642,7 @@
       "message": "Function 'validate_cedar_policy' has no corresponding test references",
       "node_id": "py:coordination_mcp.validate_cedar_policy",
       "file": "coordination_mcp.py",
-      "line": 1650,
+      "line": 1657,
       "suggestion": "Add tests that reference 'validate_cedar_policy' (e.g., test_validate_cedar_policy or import it in a test file)"
     },
     {
@@ -6633,7 +6651,7 @@
       "message": "Function 'allocate_ports' has no corresponding test references",
       "node_id": "py:coordination_mcp.allocate_ports",
       "file": "coordination_mcp.py",
-      "line": 1694,
+      "line": 1701,
       "suggestion": "Add tests that reference 'allocate_ports' (e.g., test_allocate_ports or import it in a test file)"
     },
     {
@@ -6642,7 +6660,7 @@
       "message": "Function 'release_ports' has no corresponding test references",
       "node_id": "py:coordination_mcp.release_ports",
       "file": "coordination_mcp.py",
-      "line": 1743,
+      "line": 1750,
       "suggestion": "Add tests that reference 'release_ports' (e.g., test_release_ports or import it in a test file)"
     },
     {
@@ -6651,7 +6669,7 @@
       "message": "Function 'ports_status' has no corresponding test references",
       "node_id": "py:coordination_mcp.ports_status",
       "file": "coordination_mcp.py",
-      "line": 1770,
+      "line": 1777,
       "suggestion": "Add tests that reference 'ports_status' (e.g., test_ports_status or import it in a test file)"
     },
     {
@@ -6660,7 +6678,7 @@
       "message": "Function 'request_approval' has no corresponding test references",
       "node_id": "py:coordination_mcp.request_approval",
       "file": "coordination_mcp.py",
-      "line": 1815,
+      "line": 1822,
       "suggestion": "Add tests that reference 'request_approval' (e.g., test_request_approval or import it in a test file)"
     },
     {
@@ -6669,7 +6687,7 @@
       "message": "Function 'check_approval' has no corresponding test references",
       "node_id": "py:coordination_mcp.check_approval",
       "file": "coordination_mcp.py",
-      "line": 1847,
+      "line": 1854,
       "suggestion": "Add tests that reference 'check_approval' (e.g., test_check_approval or import it in a test file)"
     },
     {
@@ -6678,7 +6696,7 @@
       "message": "Function 'list_policy_versions' has no corresponding test references",
       "node_id": "py:coordination_mcp.list_policy_versions",
       "file": "coordination_mcp.py",
-      "line": 1873,
+      "line": 1880,
       "suggestion": "Add tests that reference 'list_policy_versions' (e.g., test_list_policy_versions or import it in a test file)"
     },
     {
@@ -6687,7 +6705,7 @@
       "message": "Function 'request_permission' has no corresponding test references",
       "node_id": "py:coordination_mcp.request_permission",
       "file": "coordination_mcp.py",
-      "line": 1893,
+      "line": 1900,
       "suggestion": "Add tests that reference 'request_permission' (e.g., test_request_permission or import it in a test file)"
     },
     {
@@ -6696,7 +6714,7 @@
       "message": "Function 'register_feature' has no corresponding test references",
       "node_id": "py:coordination_mcp.register_feature",
       "file": "coordination_mcp.py",
-      "line": 1926,
+      "line": 1933,
       "suggestion": "Add tests that reference 'register_feature' (e.g., test_register_feature or import it in a test file)"
     },
     {
@@ -6705,7 +6723,7 @@
       "message": "Function 'deregister_feature' has no corresponding test references",
       "node_id": "py:coordination_mcp.deregister_feature",
       "file": "coordination_mcp.py",
-      "line": 1982,
+      "line": 1989,
       "suggestion": "Add tests that reference 'deregister_feature' (e.g., test_deregister_feature or import it in a test file)"
     },
     {
@@ -6714,7 +6732,7 @@
       "message": "Function 'get_feature' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_feature",
       "file": "coordination_mcp.py",
-      "line": 2017,
+      "line": 2024,
       "suggestion": "Add tests that reference 'get_feature' (e.g., test_get_feature or import it in a test file)"
     },
     {
@@ -6723,7 +6741,7 @@
       "message": "Function 'list_active_features' has no corresponding test references",
       "node_id": "py:coordination_mcp.list_active_features",
       "file": "coordination_mcp.py",
-      "line": 2051,
+      "line": 2058,
       "suggestion": "Add tests that reference 'list_active_features' (e.g., test_list_active_features or import it in a test file)"
     },
     {
@@ -6732,7 +6750,7 @@
       "message": "Function 'analyze_feature_conflicts' has no corresponding test references",
       "node_id": "py:coordination_mcp.analyze_feature_conflicts",
       "file": "coordination_mcp.py",
-      "line": 2081,
+      "line": 2088,
       "suggestion": "Add tests that reference 'analyze_feature_conflicts' (e.g., test_analyze_feature_conflicts or import it in a test file)"
     },
     {
@@ -6741,7 +6759,7 @@
       "message": "Function 'enqueue_merge' has no corresponding test references",
       "node_id": "py:coordination_mcp.enqueue_merge",
       "file": "coordination_mcp.py",
-      "line": 2122,
+      "line": 2129,
       "suggestion": "Add tests that reference 'enqueue_merge' (e.g., test_enqueue_merge or import it in a test file)"
     },
     {
@@ -6750,7 +6768,7 @@
       "message": "Function 'get_merge_queue' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_merge_queue",
       "file": "coordination_mcp.py",
-      "line": 2163,
+      "line": 2170,
       "suggestion": "Add tests that reference 'get_merge_queue' (e.g., test_get_merge_queue or import it in a test file)"
     },
     {
@@ -6759,7 +6777,7 @@
       "message": "Function 'get_next_merge' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_next_merge",
       "file": "coordination_mcp.py",
-      "line": 2192,
+      "line": 2199,
       "suggestion": "Add tests that reference 'get_next_merge' (e.g., test_get_next_merge or import it in a test file)"
     },
     {
@@ -6768,7 +6786,7 @@
       "message": "Function 'run_pre_merge_checks' has no corresponding test references",
       "node_id": "py:coordination_mcp.run_pre_merge_checks",
       "file": "coordination_mcp.py",
-      "line": 2221,
+      "line": 2228,
       "suggestion": "Add tests that reference 'run_pre_merge_checks' (e.g., test_run_pre_merge_checks or import it in a test file)"
     },
     {
@@ -6777,7 +6795,7 @@
       "message": "Function 'mark_merged' has no corresponding test references",
       "node_id": "py:coordination_mcp.mark_merged",
       "file": "coordination_mcp.py",
-      "line": 2251,
+      "line": 2258,
       "suggestion": "Add tests that reference 'mark_merged' (e.g., test_mark_merged or import it in a test file)"
     },
     {
@@ -6786,7 +6804,7 @@
       "message": "Function 'remove_from_merge_queue' has no corresponding test references",
       "node_id": "py:coordination_mcp.remove_from_merge_queue",
       "file": "coordination_mcp.py",
-      "line": 2273,
+      "line": 2280,
       "suggestion": "Add tests that reference 'remove_from_merge_queue' (e.g., test_remove_from_merge_queue or import it in a test file)"
     },
     {
@@ -6795,7 +6813,7 @@
       "message": "Function '_current_trust_level' has no corresponding test references",
       "node_id": "py:coordination_mcp._current_trust_level",
       "file": "coordination_mcp.py",
-      "line": 2298,
+      "line": 2305,
       "suggestion": "Add tests that reference '_current_trust_level' (e.g., test__current_trust_level or import it in a test file)"
     },
     {
@@ -6804,7 +6822,7 @@
       "message": "Function 'compose_train' has no corresponding test references",
       "node_id": "py:coordination_mcp.compose_train",
       "file": "coordination_mcp.py",
-      "line": 2313,
+      "line": 2320,
       "suggestion": "Add tests that reference 'compose_train' (e.g., test_compose_train or import it in a test file)"
     },
     {
@@ -6813,7 +6831,7 @@
       "message": "Function 'eject_from_train' has no corresponding test references",
       "node_id": "py:coordination_mcp.eject_from_train",
       "file": "coordination_mcp.py",
-      "line": 2372,
+      "line": 2379,
       "suggestion": "Add tests that reference 'eject_from_train' (e.g., test_eject_from_train or import it in a test file)"
     },
     {
@@ -6822,7 +6840,7 @@
       "message": "Function 'get_train_status' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_train_status",
       "file": "coordination_mcp.py",
-      "line": 2430,
+      "line": 2437,
       "suggestion": "Add tests that reference 'get_train_status' (e.g., test_get_train_status or import it in a test file)"
     },
     {
@@ -6831,7 +6849,7 @@
       "message": "Function 'report_spec_result' has no corresponding test references",
       "node_id": "py:coordination_mcp.report_spec_result",
       "file": "coordination_mcp.py",
-      "line": 2463,
+      "line": 2470,
       "suggestion": "Add tests that reference 'report_spec_result' (e.g., test_report_spec_result or import it in a test file)"
     },
     {
@@ -6840,7 +6858,7 @@
       "message": "Function 'affected_tests' has no corresponding test references",
       "node_id": "py:coordination_mcp.affected_tests",
       "file": "coordination_mcp.py",
-      "line": 2506,
+      "line": 2513,
       "suggestion": "Add tests that reference 'affected_tests' (e.g., test_affected_tests or import it in a test file)"
     },
     {
@@ -6849,7 +6867,7 @@
       "message": "Function 'report_status' has no corresponding test references",
       "node_id": "py:coordination_mcp.report_status",
       "file": "coordination_mcp.py",
-      "line": 2544,
+      "line": 2551,
       "suggestion": "Add tests that reference 'report_status' (e.g., test_report_status or import it in a test file)"
     },
     {
@@ -6858,7 +6876,7 @@
       "message": "Function 'help' has no corresponding test references",
       "node_id": "py:coordination_mcp.help",
       "file": "coordination_mcp.py",
-      "line": 2645,
+      "line": 2652,
       "suggestion": "Add tests that reference 'help' (e.g., test_help or import it in a test file)"
     },
     {
@@ -6867,7 +6885,7 @@
       "message": "Function 'get_current_locks' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_current_locks",
       "file": "coordination_mcp.py",
-      "line": 2692,
+      "line": 2699,
       "suggestion": "Add tests that reference 'get_current_locks' (e.g., test_get_current_locks or import it in a test file)"
     },
     {
@@ -6876,7 +6894,7 @@
       "message": "Function 'get_recent_handoffs' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_recent_handoffs",
       "file": "coordination_mcp.py",
-      "line": 2718,
+      "line": 2725,
       "suggestion": "Add tests that reference 'get_recent_handoffs' (e.g., test_get_recent_handoffs or import it in a test file)"
     },
     {
@@ -6885,7 +6903,7 @@
       "message": "Function 'get_pending_work' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_pending_work",
       "file": "coordination_mcp.py",
-      "line": 2765,
+      "line": 2772,
       "suggestion": "Add tests that reference 'get_pending_work' (e.g., test_get_pending_work or import it in a test file)"
     },
     {
@@ -6894,7 +6912,7 @@
       "message": "Function 'get_recent_memories' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_recent_memories",
       "file": "coordination_mcp.py",
-      "line": 2797,
+      "line": 2804,
       "suggestion": "Add tests that reference 'get_recent_memories' (e.g., test_get_recent_memories or import it in a test file)"
     },
     {
@@ -6903,7 +6921,7 @@
       "message": "Function 'get_guardrail_patterns' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_guardrail_patterns",
       "file": "coordination_mcp.py",
-      "line": 2826,
+      "line": 2833,
       "suggestion": "Add tests that reference 'get_guardrail_patterns' (e.g., test_get_guardrail_patterns or import it in a test file)"
     },
     {
@@ -6912,7 +6930,7 @@
       "message": "Function 'get_current_profile' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_current_profile",
       "file": "coordination_mcp.py",
-      "line": 2856,
+      "line": 2863,
       "suggestion": "Add tests that reference 'get_current_profile' (e.g., test_get_current_profile or import it in a test file)"
     },
     {
@@ -6921,7 +6939,7 @@
       "message": "Function 'get_recent_audit' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_recent_audit",
       "file": "coordination_mcp.py",
-      "line": 2892,
+      "line": 2899,
       "suggestion": "Add tests that reference 'get_recent_audit' (e.g., test_get_recent_audit or import it in a test file)"
     },
     {
@@ -6930,7 +6948,7 @@
       "message": "Function 'get_active_features_resource' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_active_features_resource",
       "file": "coordination_mcp.py",
-      "line": 2921,
+      "line": 2928,
       "suggestion": "Add tests that reference 'get_active_features_resource' (e.g., test_get_active_features_resource or import it in a test file)"
     },
     {
@@ -6939,7 +6957,7 @@
       "message": "Function 'get_merge_queue_resource' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_merge_queue_resource",
       "file": "coordination_mcp.py",
-      "line": 2953,
+      "line": 2960,
       "suggestion": "Add tests that reference 'get_merge_queue_resource' (e.g., test_get_merge_queue_resource or import it in a test file)"
     },
     {
@@ -6948,7 +6966,7 @@
       "message": "Function 'list_scenarios' has no corresponding test references",
       "node_id": "py:coordination_mcp.list_scenarios",
       "file": "coordination_mcp.py",
-      "line": 2983,
+      "line": 2990,
       "suggestion": "Add tests that reference 'list_scenarios' (e.g., test_list_scenarios or import it in a test file)"
     },
     {
@@ -6957,7 +6975,7 @@
       "message": "Function 'validate_scenario' has no corresponding test references",
       "node_id": "py:coordination_mcp.validate_scenario",
       "file": "coordination_mcp.py",
-      "line": 3027,
+      "line": 3034,
       "suggestion": "Add tests that reference 'validate_scenario' (e.g., test_validate_scenario or import it in a test file)"
     },
     {
@@ -6966,7 +6984,7 @@
       "message": "Function 'create_scenario' has no corresponding test references",
       "node_id": "py:coordination_mcp.create_scenario",
       "file": "coordination_mcp.py",
-      "line": 3062,
+      "line": 3069,
       "suggestion": "Add tests that reference 'create_scenario' (e.g., test_create_scenario or import it in a test file)"
     },
     {
@@ -6975,7 +6993,7 @@
       "message": "Function 'run_gen_eval' has no corresponding test references",
       "node_id": "py:coordination_mcp.run_gen_eval",
       "file": "coordination_mcp.py",
-      "line": 3113,
+      "line": 3120,
       "suggestion": "Add tests that reference 'run_gen_eval' (e.g., test_run_gen_eval or import it in a test file)"
     },
     {
@@ -6984,7 +7002,7 @@
       "message": "Function 'get_gen_eval_coverage' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_gen_eval_coverage",
       "file": "coordination_mcp.py",
-      "line": 3159,
+      "line": 3166,
       "suggestion": "Add tests that reference 'get_gen_eval_coverage' (e.g., test_get_gen_eval_coverage or import it in a test file)"
     },
     {
@@ -6993,7 +7011,7 @@
       "message": "Function 'get_gen_eval_report' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_gen_eval_report",
       "file": "coordination_mcp.py",
-      "line": 3191,
+      "line": 3198,
       "suggestion": "Add tests that reference 'get_gen_eval_report' (e.g., test_get_gen_eval_report or import it in a test file)"
     },
     {
@@ -7002,7 +7020,7 @@
       "message": "Function 'coordinate_file_edit' has no corresponding test references",
       "node_id": "py:coordination_mcp.coordinate_file_edit",
       "file": "coordination_mcp.py",
-      "line": 3238,
+      "line": 3245,
       "suggestion": "Add tests that reference 'coordinate_file_edit' (e.g., test_coordinate_file_edit or import it in a test file)"
     },
     {
@@ -7011,7 +7029,7 @@
       "message": "Function 'start_work_session' has no corresponding test references",
       "node_id": "py:coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
-      "line": 3260,
+      "line": 3267,
       "suggestion": "Add tests that reference 'start_work_session' (e.g., test_start_work_session or import it in a test file)"
     },
     {
@@ -7020,7 +7038,7 @@
       "message": "Function '_code_search_enabled' has no corresponding test references",
       "node_id": "py:coordination_mcp._code_search_enabled",
       "file": "coordination_mcp.py",
-      "line": 3283,
+      "line": 3290,
       "suggestion": "Add tests that reference '_code_search_enabled' (e.g., test__code_search_enabled or import it in a test file)"
     },
     {
@@ -7029,7 +7047,7 @@
       "message": "Function 'search_code' has no corresponding test references",
       "node_id": "py:coordination_mcp.search_code",
       "file": "coordination_mcp.py",
-      "line": 3292,
+      "line": 3299,
       "suggestion": "Add tests that reference 'search_code' (e.g., test_search_code or import it in a test file)"
     },
     {
@@ -7038,7 +7056,7 @@
       "message": "Function 'main' has no corresponding test references",
       "node_id": "py:coordination_mcp.main",
       "file": "coordination_mcp.py",
-      "line": 3368,
+      "line": 3375,
       "suggestion": "Add tests that reference 'main' (e.g., test_main or import it in a test file)"
     },
     {
@@ -11439,7 +11457,7 @@
       "message": "Function 'WeightOverrides' has no corresponding test references",
       "node_id": "py:model_routing.api.WeightOverrides",
       "file": "model_routing/api.py",
-      "line": 49,
+      "line": 57,
       "suggestion": "Add tests that reference 'WeightOverrides' (e.g., test_WeightOverrides or import it in a test file)"
     },
     {
@@ -11448,7 +11466,7 @@
       "message": "Function 'TaskSignals' has no corresponding test references",
       "node_id": "py:model_routing.api.TaskSignals",
       "file": "model_routing/api.py",
-      "line": 57,
+      "line": 65,
       "suggestion": "Add tests that reference 'TaskSignals' (e.g., test_TaskSignals or import it in a test file)"
     },
     {
@@ -11457,7 +11475,7 @@
       "message": "Function 'RoadmapRoutingPolicy' has no corresponding test references",
       "node_id": "py:model_routing.api.RoadmapRoutingPolicy",
       "file": "model_routing/api.py",
-      "line": 71,
+      "line": 79,
       "suggestion": "Add tests that reference 'RoadmapRoutingPolicy' (e.g., test_RoadmapRoutingPolicy or import it in a test file)"
     },
     {
@@ -11466,7 +11484,7 @@
       "message": "Function 'validate_unique_lists' has no corresponding test references",
       "node_id": "py:model_routing.api.RoadmapRoutingPolicy.validate_unique_lists",
       "file": "model_routing/api.py",
-      "line": 95,
+      "line": 103,
       "suggestion": "Add tests that reference 'validate_unique_lists' (e.g., test_validate_unique_lists or import it in a test file)"
     },
     {
@@ -11475,8 +11493,17 @@
       "message": "Function 'TaskRoutingProfile' has no corresponding test references",
       "node_id": "py:model_routing.api.TaskRoutingProfile",
       "file": "model_routing/api.py",
-      "line": 109,
+      "line": 117,
       "suggestion": "Add tests that reference 'TaskRoutingProfile' (e.g., test_TaskRoutingProfile or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'IncumbentRequest' has no corresponding test references",
+      "node_id": "py:model_routing.api.IncumbentRequest",
+      "file": "model_routing/api.py",
+      "line": 134,
+      "suggestion": "Add tests that reference 'IncumbentRequest' (e.g., test_IncumbentRequest or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -11484,7 +11511,7 @@
       "message": "Function 'SelectModelRequest' has no corresponding test references",
       "node_id": "py:model_routing.api.SelectModelRequest",
       "file": "model_routing/api.py",
-      "line": 126,
+      "line": 143,
       "suggestion": "Add tests that reference 'SelectModelRequest' (e.g., test_SelectModelRequest or import it in a test file)"
     },
     {
@@ -11493,7 +11520,7 @@
       "message": "Function 'RoutingAssignmentResponse' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingAssignmentResponse",
       "file": "model_routing/api.py",
-      "line": 136,
+      "line": 154,
       "suggestion": "Add tests that reference 'RoutingAssignmentResponse' (e.g., test_RoutingAssignmentResponse or import it in a test file)"
     },
     {
@@ -11502,7 +11529,7 @@
       "message": "Function 'RoutingProvenanceResponse' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingProvenanceResponse",
       "file": "model_routing/api.py",
-      "line": 151,
+      "line": 169,
       "suggestion": "Add tests that reference 'RoutingProvenanceResponse' (e.g., test_RoutingProvenanceResponse or import it in a test file)"
     },
     {
@@ -11511,7 +11538,7 @@
       "message": "Function 'CandidateResponse' has no corresponding test references",
       "node_id": "py:model_routing.api.CandidateResponse",
       "file": "model_routing/api.py",
-      "line": 164,
+      "line": 183,
       "suggestion": "Add tests that reference 'CandidateResponse' (e.g., test_CandidateResponse or import it in a test file)"
     },
     {
@@ -11520,8 +11547,17 @@
       "message": "Function 'ExcludedCandidate' has no corresponding test references",
       "node_id": "py:model_routing.api.ExcludedCandidate",
       "file": "model_routing/api.py",
-      "line": 184,
+      "line": 203,
       "suggestion": "Add tests that reference 'ExcludedCandidate' (e.g., test_ExcludedCandidate or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'RetentionResponse' has no corresponding test references",
+      "node_id": "py:model_routing.api.RetentionResponse",
+      "file": "model_routing/api.py",
+      "line": 225,
+      "suggestion": "Add tests that reference 'RetentionResponse' (e.g., test_RetentionResponse or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -11529,7 +11565,7 @@
       "message": "Function 'SelectModelResponse' has no corresponding test references",
       "node_id": "py:model_routing.api.SelectModelResponse",
       "file": "model_routing/api.py",
-      "line": 195,
+      "line": 234,
       "suggestion": "Add tests that reference 'SelectModelResponse' (e.g., test_SelectModelResponse or import it in a test file)"
     },
     {
@@ -11538,7 +11574,7 @@
       "message": "Function 'UsageByModelResponse' has no corresponding test references",
       "node_id": "py:model_routing.api.UsageByModelResponse",
       "file": "model_routing/api.py",
-      "line": 208,
+      "line": 255,
       "suggestion": "Add tests that reference 'UsageByModelResponse' (e.g., test_UsageByModelResponse or import it in a test file)"
     },
     {
@@ -11547,7 +11583,7 @@
       "message": "Function 'UsageAggregateResponse' has no corresponding test references",
       "node_id": "py:model_routing.api.UsageAggregateResponse",
       "file": "model_routing/api.py",
-      "line": 219,
+      "line": 266,
       "suggestion": "Add tests that reference 'UsageAggregateResponse' (e.g., test_UsageAggregateResponse or import it in a test file)"
     },
     {
@@ -11556,7 +11592,7 @@
       "message": "Function 'HTTPErrorResponse' has no corresponding test references",
       "node_id": "py:model_routing.api.HTTPErrorResponse",
       "file": "model_routing/api.py",
-      "line": 230,
+      "line": 277,
       "suggestion": "Add tests that reference 'HTTPErrorResponse' (e.g., test_HTTPErrorResponse or import it in a test file)"
     },
     {
@@ -11565,7 +11601,7 @@
       "message": "Function 'FeedbackMetrics' has no corresponding test references",
       "node_id": "py:model_routing.api.FeedbackMetrics",
       "file": "model_routing/api.py",
-      "line": 234,
+      "line": 281,
       "suggestion": "Add tests that reference 'FeedbackMetrics' (e.g., test_FeedbackMetrics or import it in a test file)"
     },
     {
@@ -11574,7 +11610,7 @@
       "message": "Function 'FeedbackEvent' has no corresponding test references",
       "node_id": "py:model_routing.api.FeedbackEvent",
       "file": "model_routing/api.py",
-      "line": 244,
+      "line": 291,
       "suggestion": "Add tests that reference 'FeedbackEvent' (e.g., test_FeedbackEvent or import it in a test file)"
     },
     {
@@ -11583,7 +11619,7 @@
       "message": "Function '_Catalog' has no corresponding test references",
       "node_id": "py:model_routing.api._Catalog",
       "file": "model_routing/api.py",
-      "line": 256,
+      "line": 303,
       "suggestion": "Add tests that reference '_Catalog' (e.g., test__Catalog or import it in a test file)"
     },
     {
@@ -11592,7 +11628,7 @@
       "message": "Function 'list_candidates' has no corresponding test references",
       "node_id": "py:model_routing.api._Catalog.list_candidates",
       "file": "model_routing/api.py",
-      "line": 257,
+      "line": 304,
       "suggestion": "Add tests that reference 'list_candidates' (e.g., test_list_candidates or import it in a test file)"
     },
     {
@@ -11601,7 +11637,7 @@
       "message": "Function 'list_entries' has no corresponding test references",
       "node_id": "py:model_routing.api._Catalog.list_entries",
       "file": "model_routing/api.py",
-      "line": 259,
+      "line": 306,
       "suggestion": "Add tests that reference 'list_entries' (e.g., test_list_entries or import it in a test file)"
     },
     {
@@ -11610,7 +11646,7 @@
       "message": "Function 'record_decision' has no corresponding test references",
       "node_id": "py:model_routing.api._Catalog.record_decision",
       "file": "model_routing/api.py",
-      "line": 265,
+      "line": 312,
       "suggestion": "Add tests that reference 'record_decision' (e.g., test_record_decision or import it in a test file)"
     },
     {
@@ -11619,7 +11655,7 @@
       "message": "Function 'record_decision_and_audit' has no corresponding test references",
       "node_id": "py:model_routing.api._Catalog.record_decision_and_audit",
       "file": "model_routing/api.py",
-      "line": 267,
+      "line": 314,
       "suggestion": "Add tests that reference 'record_decision_and_audit' (e.g., test_record_decision_and_audit or import it in a test file)"
     },
     {
@@ -11628,7 +11664,7 @@
       "message": "Function 'get_decision' has no corresponding test references",
       "node_id": "py:model_routing.api._Catalog.get_decision",
       "file": "model_routing/api.py",
-      "line": 271,
+      "line": 316,
       "suggestion": "Add tests that reference 'get_decision' (e.g., test_get_decision or import it in a test file)"
     },
     {
@@ -11637,7 +11673,7 @@
       "message": "Function '_Ledger' has no corresponding test references",
       "node_id": "py:model_routing.api._Ledger",
       "file": "model_routing/api.py",
-      "line": 274,
+      "line": 319,
       "suggestion": "Add tests that reference '_Ledger' (e.g., test__Ledger or import it in a test file)"
     },
     {
@@ -11646,7 +11682,7 @@
       "message": "Function 'usage_summary' has no corresponding test references",
       "node_id": "py:model_routing.api._Ledger.usage_summary",
       "file": "model_routing/api.py",
-      "line": 275,
+      "line": 320,
       "suggestion": "Add tests that reference 'usage_summary' (e.g., test_usage_summary or import it in a test file)"
     },
     {
@@ -11655,7 +11691,7 @@
       "message": "Function 'RoutingUnavailableError' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingUnavailableError",
       "file": "model_routing/api.py",
-      "line": 284,
+      "line": 329,
       "suggestion": "Add tests that reference 'RoutingUnavailableError' (e.g., test_RoutingUnavailableError or import it in a test file)"
     },
     {
@@ -11664,7 +11700,7 @@
       "message": "Function '_candidate_payload' has no corresponding test references",
       "node_id": "py:model_routing.api._candidate_payload",
       "file": "model_routing/api.py",
-      "line": 288,
+      "line": 333,
       "suggestion": "Add tests that reference '_candidate_payload' (e.g., test__candidate_payload or import it in a test file)"
     },
     {
@@ -11673,7 +11709,7 @@
       "message": "Function '_excluded_payload' has no corresponding test references",
       "node_id": "py:model_routing.api._excluded_payload",
       "file": "model_routing/api.py",
-      "line": 306,
+      "line": 351,
       "suggestion": "Add tests that reference '_excluded_payload' (e.g., test__excluded_payload or import it in a test file)"
     },
     {
@@ -11682,8 +11718,17 @@
       "message": "Function '_sanitized_request' has no corresponding test references",
       "node_id": "py:model_routing.api._sanitized_request",
       "file": "model_routing/api.py",
-      "line": 310,
+      "line": 355,
       "suggestion": "Add tests that reference '_sanitized_request' (e.g., test__sanitized_request or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_persisted_request' has no corresponding test references",
+      "node_id": "py:model_routing.api._persisted_request",
+      "file": "model_routing/api.py",
+      "line": 382,
+      "suggestion": "Add tests that reference '_persisted_request' (e.g., test__persisted_request or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -11691,7 +11736,7 @@
       "message": "Function '_task_type' has no corresponding test references",
       "node_id": "py:model_routing.api._task_type",
       "file": "model_routing/api.py",
-      "line": 332,
+      "line": 389,
       "suggestion": "Add tests that reference '_task_type' (e.g., test__task_type or import it in a test file)"
     },
     {
@@ -11700,7 +11745,7 @@
       "message": "Function '_weights' has no corresponding test references",
       "node_id": "py:model_routing.api._weights",
       "file": "model_routing/api.py",
-      "line": 341,
+      "line": 398,
       "suggestion": "Add tests that reference '_weights' (e.g., test__weights or import it in a test file)"
     },
     {
@@ -11709,7 +11754,7 @@
       "message": "Function '_safe_float' has no corresponding test references",
       "node_id": "py:model_routing.api._safe_float",
       "file": "model_routing/api.py",
-      "line": 354,
+      "line": 411,
       "suggestion": "Add tests that reference '_safe_float' (e.g., test__safe_float or import it in a test file)"
     },
     {
@@ -11718,7 +11763,7 @@
       "message": "Function '_nonnegative_env_float' has no corresponding test references",
       "node_id": "py:model_routing.api._nonnegative_env_float",
       "file": "model_routing/api.py",
-      "line": 362,
+      "line": 419,
       "suggestion": "Add tests that reference '_nonnegative_env_float' (e.g., test__nonnegative_env_float or import it in a test file)"
     },
     {
@@ -11727,7 +11772,7 @@
       "message": "Function 'RoutingService' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService",
       "file": "model_routing/api.py",
-      "line": 367,
+      "line": 424,
       "suggestion": "Add tests that reference 'RoutingService' (e.g., test_RoutingService or import it in a test file)"
     },
     {
@@ -11736,7 +11781,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.__init__",
       "file": "model_routing/api.py",
-      "line": 370,
+      "line": 427,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -11745,7 +11790,7 @@
       "message": "Function 'catalog' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.catalog",
       "file": "model_routing/api.py",
-      "line": 387,
+      "line": 444,
       "suggestion": "Add tests that reference 'catalog' (e.g., test_catalog or import it in a test file)"
     },
     {
@@ -11754,7 +11799,7 @@
       "message": "Function 'ledger' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.ledger",
       "file": "model_routing/api.py",
-      "line": 395,
+      "line": 452,
       "suggestion": "Add tests that reference 'ledger' (e.g., test_ledger or import it in a test file)"
     },
     {
@@ -11763,7 +11808,7 @@
       "message": "Function 'registry' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.registry",
       "file": "model_routing/api.py",
-      "line": 403,
+      "line": 460,
       "suggestion": "Add tests that reference 'registry' (e.g., test_registry or import it in a test file)"
     },
     {
@@ -11772,7 +11817,7 @@
       "message": "Function 'policy' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.policy",
       "file": "model_routing/api.py",
-      "line": 411,
+      "line": 468,
       "suggestion": "Add tests that reference 'policy' (e.g., test_policy or import it in a test file)"
     },
     {
@@ -11781,7 +11826,7 @@
       "message": "Function '_current_exploration_budget' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService._current_exploration_budget",
       "file": "model_routing/api.py",
-      "line": 418,
+      "line": 475,
       "suggestion": "Add tests that reference '_current_exploration_budget' (e.g., test__current_exploration_budget or import it in a test file)"
     },
     {
@@ -11790,8 +11835,17 @@
       "message": "Function 'select_model' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.select_model",
       "file": "model_routing/api.py",
-      "line": 449,
+      "line": 506,
       "suggestion": "Add tests that reference 'select_model' (e.g., test_select_model or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_retain_incumbent' has no corresponding test references",
+      "node_id": "py:model_routing.api.RoutingService._retain_incumbent",
+      "file": "model_routing/api.py",
+      "line": 754,
+      "suggestion": "Add tests that reference '_retain_incumbent' (e.g., test__retain_incumbent or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -11799,7 +11853,7 @@
       "message": "Function 'list_catalog' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.list_catalog",
       "file": "model_routing/api.py",
-      "line": 631,
+      "line": 789,
       "suggestion": "Add tests that reference 'list_catalog' (e.g., test_list_catalog or import it in a test file)"
     },
     {
@@ -11808,7 +11862,7 @@
       "message": "Function 'get_decision' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.get_decision",
       "file": "model_routing/api.py",
-      "line": 639,
+      "line": 797,
       "suggestion": "Add tests that reference 'get_decision' (e.g., test_get_decision or import it in a test file)"
     },
     {
@@ -11817,7 +11871,7 @@
       "message": "Function 'get_usage' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.get_usage",
       "file": "model_routing/api.py",
-      "line": 642,
+      "line": 800,
       "suggestion": "Add tests that reference 'get_usage' (e.g., test_get_usage or import it in a test file)"
     },
     {
@@ -11826,7 +11880,7 @@
       "message": "Function 'post_feedback' has no corresponding test references",
       "node_id": "py:model_routing.api.RoutingService.post_feedback",
       "file": "model_routing/api.py",
-      "line": 671,
+      "line": 829,
       "suggestion": "Add tests that reference 'post_feedback' (e.g., test_post_feedback or import it in a test file)"
     },
     {
@@ -11835,7 +11889,7 @@
       "message": "Function 'get_routing_service' has no corresponding test references",
       "node_id": "py:model_routing.api.get_routing_service",
       "file": "model_routing/api.py",
-      "line": 692,
+      "line": 850,
       "suggestion": "Add tests that reference 'get_routing_service' (e.g., test_get_routing_service or import it in a test file)"
     },
     {
@@ -11844,7 +11898,7 @@
       "message": "Function 'reset_routing_service' has no corresponding test references",
       "node_id": "py:model_routing.api.reset_routing_service",
       "file": "model_routing/api.py",
-      "line": 699,
+      "line": 857,
       "suggestion": "Add tests that reference 'reset_routing_service' (e.g., test_reset_routing_service or import it in a test file)"
     },
     {
@@ -11853,7 +11907,7 @@
       "message": "Function 'resolve_phase_model' has no corresponding test references",
       "node_id": "py:model_routing.api.resolve_phase_model",
       "file": "model_routing/api.py",
-      "line": 704,
+      "line": 862,
       "suggestion": "Add tests that reference 'resolve_phase_model' (e.g., test_resolve_phase_model or import it in a test file)"
     },
     {
@@ -11862,7 +11916,7 @@
       "message": "Function 'install_routing_routes' has no corresponding test references",
       "node_id": "py:model_routing.api.install_routing_routes",
       "file": "model_routing/api.py",
-      "line": 746,
+      "line": 917,
       "suggestion": "Add tests that reference 'install_routing_routes' (e.g., test_install_routing_routes or import it in a test file)"
     },
     {
@@ -11871,7 +11925,7 @@
       "message": "Function 'select_model_endpoint' has no corresponding test references",
       "node_id": "py:model_routing.api.install_routing_routes.select_model_endpoint",
       "file": "model_routing/api.py",
-      "line": 755,
+      "line": 926,
       "suggestion": "Add tests that reference 'select_model_endpoint' (e.g., test_select_model_endpoint or import it in a test file)"
     },
     {
@@ -11880,7 +11934,7 @@
       "message": "Function 'catalog_endpoint' has no corresponding test references",
       "node_id": "py:model_routing.api.install_routing_routes.catalog_endpoint",
       "file": "model_routing/api.py",
-      "line": 766,
+      "line": 937,
       "suggestion": "Add tests that reference 'catalog_endpoint' (e.g., test_catalog_endpoint or import it in a test file)"
     },
     {
@@ -11889,7 +11943,7 @@
       "message": "Function 'decision_endpoint' has no corresponding test references",
       "node_id": "py:model_routing.api.install_routing_routes.decision_endpoint",
       "file": "model_routing/api.py",
-      "line": 779,
+      "line": 950,
       "suggestion": "Add tests that reference 'decision_endpoint' (e.g., test_decision_endpoint or import it in a test file)"
     },
     {
@@ -11898,7 +11952,7 @@
       "message": "Function 'usage_endpoint' has no corresponding test references",
       "node_id": "py:model_routing.api.install_routing_routes.usage_endpoint",
       "file": "model_routing/api.py",
-      "line": 800,
+      "line": 971,
       "suggestion": "Add tests that reference 'usage_endpoint' (e.g., test_usage_endpoint or import it in a test file)"
     },
     {
@@ -11907,7 +11961,7 @@
       "message": "Function 'feedback_endpoint' has no corresponding test references",
       "node_id": "py:model_routing.api.install_routing_routes.feedback_endpoint",
       "file": "model_routing/api.py",
-      "line": 814,
+      "line": 985,
       "suggestion": "Add tests that reference 'feedback_endpoint' (e.g., test_feedback_endpoint or import it in a test file)"
     },
     {
@@ -12051,7 +12105,7 @@
       "message": "Function '_with_derived_staleness' has no corresponding test references",
       "node_id": "py:model_routing.catalog.CatalogService._with_derived_staleness",
       "file": "model_routing/catalog.py",
-      "line": 220,
+      "line": 227,
       "suggestion": "Add tests that reference '_with_derived_staleness' (e.g., test__with_derived_staleness or import it in a test file)"
     },
     {
@@ -12060,7 +12114,7 @@
       "message": "Function '_as_datetime' has no corresponding test references",
       "node_id": "py:model_routing.catalog._as_datetime",
       "file": "model_routing/catalog.py",
-      "line": 228,
+      "line": 235,
       "suggestion": "Add tests that reference '_as_datetime' (e.g., test__as_datetime or import it in a test file)"
     },
     {
@@ -12069,7 +12123,7 @@
       "message": "Function '_optional_float' has no corresponding test references",
       "node_id": "py:model_routing.catalog._optional_float",
       "file": "model_routing/catalog.py",
-      "line": 241,
+      "line": 248,
       "suggestion": "Add tests that reference '_optional_float' (e.g., test__optional_float or import it in a test file)"
     },
     {
@@ -12078,7 +12132,7 @@
       "message": "Function '_metric_value' has no corresponding test references",
       "node_id": "py:model_routing.catalog._metric_value",
       "file": "model_routing/catalog.py",
-      "line": 245,
+      "line": 252,
       "suggestion": "Add tests that reference '_metric_value' (e.g., test__metric_value or import it in a test file)"
     },
     {
@@ -12087,7 +12141,7 @@
       "message": "Function 'get_catalog_service' has no corresponding test references",
       "node_id": "py:model_routing.catalog.get_catalog_service",
       "file": "model_routing/catalog.py",
-      "line": 253,
+      "line": 260,
       "suggestion": "Add tests that reference 'get_catalog_service' (e.g., test_get_catalog_service or import it in a test file)"
     },
     {
@@ -12096,7 +12150,7 @@
       "message": "Function 'reset_catalog_service' has no corresponding test references",
       "node_id": "py:model_routing.catalog.reset_catalog_service",
       "file": "model_routing/catalog.py",
-      "line": 262,
+      "line": 269,
       "suggestion": "Add tests that reference 'reset_catalog_service' (e.g., test_reset_catalog_service or import it in a test file)"
     },
     {
@@ -12179,6 +12233,15 @@
       "file": "model_routing/exploration.py",
       "line": 48,
       "suggestion": "Add tests that reference 'choose' (e.g., test_choose or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'choose_evidenced' has no corresponding test references",
+      "node_id": "py:model_routing.exploration.choose_evidenced",
+      "file": "model_routing/exploration.py",
+      "line": 82,
+      "suggestion": "Add tests that reference 'choose_evidenced' (e.g., test_choose_evidenced or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -12570,10 +12633,46 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function 'IncumbentIdentity' has no corresponding test references",
+      "node_id": "py:model_routing.resolver.IncumbentIdentity",
+      "file": "model_routing/resolver.py",
+      "line": 143,
+      "suggestion": "Add tests that reference 'IncumbentIdentity' (e.g., test_IncumbentIdentity or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'RetentionDecision' has no corresponding test references",
+      "node_id": "py:model_routing.resolver.RetentionDecision",
+      "file": "model_routing/resolver.py",
+      "line": 155,
+      "suggestion": "Add tests that reference 'RetentionDecision' (e.g., test_RetentionDecision or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'has_evidence' has no corresponding test references",
+      "node_id": "py:model_routing.resolver.has_evidence",
+      "file": "model_routing/resolver.py",
+      "line": 169,
+      "suggestion": "Add tests that reference 'has_evidence' (e.g., test_has_evidence or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'apply_incumbent_retention' has no corresponding test references",
+      "node_id": "py:model_routing.resolver.apply_incumbent_retention",
+      "file": "model_routing/resolver.py",
+      "line": 179,
+      "suggestion": "Add tests that reference 'apply_incumbent_retention' (e.g., test_apply_incumbent_retention or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'build_feasible_assignments' has no corresponding test references",
       "node_id": "py:model_routing.resolver.build_feasible_assignments",
       "file": "model_routing/resolver.py",
-      "line": 139,
+      "line": 228,
       "suggestion": "Add tests that reference 'build_feasible_assignments' (e.g., test_build_feasible_assignments or import it in a test file)"
     },
     {
@@ -12582,7 +12681,7 @@
       "message": "Function '_lane_models' has no corresponding test references",
       "node_id": "py:model_routing.resolver._lane_models",
       "file": "model_routing/resolver.py",
-      "line": 269,
+      "line": 358,
       "suggestion": "Add tests that reference '_lane_models' (e.g., test__lane_models or import it in a test file)"
     },
     {
@@ -12591,7 +12690,7 @@
       "message": "Function '_lane_exclusion_reason' has no corresponding test references",
       "node_id": "py:model_routing.resolver._lane_exclusion_reason",
       "file": "model_routing/resolver.py",
-      "line": 276,
+      "line": 365,
       "suggestion": "Add tests that reference '_lane_exclusion_reason' (e.g., test__lane_exclusion_reason or import it in a test file)"
     },
     {
@@ -12600,7 +12699,7 @@
       "message": "Function '_strings' has no corresponding test references",
       "node_id": "py:model_routing.resolver._strings",
       "file": "model_routing/resolver.py",
-      "line": 322,
+      "line": 411,
       "suggestion": "Add tests that reference '_strings' (e.g., test__strings or import it in a test file)"
     },
     {
@@ -12609,7 +12708,7 @@
       "message": "Function '_excluded' has no corresponding test references",
       "node_id": "py:model_routing.resolver._excluded",
       "file": "model_routing/resolver.py",
-      "line": 328,
+      "line": 417,
       "suggestion": "Add tests that reference '_excluded' (e.g., test__excluded or import it in a test file)"
     },
     {
@@ -12618,7 +12717,7 @@
       "message": "Function 'blend_quality' has no corresponding test references",
       "node_id": "py:model_routing.resolver.blend_quality",
       "file": "model_routing/resolver.py",
-      "line": 343,
+      "line": 432,
       "suggestion": "Add tests that reference 'blend_quality' (e.g., test_blend_quality or import it in a test file)"
     },
     {
@@ -12627,7 +12726,7 @@
       "message": "Function 'effective_cost' has no corresponding test references",
       "node_id": "py:model_routing.resolver.effective_cost",
       "file": "model_routing/resolver.py",
-      "line": 359,
+      "line": 448,
       "suggestion": "Add tests that reference 'effective_cost' (e.g., test_effective_cost or import it in a test file)"
     },
     {
@@ -12636,7 +12735,7 @@
       "message": "Function 'feasibility_reason' has no corresponding test references",
       "node_id": "py:model_routing.resolver.feasibility_reason",
       "file": "model_routing/resolver.py",
-      "line": 386,
+      "line": 475,
       "suggestion": "Add tests that reference 'feasibility_reason' (e.g., test_feasibility_reason or import it in a test file)"
     },
     {
@@ -12645,7 +12744,7 @@
       "message": "Function '_min_max_norm' has no corresponding test references",
       "node_id": "py:model_routing.resolver._min_max_norm",
       "file": "model_routing/resolver.py",
-      "line": 404,
+      "line": 493,
       "suggestion": "Add tests that reference '_min_max_norm' (e.g., test__min_max_norm or import it in a test file)"
     },
     {
@@ -12654,7 +12753,7 @@
       "message": "Function '_headroom_fraction' has no corresponding test references",
       "node_id": "py:model_routing.resolver._headroom_fraction",
       "file": "model_routing/resolver.py",
-      "line": 414,
+      "line": 503,
       "suggestion": "Add tests that reference '_headroom_fraction' (e.g., test__headroom_fraction or import it in a test file)"
     },
     {
@@ -12663,7 +12762,7 @@
       "message": "Function 'score_and_rank' has no corresponding test references",
       "node_id": "py:model_routing.resolver.score_and_rank",
       "file": "model_routing/resolver.py",
-      "line": 421,
+      "line": 510,
       "suggestion": "Add tests that reference 'score_and_rank' (e.g., test_score_and_rank or import it in a test file)"
     },
     {
@@ -12750,10 +12849,46 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function 'CostTier' has no corresponding test references",
+      "node_id": "py:model_routing.routing_policy.CostTier",
+      "file": "model_routing/routing_policy.py",
+      "line": 97,
+      "suggestion": "Add tests that reference 'CostTier' (e.g., test_CostTier or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'validate_unique' has no corresponding test references",
+      "node_id": "py:model_routing.routing_policy.CostTier.validate_unique",
+      "file": "model_routing/routing_policy.py",
+      "line": 105,
+      "suggestion": "Add tests that reference 'validate_unique' (e.g., test_validate_unique or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'CostPolicy' has no corresponding test references",
+      "node_id": "py:model_routing.routing_policy.CostPolicy",
+      "file": "model_routing/routing_policy.py",
+      "line": 111,
+      "suggestion": "Add tests that reference 'CostPolicy' (e.g., test_CostPolicy or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'validate_ladder' has no corresponding test references",
+      "node_id": "py:model_routing.routing_policy.CostPolicy.validate_ladder",
+      "file": "model_routing/routing_policy.py",
+      "line": 115,
+      "suggestion": "Add tests that reference 'validate_ladder' (e.g., test_validate_ladder or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'RoutingPolicyDocument' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy.RoutingPolicyDocument",
       "file": "model_routing/routing_policy.py",
-      "line": 97,
+      "line": 126,
       "suggestion": "Add tests that reference 'RoutingPolicyDocument' (e.g., test_RoutingPolicyDocument or import it in a test file)"
     },
     {
@@ -12762,7 +12897,7 @@
       "message": "Function 'PolicyEvaluation' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy.PolicyEvaluation",
       "file": "model_routing/routing_policy.py",
-      "line": 106,
+      "line": 136,
       "suggestion": "Add tests that reference 'PolicyEvaluation' (e.g., test_PolicyEvaluation or import it in a test file)"
     },
     {
@@ -12771,7 +12906,7 @@
       "message": "Function 'RoutingPolicy' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy.RoutingPolicy",
       "file": "model_routing/routing_policy.py",
-      "line": 116,
+      "line": 146,
       "suggestion": "Add tests that reference 'RoutingPolicy' (e.g., test_RoutingPolicy or import it in a test file)"
     },
     {
@@ -12780,8 +12915,17 @@
       "message": "Function 'version' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy.RoutingPolicy.version",
       "file": "model_routing/routing_policy.py",
-      "line": 121,
+      "line": 151,
       "suggestion": "Add tests that reference 'version' (e.g., test_version or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'cost_tier' has no corresponding test references",
+      "node_id": "py:model_routing.routing_policy.RoutingPolicy.cost_tier",
+      "file": "model_routing/routing_policy.py",
+      "line": 154,
+      "suggestion": "Add tests that reference 'cost_tier' (e.g., test_cost_tier or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -12789,7 +12933,7 @@
       "message": "Function 'evaluate' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy.RoutingPolicy.evaluate",
       "file": "model_routing/routing_policy.py",
-      "line": 124,
+      "line": 163,
       "suggestion": "Add tests that reference 'evaluate' (e.g., test_evaluate or import it in a test file)"
     },
     {
@@ -12798,7 +12942,7 @@
       "message": "Function '_matches' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy._matches",
       "file": "model_routing/routing_policy.py",
-      "line": 162,
+      "line": 201,
       "suggestion": "Add tests that reference '_matches' (e.g., test__matches or import it in a test file)"
     },
     {
@@ -12807,7 +12951,7 @@
       "message": "Function '_within' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy._within",
       "file": "model_routing/routing_policy.py",
-      "line": 185,
+      "line": 223,
       "suggestion": "Add tests that reference '_within' (e.g., test__within or import it in a test file)"
     },
     {
@@ -12816,7 +12960,7 @@
       "message": "Function '_default_policy_path' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy._default_policy_path",
       "file": "model_routing/routing_policy.py",
-      "line": 193,
+      "line": 231,
       "suggestion": "Add tests that reference '_default_policy_path' (e.g., test__default_policy_path or import it in a test file)"
     },
     {
@@ -12825,7 +12969,7 @@
       "message": "Function 'load_routing_policy' has no corresponding test references",
       "node_id": "py:model_routing.routing_policy.load_routing_policy",
       "file": "model_routing/routing_policy.py",
-      "line": 200,
+      "line": 238,
       "suggestion": "Add tests that reference 'load_routing_policy' (e.g., test_load_routing_policy or import it in a test file)"
     },
     {
@@ -16791,10 +16935,28 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'_catalog_vendor_for_provider' is unreachable from any entrypoint or test",
+      "node_id": "py:agents_config._catalog_vendor_for_provider",
+      "file": "agents_config.py",
+      "line": 2701,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_static_incumbent' is unreachable from any entrypoint or test",
+      "node_id": "py:agents_config._static_incumbent",
+      "file": "agents_config.py",
+      "line": 2716,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'_bounded_adaptive_resolution' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._bounded_adaptive_resolution",
       "file": "agents_config.py",
-      "line": 2701,
+      "line": 2724,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -16803,7 +16965,7 @@
       "message": "'_call' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._bounded_adaptive_resolution._call",
       "file": "agents_config.py",
-      "line": 2714,
+      "line": 2738,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -16812,7 +16974,7 @@
       "message": "'resolve_archetype_for_phase' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line": 2745,
+      "line": 2770,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19746,7 +19908,7 @@
       "message": "'get_agent_id' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_agent_id",
       "file": "coordination_mcp.py",
-      "line": 162,
+      "line": 169,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19755,7 +19917,7 @@
       "message": "'get_agent_type' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_agent_type",
       "file": "coordination_mcp.py",
-      "line": 167,
+      "line": 174,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19764,7 +19926,7 @@
       "message": "'acquire_lock' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.acquire_lock",
       "file": "coordination_mcp.py",
-      "line": 178,
+      "line": 185,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19773,7 +19935,7 @@
       "message": "'release_lock' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.release_lock",
       "file": "coordination_mcp.py",
-      "line": 232,
+      "line": 239,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19782,7 +19944,7 @@
       "message": "'check_locks' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.check_locks",
       "file": "coordination_mcp.py",
-      "line": 260,
+      "line": 267,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19791,7 +19953,7 @@
       "message": "'get_work' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_work",
       "file": "coordination_mcp.py",
-      "line": 296,
+      "line": 303,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19800,7 +19962,7 @@
       "message": "'complete_work' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.complete_work",
       "file": "coordination_mcp.py",
-      "line": 339,
+      "line": 346,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19809,7 +19971,7 @@
       "message": "'submit_work' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.submit_work",
       "file": "coordination_mcp.py",
-      "line": 387,
+      "line": 394,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19818,7 +19980,7 @@
       "message": "'reconcile_work_projection' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.reconcile_work_projection",
       "file": "coordination_mcp.py",
-      "line": 473,
+      "line": 480,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19827,7 +19989,7 @@
       "message": "'get_task' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_task",
       "file": "coordination_mcp.py",
-      "line": 515,
+      "line": 522,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19836,7 +19998,7 @@
       "message": "'issue_create' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_create",
       "file": "coordination_mcp.py",
-      "line": 571,
+      "line": 578,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19845,7 +20007,7 @@
       "message": "'issue_list' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_list",
       "file": "coordination_mcp.py",
-      "line": 649,
+      "line": 656,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19854,7 +20016,7 @@
       "message": "'issue_show' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_show",
       "file": "coordination_mcp.py",
-      "line": 706,
+      "line": 713,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19863,7 +20025,7 @@
       "message": "'issue_update' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_update",
       "file": "coordination_mcp.py",
-      "line": 733,
+      "line": 740,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19872,7 +20034,7 @@
       "message": "'issue_close' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_close",
       "file": "coordination_mcp.py",
-      "line": 801,
+      "line": 808,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19881,7 +20043,7 @@
       "message": "'issue_comment' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_comment",
       "file": "coordination_mcp.py",
-      "line": 854,
+      "line": 861,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19890,7 +20052,7 @@
       "message": "'issue_ready' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_ready",
       "file": "coordination_mcp.py",
-      "line": 889,
+      "line": 896,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19899,7 +20061,7 @@
       "message": "'issue_blocked' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_blocked",
       "file": "coordination_mcp.py",
-      "line": 931,
+      "line": 938,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19908,7 +20070,7 @@
       "message": "'issue_search' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.issue_search",
       "file": "coordination_mcp.py",
-      "line": 959,
+      "line": 966,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19917,7 +20079,7 @@
       "message": "'write_handoff' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.write_handoff",
       "file": "coordination_mcp.py",
-      "line": 1002,
+      "line": 1009,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19926,7 +20088,7 @@
       "message": "'read_handoff' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.read_handoff",
       "file": "coordination_mcp.py",
-      "line": 1069,
+      "line": 1076,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19935,7 +20097,7 @@
       "message": "'register_session' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.register_session",
       "file": "coordination_mcp.py",
-      "line": 1139,
+      "line": 1146,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19944,7 +20106,7 @@
       "message": "'discover_agents' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.discover_agents",
       "file": "coordination_mcp.py",
-      "line": 1185,
+      "line": 1192,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19953,7 +20115,7 @@
       "message": "'heartbeat' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.heartbeat",
       "file": "coordination_mcp.py",
-      "line": 1238,
+      "line": 1245,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19962,7 +20124,7 @@
       "message": "'cleanup_dead_agents' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.cleanup_dead_agents",
       "file": "coordination_mcp.py",
-      "line": 1262,
+      "line": 1269,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19971,7 +20133,7 @@
       "message": "'remember' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.remember",
       "file": "coordination_mcp.py",
-      "line": 1301,
+      "line": 1308,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19980,7 +20142,7 @@
       "message": "'recall' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.recall",
       "file": "coordination_mcp.py",
-      "line": 1356,
+      "line": 1363,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19989,7 +20151,7 @@
       "message": "'check_guardrails' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.check_guardrails",
       "file": "coordination_mcp.py",
-      "line": 1416,
+      "line": 1423,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19998,7 +20160,7 @@
       "message": "'get_my_profile' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_my_profile",
       "file": "coordination_mcp.py",
-      "line": 1487,
+      "line": 1494,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20007,7 +20169,7 @@
       "message": "'get_agent_dispatch_configs' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_agent_dispatch_configs",
       "file": "coordination_mcp.py",
-      "line": 1524,
+      "line": 1531,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20016,7 +20178,7 @@
       "message": "'query_audit' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.query_audit",
       "file": "coordination_mcp.py",
-      "line": 1548,
+      "line": 1555,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20025,7 +20187,7 @@
       "message": "'check_policy' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.check_policy",
       "file": "coordination_mcp.py",
-      "line": 1603,
+      "line": 1610,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20034,7 +20196,7 @@
       "message": "'validate_cedar_policy' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.validate_cedar_policy",
       "file": "coordination_mcp.py",
-      "line": 1650,
+      "line": 1657,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20043,7 +20205,7 @@
       "message": "'allocate_ports' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.allocate_ports",
       "file": "coordination_mcp.py",
-      "line": 1694,
+      "line": 1701,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20052,7 +20214,7 @@
       "message": "'release_ports' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.release_ports",
       "file": "coordination_mcp.py",
-      "line": 1743,
+      "line": 1750,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20061,7 +20223,7 @@
       "message": "'ports_status' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.ports_status",
       "file": "coordination_mcp.py",
-      "line": 1770,
+      "line": 1777,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20070,7 +20232,7 @@
       "message": "'request_approval' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.request_approval",
       "file": "coordination_mcp.py",
-      "line": 1815,
+      "line": 1822,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20079,7 +20241,7 @@
       "message": "'check_approval' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.check_approval",
       "file": "coordination_mcp.py",
-      "line": 1847,
+      "line": 1854,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20088,7 +20250,7 @@
       "message": "'list_policy_versions' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.list_policy_versions",
       "file": "coordination_mcp.py",
-      "line": 1873,
+      "line": 1880,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20097,7 +20259,7 @@
       "message": "'request_permission' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.request_permission",
       "file": "coordination_mcp.py",
-      "line": 1893,
+      "line": 1900,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20106,7 +20268,7 @@
       "message": "'register_feature' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.register_feature",
       "file": "coordination_mcp.py",
-      "line": 1926,
+      "line": 1933,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20115,7 +20277,7 @@
       "message": "'deregister_feature' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.deregister_feature",
       "file": "coordination_mcp.py",
-      "line": 1982,
+      "line": 1989,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20124,7 +20286,7 @@
       "message": "'get_feature' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_feature",
       "file": "coordination_mcp.py",
-      "line": 2017,
+      "line": 2024,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20133,7 +20295,7 @@
       "message": "'list_active_features' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.list_active_features",
       "file": "coordination_mcp.py",
-      "line": 2051,
+      "line": 2058,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20142,7 +20304,7 @@
       "message": "'analyze_feature_conflicts' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.analyze_feature_conflicts",
       "file": "coordination_mcp.py",
-      "line": 2081,
+      "line": 2088,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20151,7 +20313,7 @@
       "message": "'enqueue_merge' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.enqueue_merge",
       "file": "coordination_mcp.py",
-      "line": 2122,
+      "line": 2129,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20160,7 +20322,7 @@
       "message": "'get_merge_queue' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_merge_queue",
       "file": "coordination_mcp.py",
-      "line": 2163,
+      "line": 2170,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20169,7 +20331,7 @@
       "message": "'get_next_merge' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_next_merge",
       "file": "coordination_mcp.py",
-      "line": 2192,
+      "line": 2199,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20178,7 +20340,7 @@
       "message": "'run_pre_merge_checks' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.run_pre_merge_checks",
       "file": "coordination_mcp.py",
-      "line": 2221,
+      "line": 2228,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20187,7 +20349,7 @@
       "message": "'mark_merged' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.mark_merged",
       "file": "coordination_mcp.py",
-      "line": 2251,
+      "line": 2258,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20196,7 +20358,7 @@
       "message": "'remove_from_merge_queue' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.remove_from_merge_queue",
       "file": "coordination_mcp.py",
-      "line": 2273,
+      "line": 2280,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20205,7 +20367,7 @@
       "message": "'_current_trust_level' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp._current_trust_level",
       "file": "coordination_mcp.py",
-      "line": 2298,
+      "line": 2305,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20214,7 +20376,7 @@
       "message": "'compose_train' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.compose_train",
       "file": "coordination_mcp.py",
-      "line": 2313,
+      "line": 2320,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20223,7 +20385,7 @@
       "message": "'eject_from_train' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.eject_from_train",
       "file": "coordination_mcp.py",
-      "line": 2372,
+      "line": 2379,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20232,7 +20394,7 @@
       "message": "'get_train_status' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.get_train_status",
       "file": "coordination_mcp.py",
-      "line": 2430,
+      "line": 2437,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20241,7 +20403,7 @@
       "message": "'report_spec_result' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.report_spec_result",
       "file": "coordination_mcp.py",
-      "line": 2463,
+      "line": 2470,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20250,7 +20412,7 @@
       "message": "'affected_tests' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.affected_tests",
       "file": "coordination_mcp.py",
-      "line": 2506,
+      "line": 2513,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20259,7 +20421,7 @@
       "message": "'report_status' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.report_status",
       "file": "coordination_mcp.py",
-      "line": 2544,
+      "line": 2551,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20268,7 +20430,7 @@
       "message": "'help' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.help",
       "file": "coordination_mcp.py",
-      "line": 2645,
+      "line": 2652,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20277,7 +20439,7 @@
       "message": "'list_scenarios' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.list_scenarios",
       "file": "coordination_mcp.py",
-      "line": 2983,
+      "line": 2990,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20286,7 +20448,7 @@
       "message": "'validate_scenario' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.validate_scenario",
       "file": "coordination_mcp.py",
-      "line": 3027,
+      "line": 3034,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20295,7 +20457,7 @@
       "message": "'create_scenario' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.create_scenario",
       "file": "coordination_mcp.py",
-      "line": 3062,
+      "line": 3069,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20304,7 +20466,7 @@
       "message": "'run_gen_eval' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.run_gen_eval",
       "file": "coordination_mcp.py",
-      "line": 3113,
+      "line": 3120,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20313,7 +20475,7 @@
       "message": "'_code_search_enabled' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp._code_search_enabled",
       "file": "coordination_mcp.py",
-      "line": 3283,
+      "line": 3290,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20322,7 +20484,7 @@
       "message": "'search_code' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.search_code",
       "file": "coordination_mcp.py",
-      "line": 3292,
+      "line": 3299,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20331,7 +20493,7 @@
       "message": "'main' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.main",
       "file": "coordination_mcp.py",
-      "line": 3368,
+      "line": 3375,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24606,7 +24768,7 @@
       "message": "'WeightOverrides' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.WeightOverrides",
       "file": "model_routing/api.py",
-      "line": 49,
+      "line": 57,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24615,7 +24777,7 @@
       "message": "'TaskSignals' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.TaskSignals",
       "file": "model_routing/api.py",
-      "line": 57,
+      "line": 65,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24624,7 +24786,7 @@
       "message": "'RoadmapRoutingPolicy' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoadmapRoutingPolicy",
       "file": "model_routing/api.py",
-      "line": 71,
+      "line": 79,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24633,7 +24795,7 @@
       "message": "'validate_unique_lists' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoadmapRoutingPolicy.validate_unique_lists",
       "file": "model_routing/api.py",
-      "line": 95,
+      "line": 103,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24642,7 +24804,16 @@
       "message": "'TaskRoutingProfile' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.TaskRoutingProfile",
       "file": "model_routing/api.py",
-      "line": 109,
+      "line": 117,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'IncumbentRequest' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.api.IncumbentRequest",
+      "file": "model_routing/api.py",
+      "line": 134,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24651,7 +24822,7 @@
       "message": "'SelectModelRequest' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.SelectModelRequest",
       "file": "model_routing/api.py",
-      "line": 126,
+      "line": 143,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24660,7 +24831,7 @@
       "message": "'RoutingAssignmentResponse' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingAssignmentResponse",
       "file": "model_routing/api.py",
-      "line": 136,
+      "line": 154,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24669,7 +24840,7 @@
       "message": "'RoutingProvenanceResponse' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingProvenanceResponse",
       "file": "model_routing/api.py",
-      "line": 151,
+      "line": 169,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24678,7 +24849,7 @@
       "message": "'CandidateResponse' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.CandidateResponse",
       "file": "model_routing/api.py",
-      "line": 164,
+      "line": 183,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24687,7 +24858,16 @@
       "message": "'ExcludedCandidate' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.ExcludedCandidate",
       "file": "model_routing/api.py",
-      "line": 184,
+      "line": 203,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'RetentionResponse' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.api.RetentionResponse",
+      "file": "model_routing/api.py",
+      "line": 225,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24696,7 +24876,7 @@
       "message": "'SelectModelResponse' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.SelectModelResponse",
       "file": "model_routing/api.py",
-      "line": 195,
+      "line": 234,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24705,7 +24885,7 @@
       "message": "'UsageByModelResponse' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.UsageByModelResponse",
       "file": "model_routing/api.py",
-      "line": 208,
+      "line": 255,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24714,7 +24894,7 @@
       "message": "'UsageAggregateResponse' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.UsageAggregateResponse",
       "file": "model_routing/api.py",
-      "line": 219,
+      "line": 266,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24723,7 +24903,7 @@
       "message": "'HTTPErrorResponse' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.HTTPErrorResponse",
       "file": "model_routing/api.py",
-      "line": 230,
+      "line": 277,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24732,7 +24912,7 @@
       "message": "'FeedbackMetrics' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.FeedbackMetrics",
       "file": "model_routing/api.py",
-      "line": 234,
+      "line": 281,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24741,7 +24921,7 @@
       "message": "'FeedbackEvent' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.FeedbackEvent",
       "file": "model_routing/api.py",
-      "line": 244,
+      "line": 291,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24750,7 +24930,7 @@
       "message": "'_Catalog' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._Catalog",
       "file": "model_routing/api.py",
-      "line": 256,
+      "line": 303,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24759,7 +24939,7 @@
       "message": "'list_candidates' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._Catalog.list_candidates",
       "file": "model_routing/api.py",
-      "line": 257,
+      "line": 304,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24768,7 +24948,7 @@
       "message": "'list_entries' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._Catalog.list_entries",
       "file": "model_routing/api.py",
-      "line": 259,
+      "line": 306,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24777,7 +24957,7 @@
       "message": "'record_decision' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._Catalog.record_decision",
       "file": "model_routing/api.py",
-      "line": 265,
+      "line": 312,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24786,7 +24966,7 @@
       "message": "'record_decision_and_audit' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._Catalog.record_decision_and_audit",
       "file": "model_routing/api.py",
-      "line": 267,
+      "line": 314,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24795,7 +24975,7 @@
       "message": "'get_decision' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._Catalog.get_decision",
       "file": "model_routing/api.py",
-      "line": 271,
+      "line": 316,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24804,7 +24984,7 @@
       "message": "'_Ledger' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._Ledger",
       "file": "model_routing/api.py",
-      "line": 274,
+      "line": 319,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24813,7 +24993,7 @@
       "message": "'usage_summary' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._Ledger.usage_summary",
       "file": "model_routing/api.py",
-      "line": 275,
+      "line": 320,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24822,7 +25002,7 @@
       "message": "'RoutingUnavailableError' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingUnavailableError",
       "file": "model_routing/api.py",
-      "line": 284,
+      "line": 329,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24831,7 +25011,7 @@
       "message": "'_candidate_payload' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._candidate_payload",
       "file": "model_routing/api.py",
-      "line": 288,
+      "line": 333,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24840,7 +25020,7 @@
       "message": "'_excluded_payload' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._excluded_payload",
       "file": "model_routing/api.py",
-      "line": 306,
+      "line": 351,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24849,7 +25029,16 @@
       "message": "'_sanitized_request' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._sanitized_request",
       "file": "model_routing/api.py",
-      "line": 310,
+      "line": 355,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_persisted_request' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.api._persisted_request",
+      "file": "model_routing/api.py",
+      "line": 382,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24858,7 +25047,7 @@
       "message": "'_task_type' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._task_type",
       "file": "model_routing/api.py",
-      "line": 332,
+      "line": 389,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24867,7 +25056,7 @@
       "message": "'_weights' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._weights",
       "file": "model_routing/api.py",
-      "line": 341,
+      "line": 398,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24876,7 +25065,7 @@
       "message": "'_safe_float' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._safe_float",
       "file": "model_routing/api.py",
-      "line": 354,
+      "line": 411,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24885,7 +25074,7 @@
       "message": "'_nonnegative_env_float' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api._nonnegative_env_float",
       "file": "model_routing/api.py",
-      "line": 362,
+      "line": 419,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24894,7 +25083,7 @@
       "message": "'RoutingService' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService",
       "file": "model_routing/api.py",
-      "line": 367,
+      "line": 424,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24903,7 +25092,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.__init__",
       "file": "model_routing/api.py",
-      "line": 370,
+      "line": 427,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24912,7 +25101,7 @@
       "message": "'catalog' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.catalog",
       "file": "model_routing/api.py",
-      "line": 387,
+      "line": 444,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24921,7 +25110,7 @@
       "message": "'ledger' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.ledger",
       "file": "model_routing/api.py",
-      "line": 395,
+      "line": 452,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24930,7 +25119,7 @@
       "message": "'registry' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.registry",
       "file": "model_routing/api.py",
-      "line": 403,
+      "line": 460,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24939,7 +25128,7 @@
       "message": "'policy' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.policy",
       "file": "model_routing/api.py",
-      "line": 411,
+      "line": 468,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24948,7 +25137,7 @@
       "message": "'_current_exploration_budget' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService._current_exploration_budget",
       "file": "model_routing/api.py",
-      "line": 418,
+      "line": 475,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24957,7 +25146,16 @@
       "message": "'select_model' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.select_model",
       "file": "model_routing/api.py",
-      "line": 449,
+      "line": 506,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_retain_incumbent' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.api.RoutingService._retain_incumbent",
+      "file": "model_routing/api.py",
+      "line": 754,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24966,7 +25164,7 @@
       "message": "'list_catalog' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.list_catalog",
       "file": "model_routing/api.py",
-      "line": 631,
+      "line": 789,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24975,7 +25173,7 @@
       "message": "'get_decision' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.get_decision",
       "file": "model_routing/api.py",
-      "line": 639,
+      "line": 797,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24984,7 +25182,7 @@
       "message": "'get_usage' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.get_usage",
       "file": "model_routing/api.py",
-      "line": 642,
+      "line": 800,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24993,7 +25191,7 @@
       "message": "'post_feedback' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.RoutingService.post_feedback",
       "file": "model_routing/api.py",
-      "line": 671,
+      "line": 829,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25002,7 +25200,7 @@
       "message": "'reset_routing_service' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.reset_routing_service",
       "file": "model_routing/api.py",
-      "line": 699,
+      "line": 857,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25011,7 +25209,7 @@
       "message": "'resolve_phase_model' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.resolve_phase_model",
       "file": "model_routing/api.py",
-      "line": 704,
+      "line": 862,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25020,7 +25218,7 @@
       "message": "'install_routing_routes' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.api.install_routing_routes",
       "file": "model_routing/api.py",
-      "line": 746,
+      "line": 917,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25173,7 +25371,7 @@
       "message": "'_with_derived_staleness' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.catalog.CatalogService._with_derived_staleness",
       "file": "model_routing/catalog.py",
-      "line": 220,
+      "line": 227,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25182,7 +25380,7 @@
       "message": "'_as_datetime' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.catalog._as_datetime",
       "file": "model_routing/catalog.py",
-      "line": 228,
+      "line": 235,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25191,7 +25389,7 @@
       "message": "'_optional_float' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.catalog._optional_float",
       "file": "model_routing/catalog.py",
-      "line": 241,
+      "line": 248,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25200,7 +25398,7 @@
       "message": "'_metric_value' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.catalog._metric_value",
       "file": "model_routing/catalog.py",
-      "line": 245,
+      "line": 252,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25209,7 +25407,7 @@
       "message": "'get_catalog_service' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.catalog.get_catalog_service",
       "file": "model_routing/catalog.py",
-      "line": 253,
+      "line": 260,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25218,7 +25416,7 @@
       "message": "'reset_catalog_service' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.catalog.reset_catalog_service",
       "file": "model_routing/catalog.py",
-      "line": 262,
+      "line": 269,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25318,6 +25516,15 @@
       "node_id": "py:model_routing.exploration.choose",
       "file": "model_routing/exploration.py",
       "line": 48,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'choose_evidenced' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.exploration.choose_evidenced",
+      "file": "model_routing/exploration.py",
+      "line": 82,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25755,10 +25962,46 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'IncumbentIdentity' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.resolver.IncumbentIdentity",
+      "file": "model_routing/resolver.py",
+      "line": 143,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'RetentionDecision' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.resolver.RetentionDecision",
+      "file": "model_routing/resolver.py",
+      "line": 155,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'has_evidence' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.resolver.has_evidence",
+      "file": "model_routing/resolver.py",
+      "line": 169,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'apply_incumbent_retention' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.resolver.apply_incumbent_retention",
+      "file": "model_routing/resolver.py",
+      "line": 179,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'build_feasible_assignments' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver.build_feasible_assignments",
       "file": "model_routing/resolver.py",
-      "line": 139,
+      "line": 228,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25767,7 +26010,7 @@
       "message": "'_lane_models' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver._lane_models",
       "file": "model_routing/resolver.py",
-      "line": 269,
+      "line": 358,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25776,7 +26019,7 @@
       "message": "'_lane_exclusion_reason' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver._lane_exclusion_reason",
       "file": "model_routing/resolver.py",
-      "line": 276,
+      "line": 365,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25785,7 +26028,7 @@
       "message": "'_strings' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver._strings",
       "file": "model_routing/resolver.py",
-      "line": 322,
+      "line": 411,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25794,7 +26037,7 @@
       "message": "'_excluded' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver._excluded",
       "file": "model_routing/resolver.py",
-      "line": 328,
+      "line": 417,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25803,7 +26046,7 @@
       "message": "'blend_quality' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver.blend_quality",
       "file": "model_routing/resolver.py",
-      "line": 343,
+      "line": 432,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25812,7 +26055,7 @@
       "message": "'effective_cost' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver.effective_cost",
       "file": "model_routing/resolver.py",
-      "line": 359,
+      "line": 448,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25821,7 +26064,7 @@
       "message": "'feasibility_reason' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver.feasibility_reason",
       "file": "model_routing/resolver.py",
-      "line": 386,
+      "line": 475,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25830,7 +26073,7 @@
       "message": "'_min_max_norm' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver._min_max_norm",
       "file": "model_routing/resolver.py",
-      "line": 404,
+      "line": 493,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25839,7 +26082,7 @@
       "message": "'_headroom_fraction' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver._headroom_fraction",
       "file": "model_routing/resolver.py",
-      "line": 414,
+      "line": 503,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25848,7 +26091,7 @@
       "message": "'score_and_rank' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.resolver.score_and_rank",
       "file": "model_routing/resolver.py",
-      "line": 421,
+      "line": 510,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25944,10 +26187,46 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'CostTier' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.routing_policy.CostTier",
+      "file": "model_routing/routing_policy.py",
+      "line": 97,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'validate_unique' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.routing_policy.CostTier.validate_unique",
+      "file": "model_routing/routing_policy.py",
+      "line": 105,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'CostPolicy' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.routing_policy.CostPolicy",
+      "file": "model_routing/routing_policy.py",
+      "line": 111,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'validate_ladder' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.routing_policy.CostPolicy.validate_ladder",
+      "file": "model_routing/routing_policy.py",
+      "line": 115,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'RoutingPolicyDocument' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy.RoutingPolicyDocument",
       "file": "model_routing/routing_policy.py",
-      "line": 97,
+      "line": 126,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25956,7 +26235,7 @@
       "message": "'PolicyEvaluation' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy.PolicyEvaluation",
       "file": "model_routing/routing_policy.py",
-      "line": 106,
+      "line": 136,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25965,7 +26244,7 @@
       "message": "'RoutingPolicy' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy.RoutingPolicy",
       "file": "model_routing/routing_policy.py",
-      "line": 116,
+      "line": 146,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25974,7 +26253,16 @@
       "message": "'version' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy.RoutingPolicy.version",
       "file": "model_routing/routing_policy.py",
-      "line": 121,
+      "line": 151,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'cost_tier' is unreachable from any entrypoint or test",
+      "node_id": "py:model_routing.routing_policy.RoutingPolicy.cost_tier",
+      "file": "model_routing/routing_policy.py",
+      "line": 154,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25983,7 +26271,7 @@
       "message": "'evaluate' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy.RoutingPolicy.evaluate",
       "file": "model_routing/routing_policy.py",
-      "line": 124,
+      "line": 163,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25992,7 +26280,7 @@
       "message": "'_matches' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy._matches",
       "file": "model_routing/routing_policy.py",
-      "line": 162,
+      "line": 201,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -26001,7 +26289,7 @@
       "message": "'_within' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy._within",
       "file": "model_routing/routing_policy.py",
-      "line": 185,
+      "line": 223,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -26010,7 +26298,7 @@
       "message": "'_default_policy_path' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy._default_policy_path",
       "file": "model_routing/routing_policy.py",
-      "line": 193,
+      "line": 231,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -26019,7 +26307,7 @@
       "message": "'load_routing_policy' is unreachable from any entrypoint or test",
       "node_id": "py:model_routing.routing_policy.load_routing_policy",
       "file": "model_routing/routing_policy.py",
-      "line": 200,
+      "line": 238,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -29468,96 +29756,15 @@
       "file": "worktrees_view.py",
       "line": 41,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'IF' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.agent_sessions.IF",
-      "file": "001_core_schema.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'IF' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.work_queue.IF",
-      "file": "001_core_schema.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'IF' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.handoff_documents.IF",
-      "file": "002_handoff_documents.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'IF' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.agent_profiles.IF",
-      "file": "007_agent_profiles.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'IF' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.audit_log.IF",
-      "file": "008_audit_log.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'IF' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.cedar_policies.IF",
-      "file": "010_cedar_policy_store.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'IF' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.code_search_registry.IF",
-      "file": "028_code_search_registry.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'CONSTRAINT' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.code_search_indexes.CONSTRAINT",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'IF' uses PascalCase but most columns use snake_case",
-      "node_id": "pg:public.public.code_search_indexes.IF",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "line": 1,
-      "suggestion": "Rename to follow snake_case convention"
     }
   ],
   "summary": {
-    "total_findings": 3283,
+    "total_findings": 3306,
     "errors": 0,
-    "warnings": 3175,
-    "info": 108,
+    "warnings": 3207,
+    "info": 99,
     "entrypoints_checked": 107,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1593
+    "flows_without_coverage": 1609
   }
 }
