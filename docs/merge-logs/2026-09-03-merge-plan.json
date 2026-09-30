@@ -5,6 +5,7 @@
     {
       "auto_executable": false,
       "definition": {
+        "change_id": "add-model-usage-ledger",
         "changed_files": [
           ".claude/settings.json",
           "docs/decisions/agent-archetypes.md",
@@ -35,30 +36,34 @@
         ],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "plan",
+        "remediation_skill": "iterate-on-plan"
       },
       "origin": "openspec",
       "pr": 468,
       "state": {
-        "blocking_reason": "refined and reviewed; held at the proposal_acceptance gate. Unlike the Tier A claude/fix-* branches, this carries a real openspec/changes/<id>/proposal.md, so the gate is live rather than vacuous. Operator approval required before merge.",
+        "blocking_reason": null,
         "ci_state": "clean",
         "claimed_by": null,
         "needs_revalidation": false,
-        "outcome": "pending",
+        "outcome": "merged",
         "staleness": "fresh",
         "unresolved_comment_summary": null,
         "unresolved_comments": 6,
         "vendor_verdict": {
+          "accepted_at": "2026-09-30",
           "critical": [
             "every /usage/* GET was unauthenticated on a false claim about repo convention; /audit and /profiles/me both require the key",
             "principal accepted from the ingest request instead of derived from the API key",
             "specs still described the GETs as unauthenticated after the contract was fixed (regression from iteration 1)",
             "session_overhead had no contract representation; PhaseUsageRow requires fields it cannot have (regression from iteration 1)"
           ],
-          "disposition": "awaiting_proposal_acceptance",
-          "final_ci": "20/20 pass, 1 skipped",
+          "disposition": "accepted_and_merged",
+          "final_ci": "26/26 pass, 1 skipped, on a base including #648",
           "findings_addressed": 24,
           "iterations": 2,
+          "merge_strategy": "merge commit, not rebase: refresh-branch had introduced merge commits so GitHub refused a rebase. Squash would have collapsed the refinement history the rebase default exists to preserve; main already carries 47 merge commits in its last 200, including openspec PR #417.",
           "quorum": "2/2",
           "reviewed_at": "2026-09-04",
           "vendors_failed": [
@@ -83,6 +88,7 @@
     {
       "auto_executable": false,
       "definition": {
+        "change_id": "standardize-port-leases",
         "changed_files": [
           "docs/decisions/agent-coordinator.md",
           "docs/decisions/evaluation-framework.md",
@@ -110,30 +116,34 @@
         ],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "plan",
+        "remediation_skill": "iterate-on-plan"
       },
       "origin": "openspec",
       "pr": 467,
       "state": {
-        "blocking_reason": "refined and reviewed; held at the proposal_acceptance gate. Unlike the Tier A claude/fix-* branches, this carries a real openspec/changes/<id>/proposal.md, so the gate is live rather than vacuous. Operator approval required before merge.",
+        "blocking_reason": null,
         "ci_state": "clean",
         "claimed_by": null,
         "needs_revalidation": false,
-        "outcome": "pending",
+        "outcome": "merged",
         "staleness": "fresh",
         "unresolved_comment_summary": null,
         "unresolved_comments": 5,
         "vendor_verdict": {
+          "accepted_at": "2026-09-30",
           "critical": [
             "release/conflict had no ownership check while GET /ports/status publishes session_id unauthenticated",
             "reconcile applied one client's host report to every lease in the system",
             "host_id was added to schema/spec/reconcile but not to PortAllocateRequest, so it could never be set (regression from iteration 1)",
             "unknown-session conflict reports let any caller block any slot; block layout is arithmetic and predictable"
           ],
-          "disposition": "awaiting_proposal_acceptance",
-          "final_ci": "20/20 pass, 1 skipped",
+          "disposition": "accepted_and_merged",
+          "final_ci": "26/26 pass, 1 skipped, on a base including #648",
           "findings_addressed": 23,
           "iterations": 2,
+          "merge_strategy": "merge commit, not rebase: refresh-branch had introduced merge commits so GitHub refused a rebase. Squash would have collapsed the refinement history the rebase default exists to preserve; main already carries 47 merge commits in its last 200, including openspec PR #417.",
           "quorum": "2/2",
           "reviewed_at": "2026-09-04",
           "vendors_failed": [
@@ -169,7 +179,9 @@
         ],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "implementation",
+        "remediation_skill": "iterate-on-implementation"
       },
       "origin": "openspec",
       "pr": 465,
@@ -236,7 +248,9 @@
         "gates": [
           "proposal_acceptance"
         ],
-        "inserted_reason": "runtime dependency, not file overlap: #464 test-integration fails with 'column delegated_from of relation audit_log does not exist' (defect #455, pre-existing on main). Only #463's migration 035_audit_log_delegated_from.sql adds that column. Merge #463 first, then refresh-branch #464."
+        "inserted_reason": "runtime dependency, not file overlap: #464 test-integration fails with 'column delegated_from of relation audit_log does not exist' (defect #455, pre-existing on main). Only #463's migration 035_audit_log_delegated_from.sql adds that column. Merge #463 first, then refresh-branch #464.",
+        "kind": "implementation",
+        "remediation_skill": "iterate-on-implementation"
       },
       "origin": "openspec",
       "pr": 464,
@@ -286,7 +300,9 @@
         ],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "implementation",
+        "remediation_skill": "iterate-on-implementation"
       },
       "origin": "openspec",
       "pr": 463,
@@ -397,7 +413,9 @@
         "depends_on": [],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "implementation",
+        "remediation_skill": "iterate-on-implementation"
       },
       "origin": "openspec",
       "pr": 422,
@@ -422,7 +440,9 @@
         "depends_on": [],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "plan",
+        "remediation_skill": "iterate-on-plan"
       },
       "origin": "openspec",
       "pr": 417,
@@ -491,7 +511,9 @@
         ],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "implementation",
+        "remediation_skill": "iterate-on-implementation"
       },
       "origin": "openspec",
       "pr": 411,
@@ -561,7 +583,9 @@
         "gates": [
           "proposal_acceptance"
         ],
-        "inserted_reason": "SUPERSEDED BY #463 + #464 + #465, which carve up this PR's file set exactly: audit.py/035_*.sql -> #463; 000_bootstrap.sql/config.py/db.py/migrations.py/policy_engine.py -> #464; profiles.py/trust_resolution.py -> #465. Derived overlap edges pointed the wrong way and were removed."
+        "inserted_reason": "SUPERSEDED BY #463 + #464 + #465, which carve up this PR's file set exactly: audit.py/035_*.sql -> #463; 000_bootstrap.sql/config.py/db.py/migrations.py/policy_engine.py -> #464; profiles.py/trust_resolution.py -> #465. Derived overlap edges pointed the wrong way and were removed.",
+        "kind": "implementation",
+        "remediation_skill": "iterate-on-implementation"
       },
       "origin": "openspec",
       "pr": 408,
@@ -586,7 +610,9 @@
         "depends_on": [],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "plan",
+        "remediation_skill": "iterate-on-plan"
       },
       "origin": "openspec",
       "pr": 363,
@@ -659,7 +685,9 @@
         ],
         "gates": [
           "proposal_acceptance"
-        ]
+        ],
+        "kind": "plan",
+        "remediation_skill": "iterate-on-plan"
       },
       "origin": "openspec",
       "pr": 353,
@@ -687,7 +715,9 @@
         "gates": [
           "required_review"
         ],
-        "inserted_reason": "test-infra-skills is a REQUIRED status check and is red on main@4e2eda94 and on every open PR: the Playwright probe in test_e2e_sample.py raises subprocess.TimeoutExpired instead of skipping when npx tries to fetch an absent Playwright. No Tier A node can merge until #472 lands and each branch is refreshed to pick it up."
+        "inserted_reason": "test-infra-skills is a REQUIRED status check and is red on main@4e2eda94 and on every open PR: the Playwright probe in test_e2e_sample.py raises subprocess.TimeoutExpired instead of skipping when npx tries to fetch an absent Playwright. No Tier A node can merge until #472 lands and each branch is refreshed to pick it up.",
+        "kind": "automation",
+        "remediation_skill": "quick-task"
       },
       "origin": "other",
       "pr": 472,
@@ -706,6 +736,6 @@
       "title": "fix(ci): skip the Playwright e2e test when the npx probe times out"
     }
   ],
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "storage_tier": "file"
 }
