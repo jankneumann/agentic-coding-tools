@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "The OpenAPI schema for `PortAllocateRequest` (and `PortAllocation` / `PortStatusEntry`) omits the `host_id` property, even though `contracts/db/schema.sql` has a `host_id` column and `specs/agent-coordinator/spec.md` mandates that leases record `host_id` to scope `POST /ports/reconcile`. Because clients cannot send `host_id` during allocation, all leases will be stored with `host_id = NULL`, causing `POST /ports/reconcile` (which requires `host_id` and filters by it) to match zero active leases and fail to reconcile any host.",
+      "resolution": "Add optional `host_id` (string, minLength 1, maxLength 128) to `PortAllocateRequest`, `PortAllocation`, and `PortStatusEntry` in `contracts/openapi/v1.yaml`, update `specs/port-lease-client/spec.md` so `PortLease.acquire` includes `host_id` in the allocation payload, and pass `host_id` when persisting the lease.",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/standardize-port-leases/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 211,
+        "end": 220
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "OpenAPI `PortReconcileRequest` schema requires each item in `running_projects` to include `compose_project_name` AND either `slot` or `db_port`. However, `tasks.md` Task 3.7 specifies implementing reconcile using `docker compose ls --format json`, which only outputs compose project names (`Name`). Passing project names without `slot` or `db_port` will cause `POST /ports/reconcile` to return HTTP 422 Unprocessable Entity. Neither `spec.md` nor `tasks.md` specifies how `port-lease reconcile` inspects running project containers or port bindings to derive `slot` or `db_port`.",
+      "resolution": "Update `specs/port-lease-client/spec.md` and Task 3.7 in `tasks.md` to specify that `port-lease reconcile` must inspect container port labels or `docker compose ps` / port bindings to populate `db_port` or `slot` for each running project before submitting the payload to `/ports/reconcile`.",
+      "disposition": "fix",
+      "package_id": "wp-skills-client",
+      "file_path": "openspec/changes/standardize-port-leases/specs/port-lease-client/spec.md",
+      "line_range": {
+        "start": 83,
+        "end": 95
+      },
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "critical",
+      "description": "`POST /ports/conflict` is specified to allow reports for unknown `session_id`s and block the slot containing the specified `port`. Because `GET /ports/status` is unauthenticated and port numbers are predictable (e.g. 10000, 10100...), any authenticated caller can pass an unknown `session_id` (or their own `session_id`) and specify target port numbers belonging to active leases owned by other agents or unallocated slots. This bypasses the `not_lease_owner` check, allowing an attacker to force all coordinator slots into a 30-minute cooling period and trigger total port pool exhaustion (`no_ports_available`).",
+      "resolution": "Update `specs/agent-coordinator/spec.md` and `contracts/openapi/v1.yaml` so `POST /ports/conflict` requires that if `port` falls within an active lease block, the caller's `agent_id` MUST match the `agent_id` on that lease (returning `not_lease_owner` otherwise). Additionally, require that conflict reports for unleased slots specify a valid session owned by the caller.",
+      "disposition": "fix",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/standardize-port-leases/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 281,
+        "end": 285
+      },
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "In `specs/coordinator-kanban-viz/spec.md`, Requirement 'Kanban dev server honours the leased UI port' states in requirement text (line 53) that kanban dev server addresses the coordinator at `API_BASE_URL` (offset +3, host-run API). However, the scenario directly below (line 58) and lines 11-12 explicitly mandate using `VITE_COORDINATOR_URL=http://localhost:10001` (`AGENT_COORDINATOR_REST_PORT` / offset +1, compose container REST port), creating an internal specification contradiction.",
+      "resolution": "Update line 53 of `specs/coordinator-kanban-viz/spec.md` to state that the kanban dev server addresses the coordinator container at `AGENT_COORDINATOR_REST_PORT` / `SUPABASE_URL` rather than `API_BASE_URL`.",
+      "disposition": "fix",
+      "package_id": "wp-consumers",
+      "file_path": "openspec/changes/standardize-port-leases/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 53,
+        "end": 61
+      },
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "`specs/port-lease-client/spec.md` does not specify that `FileBackend` must prune expired lease entries from the on-disk registry file during `acquire()` or `reconcile()`. Because `FileBackend` allocates from a small slot range (`[PORT_ALLOC_FILE_SLOT_BASE, max_sessions)`, which defaults to 5 slots) and has no background daemon, uncleaned crashed client sessions will leave expired entries in the registry file, permanently exhausting the file slot range after 5 crashed runs.",
+      "resolution": "Add a requirement scenario to `specs/port-lease-client/spec.md` stating that `FileBackend` MUST inspect timestamp expiries on registry read during `acquire()` and remove expired lease entries before evaluating slot availability.",
+      "disposition": "fix",
+      "package_id": "wp-skills-client",
+      "file_path": "openspec/changes/standardize-port-leases/specs/port-lease-client/spec.md",
+      "line_range": {
+        "start": 96,
+        "end": 126
+      },
+      "axis": "resilience",
+      "severity": "critical"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "In `specs/agent-coordinator/spec.md`, `PORT_ALLOC_FILE_SLOT_BASE` defaults to `floor(0.75 * max_sessions)`. If `max_sessions` is configured to `1`, the calculated default is `0`. However, the 'File slot base out of range' scenario mandates that `PORT_ALLOC_FILE_SLOT_BASE <= 0` triggers a fatal configuration error at startup. The spec lacks validation requiring `max_sessions >= 2` or clamping `PORT_ALLOC_FILE_SLOT_BASE` default to `max(1, ...)`.",
+      "resolution": "Update `specs/agent-coordinator/spec.md` to require `max_sessions >= 2` (or clamp the default calculation to `max(1, floor(0.75 * max_sessions))`).",
+      "disposition": "fix",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/standardize-port-leases/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 98,
+        "end": 113
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "In `work-packages.yaml`, `wp-consumers` lists `agent-coordinator/Makefile` under `locks.files` and modifies `make e2e-kanban` to invoke `port-lease acquire`. However, `wp-consumers` depends only on `wp-contracts` and is intended to run in parallel with `wp-skills-client`. If `make e2e-kanban` is invoked during `wp-consumers` before `wp-skills-client` (which implements `port-lease` in Task 3.3d) merges, `port-lease` will be missing.",
+      "resolution": "Add `wp-skills-client` to `depends_on` for `wp-consumers` (or note in `wp-consumers` description that `make e2e-kanban` integration execution is verified in `wp-integration`).",
+      "disposition": "fix",
+      "package_id": "wp-consumers",
+      "file_path": "openspec/changes/standardize-port-leases/work-packages.yaml",
+      "line_range": {
+        "start": 271,
+        "end": 283
+      },
+      "axis": "architecture",
+      "severity": "optional"
+    }
+  ]
+}
