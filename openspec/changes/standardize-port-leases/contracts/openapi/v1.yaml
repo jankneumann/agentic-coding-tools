@@ -1,0 +1,367 @@
+openapi: 3.1.0
+info:
+  title: Agent Coordinator — port leases
+  version: "1.1.0"
+  description: >
+    Delta for the standardize-port-leases change. Existing endpoints gain fields; /ports/conflict
+    and /ports/reconcile are new. Errors follow RFC 7807 where the existing API does; the legacy
+    `{success:false, error:"<code>"}` shape is preserved for the allocate, release, conflict,
+    and reconcile responses because current clients branch on it.
+servers:
+  - url: http://localhost:8081
+    description: Compose-hosted coordinator on the developer host (port is illustrative; clients read it from the lease env)
+  - url: https://coord.rotkohl.ai
+    description: Tunnel-exposed coordinator for cloud agents
+security:
+  - ApiKey: []
+paths:
+  /ports/allocate:
+    post:
+      operationId: allocatePorts
+      summary: Lease a five-port block for a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PortAllocateRequest"
+            example:
+              session_id: validate-standardize-port-leases-a1b2c3
+              isolation_provided: false
+      responses:
+        "200":
+          description: Allocation result. `success:false` carries a machine-readable error code.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PortAllocateSuccess"
+                  - $ref: "#/components/schemas/PortOperationFailure"
+                discriminator:
+                  propertyName: success
+              examples:
+                allocated:
+                  value:
+                    success: true
+                    allocation:
+                      session_id: validate-standardize-port-leases-a1b2c3
+                      agent_id: claude-gx10
+                      slot: 0
+                      db_port: 10000
+                      rest_port: 10001
+                      realtime_port: 10002
+                      api_port: 10003
+                      ui_port: 10004
+                      compose_project_name: ac-3f9a1c2e
+                      isolation_provided: false
+                      expires_at: "2026-09-03T14:00:00Z"
+                    env_snippet: "export AGENT_COORDINATOR_DB_PORT=10000\nexport AGENT_COORDINATOR_REST_PORT=10001\nexport AGENT_COORDINATOR_REALTIME_PORT=10002\nexport API_PORT=10003\nexport UI_PORT=10004\nexport COMPOSE_PROJECT_NAME=ac-3f9a1c2e\nexport SUPABASE_URL=http://localhost:10001\nexport API_BASE_URL=http://localhost:10003\nexport UI_ORIGIN=http://localhost:10004\nexport COORDINATOR_CORS_ALLOWED_ORIGINS=http://localhost:10004\n"
+                isolated:
+                  value: { success: false, error: isolation_provided }
+                exhausted:
+                  value: { success: false, error: no_ports_available }
+                db_down:
+                  value: { success: false, error: database_unavailable }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /ports/release:
+    post:
+      operationId: releasePorts
+      summary: Release a session's lease (idempotent)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PortSessionRequest" }
+            example: { session_id: validate-standardize-port-leases-a1b2c3 }
+      responses:
+        "200":
+          description: >
+            Idempotent success for a lease the caller owns, or for a session with no active
+            lease. A lease owned by a DIFFERENT agent_id is refused with not_lease_owner and
+            is not released — the response deliberately does not distinguish that case from a
+            missing lease, so an unauthorized caller learns nothing about which sessions exist.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PortOperationSuccess"
+                  - $ref: "#/components/schemas/PortOperationFailure"
+                discriminator: { propertyName: success }
+              examples:
+                released:
+                  value: { success: true }
+                not_owner:
+                  value: { success: false, error: not_lease_owner }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /ports/conflict:
+    post:
+      operationId: reportPortConflict
+      summary: Report a port in a leased block that is bound by an unrelated process
+      description: Releases the session's lease, blocks the slot for `conflict_block_minutes`, and lets the client re-allocate.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PortConflictRequest" }
+            example: { session_id: validate-standardize-port-leases-a1b2c3, port: 10001, reason: "bind_failed: EADDRINUSE" }
+      responses:
+        "200":
+          description: Slot blocked.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PortConflictSuccess"
+                  - $ref: "#/components/schemas/PortOperationFailure"
+                discriminator: { propertyName: success }
+              examples:
+                blocked:
+                  value: { success: true, slot: 0, blocked_until: "2026-09-03T12:30:00Z" }
+                isolated:
+                  value: { success: false, error: isolation_provided }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /ports/reconcile:
+    post:
+      operationId: reconcilePorts
+      summary: Report the compose projects running on the caller's host
+      description: >
+        The coordinator has no host visibility. The client lists `docker compose ls` and reports it;
+        leases whose project is absent and older than the cooling period are released, and running
+        allocator-named projects without a lease get their slot blocked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PortReconcileRequest" }
+            example:
+              session_id: reconcile-gx10-20260903
+              host_id: gx10
+              running_projects:
+                - { compose_project_name: ac-3f9a1c2e, db_port: 10000 }
+      responses:
+        "200":
+          description: Reconciliation outcome.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PortReconcileSuccess"
+                  - $ref: "#/components/schemas/PortOperationFailure"
+                discriminator: { propertyName: success }
+              examples:
+                reconciled:
+                  value:
+                    success: true
+                    released_sessions: [validate-old-run-9z8y7x]
+                    adopted_blocks: [{ compose_project_name: ac-77aa88bb, slot: 3, blocked_until: "2026-09-03T12:30:00Z" }]
+                isolated:
+                  value: { success: false, error: isolation_provided }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /ports/status:
+    get:
+      operationId: portsStatus
+      summary: List active leases and blocked slots (read-only, no API key)
+      security: []
+      responses:
+        "200":
+          description: Active leases and blocked slots.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PortStatusEntry" }
+              example:
+                - { session_id: validate-standardize-port-leases-a1b2c3, agent_id: claude-gx10, slot: 0, db_port: 10000, rest_port: 10001, realtime_port: 10002, api_port: 10003, ui_port: 10004, compose_project_name: ac-3f9a1c2e, isolation_provided: false, backend: postgres, remaining_ttl_minutes: 117, blocked_until: null, block_reason: null }
+                - { session_id: null, agent_id: null, slot: 2, db_port: 10200, rest_port: 10201, realtime_port: 10202, api_port: 10203, ui_port: 10204, compose_project_name: null, isolation_provided: false, backend: postgres, remaining_ttl_minutes: null, blocked_until: "2026-09-03T12:30:00Z", block_reason: "bind_failed:10201" }
+components:
+  securitySchemes:
+    ApiKey: { type: apiKey, in: header, name: X-API-Key }
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example: { type: about:blank, title: Unauthorized, status: 401, detail: "Missing X-API-Key" }
+    ValidationError:
+      description: Request body failed validation.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example: { type: about:blank, title: Unprocessable Entity, status: 422, detail: "session_id is required" }
+  schemas:
+    Problem:
+      type: object
+      required: [title, status]
+      properties:
+        type: { type: string, format: uri, default: about:blank }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+    PortSessionRequest:
+      type: object
+      required: [session_id]
+      properties:
+        session_id: { type: string, minLength: 1, maxLength: 128 }
+    PortAllocateRequest:
+      allOf:
+        - $ref: "#/components/schemas/PortSessionRequest"
+        - type: object
+          required: [host_id]
+          properties:
+            host_id:
+              type: string
+              minLength: 1
+              maxLength: 128
+              description: >-
+                Host this session runs on. Recorded on the lease and immutable thereafter; it is
+                what scopes POST /ports/reconcile. REQUIRED at allocation: without it every lease
+                stores host_id NULL, reconcile (which filters on it) matches nothing, and orphan
+                protection silently does nothing at all.
+            isolation_provided:
+              type: boolean
+              default: false
+              description: Client-reported, from EnvironmentProfile.detect(). Once stored true it cannot be lowered.
+    PortConflictRequest:
+      allOf:
+        - $ref: "#/components/schemas/PortSessionRequest"
+        - type: object
+          required: [port, reason]
+          properties:
+            port: { type: integer, minimum: 1024, maximum: 65535 }
+            reason: { type: string, maxLength: 200 }
+    PortReconcileRequest:
+      allOf:
+        - $ref: "#/components/schemas/PortSessionRequest"
+        - type: object
+          # host_id is REQUIRED and scopes the entire report. Release and blocking apply
+          # ONLY to leases recorded against this host. Without it one client's report is
+          # authoritative over every lease in the system: a cloud agent has no access to a
+          # local host's filesystem, so its `docker compose ls` is legitimately empty, and
+          # an unscoped report would release every local lease on every other host once
+          # each aged past conflict_block_minutes.
+          required: [running_projects, host_id]
+          properties:
+            host_id:
+              type: string
+              minLength: 1
+              maxLength: 128
+              description: Host this report covers. Must match the host_id recorded on a lease for that lease to be affected.
+            running_projects:
+              type: array
+              items:
+                type: object
+                # A block-identifying field is REQUIRED, not optional. compose_project_name
+                # has the form ac-<first 8 hex of sha256(session_id)> and encodes no slot, so
+                # a request carrying only the name leaves the coordinator unable to work out
+                # which block an orphaned stack occupies — it cannot protect it, and the
+                # block is handed out again while the stack is still bound to it. That is the
+                # exact failure the endpoint exists to prevent, so the contract must not
+                # accept a request that cannot be honoured.
+                #
+                # Either identifier is sufficient: `slot` states the block directly, and
+                # `db_port` is the block's base port, from which the slot is derived by the
+                # same arithmetic both backends already share.
+                required: [compose_project_name]
+                anyOf:
+                  - required: [slot]
+                  - required: [db_port]
+                properties:
+                  compose_project_name: { type: string }
+                  slot:
+                    type: integer
+                    minimum: 0
+                    description: Block index. Supply this or db_port; the coordinator derives one from the other.
+                  db_port:
+                    type: integer
+                    minimum: 1024
+                    maximum: 65535
+                    description: Base port of the block. Supply this or slot.
+    PortAllocation:
+      type: object
+      required: [session_id, slot, db_port, rest_port, realtime_port, api_port, ui_port, compose_project_name, isolation_provided, expires_at, host_id]
+      properties:
+        session_id: { type: string }
+        agent_id: { type: [string, "null"] }
+        host_id: { type: string, description: Host recorded at allocation; scopes reconcile.}
+        slot: { type: integer, minimum: 0 }
+        db_port: { type: integer }
+        rest_port: { type: integer }
+        realtime_port: { type: integer }
+        api_port: { type: integer }
+        ui_port: { type: integer }
+        compose_project_name: { type: string, pattern: "^ac-[0-9a-f]{8}$" }
+        isolation_provided: { type: boolean }
+        expires_at: { type: string, format: date-time }
+    PortAllocateSuccess:
+      type: object
+      required: [success, allocation, env_snippet]
+      properties:
+        success: { type: boolean, const: true }
+        allocation: { $ref: "#/components/schemas/PortAllocation" }
+        env_snippet: { type: string, description: "export KEY=value lines matching contracts/schemas/port-lease-env.schema.json minus the client-only keys" }
+    PortOperationSuccess:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean, const: true }
+    PortOperationFailure:
+      type: object
+      required: [success, error]
+      properties:
+        success: { type: boolean, const: false }
+        error:
+          type: string
+          # not_lease_owner: the authenticated agent_id does not match the agent_id on the
+          # named session's lease. GET /ports/status is deliberately unauthenticated and
+          # returns every lease's session_id and agent_id, so a session_id is public by
+          # design; without this check any holder of any valid API key could enumerate
+          # leases and then release a peer's lease mid-run or force its slot into a
+          # cooling period. Mirrors release_lock's `AND locked_by = p_agent_id` guard.
+          enum: [no_ports_available, isolation_provided, database_unavailable, not_lease_owner]
+    PortConflictSuccess:
+      type: object
+      required: [success, slot, blocked_until]
+      properties:
+        success: { type: boolean, const: true }
+        slot: { type: integer }
+        blocked_until: { type: string, format: date-time }
+    PortReconcileSuccess:
+      type: object
+      required: [success, released_sessions, adopted_blocks]
+      properties:
+        success: { type: boolean, const: true }
+        released_sessions: { type: array, items: { type: string } }
+        adopted_blocks:
+          type: array
+          items:
+            type: object
+            required: [compose_project_name, slot, blocked_until]
+            properties:
+              compose_project_name: { type: string }
+              slot: { type: integer }
+              blocked_until: { type: string, format: date-time }
+    PortStatusEntry:
+      type: object
+      required: [slot, db_port, rest_port, realtime_port, api_port, ui_port, backend]
+      properties:
+        session_id: { type: [string, "null"] }
+        host_id: { type: [string, "null"] }
+        agent_id: { type: [string, "null"] }
+        slot: { type: integer }
+        db_port: { type: integer }
+        rest_port: { type: integer }
+        realtime_port: { type: integer }
+        api_port: { type: integer }
+        ui_port: { type: integer }
+        compose_project_name: { type: [string, "null"] }
+        isolation_provided: { type: boolean }
+        backend: { type: string, enum: [memory, postgres] }
+        remaining_ttl_minutes: { type: [integer, "null"] }
+        blocked_until: { type: [string, "null"], format: date-time }
+        block_reason: { type: [string, "null"] }
