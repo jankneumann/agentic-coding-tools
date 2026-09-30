@@ -229,6 +229,13 @@ python3 "<skill-base-dir>/../prioritize-proposals/scripts/validate_candidate_wor
 If a generator is unavailable, **say so in the digest**. A silently skipped sensor
 makes an empty cycle indistinguishable from a healthy one.
 
+Inspect the `github-issues` inventory in the bug-scrub report when present. It lists
+all open issues, including work that may already be tracked. Use issue number and URL
+to check for duplicates before selecting an actionable issue for a candidate stub;
+do not bulk-convert the inventory into candidates. The bounded candidate store below
+still applies. If the GitHub listing reports `skipped` or `error`, name that degraded
+source in the digest.
+
 Despite their analytical purpose, those child skills persist reports. Under
 `--dry-run`, the supervisor **MUST NOT invoke** `/bug-scrub`, `/improve-harness`, or
 `/explore-feature`. Read already-existing reports and inspect repository state directly,

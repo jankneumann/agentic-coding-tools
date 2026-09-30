@@ -25,6 +25,31 @@ def render_markdown(report: BugScrubReport) -> str:
         lines.append(f"**Filtered out**: {report.filtered_out_count} findings below '{report.severity_filter}' severity")
     lines.append("")
 
+    github_results = [
+        source_result for source_result in report.source_results
+        if source_result.source == "github-issues"
+    ]
+    github_issues = [
+        item
+        for source_result in github_results
+        for item in source_result.inventory
+    ]
+    if github_results:
+        lines.append("## Open GitHub Issues")
+        lines.append("")
+        if github_results[0].status != "ok":
+            lines.append(f"Listing unavailable: {'; '.join(github_results[0].messages)}")
+        elif not github_issues:
+            lines.append("No open issues.")
+        else:
+            lines.append("| Issue | Title | Labels |")
+            lines.append("|-------|-------|--------|")
+            for item in github_issues:
+                title = str(item["title"]).replace("|", "\\|").replace("\n", " ")
+                labels = ", ".join(item["labels"]).replace("|", "\\|")
+                lines.append(f"| [#{item['number']}]({item['url']}) | {title} | {labels} |")
+        lines.append("")
+
     # Summary table
     by_severity = report.summary_by_severity()
     by_source = report.summary_by_source()

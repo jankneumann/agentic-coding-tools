@@ -1,6 +1,6 @@
 ---
 name: bug-scrub
-description: Comprehensive project health diagnostic — collects signals from CI tools, existing reports, deferred issues, and code markers into a prioritized finding report
+description: Comprehensive project health diagnostic — collects signals from CI tools, reports, deferred work, code markers, and open GitHub issues
 category: Git Workflow
 tags: [quality, diagnostics, health-check, deferred-issues, code-markers]
 triggers:
@@ -26,7 +26,7 @@ This is a **read-only diagnostic skill** — it does not modify any code. Use `/
 - `--format <md|json|both>` (default: both)
 - `--candidate-work-output <path>` (default: adjacent `bug-scrub-candidate-work.json`)
 
-Valid sources: `pytest`, `ruff`, `mypy`, `openspec`, `architecture`, `security`, `deferred`, `markers`
+Valid sources: `pytest`, `ruff`, `mypy`, `openspec`, `architecture`, `security`, `deferred`, `markers`, `github-issues`
 
 ## Script Location
 
@@ -43,6 +43,7 @@ reinstall the skill from its canonical distribution rather than invoking a repo-
 - Python 3.11+
 - Project tools installed (pytest, ruff, mypy — collectors skip unavailable tools)
 - OpenSpec CLI for `openspec` source
+- Authenticated GitHub CLI (`gh`) for `github-issues` source; the source is skipped when `gh` is unavailable
 
 ## Steps
 
@@ -64,6 +65,8 @@ The orchestrator produces:
 - `docs/bug-scrub/bug-scrub-report.json` — machine-readable for `/fix-scrub`
 - `docs/bug-scrub/bug-scrub-candidate-work.json` — canonical candidate-work stubs for downstream prioritization; a successful clean run writes `[]`
 
+The Markdown report lists every open GitHub issue with its number, title, URL, and labels. The JSON report stores the same list in the `github-issues` source result's `inventory`. Issue inventory entries do not become findings or candidate-work stubs; the supervisor's candidate store is limited to 20 and a repository may have many more open issues. Review the inventory when choosing work to propose.
+
 ### 3. Interpret Results
 
 **Signal Sources**:
@@ -75,6 +78,7 @@ The orchestrator produces:
 - **security**: Findings from security review report (severity: preserved from scanner)
 - **deferred**: Uncompleted tasks and deferred findings from OpenSpec changes (severity: medium for active, low for archived)
 - **markers**: TODO/FIXME/HACK/XXX in Python files (severity: medium for FIXME/HACK, low for TODO/XXX)
+- **github-issues**: All open issues are listed in the issue inventory. GitHub CLI errors are recorded as source errors, and listings at the 1,000-issue limit fail rather than silently truncate.
 
 **Severity Levels** (descending): critical > high > medium > low > info
 
