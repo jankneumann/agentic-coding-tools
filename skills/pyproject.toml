@@ -29,7 +29,7 @@ test = [
     "pyyaml>=6.0",
     "fastapi>=0.115",
     "httpx>=0.27",
-    "PyJWT[crypto]>=2.13.0",
+    "PyJWT[crypto]>=2.14.0",
     # Lint tooling lives here so CI can run `uv run ruff` from this directory.
     # Pinned to the same floor as agent-coordinator so both trees are linted by
     # one ruff version and cannot disagree about what is an error.
