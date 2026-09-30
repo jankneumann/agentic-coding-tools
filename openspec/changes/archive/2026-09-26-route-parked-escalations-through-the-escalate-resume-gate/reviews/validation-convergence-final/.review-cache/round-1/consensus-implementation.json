@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "reviewers": [
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [],
+  "summary": {
+    "total_unique_findings": 0,
+    "confirmed_count": 0,
+    "unconfirmed_count": 0,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 0
+  }
+}

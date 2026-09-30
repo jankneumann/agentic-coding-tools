@@ -28,6 +28,7 @@ from .resolver import (
     build_feasible_assignments,
     score_and_rank,
 )
+from .routing_policy import CostPolicy, RoutingPolicy
 
 # Match contracts/events/routing-decision-record.schema.json's
 # alternatives.maxItems / excluded.maxItems -- a real catalog refresh (e.g.
@@ -176,6 +177,7 @@ class RoutingProvenanceResponse(BaseModel):
     persisted: bool
     durable_audit: bool
     catalog_key: tuple[str, str, str, str | None] | None
+    cost_tier: Literal["subscription-local", "subscription-cloud", "metered-api"] | None = None
 
 
 class CandidateResponse(BaseModel):
@@ -309,9 +311,7 @@ class _Catalog(Protocol):
 
     async def record_decision(self, decision: dict[str, Any]) -> dict[str, Any]: ...
 
-    async def record_decision_and_audit(
-        self, decision: dict[str, Any]
-    ) -> dict[str, Any]: ...
+    async def record_decision_and_audit(self, decision: dict[str, Any]) -> dict[str, Any]: ...
 
     async def get_decision(self, decision_id: str) -> dict[str, Any] | None: ...
 
@@ -507,6 +507,7 @@ class RoutingService:
         candidates = await self.catalog.list_candidates(_task_type(request.task_signals))
         assignment_excluded: list[ExcludedAssignmentInput] = []
         evaluation: Any | None = None
+        incumbent_below_cost_tier = False
         if self._assignment_enabled:
             try:
                 lanes = await self.registry.list_vendors(available_only=False)
@@ -549,9 +550,7 @@ class RoutingService:
                 required_isolation = "__constraint-conflict__"
             elif required_isolation is None:
                 required_isolation = evaluation.isolation
-            explicit_dispatch = (
-                explicit.required_dispatch_mode if explicit is not None else None
-            )
+            explicit_dispatch = explicit.required_dispatch_mode if explicit is not None else None
             rule_dispatch = getattr(evaluation, "rule_dispatch_mode", None)
             if (
                 explicit_dispatch is not None
@@ -575,6 +574,48 @@ class RoutingService:
                 required_isolation=required_isolation,
                 roadmap_policy=roadmap,
             )
+            if isinstance(self.policy, RoutingPolicy) and isinstance(
+                self.policy.document.cost_policy, CostPolicy
+            ):
+                tiered = [
+                    (
+                        candidate,
+                        self.policy.cost_tier(
+                            candidate.assignment.location, candidate.endpoint_kind
+                        ),
+                    )
+                    for candidate in candidates
+                    if candidate.assignment is not None
+                ]
+                best_tier = min((tier[0] for _, tier in tiered if tier is not None), default=None)
+                for candidate, tier in tiered:
+                    assert candidate.assignment is not None
+                    if tier is None or tier[0] != best_tier:
+                        assignment_excluded.append(
+                            ExcludedAssignmentInput(
+                                agent_id=candidate.assignment.agent_id,
+                                vendor=candidate.vendor,
+                                model=candidate.model,
+                                endpoint_kind=candidate.endpoint_kind,
+                                base_url=candidate.base_url,
+                                reason=(
+                                    "cost-policy:unclassified"
+                                    if tier is None
+                                    else "cost-policy:lower-priority-tier"
+                                ),
+                            )
+                        )
+                candidates = [
+                    candidate
+                    for candidate, tier in tiered
+                    if tier is not None and tier[0] == best_tier
+                ]
+                incumbent_below_cost_tier = request.incumbent is not None and any(
+                    item.vendor == request.incumbent.vendor
+                    and item.model == request.incumbent.model
+                    and item.reason == "cost-policy:lower-priority-tier"
+                    for item in assignment_excluded
+                )
         ranked, excluded = score_and_rank(
             candidates,
             profile=request.objective_profile or "balanced",
@@ -602,7 +643,7 @@ class RoutingService:
                 }
         retention: dict[str, Any] | None = None
         chosen: ScoredCandidate | None
-        if request.incumbent is None:
+        if request.incumbent is None or incumbent_below_cost_tier:
             selection = choose(
                 ranked,
                 allow_exploration=exploration_allowed,
@@ -631,9 +672,7 @@ class RoutingService:
             _excluded_payload(
                 ExcludedAssignmentInput(
                     agent_id=(
-                        candidate.assignment.agent_id
-                        if candidate.assignment is not None
-                        else None
+                        candidate.assignment.agent_id if candidate.assignment is not None else None
                     ),
                     vendor=candidate.vendor,
                     model=candidate.model,
@@ -659,6 +698,11 @@ class RoutingService:
             assignment = selected["assignment"] if selected is not None else None
             assert selected is None or isinstance(assignment, dict)
             assert evaluation is not None
+            cost_tier = (
+                self.policy.cost_tier(assignment["location"], assignment["endpoint_kind"])
+                if assignment is not None and isinstance(self.policy, RoutingPolicy)
+                else None
+            )
             provenance = {
                 "source": "coordinator",
                 "policy_version": self.policy.version,
@@ -677,6 +721,7 @@ class RoutingService:
                     if assignment is not None
                     else None
                 ),
+                "cost_tier": cost_tier[1] if cost_tier is not None else None,
             }
             payload["assignment"] = assignment
             payload["provenance"] = provenance

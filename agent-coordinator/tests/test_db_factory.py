@@ -186,9 +186,7 @@ class TestPostgresFilterParsing:
         from src.db_postgres import _parse_postgrest_array_literal
 
         assert _parse_postgrest_array_literal("{api,followup}") == ["api", "followup"]
-        assert _parse_postgrest_array_literal('{"change:__probe__"}') == [
-            "change:__probe__"
-        ]
+        assert _parse_postgrest_array_literal('{"change:__probe__"}') == ["change:__probe__"]
         assert _parse_postgrest_array_literal('{"task:1.1","change:foo"}') == [
             "task:1.1",
             "change:foo",
@@ -363,8 +361,7 @@ class TestPostgresUpdateTimestampBinding:
         # $1 status, $2 completed_at, $3 closed_at, $4 match id
         assert args[0] == "completed"
         assert isinstance(args[1], datetime), (
-            "completed_at ($2) must be datetime, not ISO string — "
-            f"got {type(args[1]).__name__}"
+            f"completed_at ($2) must be datetime, not ISO string — got {type(args[1]).__name__}"
         )
         assert isinstance(args[2], datetime)
         assert args[3] == issue_id
@@ -601,3 +598,48 @@ class TestTerminateClosedLoopFallback:
 
         with pytest.raises(RuntimeError, match="something unrelated"):
             self._client_with_pool(_Pool()).terminate()
+
+
+class TestPyJWTFloorIsHeld:
+    """PyJWT must stay at or above 2.14.0.
+
+    2.13.0 carries ten advisories, and two of them are not mitigated by
+    anything in this codebase:
+
+    - ``CVE-2026-102267`` — ``PyJWKClient`` followed HTTP redirects while
+      fetching a JWKS without validating the destination, so a redirect from
+      the configured endpoint could supply authoritative key material.
+    - ``CVE-2026-101917`` — ``PyJWKClient`` issued unbounded JWKS requests
+      driven by an attacker-controlled ``kid``.
+
+    Both land on ``src/cloudflare_access.py``, which constructs a real
+    ``jwt.PyJWKClient`` to verify Cloudflare's RSA-signed JWKS. The fix is the
+    library version; there is no application-level workaround.
+
+    The algorithm-confusion advisory (``CVE-2026-102273``) is separately
+    defended here — both decode sites pin their algorithm list explicitly,
+    ``["RS256"]`` in cloudflare_access and ``["HS256"]`` in event_stream — but
+    that defence is a property of those two call sites, not of the dependency,
+    and a third JWT consumer added later would not inherit it.
+
+    A floor in pyproject is the durable guard: a lockfile can be regenerated
+    downward, a constraint cannot be satisfied downward.
+    """
+
+    def test_pyjwt_floor_is_at_least_2_14(self) -> None:
+        data = tomllib.loads(PYPROJECT.read_text())
+        groups: list[list[str]] = [data["project"]["dependencies"]]
+        groups += list(data["project"].get("optional-dependencies", {}).values())
+
+        specs = [dep for group in groups for dep in group if dep.lower().startswith("pyjwt")]
+        assert specs, "PyJWT must be declared; cloudflare_access and event_stream import it"
+
+        for spec in specs:
+            _, _, floor = spec.partition(">=")
+            assert floor, f"PyJWT must carry a >= floor, got {spec!r}"
+            major, minor = (int(part) for part in floor.strip().strip('"').split(".")[:2])
+            assert (major, minor) >= (2, 14), (
+                f"PyJWT floor {floor.strip()} is below 2.14.0, which reintroduces the "
+                f"PyJWKClient JWKS redirect and unbounded-fetch advisories that "
+                f"cloudflare_access.py is exposed to ({spec!r})."
+            )

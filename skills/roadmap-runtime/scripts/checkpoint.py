@@ -5,11 +5,17 @@ Provides save/restore/advance operations with idempotent resume semantics.
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
+import hashlib
 import json
 import logging
+import os
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Any
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -30,6 +36,22 @@ from models import (  # type: ignore[import-untyped]
 logger = logging.getLogger(__name__)
 
 
+@contextlib.contextmanager
+def workspace_state_lock(workspace: Path) -> Iterator[None]:
+    """Serialize short checkpoint read-modify-write sections per workspace."""
+    identity = hashlib.sha256(str(workspace.resolve()).encode()).hexdigest()
+    lock_dir = Path(tempfile.gettempdir()) / "roadmap-checkpoint-locks"
+    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor = os.open(lock_dir / f"{identity}.lock", os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        with contextlib.suppress(OSError):
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
 class CheckpointManager:
     """Manages checkpoint lifecycle for a roadmap execution."""
 
@@ -44,22 +66,27 @@ class CheckpointManager:
     def load(self) -> Checkpoint:
         if not self.checkpoint_path.exists():
             raise FileNotFoundError(f"No checkpoint at {self.checkpoint_path}")
-        checkpoint = load_checkpoint(self.checkpoint_path, self.repo_root)
-        # `gate_decisions` is carried as a sidecar (see `record_gate_decision`),
-        # so re-attach it on load — otherwise a resumed run would silently drop
-        # the audit trail of every gate the previous run evaluated.
-        raw = json.loads(self.checkpoint_path.read_text())
-        checkpoint.gate_decisions = list(raw.get("gate_decisions", []))
-        return checkpoint
+        return load_checkpoint(self.checkpoint_path, self.repo_root)
 
     def save(self, checkpoint: Checkpoint) -> None:
         save_checkpoint(checkpoint, self.checkpoint_path)
-        self._write_gate_decisions(checkpoint)
         logger.info(
             "Checkpoint saved: item=%s phase=%s",
             checkpoint.current_item_id,
             checkpoint.phase.value,
         )
+
+    @contextlib.contextmanager
+    def transaction(self) -> Iterator[Checkpoint]:
+        """Yield a freshly loaded checkpoint and atomically persist its mutation.
+
+        The lock only covers local checkpoint I/O and caller mutation; callers
+        must finish network or callback work before entering this context.
+        """
+        with workspace_state_lock(self.workspace):
+            checkpoint = self.load()
+            yield checkpoint
+            self.save(checkpoint)
 
     def create(self, roadmap: Roadmap) -> Checkpoint:
         """Create initial checkpoint for a roadmap."""
@@ -108,19 +135,13 @@ class CheckpointManager:
         record instead was the alternative, and it would leave a blocked gate with
         no evidence that a human decision ever happened.
         """
-        decisions = list(getattr(checkpoint, "gate_decisions", None) or [])
-        decisions.append(dict(record))
-        checkpoint.gate_decisions = decisions  # type: ignore[attr-defined]
-        self.save(checkpoint)
-
-    def _write_gate_decisions(self, checkpoint: Checkpoint) -> None:
-        """Merge the sidecar into the JSON ``save_checkpoint`` just wrote."""
-        decisions = getattr(checkpoint, "gate_decisions", None)
-        if not decisions:
+        if not self.exists():
+            checkpoint.gate_decisions.append(dict(record))
+            self.save(checkpoint)
             return
-        data = json.loads(self.checkpoint_path.read_text())
-        data["gate_decisions"] = list(decisions)
-        self.checkpoint_path.write_text(json.dumps(data, indent=2) + "\n")
+        with self.transaction() as current:
+            current.gate_decisions.append(dict(record))
+        checkpoint.gate_decisions = list(current.gate_decisions)
 
     def fail_item(
         self,

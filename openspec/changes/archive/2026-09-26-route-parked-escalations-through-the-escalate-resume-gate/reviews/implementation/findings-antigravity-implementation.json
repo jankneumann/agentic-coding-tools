@@ -1,0 +1,67 @@
+{
+  "review_type": "implementation",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "correctness",
+      "criticality": "high",
+      "description": "In skills/supervise/scripts/gate_router.py, answer() constructs an escalation context dictionary containing only 5 fields (dispatch_id, change_id, item_id, lease_generation, verb) and omits the required 6th field: 'reason': 'supervised phase retry budget exhausted'. The specification ('Escalate Resume Correlation Is Generation-Safe and Sanitized' and Scenario 'Manual and automatic context are identical') explicitly requires that every policy-pause resolver, including manual reconciliation, SHALL contain exactly the six allowlisted fields and fixed retry-budget reason.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "id": 1,
+      "line_range": "732-738",
+      "severity": "critical",
+      "type": "contract_mismatch"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "high",
+      "description": "In skills/supervise/scripts/gate_router.py, _newest_blocked_escalate_record() filters candidate records with `(lease_generation is None or record.get(\\\"lease_generation\\\") is None or record.get(\\\"lease_generation\\\") == lease_generation)`. When an explicit lease_generation integer is provided, the condition still matches legacy records where lease_generation is None. If no record exists for the requested generation, a legacy generationless record is erroneously selected, violating the requirement that 'an optional explicit generation SHALL select only that blocked generation'.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "id": 2,
+      "line_range": "280-291",
+      "severity": "critical",
+      "type": "correctness"
+    },
+    {
+      "axis": "architecture",
+      "criticality": "high",
+      "description": "In openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md, tasks 2.1 ('Add the shared per-workspace checkpoint transaction and fold gate-decision serialization into its single atomic payload') and 3.1 ('Derive delegated apply's exact required result set from current journal state and reject missing or historical results before callbacks') are marked as completed [x], but no implementation or tests for either task are present in the change set. Marking these incomplete architectural tasks as checked violates project tracking standards and obscures missing atomic commit and delegated batch apply cohort logic.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md",
+      "id": 3,
+      "line_range": "24-37",
+      "severity": "critical",
+      "type": "spec_gap"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "medium",
+      "description": "In skills/supervise/scripts/gate_router.py, _current_parked_policy_pause_attempt() iterates forward over checkpoint.dispatch_attempts and returns the first matching attempt. In workspaces with multiple historical or retried attempts for a dispatch, forward iteration selects the oldest attempt rather than the current (latest) parked attempt. Additionally, _serialize_escalate_answer calls _current_parked_policy_pause_attempt without passing requested_generation, causing valid explicit generation requests to fail if an earlier parked generation appears first in the attempt list.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "id": 4,
+      "line_range": "263-274",
+      "severity": "optional",
+      "type": "behavioral_failure"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "medium",
+      "description": "In skills/supervise/scripts/gate_router.py, _serialize_escalate_answer overrides context[\\\"lease_generation\\\"] with the current attempt's lease_generation even when the operator provided only a dispatch_id. Consequently, answer() calls _newest_blocked_escalate_record() with this specific generation rather than None, preventing _newest_blocked_escalate_record() from selecting the newest blocked generation in the ledger across all generations as required by the specification ('WHEN an operator answers escalate_resume with only a dispatch ID THEN the router SHALL select the newest blocked generation').",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "id": 5,
+      "line_range": "164-169",
+      "severity": "optional",
+      "type": "spec_gap"
+    }
+  ]
+}

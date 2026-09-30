@@ -94,12 +94,42 @@ class FallbackOrder(_StrictModel):
         return self
 
 
+class CostTier(_StrictModel):
+    id: Literal["subscription-local", "subscription-cloud", "metered-api"]
+    location: Location
+    endpoint_kinds: list[Literal["vendor-cli", "vendor-sdk", "openrouter", "local"]] = Field(
+        min_length=1
+    )
+
+    @model_validator(mode="after")
+    def validate_unique(self) -> CostTier:
+        if len(self.endpoint_kinds) != len(set(self.endpoint_kinds)):
+            raise ValueError("duplicate endpoint kind in cost tier")
+        return self
+
+
+class CostPolicy(_StrictModel):
+    tiers: list[CostTier] = Field(min_length=3, max_length=3)
+
+    @model_validator(mode="after")
+    def validate_ladder(self) -> CostPolicy:
+        expected = ["subscription-local", "subscription-cloud", "metered-api"]
+        if [tier.id for tier in self.tiers] != expected:
+            raise ValueError("cost tiers must follow the declared subscription and metered ladder")
+        if len(
+            {(tier.location, kind) for tier in self.tiers for kind in tier.endpoint_kinds}
+        ) != sum(len(tier.endpoint_kinds) for tier in self.tiers):
+            raise ValueError("cost tier matchers overlap")
+        return self
+
+
 class RoutingPolicyDocument(_StrictModel):
     schema_version: Literal[1]
     policy_version: str = Field(pattern=r"^[a-z0-9][a-z0-9.-]{0,63}$")
     defaults: PolicyDefaults
     rules: list[RoutingRule]
     fallback: FallbackOrder
+    cost_policy: CostPolicy | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +150,15 @@ class RoutingPolicy:
     @property
     def version(self) -> str:
         return self.document.policy_version
+
+    def cost_tier(self, location: str, endpoint_kind: str) -> tuple[int, str] | None:
+        policy = self.document.cost_policy
+        if policy is None:
+            return None
+        for index, tier in enumerate(policy.tiers):
+            if tier.location == location and endpoint_kind in tier.endpoint_kinds:
+                return index, tier.id
+        return None
 
     def evaluate(self, profile: dict[str, Any]) -> PolicyEvaluation:
         dimensions: dict[str, str | None] = {
@@ -176,10 +215,9 @@ def _matches(predicate: RuleWhen, profile: dict[str, Any]) -> bool:
         return False
     duration = profile.get("expected_duration_seconds")
     parallelism = profile.get("parallelism")
-    return (
-        _within(duration, predicate.min_duration_seconds, predicate.max_duration_seconds)
-        and _within(parallelism, predicate.min_parallelism, predicate.max_parallelism)
-    )
+    return _within(
+        duration, predicate.min_duration_seconds, predicate.max_duration_seconds
+    ) and _within(parallelism, predicate.min_parallelism, predicate.max_parallelism)
 
 
 def _within(value: Any, minimum: int | None, maximum: int | None) -> bool:

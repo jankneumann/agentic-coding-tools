@@ -115,3 +115,29 @@ Implemented server-side incumbent retention: evidence predicate and retention ru
 ### Context
 Validated PR #624 on an isolated compose stack (fresh volume; migration 044 applied to a throwaway DB, never :54322). Smoke 11/11, E2E 21/21, spec gates pass; the live probe ran 84 phase x provider calls through the real client with ROUTING_ADAPTIVE=1 and got 0 differences from static and a retention record for every decision. Security is DEGRADED because dependency-check had stale NVD data; no dependency manifests changed.
 
+---
+
+## Phase: Cleanup (2026-09-27)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge, rebased onto main first** — Agent-authored conventional commits carry design intent. The branch was 49 commits behind, including an overlapping agents_config.py change, so it was rebased and the full suite rerun (2902 passed) before merging on the exact head CI validated.
+2. **No open-task migration** — tasks.md had 0 unchecked items. Evidence-dependent review findings went to issue #636 instead, since they are new work, not unfinished tasks.
+3. **Rollout gate is the ROUTING_ADAPTIVE flag, not staged traffic** — The flag defaults off (client-side) and is the kill switch: unset it to return every phase to static tiers. ROUTING_INCUMBENT_MARGIN (server-side) is the second lever. With the flag on and no evidence, validation showed 0 differences from static across 84 phase x provider calls, so there is no traffic shape to stage until #609/#612 provide evidence.
+
+### Completed Work
+- merge
+- archive
+- spec-merge
+- decision-index
+- branch-cleanup
+
+### Next Steps
+- Post-deploy: read-only select_model probe on coord.rotkohl.ai expecting retention.reason=no-evidence
+- Land #636 before #609/#612 give the router evidence
+- #634 watchdog agent_discovery; #635 validate-feature architecture phase
+
+### Context
+PR #624 was rebase-merged on 2026-09-26, pinned to the validated head 2ea78676 after all 33 CI checks passed. All tasks were complete, so no migration was needed; the change is archived and its spec deltas merged. Rollout needs no traffic staging: ROUTING_ADAPTIVE defaults off, and turning it on changes no phase until routing evidence exists.
+

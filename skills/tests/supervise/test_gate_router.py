@@ -10,6 +10,7 @@ import ast
 import json
 import shutil
 import sys
+import threading
 from datetime import timedelta
 from pathlib import Path
 
@@ -23,6 +24,7 @@ if str(_SUPERVISE_SCRIPTS) not in sys.path:  # pragma: no cover - import wiring
     sys.path.insert(0, str(_SUPERVISE_SCRIPTS))
 
 import cycle_state  # noqa: E402
+import execution  # noqa: E402
 import gate_router  # noqa: E402
 
 _SKILLS_ROOT = _REPO_ROOT / "skills"
@@ -111,10 +113,12 @@ class FakeCoordinator:
         self.notify_return = notify_return
         self.request_id = request_id
         self.calls: list[str] = []
+        self.contexts: list[dict] = []
         self._poll_index = 0
 
     def request_approval(self, *, operation, resource, context, timeout_seconds) -> str:
         self.calls.append("request_approval")
+        self.contexts.append(dict(context))
         if self.raise_on == "request":
             raise CoordinatorUnavailable("filing failed")
         return self.request_id
@@ -540,6 +544,7 @@ class TestResolveParked:
             "dispatch_id": "d-1",
             "change_id": "demo-change",
             "item_id": "ri-01",
+            "lease_generation": 1,
             "parked": {"kind": "pending_gate", "gate": "pr_creation", "reason": "awaiting approval"},
         }
         attempt.update(overrides)
@@ -663,6 +668,25 @@ class TestResolveParked:
         assert resolution.pending_gate_entry["gate"] == "escalate_resume"
         assert adapter.resumed == []
 
+    def test_policy_pause_uses_the_fixed_sanitized_retry_reason(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        adapter = self.FakeAdapter()
+        coordinator = FakeCoordinator(statuses=["pending"])
+        service = make_service(posture_with(Gate.ESCALATE_RESUME, NOTIFY_BLOCK), coordinator=coordinator)
+
+        gate_router.resolve_parked(
+            self._attempt(parked={"kind": "policy_pause", "reason": "child supplied secret"}),
+            workspace=workspace, repo_root=repo, adapter=adapter, evaluator=service,
+        )
+
+        assert coordinator.contexts == [{
+            "dispatch_id": "d-1", "change_id": "demo-change", "item_id": "ri-01",
+            "lease_generation": 1, "verb": "resume",
+            "reason": "supervised phase retry budget exhausted",
+        }]
+
+
     def test_unknown_parked_gate_raises_without_recording(self, repo: Path, workspace: Path) -> None:
         adapter = self.FakeAdapter()
         with pytest.raises(gate_router.GateRefusalError):
@@ -784,3 +808,521 @@ def test_no_supervise_script_imports_autopilot() -> None:
                 assert not any(alias.name == "autopilot" for alias in node.names), path
             if isinstance(node, ast.ImportFrom):
                 assert node.module != "autopilot", path
+
+
+def test_escalate_resume_approval_ref_rejects_a_prior_generation(
+    repo: Path, workspace: Path
+) -> None:
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.create(gate_router.load_roadmap(workspace / "roadmap.yaml", repo))
+    checkpoint.gate_decisions.append(
+        {
+            "decision_id": "11111111-2222-4333-8444-555555555555",
+            "gate": "escalate_resume",
+            "outcome": "proceed",
+            "resolution": "auto",
+            "disposition": "auto",
+            "reason": "approved",
+            "posture_present": True,
+            "recorded_at": "2026-09-01T00:00:00+00:00",
+            "roadmap_id": "alpha",
+            "dispatch_id": "d-1",
+            "lease_generation": 1,
+        }
+    )
+    manager.save(checkpoint)
+
+    with pytest.raises(gate_router.ApprovalRefError, match="generation"):
+        gate_router.require_approval_ref(
+            manager.load(),
+            "gate-decision:11111111-2222-4333-8444-555555555555",
+            gate=Gate.ESCALATE_RESUME,
+            dispatch_id="d-1",
+            lease_generation=2,
+        )
+
+
+def _parked_policy_pause_attempt(*, generation: int = 3) -> dict:
+    return {
+        "dispatch_id": "d-1",
+        "item_id": "ri-01",
+        "change_id": "demo-change",
+        "phase": "autopilot",
+        "attempt": 1,
+        "status": "parked",
+        "prepared_at": "2026-09-01T00:00:00+00:00",
+        "launch_token": "launch-token-0001",
+        "launch_marker_path": ".supervised-dispatch/demo-change/d-1.marker",
+        "lease_generation": generation,
+        "launch_history": [
+            {
+                "generation": generation,
+                "owner_nonce": "owner-nonce-0001",
+                "state": "entered",
+                "marker_path": ".supervised-dispatch/demo-change/d-1.marker",
+                "handle": "task-1",
+                "observed_at": "2026-09-01T00:02:00+00:00",
+            }
+        ],
+        "scope": {
+            "proof": "proven_disjoint",
+            "write_allow": ["skills/demo/**"],
+            "lock_keys": ["feature:demo-change"],
+        },
+        "isolation": {
+            "mode": "managed_worktree",
+            "worktree_path": "/tmp/d-1",
+            "branch": "openspec/demo-change",
+        },
+        "context": {},
+        "lease": {
+            "generation": generation,
+            "owner_nonce": "owner-nonce-0001",
+            "state": "released",
+            "acquired_at": "2026-09-01T00:00:00+00:00",
+            "heartbeat_at": "2026-09-01T00:01:00+00:00",
+            "expires_at": "2026-09-01T00:08:00+00:00",
+        },
+        "launch_evidence": {
+            "generation": generation,
+            "kind": "host_ack",
+            "handle": "task-1",
+            "observed_at": "2026-09-01T00:01:00+00:00",
+        },
+        "launch_gate": {
+            "generation": generation,
+            "state": "entered",
+            "handle": "task-1",
+            "go_released_at": "2026-09-01T00:01:00+00:00",
+            "entered_at": "2026-09-01T00:02:00+00:00",
+        },
+        "outcome": "parked",
+        "resolved_at": "2026-09-01T00:03:00+00:00",
+        "parked": {"kind": "policy_pause", "reason": "retry budget"},
+    }
+
+
+def _blocked_escalation_record(*, generation: int | None = 3) -> dict:
+    record = {
+        "decision_id": "66666666-7777-4888-8999-aaaaaaaaaaaa",
+        "gate": "escalate_resume",
+        "outcome": "blocked",
+        "resolution": "posture_block",
+        "disposition": "block",
+        "reason": "blocked",
+        "posture_present": True,
+        "recorded_at": "2026-09-01T00:04:00+00:00",
+        "roadmap_id": "alpha",
+        "dispatch_id": "d-1",
+        "change_id": "demo-change",
+        "item_id": "ri-01",
+        "verb": "resume",
+    }
+    if generation is not None:
+        record["lease_generation"] = generation
+    return record
+
+
+def _save_escalation_checkpoint(
+    repo: Path,
+    workspace: Path,
+    *,
+    generation: int | None = 3,
+    include_attempt: bool = True,
+) -> None:
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.create(gate_router.load_roadmap(workspace / "roadmap.yaml", repo))
+    if include_attempt:
+        checkpoint.dispatch_attempts.append(_parked_policy_pause_attempt(generation=generation or 3))
+    checkpoint.gate_decisions.append(_blocked_escalation_record(generation=generation))
+    manager.save(checkpoint)
+
+
+def test_rehydrate_restores_blocked_escalation_after_mirror_projection_failure(
+    repo: Path,
+    workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.create(gate_router.load_roadmap(workspace / "roadmap.yaml", repo))
+    checkpoint.dispatch_attempts.append(_parked_policy_pause_attempt(generation=3))
+    manager.save(checkpoint)
+    service = make_service(
+        posture_with(Gate.ESCALATE_RESUME, GateDisposition(Disposition.BLOCK))
+    )
+
+    def fail_projection(*_args, **_kwargs):
+        raise OSError("injected mirror projection failure")
+
+    monkeypatch.setattr(cycle_state, "write_mirror", fail_projection)
+    with pytest.raises(OSError, match="injected mirror projection failure"):
+        gate_router.resolve_parked(
+            checkpoint.dispatch_attempts[0],
+            workspace=workspace,
+            repo_root=repo,
+            adapter=TestResolveParked.FakeAdapter(),
+            evaluator=service,
+            now=gate_router._parse_iso("2026-09-01T00:04:00+00:00"),
+        )
+
+    durable = read_checkpoint_json(workspace)
+    decisions = [
+        record
+        for record in durable["gate_decisions"]
+        if record.get("gate") == Gate.ESCALATE_RESUME.value
+    ]
+    assert len(decisions) == 1
+    assert not (repo / cycle_state.MIRROR_PATH).exists()
+
+    monkeypatch.undo()
+    rc = cycle_state.main([
+        "--repo-root", str(repo), "rehydrate",
+        "--now", "2026-09-01T00:05:00+00:00",
+    ])
+
+    assert rc == 0
+    record = json.loads(capsys.readouterr().out)
+    decision = decisions[0]
+    requested_at = gate_router._parse_iso(decision["recorded_at"])
+    assert requested_at is not None
+    assert record["pending_gates"] == [{
+        "gate": "escalate_resume",
+        "change_id": "demo-change",
+        "requested_at": decision["recorded_at"],
+        "deadline": (requested_at + gate_router.DEFAULT_BLOCK_HORIZON).isoformat(),
+        "disposition": "block",
+        "approval_id": None,
+        "source": "supervise",
+        "decision_id": decision["decision_id"],
+    }]
+
+
+def _execution_adapter(repo: Path) -> execution.ExecutionAdapter:
+    return execution.ExecutionAdapter(
+        managed_worktree_root=repo / ".git-worktrees",
+        branch_resolver=lambda _path: "openspec/demo-change",
+        commit_resolver=lambda _path: "a" * 40,
+        liveness_probe=lambda _path: "live",
+        host_entry=lambda *_args: "entered",
+    )
+
+
+def test_automatic_and_manual_resolution_race_commits_one_proceed(
+    repo: Path,
+    workspace: Path,
+) -> None:
+    _save_escalation_checkpoint(repo, workspace, generation=3)
+    adapter = _execution_adapter(repo)
+    barrier = threading.Barrier(2)
+    errors: list[Exception] = []
+
+    def automatic() -> None:
+        try:
+            attempt = gate_router.CheckpointManager(workspace, repo).load().dispatch_attempts[0]
+            barrier.wait()
+            gate_router.resolve_parked(
+                attempt,
+                workspace=workspace,
+                repo_root=repo,
+                adapter=adapter,
+                evaluator=make_service(
+                    posture_with(Gate.ESCALATE_RESUME, GateDisposition(Disposition.AUTO))
+                ),
+            )
+        except Exception as exc:  # one loser may observe the completed resume
+            errors.append(exc)
+
+    def manual() -> None:
+        try:
+            barrier.wait()
+            gate_router.answer(
+                Gate.ESCALATE_RESUME,
+                workspace=workspace,
+                repo_root=repo,
+                approved=True,
+                context={"dispatch_id": "d-1", "lease_generation": 3},
+            )
+        except Exception as exc:  # one loser may observe the completed resume
+            errors.append(exc)
+
+    threads = [threading.Thread(target=automatic), threading.Thread(target=manual)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+    assert all(not thread.is_alive() for thread in threads)
+    assert all(isinstance(error, gate_router.GateRefusalError) for error in errors)
+
+    checkpoint = gate_router.CheckpointManager(workspace, repo).load()
+    proceed = [
+        record
+        for record in checkpoint.gate_decisions
+        if record.get("gate") == Gate.ESCALATE_RESUME.value
+        and record.get("outcome") == "proceed"
+    ]
+    assert len(proceed) == 1
+    assert checkpoint.dispatch_attempts[0]["status"] == "prepared"
+    assert checkpoint.dispatch_attempts[0]["lease_generation"] == 4
+
+
+def test_concurrent_blocked_subjects_preserve_both_mirror_entries(
+    repo: Path,
+    workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.create(gate_router.load_roadmap(workspace / "roadmap.yaml", repo))
+    first = _parked_policy_pause_attempt(generation=3)
+    second = json.loads(json.dumps(first))
+    second["dispatch_id"] = "d-2"
+    second["launch_token"] = "launch-token-0002"
+    second["launch_marker_path"] = ".supervised-dispatch/demo-change/d-2.marker"
+    second["launch_history"][0]["marker_path"] = second["launch_marker_path"]
+    checkpoint.dispatch_attempts.extend([first, second])
+    manager.save(checkpoint)
+
+    original_write = cycle_state.write_mirror
+    first_write = threading.Event()
+    second_write = threading.Event()
+    write_lock = threading.Lock()
+    write_count = 0
+
+    def delayed_write(*args, **kwargs):
+        nonlocal write_count
+        with write_lock:
+            write_count += 1
+            position = write_count
+        if position == 1:
+            first_write.set()
+            second_write.wait(timeout=0.2)
+        else:
+            second_write.set()
+        return original_write(*args, **kwargs)
+
+    monkeypatch.setattr(cycle_state, "write_mirror", delayed_write)
+    errors: list[Exception] = []
+
+    def route(attempt: dict) -> None:
+        try:
+            gate_router.resolve_parked(
+                attempt,
+                workspace=workspace,
+                repo_root=repo,
+                adapter=TestResolveParked.FakeAdapter(),
+                evaluator=make_service(
+                    posture_with(Gate.ESCALATE_RESUME, GateDisposition(Disposition.BLOCK))
+                ),
+            )
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=route, args=(attempt,)) for attempt in (first, second)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+    assert all(not thread.is_alive() for thread in threads)
+    assert errors == []
+    assert first_write.is_set()
+
+    mirror = read_mirror(repo)
+    checkpoint = manager.load()
+    decisions = [
+        record
+        for record in checkpoint.gate_decisions
+        if record.get("gate") == Gate.ESCALATE_RESUME.value
+    ]
+    assert len(decisions) == 2
+    assert {entry["decision_id"] for entry in mirror["pending_gates"]} == {
+        record["decision_id"] for record in decisions
+    }
+
+
+def test_escalate_resume_answer_binds_legacy_block_to_current_parked_generation(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace, generation=None)
+    routed = gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+        context={"dispatch_id": "d-1"},
+    )
+    assert routed.record["lease_generation"] == 3
+
+
+def test_escalate_resume_explicit_generation_does_not_select_a_legacy_block(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace, generation=None)
+
+    with pytest.raises(gate_router.GateRefusalError, match="no blocked record"):
+        gate_router.answer(
+            Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+            context={"dispatch_id": "d-1", "lease_generation": 3},
+        )
+
+    assert len(read_checkpoint_json(workspace)["gate_decisions"]) == 1
+
+
+def test_escalate_resume_legacy_block_does_not_authorize_a_later_repark(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace, generation=None)
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.load()
+    attempt = checkpoint.dispatch_attempts[0]
+    attempt["lease_generation"] = 4
+    attempt["lease"]["generation"] = 4
+    attempt["launch_evidence"]["generation"] = 4
+    attempt["launch_gate"]["generation"] = 4
+    attempt["launch_history"].append(
+        {
+            "generation": 4,
+            "owner_nonce": "owner-nonce-0002",
+            "state": "entered",
+            "marker_path": ".supervised-dispatch/demo-change/d-1.marker",
+            "handle": "task-2",
+            "observed_at": "2026-09-01T00:06:00+00:00",
+        }
+    )
+    attempt["resolved_at"] = "2026-09-01T00:07:00+00:00"
+    manager.save(checkpoint)
+
+    with pytest.raises(gate_router.GateRefusalError, match="no blocked record"):
+        gate_router.answer(
+            Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+            context={"dispatch_id": "d-1"},
+        )
+
+    assert len(read_checkpoint_json(workspace)["gate_decisions"]) == 1
+    service = make_service(
+        posture_with(Gate.ESCALATE_RESUME, GateDisposition(Disposition.BLOCK))
+    )
+    routed = gate_router.evaluate(
+        Gate.ESCALATE_RESUME,
+        {
+            "dispatch_id": "d-1",
+            "change_id": "demo-change",
+            "item_id": "ri-01",
+            "lease_generation": 4,
+            "verb": "resume",
+            "reason": "supervised phase retry budget exhausted",
+        },
+        workspace=workspace, repo_root=repo, evaluator=service,
+    )
+    assert routed.reused is False
+    assert routed.record["lease_generation"] == 4
+
+
+def test_escalate_resume_manual_answer_uses_the_fixed_policy_pause_context(
+    repo: Path, workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _save_escalation_checkpoint(repo, workspace)
+    captured: dict = {}
+    correlation_extra = gate_router._correlation_extra
+
+    def capture_context(gate, context, **kwargs):
+        captured.update(context)
+        return correlation_extra(gate, context, **kwargs)
+
+    monkeypatch.setattr(gate_router, "_correlation_extra", capture_context)
+
+    gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+        context={"dispatch_id": "d-1", "reason": "child supplied secret", "transcript": "private"},
+    )
+
+    assert captured == {
+        "dispatch_id": "d-1",
+        "change_id": "demo-change",
+        "item_id": "ri-01",
+        "lease_generation": 3,
+        "verb": "resume",
+        "reason": "supervised phase retry budget exhausted",
+    }
+
+
+def test_escalate_resume_answer_selects_the_newest_current_parked_attempt(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace, generation=2)
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.load()
+    checkpoint.dispatch_attempts.append(_parked_policy_pause_attempt(generation=3))
+    newest_record = _blocked_escalation_record(generation=3)
+    newest_record["decision_id"] = "77777777-8888-4999-8aaa-bbbbbbbbbbbb"
+    newest_record["recorded_at"] = "2026-09-01T00:05:00+00:00"
+    checkpoint.gate_decisions.append(newest_record)
+    manager.save(checkpoint)
+
+    routed = gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+        context={"dispatch_id": "d-1"},
+    )
+
+    assert routed.record["lease_generation"] == 3
+
+
+def test_escalate_resume_answer_refuses_an_older_parked_attempt_generation(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace, generation=2)
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.load()
+    checkpoint.dispatch_attempts.append(_parked_policy_pause_attempt(generation=3))
+    checkpoint.gate_decisions.append(_blocked_escalation_record(generation=3))
+    manager.save(checkpoint)
+
+    with pytest.raises(gate_router.GateRefusalError, match="current parked generation"):
+        gate_router.answer(
+            Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+            context={"dispatch_id": "d-1", "lease_generation": 2},
+        )
+
+    assert len(read_checkpoint_json(workspace)["gate_decisions"]) == 2
+
+
+def test_escalate_resume_rejected_answer_preserves_change_id_for_projection(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace)
+    routed = gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=False,
+        context={"dispatch_id": "d-1"},
+    )
+    assert routed.record["change_id"] == "demo-change"
+    assert read_mirror(repo)["pending_gates"][0]["decision_id"] == routed.record["decision_id"]
+
+
+def test_escalate_resume_late_answer_preserves_lease_generation(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace)
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.load()
+    checkpoint.gate_decisions[-1].update(
+        resolution="timeout_block", disposition="notify_with_timeout",
+        approval_id="appr-1", notified=True, timeout_seconds=30, default_action="block",
+    )
+    manager.save(checkpoint)
+    coordinator = FakeCoordinator(statuses=["approved"])
+    service = make_service(posture_with(Gate.ESCALATE_RESUME, NOTIFY_BLOCK), coordinator=coordinator)
+    routed = gate_router.evaluate(
+        Gate.ESCALATE_RESUME,
+        {"dispatch_id": "d-1", "change_id": "demo-change", "item_id": "ri-01",
+         "lease_generation": 3, "verb": "resume"},
+        workspace=workspace, repo_root=repo, evaluator=service,
+    )
+    assert routed.record["lease_generation"] == 3
+
+
+def test_escalate_resume_answer_rejects_a_noncurrent_parked_attempt(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace, include_attempt=False)
+    with pytest.raises(gate_router.GateRefusalError, match="current parked policy_pause"):
+        gate_router.answer(
+            Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+            context={"dispatch_id": "d-1"},
+        )
+    assert len(read_checkpoint_json(workspace)["gate_decisions"]) == 1

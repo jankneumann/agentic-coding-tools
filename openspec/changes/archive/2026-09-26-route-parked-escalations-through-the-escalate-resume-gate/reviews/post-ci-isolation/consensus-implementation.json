@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "disagreement",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "pi",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "escalate",
+      "description": "none: Moving the isolation hooks to the skills-root conftest makes them apply coherently to both central tests/<skill> suites and in-skill scripts/tests suites. The suite-specific module cache and runtime reactivation directly address collection-order eviction, and the two minimal cross-tree reproducers plus the 4,775-test infrastructure run provide strong regression evidence.",
+      "vendor_dispositions": {
+        "codex": "accept",
+        "pi": "fix"
+      }
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "_SCRIPT_DEPENDENCIES gained 'refresh-architecture': ('project-context-runtime',) which was absent from the previous tests/conftest map. The new isolation repro explicitly pairs refresh-architecture/scripts/tests with tests/roadmap-runtime; without this edge, adapter imports can still resolve the wrong flat modules after suite switches. Confirm this is intentional and complete versus other script-level suites that import foreign flat modules."
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "pi",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Ownership is centralized at the common pytest ancestor while skills/tests/conftest.py remains an explicit ownership marker, avoiding duplicate hook implementations. Every modified path is covered by wp-authority-recovery.write_allow and none matches the package deny glob."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: Moving flat-module isolation from skills/tests/conftest.py to skills/conftest.py correctly extends pytest hook coverage to both tests/<skill>/ and <skill>/scripts/tests trees in one shared process, which matches the failure mode (script-level suites poisoned by later tests/ imports)."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: _suite_for now distinguishes tests/<leaf>, <skill>/scripts/tests, and <skill>/tests layouts, and leaf extraction via suite.split('/', 1)[-1] keeps dependency lookup keyed by skill name for both suite id shapes."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: work-packages.yaml adds skills/conftest.py to the package path allowlist alongside skills/tests/conftest.py, so the relocated hook file stays inside declared ri-06 scope rather than becoming an undeclared out-of-package edit."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: Dedicated isolation coverage now includes the exact post-validation failure shape (scripts/tests then tests/) via subprocess pytest pairs, and reported evidence (2 reds green, isolation 3 passed, infrastructure 4775 passed / 13 skipped, Ruff clean) supports the fix under full-suite load."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "skills/tests/conftest.py is reduced to a pointer docstring with no hooks. That is compatible while skills/conftest.py remains loaded, but a future collector that only loads the tests/ tree conftest (or deletes the root file without restoring hooks) would silently lose isolation. Consider a one-line re-export or explicit comment that deletion is unsafe, or a guard test that skills/conftest.py defines pytest_collectstart/pytest_runtest_setup."
+    },
+    {
+      "id": 9,
+      "status": "confirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "pi",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "_SCRIPT_DEPENDENCIES remains a manually maintained adjacency list duplicated in spirit across skill coupling. Adding refresh-architecture is correct for this bug, but growth of scripts/tests suites will keep requiring hand updates; no automated completeness check exists. Acceptable for this isolation hotfix; track as follow-up if more cross-skill flat imports appear."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The new test_script_level_suites_reactivate_after_tests_tree_collection test directly exercises the failure mode \u2014 script-level suites (coordination-bridge/scripts/tests, refresh-architecture/scripts/tests) surviving later tests/ tree collection \u2014 and both cases pass in validation."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The _SCRIPT_DEPENDENCIES graph now includes refresh-architecture and candidate-work entries, ensuring shared script modules (roadmap-runtime, project-context-runtime, plan-roadmap, etc.) are reactivated in the correct dependency order when switching suites."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Zero breaking changes to existing test collection \u2014 4775 infrastructure tests pass, 13 skipped (unchanged), Ruff clean. The skills/tests/conftest.py delegation preserves the public pytest hook surface while centralizing logic."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 12,
+    "confirmed_count": 2,
+    "unconfirmed_count": 9,
+    "disagreement_count": 1,
+    "blocking_count": 0,
+    "advisory_count": 12
+  }
+}

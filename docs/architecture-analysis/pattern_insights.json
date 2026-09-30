@@ -1,11 +1,14 @@
 {
-  "generated_at": "2026-09-22T13:06:06+00:00",
+  "generated_at": "2026-09-27T22:44:36+00:00",
   "python_patterns": {
     "assertions": {
-      "count": 2,
+      "count": 8,
       "files": {
+        "model_routing/api.py": 3,
+        "work_queue.py": 2,
         "code_search.py": 1,
-        "feature_flags.py": 1
+        "feature_flags.py": 1,
+        "model_routing/exploration.py": 1
       }
     },
     "bare_except": {
@@ -13,9 +16,9 @@
       "files": {}
     },
     "broad_except": {
-      "count": 134,
+      "count": 141,
       "files": {
-        "coordination_api.py": 29,
+        "coordination_api.py": 33,
         "work_queue.py": 17,
         "policy_engine.py": 9,
         "code_search_runtime.py": 7,
@@ -27,18 +30,18 @@
         "notifications/gmail.py": 5,
         "code_search.py": 4,
         "discovery.py": 4,
-        "agents_config.py": 3,
         "github_openspec_fetcher.py": 3,
         "merge_queue.py": 3,
+        "agents_config.py": 2,
         "audit_triage.py": 2,
         "feature_registry.py": 2,
         "handoffs.py": 2,
-        "audit.py": 1,
-        "config.py": 1
+        "model_routing/api.py": 2,
+        "profile_loader.py": 2
       }
     },
     "context_managers": {
-      "count": 46,
+      "count": 49,
       "files": {
         "feature_flags.py": 7,
         "db_postgres.py": 5,
@@ -58,33 +61,33 @@
         "http_proxy.py": 1,
         "merge_train.py": 1,
         "migrations.py": 1,
-        "sync_points.py": 1,
-        "teams.py": 1
+        "model_routing/local_endpoints.py": 1,
+        "model_routing/refresher.py": 1
       }
     },
     "type_hints": {
-      "count": 2091,
+      "count": 2478,
       "files": {
-        "coordination_api.py": 194,
-        "coordination_mcp.py": 137,
-        "http_proxy.py": 126,
-        "agents_config.py": 95,
+        "coordination_api.py": 216,
+        "coordination_mcp.py": 139,
+        "http_proxy.py": 132,
+        "agents_config.py": 111,
+        "vendor_registry.py": 77,
         "policy_engine.py": 71,
+        "model_routing/api.py": 70,
         "code_search_runtime.py": 68,
         "coordination_cli.py": 68,
         "merge_train.py": 67,
         "code_search_authorization.py": 66,
         "code_search.py": 49,
-        "work_queue.py": 44,
+        "work_queue.py": 46,
+        "model_routing/resolver.py": 41,
         "db.py": 39,
         "merge_train_service.py": 39,
+        "model_routing/catalog.py": 39,
         "git_adapter.py": 38,
         "openspec_proposals_api.py": 38,
-        "db_postgres.py": 36,
-        "issue_service.py": 35,
-        "event_bus.py": 33,
-        "feature_flags.py": 33,
-        "github_openspec_fetcher.py": 30
+        "db_postgres.py": 36
       }
     }
   },
@@ -121,27 +124,28 @@
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 1022,
-    "typed_parameters": 992
+    "functions_with_return_type": 1197,
+    "typed_parameters": 1201
   },
   "exception_handling": {
     "bare_except": 0,
-    "broad_except": 134,
-    "total_except_issues": 134
+    "broad_except": 141,
+    "total_except_issues": 141
   },
   "security": {
-    "total": 10,
+    "total": 11,
     "by_severity": {
-      "medium": 5,
+      "medium": 6,
       "high": 5
     },
     "by_category": {
       "hardcoded_secret": {
-        "count": 5,
+        "count": 6,
         "severity": "medium",
         "files": {
           "config.py": 3,
-          "agents_config.py": 2
+          "agents_config.py": 2,
+          "model_routing/api.py": 1
         }
       },
       "sql_concatenation": {

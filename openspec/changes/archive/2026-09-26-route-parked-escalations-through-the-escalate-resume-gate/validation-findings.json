@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "observability",
+      "axis": "observability",
+      "severity": "optional",
+      "criticality": "low",
+      "disposition": "accept",
+      "description": "The preserved scoped architecture artifact reports zero findings but the canonical graph predates this branch, is not an ancestor-derived snapshot, and excludes skills/ from its input roots.",
+      "resolution": "Digest and preserve the artifact as evidence of no represented service-graph impact; do not claim fresh coverage of the changed skill runtime. Architecture mode remains advisory and the behavioral suites are the authoritative evidence for this change."
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "axis": "architecture",
+      "severity": "nit",
+      "criticality": "medium",
+      "disposition": "accept",
+      "description": "Structural architecture lint reports 14 file-size findings across runtime, test, schema, and preserved review artifacts.",
+      "resolution": "Treat as advisory technical debt under the current architecture mode and split oversized files only in separately scoped follow-up work."
+    }
+  ],
+  "review_type": "implementation",
+  "reviewer_vendor": "validate-feature",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "validated_commit": "3e1657b07e450e1917d1217468917e622fd629d8",
+  "validated_tree": "61fea98d6fea8c5c73565bc1d1b7ea9b8fd31dbc"
+}
