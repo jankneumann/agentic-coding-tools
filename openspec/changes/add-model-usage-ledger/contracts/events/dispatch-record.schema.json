@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/contracts/dispatch-record.schema.json",
+  "title": "DispatchRecord",
+  "description": "Intent for one autopilot phase dispatch, written before the adapter is invoked and patched with agent_id afterwards. Design D2. This schema describes a COMPLETE record as stored. The wire payloads differ and are defined by the OpenAPI DispatchRecordCreate (full field set, first insert) and DispatchRecordPatch (dispatch_id plus the fields being patched, e.g. agent_id on the adapter return path). A patch of {dispatch_id, agent_id} is legitimate and validates against DispatchRecordPatch; it deliberately does NOT satisfy this schema's required list, which applies to the stored row.",
+  "type": "object",
+  "required": [
+    "dispatch_id",
+    "change_id",
+    "phase",
+    "intended_model",
+    "session_id",
+    "dispatched_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "dispatch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "change_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "type": "string",
+      "description": "Autopilot dispatch phase. This enum MUST equal agents_config.NON_TERMINAL_PHASES; terminal phases (DONE, ESCALATE, ERROR) are not dispatched and so are never recorded. Two corrections from the first draft: GATEKEEPER was missing although autopilot dispatches it as a judge sub-agent (autopilot SKILL.md step 1.5, agents_config.py NON_TERMINAL_PHASES), so every gatekeeper record would have failed validation \u2014 a systematic blind spot in a ledger whose whole purpose is to record every dispatch. REVIEW_PANEL was present but exists nowhere else in the repository, so a record could have validated against a phase no dispatcher emits.",
+      "enum": [
+        "INIT",
+        "GATEKEEPER",
+        "PLAN",
+        "PLAN_ITERATE",
+        "PLAN_REVIEW",
+        "PLAN_FIX",
+        "IMPLEMENT",
+        "IMPL_ITERATE",
+        "IMPL_REVIEW",
+        "IMPL_FIX",
+        "VALIDATE",
+        "VAL_REVIEW",
+        "VAL_FIX",
+        "SUBMIT_PR"
+      ]
+    },
+    "record_kind": {
+      "type": "string",
+      "description": "Whether this dispatch actually invoked a sub-agent. 'dispatched' records join to usage on (session_id, agent_id) and are flagged unattributed when no usage matches. 'state_only' records (INIT, SUBMIT_PR) and 'judge' records that run in-process carry no sub-agent, so they have a NULL agent_id BY DESIGN and MUST be excluded from mismatch accounting \u2014 otherwise the join, in which SQL NULLs never match, reports them as failures on every single run and the mismatch report is noise from the first day.",
+      "enum": [
+        "dispatched",
+        "state_only"
+      ],
+      "default": "dispatched"
+    },
+    "archetype": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "intended_tier": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "frontier",
+        "premium",
+        "standard",
+        "economy",
+        "local"
+      ]
+    },
+    "intended_model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "intended_thinking": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provider": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "signals": {
+      "type": "object",
+      "additionalProperties": true,
+      "default": {}
+    },
+    "override_source": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "env",
+        "config"
+      ]
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "agent_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "transcript_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dispatched_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "usage_session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Session under which this dispatch's usage is recorded. Equals session_id for a Claude sidechain; the vendor's own session id for Codex/Grok/Pi, whose sub-agents run as top-level sessions. The mismatch join is on (usage_session_id, agent_id); joining on session_id would match nothing for those three vendors."
+    }
+  }
+}

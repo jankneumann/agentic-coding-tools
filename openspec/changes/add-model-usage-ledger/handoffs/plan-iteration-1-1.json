@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-04T12:01:30.895520+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Addressed the 6 unresolved reviewer findings on PR #468 plus a migration-number collision that only came into existence when #463 merged today. Two of the six were the ledger reporting 100% of work as unattributed, from opposite causes: the agent_id patch was assigned to a helper that runs before the adapter returns, and state-only phases with a NULL agent_id were counted in a join where NULLs never match.",
+    "completed_work": [
+      "[critical] security: principal derived from the API key, marked readOnly on ingest",
+      "[high] correctness: agent_id patch moved to the adapter return path (new task 4.4b)",
+      "[high] correctness: record_kind added; state_only excluded from mismatch accounting",
+      "[high] completeness: phase enum aligned to NON_TERMINAL_PHASES \u2014 GATEKEEPER added, phantom REVIEW_PANEL removed",
+      "[high] consistency: migration renumbered 035 -> 037 after #463 landed 035",
+      "[medium] contract: priced rows now require estimated IS TRUE, matching the OpenAPI const",
+      "[medium] contract: all four usage GET routes expose since/until/change_id/vendor/model"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Split the dispatch-record write from the agent_id patch",
+        "rationale": "build_phase_dispatch_kwargs runs before the adapter and never sees its result, so a patch there can only rewrite the NULL it just wrote. The patch belongs on the apply-outcome return path, which must widen to carry the sub-agent id.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Add record_kind to distinguish dispatched from state_only",
+        "rationale": "INIT and SUBMIT_PR have a NULL agent_id by design; the (session_id, agent_id) join never matches them, so without an exclusion the mismatch report is noise from its first run and a real unattributed dispatch is indistinguishable from background.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Align the phase enum to agents_config.NON_TERMINAL_PHASES",
+        "rationale": "The enum omitted GATEKEEPER, which autopilot really dispatches, and invented REVIEW_PANEL, which exists nowhere in the repository. Pinning it to the code's own constant stops both drifts.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Derive principal from the authenticated key",
+        "rationale": "The ingest contract accepted it from the request, so any valid-key holder could attribute arbitrary spend to another principal \u2014 corrupting the ownership reports the ledger exists to produce.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Renumber to migration 037",
+        "rationale": "#463 landed 035 on main after this plan was written; #467 also claimed 035 and moves to 036.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}
