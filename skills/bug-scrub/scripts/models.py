@@ -85,6 +85,7 @@ class SourceResult:
     findings: list[Finding] = field(default_factory=list)
     duration_ms: int = 0
     messages: list[str] = field(default_factory=list)
+    inventory: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -94,6 +95,8 @@ class SourceResult:
             "duration_ms": self.duration_ms,
             "messages": self.messages,
         }
+        if self.source == "github-issues" or self.inventory:
+            data["inventory"] = self.inventory
         return data
 
 
