@@ -28,8 +28,22 @@ These errors were observed in the isolated dev stack. They were not attributed t
 
 The RPC and vendor-health errors are tracked by [issue #644](https://github.com/jankneumann/agentic-coding-tools/issues/644).
 
-## Remaining validation
+## Remaining validation as of 2026-09-28
 
 Refresh the NVD database and rerun Dependency-Check. A deployment using Bao-backed coordinator authentication should be smoke-tested before production cutover. Preserve the OpenBao migration and bootstrap procedure in `docs/openbao-secret-management.md`; the dev server and synthetic keys used here are not production credentials.
 
 The remaining PCA-02 validation is tracked by [issue #642](https://github.com/jankneumann/agentic-coding-tools/issues/642).
+
+## Follow-up validation — 2026-10-01
+
+The protected local secrets file supplied the NVD API key without placing it in command output or tracked files. `run_dependency_check.sh --update-nvd` refreshed the database successfully; `--nvd-status` reported age 0 days against the seven-day limit. The first scan found zero dependencies because the disposable checkout lacked `node_modules`, so it was not accepted as a vulnerability result. After installing the exact `apps/kanban-viz` lockfile with `npm ci --ignore-scripts --no-audit --legacy-peer-deps`, Dependency-Check analyzed 105 dependencies and reported zero findings. The legacy peer option was needed because `@vitejs/plugin-react@6.1.1` requires Vite 8 while the project currently declares Vite 6; [issue #654](https://github.com/jankneumann/agentic-coding-tools/issues/654) tracks the mismatch. The scanner's Python lockfile coverage is limited; PR #645's separate coordinator and skills dependency-audit jobs passed.
+
+A local HTTP coordinator process ran with `BAO_ADDR` set against isolated PostgreSQL and the pinned OpenBao dev server. The existing `agents.yaml` registry was projected into Bao using synthetic API keys and protected bootstrap bundles; no production credentials were used. The following HTTP observations passed:
+
+- `/ready` returned HTTP 200 with `identity: ready`; the projected agent key authenticated and an unknown key was rejected.
+- After changing an agent's Bao key, the old key was rejected and the new key authenticated following the periodic reload.
+- Removing another agent's Bao document caused `identity: degraded`. The last valid snapshot continued to authenticate during the grace period.
+- After snapshot expiry, `/ready` returned HTTP 503 and the former valid key was rejected.
+- Restoring the Bao document returned readiness to `identity: ready` and authenticated the rotated key again.
+
+The coordinator process was stopped after the check. PR #645's CI completed with all required checks passing; the dependency-update-remediation job was skipped by design. This follow-up resolves the two validation gaps recorded above for a local synthetic deployment. Production cutover still follows the protected migration and rollout procedure in `docs/openbao-secret-management.md`.
