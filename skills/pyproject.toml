@@ -12,7 +12,7 @@ dependencies = [
     "hvac>=2.4.0",
     "jsonschema>=4.26.0",
     "pyyaml>=6.0",
-    "urllib3>=2.7.0",
+    "urllib3>=2.8.0",
     # Shared seam for calibrated System One (TypeSafe Jev) decisions.
     # Fallback-only for now; no vendor SDK pulled in transitively.
     "system-one-decisions",
