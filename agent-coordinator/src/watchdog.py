@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime, timedelta
@@ -27,6 +28,9 @@ _AGING_APPROVAL_THRESHOLD_MINUTES = 15
 _REMINDER_DEBOUNCE_SECONDS = 30 * 60  # 30 minutes
 _LOCK_EXPIRY_WARNING_MINUTES = 10
 _DEFAULT_VENDOR_HEALTH_INTERVAL = 300  # 5 minutes
+# Private name, so loading the probe never replaces a `vendor_health` module
+# that a skill or test imported under its plain name.
+_VENDOR_HEALTH_MODULE = "_coordinator_vendor_health"
 _DEFAULT_CATALOG_REFRESH_INTERVAL = 6 * 60 * 60
 _DEFAULT_LOCAL_PROBE_INTERVAL = 5 * 60
 _DEFAULT_LEDGER_ROLLUP_INTERVAL = 5 * 60
@@ -446,11 +450,19 @@ class WatchdogService:
         if not vendor_health_path.exists():
             logger.warning("Watchdog: vendor health probe missing at %s", vendor_health_path)
             return None
-        spec = importlib.util.spec_from_file_location("vendor_health", vendor_health_path)
+        spec = importlib.util.spec_from_file_location(_VENDOR_HEALTH_MODULE, vendor_health_path)
         if not spec or not spec.loader:
             return None
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        # Register before executing: @dataclass resolves postponed annotations
+        # through sys.modules[cls.__module__], and an unregistered module made
+        # every probe load raise, so no probe was ever persisted (#643).
+        sys.modules[_VENDOR_HEALTH_MODULE] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            sys.modules.pop(_VENDOR_HEALTH_MODULE, None)
+            raise
         return module.check_all_vendors()
 
     async def _check_vendor_health(self) -> None:

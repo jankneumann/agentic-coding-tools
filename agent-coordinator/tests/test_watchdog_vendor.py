@@ -334,3 +334,26 @@ async def test_watchdog_starts_without_notification_channels() -> None:
 
     notifier.start_digest_loop.assert_not_awaited()
     watchdog.start.assert_awaited_once_with()
+
+
+def test_real_vendor_health_probe_loads_and_reports_every_lane(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The watchdog loads vendor_health.py by path. Executing it without first
+    # registering it in sys.modules makes @dataclass (with postponed
+    # annotations) raise, so production never persisted a single probe (#643).
+    # Every other test injects vendor_health_fn and never exercised the loader.
+    from src.agents_config import get_agents_config
+
+    repo = Path(__file__).resolve().parents[2]
+    monkeypatch.setenv("SKILLS_ROOT", str(repo / "skills"))
+    monkeypatch.setenv("AGENTS_YAML", str(repo / "agent-coordinator" / "agents.yaml"))
+    monkeypatch.delenv("COORDINATION_API_URL", raising=False)
+    watchdog = WatchdogService(db=AsyncMock(), vendor_registry=AsyncMock())
+
+    first = watchdog._load_vendor_health_report()
+    second = watchdog._load_vendor_health_report()
+
+    expected = {agent.name for agent in get_agents_config()}
+    assert {v.agent_id for v in first.vendors} == expected
+    assert {v.agent_id for v in second.vendors} == expected
