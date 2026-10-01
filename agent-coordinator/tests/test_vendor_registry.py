@@ -623,7 +623,7 @@ async def test_probe_and_compaction_use_atomic_rpcs() -> None:
 
     assert deleted == 2
     assert [call.args[0] for call in db.rpc.await_args_list] == [
-        "upsert_vendor_probe_state",
+        "persist_vendor_probe_state",
         "compact_vendor_rate_limits",
     ]
 

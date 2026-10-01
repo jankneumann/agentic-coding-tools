@@ -20,6 +20,7 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exception_handlers import (
     http_exception_handler,
     request_validation_exception_handler,
@@ -1710,7 +1711,9 @@ def create_coordination_api() -> FastAPI:
                 "Vendor registry unavailable",
                 "vendor_registry_unavailable",
             )
-        return JSONResponse(content={"vendors": vendors})
+        # The registry returns raw DB rows (timestamptz -> datetime); a bare
+        # JSONResponse cannot encode them and answered a plain 500 (#643).
+        return JSONResponse(content=jsonable_encoder({"vendors": vendors}))
 
     @app.get("/vendors/{agent_id}/availability")
     async def get_vendor_availability(
@@ -1734,7 +1737,7 @@ def create_coordination_api() -> FastAPI:
                 "Vendor registry unavailable",
                 "vendor_registry_unavailable",
             )
-        return JSONResponse(content=availability)
+        return JSONResponse(content=jsonable_encoder(availability))
 
     @app.post("/vendors/{agent_id}/rate-limit-observations", status_code=202)
     async def report_vendor_rate_limit(

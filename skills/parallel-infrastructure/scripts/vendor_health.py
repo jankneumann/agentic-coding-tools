@@ -52,7 +52,8 @@ class HealthReport:
 
 def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
     """Check health of a single vendor from its agents.yaml config."""
-    cli = agent_config.get("cli", {})
+    # `or`, not a .get default: dispatch-configs sends "cli": null for SDK-only lanes (#643).
+    cli = agent_config.get("cli") or {}
     command = cli.get("command", "")
     vendor_type = agent_config.get("type", "unknown")
 

@@ -67,6 +67,7 @@ REQUIRED_FUNCTIONS = [
     "get_agent_profile",
     "is_domain_allowed",
     "upsert_vendor_probe_state",
+    "persist_vendor_probe_state",
     "record_vendor_rate_limit",
     "compact_vendor_rate_limits",
     "mutate_issue_if_unowned",
@@ -757,5 +758,70 @@ async def test_044_keeps_the_042_selected_decision_path(migrated_database) -> No
             "SELECT retention FROM routing_decisions WHERE decision_id = $1::uuid", decision_id
         )
         assert row is not None and row["retention"] is None
+    finally:
+        await conn.close()
+
+
+async def _upsert_probe(dsn: str, observed_at: str, status: str) -> object:
+    """Call persist_vendor_probe_state through the production client.
+
+    The client matters: it registers jsonb with a text codec, which is what made
+    asyncpg refuse to decode the old SETOF-composite result of the 041 function (#643).
+    """
+    from src.config import PostgresConfig
+    from src.db_postgres import DirectPostgresClient
+
+    client = DirectPostgresClient(PostgresConfig(dsn=dsn, pool_min=1, pool_max=1))
+    try:
+        return await client.rpc(
+            "persist_vendor_probe_state",
+            {
+                "p_agent_id": "claude-remote",
+                "p_observation_id": f"watchdog:claude-remote:{observed_at}",
+                "p_status": status,
+                "p_source_agent_id": "watchdog",
+                "p_reason": None,
+                "p_observed_at": observed_at,
+                "p_stale_after": "2099-01-01T00:00:00+00:00",
+                "p_metadata": {"probe": "vendor_health"},
+            },
+        )
+    finally:
+        await client.close()
+
+
+async def test_045_vendor_probe_upsert_round_trips_through_the_client(migrated_database) -> None:
+    """Migration 045: the probe upsert returns a decodable row and persists it."""
+    dsn, _applied = migrated_database
+
+    result = await _upsert_probe(dsn, "2026-09-28T12:00:00+00:00", "available")
+
+    assert isinstance(result, dict)
+    assert (result["agent_id"], result["status"]) == ("claude-remote", "available")
+    conn = await _connect(dsn)
+    try:
+        row = await conn.fetchrow(
+            "SELECT status, metadata FROM vendor_probe_state WHERE agent_id = 'claude-remote'"
+        )
+        assert row is not None
+        assert row["status"] == "available"
+        assert json.loads(row["metadata"]) == {"probe": "vendor_health"}
+    finally:
+        await conn.close()
+
+
+async def test_045_older_probe_does_not_overwrite_a_newer_one(migrated_database) -> None:
+    dsn, _applied = migrated_database
+    await _upsert_probe(dsn, "2026-09-28T12:00:00+00:00", "available")
+
+    stale = await _upsert_probe(dsn, "2026-09-28T11:00:00+00:00", "unavailable")
+
+    assert stale is None
+    conn = await _connect(dsn)
+    try:
+        status = await conn.fetchval(
+            "SELECT status FROM vendor_probe_state WHERE agent_id = 'claude-remote'"
+        )
+        assert status == "available"
     finally:
         await conn.close()

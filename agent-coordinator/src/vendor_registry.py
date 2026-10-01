@@ -488,7 +488,9 @@ class VendorRegistryService:
             raise ValueError("invalid probe status")
         observed = _utc_datetime(observed_at or self._now_fn())
         result = await self.db.rpc(
-            "upsert_vendor_probe_state",
+            # 045: jsonb-returning; 041's SETOF-composite twin cannot be
+            # decoded by the Postgres client (#643).
+            "persist_vendor_probe_state",
             {
                 "p_agent_id": agent_id,
                 "p_observation_id": observation_id,
