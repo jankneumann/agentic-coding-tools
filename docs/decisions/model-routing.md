@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-10-01 — split-no-evidence-retention-reason
+
+### Phase: Plan
+
+**New reason value no-evidenced-challenger; no-evidence narrowed to 'no candidate evidenced'** — The defect is a label that says something false; only a new label fixes it. Chosen by the user at discovery and Gate 1.
+
+- Status: `active`
+- Source: [openspec/changes/split-no-evidence-retention-reason/session-log.md](/openspec/changes/split-no-evidence-retention-reason/session-log.md) (D1)
+
+---
+
+## 2026-10-01 — split-no-evidence-retention-reason
+
+### Phase: Plan
+
+**Evidence judged on the held incumbent row (D1)** — The held row is the one that supplies incumbent_score, so the reason describes the row the decision scored.
+
+- Status: `active`
+- Source: [openspec/changes/split-no-evidence-retention-reason/session-log.md](/openspec/changes/split-no-evidence-retention-reason/session-log.md) (D2)
+
+---
+
+## 2026-10-01 — split-no-evidence-retention-reason
+
+### Phase: Plan
+
+**Self-contained v1.3 overlay; archived v1.2 untouched (D3)** — Follows the v1.1 -> v1.2 overlay convention and D7 of the predecessor. The diff against v1.2 is three enum/conditional lines plus the header.
+
+- Status: `active`
+- Source: [openspec/changes/split-no-evidence-retention-reason/session-log.md](/openspec/changes/split-no-evidence-retention-reason/session-log.md) (D3)
+
+---
+
+## 2026-10-01 — split-no-evidence-retention-reason
+
+### Phase: Plan
+
+**Enum parity test across code, OpenAPI, record schema and generated models (D4)** — Today only field names are cross-checked, so a code-only enum edit would pass CI. User opted in at discovery.
+
+- Status: `active`
+- Source: [openspec/changes/split-no-evidence-retention-reason/session-log.md](/openspec/changes/split-no-evidence-retention-reason/session-log.md) (D4)
+
+---
+
 ## 2026-09-24 — 2026-09-27-retain-static-model-until-routing-evidence
 
 ### Phase: Implementation

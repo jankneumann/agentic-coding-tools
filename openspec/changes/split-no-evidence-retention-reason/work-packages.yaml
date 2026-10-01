@@ -1,0 +1,112 @@
+schema_version: 1
+
+feature:
+  id: split-no-evidence-retention-reason
+  title: "Split the no-evidence retention reason"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-10-01T00:00:00Z"
+  deployable: true
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/split-no-evidence-retention-reason/contracts/openapi/v1.3.yaml"
+    files:
+      - "openspec/changes/split-no-evidence-retention-reason/contracts/openapi/v1.3.yaml"
+      - "openspec/changes/split-no-evidence-retention-reason/contracts/events/routing-decision-record.schema.json"
+      - "openspec/changes/split-no-evidence-retention-reason/contracts/generated/models.py"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "no-evidenced-challenger retention reason, v1.3 contract, enum parity test"
+    task_type: implementation
+    description: >-
+      Single package. The change is one branch in apply_incumbent_retention plus one enum
+      value, with contracts and tests that all read the same Literal; splitting would only
+      produce packages blocked on each other. Must not start until
+      implement-the-task-router-vendor-x-location-x-model has merged, because that change
+      holds write scope on resolver.py and api.py (design D6).
+    role: implementation
+    priority: 1
+    depends_on: []
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/src/model_routing/resolver.py"
+      keys:
+        - "api:POST /routing/select_model"
+      ttl_minutes: 120
+      reason: "New retention reason value in the select_model response contract"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/tests/model_routing/**"
+        - "agent-coordinator/CLAUDE.md"
+        - "openspec/changes/split-no-evidence-retention-reason/**"
+      read_allow:
+        - "**"
+      deny:
+        - "openspec/specs/**"
+        - "openspec/changes/archive/**"
+        - "agent-coordinator/database/migrations/**"
+        - "skills/**"
+    context_impact:
+      surfaces:
+        - "apis"               # contracts/openapi/v1.3.yaml
+        - "capabilities"       # specs/model-routing
+        - "semantic_code"      # model_routing resolver and api
+        - "documentation"      # agent-coordinator/CLAUDE.md reason list
+    worktree:
+      name: wp-main
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Model-routing suite"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest tests/model_routing -q"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/model_routing/test_incumbent_retention.py"
+              - "agent-coordinator/tests/model_routing/test_incumbent_retention_contracts.py"
+              - "agent-coordinator/tests/model_routing/test_service_incumbent.py"
+            result_keys: ["routing_suite_pass"]
+        - name: "Coordinator unit suite"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest -m 'not e2e and not integration' -q"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests"
+            result_keys: ["coordinator_suite_pass"]
+        - name: "Strict typing"
+          kind: command
+          command: "cd agent-coordinator && uv run mypy --strict src/"
+          evidence:
+            artifacts:
+              - "agent-coordinator/src/model_routing"
+            result_keys: ["mypy_clean"]
+        - name: "Lint"
+          kind: command
+          command: "cd agent-coordinator && uv run ruff check ."
+          evidence:
+            artifacts:
+              - "agent-coordinator/src/model_routing"
+            result_keys: ["ruff_clean"]
+    outputs:
+      result_keys: ["routing_suite_pass", "coordinator_suite_pass", "mypy_clean", "ruff_clean"]
+    metadata:
+      loc_estimate: 120
+      package_kind: backend
