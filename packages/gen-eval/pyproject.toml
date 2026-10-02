@@ -21,7 +21,7 @@ dependencies = [
 # boundaries in the existing code; ``all`` is the union.
 [project.optional-dependencies]
 mcp = ["fastmcp>=2.0"]
-sdk = ["anthropic>=0.94", "openai>=1.50"]
+sdk = ["anthropic>=0.94", "openai>=3.19.0"]
 db = ["asyncpg>=0.29"]
 all = ["gen-eval[mcp,sdk,db]"]
 # Shared seam for calibrated System One (TypeSafe Jev) decisions
