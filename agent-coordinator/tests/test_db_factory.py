@@ -643,3 +643,76 @@ class TestPyJWTFloorIsHeld:
                 f"PyJWKClient JWKS redirect and unbounded-fetch advisories that "
                 f"cloudflare_access.py is exposed to ({spec!r})."
             )
+
+
+def _capturing_client():
+    """A DirectPostgresClient whose pool records the SQL and args it is given."""
+    captured: dict = {}
+
+    class FakeConn:
+        async def fetch(self, query, *args):
+            captured["query"] = query
+            captured["args"] = args
+            return []
+
+    class FakeAcquire:
+        async def __aenter__(self):
+            return FakeConn()
+
+        async def __aexit__(self, *exc):
+            return None
+
+    class FakePool:
+        def acquire(self):
+            return FakeAcquire()
+
+    client = DirectPostgresClient()
+    client._pool = FakePool()  # type: ignore[assignment]
+    return client, captured
+
+
+class TestFilterOperatorCoverage:
+    """Every PostgREST operator a caller uses must reach the WHERE clause (#634).
+
+    `lt` and `is` had no branch and were silently dropped, so e.g. "delete
+    tokens with expires_at < now" deleted every token on the Postgres backend.
+    """
+
+    @pytest.mark.asyncio
+    async def test_lt_filters_and_binds_a_datetime(self):
+        from datetime import datetime
+
+        client, captured = _capturing_client()
+        await client.query(
+            "agent_sessions",
+            "status=eq.active&last_heartbeat=lt.2026-10-04T00:00:00%2B00:00",
+        )
+
+        assert "last_heartbeat < $2" in captured["query"]
+        assert isinstance(captured["args"][1], datetime)
+
+    @pytest.mark.asyncio
+    async def test_lt_now_uses_server_time(self):
+        client, captured = _capturing_client()
+        await client.query("notification_tokens", "expires_at=lt.now()")
+
+        assert "expires_at < NOW()" in captured["query"]
+        assert captured["args"] == ()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("value", "sql"),
+        [("null", "used_at IS NULL"), ("true", "used_at IS TRUE"), ("false", "used_at IS FALSE")],
+    )
+    async def test_is_filters(self, value, sql):
+        client, captured = _capturing_client()
+        await client.query("notification_tokens", f"token=eq.t&used_at=is.{value}")
+
+        assert sql in captured["query"]
+
+    @pytest.mark.asyncio
+    async def test_unsupported_filter_is_rejected_not_dropped(self):
+        client, _captured = _capturing_client()
+
+        with pytest.raises(ValueError, match="unsupported query filter"):
+            await client.query("approval_queue", "status=eq.pending&expires_at=neq.x")

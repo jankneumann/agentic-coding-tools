@@ -26,6 +26,8 @@ _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
 )
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# PostgREST `is.` operands, mapped to their SQL keywords.
+_IS_FILTER_VALUES = {"null": "NULL", "true": "TRUE", "false": "FALSE"}
 # datetime.now(UTC).isoformat() and common Zulu variants. Requires a
 # timezone so we don't swallow date-only or naive strings that belong
 # on TEXT columns.
@@ -325,6 +327,23 @@ class DirectPostgresClient:
                     where_clauses.append(f"{col} <= ${param_idx}")
                     values.append(_coerce_filter_value(_decode_query_value(val)))
                     param_idx += 1
+                elif "=lt." in part:
+                    col, val = part.split("=lt.", 1)
+                    _validate_identifier(col, allow_qualified=True)
+                    val = _decode_query_value(val)
+                    if val == "now()":
+                        where_clauses.append(f"{col} < NOW()")
+                    else:
+                        where_clauses.append(f"{col} < ${param_idx}")
+                        values.append(_coerce_filter_value(val))
+                        param_idx += 1
+                elif "=is." in part:
+                    col, val = part.split("=is.", 1)
+                    _validate_identifier(col, allow_qualified=True)
+                    keyword = _IS_FILTER_VALUES.get(_decode_query_value(val).lower())
+                    if keyword is None:
+                        raise ValueError(f"unsupported query filter: {part!r}")
+                    where_clauses.append(f"{col} IS {keyword}")
                 elif "=in." in part:
                     col, val = part.split("=in.", 1)
                     _validate_identifier(col, allow_qualified=True)
@@ -347,6 +366,11 @@ class DirectPostgresClient:
                     where_clauses.append(f"{col} @> ${param_idx}::text[]")
                     values.append(cs_values)
                     param_idx += 1
+                elif part:
+                    # A filter this translator does not understand used to be
+                    # dropped silently, widening the query to every row: `lt`
+                    # and `is` were missing, so expiry sweeps hit live rows (#634).
+                    raise ValueError(f"unsupported query filter: {part!r}")
 
         where = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         safe_select = _validate_select_clause(select)
