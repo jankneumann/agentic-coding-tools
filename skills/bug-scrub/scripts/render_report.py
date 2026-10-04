@@ -137,9 +137,25 @@ def render_markdown(report: BugScrubReport) -> str:
             lines.append(f"{i}. {rec}")
         lines.append("")
 
+    unavailable_sources = [
+        result for result in report.source_results if result.status != "ok"
+    ]
+    if unavailable_sources:
+        lines.append("## Unavailable Sources")
+        lines.append("")
+        for result in unavailable_sources:
+            reason = "; ".join(result.messages) or result.status
+            lines.append(f"- **{result.source}** ({result.status}): {reason}")
+        lines.append("")
+
     # Empty report
     if not report.findings:
-        if not report.staleness_warnings:
+        if unavailable_sources:
+            lines.append("## Result")
+            lines.append("")
+            lines.append("Diagnostic incomplete — one or more sources were unavailable.")
+            lines.append("")
+        elif not report.staleness_warnings:
             lines.append("## Result")
             lines.append("")
             lines.append("Clean bill of health — no findings discovered.")
