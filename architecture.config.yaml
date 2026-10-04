@@ -10,6 +10,11 @@ project:
   primary_language: "python"          # Override auto-detection
   protocol: "mcp"                     # "mcp", "http", "grpc", "cli", or "auto"
 
+analysis:                             # Where run_architecture.py finds sources (#635).
+  python_src_dir: "agent-coordinator/src"    # Read when no --*-dir flag or env var is given,
+  ts_src_dir: "apps"                         # so every skill's `--ensure` analyzes the right
+  migrations_dir: "agent-coordinator/database/migrations"  # tree. Keep in sync with Makefile.
+
 paths:
   input_dir: "docs/architecture-analysis"
   output_report: "docs/architecture-analysis/architecture.report.md"

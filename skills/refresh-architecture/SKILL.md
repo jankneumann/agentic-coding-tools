@@ -37,6 +37,20 @@ Regenerate, validate, or inspect the `docs/architecture-analysis/` artifacts tha
 - A consumer project root. Defaults are `src/`, `web/`, and
   `database/migrations/`; override them with `--python-src-dir`,
   `--ts-src-dir`, and `--migrations-dir` for other layouts.
+  For any other layout, declare the directories once in the project's
+  `architecture.config.yaml`:
+
+  ```yaml
+  analysis:
+    python_src_dir: agent-coordinator/src
+    ts_src_dir: apps
+    migrations_dir: agent-coordinator/database/migrations
+  ```
+
+  Consumer skills call `--ensure` with no directory flags, so without this
+  section they analyze the default paths and fail. Precedence: CLI flag, then
+  environment variable, then this config, then the default. `validate-flows`
+  reads the same roots to match `--files` / `--diff` paths to graph nodes.
 
 Resolve `<skill-base-dir>` to the directory containing this loaded `SKILL.md`.
 Every command below invokes shipped tools from that directory and does not
