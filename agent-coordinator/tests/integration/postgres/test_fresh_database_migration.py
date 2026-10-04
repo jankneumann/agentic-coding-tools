@@ -825,3 +825,55 @@ async def test_045_older_probe_does_not_overwrite_a_newer_one(migrated_database)
         assert status == "available"
     finally:
         await conn.close()
+
+
+async def test_watchdog_stale_agent_sweep_runs_against_the_migrated_schema(
+    migrated_database,
+) -> None:
+    """The watchdog's stale-agent sweep must query a relation that exists (#634).
+
+    It queried `agent_discovery`, the name of migration 003's *file*, while 003
+    actually extends `agent_sessions`. Every cycle failed, so stale agents were
+    never reported, disconnected, or relieved of their locks.
+    """
+    from unittest.mock import AsyncMock
+
+    from src.config import PostgresConfig
+    from src.db_postgres import DirectPostgresClient
+    from src.watchdog import WatchdogService
+
+    dsn, _applied = migrated_database
+    conn = await _connect(dsn)
+    try:
+        await conn.execute(
+            "INSERT INTO agent_sessions (id, agent_id, agent_type, status, last_heartbeat) VALUES "
+            "('s-stale', 'stale-agent', 'codex', 'active', NOW() - INTERVAL '1 hour'), "
+            "('s-fresh', 'fresh-agent', 'codex', 'active', NOW())"
+        )
+        await conn.execute(
+            "INSERT INTO file_locks (file_path, locked_by, agent_type, expires_at) VALUES "
+            "('src/held.py', 'stale-agent', 'codex', NOW() + INTERVAL '1 hour')"
+        )
+    finally:
+        await conn.close()
+
+    client = DirectPostgresClient(PostgresConfig(dsn=dsn, pool_min=1, pool_max=1))
+    watchdog = WatchdogService(db=client)
+    watchdog._emit_event = AsyncMock()  # type: ignore[method-assign]
+    try:
+        await watchdog._check_stale_agents()
+    finally:
+        await client.close()
+
+    reported = [call.kwargs["agent_id"] for call in watchdog._emit_event.await_args_list]
+    assert reported == ["stale-agent"]
+    conn = await _connect(dsn)
+    try:
+        statuses = dict(await conn.fetch("SELECT agent_id, status FROM agent_sessions"))
+        assert statuses == {"stale-agent": "disconnected", "fresh-agent": "active"}
+        held = await conn.fetchval(
+            "SELECT count(*) FROM file_locks WHERE locked_by = 'stale-agent'"
+        )
+        assert held == 0
+    finally:
+        await conn.close()

@@ -6,7 +6,7 @@ and dead agent cleanup for multi-agent coordination.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from .audit import get_audit_service
@@ -278,7 +278,8 @@ class DiscoveryService:
         result = await self.db.rpc(
             "cleanup_dead_agents",
             {
-                "p_stale_threshold": f"{stale_threshold_minutes} minutes",
+                # timedelta: asyncpg binds INTERVAL only from timedelta (#634).
+                "p_stale_threshold": timedelta(minutes=stale_threshold_minutes),
             },
         )
 

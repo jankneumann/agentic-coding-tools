@@ -73,9 +73,9 @@ class TestRunOnceCallsAllChecks:
 
         await svc.run_once()
 
-        # Should have queried agent_discovery, approval_queue, file_locks, notification_tokens
+        # Should have queried agent_sessions (#634), approval_queue, file_locks, notification_tokens
         tables_queried = [call.args[0] for call in db.query.call_args_list]
-        assert "agent_discovery" in tables_queried
+        assert "agent_sessions" in tables_queried
         assert "approval_queue" in tables_queried
         assert "file_locks" in tables_queried
         assert "notification_tokens" in tables_queried
@@ -91,7 +91,7 @@ class TestStaleAgentDetection:
         db = _make_mock_db()
         stale_time = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
-            "agent_discovery": [
+            "agent_sessions": [
                 {"agent_id": "stale-agent-1", "status": "active", "last_heartbeat": stale_time}
             ],
             "approval_queue": [],
@@ -120,7 +120,7 @@ class TestAgingApprovalReminder:
         db = _make_mock_db()
         old_time = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
-            "agent_discovery": [],
+            "agent_sessions": [],
             "approval_queue": [
                 {
                     "id": "approval-1",
@@ -157,7 +157,7 @@ class TestApprovalReminderDebounce:
         db = _make_mock_db()
         old_time = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
-            "agent_discovery": [],
+            "agent_sessions": [],
             "approval_queue": [
                 {
                     "id": "approval-debounce",
@@ -204,7 +204,7 @@ class TestExpiringLockWarning:
         db = _make_mock_db()
         soon = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
-            "agent_discovery": [],
+            "agent_sessions": [],
             "approval_queue": [],
             "file_locks": [
                 {
@@ -238,7 +238,7 @@ class TestExpiredTokenCleanup:
         db = _make_mock_db()
         expired_time = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
-            "agent_discovery": [],
+            "agent_sessions": [],
             "approval_queue": [],
             "file_locks": [],
             "notification_tokens": [

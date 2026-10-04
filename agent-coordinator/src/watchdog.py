@@ -271,8 +271,10 @@ class WatchdogService:
 
             now = datetime.now(UTC)
             threshold = (now - timedelta(minutes=_STALE_AGENT_THRESHOLD_MINUTES)).isoformat()
+            # Migration 003 ("agent_discovery") adds heartbeat/status to
+            # agent_sessions; there is no agent_discovery relation (#634).
             rows = await self.db.query(
-                "agent_discovery",
+                "agent_sessions",
                 f"status=eq.active&last_heartbeat=lt.{threshold}",
             )
             for row in rows:
@@ -295,7 +297,9 @@ class WatchdogService:
                 try:
                     await self.db.rpc(
                         "cleanup_dead_agents",
-                        {"p_stale_threshold": f"{_STALE_AGENT_THRESHOLD_MINUTES} minutes"},
+                        # A timedelta, not "15 minutes": asyncpg binds INTERVAL
+                        # parameters only from timedelta (#634).
+                        {"p_stale_threshold": timedelta(minutes=_STALE_AGENT_THRESHOLD_MINUTES)},
                     )
                 except Exception as exc:
                     logger.error("Watchdog: cleanup_dead_agents RPC failed: %s", exc)
