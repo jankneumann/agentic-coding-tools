@@ -234,7 +234,8 @@ def load_config(path: Path | None = None) -> ReportConfig:
         return ReportConfig()
 
     # Warn on unknown top-level keys (forward-compatible)
-    known_keys = {"project", "paths", "report", "health", "best_practices"}
+    # `analysis` is read by run_architecture.py and `gates` by validate-feature.
+    known_keys = {"project", "paths", "report", "health", "best_practices", "analysis", "gates"}
     for key in raw:
         if key not in known_keys:
             warnings.warn(
