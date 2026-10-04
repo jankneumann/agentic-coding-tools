@@ -69,7 +69,11 @@ def test_empty_issue_inventory_is_visible(monkeypatch, tmp_path):
 
 def test_missing_gh_skips_and_failed_command_reports_error(monkeypatch, tmp_path):
     monkeypatch.setattr(collect_github_issues.shutil, "which", lambda _: None)
-    assert collect_github_issues.collect(str(tmp_path)).status == "skipped"
+    skipped = collect_github_issues.collect(str(tmp_path))
+    assert skipped.status == "skipped"
+    skipped_report = render_markdown(aggregate([skipped]))
+    assert "gh not found on PATH" in skipped_report
+    assert "Clean bill of health" not in skipped_report
 
     monkeypatch.setattr(collect_github_issues.shutil, "which", lambda _: "/usr/bin/gh")
     monkeypatch.setattr(
@@ -80,7 +84,9 @@ def test_missing_gh_skips_and_failed_command_reports_error(monkeypatch, tmp_path
     failed = collect_github_issues.collect(str(tmp_path))
     assert failed.status == "error"
     assert "authentication required" in failed.messages[0]
-    assert "Listing unavailable" in render_markdown(aggregate([failed]))
+    failed_report = render_markdown(aggregate([failed]))
+    assert "Listing unavailable" in failed_report
+    assert "Clean bill of health" not in failed_report
 
 
 def test_limit_and_bad_json_are_errors_not_partial_inventories(monkeypatch, tmp_path):

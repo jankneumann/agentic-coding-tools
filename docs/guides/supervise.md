@@ -36,7 +36,7 @@ The supervisor may report **Degraded: handoff** when the coordinator is unavaila
 
 - Give intake requests an observable outcome and any important constraint. This makes the later proposal and roadmap insertion reviewable.
 - Use `--dry-run` for inspection. A normal cycle refreshes discovery reports, candidate state, and the digest when repository state has changed.
-- The bug-scrub report lists open GitHub issues when `gh` is available. The supervisor checks that list for actionable, untracked issues and selects candidates within its 20-item store limit; the full issue list remains in the report.
+- The bug-scrub report lists open GitHub issues when `gh` is available. The supervisor reads its bounded, delimited issue view to select actionable, untracked work within the 20-item candidate store limit; the full issue list remains in the report.
 - Treat `--force` as a request to reconsider unchanged state, not a way to create duplicate candidates.
 - Resolve the gates listed under **Needs a decision** before expecting blocked work to advance.
 - Use `/supervise execute` only with an active roadmap and its recorded approval. For a standalone approved roadmap, `/autopilot-roadmap` is also available.
