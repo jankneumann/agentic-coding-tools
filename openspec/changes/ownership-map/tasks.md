@@ -1,19 +1,208 @@
-# Tasks: Add human principals and the git-native ownership map
+# Tasks — ownership-map
 
-> Change ID: `ownership-map`
+> Change ID: `ownership-map` · Roadmap item `multiplayer-collaboration/ri-02`
+
+Sizes per the plan-feature sizing table. TDD ordering: every test task precedes the
+implementation task it verifies and that task depends on it. Spec scenario references name
+`<capability> / "<scenario>"` in `specs/`; design decisions reference `design.md`. No task is
+XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
 
 ## Status
 
-- [ ] Planning
+- [x] Planning
 - [ ] Implementation
 - [ ] Testing
 - [ ] Review
 - [ ] Done
 
-## Tasks
+## Phase 1 — Contracts: schemas promoted to their stable homes
 
-- [ ] Define detailed requirements
-- [ ] Implement core functionality
-- [ ] Write tests
-- [ ] Update documentation
-- [ ] Review and merge
+- [ ] 1.1 Write tests pinning the two schema files: `openspec/schemas/owners.schema.json` and
+      `openspec/schemas/human-principals.schema.json` are byte-identical to their
+      `skills/ownership-runtime/install_assets/openspec/schemas/` copies and to the drafts under
+      this change's `contracts/schemas/` (located with `change_dir()`), and both parse as
+      Draft 2020-12 JSON Schema (S)
+      **Spec scenarios**: ownership-map / "Schema copies pinned"
+      **Design decisions**: D2, D7, D12
+      **Dependencies**: none
+- [ ] 1.2 Promote the draft schemas from `contracts/schemas/` to `openspec/schemas/` and to
+      `skills/ownership-runtime/install_assets/openspec/schemas/`; add positive and negative
+      fixture instances under `skills/tests/ownership-runtime/fixtures/` exercising every
+      `additionalProperties: false` boundary and the restricted glob pattern (S)
+      **Spec scenarios**: ownership-map / "Unknown key rejected", "Unsupported glob syntax rejected"
+      **Design decisions**: D3
+      **Dependencies**: 1.1
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 2 — Registry extension (agent-coordinator)
+
+- [ ] 2.1 Write `agent-coordinator/tests/test_human_principals.py` — `humans:` block validates,
+      missing `display_name` rejected, unknown field rejected, human id colliding with an agent
+      name raises `ValueError` naming both, `load_human_principals()` returns `HumanEntry`
+      records and an empty list for a registry without humans, `load_agents_config()` return
+      value unchanged with and without the block (M)
+      **Spec scenarios**: agent-identity / "Human id colliding with an agent name rejected",
+      "Human entry missing display name rejected", "Registry without humans unchanged"
+      **Design decisions**: D1
+      **Dependencies**: none
+- [ ] 2.2 Write the schema-mirror test — `HUMAN_PRINCIPAL_SCHEMA` equals
+      `openspec/schemas/human-principals.schema.json` minus `$schema`/`$id`/`title`/`description` (S)
+      **Spec scenarios**: agent-identity / "Schema mirror pinned"
+      **Design decisions**: D2
+      **Dependencies**: 1.2
+- [ ] 2.3 Implement `HUMAN_PRINCIPAL_SCHEMA`, the `humans` property on `AGENTS_SCHEMA`, the
+      `HumanEntry` dataclass, `load_human_principals()`, and the agent/human namespace collision
+      check inside `load_agents_config()` in `agent-coordinator/src/agents_config.py` (M)
+      **Dependencies**: 2.1, 2.2
+- [ ] 2.4 Write the projection-invariant extension tests — rule 6 checker (no human id in
+      profile rows, assignments, identity map, dispatch configs or `project_principals()`
+      output) plus the negative test that injects a human-named profile row and proves the
+      checker fires (S)
+      **Spec scenarios**: agent-identity / "Human principal declared without agent projection",
+      "Invariant catches a human projected as an agent"
+      **Design decisions**: D1, D12
+      **Dependencies**: 2.3
+- [ ] 2.5 Add rule 6 (`_human_projection_violations`) to
+      `agent-coordinator/tests/test_registry_projection.py` and wire it into the positive
+      invariant test over the real registry (S)
+      **Dependencies**: 2.4
+- [ ] 2.6 Declare the maintainer as the first human principal in
+      `agent-coordinator/agents.yaml` (`humans:` block with `display_name`, `github`, `email`,
+      `domains`), taking the handle from `gh api user` and the email from `git config`, with a
+      header comment explaining the block and pointing at the `ownership-map` capability (S)
+      **Design decisions**: D1
+      **Dependencies**: 2.3
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 3 — Resolver, principals and check (skills/ownership-runtime)
+
+- [ ] 3.1 Write `skills/tests/ownership-runtime/test_principals.py` — registry location order
+      (env var, `registry:` field, `agent-coordinator/agents.yaml`, root `agents.yaml`, none);
+      only `humans:` and `agents:` keys are read (a registry with an invalid `agents:` entry
+      still yields its humans); solo derivation order (single human, git-config match, synthetic
+      `git:<email>`, sentinel); `mode` derived from human count (M)
+      **Spec scenarios**: ownership-map / "Single declared human is the sole principal",
+      "Git identity derived when the registry has no humans", "Sentinel when no identity is
+      available", "Consumer repository registry at the root"
+      **Design decisions**: D5, D6, D10
+      **Dependencies**: 1.2
+- [ ] 3.2 Implement `skills/ownership-runtime/scripts/principals.py` — `Principal`,
+      `locate_registry()`, `load_human_principals()` (validated against the shipped JSON schema),
+      `derive_solo_principal()`, `derive_mode()` (S)
+      **Dependencies**: 3.1
+- [ ] 3.3 Write `skills/tests/ownership-runtime/test_owners.py` — minimal map loads; missing
+      `default_owner`, unregistered owner, agent-as-owner each raise `OwnershipConfigError`;
+      explicit capability with distinct acceptance rights; default fallback with
+      `matched_rule is None`; most-specific path rule wins; equal-specificity tie by file order;
+      roadmap item explicit and fallback; solo mode with map absent; one-principal repository with
+      a map stays `solo`; team registry without a map raises; performance budget (200-rule map,
+      1,000 resolutions < 250 ms) (M)
+      **Spec scenarios**: ownership-map / "Minimal valid map loads", "Missing default owner
+      rejected", "Unregistered owner fails closed", "Agent named as owner rejected", "Explicit
+      capability assignment", "Unassigned capability falls back to the default owner", "Most
+      specific path rule wins", "Equal specificity resolved by file order", "Roadmap item
+      resolution", "One-principal repository with a map stays solo"
+      **Design decisions**: D3, D4, D5, D13
+      **Dependencies**: 3.2
+- [ ] 3.4 Implement `skills/ownership-runtime/scripts/owners.py` — `load_ownership()`,
+      `OwnershipContext`, `OwnerSet`, `OwnershipConfigError`, the three `resolve_*` methods and
+      the path specificity ranking (M)
+      **Dependencies**: 3.3
+- [ ] Checkpoint: run tests, review diff, verify scope
+- [ ] 3.5 Write `skills/tests/ownership-runtime/test_check_owners.py` — `unowned_capability`
+      and `unowned_roadmap_item` warnings, `unknown_owner` and `agent_as_owner` errors,
+      `team_registry_without_map` error, `sentinel_principal` warning, exit codes with and
+      without `--strict`, stable `--json` shape (S)
+      **Spec scenarios**: ownership-map / "Unowned capability reported", "Unregistered owner
+      reported as error", "Team registry without a map is an error"
+      **Design decisions**: D9
+      **Dependencies**: 3.4
+- [ ] 3.6 Implement `skills/ownership-runtime/scripts/check_owners.py` (CLI; `--codeowners`
+      delegates to 4.4's reconcile when present) (S)
+      **Dependencies**: 3.5
+- [ ] 3.7 Write the coordinator-independence test — the resolver suite runs with
+      `COORDINATION_API_URL` pointing at a closed port and a socket guard asserting no
+      connection is attempted; AST scan asserts no `src.` import or `agent-coordinator` path in
+      `skills/ownership-runtime/scripts/` (S)
+      **Spec scenarios**: ownership-map / "Resolution with the coordinator unreachable", "No
+      private coordinator imports"
+      **Design decisions**: D7
+      **Dependencies**: 3.4
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 4 — CODEOWNERS projection
+
+- [ ] 4.1 Write `skills/tests/ownership-runtime/test_codeowners_emit.py` — managed block
+      markers; `*` first; two lines per capability; ascending specificity order; `@handle`
+      rendering; unmanaged text before and after the block preserved byte-for-byte on
+      `emit --write`; missing `github` handle fails without modifying the file (M)
+      **Spec scenarios**: ownership-map / "Emit ordering yields agreement", "Missing GitHub
+      handle fails emission", "Stale block reported and unmanaged text preserved"
+      **Design decisions**: D8
+      **Dependencies**: 3.4
+- [ ] 4.2 Implement `emit` in `skills/ownership-runtime/scripts/codeowners.py` — line
+      generation, ordering, marker handling, `--write` (M)
+      **Dependencies**: 4.1
+- [ ] 4.3 Write `skills/tests/ownership-runtime/test_codeowners_reconcile.py` — probe set
+      construction (tracked spec/contract files, rule matches, literal prefixes, one unmatched
+      path); GitHub last-match-wins matcher over the whole file including unmanaged lines;
+      disagreement for a hand-added conflicting line; stale block detected with diff; clean emit
+      reconciles with zero disagreements (M)
+      **Spec scenarios**: ownership-map / "Hand-edited line that disagrees is reported", "Stale
+      block reported and unmanaged text preserved", "Emit ordering yields agreement"
+      **Design decisions**: D8
+      **Dependencies**: 4.2
+- [ ] 4.4 Implement `reconcile` in `codeowners.py` — CODEOWNERS-semantics matcher, probe set,
+      comparison, stale detection, exit codes, `--json` (M)
+      **Dependencies**: 4.3
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 5 — Dogfood, documentation, portability
+
+- [ ] 5.1 Write `skills/tests/ownership-runtime/test_repository_invariant.py` — against the real
+      checkout: `check_owners.py --codeowners --strict --json` exits `0` with an empty findings
+      list; `codeowners.py reconcile` reports zero disagreements and a fresh block;
+      `load_ownership().mode == "solo"` (S)
+      **Spec scenarios**: ownership-map / "Clean repository passes", "Repository CODEOWNERS
+      reconciles", "One-principal repository with a map stays solo"
+      **Design decisions**: D6, D9, D12
+      **Dependencies**: 2.6, 3.6, 4.4
+- [ ] 5.2 Author `openspec/owners.yaml` for this repository — `default_owner` is the maintainer,
+      explicit assignments for every directory under `openspec/specs/` and every item in
+      `openspec/roadmaps/*/roadmap.yaml` (so the check is warning-free), and `paths` rules for
+      `openspec/contracts/**` and `openspec/schemas/**` (S)
+      **Design decisions**: D3, D6
+      **Dependencies**: 5.1
+- [ ] 5.3 Generate `.github/CODEOWNERS` with `codeowners.py emit --write` (S)
+      **Dependencies**: 5.2
+- [ ] 5.4 Write the state-artifacts guide test extension — `skills/tests/state-artifacts/`
+      asserts the inventory row for `openspec/owners.yaml` names `CODEOWNERS` as a derived
+      projection and covers writer, authority and missing/stale cells; existing assertions
+      untouched (S)
+      **Spec scenarios**: ownership-map / "Inventory row present", "Guide tests still pass"
+      **Design decisions**: D11
+      **Dependencies**: none
+- [ ] 5.5 Add the **Ownership map** row to `docs/guides/state-artifacts.md` per D11 (S)
+      **Dependencies**: 5.4
+- [ ] 5.6 Write `skills/ownership-runtime/SKILL.md` — import surface, `mode` contract for
+      downstream items, CLI usage, roadmap-item-has-no-path note; add the skill to
+      `skills/install-manifest.json` (`portable`) and `docs/skills-catalogue.md` (S)
+      **Spec scenarios**: ownership-map / "Install payload validates"
+      **Design decisions**: D7
+      **Dependencies**: 3.6, 4.4
+- [ ] 5.7 Solo-mode regression — with `openspec/owners.yaml` moved aside, run the full
+      `skills/tests` and `agent-coordinator/tests` unit suites and record in the checkpoint that
+      no pre-existing test file was modified by this change (S)
+      **Spec scenarios**: ownership-map / "Existing suites unchanged with the map absent"
+      **Design decisions**: D6
+      **Dependencies**: 5.3
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 6 — Integration
+
+- [ ] 6.1 Merge package branches; run `bash skills/install.sh --check`,
+      `openspec validate --strict --all`, `skills/.venv/bin/python -m pytest skills/tests/`,
+      `uv run pytest -m "not e2e and not integration"` plus `mypy --strict src/` and
+      `ruff check .` in `agent-coordinator`; fix fallout (S)
+      **Dependencies**: 5.1, 5.5, 5.6, 5.7
+- [ ] Checkpoint: run tests, review diff, verify scope

@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-10-05 — ownership-map
+
+### Phase: Plan
+
+**Human principals live in a `humans:` block of agents.yaml, share the agent namespace, and are never projected into agent runtime state** — Honors the no-parallel-registry constraint while keeping 'humans are not agents' structural; collisions are load errors; load_agents_config() keeps its return type.
+
+- Status: `active`
+- Source: [openspec/changes/ownership-map/session-log.md](/openspec/changes/ownership-map/session-log.md) (D1)
+
+---
+
+## 2026-10-05 — ownership-map
+
+### Phase: Plan
+
+**One human-principal shape, two validators pinned equal by test** — The coordinator cannot read openspec/ at runtime and skills cannot import src.agents_config; a test asserts the inline dict equals openspec/schemas/human-principals.schema.json.
+
+- Status: `active`
+- Source: [openspec/changes/ownership-map/session-log.md](/openspec/changes/ownership-map/session-log.md) (D2)
+
+---
+
 ## 2026-09-25 — 2026-09-25-restructure-openbao-per-agent-secrets
 
 ### Phase: Implementation
