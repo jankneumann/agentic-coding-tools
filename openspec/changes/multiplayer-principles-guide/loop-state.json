@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "multiplayer-principles-guide",
-  "current_phase": "PLAN_ITERATE",
+  "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 3,
+  "total_iterations": 4,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -20,13 +20,19 @@
       "at": "2026-10-05T07:05:00.234995+00:00",
       "outcome": "proceed",
       "phase": "GATEKEEPER"
+    },
+    {
+      "phase": "PLAN_ITERATE",
+      "outcome": "host_escalate",
+      "at": "2026-10-05T09:35:19.341836+00:00",
+      "note": "PLAN_ITERATE failed: phase sub-agent was denied read access to openspec/changes/multiplayer-principles-guide/ plan artifacts by the harness permission classifier (labelled 'Irreversible Local Destruction' on a read-only cat/ls); no PhaseRecord produced. Prior attempt lost to container restart; its partial edits are kept locally at f4e388e (branch openspec/multiplayer-principles-guide--plan-iterate, not pushed). Retained handoff a97b7229-4868-4a94-801f-6d56414b111d"
     }
   ],
   "last_handoff_id": "a97b7229-4868-4a94-801f-6d56414b111d",
   "started_at": "2026-10-05T07:03:40.733622+00:00",
-  "phase_started_at": "2026-10-05T07:13:44.790614+00:00",
-  "previous_phase": null,
-  "escalation_reason": null,
+  "phase_started_at": "2026-10-05T09:35:19.341865+00:00",
+  "previous_phase": "PLAN_ITERATE",
+  "escalation_reason": "PLAN_ITERATE failed: phase sub-agent was denied read access to openspec/changes/multiplayer-principles-guide/ plan artifacts by the harness permission classifier (labelled 'Irreversible Local Destruction' on a read-only cat/ls); no PhaseRecord produced. Prior attempt lost to container restart; its partial edits are kept locally at f4e388e (branch openspec/multiplayer-principles-guide--plan-iterate, not pushed). Retained handoff a97b7229-4868-4a94-801f-6d56414b111d",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
@@ -76,8 +82,42 @@
       "phase": "PLAN",
       "recorded_at": "2026-10-05T07:12:43.951276+00:00",
       "note": "operator approved: answered 'Approve whole roadmap' + 'Posture: plans auto' to a question that explicitly covered ri-01's pending proposal_approval (supervisor session_01J39bSygVy2r68wyPyHN5VA, 2026-10-05)"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-05T09:35:25.942695+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "multiplayer-principles-guide",
+    "gate": "escalate_resume",
+    "phase": "ESCALATE",
+    "requested_at": "2026-10-05T09:35:25.943649+00:00",
+    "prompt": "Has this escalation been resolved? Resume the loop?",
+    "context": {
+      "escalation_reason": "PLAN_ITERATE sub-agent permission denial",
+      "previous_phase": "PLAN_ITERATE"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true
+    },
+    "edge": {
+      "outcome": "resolved",
+      "target": "PLAN_ITERATE"
+    }
+  },
   "goal_gate": null
 }
