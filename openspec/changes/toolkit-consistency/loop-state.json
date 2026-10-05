@@ -1,0 +1,67 @@
+{
+  "schema_version": 5,
+  "change_id": "toolkit-consistency",
+  "current_phase": "PLAN_ITERATE",
+  "iteration": 0,
+  "total_iterations": 3,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-0-toolkit-consistency"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-05T07:14:48.611824+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "last_handoff_id": "gatekeeper-0-toolkit-consistency",
+  "started_at": "2026-10-05T07:11:57.548342+00:00",
+  "phase_started_at": "2026-10-05T07:15:10.405617+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "architect",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": false,
+    "package_count": 0,
+    "total_loc_estimate": null
+  },
+  "gate_verdict": "proceed_with_review",
+  "gate_decisions": [
+    {
+      "gate": "proposal_approval",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "auto",
+      "phase": "PLAN",
+      "recorded_at": "2026-10-05T07:15:02.483025+00:00"
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": null
+}
