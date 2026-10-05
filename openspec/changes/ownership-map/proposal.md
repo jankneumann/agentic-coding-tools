@@ -68,7 +68,12 @@ against; each maps to a `### Requirement:` in `specs/ownership-map/spec.md` and 
   `roadmap-runtime`): `scripts/owners.py` (loader + resolver), `scripts/principals.py` (registry
   reader, solo-principal derivation, mode), `scripts/codeowners.py` (emit/reconcile) and
   `scripts/check_owners.py` (CLI). Depends only on `pyyaml` and `jsonschema`, which the skills
-  environment already carries. Imports nothing from `agent-coordinator/src`.
+  environment already carries, plus the `git` binary for `rev-parse`/`config`/`ls-files`.
+  Imports nothing from `agent-coordinator/src`. Capability assignments govern the capability's
+  `openspec/specs/<cap>/` and `openspec/contracts/<cap>/` paths as implied rules so the
+  resolver and the emitted `CODEOWNERS` agree by construction (design D4). The check's advisory
+  `unowned_*` findings are emitted in team mode only (design D14), so a solo repository's CI
+  does not break every time a capability or roadmap item is added.
 - **`openspec/owners.yaml` for this repository** plus a generated managed block in
   `.github/CODEOWNERS`, so outcomes 1, 2 and 4 are exercised against a real tree in CI, not
   only against fixtures. This repository has one human principal, so it stays in **solo mode**
@@ -162,7 +167,7 @@ check (unknown owner = error) and the schema-mirror test, both of which run in C
 |---|---|---|---|
 | Operability (coordinator independence) | Resolver and check run with `COORDINATION_API_URL` unset and no network | 100% of resolver tests pass in that configuration | implement (test), validate |
 | Compatibility (solo mode) | Existing `skills/tests` and `agent-coordinator/tests` suites | Pass with no test edits when `owners.yaml` is absent | implement (checkpoint), validate |
-| Performance | Cold `load_ownership()` + 1,000 `resolve_*` calls on a 200-rule map | < 250 ms on CI runner | implement (test with budget) |
+| Performance | Cold `load_ownership()` + 1,000 `resolve_*` calls on a 200-rule map | < 250 ms design budget; the test asserts a 4× margin (1 s) so CI variance cannot flake it | implement (test with budget) |
 | Portability | `skills/install.sh --check` payload validation | `ownership-runtime` installs standalone; no `agent-coordinator` import or path | implement, CI `test-infra-skills` |
 | Correctness (projection) | Reconcile check over every tracked path under `openspec/specs`, `openspec/contracts`, every explicit rule and a default probe | 0 disagreements between `CODEOWNERS` and resolver | implement (test), CI `test-skills` |
 

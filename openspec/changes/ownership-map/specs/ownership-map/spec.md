@@ -16,6 +16,9 @@ accept `assignments` keyed by `capabilities` (OpenSpec capability directory name
 to `*`, `**`, `?`, leading `/` and trailing `/`). Every assignment SHALL list at least one owner;
 `decision_rights` and `acceptance_rights` MAY be listed and SHALL default to the owners. Owner
 lists SHALL contain human principal ids only. The schema SHALL reject unknown keys at every level.
+`**` SHALL be accepted only as a whole path segment; the loader SHALL reject an embedded `**`
+with a configuration error. A `registry` value SHALL be repo-relative and SHALL NOT escape the
+repository root.
 A present file that fails validation, or that names an owner absent from the human principal
 registry, SHALL cause the resolver to fail closed with a configuration error rather than fall
 back to any default.
@@ -53,17 +56,33 @@ back to any default.
 - **THEN** schema validation SHALL fail
 - **AND** the error SHALL state the supported pattern subset
 
+#### Scenario: Embedded double-star rejected
+- **WHEN** a `paths` key is `openspec/spec**s/` (a `**` embedded in a segment)
+- **THEN** `load_ownership()` SHALL raise `OwnershipConfigError` stating that `**` must be a
+  whole path segment
+
+#### Scenario: Registry path escaping the repository rejected
+- **WHEN** `registry` is `../other-repo/agents.yaml`
+- **THEN** schema validation SHALL fail
+- **AND** a `registry` value that passes the schema but resolves outside the repository root
+  SHALL raise `OwnershipConfigError` with code `registry_outside_repo`
+
 ### Requirement: Owner Resolution
 
 The resolver SHALL answer `resolve_capability(name)`, `resolve_roadmap_item(roadmap_id,
 item_id)` and `resolve_path(repo_relative_path)` with an `OwnerSet` carrying `owners`,
 `decision_rights`, `acceptance_rights`, `source` (`explicit`, `default_owner` or `solo`) and
-`matched_rule`. Capability and roadmap item lookups SHALL be exact matches. Path lookups SHALL
-select the most specific matching `paths` rule, ranked by the length of the literal prefix
-before the first glob metacharacter and then by total pattern length, with ties resolved in
-favor of the later rule in file order. Any subject with no matching assignment SHALL resolve to
-the `default_owner` with `source: default_owner`. The resolver SHALL never return an empty
-owner set.
+`matched_rule`. Capability and roadmap item lookups SHALL be exact matches. Every capability
+assignment SHALL imply the path rules `openspec/specs/<capability>/` and
+`openspec/contracts/<capability>/` carrying the capability's owner set. Path lookups SHALL
+select the most specific matching rule from the union of implied and explicit `paths` rules,
+ranked by the length of the literal prefix before the first glob metacharacter and then by
+total pattern length, with ties resolved in favor of the later rule in rule order (implied
+rules first, then `paths` rules in file order), so an explicit rule of equal specificity wins.
+An implied match SHALL report `matched_rule: capability:<capability>` and `source: explicit`.
+Any subject with no matching assignment SHALL resolve to the `default_owner` with
+`source: default_owner`. The resolver SHALL never return an empty owner set. `repo_root` SHALL
+default to `git rev-parse --show-toplevel`, else the current directory.
 
 #### Scenario: Explicit capability assignment
 - **GIVEN** `assignments.capabilities.agent-identity: {owners: [jan], acceptance_rights: [kim]}`
@@ -97,19 +116,38 @@ owner set.
 - **AND** `resolve_roadmap_item("multiplayer-collaboration", "ri-03")` SHALL resolve to the
   default owner
 
+#### Scenario: Capability assignment governs its spec and contract paths
+- **GIVEN** `assignments.capabilities.agent-identity: {owners: [kim]}` and no `paths` rules
+- **WHEN** `resolve_path("openspec/specs/agent-identity/spec.md")` is called
+- **THEN** `owners` SHALL be `(kim,)`, `source == "explicit"` and
+  `matched_rule == "capability:agent-identity"`
+- **AND** `resolve_path("openspec/contracts/agent-identity/schemas/x.json")` SHALL resolve the
+  same way
+
+#### Scenario: Explicit path rule overrides an implied capability rule
+- **GIVEN** `assignments.capabilities.agent-identity: {owners: [kim]}` and a `paths` rule
+  `openspec/specs/agent-identity/: {owners: [jan]}`
+- **WHEN** `resolve_path("openspec/specs/agent-identity/spec.md")` is called
+- **THEN** `owners` SHALL be `(jan,)` and `matched_rule` SHALL be `openspec/specs/agent-identity/`
+
 ### Requirement: Ownership Check
 
 A check command (`check_owners.py`) SHALL report, as **errors**: an invalid or unregistered
 owner anywhere in the map (including `default_owner`), an agent id used as an owner, an invalid
 map, and a registry declaring two or more human principals while no `openspec/owners.yaml`
-exists. It SHALL report, as **warnings**: every capability directory under `openspec/specs/`
-and every item in any `openspec/roadmaps/*/roadmap.yaml` with no explicit assignment, and a
-solo principal that is the sentinel. The command SHALL exit `1` on any error, `0` otherwise,
-and `--strict` SHALL promote warnings to errors. `--json` SHALL emit a stable machine-readable
-report listing each finding with `severity`, `code`, `subject` and `message`.
+exists. It SHALL report, as **warnings**: in team mode only, every capability directory under
+`openspec/specs/` and every item in any active `openspec/roadmaps/<id>/roadmap.yaml` with no
+explicit assignment (in solo mode the sole principal owns every subject by construction and
+these findings SHALL be suppressed); and in every mode, an assignment key naming a capability
+directory or roadmap item that does not exist, and a solo principal that is the sentinel. The
+command SHALL exit `1` on any error, `0` otherwise, and `--strict` SHALL promote warnings to
+errors but never informational findings. `--json` SHALL emit a stable machine-readable report
+listing each finding with `severity`, `code`, `subject` and `message`, where `code` is one of
+the stable identifiers enumerated in design D9.
 
 #### Scenario: Unowned capability reported
-- **GIVEN** `openspec/specs/model-routing/` exists and the map has no assignment for it
+- **GIVEN** a registry declaring humans `jan` and `kim` (team mode)
+- **AND** `openspec/specs/model-routing/` exists and the map has no assignment for it
 - **WHEN** the check runs
 - **THEN** the report SHALL contain a warning with code `unowned_capability` and subject
   `model-routing`
@@ -128,9 +166,23 @@ report listing each finding with `severity`, `code`, `subject` and `message`.
 - **THEN** the report SHALL contain an error with code `team_registry_without_map`
 - **AND** the message SHALL state that `openspec/owners.yaml` with a `default_owner` is required
 
+#### Scenario: Solo mode emits no unowned findings
+- **GIVEN** a registry declaring exactly one human and a map containing only `default_owner`
+- **AND** `openspec/specs/` contains forty capability directories
+- **WHEN** the check runs with `--strict`
+- **THEN** the exit code SHALL be `0`
+- **AND** no finding SHALL have code `unowned_capability` or `unowned_roadmap_item`
+
+#### Scenario: Dangling capability assignment reported
+- **GIVEN** the map assigns capability `agent-identiy` (a typo) and no such directory exists
+- **WHEN** the check runs
+- **THEN** the report SHALL contain a warning with code `unknown_capability` and subject
+  `agent-identiy`
+
 #### Scenario: Clean repository passes
-- **GIVEN** every capability and roadmap item has an explicit assignment, every owner is a
-  registered human, and `CODEOWNERS` reconciles
+- **GIVEN** every owner is a registered human, every assignment key names an existing subject,
+  `CODEOWNERS` reconciles, and either the repository is in solo mode or every capability and
+  roadmap item has an explicit assignment
 - **WHEN** the check runs with `--codeowners --strict --json`
 - **THEN** the exit code SHALL be `0` and the JSON `findings` list SHALL be empty
 
@@ -140,9 +192,9 @@ When no `openspec/owners.yaml` exists and the registry declares at most one huma
 the resolver SHALL operate in solo mode: `OwnershipContext.mode` SHALL be `solo`, and every
 `resolve_*` call SHALL return an `OwnerSet` whose `owners`, `decision_rights` and
 `acceptance_rights` all equal the sole repository principal with `source: solo`. The sole
-principal SHALL be derived in this order: the single declared human; else a principal derived
-from `git config user.email` (matched to a declared human by email when one exists, otherwise a
-synthetic principal with id `git:<email>`); else the sentinel principal `repository-default`.
+principal SHALL be derived in this order: the single declared human; else a synthetic
+principal with id `git:<email>` derived from `git config user.email`; else the sentinel
+principal `repository-default`.
 Solo mode SHALL add no prompts, gates or checks to any existing skill, and the existing
 `skills/tests` and `agent-coordinator/tests` suites SHALL pass unchanged with the map absent.
 `mode` SHALL be derived from the number of distinct human principals, not from the presence of
@@ -184,7 +236,10 @@ the map, so a one-principal repository that authors `owners.yaml` remains in sol
 
 The resolver, check and `CODEOWNERS` tooling SHALL operate from the git checkout alone. They
 SHALL import no module from `agent-coordinator/src`, SHALL open no network connection, and
-SHALL produce identical results whether or not a coordinator is reachable. The registry SHALL
+SHALL produce identical results whether or not a coordinator is reachable. They MAY invoke the
+`git` binary (`rev-parse`, `config`, `ls-files`); without a git checkout the resolver SHALL
+still answer (falling to the sentinel principal) and `reconcile` SHALL fail with
+`not_a_git_checkout` rather than probe an incomplete tree. The registry SHALL
 be located, in order, from `OWNERSHIP_REGISTRY_PATH`, the map's `registry` field,
 `agent-coordinator/agents.yaml`, then `agents.yaml` at the repository root; only its `humans:`
 block and the keys of `agents:` SHALL be read.
@@ -210,9 +265,13 @@ block and the keys of `agents:` SHALL be read.
 `# BEGIN ownership-map` and `# END ownership-map` markers, containing one `*` line for the
 `default_owner`, two lines per capability assignment (`openspec/specs/<cap>/` and
 `openspec/contracts/<cap>/`) and one line per `paths` rule, each owner rendered as
-`@<github>`, ordered by ascending specificity so that GitHub's last-match-wins selection
-agrees with the resolver's most-specific-wins selection. Text outside the markers SHALL be
-preserved. A human in an emitted owner set without a `github` handle SHALL make emission fail.
+`@<github>`, ordered by ascending specificity (implied capability lines before explicit
+`paths` lines at equal specificity) so that GitHub's last-match-wins selection agrees with the
+resolver's most-specific-wins selection. Text outside the markers SHALL be preserved. A human
+in an emitted owner set without a `github` handle SHALL make emission fail. Without an
+`openspec/owners.yaml`, `emit` SHALL fail with `no_ownership_map` and write nothing, and
+`reconcile` SHALL exit `0` with an informational `no_ownership_map` finding unless a managed
+block is present, which SHALL be reported as an `orphan_managed_block` warning.
 `codeowners.py reconcile` SHALL compare, for a probe set covering every tracked file under
 `openspec/specs/` and `openspec/contracts/`, every tracked file matching each `paths` rule,
 each rule's literal prefix, and one unmatched path, the owners GitHub would select from the
@@ -249,6 +308,18 @@ projection SHALL never be read back into `openspec/owners.yaml`.
 - **THEN** it SHALL report the block as stale with a diff
 - **AND** `emit --write` SHALL replace only the managed block, leaving the unmanaged lines
   byte-identical
+
+#### Scenario: Emit without a map fails closed
+- **GIVEN** no `openspec/owners.yaml`
+- **WHEN** `emit --write` runs
+- **THEN** it SHALL exit `1` with code `no_ownership_map`
+- **AND** `.github/CODEOWNERS` SHALL NOT be created or modified
+
+#### Scenario: Orphaned managed block reported
+- **GIVEN** no `openspec/owners.yaml` and a `.github/CODEOWNERS` containing a managed block
+- **WHEN** `reconcile` runs
+- **THEN** it SHALL report a warning with code `orphan_managed_block`
+- **AND** the exit code SHALL be `0`
 
 #### Scenario: Repository CODEOWNERS reconciles
 - **GIVEN** this repository's `openspec/owners.yaml` and `.github/CODEOWNERS`

@@ -32,7 +32,7 @@ humans:
   jan:
     display_name: "Jan Neumann"        # required
     github: "jankneumann"              # optional; required for CODEOWNERS emission (D8)
-    email: "jan@example.org"           # optional; used for git-config matching (D5)
+    email: "jan@example.org"           # optional; declared for ri-03 commit-author attribution, not consumed here (D5)
     domains: [agent-coordinator, skills] # optional, advisory slugs; nothing routes on them yet
     availability:                      # optional, declared for later items, not interpreted here
       timezone: Europe/Berlin
@@ -90,6 +90,25 @@ of syntax that `CODEOWNERS` and the resolver interpret identically (`*`, `**`, `
 `/`, trailing `/`; no `!` negation, no `[...]` classes — D8). Owners are human principal ids
 only; an agent name in any owner list is a check error (proposal non-goal "agents as owners").
 
+The subset is only safe if both matchers apply the same rules, so the rules are fixed here
+rather than left to whichever glob library the implementer reaches for. The resolver's matcher
+implements exactly this table (the `CODEOWNERS` / gitignore interpretation), and the loader
+rejects any `paths` key the schema admits but the table does not cover:
+
+| Pattern shape | Matches | Note |
+|---|---|---|
+| no `/` anywhere (`*.md`, `README.md`) | the basename at any depth | unanchored |
+| a `/` anywhere (`openspec/specs/x/`, `docs/*.md`) | anchored at the repository root | a leading `/` is accepted and equivalent |
+| trailing `/` (`openspec/specs/agent-identity/`) | every file under that directory, recursively | directory rule |
+| `*`, `?` | within one path segment only; never match `/` | |
+| `**` as a whole segment (`**/foo`, `a/**/b`, `a/**`) | zero or more whole segments | `a/**` matches everything under `a/` |
+| `**` embedded in a segment (`a/b**c`) | **rejected by the loader** with `OwnershipConfigError` | GitHub treats it as `*`; excluding it removes the one place the two matchers could legitimately differ |
+
+The `registry:` field is a repo-relative path confined to the repository: the schema rejects a
+leading `/` and any `..` segment, and `principals.py` additionally resolves the value and raises
+`OwnershipConfigError` (`registry_outside_repo`) if it escapes `repo_root` (D10).
+`OWNERSHIP_REGISTRY_PATH` is operator-controlled and is not confined.
+
 *Rejected*: inline ownership in each `spec.md`/`roadmap.yaml`. It scatters the map across
 dozens of files, makes "who owns everything?" a crawl, and `roadmap.yaml` is written by
 `plan-roadmap`/`refine-roadmap` tooling that would then have to preserve hand-edited owner
@@ -110,11 +129,26 @@ Principal(id, kind="human", display_name, github, email, source)
 #   source ∈ {"registry", "git-config", "sentinel"}
 ```
 
+- `load_ownership(repo_root=None)`: `repo_root` defaults to `git rev-parse --show-toplevel`
+  from the current directory, else the current directory itself. Nothing else about the
+  location is inferred.
 - Capability and roadmap item lookups are exact-key matches.
-- Path lookups rank every matching `paths` rule by *specificity* — length of the literal
-  prefix before the first glob metacharacter, then total pattern length — and the most
-  specific rule wins; ties go to the later rule in file order. This ranking is what D8's
-  emitter inverts into `CODEOWNERS` line order.
+- Every capability assignment **implies two path rules**, `openspec/specs/<cap>/` and
+  `openspec/contracts/<cap>/`, carrying the capability's owner set. `resolve_path()` ranks
+  implied and explicit `paths` rules in one pool, so `openspec/specs/agent-identity/spec.md`
+  resolves to the owner of capability `agent-identity` unless a more specific explicit rule
+  covers it. Without this D8 cannot hold: GitHub would route those directories by the emitted
+  capability lines while the resolver answered `default_owner`, and reconcile would report a
+  disagreement on every spec file. An implied match reports `matched_rule ==
+  "capability:<cap>"` and `source == "explicit"`.
+- Path lookups rank every matching rule (implied and explicit) by *specificity* — length of
+  the literal prefix before the first glob metacharacter, then total pattern length — and the
+  most specific rule wins. Ties go to the later rule in *rule order*: all implied rules first
+  (in capability key order), then the explicit `paths` rules in file order. An explicit rule
+  therefore always beats an implied rule of equal specificity, which is the only way an author
+  can override a capability's ownership of one of its own directories. This ranking is what
+  D8's emitter inverts into `CODEOWNERS` line order. ("File order" relies on PyYAML preserving
+  mapping order on load, which it does.)
 - Any subject with no matching rule resolves to `default_owner` with `source="default_owner"`.
   There is no "unowned" result from the resolver; "unowned" is a *check* finding (D9).
 - `owners.yaml` present but invalid (schema failure, unknown owner id, agent id as owner,
@@ -130,12 +164,17 @@ With no `openspec/owners.yaml`, every `resolve_*` call returns `OwnerSet(owners=
 decision_rights=(p,), acceptance_rights=(p,), source="solo")` where `p` is derived in order:
 
 1. The registry (D10) declares exactly one human → that human (`source="registry"`).
-2. Otherwise `git config user.email` (then `user.name`) in the checkout: if the email matches a
-   declared human, that human; else a synthetic `Principal(id="git:<email>",
-   source="git-config", display_name=user.name or email)`.
-3. Otherwise (no registry human, no git identity — e.g. a bare CI container)
-   `Principal(id="repository-default", source="sentinel")`. The check reports this as a
-   warning; the resolver never raises in solo mode.
+2. Otherwise `git config user.email` (then `user.name`) in the checkout: a synthetic
+   `Principal(id="git:<email>", source="git-config", display_name=user.name or email)`.
+   There is deliberately no "match the email to a declared human" step: rule 1 already fires
+   whenever exactly one human is declared, and two or more humans without a map is the error
+   below, so such a match could never be reached. The registry's `email` field is therefore
+   **not consumed by this change**; it is declared so `ri-03` can attribute commit authors to
+   principals, and a maintainer who prefers not to publish it may omit it with no effect here.
+3. Otherwise (no registry human, no git identity — e.g. a bare CI container, or an exported
+   tree with no `.git` directory or no `git` binary) `Principal(id="repository-default",
+   source="sentinel")`. The check reports this as a warning; the resolver never raises in solo
+   mode.
 
 If the registry declares **two or more** humans and there is no `owners.yaml`, there is no sole
 principal to return. That configuration is a team registry without an ownership map, and
@@ -207,6 +246,14 @@ openspec/contracts/agent-coordinator/**        @jankneumann
 - Owners map to `@<github>`. A human in any emitted owner set without a `github` handle is an
   emit error (fail closed; the alternative is silently dropping a reviewer).
 - Text outside the markers is preserved verbatim and reported by `reconcile` as *unmanaged*.
+- Line order is the inverse of D4's rule order: ascending specificity, and at equal
+  specificity implied capability lines before explicit `paths` lines, so GitHub's last match is
+  the rule the resolver picks.
+- With no `openspec/owners.yaml` there is nothing to project. `emit` exits `1` with
+  `no_ownership_map` and writes nothing: the solo principal may have no handle, and inventing a
+  `*` line would make `CODEOWNERS` an authority of its own. `reconcile` exits `0` with an
+  informational `no_ownership_map` finding — unless a managed block is present, which is an
+  `orphan_managed_block` warning (the map was removed but its projection survived).
 
 `codeowners.py reconcile` builds a probe set — every tracked file under `openspec/specs/` and
 `openspec/contracts/`, every tracked file matching each explicit `paths` rule, each rule's
@@ -215,7 +262,9 @@ the owner handles GitHub would pick (last matching line in the *whole* file, inc
 unmanaged lines, using CODEOWNERS glob semantics) with the resolver's owners mapped to handles.
 Any difference is a **disagreement** (error). A managed block whose content differs from a
 fresh emit is **stale** (warning, with the diff). `CODEOWNERS` never feeds back into
-`owners.yaml`; there is no import direction.
+`owners.yaml`; there is no import direction. The probe set comes from `git ls-files`, so
+`reconcile` requires a git checkout and the `git` binary; outside one it fails with
+`not_a_git_checkout` rather than probing an incomplete tree.
 
 *Rejected*: emitting one line per *file* to sidestep glob-semantics differences. It makes the
 file churn on every new spec and still cannot cover files that do not exist yet. Restricting the
@@ -226,20 +275,28 @@ test proves it on the real tree.
 
 `check_owners.py [--codeowners] [--strict] [--json]` reports:
 
-| Finding | Severity | Why |
-|---|---|---|
-| `owners.yaml` fails schema | error | invalid authority state (D4) |
-| owner id not a registered human (incl. `default_owner`); agent id used as owner | error | outcome 2; fail closed |
-| registry declares ≥ 2 humans and no `owners.yaml` | error | D5 |
-| human in an emitted owner set lacks `github` (with `--codeowners`) | error | D8 |
-| `CODEOWNERS` disagreement (with `--codeowners`) | error | outcome 4 |
-| capability under `openspec/specs/` with no explicit assignment (resolves to default) | warning | outcome 2's "no owner" — advisory, because the default owner *does* own it |
-| roadmap item in any `openspec/roadmaps/*/roadmap.yaml` with no explicit assignment | warning | same |
-| solo principal is the sentinel (D5 step 3) | warning | the repository has no identifiable human |
-| `CODEOWNERS` managed block stale or absent while `owners.yaml` exists | warning | derived projection out of date |
+| Code | Finding | Severity | Why |
+|---|---|---|---|
+| `invalid_map` | `owners.yaml` fails schema, or a `paths` key falls outside the D3 table | error | invalid authority state (D4) |
+| `unknown_owner` | owner id not a registered human (incl. `default_owner`) | error | outcome 2; fail closed |
+| `agent_as_owner` | agent id used as owner | error | D13 |
+| `team_registry_without_map` | registry declares ≥ 2 humans and no `owners.yaml` | error | D5 |
+| `registry_outside_repo` | `registry:` resolves outside `repo_root` | error | D3, D10 |
+| `missing_github_handle` | human in an emitted owner set lacks `github` (with `--codeowners`) | error | D8 |
+| `codeowners_disagreement` | `CODEOWNERS` disagreement (with `--codeowners`) | error | outcome 4 |
+| `not_a_git_checkout` | `--codeowners` requested outside a git checkout | error | D8; reconcile cannot build its probe set |
+| `unowned_capability` | capability under `openspec/specs/` with no explicit assignment (resolves to default) | warning, **team mode only** | outcome 2's "no owner" — advisory, because the default owner *does* own it; suppressed in solo mode (D14) |
+| `unowned_roadmap_item` | item in any active `openspec/roadmaps/<id>/roadmap.yaml` (never `archive/`) with no explicit assignment | warning, **team mode only** | same |
+| `unknown_capability` | `capabilities` key with no `openspec/specs/<key>/` directory | warning | a typo here silently un-assigns the real capability; the key set is closed, so it is checkable |
+| `unknown_roadmap_item` | `roadmap_items` key naming no item in any active roadmap | warning | same. `paths` keys are deliberately *not* checked: a rule for a directory that does not exist yet is legitimate |
+| `sentinel_principal` | solo principal is the sentinel (D5 step 3) | warning | the repository has no identifiable human |
+| `codeowners_stale` / `codeowners_missing` | managed block stale or absent while `owners.yaml` exists (with `--codeowners`) | warning | derived projection out of date |
+| `orphan_managed_block` | managed block present but no `owners.yaml` (with `--codeowners`) | warning | projection outlived its source |
+| `no_ownership_map` | no `owners.yaml` (with `--codeowners`) | info | nothing to reconcile; solo mode adds no checks |
 
-Exit code 1 on any error; `--strict` promotes warnings. Output is a stable JSON document under
-`--json` so later items can consume it. The check runs in CI through a test in
+Exit code 1 on any error; `--strict` promotes warnings, never `info`. Output is a stable JSON
+document under `--json` so later items can consume it; the `code` column above is that
+document's machine contract — consumers key on codes, never on message text. The check runs in CI through a test in
 `skills/tests/ownership-runtime/` against the real repository (same pattern as
 `test_registry_projection.py`): a warning-free, error-free run is the invariant.
 
@@ -252,7 +309,9 @@ Exit code 1 on any error; `--strict` promotes warnings. Output is a stable JSON 
 namespace-collision check). No `${VAR}` interpolation, no secrets file, no agent-field
 validation — those belong to the coordinator's loader and this reader must not become a second
 one. Consumer repositories installed via `install.sh` typically have `agents.yaml` at the root
-(the `bao-vault` default), which is why the fourth location exists.
+(the `bao-vault` default), which is why the fourth location exists. The `registry:` value and
+the two default locations are resolved against `repo_root` and must stay inside it
+(`registry_outside_repo`); the environment variable is exempt because an operator sets it.
 
 ### D11 — `owners.yaml` is a durable artifact; its registration row
 
@@ -295,6 +354,22 @@ returns a `Principal` with `kind != "human"`. `ri-13` ("owner may restrict an it
 principal's agents") will add an `implementer` field to the subjects it governs; that is a
 different right and stays out of `owners`.
 
+### D14 — Solo mode suppresses the advisory "unowned" findings
+
+`unowned_capability` and `unowned_roadmap_item` are emitted only when `ctx.mode == "team"`.
+With one human principal every subject is owned by that human by construction, so "no explicit
+assignment" carries no information — and this repository has 40 capability directories and
+roughly 190 roadmap items. If the repository invariant test (task 5.1) demanded a warning-free
+`--strict` run with those findings active, every later `/plan-feature` that adds a spec
+directory and every `/plan-roadmap` run would break CI until `owners.yaml` was edited, which is
+exactly the solo-mode friction the roadmap constraint forbids. In team mode the findings stay:
+there, "which human owns this?" is a real question with a wrong default answer.
+
+*Rejected*: running the repository invariant without `--strict` (it would also stop exercising
+the promotion path for the error-class findings), and authoring an exhaustive `owners.yaml` for
+this repository (≈230 entries that churn with every planning change and demonstrate nothing a
+dozen representative entries do not — task 5.2 now asks for the representative set).
+
 ## Open questions carried to implementation
 
 - Whether `domains` should be validated against the set of capability directory names (then a
@@ -303,6 +378,10 @@ different right and stays out of `owners`.
 - Whether the probe set in D8 should also include every tracked file in the repository when the
   map has a `*`-level rule only. Deferred: with only the default line, every file resolves to the
   same owner and the probe is redundant.
+- Whether `email` should be dropped from the human principal schema until `ri-03` has a
+  consumer (D5 shows nothing in this change reads it). Kept optional here because the schema is
+  the contract later items build on and adding a field later is a schema revision; the human
+  reviewer may strike it at approval time.
 
 ## Risks
 

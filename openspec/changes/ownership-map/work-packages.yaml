@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: ownership-map
   title: "Human principals in the registry and the git-native ownership map (multiplayer-collaboration ri-02)"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-code
   # No running service: a library skill, a coordinator schema extension, config and docs.
   # validate-feature skips deploy/smoke/scan phases and runs spec compliance + tests.
@@ -37,10 +37,12 @@ packages:
     title: "Contracts — owners.schema.json and human-principals.schema.json promoted and pinned"
     task_type: contracts
     description: |
-      tasks.md 1.1-1.2. Promote contracts/schemas/*.schema.json to openspec/schemas/ and to
-      skills/ownership-runtime/install_assets/openspec/schemas/; add fixture instances and the
-      byte-identity test (design D2, D12). Every downstream package validates against the
-      promoted copies, never the change-local drafts.
+      tasks.md 1.1-1.3. Promote contracts/schemas/*.schema.json to openspec/schemas/ and to
+      skills/ownership-runtime/install_assets/openspec/schemas/; add fixture instances, the
+      byte-identity test, and the skills/tests/ownership-runtime package skeleton
+      (__init__.py, conftest.py fixture builder) so wp-registry/wp-resolver/wp-codeowners only
+      add modules to an existing package (design D2, D12). Every downstream package validates
+      against the promoted copies, never the change-local drafts.
     role: contracts-author
     priority: 1
     depends_on: []
@@ -59,6 +61,8 @@ packages:
         - "openspec/schemas/owners.schema.json"
         - "openspec/schemas/human-principals.schema.json"
         - "skills/ownership-runtime/install_assets/**"
+        - "skills/tests/ownership-runtime/__init__.py"
+        - "skills/tests/ownership-runtime/conftest.py"
         - "skills/tests/ownership-runtime/test_schema_copies.py"
         - "skills/tests/ownership-runtime/fixtures/**"
       read_allow:
@@ -83,7 +87,7 @@ packages:
             artifacts: []
             result_keys: ["contracts_valid"]
     metadata:
-      loc_estimate: 60
+      loc_estimate: 100
       complexity: low
       package_kind: config
     context_impact:
@@ -201,8 +205,6 @@ packages:
         - "skills/ownership-runtime/scripts/owners.py"
         - "skills/ownership-runtime/scripts/principals.py"
         - "skills/ownership-runtime/scripts/check_owners.py"
-        - "skills/tests/ownership-runtime/__init__.py"
-        - "skills/tests/ownership-runtime/conftest.py"
         - "skills/tests/ownership-runtime/test_principals.py"
         - "skills/tests/ownership-runtime/test_owners.py"
         - "skills/tests/ownership-runtime/test_check_owners.py"

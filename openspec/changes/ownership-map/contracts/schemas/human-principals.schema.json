@@ -24,7 +24,7 @@
       "minLength": 3,
       "maxLength": 254,
       "pattern": "^[^@\\s]+@[^@\\s]+$",
-      "description": "Used to match `git config user.email` to a declared principal in solo mode (design D5)."
+      "description": "Declared for commit-author attribution in later roadmap items (ri-03); not consumed by ri-02 (design D5). Optional: omit it if you prefer not to publish it."
     },
     "domains": {
       "type": "array",

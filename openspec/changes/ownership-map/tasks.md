@@ -5,7 +5,8 @@
 Sizes per the plan-feature sizing table. TDD ordering: every test task precedes the
 implementation task it verifies and that task depends on it. Spec scenario references name
 `<capability> / "<scenario>"` in `specs/`; design decisions reference `design.md`. No task is
-XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
+XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and reconcile
+(4.3 / 4.4).
 
 ## Status
 
@@ -17,7 +18,8 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
 
 ## Phase 1 — Contracts: schemas promoted to their stable homes
 
-- [ ] 1.1 Write tests pinning the two schema files: `openspec/schemas/owners.schema.json` and
+- [ ] 1.1 Write `skills/tests/ownership-runtime/test_schema_copies.py` pinning the two schema
+      files: `openspec/schemas/owners.schema.json` and
       `openspec/schemas/human-principals.schema.json` are byte-identical to their
       `skills/ownership-runtime/install_assets/openspec/schemas/` copies and to the drafts under
       this change's `contracts/schemas/` (located with `change_dir()`), and both parse as
@@ -29,9 +31,16 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
       `skills/ownership-runtime/install_assets/openspec/schemas/`; add positive and negative
       fixture instances under `skills/tests/ownership-runtime/fixtures/` exercising every
       `additionalProperties: false` boundary and the restricted glob pattern (S)
-      **Spec scenarios**: ownership-map / "Unknown key rejected", "Unsupported glob syntax rejected"
+      **Spec scenarios**: ownership-map / "Unknown key rejected", "Unsupported glob syntax
+      rejected", "Registry path escaping the repository rejected" (schema half)
       **Design decisions**: D3
       **Dependencies**: 1.1
+- [ ] 1.3 Create the test package skeleton `skills/tests/ownership-runtime/__init__.py` and
+      `conftest.py` with the shared fixture builder (`make_repo(tmp_path, humans=..., owners=...,
+      agents=..., git=True)` writing a registry, an optional map and an initialized git
+      checkout), so every later package only adds test modules to an existing package (S)
+      **Design decisions**: D12
+      **Dependencies**: none
 - [ ] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — Registry extension (agent-coordinator)
@@ -67,9 +76,11 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
       invariant test over the real registry (S)
       **Dependencies**: 2.4
 - [ ] 2.6 Declare the maintainer as the first human principal in
-      `agent-coordinator/agents.yaml` (`humans:` block with `display_name`, `github`, `email`,
-      `domains`), taking the handle from `gh api user` and the email from `git config`, with a
-      header comment explaining the block and pointing at the `ownership-map` capability (S)
+      `agent-coordinator/agents.yaml` (`humans:` block with `display_name`, `github`, `domains`
+      and, only if the maintainer wants it published, `email` — nothing in this change reads it,
+      D5), taking the handle from `gh api user` (falling back to the owner of the `origin` remote
+      when `gh` is unauthenticated, and saying so in the checkpoint), with a header comment
+      explaining the block and pointing at the `ownership-map` capability (S)
       **Design decisions**: D1
       **Dependencies**: 2.3
 - [ ] Checkpoint: run tests, review diff, verify scope
@@ -79,13 +90,16 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
 - [ ] 3.1 Write `skills/tests/ownership-runtime/test_principals.py` — registry location order
       (env var, `registry:` field, `agent-coordinator/agents.yaml`, root `agents.yaml`, none);
       only `humans:` and `agents:` keys are read (a registry with an invalid `agents:` entry
-      still yields its humans); solo derivation order (single human, git-config match, synthetic
-      `git:<email>`, sentinel); `mode` derived from human count (M)
+      still yields its humans); solo derivation order (single human, synthetic `git:<email>`,
+      sentinel — no email matching, D5); a `registry:` value resolving outside `repo_root`
+      raises `OwnershipConfigError` (`registry_outside_repo`); `repo_root` defaults to the git
+      toplevel; `mode` derived from human count (M)
       **Spec scenarios**: ownership-map / "Single declared human is the sole principal",
       "Git identity derived when the registry has no humans", "Sentinel when no identity is
-      available", "Consumer repository registry at the root"
+      available", "Consumer repository registry at the root", "Registry path escaping the
+      repository rejected" (loader half)
       **Design decisions**: D5, D6, D10
-      **Dependencies**: 1.2
+      **Dependencies**: 1.2, 1.3
 - [ ] 3.2 Implement `skills/ownership-runtime/scripts/principals.py` — `Principal`,
       `locate_registry()`, `load_human_principals()` (validated against the shipped JSON schema),
       `derive_solo_principal()`, `derive_mode()` (S)
@@ -93,15 +107,21 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
 - [ ] 3.3 Write `skills/tests/ownership-runtime/test_owners.py` — minimal map loads; missing
       `default_owner`, unregistered owner, agent-as-owner each raise `OwnershipConfigError`;
       explicit capability with distinct acceptance rights; default fallback with
-      `matched_rule is None`; most-specific path rule wins; equal-specificity tie by file order;
-      roadmap item explicit and fallback; solo mode with map absent; one-principal repository with
-      a map stays `solo`; team registry without a map raises; performance budget (200-rule map,
-      1,000 resolutions < 250 ms) (M)
+      `matched_rule is None`; most-specific path rule wins; equal-specificity tie by rule order;
+      implied capability rules for `openspec/specs/<cap>/` and `openspec/contracts/<cap>/` with
+      `matched_rule == "capability:<cap>"`, and an explicit rule beating an implied rule of equal
+      specificity; the D3 matching table (unanchored basename, anchored, trailing `/`, `**`
+      whole-segment, embedded `**` rejected); roadmap item explicit and fallback; solo mode with
+      map absent; one-principal repository with a map stays `solo`; team registry without a map
+      raises; performance budget (200-rule map, 1,000 resolutions — the design budget is 250 ms,
+      the test asserts a 4× margin of 1 s so CI variance cannot flake it) (M)
       **Spec scenarios**: ownership-map / "Minimal valid map loads", "Missing default owner
-      rejected", "Unregistered owner fails closed", "Agent named as owner rejected", "Explicit
-      capability assignment", "Unassigned capability falls back to the default owner", "Most
-      specific path rule wins", "Equal specificity resolved by file order", "Roadmap item
-      resolution", "One-principal repository with a map stays solo"
+      rejected", "Unregistered owner fails closed", "Agent named as owner rejected", "Embedded
+      double-star rejected", "Explicit capability assignment", "Unassigned capability falls back
+      to the default owner", "Most specific path rule wins", "Equal specificity resolved by file
+      order", "Capability assignment governs its spec and contract paths", "Explicit path rule
+      overrides an implied capability rule", "Roadmap item resolution", "One-principal
+      repository with a map stays solo"
       **Design decisions**: D3, D4, D5, D13
       **Dependencies**: 3.2
 - [ ] 3.4 Implement `skills/ownership-runtime/scripts/owners.py` — `load_ownership()`,
@@ -110,12 +130,16 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
       **Dependencies**: 3.3
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 3.5 Write `skills/tests/ownership-runtime/test_check_owners.py` — `unowned_capability`
-      and `unowned_roadmap_item` warnings, `unknown_owner` and `agent_as_owner` errors,
-      `team_registry_without_map` error, `sentinel_principal` warning, exit codes with and
-      without `--strict`, stable `--json` shape (S)
-      **Spec scenarios**: ownership-map / "Unowned capability reported", "Unregistered owner
-      reported as error", "Team registry without a map is an error"
-      **Design decisions**: D9
+      and `unowned_roadmap_item` warnings in team mode and their suppression in solo mode (D14);
+      `unknown_capability` / `unknown_roadmap_item` warnings for dangling keys (archived roadmaps
+      excluded); `unknown_owner`, `agent_as_owner`, `registry_outside_repo` and
+      `team_registry_without_map` errors; `sentinel_principal` warning; exit codes with and
+      without `--strict` (`info` never promoted); every emitted `code` is in the D9 table and
+      the `--json` shape is stable (S)
+      **Spec scenarios**: ownership-map / "Unowned capability reported", "Solo mode emits no
+      unowned findings", "Dangling capability assignment reported", "Unregistered owner reported
+      as error", "Team registry without a map is an error"
+      **Design decisions**: D9, D14
       **Dependencies**: 3.4
 - [ ] 3.6 Implement `skills/ownership-runtime/scripts/check_owners.py` (CLI; `--codeowners`
       delegates to 4.4's reconcile when present) (S)
@@ -133,11 +157,14 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
 ## Phase 4 — CODEOWNERS projection
 
 - [ ] 4.1 Write `skills/tests/ownership-runtime/test_codeowners_emit.py` — managed block
-      markers; `*` first; two lines per capability; ascending specificity order; `@handle`
-      rendering; unmanaged text before and after the block preserved byte-for-byte on
-      `emit --write`; missing `github` handle fails without modifying the file (M)
+      markers; `*` first; two lines per capability; ascending specificity order with implied
+      capability lines before explicit `paths` lines at equal specificity; `@handle` rendering;
+      unmanaged text before and after the block preserved byte-for-byte on `emit --write`;
+      missing `github` handle fails without modifying the file; no map → exit `1` with
+      `no_ownership_map` and no file created (M)
       **Spec scenarios**: ownership-map / "Emit ordering yields agreement", "Missing GitHub
-      handle fails emission", "Stale block reported and unmanaged text preserved"
+      handle fails emission", "Stale block reported and unmanaged text preserved", "Emit
+      without a map fails closed"
       **Design decisions**: D8
       **Dependencies**: 3.4
 - [ ] 4.2 Implement `emit` in `skills/ownership-runtime/scripts/codeowners.py` — line
@@ -147,9 +174,11 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
       construction (tracked spec/contract files, rule matches, literal prefixes, one unmatched
       path); GitHub last-match-wins matcher over the whole file including unmanaged lines;
       disagreement for a hand-added conflicting line; stale block detected with diff; clean emit
-      reconciles with zero disagreements (M)
+      reconciles with zero disagreements; managed block without a map → `orphan_managed_block`
+      warning, exit `0`; outside a git checkout → `not_a_git_checkout` error (M)
       **Spec scenarios**: ownership-map / "Hand-edited line that disagrees is reported", "Stale
-      block reported and unmanaged text preserved", "Emit ordering yields agreement"
+      block reported and unmanaged text preserved", "Emit ordering yields agreement", "Orphaned
+      managed block reported"
       **Design decisions**: D8
       **Dependencies**: 4.2
 - [ ] 4.4 Implement `reconcile` in `codeowners.py` — CODEOWNERS-semantics matcher, probe set,
@@ -162,16 +191,21 @@ XL; one is L-adjacent and is split (3.3 / 3.4 → emit vs reconcile).
 - [ ] 5.1 Write `skills/tests/ownership-runtime/test_repository_invariant.py` — against the real
       checkout: `check_owners.py --codeowners --strict --json` exits `0` with an empty findings
       list; `codeowners.py reconcile` reports zero disagreements and a fresh block;
-      `load_ownership().mode == "solo"` (S)
+      `load_ownership().mode == "solo"`; the run stays green when a capability directory is
+      added to a copy of the tree (D14: no `unowned_*` churn in solo mode) (S)
       **Spec scenarios**: ownership-map / "Clean repository passes", "Repository CODEOWNERS
-      reconciles", "One-principal repository with a map stays solo"
-      **Design decisions**: D6, D9, D12
+      reconciles", "One-principal repository with a map stays solo", "Solo mode emits no
+      unowned findings"
+      **Design decisions**: D6, D9, D12, D14
       **Dependencies**: 2.6, 3.6, 4.4
 - [ ] 5.2 Author `openspec/owners.yaml` for this repository — `default_owner` is the maintainer,
-      explicit assignments for every directory under `openspec/specs/` and every item in
-      `openspec/roadmaps/*/roadmap.yaml` (so the check is warning-free), and `paths` rules for
-      `openspec/contracts/**` and `openspec/schemas/**` (S)
-      **Design decisions**: D3, D6
+      plus a *representative* set of explicit assignments that exercises every resolver branch:
+      capabilities `ownership-map` and `agent-identity`, roadmap item
+      `multiplayer-collaboration/ri-02`, and `paths` rules for `openspec/contracts/**` and
+      `openspec/schemas/**`. Not an exhaustive list: the repository is in solo mode, `unowned_*`
+      findings are suppressed (D14), and the file must not churn with every new capability or
+      roadmap item (S)
+      **Design decisions**: D3, D6, D14
       **Dependencies**: 5.1
 - [ ] 5.3 Generate `.github/CODEOWNERS` with `codeowners.py emit --write` (S)
       **Dependencies**: 5.2

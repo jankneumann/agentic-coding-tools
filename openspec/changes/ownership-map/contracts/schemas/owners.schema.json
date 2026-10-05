@@ -20,8 +20,8 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 512,
-      "pattern": "^(?!/)(?!.*\\s+$).+",
-      "description": "Optional repo-relative path to the principal registry (agents.yaml). When omitted the resolver tries agent-coordinator/agents.yaml, then agents.yaml at the repository root (design D10). OWNERSHIP_REGISTRY_PATH overrides both."
+      "pattern": "^(?!/)(?!(?:.*/)?\\.\\.(?:/|$))(?!.*\\s$).+$",
+      "description": "Optional repo-relative path to the principal registry (agents.yaml). Confined to the repository: no leading `/`, no `..` segment, and the resolver rejects a value that resolves outside the repository root (design D3, D10). When omitted the resolver tries agent-coordinator/agents.yaml, then agents.yaml at the repository root. OWNERSHIP_REGISTRY_PATH overrides both and is not confined."
     },
     "assignments": {
       "type": "object",
@@ -80,7 +80,7 @@
       "minLength": 1,
       "maxLength": 512,
       "pattern": "^/?(?:[A-Za-z0-9._*?-]+/)*[A-Za-z0-9._*?-]+/?$",
-      "description": "Repo-relative glob using only `*`, `**`, `?`, letters, digits, `.`, `_`, `-` and `/`. Negation, character classes and whitespace are rejected so the resolver and GitHub CODEOWNERS agree on every match."
+      "description": "Repo-relative glob using only `*`, `**`, `?`, letters, digits, `.`, `_`, `-` and `/`. Negation, character classes and whitespace are rejected so the resolver and GitHub CODEOWNERS agree on every match. `**` must be a whole path segment; the loader rejects an embedded `**` (design D3 matching table)."
     },
     "Assignment": {
       "type": "object",

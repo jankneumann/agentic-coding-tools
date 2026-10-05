@@ -27,6 +27,17 @@
 
 ---
 
+## 2026-10-05 — ownership-map
+
+### Phase: Plan Iteration 1
+
+**D5 drops email-to-human matching; the registry `email` field is declared for ri-03 and not consumed by ri-02, and is optional PII** — Step 1 fires whenever exactly one human is declared and two or more without a map is an error, so the match step was unreachable. Keeping the field optional preserves the schema contract later items build on.
+
+- Status: `active`
+- Source: [openspec/changes/ownership-map/session-log.md](/openspec/changes/ownership-map/session-log.md) (D6)
+
+---
+
 ## 2026-09-25 — 2026-09-25-restructure-openbao-per-agent-secrets
 
 ### Phase: Implementation
