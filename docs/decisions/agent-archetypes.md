@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-10-05 — add-infeasible-incumbent-fallback
+
+### Phase: Plan
+
+**Dispatch must honor the routed provider before any cross-vendor fallback ships (D1)** — run_phase_subagent and smoke_provider_dispatch ignore the resolved provider, so a cross-vendor fallback would pair e.g. a Codex model with the Claude runner. Phase 1 is skills-only and merges first.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D1)
+
+---
+
+## 2026-10-05 — add-infeasible-incumbent-fallback
+
+### Phase: Plan
+
+**Default provider resolved before archetype resolution (D2)** — Provider-less dispatch sent a tier-alias incumbent that could never route; the claude_code default already applied after resolution now applies before it, changing only routability.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D2)
+
+---
+
 ## 2026-09-24 — 2026-09-27-retain-static-model-until-routing-evidence
 
 ### Phase: Implementation

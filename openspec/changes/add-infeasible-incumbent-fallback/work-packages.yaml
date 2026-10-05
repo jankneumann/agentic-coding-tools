@@ -1,0 +1,170 @@
+schema_version: 1
+
+feature:
+  id: add-infeasible-incumbent-fallback
+  title: "Configured fallback for an unavailable incumbent"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-10-05T00:00:00Z"
+  deployable: true
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-infeasible-incumbent-fallback/contracts/openapi/v1.4.yaml"
+    files:
+      - "openspec/changes/add-infeasible-incumbent-fallback/contracts/openapi/v1.4.yaml"
+      - "openspec/changes/add-infeasible-incumbent-fallback/contracts/events/routing-decision-record.schema.json"
+      - "openspec/changes/add-infeasible-incumbent-fallback/contracts/generated/models.py"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 180
+  timeout_minutes: 150
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-dispatch
+    title: "Dispatch honors the resolved provider; default provider before resolution"
+    task_type: implementation
+    description: >-
+      Phase 1 (design D1, D2). Skills-only and independent of the v1.3/v1.4 contract
+      chain, so it can be implemented and merged first. Must merge before wp-router: a
+      cross-vendor fallback over unfixed dispatch produces mismatched model/vendor pairs.
+    role: implementation
+    priority: 1
+    depends_on: []
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/smoke_provider_dispatch.py"
+        - "skills/autopilot/SKILL.md"
+      keys: []
+      ttl_minutes: 120
+      reason: "Autopilot dispatch must honor the resolved provider"
+    scope:
+      write_allow:
+        - "skills/autopilot/**"
+        - "skills/tests/autopilot/**"
+        - "openspec/changes/add-infeasible-incumbent-fallback/tasks.md"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "openspec/specs/**"
+        - "openspec/changes/archive/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"      # phase_agent dispatch path
+        - "documentation"      # autopilot SKILL.md adapter contract
+    worktree:
+      name: wp-dispatch
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Autopilot skill tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot -q"
+          evidence:
+            artifacts:
+              - "skills/tests/autopilot"
+            result_keys: ["autopilot_tests_pass"]
+        - name: "Skill install payload"
+          kind: command
+          command: "cd skills && bash install.sh --check"
+          evidence:
+            artifacts:
+              - "skills/autopilot"
+            result_keys: ["install_check_pass"]
+    outputs:
+      result_keys: ["autopilot_tests_pass", "install_check_pass"]
+    metadata:
+      loc_estimate: 150
+      package_kind: integration
+
+  - package_id: wp-router
+    title: "Configured fallback for a transiently unavailable incumbent (v1.4)"
+    task_type: implementation
+    description: >-
+      Phase 2 (design D3-D6). Starts only after split-no-evidence-retention-reason (v1.3)
+      has merged, and after wp-dispatch. Threads exclusion reasons into retention, adds
+      FallbackOrder.vendor_order, implements the deterministic configured pick, persists
+      retention.fallback, and teaches the client-side routing_fallback.py the same key.
+    role: implementation
+    priority: 2
+    depends_on: ["wp-dispatch"]
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/src/model_routing/routing_policy.py"
+        - "agent-coordinator/routing.yaml"
+        - "skills/coordination-bridge/scripts/routing_fallback.py"
+      keys:
+        - "api:POST /routing/select_model"
+      ttl_minutes: 180
+      reason: "New retention reason and configured fallback in select_model"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/model_routing/**"
+        - "agent-coordinator/routing.yaml"
+        - "agent-coordinator/tests/model_routing/**"
+        - "agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py"
+        - "agent-coordinator/CLAUDE.md"
+        - "skills/coordination-bridge/scripts/routing_fallback.py"
+        - "skills/tests/coordination-bridge/**"
+        - "openspec/changes/add-infeasible-incumbent-fallback/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/autopilot/**"
+        - "openspec/specs/**"
+        - "openspec/changes/archive/**"
+        - "agent-coordinator/database/migrations/**"
+    context_impact:
+      surfaces:
+        - "apis"               # contracts/openapi/v1.4.yaml
+        - "capabilities"       # specs/model-routing, specs/agent-archetypes
+        - "semantic_code"      # resolver, api, routing_policy, routing_fallback
+        - "documentation"      # agent-coordinator/CLAUDE.md reason list
+    worktree:
+      name: wp-router
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Model-routing suite"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest tests/model_routing -q"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/model_routing"
+            result_keys: ["routing_suite_pass"]
+        - name: "Coordinator unit suite"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest -m 'not e2e and not integration' -q"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests"
+            result_keys: ["coordinator_suite_pass"]
+        - name: "Strict typing"
+          kind: command
+          command: "cd agent-coordinator && uv run mypy --strict src/"
+          evidence:
+            artifacts:
+              - "agent-coordinator/src/model_routing"
+            result_keys: ["mypy_clean"]
+    outputs:
+      result_keys: ["routing_suite_pass", "coordinator_suite_pass", "mypy_clean"]
+    metadata:
+      loc_estimate: 400
+      package_kind: algorithm

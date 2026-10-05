@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-10-05 — add-infeasible-incumbent-fallback
+
+### Phase: Plan
+
+**Fallback fires only on transient availability exclusions (D3)** — Permanent mismatches (archetype/location/roadmap/registry) encode operator policy a fallback must not bypass; a mixed reason set counts as permanent.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D3)
+
+---
+
+## 2026-10-05 — add-infeasible-incumbent-fallback
+
+### Phase: Plan
+
+**Order lives in routing.yaml's existing fallback block, read server-side (D4, D5)** — Reuses the offline client tie-breaker semantics so online and offline fallback agree; absent vendor_order disables the fallback.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D4)
+
+---
+
+## 2026-10-05 — add-infeasible-incumbent-fallback
+
+### Phase: Plan
+
+**New reason incumbent-infeasible-configured-fallback, retained=false, v1.4 overlay after split (D6)** — The routed selection and its reason live in one persisted record, keeping #636 item 4 attribution correct.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D5)
+
+---
+
 ## 2026-09-24 — 2026-09-27-retain-static-model-until-routing-evidence
 
 ### Phase: Implementation
