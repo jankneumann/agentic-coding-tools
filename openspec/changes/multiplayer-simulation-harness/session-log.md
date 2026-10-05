@@ -80,3 +80,23 @@ Replaced the plan-roadmap scaffold with a full plan. Ten design decisions cover 
 ### Context
 A cold re-review found 8 findings: 2 high, 4 medium and 2 low. All were fixed. The intra-tick event order is now fixed, so the pinned 10-tick baseline is unambiguous. Roadmap status transitions moved from agent code to fixture data, so ri-11 can flip the metric without editing the harness. Several scenarios were sharpened, and every one of the 27 scenario IDs traces to a task.
 
+---
+
+## Phase: Plan Iteration 3 (2026-10-05)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Lift D5's fixture-data transitions and intra-tick ordering into the requirement text** `architectural: multiplayer-simulation` — The pinned blocked_ticks baseline and ri-11's no-harness-edit flip both depend on these rules. As design-only notes they were not part of the contract that downstream changes and validators read.
+
+### Open Questions
+- [ ] Low: the 30-second suite budget is recorded at task 9.1 rather than asserted, to avoid a flaky timing test
+- [ ] Low: the ri-06 and ri-11 deltas still name multiplayer-collaboration; they should cite multiplayer-simulation when they iterate
+
+### Completed Work
+- spec: Memory-Store requirement states fixture-declared transitions and intra-tick order
+- openspec validate --strict passes; 27/27 scenarios traced; CLI contract valid
+
+### Context
+Convergence pass. One medium consistency finding was fixed: the Memory-Store requirement now states normatively that status transitions are fixture data and that within a tick, finishing steps push before readiness is evaluated. Both were previously only in design D5. No findings at medium or above remain, and the plan is ready for PLAN_REVIEW.
+

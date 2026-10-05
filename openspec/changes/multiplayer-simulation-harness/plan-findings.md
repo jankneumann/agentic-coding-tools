@@ -55,3 +55,13 @@ Quality checks after the fixes:
   because reverse traceability is not opted in.
 
 Remaining below threshold: none at medium or above.
+
+## Iteration 3 (2026-10-05): convergence
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 1 | consistency | medium | Fixture-declared status transitions and the intra-tick order were stated only in design D5, although the pinned baseline and ri-11's flip both depend on them | Added both as normative SHALL clauses in "Memory-Store Scenario Reports Time Blocked On Dependency" |
+| 2 | testability | low | The 30-second suite budget is recorded at task 9.1, not asserted | Accepted. A wall-clock assertion would be flaky in CI |
+| 3 | consistency | low | ri-06 and ri-11 deltas still reference the `multiplayer-collaboration` placeholder | Out of scope for this change. Recorded as an open question for those changes' own iteration |
+
+Termination: all findings are below the medium threshold. `openspec validate --strict` passes.

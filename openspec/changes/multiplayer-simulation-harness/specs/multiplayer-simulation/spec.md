@@ -127,7 +127,10 @@ roadmap item that depends on an item owned by principal `storage-owner`. The sce
 advance a logical tick clock using step durations declared in the fixture. On each tick it
 SHALL decide whether the dependent item is ready by calling the roadmap-runtime admission
 rule (`Roadmap.ready_items`) on the `roadmap.yaml` currently visible on the shared remote.
-The harness SHALL NOT use readiness logic of its own. For each principal, the report SHALL
+The harness SHALL NOT use readiness logic of its own. Every roadmap status change a simulated
+agent makes SHALL be declared as data in the fixture's step script, never in harness code.
+Within a tick, steps finishing at that tick SHALL push their status changes before any
+waiting principal evaluates readiness. For each principal, the report SHALL
 include `blocked_ticks`, defined as the first tick at which its implement step is admitted
 minus the tick at which its own preceding steps finished, and `unblocked` (boolean). The
 scenario SHALL pin the baseline in force at the time of this change:
