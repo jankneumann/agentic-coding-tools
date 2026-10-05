@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "ownership-map",
-  "current_phase": "PLAN_ITERATE",
+  "current_phase": "PLAN_REVIEW",
   "iteration": 0,
-  "total_iterations": 3,
+  "total_iterations": 4,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -13,18 +13,24 @@
   "implementation_strategy": {},
   "memory_ids": [],
   "handoff_ids": [
-    "gatekeeper-ownership-map-20261005T0711Z"
+    "gatekeeper-ownership-map-20261005T0711Z",
+    "12c9ef5b-5534-4e24-9a2f-870ce12d1e26"
   ],
   "phase_history": [
     {
       "at": "2026-10-05T07:15:13.485167+00:00",
       "outcome": "proceed_with_review",
       "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-10-05T07:59:41.805020+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
     }
   ],
-  "last_handoff_id": "gatekeeper-ownership-map-20261005T0711Z",
+  "last_handoff_id": "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-05T07:32:24.979158+00:00",
+  "phase_started_at": "2026-10-05T07:59:42.097122+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
@@ -47,19 +53,19 @@
   "gate_verdict": null,
   "gate_decisions": [
     {
-      "gate": "proposal_approval",
-      "outcome": "proceed",
-      "resolution": "auto",
-      "authorizing_disposition": "auto",
-      "reason": "gate 'proposal_approval' auto-approved by trust posture",
       "approval_id": null,
+      "authorizing_disposition": "auto",
       "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "auto",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "proceed",
       "phase": "PLAN",
-      "recorded_at": "2026-10-05T07:32:16.152693+00:00"
+      "posture_present": true,
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "recorded_at": "2026-10-05T07:32:16.152693+00:00",
+      "resolution": "auto",
+      "timeout_seconds": null
     }
   ],
   "pending_gate": null,
