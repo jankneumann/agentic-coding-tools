@@ -29,7 +29,7 @@ items:
     gates, or PR checkpoints.
 - item_id: ri-02
   title: Add human principals and the git-native ownership map
-  status: approved
+  status: in_progress
   priority: 1
   effort: L
   depends_on: []
@@ -101,7 +101,7 @@ items:
     IDs.
 - item_id: ri-05
   title: Build the multi-player simulation harness
-  status: approved
+  status: in_progress
   priority: 2
   effort: M
   depends_on: []
@@ -466,7 +466,7 @@ items:
     owner.
 - item_id: ri-20
   title: Stamp and check team toolkit consistency
-  status: approved
+  status: in_progress
   priority: 5
   effort: M
   depends_on: []
@@ -485,4 +485,4 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-05T07:06:10.446456+00:00'
+updated_at: '2026-10-05T07:10:53.281774+00:00'
