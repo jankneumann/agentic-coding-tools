@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-05T07:11:16.195140+00:00",
+  "updated_at": "2026-10-05T07:13:21.647343+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -81,7 +81,7 @@
       "prepared_at": "2026-10-05T07:01:35.452722+00:00",
       "launch_token": "M9MMyQ-nh5sn3_tvN0qA6TtJ_P-FvRzP",
       "launch_marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
-      "lease_generation": 2,
+      "lease_generation": 3,
       "launch_history": [
         {
           "generation": 1,
@@ -144,6 +144,37 @@
           "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
           "observed_at": "2026-10-05T07:09:47.572810+00:00",
           "handle": "session_01FwdCrA4nqZt1id2u1MuZma"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "ri01g3-eOdIktxdMQ4Ba3PGGcZXn8KU",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-05T07:13:21.165422+00:00"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "ri01g3-eOdIktxdMQ4Ba3PGGcZXn8KU",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-05T07:13:21.392708+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "ri01g3-eOdIktxdMQ4Ba3PGGcZXn8KU",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-05T07:13:21.392708+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "ri01g3-eOdIktxdMQ4Ba3PGGcZXn8KU",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-05T07:13:21.647276+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g3"
         }
       ],
       "scope": {
@@ -162,25 +193,25 @@
         "approval_ref": "gate-decision:d6d1597c-2b78-492a-8198-b23d2d0ef65f"
       },
       "lease": {
-        "generation": 2,
-        "owner_nonce": "ri01g2-Y2eyOQX91GZYugOZR7Qi8zA_",
+        "generation": 3,
+        "owner_nonce": "ri01g3-eOdIktxdMQ4Ba3PGGcZXn8KU",
         "state": "active",
-        "acquired_at": "2026-10-05T07:09:36.932130+00:00",
-        "heartbeat_at": "2026-10-05T07:09:36.932130+00:00",
-        "expires_at": "2026-10-05T08:09:36.932130+00:00"
+        "acquired_at": "2026-10-05T07:13:21.165422+00:00",
+        "heartbeat_at": "2026-10-05T07:13:21.165422+00:00",
+        "expires_at": "2026-10-05T08:13:21.165422+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 2,
-        "handle": "session_01FwdCrA4nqZt1id2u1MuZma",
-        "observed_at": "2026-10-05T07:09:47.279596+00:00"
+        "generation": 3,
+        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g3",
+        "observed_at": "2026-10-05T07:13:21.392708+00:00"
       },
       "launch_gate": {
-        "generation": 2,
+        "generation": 3,
         "state": "entered",
-        "handle": "session_01FwdCrA4nqZt1id2u1MuZma",
-        "go_released_at": "2026-10-05T07:09:47.279596+00:00",
-        "entered_at": "2026-10-05T07:09:47.572810+00:00"
+        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g3",
+        "go_released_at": "2026-10-05T07:13:21.392708+00:00",
+        "entered_at": "2026-10-05T07:13:21.647276+00:00"
       }
     },
     {
