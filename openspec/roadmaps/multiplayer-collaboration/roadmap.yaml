@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Publish the multiplayer collaboration principles guide
-  status: approved
+  status: in_progress
   priority: 1
   effort: S
   depends_on: []
@@ -485,4 +485,4 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-05T06:59:55.380603+00:00'
+updated_at: '2026-10-05T07:01:35.455365+00:00'
