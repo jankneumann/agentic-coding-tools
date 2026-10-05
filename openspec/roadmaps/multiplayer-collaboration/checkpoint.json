@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-05T07:03:21.723340+00:00",
+  "updated_at": "2026-10-05T07:06:10.466843+00:00",
   "serial_indeterminate_items": [
     "ri-02",
     "ri-05",
@@ -60,7 +60,7 @@
       "change_id": "multiplayer-principles-guide",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:01:35.452722+00:00",
       "launch_token": "M9MMyQ-nh5sn3_tvN0qA6TtJ_P-FvRzP",
       "launch_marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
@@ -112,7 +112,7 @@
       "lease": {
         "generation": 1,
         "owner_nonce": "ri01-DXYx307mS6iZ1WYxAerNYR8e",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-05T07:02:49.187775+00:00",
         "heartbeat_at": "2026-10-05T07:02:49.187775+00:00",
         "expires_at": "2026-10-05T07:17:49.187775+00:00"
@@ -129,6 +129,46 @@
         "handle": "task-a2d004d6d22da4519",
         "go_released_at": "2026-10-05T07:03:17.932234+00:00",
         "entered_at": "2026-10-05T07:03:21.723190+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/multiplayer-principles-guide",
+          "change_id": "multiplayer-principles-guide",
+          "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+          "evidence": {
+            "commit": "75fce5f671d4a282cc488d08f08c6140c980861b",
+            "loop_state_digest": "1526df43ca338484f97150ead235d03c95225064126a4ba02b27a126fb86f029",
+            "loop_state_path": "openspec/changes/multiplayer-principles-guide/loop-state.json"
+          },
+          "handoff_id": "a97b7229-4868-4a94-801f-6d56414b111d",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "gate": "proposal_approval",
+            "kind": "pending_gate",
+            "reason": "Autopilot parked in PLAN on gate proposal_approval: no TRUST_POSTURE.md, so the posture disposition fails closed to 'block' and gate-check exited 0 (operator answer required). The proposal is still the plan-roadmap scaffold; PLAN_ITERATE (which refines it into the P1-P10 guide plan) has not run. GATEKEEPER ran as a DEGRADED signal-only fallback (verdict proceed) because this worker had no sub-agent dispatch tool; coordinator queue projection returned degraded/forbidden on every submit.",
+            "resume_hint": "A human answers the gate: `python3 skills/autopilot/scripts/runner.py gate-answer multiplayer-principles-guide --gate proposal_approval --decision approved` in the worktree (or add a TRUST_POSTURE.md authorizing proposal_approval), then re-dispatch /autopilot multiplayer-principles-guide to resume from PLAN."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-principles-guide"
+        },
+        "result_digest": "92a03423e620bb1da66e075cf56bbd8eff624437f1ca3a1045fc9bd071819640",
+        "bound_at": "2026-10-05T07:06:10.438567+00:00",
+        "callback_started_at": "2026-10-05T07:06:10.440993+00:00",
+        "callback_acknowledged_at": "2026-10-05T07:06:10.442800+00:00",
+        "terminal_persisted_at": "2026-10-05T07:06:10.444765+00:00",
+        "effects_applied_at": "2026-10-05T07:06:10.466633+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-05T07:06:10.444737+00:00",
+      "parked": {
+        "gate": "proposal_approval",
+        "kind": "pending_gate",
+        "reason": "Autopilot parked in PLAN on gate proposal_approval: no TRUST_POSTURE.md, so the posture disposition fails closed to 'block' and gate-check exited 0 (operator answer required). The proposal is still the plan-roadmap scaffold; PLAN_ITERATE (which refines it into the P1-P10 guide plan) has not run. GATEKEEPER ran as a DEGRADED signal-only fallback (verdict proceed) because this worker had no sub-agent dispatch tool; coordinator queue projection returned degraded/forbidden on every submit.",
+        "resume_hint": "A human answers the gate: `python3 skills/autopilot/scripts/runner.py gate-answer multiplayer-principles-guide --gate proposal_approval --decision approved` in the worktree (or add a TRUST_POSTURE.md authorizing proposal_approval), then re-dispatch /autopilot multiplayer-principles-guide to resume from PLAN."
       }
     }
   ]
