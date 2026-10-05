@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Publish the multiplayer collaboration principles guide
-  status: candidate
+  status: approved
   priority: 1
   effort: S
   depends_on: []
@@ -29,7 +29,7 @@ items:
     gates, or PR checkpoints.
 - item_id: ri-02
   title: Add human principals and the git-native ownership map
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on: []
@@ -57,7 +57,7 @@ items:
     and missing/stale behavior.
 - item_id: ri-03
   title: Add on-behalf-of chains and causal trace IDs to coordinator records
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on:
@@ -80,7 +80,7 @@ items:
     appear.
 - item_id: ri-04
   title: Stamp attribution trailers on skill-authored commits and PRs
-  status: candidate
+  status: approved
   priority: 3
   effort: S
   depends_on:
@@ -101,7 +101,7 @@ items:
     IDs.
 - item_id: ri-05
   title: Build the multi-player simulation harness
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on: []
@@ -122,7 +122,7 @@ items:
     guard test.
 - item_id: ri-06
   title: Add git-native plan-time collision detection
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on:
@@ -148,7 +148,7 @@ items:
     detected.
 - item_id: ri-07
   title: Extend coordinator overlap analysis to requirements and contracts
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -168,7 +168,7 @@ items:
     report and planning is not blocked.
 - item_id: ri-08
   title: Make the work queue a shared team execution surface
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -196,7 +196,7 @@ items:
     match the pre-change behavior in the existing work-queue tests.
 - item_id: ri-09
   title: Route approvals and escalations to resolved owners
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -225,7 +225,7 @@ items:
     or gates compared to today.
 - item_id: ri-10
   title: Add per-principal attention budgets and digests
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -245,7 +245,7 @@ items:
   - With no per-principal configuration, notification behavior is unchanged from today.
 - item_id: ri-11
   title: Bind roadmap dependencies to contracts
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on:
@@ -273,7 +273,7 @@ items:
     compared with its baseline.
 - item_id: ri-12
   title: Open a declare-early draft PR at plan completion
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -295,7 +295,7 @@ items:
     enabled.
 - item_id: ri-13
   title: Dispatch implementation through the queue with owner acceptance
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on:
@@ -324,7 +324,7 @@ items:
     gate appears.
 - item_id: ri-14
   title: Add owned intent blocks with single-writer change control
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -349,7 +349,7 @@ items:
     and merge exactly as before.
 - item_id: ri-15
   title: File consumer-driven contract tests upstream
-  status: candidate
+  status: approved
   priority: 3
   effort: L
   depends_on:
@@ -372,7 +372,7 @@ items:
     and backlog (untested), preserving backlog rationale.
 - item_id: ri-16
   title: Add the /reconcile skill for divergent branches and specs
-  status: candidate
+  status: approved
   priority: 3
   effort: L
   depends_on:
@@ -398,7 +398,7 @@ items:
     intents are escalated rather than resolved by the agent.
 - item_id: ri-17
   title: Shape skill-authored PRs for reviewers
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -421,7 +421,7 @@ items:
   - In solo mode the checkpoint is skipped and only the ledger section is added.
 - item_id: ri-18
   title: Capture human interventions as labeled corrections
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -444,7 +444,7 @@ items:
     session transcripts are excluded unless the principal opts in.
 - item_id: ri-19
   title: Calibrate trust posture from correction rates
-  status: candidate
+  status: approved
   priority: 5
   effort: M
   depends_on:
@@ -466,7 +466,7 @@ items:
     owner.
 - item_id: ri-20
   title: Stamp and check team toolkit consistency
-  status: candidate
+  status: approved
   priority: 5
   effort: M
   depends_on: []
@@ -485,4 +485,4 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-05T06:27:43.280533+00:00'
+updated_at: '2026-10-05T06:59:55.380603+00:00'

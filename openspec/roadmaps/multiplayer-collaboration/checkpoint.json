@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "multiplayer-collaboration",
+  "current_item_id": "ri-01",
+  "phase": "planning",
+  "created_at": "2026-10-05T06:52:22.688525+00:00",
+  "updated_at": "2026-10-05T06:59:55.806840+00:00",
+  "gate_decisions": [
+    {
+      "gate": "roadmap_approval",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-05T06:52:26.356619+00:00",
+      "decision_id": "9eaf5906-cd2b-4b1a-90a6-cb2b2d88beb2",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "multiplayer-collaboration",
+      "roadmap_fingerprint": "ab95e544b16bf0cde9df6b1a78ff34ef1bae0c0d5207c4b087cb87c19fcc3670"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 operator approved whole roadmap in conversation (supervise execute)",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-05T06:59:55.799843+00:00",
+      "decision_id": "5092f59a-c46b-48db-8f71-a75041363d53",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "multiplayer-collaboration",
+      "roadmap_fingerprint": "ab95e544b16bf0cde9df6b1a78ff34ef1bae0c0d5207c4b087cb87c19fcc3670",
+      "note": "operator approved whole roadmap in conversation (supervise execute)"
+    }
+  ]
+}

@@ -27,7 +27,14 @@
       "id": "fa4278cf-0e86-4d2b-ba0f-0640e2c0e740",
       "rationale": "direct invocation: user asked to approve items and start autopilot-roadmap on ri-01, continuing through the roadmap",
       "scope": "roadmap-jev-system-one-integration-assessment"
+    },
+    {
+      "decided_at": "2026-10-05T06:59:55.799843+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "5092f59a-c46b-48db-8f71-a75041363d53",
+      "rationale": "operator approved whole roadmap in conversation (supervise execute)",
+      "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-09-18T11:31:45.951577Z"
+  "written_at": "2026-10-05T06:59:55.764282Z"
 }
