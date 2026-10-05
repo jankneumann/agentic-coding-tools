@@ -42,7 +42,14 @@ against it, and `/prototype-feature` treats variant branches as disposable exper
 *findings* (not code) are synthesized into `design.md`. This epic lifts those patterns from
 "one change, one principal" to "many changes, many principals."
 
-**Success looks like:** a team of humans, each with agents, can plan overlapping work,
+**Execution model.** Implementation is done by agents working down a shared work queue, not
+by individuals driving interactive sessions. Humans own intent and contracts, accept results,
+and are engaged through escalation when an agent needs a decision — not by pairing with the
+agent that builds their domain. This makes the queue the primary execution surface and
+ownership-routed escalation the primary human interface, so both are foundations of this
+epic rather than refinements.
+
+**Success looks like:** a team of humans, sharing a queue of agents, can plan overlapping work,
 discover collisions on the day they are introduced, unblock on agreed contracts rather than
 finished implementations, reconcile divergent work by its insight, route every decision to
 the human who owns it, and learn from every human correction — while a solo developer sees
@@ -50,7 +57,7 @@ no new friction at all.
 
 ## Principles
 
-The capabilities below derive from nine principles. Each capability cites the principles it
+The capabilities below derive from ten principles. Each capability cites the principles it
 serves; a capability that serves none does not belong in this epic.
 
 **Who decides**
@@ -59,8 +66,8 @@ serves; a capability that serves none does not belong in this epic.
   human principal. Humans are first-class identities with domains and availability, not an
   implicit "operator."
 - **P2. Own decisions, not labor.** Ownership is decision rights plus acceptance rights over
-  a contract or intent. Implementation is a commons: any principal's agents may build against
-  an agreed contract and propose the result to its owner.
+  a contract or intent. Implementation is a commons: queue agents build against an agreed
+  contract regardless of whose domain it is, and the owner accepts or rejects the result.
 - **P3. Intent is an owned, single-writer artifact.** Goals, non-goals, constraints, and
   "done means" have one owner; others propose changes. Agents never arbitrate between two
   principals' intents — they surface the conflict to the owners.
@@ -89,6 +96,10 @@ serves; a capability that serves none does not belong in this epic.
   actor, principal chain, trigger, context versions, authorizing gate, and outcome under
   causal IDs. Human edits, overrides, rejections, and reverts are labeled corrections linked
   to the trace that produced them, and trust is calibrated from that evidence.
+- **P10. Agents work the queue; humans are reached by escalation.** Implementation flows
+  through a shared work queue drained by agents. A human is engaged only when an agent needs
+  a decision it may not make; the agent parks that item and continues with the next ready
+  one, so a pending human decision never idles a worker.
 
 ## Capabilities
 
@@ -179,18 +190,36 @@ Dependents build against stubs or fakes generated from the contract. Serves P2, 
 - Existing bare `depends_on: [id]` entries keep implementation-complete semantics unchanged
 - `/implement-feature` provides a contract-generated stub for each contract dependency that is not yet implemented
 
-### Capability: Owner and implementer separation with build-to-propose
+### Capability: Team work queue across principals
 
-Roadmap items and changes declare `owner` and `implementer` (`owner`, `any`, or a named
-principal) separately. When the implementer policy allows, another principal's agents may
-implement the item from its agreed contract and open a PR into the owner's domain; the owner
-accepts or rejects with a reason. Implementation claims are visible (coordinator claims when
-available, draft PRs otherwise) so build-to-propose never silently duplicates in-flight work.
-Serves P2, P4.
+Make the coordinator work queue the shared execution surface for a team: queue entries carry
+the owning principal, the originating roadmap item, and its contract dependencies, and any
+eligible agent may claim any ready entry regardless of whose domain it belongs to. Entries
+remain one-way projections of canonical `roadmap.yaml` / `loop-state.json` state per
+`docs/guides/work-queue-truth-projection.md`, so a lost queue is rebuilt from git. Ordering
+across principals follows an explicit, owned priority policy rather than first-come claims,
+because whose work goes first is an intent decision. Extends `work_queue.py`, `/supervise`,
+and `/autopilot-roadmap`. Serves P2, P10, P3.
 
 **Acceptance Outcomes:**
-- A principal can see whether an item's implementation is claimed, by whom, and since when, using only the git remote
-- A build-to-propose PR requests review from the item owner and cannot be merged without the owner's acceptance
+- Roadmap items from two principals' roadmaps appear in one queue, each entry attributed to its owner and source item
+- An agent claims the highest-priority ready entry under the declared priority policy, independent of entry owner
+- Deleting all queue rows and re-running reconciliation reproduces the same entries from git state
+- A change to the cross-principal priority policy is accepted only from the policy's owner
+
+### Capability: Queue-dispatched implementation with owner acceptance
+
+Separate `owner` (decision and acceptance rights) from `implementer` on roadmap items and
+changes. The default implementer is the agent queue; an owner may restrict an item to a named
+principal's agents. Queue agents implement from the agreed contract and open a PR into the
+owner's domain; the owner accepts or rejects with a reason. Claims are visible through the
+queue and mirrored as draft PRs so non-adopters can see in-flight work and nothing is
+silently duplicated. Serves P2, P4, P10.
+
+**Acceptance Outcomes:**
+- A roadmap item with default implementer policy is dispatched to the queue without requiring its owner to start a session
+- A queue-implemented PR requests review from the item owner and cannot be merged without the owner's acceptance
+- Claimed, in-flight implementation is visible from the git remote alone via a draft PR naming the item and claim time
 - An owner rejection is recorded with its reason and linked to the contract, so spec gaps surfaced by rejection become amendments
 
 ### Capability: Consumer-driven contract tests
@@ -241,13 +270,18 @@ The approval gate routes each request to the owner set resolved from the ownersh
 a fallback chain; `decided_by` must belong to that set. Trust posture can declare gate owners
 per capability. Each principal has an urgency threshold and digest cadence: events below the
 threshold are batched into a per-principal digest, above it they notify. A dedicated
-escalation type covers conflicts between principals. Extends `approval.py`, the
-trust-posture contract, and `event_bus.classify_urgency`. Serves P1, P3, P8.
+escalation type covers conflicts between principals. A queue agent that escalates parks the
+item in a resumable state and claims the next ready entry, and the item re-enters the queue
+when the owner answers. Each principal has one escalation inbox that is the primary human
+interface to queue work. Extends `approval.py`, the trust-posture contract, and
+`event_bus.classify_urgency`. Serves P1, P3, P8, P10.
 
 **Acceptance Outcomes:**
 - An approval request records its resolved owner set, and a decision by a principal outside it is rejected
 - A principal receives notifications only above their configured threshold; the remainder appear in their digest
 - An unresolvable owner fails closed to the repository-default owner and is reported
+- An escalating queue agent parks the item and claims another ready entry; the parked item becomes ready again within one reconciliation cycle of the owner's answer
+- A principal can list every open escalation addressed to them, with its item, options, recommendation, default action, and deadline
 
 ### Capability: Intervention capture and trust calibration
 
@@ -290,7 +324,8 @@ testable in a solo-maintained repository. Serves all principles.
 
 ## Constraints
 
-- Every capability must function with only the git remote and GitHub; the coordinator enriches (live claims, events, digests) but must never be required. Teams with mixed adoption and no shared coordinator are the primary target.
+- Canonical state must live in git (proposals, specs, contracts, `roadmap.yaml`, `loop-state.json`, `owners.yaml`); the shared coordinator queue is the execution surface and a rebuildable projection of that state, never its source of truth. Planning-time capabilities (collision detection, declare-early PRs, ownership, reconciliation) must function with only the git remote, so teammates without coordinator access are never blocked.
+- Implementation shall be performed by queue agents by default; interactive human sessions are an escalation path, not the execution path.
 - Solo mode must be unchanged: with one principal and no `owners.yaml`, no new prompts, gates, or PR checkpoints shall appear.
 - Teammates who do not use the skills must not be blocked; every new artifact shall be readable as plain markdown or YAML in a PR.
 - Agents shall never resolve a conflict between two principals' intents; they shall surface it to the owners.
@@ -311,12 +346,14 @@ testable in a solo-maintained repository. Serves all principles.
 - Plan-time collision detection
 - Multi-player simulation harness
 
-### Phase 2: Contract-first collaboration
+### Phase 2: Queue-driven, contract-first execution
 
+- Team work queue across principals
+- Ownership-routed escalation and attention budgets
+- Contract-level roadmap dependencies
+- Queue-dispatched implementation with owner acceptance
 - Declare-early draft PR
 - Owned intent artifacts
-- Contract-level roadmap dependencies
-- Owner and implementer separation with build-to-propose
 - Consumer-driven contract tests
 
 ### Phase 3: Reconciliation and review
@@ -324,9 +361,8 @@ testable in a solo-maintained repository. Serves all principles.
 - Branch and spec reconciliation workflow
 - Reviewer-shaped pull requests
 
-### Phase 4: Attention, escalation, and learning
+### Phase 4: Learning and consistency
 
-- Ownership-routed escalation and attention budgets
 - Intervention capture and trust calibration
 - Team toolkit consistency
 
