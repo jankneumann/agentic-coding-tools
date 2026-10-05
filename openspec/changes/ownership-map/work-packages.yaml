@@ -320,8 +320,10 @@ packages:
     task_type: docs
     description: |
       tasks.md 5.1-5.7. Author openspec/owners.yaml for this repository (maintainer as
-      default_owner, explicit assignment for every capability and roadmap item so the check is
-      warning-free), generate .github/CODEOWNERS, add the repository-level invariant test, the
+      default_owner plus a representative set of explicit assignments exercising every resolver
+      branch — not exhaustive: the repository is in solo mode, so unowned_* findings are
+      suppressed per design D14 and the file must not churn with every new capability or
+      roadmap item), generate .github/CODEOWNERS, add the repository-level invariant test, the
       state-artifacts.md row (D11) with its test, SKILL.md documenting the import surface and
       mode contract, install-manifest and skills-catalogue entries (D7), and the solo-mode
       regression run with the map moved aside.

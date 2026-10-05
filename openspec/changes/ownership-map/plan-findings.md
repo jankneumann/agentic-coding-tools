@@ -67,6 +67,39 @@ threshold is 3).
 - File overlap conflicts: none after moving `__init__.py`/`conftest.py` to wp-contracts
   (`--check-overlap` clean)
 
+## Iteration 2
+
+<!-- Date: 2026-10-05 -->
+
+Cold re-read of the iteration-1 output (design D3/D4/D8/D9/D14, both spec deltas, tasks.md,
+work-packages.yaml, proposal.md) looking for regressions the fixes themselves introduced.
+
+### Findings
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 1 | consistency | medium | `wp-dogfood-docs` description still said "explicit assignment for every capability and roadmap item so the check is warning-free", contradicting the refined task 5.2 and D14. | Fixed: description now asks for the representative set and cites D14. |
+| 2 | consistency | medium | Proposal acceptance-outcome row 2 ("a check reports capabilities with no owner") and the repository `owners.yaml` bullet did not carry D14's team-mode qualifier; a reviewer validating ri-02 against this solo repository would look for a report that correctly does not appear. | Fixed: row 2 and the bullet state that unowned reporting is team-mode behaviour proven by fixture tests, and that the repository map is representative, not exhaustive. |
+| 3 | testability | low | `wp-contracts`' verification step runs only `test_schema_copies.py`; the conftest fixture builder from task 1.3 is first exercised by wp-registry/wp-resolver. | Accepted: a dedicated smoke test for a fixture builder adds little; the next packages fail fast if it is wrong. |
+| 4 | clarity | low | The Ownership Check requirement lists only the map/registry error classes; the `CODEOWNERS`-class errors (`missing_github_handle`, `codeowners_disagreement`, `not_a_git_checkout`) are specified under CODEOWNERS Projection and enumerated in D9. | Accepted: each error is normatively specified exactly once; D9 is the cross-reference. |
+
+Cross-checks that found no regression: D4 implied-before-explicit rule order ⇄ D8 emit order
+⇄ spec scenarios "Explicit path rule overrides an implied capability rule" and "Emit ordering
+yields agreement"; D5 step 2 ⇄ spec Solo Mode ⇄ task 3.1; D9 codes ⇄ spec Ownership Check ⇄
+task 3.5; `OwnerSet.source` values unchanged; contracts/README.md's "nothing machine-consumes
+the report yet" still true.
+
+### Quality Checks
+
+- `openspec validate ownership-map --strict`: valid.
+- `validate_work_packages.py --check-overlap`: valid.
+- Traceability: 46/46 scenarios referenced; no bogus references.
+
+### Parallelizability Assessment
+
+Unchanged from iteration 1: independent tasks 4; sequential chains 5; max parallel width 2
+packages / 3 tasks; file overlap conflicts none.
+
 ---
 
 ## Summary

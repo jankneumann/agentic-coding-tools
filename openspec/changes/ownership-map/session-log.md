@@ -108,3 +108,32 @@ Refined the plan-roadmap scaffold for multiplayer-collaboration ri-02 into an im
 ### Context
 Iteration 1 of /iterate-on-plan (autopilot PLAN_ITERATE, architect archetype) found 16 findings (3 high, 9 medium, 4 low) and fixed all 15 at or above the medium threshold plus three co-located lows. The substantive changes: capability assignments now imply path rules so the resolver and the emitted CODEOWNERS agree by construction (D4/D8), the glob subset has fixed matching semantics (D3), and a new D14 makes the advisory unowned_* findings team-mode-only so the repository invariant cannot break CI on every future planning change. openspec validate --strict and the work-package overlap check pass.
 
+---
+
+## Phase: Plan Iteration 2 (2026-10-05)
+
+**Agent**: claude-remote | **Session**: N/A
+
+### Decisions
+1. **Acceptance outcome 2 ('a check reports capabilities with no owner') is satisfied in team mode and proven by fixture tests; the solo repository exercises the error-class findings and CODEOWNERS reconcile** `architectural: ownership-map` — D14 makes the unowned_* findings vacuous in solo mode, so the proposal's outcome mapping now says so explicitly; otherwise a reviewer validating ri-02 against this repository would look for a report that correctly does not appear.
+
+### Open Questions
+- [ ] wp-contracts' verification step does not exercise the conftest fixture builder added by task 1.3; later packages do. Accepted as low.
+
+### Completed Work
+- [medium] consistency: wp-dogfood-docs description aligned with task 5.2 / D14 (representative, not exhaustive, owners.yaml)
+- [medium] consistency: proposal acceptance-outcome row 2 and the repository owners.yaml bullet carry the team-mode qualifier (D14)
+- plan-findings.md iteration 2 section appended
+
+### Next Steps
+- Iteration 3 analysis: confirm only low findings remain and stop (threshold met).
+- Step 10 multi-vendor review if other vendor CLIs are available; otherwise single-vendor findings only.
+
+### Relevant Files
+- `openspec/changes/ownership-map/work-packages.yaml` — wp-dogfood-docs description
+- `openspec/changes/ownership-map/proposal.md` — acceptance-outcome table row 2; repository owners.yaml bullet
+- `openspec/changes/ownership-map/plan-findings.md` — iteration 2
+
+### Context
+Iteration 2 was a cold re-read of the refined artifacts for regressions introduced by iteration 1. Two medium consistency findings were fixed: the wp-dogfood-docs package description and the proposal's acceptance-outcome row 2 still described an exhaustive, warning-free owners.yaml, contradicting D14 and task 5.2. Two low findings remain and are accepted. Validation, overlap check and 46/46 scenario traceability stay green.
+

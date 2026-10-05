@@ -44,7 +44,7 @@ against; each maps to a `### Requirement:` in `specs/ownership-map/spec.md` and 
 | # | Acceptance outcome (ri-02) | Spec requirement |
 |---|---|---|
 | 1 | Schema-validated `owners.yaml` resolves an owner set for any capability, roadmap item, or contract path, falling back to a declared repository-default owner | Ownership Map Schema; Owner Resolution |
-| 2 | A check reports capabilities with no owner and owners that are not registered principals in the extended registry (no separate registry) | Ownership Check; agent-identity / Human Principal Registry Extension |
+| 2 | A check reports capabilities with no owner and owners that are not registered principals in the extended registry (no separate registry) | Ownership Check — unowned subjects are reported in team mode; in solo mode the sole principal owns every subject by construction, so the finding is suppressed (design D14) and exercised by fixture tests; agent-identity / Human Principal Registry Extension |
 | 3 | With no `owners.yaml`, every resolver call returns the sole repository principal and existing skill suites pass unchanged | Solo Mode |
 | 4 | Resolver works from the checkout with the coordinator unavailable; generated `CODEOWNERS` has no routing disagreements in a reconcile check | Coordinator Independence; CODEOWNERS Projection |
 | 5 | `owners.yaml` is registered in `docs/guides/state-artifacts.md` with writer, authority, missing/stale behavior | Durable Artifact Registration |
@@ -77,7 +77,9 @@ against; each maps to a `### Requirement:` in `specs/ownership-map/spec.md` and 
 - **`openspec/owners.yaml` for this repository** plus a generated managed block in
   `.github/CODEOWNERS`, so outcomes 1, 2 and 4 are exercised against a real tree in CI, not
   only against fixtures. This repository has one human principal, so it stays in **solo mode**
-  (see design D6) and no skill behavior changes.
+  (see design D6) and no skill behavior changes. The map carries the repository-default owner
+  and a *representative* set of explicit assignments, not an exhaustive one (design D14), so it
+  does not have to change whenever a capability or roadmap item is added.
 - **Documentation**: `owners.yaml` row in `docs/guides/state-artifacts.md`; `ownership-runtime`
   in `skills/install-manifest.json` and `docs/skills-catalogue.md`; SKILL.md documents the
   import surface and CLI for downstream roadmap items.
