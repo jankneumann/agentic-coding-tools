@@ -13,7 +13,7 @@
 > - `B.1`–`B.4`: Memory-Store Scenario Reports Time Blocked On Dependency
 > - `O.1`–`O.3`: Scenarios Run Offline Without A Shared Coordinator
 > - `D.1`–`D.2`: Scenario Reports Are Deterministic
-> - `G.1`–`G.3`: Scenario Pack Runs Through gen-eval
+> - `G.1`–`G.4`: Scenario Pack Runs Through gen-eval
 > - `A.1`–`A.3`: Scenario Tests Are Archive-Stable
 
 ## 1. Contracts and scaffolding
@@ -29,7 +29,7 @@
     copy with `change_dir()`.
 
   [S]
-  **Spec scenarios**: G.3, A.1
+  **Spec scenarios**: G.4, A.1
   **Contracts**: contracts/cli/mpsim.yaml, contracts/schemas/sim-report.schema.json
   **Design decisions**: D8, D10
   **Dependencies**: 1.4
@@ -171,6 +171,8 @@
     `ri-retrieval` declares `depends_on: [ri-storage]`; in the control the two items are
     independent;
   - the durations from D5;
+  - per-step `on_start.set_status` and `on_finish.set_status` data from D5: `implement` sets
+    `in_progress` at start and `completed` at finish, and `plan` and `contract` set nothing;
   - principals `storage-owner` and `retrieval-owner`;
   - changes `sim-memory-store-core` and `sim-retrieval-api`.
 
@@ -187,10 +189,11 @@
   **Design decisions**: D5
   **Dependencies**: 2.6
 - [ ] 5.2 Implement `mpsim/scenarios/blocked.py`, the tick scheduler:
-  - each tick, fetch the remote into the dependent's clone, then call `load_roadmap` with the
-    real repo root for schema lookup, then call `Roadmap.ready_items()`;
-  - the owner's agent sets its item to `completed` and pushes when its implement step
-    finishes;
+  - follow the intra-tick order from D5 exactly: finishing steps apply their `on_finish`
+    and push, in declaration order; then each waiting principal fetches, calls
+    `load_roadmap` with the real repo root for schema lookup, and calls
+    `Roadmap.ready_items()`; then admitted principals apply `on_start`;
+  - apply status transitions only from fixture data, never from code;
   - compute `blocked_ticks` and `unblocked` exactly as D5 defines them.
 
   The scheduler must not contain readiness logic of its own. B.4 proves this behaviourally:
@@ -202,17 +205,20 @@
 
 - [ ] 6.1 Write failing tests in `test_cli.py`, running `bin/mpsim` by subprocess:
   - `list` prints the four scenario ids in sorted order;
-  - `run` with an unknown scenario, an unknown probe, a missing `--fixture-dir`, or a
-    one-principal `--fixture-dir` exits 64 and names the problem on stderr (P.4, S.4);
-  - two runs of `memory-store-blocked-dependency` in separate temporary directories are
+  - `run` with an unknown scenario, an unknown probe, a missing `--fixture-dir`,
+    `--tick-budget 0`, or a one-principal `--fixture-dir` exits 64 and names the problem on
+    stderr (P.4, S.4);
+  - two runs of `memory-store-blocked-dependency` with different `TMPDIR` values are
     byte-identical (D.1);
+  - each scenario run with `COORDINATION_API_URL` unset and with it set to
+    `http://127.0.0.1:9` gives byte-identical stdout (O.2);
   - every scenario's stdout validates against the schema and contains no temporary path and no
     40-character hexadecimal string (D.2).
 
   [S]
-  **Spec scenarios**: P.4, S.4, D.1, D.2
+  **Spec scenarios**: P.4, S.4, D.1, D.2, O.2
   **Contracts**: openspec/contracts/multiplayer-simulation/cli/mpsim.yaml
-  **Design decisions**: D8
+  **Design decisions**: D8, D9
   **Dependencies**: 4.4, 5.2
 - [ ] 6.2 Implement `mpsim/__main__.py` exactly per the CLI contract: the `list` and `run`
   commands, the four `run` flags, and exit codes 0, 1, 2 and 64. [S]
@@ -225,8 +231,8 @@
   openspec/contracts/multiplayer-simulation/cli/mpsim.yaml --out
   skills/tests/multiplayer-simulation/evaluation/descriptor.yaml`. Add a test that runs the
   same command with `--check` and expects exit 0 on the committed file and non-zero on a
-  mutated copy in `tmp_path` (G.3). [S]
-  **Spec scenarios**: G.3
+  mutated copy in `tmp_path` (G.4). [S]
+  **Spec scenarios**: G.4
   **Design decisions**: D3, D8
   **Dependencies**: 1.2, 1.3
 - [ ] 7.2 Author `evaluation/scenarios/*.yaml` as gen-eval CLI-transport scenarios:
@@ -247,12 +253,12 @@
     working directory, and expect exit 0 (G.1);
   - copy the pack to `tmp_path`, flip the collision expectation to `true`, and expect exit 1
     with the scenario named in the report (G.2);
-  - run the pack with `COORDINATION_API_URL=http://127.0.0.1:9` and compare the per-scenario
-    `mpsim` stdout with the unset run, expecting it to be byte-identical (O.2).
+  - scan the scenario files and check that every file pinning `collision_detected` names
+    `ri-06` in a comment, and every file pinning `blocked_ticks` names `ri-11` (G.3).
 
   [M]
-  **Spec scenarios**: G.1, G.2, O.2
-  **Design decisions**: D3, D9
+  **Spec scenarios**: G.1, G.2, G.3
+  **Design decisions**: D3, D8
   **Dependencies**: 7.2
 
 ## 8. Archive stability and documentation

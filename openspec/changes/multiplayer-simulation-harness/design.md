@@ -120,7 +120,9 @@ time?" today has one honest answer: nothing ran.
   with status `ok` reported a collision at level `requirement` against the other principal's
   change.
 - A probe that raises an exception, or runs longer than its per-probe timeout (default 10 s),
-  is recorded with `status: error`. The run still completes. This mirrors the roadmap
+  is recorded with `status: error`. The run still completes. A probe runs in a daemon thread,
+  so a hung probe is abandoned at its timeout rather than joined, and it cannot keep the
+  process alive. This mirrors the roadmap
   constraint that advisory signals fail open.
 - `mpsim.oracle` computes `collision_present` from fixture contents. It is true when the two
   simulated changes' spec deltas name the same `### Requirement:` heading of the same
@@ -150,9 +152,23 @@ time?" today has one honest answer: nothing ran.
   so a schema extension in `ri-11` is exercised too. Finally, the scheduler asks
   `Roadmap.ready_items()` whether the dependent's item is admitted. `ready_items()` decides
   from item statuses alone: a dependency counts as satisfied when its item `status` is
-  `completed`. So when the owner's agent finishes its implement step, it sets its own item to
-  `completed`, commits, and pushes. Until it does, the dependent's item stays `approved` and
-  is not admitted.
+  `completed`, and only items whose status is `approved` are admitted.
+- **Status transitions are fixture data, not harness code.** Each step in a principal's
+  fixture script may declare `on_start.set_status` and `on_finish.set_status` for that
+  principal's own roadmap item. The agent applies the change to `roadmap.yaml`, commits and
+  pushes it. In the baseline fixture:
+  - `plan` and `contract` change no status, so the item stays `approved` and remains
+    admissible;
+  - `contract` pushes the contract files to the owner's branch but sets no status, because
+    today's roadmap schema has no contract-complete state. That absence is the baseline gap;
+  - `implement` sets `in_progress` when it starts and `completed` when it finishes.
+- **Intra-tick order.** The pinned value depends on it, so it is fixed. Within tick *t*:
+  1. Every step that finishes at *t* applies its `on_finish` transition, commits and pushes,
+     taking principals in fixture declaration order.
+  2. Each waiting principal fetches and evaluates `ready_items()`.
+  3. An admitted principal applies its implement step's `on_start` at the same tick *t*.
+
+  A dependency completed at tick 11 therefore admits its dependent at tick 11, not tick 12.
 - **Metric**: for each principal,
   `blocked_ticks = ready_tick − earliest_start_tick`.
   - `earliest_start_tick` is the tick at which that principal's own preceding steps finished
@@ -168,13 +184,22 @@ time?" today has one honest answer: nothing ran.
 - **Termination**: `--tick-budget` (default 50) bounds the loop. If the dependency is not
   complete when the budget runs out, the run stops with that principal marked
   `unblocked: false` and `blocked_ticks = tick_budget − earliest_start_tick`. It never loops
-  forever.
+  forever. A budget below 1 is a usage error and exits 64.
 - **What `ri-11` changes**: `ri-11` extends the roadmap schema and the admission rule. Its
-  flip is a fixture edit, changing the dependency to `{item, on: contract}`, combined with its
-  own rule change, plus updating the pinned `blocked_ticks` expectation. The harness code
-  itself does not change.
+  flip is three fixture edits plus one expectation edit, and the harness code itself does not
+  change. The fixture edits:
+  1. the dependency becomes `{item: ri-storage, on: contract}`;
+  2. the `contract` step gains `on_finish.set_status: contract_complete`, or whatever state
+     name `ri-11` defines;
+  3. the expectation in the scenario file changes to the new, lower `blocked_ticks`. Under
+     the baseline durations that is 2.
+
+  `ri-11` ships its own rule change alongside these.
 - **Rejected**: a harness-local readiness function. It would freeze the measured behaviour at
   whatever the harness author wrote and never move when `ri-11` lands.
+- **Rejected**: hard-coding status transitions in `ScriptedAgent`. `ri-11` would then
+  have to edit harness code to emit its new state, which breaks the condition that the
+  harness does not change when a capability lands.
 - **Rejected**: wall-clock timing of real agent runs. It is non-deterministic, slow, and
   needs vendor access.
 
@@ -192,7 +217,13 @@ time?" today has one honest answer: nothing ran.
   constraint that planning-time capabilities must work with the git remote alone.
 - **Determinism**: commits use fixed `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` values
   derived from the tick, `-c init.defaultBranch=main`, and no global git config
-  (`GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1`).
+  (`GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1`). Ignoring global config also
+  keeps a developer's hooks, commit signing (`commit.gpgsign`) and credential helpers out of
+  the simulated world.
+- **Seed commit**: the world builder makes one seed commit on `main`, authored by
+  `sim-seed <sim-seed@sim.invalid>`, containing the fixture's seeded `openspec/specs/` and
+  `roadmap.yaml`. Identity assertions apply to commits reachable from a principal's change
+  branch but not from `main`.
 - **Size**: the world supports N ≥ 2 principals. Fewer than 2 is a usage error with exit
   code 64.
 - **Rejected**: registering the simulated principals in the
@@ -241,7 +272,7 @@ requirements in `traceability:` blocks.
 |---|---|
 | 0 | The scenario ran to completion and a report was emitted. This holds whatever was or was not detected, and whatever the blocked time was. |
 | 1 | The harness could not establish the scenario, for example when the oracle finds that the fixture's required collision is missing, or a git operation failed. A report with an `error` field is still printed when possible. |
-| 64 | Usage error: an unknown scenario, an unknown probe, a missing `--fixture-dir`, or a fixture declaring fewer than 2 principals (`EX_USAGE`). |
+| 64 | Usage error: an unknown scenario, an unknown probe, a missing `--fixture-dir`, a `--tick-budget` below 1, or a fixture declaring fewer than 2 principals (`EX_USAGE`). |
 
 Pinned expectations live in the gen-eval scenario YAML, not in the driver. The driver
 measures and the scenario decides what is expected.

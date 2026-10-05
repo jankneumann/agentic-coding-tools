@@ -54,3 +54,29 @@ GATEKEEPER verdict: proceed. Outcomes verifiable (4 testable acceptance outcomes
 ### Context
 Replaced the plan-roadmap scaffold with a full plan. Ten design decisions cover where the harness lives, how gen-eval runs it, the probe seam and oracle, logical-tick readiness through Roadmap.ready_items, offline enforcement and archive stability. The spec now has 8 requirements and 26 concrete scenarios, plus a CLI contract, a report schema and 26 TDD-ordered tasks with a dependency graph. All 16 findings were addressed, including 2 critical and 8 high.
 
+---
+
+## Phase: Plan Iteration 2 (2026-10-05)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Roadmap status transitions are fixture data (on_start/on_finish set_status)** `architectural: multiplayer-simulation` — Keeps the promise that ri-11 flips the blocked-time metric with fixture and rule changes only. Emitting contract_complete would otherwise need an edit to the harness agent.
+2. **Fixed intra-tick order: finishers push, then waiters evaluate readiness, then admitted principals start** `architectural: multiplayer-simulation` — The pinned blocked_ticks value depends on the order. Under this order, a dependency completed at tick t admits its dependent at tick t.
+3. **Vendor review (skill step 10) deferred to autopilot PLAN_REVIEW** `architectural: skill-procedure-deviation` — Under autopilot with cli_review_enabled, multi-vendor plan review is the dedicated PLAN_REVIEW phase that follows PLAN_ITERATE. Running it here would duplicate that phase, and the orchestrator owns its convergence loop.
+
+### Alternatives Considered
+- Hard-coded status transitions in ScriptedAgent: rejected because ri-11 would have to edit harness code
+
+### Trade-offs
+- Accepted Fixture schema carries per-step status data over Simpler fixtures because It decouples harness code from roadmap-state vocabulary that ri-11 will extend
+
+### Completed Work
+- D5 intra-tick order and data-driven status transitions
+- P.1, B.3, D.1 and O.2 sharpened; G.3 added
+- tick-budget below 1 exits 64; daemon-thread probe timeout
+- tasks renumbered; 27/27 scenario IDs traced
+
+### Context
+A cold re-review found 8 findings: 2 high, 4 medium and 2 low. All were fixed. The intra-tick event order is now fixed, so the pinned 10-tick baseline is unambiguous. Roadmap status transitions moved from agent code to fixture data, so ri-11 can flip the metric without editing the harness. Several scenarios were sharpened, and every one of the 27 scenario IDs traces to a task.
+

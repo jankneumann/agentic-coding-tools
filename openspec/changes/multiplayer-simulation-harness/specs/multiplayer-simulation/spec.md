@@ -13,8 +13,10 @@ remote.
 
 - **WHEN** a scenario with principals `alice` and `bob` runs and each principal's agent
   commits one simulated change
-- **THEN** every commit on `alice`'s change branch has author `alice <alice@sim.invalid>`
-- **AND** every commit on `bob`'s change branch has author `bob <bob@sim.invalid>`
+- **THEN** every commit reachable from `alice`'s change branch but not from `main` has
+  author `alice <alice@sim.invalid>`
+- **AND** every commit reachable from `bob`'s change branch but not from `main` has author
+  `bob <bob@sim.invalid>`
 - **AND** the two principals' worktree paths are different directories
 - **AND** the report's `principals` array lists both principals with distinct `agent_id`
   values
@@ -149,8 +151,9 @@ the fixture durations recorded in design D5. A companion control scenario
 
 - **WHEN** the scenario runs with `--tick-budget 5`, which is lower than the dependency's
   completion tick
-- **THEN** the process exits 0 within the budget
-- **AND** the report has `unblocked.retrieval-owner` equal to `false` and
+- **THEN** the process exits 0
+- **AND** the report has `final_tick` equal to 5, `unblocked.retrieval-owner` equal to
+  `false`, and
   `blocked_ticks.retrieval-owner` equal to 4 (the budget minus its earliest start tick)
 
 #### Scenario: Readiness comes from the admission rule, not the harness
@@ -176,9 +179,9 @@ harness test suite SHALL run in the skills CI sweep with no services started.
 
 #### Scenario: Coordinator environment variables do not change the outcome
 
-- **WHEN** the gen-eval pack runs once with `COORDINATION_API_URL` unset, and again with it
-  set to `http://127.0.0.1:9`
-- **THEN** both runs produce byte-identical reports for every scenario
+- **WHEN** `mpsim run` is executed for every scenario once with `COORDINATION_API_URL`
+  unset, and once with it set to `http://127.0.0.1:9`
+- **THEN** each scenario's two stdout payloads are byte-identical
 
 #### Scenario: The harness test directory is reached by CI
 
@@ -197,8 +200,8 @@ SHALL produce byte-identical output.
 
 #### Scenario: Repeated runs are byte-identical
 
-- **WHEN** `mpsim run --scenario memory-store-blocked-dependency` runs twice in separate
-  temporary directories
+- **WHEN** `mpsim run --scenario memory-store-blocked-dependency` runs twice, each time with
+  a different `TMPDIR`, so that the two simulated worlds live in different directories
 - **THEN** the two stdout payloads are byte-identical
 
 #### Scenario: Reports leak no host-specific values
@@ -231,6 +234,13 @@ naming the roadmap item expected to change it.
 - **WHEN** a pinned expectation in a scenario file is changed to a value the driver does not
   produce (for example `collision_detected: true` while no probe is registered)
 - **THEN** gen-eval exits 1 and its report names the failing scenario
+
+#### Scenario: Every pinned baseline names the item that flips it
+
+- **WHEN** the pack's scenario files are scanned for pinned `collision_detected` or
+  `blocked_ticks` expectations
+- **THEN** each file that pins `collision_detected` contains a comment naming `ri-06`
+- **AND** each file that pins `blocked_ticks` contains a comment naming `ri-11`
 
 #### Scenario: The descriptor cannot drift from the contract
 

@@ -30,3 +30,28 @@ only. GATEKEEPER set four conditions for PLAN:
 | 16 | consistency | low | CI coverage guard and path guard interplay | O.3 and A.1 cover both explicitly |
 
 Remaining below threshold: none.
+
+## Iteration 2 (2026-10-05)
+
+A cold re-read of the iteration-1 plan found 2 high, 4 medium and 2 low findings.
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 1 | clarity | high | The order of events within a tick was unspecified. A dependency finishing at tick 11 could admit its dependent at 11 or 12, which changes the pinned baseline (10 vs 11) | D5 now fixes the order: finishing steps push in declaration order, then waiting principals fetch and evaluate `ready_items()`, then admitted principals start |
+| 2 | consistency | high | D5 said ri-11 changes no harness code, yet `ScriptedAgent` hard-coded status transitions, so emitting `contract_complete` would have needed a code edit | Status transitions are now fixture data (`on_start` / `on_finish` `set_status`). The ri-11 flip is three fixture edits plus a rule change, worth 2 ticks under baseline durations. The hard-coded alternative is recorded as rejected |
+| 3 | testability | medium | O.2 compared "reports" from gen-eval runs, but gen-eval parses stdout into a body and adds timings, so byte identity was unobservable there | O.2 now compares `mpsim run` stdout directly, and moved from task 7.3 to task 6.1 |
+| 4 | clarity | medium | P.1's "every commit on alice's branch" included the seed commit | D6 defines a `sim-seed` identity for the seed commit. P.1 now scopes to commits reachable from the change branch but not from `main` |
+| 5 | clarity | medium | The pinned-baseline comment rule had no verifying scenario | Added scenario G.3, which scans the pack for `ri-06` / `ri-11` comments. The drift scenario became G.4, and tasks were renumbered |
+| 6 | clarity | medium | D.1's "separate temporary directories" did not say how a test controls them | D.1 now runs with different `TMPDIR` values |
+| 7 | completeness | low | `--tick-budget 0` or a negative budget was unhandled | Added exit 64 to D5, D8, the contract and task 6.1 |
+| 8 | feasibility | low | A hung probe thread could keep the process alive | D4 runs probes in a daemon thread that is abandoned at timeout |
+
+Quality checks after the fixes:
+
+- `openspec validate --strict` passes.
+- Scenario coverage is 27/27 IDs traced to tasks, with no orphans either way.
+- The CLI contract validates, and all traceability citations resolve.
+- The single uncited requirement, Archive-Stable, has no CLI surface. That is acceptable
+  because reverse traceability is not opted in.
+
+Remaining below threshold: none at medium or above.

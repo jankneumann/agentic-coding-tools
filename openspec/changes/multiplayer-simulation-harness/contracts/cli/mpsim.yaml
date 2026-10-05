@@ -71,6 +71,7 @@ commands:
           Maximum logical ticks before the scheduler stops. A principal still
           blocked at the budget is reported with unblocked=false and
           blocked_ticks equal to the budget minus its earliest start tick.
+          A value below 1 exits 64.
         traceability:
           requirements:
             - multiplayer-simulation.memory-store-scenario-reports-time-blocked-on-dependency
@@ -99,5 +100,6 @@ exit_codes:
   - code: 64
     meaning: >-
       Semantic usage error: unknown scenario, unknown probe, missing
-      --fixture-dir, or a fixture with fewer than two principals.
+      --fixture-dir, --tick-budget below 1, or a fixture with fewer than two
+      principals.
     sysexits_name: EX_USAGE
