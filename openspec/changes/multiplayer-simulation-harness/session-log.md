@@ -100,3 +100,41 @@ A cold re-review found 8 findings: 2 high, 4 medium and 2 low. All were fixed. T
 ### Context
 Convergence pass. One medium consistency finding was fixed: the Memory-Store requirement now states normatively that status transitions are fixture data and that within a tick, finishing steps push before readiness is evaluated. Both were previously only in design D5. No findings at medium or above remain, and the plan is ready for PLAN_REVIEW.
 
+---
+
+## Phase: Plan Review (2026-10-05)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Pin the review-packet base ref to 4a9e81b^ (driver shim, not a code edit)** `architectural: skill-procedure-deviation` — This checkout has no local `main` ref, so build_review_packet's default `git diff main...HEAD` was empty. The first attempt therefore reviewed only a truncated spec excerpt and produced a false 'no implementation' high finding. That attempt was discarded and archived outside the repo, and converge() was re-run with base_ref bound to the parent of the change's first commit.
+2. **min_quorum=1: single-vendor review** `architectural: skill-procedure-deviation` — Only claude-local was dispatchable. codex, antigravity, grok, pi and ocr had no CLI, and the SDK and OpenAI tiers had no keys. With quorum 2 the loop would end immediately with quorum_lost.
+3. **Return max_iter rather than converged on adjudication_required** — The ledger has zero D3-blocking items, but ledger item 1 is a high-impact judgment gap that one vendor cannot confirm. Reporting 'converged' would hide an unresolved high gap. The reviewer independently checked the finding and agrees it is valid: D5/D7 never name the ref that ready_items() reads.
+
+### Capability Gaps Observed
+- **convergence_failed**: review_packet defaults base_ref to a local 'main' ref that cloud worktrees may lack, so the diff silently comes out empty. converge() exposes no base_ref parameter. (skill: parallel-infrastructure, severity: high)
+- **convergence_failed**: With a single vendor, any high judgment finding is permanently unconfirmed, so converge() always exits adjudication_required before fix dispatch (skill: autopilot, severity: medium)
+
+### Open Questions
+- [ ] Adjudicate ledger item 1 (high): choose the roadmap ref model for memory-store readiness. Option (a): read the dependency status from the owner's branch. Option (b): push status transitions to main. Then update D5/D7, the Memory-Store requirement, and tasks 5.1/5.2.
+
+### Completed Work
+- converge(review_type=plan) round 1: 9 findings, all unconfirmed single-vendor: 1 high, 2 medium, 6 low
+- Ledger: .review-ledger/ledger.json; checkpoint: .review-cache/round-1/
+- PLAN_FIX sub-step: 0 invocations, because the loop exited at step 2g (adjudication) before step 2k
+
+### Next Steps
+- Adjudicate item 1, then run PLAN_FIX for items 1-3 (design.md, spec.md, sim-report.schema.json)
+- Medium items: #2 SHALL clauses lacking scenarios (no-coordinator-imports, fixture-only status transitions, probe registration without scenario edits); #3 the error-path report cannot satisfy the schema (principals minItems 2, non-null timeline)
+- Low items #4-#8 cover stale task cross-references in design.md, exit code 2 missing from the D8 table, wording in the promoted contract header, the interpreter for bin/mpsim and gen-eval, a ready_items/checkpoint verification note, and the wording of 'missing --fixture-dir'
+- Item #9 targets loop-state.json, which the orchestrator owns. PLAN_FIX must not edit it.
+- Provision a second review vendor, or add a base_ref parameter to converge(), so later rounds can reach consensus
+
+### Relevant Files
+- `openspec/changes/multiplayer-simulation-harness/.review-ledger/ledger.json` — Review ledger, 9 open items
+- `openspec/changes/multiplayer-simulation-harness/.review-cache/round-1/findings-claude_code-plan.json` — Raw vendor findings
+- `openspec/changes/multiplayer-simulation-harness/design.md` — Item 1 target (D5/D7 ref model)
+
+### Context
+converge() ran 1 round of plan review. Only one vendor was available (claude_code), so quorum was lowered to 1. The loop stopped with reason=adjudication_required. One high-severity judgment finding is unconfirmed: the roadmap.yaml ref model is ambiguous. No ledger item is blocking under D3, the fix callback was never invoked, and no plan files were edited. Outcome: max_iter.
+
