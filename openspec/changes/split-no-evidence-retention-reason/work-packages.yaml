@@ -109,4 +109,4 @@ packages:
       result_keys: ["routing_suite_pass", "coordinator_suite_pass", "mypy_clean", "ruff_clean"]
     metadata:
       loc_estimate: 120
-      package_kind: backend
+      package_kind: algorithm
