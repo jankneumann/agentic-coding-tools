@@ -60,23 +60,24 @@
       "disposition": "block",
       "phase": "PLAN",
       "recorded_at": "2026-10-05T07:05:14.767558+00:00"
+    },
+    {
+      "gate": "proposal_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 operator approved: answered 'Approve whole roadmap' + 'Posture: plans auto' to a question that explicitly covered ri-01's pending proposal_approval (supervisor session_01J39bSygVy2r68wyPyHN5VA, 2026-10-05)",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "PLAN",
+      "recorded_at": "2026-10-05T07:12:43.951276+00:00",
+      "note": "operator approved: answered 'Approve whole roadmap' + 'Posture: plans auto' to a question that explicitly covered ri-01's pending proposal_approval (supervisor session_01J39bSygVy2r68wyPyHN5VA, 2026-10-05)"
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "multiplayer-principles-guide",
-    "gate": "proposal_approval",
-    "phase": "PLAN",
-    "requested_at": "2026-10-05T07:05:14.769220+00:00",
-    "prompt": "Approve this OpenSpec proposal and begin implementation?",
-    "context": {
-      "proposal_path": "openspec/changes/multiplayer-principles-guide/proposal.md",
-      "approach": "exists"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
