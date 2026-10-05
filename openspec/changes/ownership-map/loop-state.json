@@ -1,13 +1,37 @@
 {
-  "blocking_findings": [],
+  "schema_version": 5,
   "change_id": "ownership-map",
-  "cli_review_enabled": true,
-  "current_phase": "PLAN",
-  "error": null,
-  "escalation_reason": null,
+  "current_phase": "PLAN_ITERATE",
+  "iteration": 0,
+  "total_iterations": 3,
+  "max_phase_iterations": 3,
   "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-ownership-map-20261005T0711Z"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-05T07:15:13.485167+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "last_handoff_id": "gatekeeper-ownership-map-20261005T0711Z",
+  "started_at": "2026-10-05T07:11:19.832453+00:00",
+  "phase_started_at": "2026-10-05T07:32:24.979158+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "architect",
   "force": false,
-  "gate_decisions": [],
   "gate_signals": {
     "external_dep_count": 0,
     "has_broad_write_scope": false,
@@ -21,31 +45,23 @@
     "total_loc_estimate": null
   },
   "gate_verdict": null,
-  "goal_gate": null,
-  "handoff_ids": [
-    "gatekeeper-ownership-map-20261005T0711Z"
-  ],
-  "implementation_strategy": {},
-  "iteration": 0,
-  "last_handoff_id": "gatekeeper-ownership-map-20261005T0711Z",
-  "max_phase_iterations": 3,
-  "memory_ids": [],
-  "package_authors": {},
-  "packages_status": {},
-  "pending_gate": null,
-  "phase_archetype": "architect",
-  "phase_history": [
+  "gate_decisions": [
     {
-      "at": "2026-10-05T07:15:13.485167+00:00",
-      "outcome": "proceed_with_review",
-      "phase": "GATEKEEPER"
+      "gate": "proposal_approval",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "auto",
+      "phase": "PLAN",
+      "recorded_at": "2026-10-05T07:32:16.152693+00:00"
     }
   ],
-  "phase_started_at": "2026-10-05T07:15:13.769506+00:00",
-  "previous_phase": null,
-  "schema_version": 5,
-  "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "total_iterations": 2,
-  "val_review_enabled": true,
-  "vendor_availability": {}
+  "pending_gate": null,
+  "goal_gate": null
 }
