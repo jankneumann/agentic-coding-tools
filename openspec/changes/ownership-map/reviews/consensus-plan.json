@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "ownership-map",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": false,
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "wp-contracts' verification step runs only test_schema_copies.py, so the conftest fixture builder introduced by task 1.3 is first exercised by wp-registry and wp-resolver rather than by the package that ships it.",
+      "eligible_vendors": 1
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The Ownership Check requirement enumerates only the map/registry error classes; the CODEOWNERS-class errors (missing_github_handle, codeowners_disagreement, not_a_git_checkout) are specified under CODEOWNERS Projection and cross-referenced through design D9's code table.",
+      "eligible_vendors": 1
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Tasks 5.4 and 5.5 (state-artifacts inventory row and its test) have no dependencies but sit in wp-dogfood-docs, which waits on wp-registry and wp-codeowners.",
+      "eligible_vendors": 1
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The human-principals schema keeps an optional `email` field that no code in this change consumes (design D5); it exists for ri-03 attribution and is personal data a maintainer may prefer not to publish.",
+      "eligible_vendors": 1
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 4,
+    "confirmed_count": 0,
+    "unconfirmed_count": 4,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 2
+  }
+}
