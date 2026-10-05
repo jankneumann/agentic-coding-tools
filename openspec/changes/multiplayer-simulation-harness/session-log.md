@@ -13,3 +13,44 @@
 ### Context
 GATEKEEPER verdict: proceed. Outcomes verifiable (4 testable acceptance outcomes); risk low (additive gen-eval pack, offline). Conditions for PLAN: replace circular WHEN/THEN scaffolds with concrete scenarios; record baselines (collision not detected, non-zero blocked time) without asserting later capabilities; decide capability/non-goals/offline coordinator strategy; tests use change_dir().
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-05)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **New capability multiplayer-simulation instead of the multiplayer-collaboration placeholder** `architectural: multiplayer-simulation` — About 19 sibling deltas target the multiplayer-collaboration placeholder. Putting harness requirements there would mix test-harness content with collaboration behaviour, and would itself create the same-requirement collision the roadmap is trying to surface. This was an autonomous resolution of an assumptions finding.
+2. **Harness at skills/tests/multiplayer-simulation, with gen-eval added to the skills test extra** `architectural: multiplayer-simulation` — The systems under test (roadmap-runtime, and later the plan-feature scanner) live in skills/. skills/tests is not shipped by install.sh. A scratch uv lock with gen-eval as a path dependency resolved 56 packages.
+3. **Collision detection via a CollisionProbe seam plus a ground-truth fixture oracle** `architectural: multiplayer-simulation` — No plan-time requirement-collision detector exists. The seam lets ri-06 attach its scanner without the harness fixing ri-06's interface. The oracle stops a broken fixture from making 'not detected' vacuously true.
+4. **Blocked time measured in logical ticks with the real Roadmap.ready_items admission rule** `architectural: multiplayer-simulation` — Ticks are deterministic, so exact baselines can be pinned. Using the real rule means ri-11's rule and schema change moves the metric without any edit to the harness code.
+5. **Pinned baselines live in gen-eval scenario YAML, and flips are reviewed expectation edits** `architectural: multiplayer-simulation` — The driver measures and the scenario decides what is expected. ri-06 and ri-11 flip a value in their own PRs, which keeps the before/after visible in review.
+6. **Assumption findings resolved autonomously, not through AskUserQuestion** `architectural: skill-procedure-deviation` — The skill directs assumption findings to AskUserQuestion. This run is an autopilot PLAN_ITERATE sub-agent that returns (outcome, handoff_id) with no interactive channel, and the proposal_approval gate was auto-approved by trust posture. Each assumption (capability, location, venv, detection seam, metric unit) became an explicit design decision with rejected alternatives, which PLAN_REVIEW and the human approver can overturn.
+7. **Analysis run inline, not through parallel Explore sub-agents** `architectural: skill-procedure-deviation` — This sub-agent harness exposes no Agent or Task tool, so the five-way parallel analysis could not be dispatched. The completeness, clarity, consistency, feasibility, parallelizability, testability and security/performance axes were analysed inline. This is reported as a fallback because the adapter was genuinely unavailable, not chosen to avoid dispatching.
+
+### Alternatives Considered
+- packages/multiplayer-sim as a new package: rejected because Needs its own CI job and cannot import skills/roadmap-runtime
+- agent-coordinator/evaluation scenarios: rejected because That gen-eval job needs Postgres and live HTTP, which contradicts the offline requirement
+- Harness-local readiness function: rejected because It would freeze the measured behaviour, and ri-11 could never move the metric
+- Invoke a predetermined scanner CLI: rejected because It would fix ri-06's interface before ri-06 designs it
+- Live LLM agents per principal: rejected because Nondeterministic and needs network and vendor access; left as a future ExecutorAgent
+
+### Trade-offs
+- Accepted Pinned exact baselines that downstream changes must edit over Field-presence-only assertions because An edit makes the flip visible in review; presence-only assertions could never detect a regression
+- Accepted Scripted deterministic agents over Realistic agent behaviour because CI reproducibility and offline execution are acceptance outcomes
+
+### Open Questions
+- [ ] ri-06 and ri-11 spec deltas should cite multiplayer-simulation requirements when they iterate (cross-capability reference)
+- [ ] Should the fixture seed owners.yaml once ri-02 lands? Deferred to ri-06
+
+### Completed Work
+- proposal.md rewritten with Why, What Changes, Non-Goals, Impact and an outcome-to-requirement map
+- design.md D1-D10 with alternatives and risks
+- spec delta moved to specs/multiplayer-simulation with 8 requirements and 26 scenarios
+- contracts/cli/mpsim.yaml (schema-valid, traceability resolves) and contracts/schemas/sim-report.schema.json
+- tasks.md with 26 tasks, scenario IDs, dependencies and graph
+- plan-findings.md iteration 1
+
+### Context
+Replaced the plan-roadmap scaffold with a full plan. Ten design decisions cover where the harness lives, how gen-eval runs it, the probe seam and oracle, logical-tick readiness through Roadmap.ready_items, offline enforcement and archive stability. The spec now has 8 requirements and 26 concrete scenarios, plus a CLI contract, a report schema and 26 TDD-ordered tasks with a dependency graph. All 16 findings were addressed, including 2 critical and 8 high.
+

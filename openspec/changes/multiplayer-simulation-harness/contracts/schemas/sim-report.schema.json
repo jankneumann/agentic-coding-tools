@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json",
+  "title": "mpsim scenario report",
+  "description": "One report per `mpsim run`. Ephemeral test output, not canonical state (design D8). Every property is always present; properties that do not apply to a scenario are null so gen-eval body assertions stay uniform across the pack. No absolute paths, temp directory names, commit SHAs, or wall-clock timestamps may appear (requirement: Scenario Reports Are Deterministic).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "principals",
+    "collision_present",
+    "collision_detected",
+    "probes",
+    "blocked_ticks",
+    "unblocked",
+    "final_tick",
+    "timeline",
+    "error"
+  ],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "scenario_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "principals": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "agent_id", "change_id"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "agent_id": { "type": "string", "minLength": 1 },
+          "change_id": { "type": "string", "pattern": "^sim-[a-z0-9-]+$" }
+        }
+      }
+    },
+    "collision_present": {
+      "type": ["boolean", "null"],
+      "description": "Ground-truth oracle over fixture contents (design D4). Null for scenarios with no collision question."
+    },
+    "collision_detected": {
+      "type": ["boolean", "null"],
+      "description": "True only when a probe with status ok reported a requirement-level collision against the other principal's change. Null for scenarios with no collision question."
+    },
+    "probes": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["probe_id", "status", "collisions", "error"],
+        "properties": {
+          "probe_id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["ok", "error"] },
+          "collisions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["level", "other_change", "requirement"],
+              "properties": {
+                "level": { "enum": ["intent", "requirement", "contract", "file"] },
+                "other_change": { "type": "string" },
+                "requirement": { "type": ["string", "null"] }
+              }
+            }
+          },
+          "error": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "blocked_ticks": {
+      "type": ["object", "null"],
+      "description": "Per principal: first tick its implement step is admitted by Roadmap.ready_items minus the tick its own preceding steps finished (design D5).",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "unblocked": {
+      "type": ["object", "null"],
+      "additionalProperties": { "type": "boolean" }
+    },
+    "final_tick": { "type": ["integer", "null"], "minimum": 0 },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tick", "principal", "step", "event"],
+        "properties": {
+          "tick": { "type": "integer", "minimum": 0 },
+          "principal": { "type": "string" },
+          "step": { "enum": ["plan", "contract", "implement"] },
+          "event": { "enum": ["started", "finished", "blocked", "admitted", "pushed", "probed"] }
+        }
+      }
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Non-null only when the process exits 1."
+    }
+  }
+}
