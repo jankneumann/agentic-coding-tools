@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-06T09:47:58.894235+00:00",
+  "updated_at": "2026-10-06T11:10:12.306300+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -159,6 +159,52 @@
       "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
       "item_id": "ri-01",
       "lease_generation": 4
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-06T11:10:09.506508+00:00",
+      "decision_id": "681bb72a-9e2c-496d-887d-77d99bdc729b",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 1
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-06T11:10:12.296408+00:00",
+      "decision_id": "8294b51e-1332-422c-9684-e91af74291e1",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "dispatch-contract",
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "item_id": "ri-21",
+      "lease_generation": 1
     }
   ],
   "dispatch_attempts": [
@@ -572,7 +618,7 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_token": "rBNx1ZzYdKtO2DdXLxIKJXfl1OOO-bVt",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
@@ -624,7 +670,7 @@
       "lease": {
         "generation": 1,
         "owner_nonce": "ri20-viW00Mzx8NZAZ-4MGJD62UOG",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-05T07:11:02.680340+00:00",
         "heartbeat_at": "2026-10-05T07:11:02.680340+00:00",
         "expires_at": "2026-10-05T08:11:02.680340+00:00"
@@ -641,6 +687,46 @@
         "handle": "session_01SFH32A8gaJCyUn6j7uBLgb",
         "go_released_at": "2026-10-05T07:11:15.926635+00:00",
         "entered_at": "2026-10-05T07:11:16.195044+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/toolkit-consistency",
+          "change_id": "toolkit-consistency",
+          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+          "evidence": {
+            "commit": "509d9cbd62b7b253e7fcb276d0be11bad023190c",
+            "loop_state_digest": "91c5c15e9af442a3ba3f308d5bad47ac9543c32568346a5035e5e3c09a9b2460",
+            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+          },
+          "handoff_id": "ae54d0bb-3d83-4adb-a15e-d5ce86f016d6",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "policy_pause",
+            "reason": "capability_unavailable: PLAN_REVIEW min_quorum=2 unattainable - codex review lane has no CLI or credential in this cloud container (review_dispatcher --check-vendors reported 2/2 falsely)",
+            "resume_hint": "After the operator provides a second review lane (GX10 / policy / credential): answer escalate_resume; loop resumes at previous_phase=PLAN_REVIEW."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/toolkit-consistency"
+        },
+        "result_digest": "2ca19f5d261820acab44459000e1d45e7ba86725953b3354bc25a509b97bc818",
+        "bound_at": "2026-10-06T11:10:06.076237+00:00",
+        "callback_started_at": "2026-10-06T11:10:06.080233+00:00",
+        "callback_acknowledged_at": "2026-10-06T11:10:06.082471+00:00",
+        "terminal_persisted_at": "2026-10-06T11:10:06.084530+00:00",
+        "effects_applied_at": "2026-10-06T11:10:06.111287+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-06T11:10:06.084508+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "policy_pause",
+        "reason": "capability_unavailable: PLAN_REVIEW min_quorum=2 unattainable - codex review lane has no CLI or credential in this cloud container (review_dispatcher --check-vendors reported 2/2 falsely)",
+        "resume_hint": "After the operator provides a second review lane (GX10 / policy / credential): answer escalate_resume; loop resumes at previous_phase=PLAN_REVIEW."
       }
     },
     {
@@ -649,7 +735,7 @@
       "change_id": "dispatch-contract",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
       "launch_token": "p4ZVttf27O_h5wk8PTy32Smp1hf9FJw-",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
@@ -701,7 +787,7 @@
       "lease": {
         "generation": 1,
         "owner_nonce": "ri21-odJtVU3Uvo0ycY-W6cbW-DyE",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-06T09:08:00.008712+00:00",
         "heartbeat_at": "2026-10-06T09:08:00.008712+00:00",
         "expires_at": "2026-10-06T10:08:00.008712+00:00"
@@ -718,6 +804,46 @@
         "handle": "session_016nxtswoDxS5hqr8EiY7RzW",
         "go_released_at": "2026-10-06T09:08:12.934187+00:00",
         "entered_at": "2026-10-06T09:08:13.188463+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/dispatch-contract",
+          "change_id": "dispatch-contract",
+          "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+          "evidence": {
+            "commit": "e68276d54cd33324dd9fa3a864e60e6764955b62",
+            "loop_state_digest": "4f152781639fbb7835a7083b869acaf9262d86115aac31b414a500a11a594344",
+            "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
+          },
+          "handoff_id": "9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "policy_pause",
+            "reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable. codex is listed by --check-vendors but has no CLI on PATH and no credential. Quorum was not lowered and TRUST_POSTURE.md was not edited.",
+            "resume_hint": "Pick the cloud review lane (GX10 queue, a policy change, or a codex credential), then answer escalate_resume. The loop resumes at previous_phase=PLAN_REVIEW."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/dispatch-contract"
+        },
+        "result_digest": "df1ebc732e5b13bb3baf6de5a4c07691f500088a776e713c8782c821c04ffbcf",
+        "bound_at": "2026-10-06T11:10:09.619931+00:00",
+        "callback_started_at": "2026-10-06T11:10:09.622843+00:00",
+        "callback_acknowledged_at": "2026-10-06T11:10:09.625108+00:00",
+        "terminal_persisted_at": "2026-10-06T11:10:09.627381+00:00",
+        "effects_applied_at": "2026-10-06T11:10:09.653689+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-06T11:10:09.627355+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "policy_pause",
+        "reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable. codex is listed by --check-vendors but has no CLI on PATH and no credential. Quorum was not lowered and TRUST_POSTURE.md was not edited.",
+        "resume_hint": "Pick the cloud review lane (GX10 queue, a policy change, or a codex credential), then answer escalate_resume. The loop resumes at previous_phase=PLAN_REVIEW."
       }
     }
   ]
