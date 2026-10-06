@@ -101,3 +101,15 @@ Second pass found one high and four medium issues: scoped auto trusted a caller-
 ### Context
 Third pass found one medium gap: the verified roadmap_approval_ref was not persisted on attempts, so neither the per-generation marker nor the supervisor-side scope check could carry it. Fixed in D8, the RO ledger scenario and tasks 2.3/5.3; refinement converged with only low findings left.
 
+---
+
+## Phase: Plan Review (parked) (2026-10-06)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Next Steps
+- Operator decides how cloud review quorum is satisfied (GX10 review lane, policy, or credential); then answer escalate_resume to re-enter PLAN_REVIEW
+
+### Context
+PLAN_REVIEW parked before any review round: min_quorum=2 is unmeetable in this cloud environment. review_dispatcher --check-vendors reports claude_code+codex, but codex is a known false positive (no codex binary on PATH, no credential). Per supervisor resume instructions (contract Issue 3) quorum was not lowered; loop escalated with capability_unavailable (missing lane: codex / any second review vendor). Coordinator projection forbidden (expected for trust-2 cloud agents).
+
