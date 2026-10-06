@@ -7,9 +7,31 @@
 
 ## 2026-10-06 — dispatch-contract
 
+### Phase: Plan Iteration 2
+
+**Review quorum defaults to 2 per review phase with a router-context override** — routing.yaml defines a cost ladder but no quorum; 2 is today's --min-vendors and the ladder orders lanes without excluding tiers. Recorded as a decision because this phase cannot ask the operator.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D2)
+
+---
+
+## 2026-10-06 — dispatch-contract
+
 ### Phase: Plan Iteration 1
 
 **Dispatched children defer gate authority to the supervisor** — Issue 1 arose because child and supervisor postures differed; the marker carries the supervisor posture digest and drift disables auto, so one holder is authoritative.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)
+
+---
+
+## 2026-10-06 — dispatch-contract
+
+### Phase: Plan Iteration 2
+
+**Below-quorum availability still launches** — check-vendors exits 2 for both below-quorum and roster failure; only an error field or unparseable JSON blocks prepare, and the child parks capability_unavailable honestly at review.
 
 - Status: `active`
 - Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)

@@ -39,3 +39,15 @@ wp-posture) | Sequential chains: schemas -> contract-lib -> {runtime-ledger,
 autopilot-child} -> {supervisor, review-honesty} -> integration | Max parallel width: 3.
 File overlap between non-ordered packages: none (merge-narrow-fix and supervisor share
 files and are ordered).
+
+## Iteration 2
+
+| # | Type | Criticality | Description | Fix |
+|---|------|-------------|-------------|-----|
+| 1 | security | high | Scoped `auto` trusted a context-supplied `roadmap_approval_ref` plus a `marker_verified` flag, which any caller could set | `ApprovalGate` reads the marker itself via a `marker_reader` seam; context refs ignored; TP scenarios rewritten; trust boundary of the marker stated in D8 |
+| 2 | consistency | medium | SV said prepare blocks on "exit non-zero", but `--check-vendors` exits 2 both below quorum and on roster failure, so a below-quorum batch would never launch | Failure is defined by unparseable JSON or an `error` field; below-quorum launches with an honest profile (new scenario); PI specifies the `error` JSON shape |
+| 3 | testability | medium | PI "no env key read" scenario was unimplementable for SDK/API lanes, whose no-op needs credentials | Credentials only through the adapter's own path; test asserts sentinel secrets never appear in output and no `env`/`printenv` subprocess |
+| 4 | assumptions | medium | "quorum from the routing cost policy" — `routing.yaml` has tiers but no quorum | D10: `min_quorum` default 2 per review phase, router-context override, `counting_lanes` ordered by the tier ladder; `routing.yaml` not edited |
+| 5 | parallelizability | medium | wp-posture (a root) would have needed `read_launch_marker` from wp-contract-lib | `marker_reader` seam with lazy default import keeps wp-posture a root |
+
+Remaining below threshold: none new.

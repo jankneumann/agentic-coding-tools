@@ -39,8 +39,8 @@
   validation; `trust-posture.schema.json` and `TRUST_POSTURE.template.md` document it.
   (dep 3.1) — TP Roadmap-Approval-Scoped Auto Dispositions
 - [ ] 3.3 `approval_gate.py`: `provenance` on every decision record; scoped `auto` for
-  `proposal_approval` / `replan_required` using a context `roadmap_approval_ref` +
-  `marker_verified` flag; `scope` recorded. `gate-decision.schema.json` and
+  `proposal_approval` / `replan_required` using a `marker_reader` seam (context-supplied
+  refs ignored); `scope` recorded. `gate-decision.schema.json` and
   `gate-request.schema.json` gain `provenance`, `scope`, `posture.posture_digest`.
   (dep 3.2) — TP; SV Typed Gate Answers With Provenance
 

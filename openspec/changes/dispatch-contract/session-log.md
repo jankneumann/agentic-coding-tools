@@ -52,3 +52,29 @@ GATEKEEPER verdict proceed_with_review: outcomes verifiable via tests, moderate 
 ### Context
 Replaced the plan-roadmap scaffold with a concrete plan: proposal with Why/What Changes/Non-Goals/Impact, design D1-D11 (plus D10a), five spec deltas against real capabilities covering all eight ri-21 outcomes, 30 traceable tasks and a validated nine-package work-packages.yaml. Addressed 3 critical, 9 high and 9 medium findings, including per-generation launch tokens (digest-only storage made same-token resume impossible), abandoned-DONE mis-mapping, and an explicit gate-authority rule between child and supervisor.
 
+---
+
+## Phase: Plan Iteration 2 (2026-10-06)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **ApprovalGate reads the launch marker through an injected seam and ignores context refs** `architectural: trust-posture` — A context value can be set by any caller; the marker is written by child_start after supervisor verification. The seam also keeps wp-posture independent of wp-contract-lib.
+2. **Review quorum defaults to 2 per review phase with a router-context override** `architectural: supervise` — routing.yaml defines a cost ladder but no quorum; 2 is today's --min-vendors and the ladder orders lanes without excluding tiers. Recorded as a decision because this phase cannot ask the operator.
+3. **Below-quorum availability still launches** `architectural: supervise` — check-vendors exits 2 for both below-quorum and roster failure; only an error field or unparseable JSON blocks prepare, and the child parks capability_unavailable honestly at review.
+
+### Alternatives Considered
+- Fail prepare whenever the batch is below quorum: rejected because Plan phases before review still make progress, and the park makes the gap visible as one escalation
+
+### Trade-offs
+- Accepted marker trusted to the child's own trust level over cryptographic marker signing because anything able to forge the marker can already act as the child
+
+### Completed Work
+- TP: marker_reader seam, context refs ignored
+- SV: prepare failure semantics and below-quorum scenario
+- PI: credential-disclosure scenario, error JSON shape
+- D10: review_requirements source defined
+
+### Context
+Second pass found one high and four medium issues: scoped auto trusted a caller-supplied approval ref, the check-vendors exit-code contract contradicted prepare's failure rule, the credential-probe test was unimplementable for API lanes, and the quorum source was unstated. All fixed in design D8/D10 and the supervise, trust-posture and parallel-infrastructure deltas.
+

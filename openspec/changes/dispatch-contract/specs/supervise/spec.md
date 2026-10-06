@@ -41,15 +41,19 @@ Every gate-decision record the router writes SHALL carry `provenance`, either `{
 
 ### Requirement: Execution Profile and Review Requirements
 
-Before launching a batch, the supervisor SHALL resolve an `execution_profile` (verified lanes per mode `review`, `alternative`, `quick`; `location`; isolation mode; and `probe_command`, the only probe a worker may run) by invoking `review_dispatcher.py --check-vendors --json`, and `review_requirements` (minimum quorum per review phase and the lanes that count toward it, taken from the routing cost policy), and SHALL place both in every request. The worker protocol in `skills/autopilot/SKILL.md` SHALL forbid reading environment variables or credentials to discover capabilities. `ExecutionAdapter.apply` SHALL persist the result's `degradations` on the checkpoint attempt and SHALL return them in its summary.
+Before launching a batch, the supervisor SHALL resolve an `execution_profile` (verified lanes per mode `review`, `alternative`, `quick`; `location`; isolation mode; and `probe_command`, the only probe a worker may run) by invoking `review_dispatcher.py --check-vendors --json`, and `review_requirements` (`min_quorum` per review phase, default 2 and overridable by router context `review_min_quorum`, and `counting_lanes` ordered by the `cost_policy.tiers` ladder of `agent-coordinator/routing.yaml`), and SHALL place both in every request. The worker protocol in `skills/autopilot/SKILL.md` SHALL forbid reading environment variables or credentials to discover capabilities. `ExecutionAdapter.apply` SHALL persist the result's `degradations` on the checkpoint attempt and SHALL return them in its summary.
 
 #### Scenario: Request carries a resolved profile
 - **WHEN** `prepare` returns a batch
 - **THEN** every request SHALL validate against `dispatch-request.schema.json` with non-empty `execution_profile.lanes.review`, `execution_profile.probe_command`, and `review_requirements.min_quorum` keyed by review phase
 
 #### Scenario: Profile resolution failure blocks launch
-- **WHEN** `--check-vendors --json` exits non-zero or prints invalid JSON
+- **WHEN** `--check-vendors --json` prints output that does not parse as JSON, or JSON carrying an `error` field
 - **THEN** `prepare` SHALL raise without writing any attempt, and the error SHALL name the probe failure
+
+#### Scenario: Below-quorum availability still launches with an honest profile
+- **WHEN** `--check-vendors --json` exits 2 (below quorum) with valid JSON and no `error` field
+- **THEN** `prepare` SHALL succeed, and each request's `execution_profile.lanes.review` SHALL list only the verified lanes, so the child parks `capability_unavailable` at its first review phase
 
 #### Scenario: Degradations reach the checkpoint
 - **WHEN** a success result carries `degradations: [{code: single_vendor_review, phase: PLAN_REVIEW, detail: "codex not dispatchable"}]`

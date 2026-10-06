@@ -213,11 +213,20 @@ exist only in memory.
 `TRUST_POSTURE.md` gate configs for `proposal_approval` and `replan_required` gain an
 optional `unscoped` sub-config (same shape as a gate config, `auto` disallowed),
 defaulting to `{disposition: block}`. `approval_gate` resolves those two gates as
-follows: `auto` applies only when the evaluation context carries a
-`roadmap_approval_ref` that the child read from its current launch marker (written by
-`child_start` after the supervisor verified the ref with `require_approval_ref`).
-Without one, the `unscoped` config applies and the decision's `reason` names the
-fallback. The `scope` used is recorded in the gate-decision record.
+follows: `auto` applies only when the current launch marker (written by `child_start`
+after the supervisor verified the ref with `require_approval_ref`) carries a
+`roadmap_approval_ref`. `ApprovalGate` obtains the marker itself through an injected
+`marker_reader` seam (default: a lazy import of
+`dispatch_contract.read_launch_marker`); a `roadmap_approval_ref` supplied in the
+evaluation context is ignored, so no caller can assert scope by passing a value.
+Without a marker ref, the `unscoped` config applies and the decision's `reason` names
+the fallback. The `scope` used is recorded in the gate-decision record. The seam lets
+`wp-posture` land and test before `wp-contract-lib` exists.
+
+Trust boundary: the marker lives in the child's own worktree (gitignored
+`.supervised-dispatch/`). Anything able to forge it can already act as the child, so
+the marker is trusted to the same degree as the child process; it is not a defence
+against a malicious child.
 
 - *Alternative:* the child re-verifies the ref against the roadmap checkpoint.
   Rejected: the checkpoint lives on the roadmap branch, not the change branch; the
@@ -246,10 +255,16 @@ redacted by `runner.py park` in the child, and re-sanitized by the router.
 
 The supervisor resolves `execution_profile` once per batch with
 `review_dispatcher.py --check-vendors --json`, which reports, per mode, the lanes for
-which a dry invocation (`<cli> --version` or the adapter's declared no-op, with a
-10-second timeout and no environment inspection) succeeded. The profile names
-`probe_command`, the only probe a worker may re-run. `review_requirements` is derived
-from the routing cost policy: minimum quorum per review phase and the lanes that count.
+which a dry invocation (`<cli> --version`, or for SDK/API lanes the adapter's own
+authenticated no-op, with a 10-second timeout) succeeded. Credentials are touched only
+inside the adapter's existing credential path and never printed; workers never probe. The profile names
+`probe_command`, the only probe a worker may re-run. `review_requirements` holds
+`min_quorum` per review phase (`PLAN_REVIEW`, `IMPL_REVIEW`, `VAL_REVIEW`; default 2,
+today's `--min-vendors` value, overridable by router context key `review_min_quorum`)
+and `counting_lanes`: verified lanes ordered by the `cost_policy.tiers` ladder in
+`agent-coordinator/routing.yaml` (subscription-local, subscription-cloud, metered-api).
+The ladder orders lanes; it does not exclude any tier from counting. `routing.yaml`
+itself is not edited.
 
 In a dispatched child (launch marker present), a review phase whose verified lanes are
 fewer than `review_requirements.min_quorum[phase]` records
