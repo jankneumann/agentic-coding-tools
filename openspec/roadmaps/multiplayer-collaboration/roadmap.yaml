@@ -57,8 +57,10 @@ items:
     and missing/stale behavior.
 - item_id: ri-21
   title: Publish the supervisor-worker dispatch contract
-  change_id: dispatch-contract
-  status: approved
+  status: in_progress
+  priority: 1
+  effort: L
+  depends_on: []
   description: 'Publish versioned dispatch-request and dispatch-result JSON schemas
     as the single definition of the supervisor-worker boundary; emit results from
     loop-state via runner.py emit-result; add gate provenance with posture-digest
@@ -72,9 +74,7 @@ items:
   rationale: Every stall in the first supervised run occurred at an unwritten part
     of the supervisor-worker boundary; queue-dispatched work (team-work-queue, owner-routed-escalation,
     queue-dispatch-owner-acceptance) is built on it.
-  priority: 1
-  effort: L
-  depends_on: []
+  change_id: dispatch-contract
   acceptance_outcomes:
   - dispatch-request and dispatch-result schemas exist under openspec/schemas and
     execution.py and orchestrator.py validate against them with existing fixtures
@@ -533,7 +533,7 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-06T09:07:05.783053+00:00'
+updated_at: '2026-10-06T09:07:52.139541+00:00'
 refinements:
 - timestamp: '2026-10-06T08:36:39.023367+00:00'
   actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA

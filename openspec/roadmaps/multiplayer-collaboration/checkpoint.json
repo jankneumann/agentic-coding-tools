@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-06T08:41:07.129099+00:00",
+  "updated_at": "2026-10-06T09:08:13.188521+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -540,6 +540,83 @@
         "handle": "session_01SFH32A8gaJCyUn6j7uBLgb",
         "go_released_at": "2026-10-05T07:11:15.926635+00:00",
         "entered_at": "2026-10-05T07:11:16.195044+00:00"
+      }
+    },
+    {
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "item_id": "ri-21",
+      "change_id": "dispatch-contract",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "launched",
+      "prepared_at": "2026-10-06T09:07:52.136681+00:00",
+      "launch_token": "p4ZVttf27O_h5wk8PTy32Smp1hf9FJw-",
+      "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "ri21-odJtVU3Uvo0ycY-W6cbW-DyE",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-06T09:08:00.008712+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "ri21-odJtVU3Uvo0ycY-W6cbW-DyE",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-06T09:08:12.934187+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "ri21-odJtVU3Uvo0ycY-W6cbW-DyE",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-06T09:08:12.934187+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "ri21-odJtVU3Uvo0ycY-W6cbW-DyE",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-06T09:08:13.188463+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW"
+        }
+      ],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [],
+        "lock_keys": []
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/dispatch-contract",
+        "branch": "openspec/dispatch-contract"
+      },
+      "context": {},
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "ri21-odJtVU3Uvo0ycY-W6cbW-DyE",
+        "state": "active",
+        "acquired_at": "2026-10-06T09:08:00.008712+00:00",
+        "heartbeat_at": "2026-10-06T09:08:00.008712+00:00",
+        "expires_at": "2026-10-06T10:08:00.008712+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW",
+        "observed_at": "2026-10-06T09:08:12.934187+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW",
+        "go_released_at": "2026-10-06T09:08:12.934187+00:00",
+        "entered_at": "2026-10-06T09:08:13.188463+00:00"
       }
     }
   ]
