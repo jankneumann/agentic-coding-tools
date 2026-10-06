@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-06T09:08:13.188521+00:00",
+  "updated_at": "2026-10-06T09:33:21.943960+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -89,6 +89,53 @@
       "roadmap_id": "multiplayer-collaboration",
       "roadmap_fingerprint": "da83ca859211977a481089e031182b74ca15adaeb1b414898612c030815d8edd",
       "note": "operator re-approved after dispatch-contract refinement (2026-10-06)"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-06T09:33:10.240831+00:00",
+      "decision_id": "b353b520-767b-4bbb-89b6-614f7519e821",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-principles-guide",
+      "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+      "item_id": "ri-01",
+      "lease_generation": 3
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 operator approved B1 + relaunch (2026-10-06); answered after fix 6e6e9a6",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-06T09:33:10.558388+00:00",
+      "decision_id": "4b7dc129-5389-4120-bfcd-7afc4aafb5a9",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-principles-guide",
+      "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+      "item_id": "ri-01",
+      "lease_generation": 3,
+      "note": "operator approved B1 + relaunch (2026-10-06); answered after fix 6e6e9a6"
     }
   ],
   "dispatch_attempts": [
@@ -98,11 +145,11 @@
       "change_id": "multiplayer-principles-guide",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:01:35.452722+00:00",
       "launch_token": "M9MMyQ-nh5sn3_tvN0qA6TtJ_P-FvRzP",
       "launch_marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
-      "lease_generation": 3,
+      "lease_generation": 4,
       "launch_history": [
         {
           "generation": 1,
@@ -196,6 +243,37 @@
           "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
           "observed_at": "2026-10-05T07:13:21.647276+00:00",
           "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g3"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "ri01g4-ucglr-JndRpuqZypJ4Ng3K_O",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-06T09:33:21.458888+00:00"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "ri01g4-ucglr-JndRpuqZypJ4Ng3K_O",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-06T09:33:21.696590+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "ri01g4-ucglr-JndRpuqZypJ4Ng3K_O",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-06T09:33:21.696590+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "ri01g4-ucglr-JndRpuqZypJ4Ng3K_O",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-06T09:33:21.943874+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4"
         }
       ],
       "scope": {
@@ -209,66 +287,30 @@
         "branch": "openspec/multiplayer-principles-guide"
       },
       "context": {},
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:4b7dc129-5389-4120-bfcd-7afc4aafb5a9"
+      },
       "lease": {
-        "generation": 3,
-        "owner_nonce": "ri01g3-eOdIktxdMQ4Ba3PGGcZXn8KU",
-        "state": "released",
-        "acquired_at": "2026-10-05T07:13:21.165422+00:00",
-        "heartbeat_at": "2026-10-05T07:13:21.165422+00:00",
-        "expires_at": "2026-10-05T08:13:21.165422+00:00"
+        "generation": 4,
+        "owner_nonce": "ri01g4-ucglr-JndRpuqZypJ4Ng3K_O",
+        "state": "active",
+        "acquired_at": "2026-10-06T09:33:21.458888+00:00",
+        "heartbeat_at": "2026-10-06T09:33:21.458888+00:00",
+        "expires_at": "2026-10-06T10:33:21.458888+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 3,
-        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g3",
-        "observed_at": "2026-10-05T07:13:21.392708+00:00"
+        "generation": 4,
+        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4",
+        "observed_at": "2026-10-06T09:33:21.696590+00:00"
       },
       "launch_gate": {
-        "generation": 3,
+        "generation": 4,
         "state": "entered",
-        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g3",
-        "go_released_at": "2026-10-05T07:13:21.392708+00:00",
-        "entered_at": "2026-10-05T07:13:21.647276+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/multiplayer-principles-guide",
-          "change_id": "multiplayer-principles-guide",
-          "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
-          "evidence": {
-            "commit": "fe299028870fc1fa5cf7e589c9cada5c29cc5713",
-            "loop_state_digest": "ed39545ab8a8dfc7e43a4cb81e027c8370826c30ead522d3a476b1ce952c6fbd",
-            "loop_state_path": "openspec/changes/multiplayer-principles-guide/loop-state.json"
-          },
-          "handoff_id": "a97b7229-4868-4a94-801f-6d56414b111d",
-          "lease_generation": 3,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "pending_gate",
-            "reason": "PLAN_ITERATE sub-agent denied a read-only read of its plan artifacts by the harness permission classifier; no PhaseRecord produced; escalated (escalate_resume is block).",
-            "resume_hint": "Operator confirms sub-agent read access works, answers escalate_resume, redispatch; resumes at PLAN_ITERATE."
-          },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-principles-guide"
-        },
-        "result_digest": "ceab81cef27f55cd715f277afa8bd4a7dcca75eb06fceb700549dc484fb651eb",
-        "bound_at": "2026-10-05T09:36:11.447504+00:00",
-        "callback_started_at": "2026-10-05T09:36:11.452120+00:00",
-        "callback_acknowledged_at": "2026-10-05T09:36:11.454202+00:00",
-        "terminal_persisted_at": "2026-10-05T09:36:11.456550+00:00",
-        "effects_applied_at": "2026-10-05T09:36:11.472498+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-05T09:36:11.456522+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "pending_gate",
-        "reason": "PLAN_ITERATE sub-agent denied a read-only read of its plan artifacts by the harness permission classifier; no PhaseRecord produced; escalated (escalate_resume is block).",
-        "resume_hint": "Operator confirms sub-agent read access works, answers escalate_resume, redispatch; resumes at PLAN_ITERATE."
+        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4",
+        "go_released_at": "2026-10-06T09:33:21.696590+00:00",
+        "entered_at": "2026-10-06T09:33:21.943874+00:00"
       }
     },
     {
