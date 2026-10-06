@@ -19,3 +19,44 @@
 ### Context
 GATEKEEPER fell back to the permissive signal-only verdict: this worker session exposes no sub-agent dispatch tool (no Agent tool) and build-dispatch returned provider=null. DEGRADED: the model-based risk/verifiability judgment did not run. gate_signals show no risk signals (no db migration, no security signal, no broad write scope; proposal/specs/tasks present), so verdict = proceed.
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-06)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Restore and re-verify the lost attempt's edits instead of rewriting from scratch** `architectural: skill-procedure-deviation` — f4e388e held a complete rewrite of all four documents; every path and change-id it cites was verified to exist, so redoing it would only add risk and cost. Its content is treated as iteration-1 input, not as accepted output.
+2. **Commit to a worktree branch and push to the remote feature branch** `architectural: skill-procedure-deviation` — openspec/multiplayer-principles-guide is checked out in the shared checkout, so the harness-isolated worktree cannot check it out; worktree.py setup short-circuited (isolation_provided). Commits sit on the worktree branch based on the feature head ffca805 and are pushed as a fast-forward to origin/openspec/multiplayer-principles-guide.
+3. **Assumption findings resolved as documented decisions, not AskUserQuestion** `architectural: skill-procedure-deviation` — This runs as an autopilot phase sub-agent with no interactive user, and the operator set plans to auto under the trust posture. The one assumption (solo-mode definition, D2) is a superset of the roadmap constraint and ownership-map's outcome, and is recorded as an open question that ownership-map must confirm or amend.
+4. **Two review passes recorded as one Plan Iteration entry and one commit** `architectural: skill-procedure-deviation` — Iteration-2 edits (Solo-mode cell testability) were small and applied before the first commit; plan-findings.md keeps the per-pass breakdown.
+5. **Analyses run inline, no Explore sub-agents** `architectural: skill-procedure-deviation` — The proposal has 6 tasks and one spec delta, below the skill's 5+ tasks AND complexity bar in practice, and this phase sub-agent exposes no Agent tool; all analysis dimensions were covered inline.
+6. **Register the guard-test directory in skills/pyproject.toml testpaths** `architectural: multiplayer-collaboration` — tests/ci_coverage/test_ci_test_coverage.py fails for any test directory CI does not reach, and running the directory by name bypasses testpaths, so the gap is invisible locally. Added as requirement 'Guard test runs in the default CI sweep' and task 1.2.
+
+### Alternatives Considered
+- Exempt the test directory via _EXEMPT in test_ci_test_coverage.py: rejected because Exemption is for directories that cannot run in the shared session; this test has no skill imports.
+- Hard-code the ten principle titles in the guard test: rejected because Duplicates the guide's content in a second place; title wording is checked in review instead.
+
+### Trade-offs
+- Accepted Guard test fails when a cited sibling is renamed or deleted without archival over A looser test that ignores unresolvable change-ids because The failure is the drift signal the guide needs, and it names the stale id.
+
+### Open Questions
+- [ ] Should ownership-map (ri-02) declare depends_on: [ri-01]? (a /refine-roadmap decision)
+- [ ] Should install.sh ship the guide or a principles card to consumer repositories? (toolkit-consistency)
+- [ ] Cross-vendor plan review did not run: codex had no API key; quorum not met.
+
+### Completed Work
+- Restored full proposal/design/tasks/spec rewrite from f4e388e and verified every cited path and change-id
+- [high] feasibility: added CI testpaths registration requirement and task 1.2
+- [medium] testability: backticked change-id format for table cells
+- [medium] testability: bold-term definitions for Modes vocabulary
+- [medium] testability: principle heading prefix check; titles reviewed manually
+- [medium] testability: tmp_path case for the archival scenario
+- [medium] consistency: tasks cite D1-D8
+- [medium] testability: per-skill Solo-mode cells non-empty; passive-output-only rule
+- [low] D3 mapping completed for split capabilities; fragment stripping for link targets
+- Wrote plan-findings.md, review-findings-plan.json, reviews/consensus-plan.json
+
+### Context
+Replaced the plan-roadmap scaffold with a full plan by restoring the lost prior attempt's edits (f4e388e) and re-reviewing them against the tree; fixed one high finding (guard-test directory not registered in skills/pyproject.toml testpaths, which the CI-coverage guard requires) and six medium testability/consistency findings. A second review pass found nothing at or above medium; the cross-vendor review could not run (codex had no API key).
+
