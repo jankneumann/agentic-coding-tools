@@ -51,3 +51,15 @@ files and are ordered).
 | 5 | parallelizability | medium | wp-posture (a root) would have needed `read_launch_marker` from wp-contract-lib | `marker_reader` seam with lazy default import keeps wp-posture a root |
 
 Remaining below threshold: none new.
+
+## Iteration 3
+
+| # | Type | Criticality | Description | Fix |
+|---|------|-------------|-------------|-----|
+| 1 | completeness | medium | The marker must carry `roadmap_approval_ref` on every generation, and the supervisor-side scope check needs it too, but no attempt field stored it (prepare verified and discarded it) | Attempt persists the verified ref (D8, RO ledger scenario, tasks 2.3 / 5.3); supervisor `marker_reader` returns the attempt's ref |
+
+Remaining findings (below threshold, for optional review):
+- low: the shared lock key `feature:dispatch-contract:supervisor` on wp-merge-narrow-fix and wp-supervisor is intentional (ordered packages over the same files).
+- low: D10a marker discovery picks the highest valid generation; a stale marker left by a crashed takeover is ignored by the identity check but not cleaned up. Cleanup stays with the existing `_remove_owned_marker` path.
+
+Termination: threshold met (no findings at or above medium after iteration 3 fixes).

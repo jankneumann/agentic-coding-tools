@@ -223,6 +223,12 @@ Without a marker ref, the `unscoped` config applies and the decision's `reason` 
 the fallback. The `scope` used is recorded in the gate-decision record. The seam lets
 `wp-posture` land and test before `wp-contract-lib` exists.
 
+`prepare` persists the verified `roadmap_approval_ref` on each attempt (it is a
+`gate-decision:<uuid>` reference, not a secret) so that `child_start` can write it
+into every generation's marker and so that the supervisor-side evaluation in
+`gate_router.resolve_parked` can supply a `marker_reader` that returns the attempt's
+own ref. Both sides therefore apply the same scope rule from the same recorded fact.
+
 Trust boundary: the marker lives in the child's own worktree (gitignored
 `.supervised-dispatch/`). Anything able to forge it can already act as the child, so
 the marker is trusted to the same degree as the child process; it is not a defence

@@ -111,7 +111,7 @@ The roadmap checkpoint SHALL record every delegated dispatch attempt before its 
 
 #### Scenario: Persist a prepared batch before launch
 - **WHEN** the scheduler prepares a safe batch of delegated item requests
-- **THEN** each request's identity, exact host-portable isolation/scope/context envelope, launch digest, marker path, attempt, phase, and prepared status are saved in `checkpoint.json` before the requests are emitted
+- **THEN** each request's identity, exact host-portable isolation/scope/context envelope, launch digest, verified `roadmap_approval_ref`, marker path, attempt, phase, and prepared status are saved in `checkpoint.json` before the requests are emitted
 - **AND** a crash after preparation loses agent launch work rather than losing the identity of potentially running work
 
 #### Scenario: Resume with an unresolved attempt

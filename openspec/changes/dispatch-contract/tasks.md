@@ -25,8 +25,8 @@
   `roadmap_approval_ref`. — RO Published Dispatch Contract Schemas; SV Execution
   Profile and Review Requirements
 - [ ] 2.3 Edit `checkpoint.schema.json`: attempt `result` -> `$ref`; `launch_token` ->
-  `launch_digest` (`^sha256:[0-9a-f]{64}$`); isolation `{mode, worktree_ref, branch,
-  host_id}`; parked kinds extended; `rebound` history state. — RO Launch Token Digest,
+  `launch_digest` (`^sha256:[0-9a-f]{64}$`); attempt `roadmap_approval_ref`; isolation
+  `{mode, worktree_ref, branch, host_id}`; parked kinds extended; `rebound` history state. — RO Launch Token Digest,
   Host-Portable Attempt Isolation
 - [ ] 2.4 Mirror 2.1-2.3 into `skills/roadmap-runtime/install_assets/openspec/schemas/`
   and add the byte-parity test. (dep 2.1-2.3) — RO Published Dispatch Contract Schemas
@@ -66,6 +66,7 @@
   `launch_digest` and portable isolation; legacy migration on load; `needs_rebind`.
   (dep 5.1)
 - [ ] 5.3 `autopilot-roadmap/scripts/orchestrator.py`: mint token, store digest,
+  take and persist the verified `roadmap_approval_ref` from `ExecutionAdapter.prepare`,
   emit v2 request; replace `_validate_dispatch_result` with `dispatch_contract`;
   `resolve_worktree()` for every path read; persist `degradations` in outcome
   metadata; refuse unroutable parked results at apply (calls the answer-path predicate

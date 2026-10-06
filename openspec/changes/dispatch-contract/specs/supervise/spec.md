@@ -22,7 +22,7 @@ Every gate-decision record the router writes SHALL carry `provenance`, either `{
 
 #### Scenario: A posture-derived block clears after a posture change
 - **GIVEN** an attempt parked `pending_gate/proposal_approval` whose supervisor record has `resolution: posture_block` and `provenance.posture_digest` D1
-- **WHEN** the operator changes `TRUST_POSTURE.md` so `proposal_approval` is `auto` (digest D2) and `resolve_parked` runs with a launch marker carrying a valid `roadmap_approval_ref`
+- **WHEN** the operator changes `TRUST_POSTURE.md` so `proposal_approval` is `auto` (digest D2) and `resolve_parked` runs for the attempt, whose persisted `roadmap_approval_ref` was verified at prepare
 - **THEN** a new `proceed` record with `provenance: {source: posture, posture_digest: D2}` SHALL be written and the attempt SHALL be resumed with `gate_answer.decision: approved`
 - **AND** the child applying that answer SHALL leave `PLAN` without parking again
 

@@ -18,6 +18,17 @@
 
 ## 2026-10-06 — dispatch-contract
 
+### Phase: Plan Iteration 3
+
+**Attempts persist the verified roadmap_approval_ref** — It is a non-secret gate-decision reference; persisting it lets child_start write it into every generation's marker and lets the supervisor apply the same scope rule from the same fact.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
+
+---
+
+## 2026-10-06 — dispatch-contract
+
 ### Phase: Plan Iteration 1
 
 **Launch tokens are minted per generation and stored only as sha256 digests** — A digest-only checkpoint cannot re-emit the same token on resume, so the Durable Delegated Attempt Ledger requirement is MODIFIED; reissue is limited to states where takeover is already safe.
