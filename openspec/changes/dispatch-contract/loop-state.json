@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "dispatch-contract",
-  "current_phase": "PLAN_ITERATE",
+  "current_phase": "PLAN_REVIEW",
   "iteration": 0,
-  "total_iterations": 3,
+  "total_iterations": 4,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -13,18 +13,24 @@
   "implementation_strategy": {},
   "memory_ids": [],
   "handoff_ids": [
-    "6166f2e8-de8e-4375-8750-316e09fd34f6"
+    "6166f2e8-de8e-4375-8750-316e09fd34f6",
+    "63b11a2c-616f-4b7a-91a1-c6d1278bde31"
   ],
   "phase_history": [
     {
       "at": "2026-10-06T09:10:51.641130+00:00",
       "outcome": "proceed_with_review",
       "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-10-06T09:30:38.405916+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
     }
   ],
-  "last_handoff_id": "6166f2e8-de8e-4375-8750-316e09fd34f6",
+  "last_handoff_id": "63b11a2c-616f-4b7a-91a1-c6d1278bde31",
   "started_at": "2026-10-06T09:08:58.470413+00:00",
-  "phase_started_at": "2026-10-06T09:11:17.767198+00:00",
+  "phase_started_at": "2026-10-06T09:30:41.384455+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
@@ -36,19 +42,19 @@
   "gate_verdict": "proceed_with_review",
   "gate_decisions": [
     {
-      "gate": "proposal_approval",
-      "outcome": "proceed",
-      "resolution": "auto",
-      "authorizing_disposition": "auto",
-      "reason": "gate 'proposal_approval' auto-approved by trust posture",
       "approval_id": null,
+      "authorizing_disposition": "auto",
       "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "auto",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "proceed",
       "phase": "PLAN",
-      "recorded_at": "2026-10-06T09:11:03.554035+00:00"
+      "posture_present": true,
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "recorded_at": "2026-10-06T09:11:03.554035+00:00",
+      "resolution": "auto",
+      "timeout_seconds": null
     }
   ],
   "pending_gate": null,
