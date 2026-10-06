@@ -869,7 +869,9 @@ class ExecutionAdapter:
         )
         gate_router.require_approval_ref(
             checkpoint, approval_ref, gate=expected_gate, dispatch_id=dispatch_id,
-            lease_generation=attempt["lease_generation"] if kind == "policy_pause" else None,
+            lease_generation=(
+                attempt["lease_generation"] if expected_gate is Gate.ESCALATE_RESUME else None
+            ),
         )
         request = self._resume_attempt(checkpoint, attempt, approval_ref=approval_ref, kind=kind)
         manager.save(checkpoint)
