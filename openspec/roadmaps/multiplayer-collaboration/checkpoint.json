@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-06T11:10:12.306300+00:00",
+  "updated_at": "2026-10-06T11:10:58.071193+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -424,7 +424,7 @@
       "change_id": "ownership-map",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_token": "KQrZDLksm--dBjDWB7rzaGhHy-fSa7TB",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
@@ -476,7 +476,7 @@
       "lease": {
         "generation": 1,
         "owner_nonce": "ri02-e0saEYfAGD5FzMb7Yd7KCmWC",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-05T07:10:21.990818+00:00",
         "heartbeat_at": "2026-10-05T07:10:21.990818+00:00",
         "expires_at": "2026-10-05T08:10:21.990818+00:00"
@@ -493,6 +493,46 @@
         "handle": "session_011LTtuyAcYi2oaHLoJtpwwM",
         "go_released_at": "2026-10-05T07:10:30.250662+00:00",
         "entered_at": "2026-10-05T07:10:30.547171+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/ownership-map",
+          "change_id": "ownership-map",
+          "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+          "evidence": {
+            "commit": "bfcdd6db4f6bfed1aedac71c9fa85b6c923288b8",
+            "loop_state_digest": "391084e1d0a4dc83e9be0088c46c392f8f935186a94867b8aeabc98550b61bce",
+            "loop_state_path": "openspec/changes/ownership-map/loop-state.json"
+          },
+          "handoff_id": "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "pending_gate",
+            "reason": "capability_unavailable: PLAN_REVIEW multi-vendor quorum (min_quorum 2) unattainable - codex lane has no CLI and no usable key in the cloud container; review_dispatcher --check-vendors falsely reports 2/2.",
+            "resume_hint": "Answer escalate_resume once a second review lane exists; loop returns to PLAN_REVIEW."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/ownership-map"
+        },
+        "result_digest": "18f11b41e411c9f64e5457546cfc6f93836c006c3087e4a7291c949963865cf3",
+        "bound_at": "2026-10-06T11:10:58.039253+00:00",
+        "callback_started_at": "2026-10-06T11:10:58.042099+00:00",
+        "callback_acknowledged_at": "2026-10-06T11:10:58.043905+00:00",
+        "terminal_persisted_at": "2026-10-06T11:10:58.046255+00:00",
+        "effects_applied_at": "2026-10-06T11:10:58.071081+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-06T11:10:58.046231+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "pending_gate",
+        "reason": "capability_unavailable: PLAN_REVIEW multi-vendor quorum (min_quorum 2) unattainable - codex lane has no CLI and no usable key in the cloud container; review_dispatcher --check-vendors falsely reports 2/2.",
+        "resume_hint": "Answer escalate_resume once a second review lane exists; loop returns to PLAN_REVIEW."
       }
     },
     {
