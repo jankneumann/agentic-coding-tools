@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-06T09:33:21.943960+00:00",
+  "updated_at": "2026-10-06T09:47:58.894235+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -136,6 +136,29 @@
       "item_id": "ri-01",
       "lease_generation": 3,
       "note": "operator approved B1 + relaunch (2026-10-06); answered after fix 6e6e9a6"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-06T09:47:58.884158+00:00",
+      "decision_id": "df918905-9bea-4878-af28-0e6e8d3ae805",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-principles-guide",
+      "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+      "item_id": "ri-01",
+      "lease_generation": 4
     }
   ],
   "dispatch_attempts": [
@@ -145,7 +168,7 @@
       "change_id": "multiplayer-principles-guide",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:01:35.452722+00:00",
       "launch_token": "M9MMyQ-nh5sn3_tvN0qA6TtJ_P-FvRzP",
       "launch_marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
@@ -287,14 +310,10 @@
         "branch": "openspec/multiplayer-principles-guide"
       },
       "context": {},
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:4b7dc129-5389-4120-bfcd-7afc4aafb5a9"
-      },
       "lease": {
         "generation": 4,
         "owner_nonce": "ri01g4-ucglr-JndRpuqZypJ4Ng3K_O",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-06T09:33:21.458888+00:00",
         "heartbeat_at": "2026-10-06T09:33:21.458888+00:00",
         "expires_at": "2026-10-06T10:33:21.458888+00:00"
@@ -311,6 +330,46 @@
         "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4",
         "go_released_at": "2026-10-06T09:33:21.696590+00:00",
         "entered_at": "2026-10-06T09:33:21.943874+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/multiplayer-principles-guide",
+          "change_id": "multiplayer-principles-guide",
+          "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+          "evidence": {
+            "commit": "bdfb75b46ec7567ceed4bc4f10864b461eb382f9",
+            "loop_state_digest": "f7d5369ef503defc72321022269e4c296195cb7e91d4c87596c5b7d9de15051e",
+            "loop_state_path": "openspec/changes/multiplayer-principles-guide/loop-state.json"
+          },
+          "handoff_id": "2a44bdc8-051f-4c39-ab9d-c1c299adbc2c",
+          "lease_generation": 4,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "policy_pause",
+            "reason": "PLAN_REVIEW quorum_lost (1/2): codex SDK lane has no credential and no CLI although --check-vendors reports 2/2; lowering quorum to 1 was denied by the harness classifier (Auto-Mode Bypass).",
+            "resume_hint": "Provide a second review lane (GX10 queue or codex credential) or an operator-recorded single-vendor authorization, then answer escalate_resume."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-principles-guide"
+        },
+        "result_digest": "112293e35c25fd9b3ec1f1a6d0129b7fea3bcd45508ffcc10644fc916100d50c",
+        "bound_at": "2026-10-06T09:47:56.187911+00:00",
+        "callback_started_at": "2026-10-06T09:47:56.193684+00:00",
+        "callback_acknowledged_at": "2026-10-06T09:47:56.196570+00:00",
+        "terminal_persisted_at": "2026-10-06T09:47:56.198677+00:00",
+        "effects_applied_at": "2026-10-06T09:47:56.231117+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-06T09:47:56.198652+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "policy_pause",
+        "reason": "PLAN_REVIEW quorum_lost (1/2): codex SDK lane has no credential and no CLI although --check-vendors reports 2/2; lowering quorum to 1 was denied by the harness classifier (Auto-Mode Bypass).",
+        "resume_hint": "Provide a second review lane (GX10 queue or codex credential) or an operator-recorded single-vendor authorization, then answer escalate_resume."
       }
     },
     {
