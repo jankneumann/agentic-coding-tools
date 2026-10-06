@@ -13,3 +13,42 @@
 ### Context
 GATEKEEPER verdict proceed_with_review: outcomes verifiable via tests, moderate reversible risk; edits autopilot gate/park logic so VAL_REVIEW enabled.
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-06)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Spec deltas target existing capabilities, not the placeholder** `architectural: roadmap-orchestration` — multiplayer-collaboration is a roadmap, not a capability; the touched behaviour is owned by roadmap-orchestration, supervise, skill-workflow, trust-posture and parallel-infrastructure.
+2. **Launch tokens are minted per generation and stored only as sha256 digests** `architectural: roadmap-orchestration` — A digest-only checkpoint cannot re-emit the same token on resume, so the Durable Delegated Attempt Ledger requirement is MODIFIED; reissue is limited to states where takeover is already safe.
+3. **Dispatched children defer gate authority to the supervisor** `architectural: supervise` — Issue 1 arose because child and supervisor postures differed; the marker carries the supervisor posture digest and drift disables auto, so one holder is authoritative.
+4. **Non-auto fallback is an optional `unscoped` posture sub-config defaulting to block** `architectural: trust-posture` — The outcome names a fallback but the posture schema has none; a declared field keeps operators able to choose notify_with_timeout while failing closed by default. Recorded as a decision rather than asked: this phase sub-agent has no interactive channel to the operator.
+5. **Deviation: assumption findings recorded as decisions instead of AskUserQuestion** `architectural: skill-procedure-deviation` — iterate-on-plan requires surfacing assumptions interactively, but this run is an autopilot phase sub-agent that must return (outcome, handoff_id) without intermediate state; D8 and D10a are recorded with alternatives so PLAN_REVIEW or the operator can overturn them.
+6. **Deviation: analysis run inline rather than via parallel Explore sub-agents** `architectural: skill-procedure-deviation` — The harness exposed no sub-agent dispatch tool to this phase sub-agent; the five analysis dimensions were covered inline in one pass and the findings table records each dimension.
+7. **Deviation: worked in the harness-provided isolated worktree instead of worktree.py setup** `architectural: skill-procedure-deviation` — The feature branch is checked out in the shared checkout and the harness forbids git operations outside this worktree; the worktree branch was reset to the openspec/dispatch-contract tip (8f1f248) so commits fast-forward onto the feature branch.
+
+### Alternatives Considered
+- Keep hand validators with a parity test: rejected because Two definitions are the root cause the item removes
+- Child re-verifies roadmap_approval_ref against the roadmap checkpoint: rejected because Checkpoint lives on the roadmap branch; the generation-verified launch marker is the channel both sides share
+- Map every DONE to success: rejected because ESCALATE --abandoned--> DONE would complete abandoned items
+
+### Trade-offs
+- Accepted v1 request/result tolerance for a migration window over a clean v2-only cut because workers already running on multiplayer-collaboration return v1
+- Accepted one escalation per permission rule fingerprint over one per blocked command because operators fix rules, not commands
+
+### Open Questions
+- [ ] Raw tokens already in the roadmap branch history still fail full-history gitleaks; squash or SHA allowlist is the operator's decision.
+- [ ] When to remove v1 reading (trigger: no unresolved attempt carries a v1 result).
+
+### Completed Work
+- proposal.md rewritten with required sections and Impact table
+- design.md D1-D11 with alternatives and risks
+- specs: roadmap-orchestration (3 ADDED, 2 MODIFIED), supervise (4), skill-workflow (4), trust-posture (1), parallel-infrastructure (1)
+- tasks.md: 30 tasks, dependencies, traceability table
+- work-packages.yaml: 9 packages, validated
+- plan-findings.md iteration 1
+
+### Context
+Replaced the plan-roadmap scaffold with a concrete plan: proposal with Why/What Changes/Non-Goals/Impact, design D1-D11 (plus D10a), five spec deltas against real capabilities covering all eight ri-21 outcomes, 30 traceable tasks and a validated nine-package work-packages.yaml. Addressed 3 critical, 9 high and 9 medium findings, including per-generation launch tokens (digest-only storage made same-token resume impossible), abandoned-DONE mis-mapping, and an explicit gate-authority rule between child and supervisor.
+

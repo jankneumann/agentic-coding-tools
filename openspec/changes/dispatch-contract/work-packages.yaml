@@ -1,0 +1,542 @@
+# Packages are shaped by file ownership; see design.md "Package boundaries and ordering".
+schema_version: 1
+feature:
+  id: dispatch-contract
+  title: Publish the supervisor-worker dispatch contract
+  plan_revision: 2
+  created_by: claude-code
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/schemas/dispatch-result.schema.json
+    files:
+    - openspec/schemas/dispatch-request.schema.json
+    - openspec/schemas/dispatch-result.schema.json
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+- package_id: wp-merge-narrow-fix
+  title: Merge supervise-pending-escalate-answer
+  task_type: integration
+  description: Task 1.1. Merge origin/openspec/supervise-pending-escalate-answer (6e6e9a6) unchanged.
+  role: integrator
+  priority: 1
+  depends_on: []
+  locks:
+    files:
+    - skills/supervise/SKILL.md
+    - skills/supervise/scripts/execution.py
+    - skills/supervise/scripts/gate_router.py
+    - skills/tests/supervise/test_gate_router.py
+    keys:
+    - feature:dispatch-contract:supervisor
+    ttl_minutes: 120
+    reason: Merge supervise-pending-escalate-answer
+  scope:
+    write_allow:
+    - skills/supervise/SKILL.md
+    - skills/supervise/scripts/execution.py
+    - skills/supervise/scripts/gate_router.py
+    - skills/tests/supervise/test_gate_router.py
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-merge-narrow-fix
+    mode: isolated
+  timeout_minutes: 60
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: wp-merge-narrow-fix tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/supervise/test_gate_router.py -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_merge_narrow_fix_pass
+  metadata:
+    loc_estimate: 260
+    complexity: low
+    package_kind: integration
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_merge_narrow_fix_pass
+    artifacts: []
+- package_id: wp-dispatch-schemas
+  title: Dispatch request/result and checkpoint schemas
+  task_type: contracts
+  description: Tasks 2.1-2.4. Publish dispatch-request/result v2, edit checkpoint schema, mirror to install_assets,
+    parity test.
+  role: contracts-author
+  priority: 1
+  depends_on: []
+  locks:
+    files:
+    - openspec/schemas/dispatch-request.schema.json
+    - openspec/schemas/dispatch-result.schema.json
+    - openspec/schemas/checkpoint.schema.json
+    - skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-request.schema.json
+    - skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-result.schema.json
+    - skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json
+    - skills/tests/roadmap-runtime/test_dispatch_schema_parity.py
+    keys:
+    - contract:dispatch-request
+    - contract:dispatch-result
+    - contract:checkpoint
+    ttl_minutes: 120
+    reason: Dispatch request/result and checkpoint schemas
+  scope:
+    write_allow:
+    - openspec/schemas/dispatch-request.schema.json
+    - openspec/schemas/dispatch-result.schema.json
+    - openspec/schemas/checkpoint.schema.json
+    - skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-request.schema.json
+    - skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-result.schema.json
+    - skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json
+    - skills/tests/roadmap-runtime/test_dispatch_schema_parity.py
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-dispatch-schemas
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: C
+    steps:
+    - name: wp-dispatch-schemas tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime/test_dispatch_schema_parity.py
+        -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_dispatch_schemas_pass
+  metadata:
+    loc_estimate: 450
+    complexity: medium
+    package_kind: config
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_dispatch_schemas_pass
+    artifacts: []
+- package_id: wp-posture
+  title: Posture digest, provenance, scoped auto
+  task_type: implementation
+  description: Tasks 3.1-3.3. posture_digest, unscoped fallback, provenance and scope on gate decisions;
+    gate-decision/gate-request/trust-posture schemas.
+  role: implementer
+  priority: 1
+  depends_on: []
+  locks:
+    files:
+    - skills/shared/trust_posture.py
+    - skills/shared/approval_gate.py
+    - openspec/schemas/trust-posture.schema.json
+    - openspec/schemas/gate-decision.schema.json
+    - openspec/schemas/gate-request.schema.json
+    - TRUST_POSTURE.template.md
+    - skills/tests/shared/test_trust_posture_scope.py
+    - skills/tests/shared/test_approval_gate_provenance.py
+    keys:
+    - contract:gate-decision
+    - contract:trust-posture
+    - feature:dispatch-contract:posture
+    ttl_minutes: 120
+    reason: Posture digest, provenance, scoped auto
+  scope:
+    write_allow:
+    - skills/shared/trust_posture.py
+    - skills/shared/approval_gate.py
+    - openspec/schemas/trust-posture.schema.json
+    - openspec/schemas/gate-decision.schema.json
+    - openspec/schemas/gate-request.schema.json
+    - TRUST_POSTURE.template.md
+    - skills/tests/shared/test_trust_posture_scope.py
+    - skills/tests/shared/test_approval_gate_provenance.py
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-posture
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: wp-posture tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/shared/test_trust_posture_scope.py skills/tests/shared/test_approval_gate_provenance.py
+        skills/shared/tests -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_posture_pass
+  metadata:
+    loc_estimate: 350
+    complexity: medium
+    package_kind: algorithm
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_posture_pass
+    artifacts: []
+- package_id: wp-contract-lib
+  title: shared/dispatch_contract.py
+  task_type: implementation
+  description: Tasks 4.1-4.2. Schema loader/validator, v1 upgrade, loop-state mapping, slug, launch-marker
+    reader.
+  role: implementer
+  priority: 2
+  depends_on:
+  - wp-dispatch-schemas
+  locks:
+    files:
+    - skills/shared/dispatch_contract.py
+    - skills/tests/shared/test_dispatch_contract.py
+    keys:
+    - feature:dispatch-contract:contractlib
+    ttl_minutes: 120
+    reason: shared/dispatch_contract.py
+  scope:
+    write_allow:
+    - skills/shared/dispatch_contract.py
+    - skills/tests/shared/test_dispatch_contract.py
+    - skills/tests/shared/fixtures/dispatch_contract/**
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-contract-lib
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: wp-contract-lib tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/shared/test_dispatch_contract.py -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_contract_lib_pass
+  metadata:
+    loc_estimate: 400
+    complexity: medium
+    package_kind: algorithm
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_contract_lib_pass
+    artifacts: []
+- package_id: wp-runtime-ledger
+  title: Checkpoint attempt shape and orchestrator
+  task_type: implementation
+  description: Tasks 5.1-5.3. launch_digest, host-portable isolation, legacy migration, orchestrator prepare/apply
+    on the contract.
+  role: implementer
+  priority: 3
+  depends_on:
+  - wp-contract-lib
+  locks:
+    files:
+    - skills/roadmap-runtime/scripts/models.py
+    - skills/roadmap-runtime/scripts/checkpoint.py
+    - skills/autopilot-roadmap/scripts/orchestrator.py
+    - skills/tests/roadmap-runtime/test_delegated_checkpoint.py
+    - skills/tests/roadmap-runtime/test_checkpoint_legacy_migration.py
+    - skills/tests/roadmap-runtime/test_dispatch_scheduler.py
+    - skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py
+    keys:
+    - feature:dispatch-contract:ledger
+    ttl_minutes: 120
+    reason: Checkpoint attempt shape and orchestrator
+  scope:
+    write_allow:
+    - skills/roadmap-runtime/scripts/models.py
+    - skills/roadmap-runtime/scripts/checkpoint.py
+    - skills/autopilot-roadmap/scripts/orchestrator.py
+    - skills/tests/roadmap-runtime/test_delegated_checkpoint.py
+    - skills/tests/roadmap-runtime/test_checkpoint_legacy_migration.py
+    - skills/tests/roadmap-runtime/test_dispatch_scheduler.py
+    - skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-runtime-ledger
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: wp-runtime-ledger tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime skills/tests/autopilot-roadmap
+        -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_runtime_ledger_pass
+  metadata:
+    loc_estimate: 500
+    complexity: high
+    package_kind: migration
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_runtime_ledger_pass
+    artifacts: []
+- package_id: wp-autopilot-child
+  title: Loop state v6, emit-result, park, gate re-evaluation
+  task_type: implementation
+  description: Tasks 6.1-6.5. runner.py emit-result/park/record-degradation/gate-answer --approval-ref,
+    gate-check re-evaluation, LoopState v6, autopilot SKILL worker protocol.
+  role: implementer
+  priority: 3
+  depends_on:
+  - wp-contract-lib
+  - wp-posture
+  locks:
+    files:
+    - skills/autopilot/scripts/runner.py
+    - skills/autopilot/scripts/autopilot.py
+    - skills/autopilot/SKILL.md
+    - skills/tests/autopilot/test_emit_result.py
+    - skills/tests/autopilot/test_loop_state_v6.py
+    - skills/tests/autopilot/test_gate_check_reeval.py
+    keys:
+    - feature:dispatch-contract:autopilot
+    ttl_minutes: 120
+    reason: Loop state v6, emit-result, park, gate re-evaluation
+  scope:
+    write_allow:
+    - skills/autopilot/scripts/runner.py
+    - skills/autopilot/scripts/autopilot.py
+    - skills/autopilot/SKILL.md
+    - skills/tests/autopilot/test_emit_result.py
+    - skills/tests/autopilot/test_loop_state_v6.py
+    - skills/tests/autopilot/test_gate_check_reeval.py
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-autopilot-child
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: wp-autopilot-child tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/autopilot -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_autopilot_child_pass
+  metadata:
+    loc_estimate: 550
+    complexity: high
+    package_kind: algorithm
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_autopilot_child_pass
+    artifacts: []
+- package_id: wp-review-honesty
+  title: Dispatchable vendor verification and quorum park
+  task_type: implementation
+  description: Tasks 7.1-7.3. --check-vendors dry invocation and --json; capability_unavailable park in
+    convergence loop.
+  role: implementer
+  priority: 4
+  depends_on:
+  - wp-autopilot-child
+  locks:
+    files:
+    - skills/parallel-infrastructure/scripts/review_dispatcher.py
+    - skills/autopilot/scripts/convergence_loop.py
+    - skills/tests/parallel-infrastructure/test_check_vendors_dispatchable.py
+    - skills/tests/autopilot/test_quorum_park.py
+    keys:
+    - feature:dispatch-contract:review
+    ttl_minutes: 120
+    reason: Dispatchable vendor verification and quorum park
+  scope:
+    write_allow:
+    - skills/parallel-infrastructure/scripts/review_dispatcher.py
+    - skills/autopilot/scripts/convergence_loop.py
+    - skills/tests/parallel-infrastructure/test_check_vendors_dispatchable.py
+    - skills/tests/autopilot/test_quorum_park.py
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-review-honesty
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: wp-review-honesty tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_check_vendors_dispatchable.py
+        skills/tests/autopilot/test_quorum_park.py -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_review_honesty_pass
+  metadata:
+    loc_estimate: 300
+    complexity: medium
+    package_kind: algorithm
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_review_honesty_pass
+    artifacts: []
+- package_id: wp-supervisor
+  title: Execution adapter and gate router
+  task_type: implementation
+  description: Tasks 8.1-8.4. Token verify/rotate/reissue, rebind/reinitialize, execution profile, ANSWER_PATHS,
+    provenance re-evaluation, dedupe escalation, supervise SKILL.
+  role: implementer
+  priority: 4
+  depends_on:
+  - wp-merge-narrow-fix
+  - wp-posture
+  - wp-runtime-ledger
+  locks:
+    files:
+    - skills/supervise/scripts/execution.py
+    - skills/supervise/scripts/gate_router.py
+    - skills/supervise/SKILL.md
+    keys:
+    - feature:dispatch-contract:supervisor
+    ttl_minutes: 120
+    reason: Execution adapter and gate router
+  scope:
+    write_allow:
+    - skills/supervise/scripts/execution.py
+    - skills/supervise/scripts/gate_router.py
+    - skills/supervise/SKILL.md
+    - skills/tests/supervise/test_execution.py
+    - skills/tests/supervise/test_gate_router.py
+    - skills/tests/supervise/test_gate_router_e2e.py
+    - skills/tests/supervise/fixtures/execution/**
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-supervisor
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: wp-supervisor tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/supervise -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_supervisor_pass
+  metadata:
+    loc_estimate: 700
+    complexity: high
+    package_kind: algorithm
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_supervisor_pass
+    artifacts: []
+- package_id: wp-integration
+  title: Closure, end-to-end, cross-host, landable fixture
+  task_type: integration
+  description: Tasks 9.1-9.6. Acceptance-outcome tests across packages.
+  role: integrator
+  priority: 5
+  depends_on:
+  - wp-autopilot-child
+  - wp-review-honesty
+  - wp-supervisor
+  locks:
+    files:
+    - skills/tests/supervise/test_dispatch_closure.py
+    - skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py
+    - skills/tests/roadmap-runtime/test_cross_host_reconcile.py
+    - skills/tests/roadmap-runtime/test_landable_checkpoint.py
+    - skills/tests/roadmap-runtime/fixtures/landable-checkpoint.json
+    keys:
+    - feature:dispatch-contract:integration
+    ttl_minutes: 120
+    reason: Closure, end-to-end, cross-host, landable fixture
+  scope:
+    write_allow:
+    - skills/tests/supervise/test_dispatch_closure.py
+    - skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py
+    - skills/tests/roadmap-runtime/test_cross_host_reconcile.py
+    - skills/tests/roadmap-runtime/test_landable_checkpoint.py
+    - skills/tests/roadmap-runtime/fixtures/landable-checkpoint.json
+    read_allow:
+    - '**'
+  worktree:
+    name: dispatch-contract-wp-integration
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: A
+    steps:
+    - name: wp-integration tests
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/supervise skills/tests/autopilot skills/tests/autopilot-roadmap
+        skills/tests/roadmap-runtime skills/tests/shared skills/tests/parallel-infrastructure -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - wp_integration_pass
+  metadata:
+    loc_estimate: 500
+    complexity: high
+    package_kind: integration
+  inputs: {}
+  outputs:
+    result_keys:
+    - wp_integration_pass
+    artifacts: []

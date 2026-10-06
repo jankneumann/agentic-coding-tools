@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-10-06 — dispatch-contract
+
+### Phase: Plan Iteration 1
+
+**Dispatched children defer gate authority to the supervisor** — Issue 1 arose because child and supervisor postures differed; the marker carries the supervisor posture digest and drift disables auto, so one holder is authoritative.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)
+
+---
+
 ## 2026-09-16 — 2026-09-26-route-parked-escalations-through-the-escalate-resume-gate
 
 ### Phase: Validation 3
