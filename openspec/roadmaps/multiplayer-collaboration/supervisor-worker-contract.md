@@ -148,3 +148,26 @@ This item also absorbs four follow-ups noted during the run: re-evaluation of st
 gates, env-free vendor probing, honest quorum, and pending_gate/escalate_resume
 answerability. For the last of these, the narrow fix is already in flight on
 `openspec/supervise-pending-escalate-answer`.
+
+## Addendum: making dispatch state safe to land (PR #662 review, 2026-10-06)
+
+When the roadmap branch was proposed for `main`, three more boundary defects surfaced,
+all caused by execution state that is local to one host and one run reaching a shared
+ref:
+
+- **Raw launch tokens in tracked checkpoints.** gitleaks flagged
+  `secrets.token_urlsafe(24)` nonces as generic API keys. The contract persists only a
+  digest of each token, and `child_start` verifies against the digest.
+- **Host-local isolation paths.** Attempts record absolute worktree paths, so another
+  host cannot reconcile or resume them, and batch preparation skips their items. The
+  contract records isolation as a repo-relative path plus a host id, with a defined
+  rebind/reinitialize path.
+- **A repository-global trust posture.** `auto` for `proposal_approval` applied to every
+  autopilot run, not only to plans covered by the operator's roadmap approval. The
+  contract scopes auto dispositions to dispatches that carry a valid
+  `roadmap_approval_ref`.
+
+Until ri-21 lands, the roadmap branch's execution state stays off `main`, and PR #662
+is held as a draft. A separate fix (Codex P2) set `pr_creation` to `auto`, because
+`notify_with_timeout` with `proceed` fails closed while no approval-notification
+channel exists.
