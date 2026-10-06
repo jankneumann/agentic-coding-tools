@@ -1,0 +1,175 @@
+# Agent coordinator on GX-10.
+#
+# A SEPARATE compose project from the analyzer (`aca-gx10`), joining its
+# networks as external. The coordinator can be rebuilt and restarted without
+# touching the analyzer. The reverse is not true and cannot be: the analyzer
+# OWNS these networks, so stopping it takes the coordinator with it. The
+# systemd unit encodes that with PartOf= rather than leaving it to discover.
+#
+# Reused from the analyzer rather than duplicated: Langfuse (its own project,
+# its own keys), OpenBao (rendered to an env file, never read live), and Squid
+# for egress. Six services from the upstream compose are deliberately absent
+# here -- openbao, langfuse-web, langfuse-worker, langfuse-clickhouse,
+# langfuse-redis, langfuse-minio.
+#
+# Nothing is published to the host. The only path in from the internet is the
+# Cloudflare tunnel, which terminates at coordinator-api on the internal
+# network and is gated by a Cloudflare Access application.
+name: aca-gx10-coord
+
+x-hardening: &hardening
+  restart: on-failure:5
+  security_opt: &no-new-privs
+  - no-new-privileges:true
+  cap_drop: &drop-all
+  - ALL
+  deploy: &limits
+    resources:
+      limits:
+        cpus: '1.00'
+        memory: 1G
+
+services:
+  # ---------------------------------------------------------------------------
+  # The coordinator's own database. Separate instance, not a second database
+  # inside the analyzer's Postgres: its migrations run automatically at API
+  # startup, and a shared server would put that auto-migrator one connection
+  # string away from the analyzer's data.
+  #
+  # Same ParadeDB digest the analyzer already runs. Reusing a reviewed pin is
+  # worth more than matching the upstream compose's older v0.22.2 tag -- one
+  # fewer image to vet, and `make image-pins` already proves this one.
+  # ---------------------------------------------------------------------------
+  coordinator-postgres:
+    <<: *hardening
+    read_only: false
+    image: ${GX10_COORD_POSTGRES_IMAGE:?set a reviewed paradedb tag@sha256 digest}
+    user: "999:999"
+    command: [postgres, -c, shared_preload_libraries=pg_search,pg_stat_statements]
+    env_file:
+    - /run/aca/gx10/coordinator.env
+    environment:
+      POSTGRES_DB: coordinator
+      POSTGRES_USER: coordinator
+    networks:
+      coord:
+        ipv4_address: 10.89.3.251
+    volumes:
+    - /srv/aca/coordinator-postgres:/var/lib/postgresql/data:rw
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=128m
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U coordinator -d coordinator]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # The coordination API. Read-only root; the one writable path is the workdir
+  # the saved-view and audit endpoints persist into, which is a host bind mount
+  # rather than a tmpfs because those writes are meant to survive a restart.
+  # ---------------------------------------------------------------------------
+  coordinator-api:
+    <<: *hardening
+    read_only: true
+    image: ${GX10_COORD_IMAGE:?set a reviewed coordinator tag@sha256 digest}
+    # Pinned in the Dockerfile so the ownership preflight has a uid to check.
+    user: "10001:10001"
+    env_file:
+    # String entries only: podman-compose 1.0.6 crashes on the {path, required}
+    # long form. Podman itself fails closed when an --env-file is missing.
+    - /run/aca/gx10/coordinator.env
+    - /run/aca/gx10/proxy.env
+    environment:
+      DB_BACKEND: postgres
+      COORDINATOR_WORKDIR_ROOT: /app/workdir
+      AGENT_ID: gx10-coordinator
+      AGENT_TYPE: coordinator
+      # Unused with the postgres backend, but the code still reads them. An
+      # explicit placeholder beats a missing-key failure at import time.
+      SUPABASE_URL: http://unused.invalid
+      SUPABASE_SERVICE_KEY: unused-with-postgres-backend
+      LANGFUSE_ENABLED: 'true'
+      LANGFUSE_HOST: http://langfuse-web:3000
+      OTEL_TRACES_ENABLED: 'true'
+      OTEL_SERVICE_NAME: aca-gx10-coordinator
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://langfuse-web:3000/api/public/otel
+      # Every host called over HTTP must be listed, or httpx hands the request
+      # to Squid -- which denies internal destinations, so a purely local call
+      # fails on our own SSRF rule. This bit the analyzer once already.
+      NO_PROXY: localhost,127.0.0.1,.gx10.internal,coordinator-postgres,langfuse-web,10.89.3.251
+      no_proxy: localhost,127.0.0.1,.gx10.internal,coordinator-postgres,langfuse-web,10.89.3.251
+    networks:
+      coord: {}
+      application: {}
+    volumes:
+    - /srv/aca/coordinator-workdir:/app/workdir:rw
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=256m
+    depends_on:
+      coordinator-postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - /app/.venv/bin/python
+      - -c
+      - import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8081/health',timeout=2).status==200
+        else 1)
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # The only inbound path from the internet. Terminates at coordinator-api over
+  # the internal network, so nothing is published on the host and the API never
+  # binds a public port.
+  #
+  # This container is a DELIBERATE exception to the egress policy: it holds an
+  # outbound connection to Cloudflare that does not pass through Squid. That is
+  # why it sits alone on the egress network with no access to `stateful`, and
+  # why the firewall unit needs an explicit rule for it.
+  #
+  # The tunnel config must never publish OpenBao, Postgres, Langfuse or the MCP
+  # transport. On this host OpenBao is the real sealed instance holding every
+  # secret for both projects, so that rule is load-bearing, not hygiene.
+  # ---------------------------------------------------------------------------
+  cloudflared:
+    <<: *hardening
+    read_only: true
+    image: ${GX10_CLOUDFLARED_IMAGE:?set a reviewed cloudflared tag@sha256 digest}
+    command: [tunnel, --no-autoupdate, --config, /etc/cloudflared/config.yaml, run]
+    volumes:
+    - /run/aca/gx10/cloudflared/config.yaml:/etc/cloudflared/config.yaml:ro
+    - /run/aca/gx10/cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro
+    networks:
+      coord: {}
+      egress: {}
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+    depends_on:
+      coordinator-api:
+        condition: service_healthy
+
+networks:
+  # Owned by the analyzer's compose project. Declared external so this project
+  # joins them instead of creating a second, colliding set.
+  application:
+    external: true
+    name: aca-gx10_application
+  egress:
+    external: true
+    name: aca-gx10_egress
+  # This project's own. The subnet is pinned because netavark allocates from
+  # 10.89.0.0/16 by default and the analyzer already holds .0, .1 and .2 --
+  # letting podman choose would eventually collide. The /25 ip_range keeps the
+  # upper half free for fixed addresses, matching the analyzer's convention.
+  coord:
+    internal: true
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 10.89.3.0/24
+        ip_range: 10.89.3.0/25
