@@ -564,6 +564,24 @@ For every policy pause, manual and automatic resolution use exactly the allowlis
 positive generation; an explicit `gate-answer --lease-generation` must match the
 current parked generation, while dispatch-only answers select the newest blocked
 current generation and legacy generationless records are bound at most once.
+
+An ESCALATE-resume answer covers exactly two parked kinds: the supervisor's own
+`policy_pause`, and a child's `pending_gate` whose `parked.gate` is the
+ESCALATE-resume gate (autopilot escalated under a `block` posture). Both are keyed
+on `(dispatch_id, lease_generation)`, so resolve once to record the blocked
+decision, answer it, then resolve again — the second call finds the console
+approval through the prior-record rule and resumes with
+`approval_ref=gate-decision:<decision_id>`:
+
+```bash
+# 1. resolve_parked(attempt, ...)        -> blocked; records the decision for this generation
+# 2. answer it, bound to the dispatch (and, optionally, its current generation)
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . gate-answer --roadmap <roadmap-id> \
+  --gate escalate_resume --decision approved --dispatch-id <dispatch-id> [--lease-generation N]
+# 3. resolve_parked(attempt, ...)        -> proceed; generation N becomes N+1
+```
+
+A `pending_gate` parked on any other gate is answered under that gate's own name.
 The checkpoint `gate_decisions` ledger is authoritative. The supervisor mirror is
 a derived post-commit projection: projection failure never rolls authority back,
 and `gate-log`/rehydration repair it idempotently from the ledger.
