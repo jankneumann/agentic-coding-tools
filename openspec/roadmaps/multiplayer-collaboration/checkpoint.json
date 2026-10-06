@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-05T09:36:11.472622+00:00",
+  "updated_at": "2026-10-06T08:41:07.129099+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -68,6 +68,27 @@
       "change_id": "multiplayer-principles-guide",
       "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
       "item_id": "ri-01"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 operator re-approved after dispatch-contract refinement (2026-10-06)",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-06T08:41:07.116408+00:00",
+      "decision_id": "e0526599-2740-4d45-bf08-e1f5d355bc6b",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "multiplayer-collaboration",
+      "roadmap_fingerprint": "da83ca859211977a481089e031182b74ca15adaeb1b414898612c030815d8edd",
+      "note": "operator re-approved after dispatch-contract refinement (2026-10-06)"
     }
   ],
   "dispatch_attempts": [
