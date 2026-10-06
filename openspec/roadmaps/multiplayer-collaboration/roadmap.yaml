@@ -55,6 +55,35 @@ items:
     a reconcile check.
   - owners.yaml is registered in docs/guides/state-artifacts.md with writer, authority,
     and missing/stale behavior.
+- item_id: ri-21
+  title: Publish the supervisor-worker dispatch contract
+  change_id: dispatch-contract
+  status: approved
+  description: Publish versioned dispatch-request and dispatch-result JSON schemas
+    as the single definition of the supervisor-worker boundary; emit results from
+    loop-state via runner.py emit-result; add gate provenance with posture-digest
+    re-evaluation, execution_profile, review_requirements, degradations[], and the
+    parked kinds permission_blocked and capability_unavailable, with a closure contract
+    test so every schema-permitted parked shape has a supervisor answer path.
+  rationale: Every stall in the first supervised run occurred at an unwritten part
+    of the supervisor-worker boundary; queue-dispatched work (team-work-queue, owner-routed-escalation,
+    queue-dispatch-owner-acceptance) is built on it.
+  priority: 1
+  effort: L
+  depends_on: []
+  acceptance_outcomes:
+  - dispatch-request and dispatch-result schemas exist under openspec/schemas and
+    execution.py and orchestrator.py validate against them with existing fixtures
+    passing.
+  - runner.py emit-result produces a schema-valid result for every terminal and parked
+    loop-state shape, verified end to end.
+  - A closure contract test fails when any schema-permitted parked kind/gate combination
+    lacks a supervisor answer or resume path.
+  - A posture-derived gate block clears on resume after a posture change while a human
+    rejection does not.
+  - execution_profile, review_requirements, and degradations[] are carried end to
+    end, and permission_blocked and capability_unavailable parks are routed to the
+    operator as single escalations.
 - item_id: ri-03
   title: Add on-behalf-of chains and causal trace IDs to coordinator records
   status: approved
@@ -173,6 +202,7 @@ items:
   effort: L
   depends_on:
   - ri-02
+  - ri-21
   description: Extend work_queue.py, /supervise, and /autopilot-roadmap so queue entries
     carry the owning principal, the originating roadmap item, and its dependencies,
     any eligible agent can claim any ready entry, and ordering across principals follows
@@ -194,6 +224,9 @@ items:
     owner.
   - With a single principal and no owners.yaml, queue ordering and claim behavior
     match the pre-change behavior in the existing work-queue tests.
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-07
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: ri-09
   title: Route approvals and escalations to resolved owners
   status: approved
@@ -202,6 +235,7 @@ items:
   depends_on:
   - ri-02
   - ri-08
+  - ri-21
   description: Make the approval gate resolve its owner set from the ownership map
     with a fallback chain, enforce that decided_by belongs to that set, let trust
     posture declare gate owners per capability, add a principal-conflict escalation
@@ -302,6 +336,7 @@ items:
   - ri-08
   - ri-09
   - ri-12
+  - ri-21
   description: Separate owner from implementer on roadmap items and changes, default
     the implementer to the agent queue (optionally restricted to a named principal's
     agents), have queue agents implement from the agreed contract and open PRs into
@@ -485,4 +520,20 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-05T09:36:11.458401+00:00'
+updated_at: '2026-10-06T08:36:39.023367+00:00'
+refinements:
+- timestamp: '2026-10-06T08:36:39.023367+00:00'
+  actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
+  source: openspec/roadmaps/multiplayer-collaboration/supervisor-worker-contract.md
+  rationale: The first supervised execution (2026-10-05/06) stalled on four supervisor-worker
+    boundary failures (stale gates after posture change, env-probing permission friction,
+    silent quorum degradation, unanswerable parked kinds), all traced to the missing
+    dispatch request/result contract. Queue-based execution must also run on the GX10
+    dispatcher lane so multi-vendor review uses local subscription CLIs, instead of
+    building a second queue.
+  base_sha256: f14a9147399dcc539dde085995c4f313217d0677ded8921f0940b300f75de329
+  operations:
+  - add:ri-21
+  - edit:ri-08
+  - edit:ri-09
+  - edit:ri-13
