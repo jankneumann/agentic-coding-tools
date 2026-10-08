@@ -7,6 +7,7 @@ Test tasks precede the implementation they verify. Scenario references use
 - `agent-coordinator.fr-http` — Feature Registry HTTP Endpoints (MODIFIED)
 - `agent-coordinator.gate` — Contract Breaking-Change Gate
 - `agent-coordinator.conformance` — Feature Registry Response Conformance
+- `agent-coordinator.drift` — HTTP Contract Drift Verification
 - `coordination-bridge.bindings` — Contract-Generated Bindings
 - `coordination-bridge.fr-helpers` — Feature Registry Bridge Helpers
 
@@ -49,7 +50,7 @@ Test tasks precede the implementation they verify. Scenario references use
   **Dependencies**: 2.1
   **Size**: M
 
-- [ ] 3.2 Move the `GET /features/active` route above `GET /features/{feature_id}` in `coordination_api.py`
+- [x] 3.2 Move the `GET /features/active` route above `GET /features/{feature_id}` in `coordination_api.py`
   **Spec scenarios**: agent-coordinator.fr-http (Active-features route is not shadowed by the feature-id route)
   **Design decisions**: D6
   **Dependencies**: 3.1
@@ -60,6 +61,16 @@ Test tasks precede the implementation they verify. Scenario references use
   **Size**: S
 
 - [ ] Checkpoint: run tests, review diff, verify scope
+
+- [x] 3.4 Write `agent-coordinator/tests/test_feature_registry_http.py` — RED on `/features/active` shadowing before 3.2, GREEN after; guards `GET /features/{feature_id}`, 404 on unknown id, 401 without key
+  **Spec scenarios**: agent-coordinator.fr-http (Active-features route is not shadowed by the feature-id route, Unauthorized feature access)
+  **Design decisions**: D6
+  **Size**: S
+
+- [x] 3.5 Write `agent-coordinator/tests/test_openapi_contract_verification.py` and `openapi_contract_drift_baseline.yaml` — five drift classes between `app.openapi()`/route table and all promoted contracts, ratcheted against a reasoned baseline (27 entries at 2026-10-08); shadowing check proven RED against the unfixed route order
+  **Spec scenarios**: agent-coordinator.drift (all four scenarios)
+  **Design decisions**: D1
+  **Size**: M
 
 ## 4. Breaking-change gate (wp-ci)
 
