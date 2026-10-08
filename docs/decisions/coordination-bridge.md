@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-10-08 — generate-coordinator-clients-from-contracts
+
+### Phase: Plan
+
+**Generated models imported only under TYPE_CHECKING in the bridge** — NotRequired/TypeAlias need Python 3.11+; bare python3 can be 3.9 on macOS
+
+- Status: `active`
+- Source: [openspec/changes/generate-coordinator-clients-from-contracts/session-log.md](/openspec/changes/generate-coordinator-clients-from-contracts/session-log.md) (D3)
+
+---
+
 ## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan
