@@ -66,6 +66,11 @@ adopts; the tool is recorded as a re-evaluation candidate.
   `TestClient(create_coordination_api())` with a faked service and validates each response body
   against the contract's response schema. This is the check that would have caught all three
   defects above.
+- **HTTP contract drift verification (ratchet).** `agent-coordinator/tests/test_openapi_contract_verification.py`
+  compares `app.openapi()` and the route table against all 27 hand-authored contracts across five drift classes
+  (uncontracted routes, unserved operations, auth, request-body fields, route shadowing). Today's 27 drift
+  findings are recorded with reasons in `openapi_contract_drift_baseline.yaml`; new drift fails, fixed drift must
+  be removed from the baseline. Contracts stay the source of truth (D1). *Added at implementation start on request.*
 - **Go/no-go decision record.** A `decision.md` in the change scores the pilot against the
   NFRs below and states whether a follow-up change should (a) roll generated bindings out to the
   remaining bridge domains, (b) regenerate `http_proxy.py` from a full `openapi-python-client`
@@ -151,7 +156,7 @@ and any CLI change are deferred to follow-up changes gated on `decision.md`.
   (new CI gate on contract compatibility).
 - **Affected specs:**
   - `agent-coordinator` — ADDED "Contract Breaking-Change Gate", ADDED "Feature Registry Response
-    Conformance"; MODIFIED "Feature Registry HTTP Endpoints" (route precedence for
+    Conformance", ADDED "HTTP Contract Drift Verification"; MODIFIED "Feature Registry HTTP Endpoints" (route precedence for
     `/features/active`). Delta: `specs/agent-coordinator/spec.md`.
   - `coordination-bridge` — ADDED "Contract-Generated Bindings", ADDED "Feature Registry Bridge
     Helpers". Delta: `specs/coordination-bridge/spec.md`.

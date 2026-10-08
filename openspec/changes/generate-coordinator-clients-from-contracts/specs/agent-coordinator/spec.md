@@ -82,3 +82,28 @@ The conformance test SHALL run without a database, using a substituted feature r
 #### Scenario: Untyped success response is rejected
 - **WHEN** a success response in `features.yaml` has a description but no schema
 - **THEN** the conformance test SHALL fail and name the operation and status code
+
+### Requirement: HTTP Contract Drift Verification
+
+The test suite SHALL compare the running coordination HTTP API — its `app.openapi()` document and its route table — against every hand-authored contract under `openspec/contracts/agent-coordinator/openapi/`, and SHALL report drift in five classes: routes served but not contracted, contracted operations not served, API-key requirement differing from contract `security`, request-body required fields unknown to the other side, and fixed-path routes captured by an earlier parameterised route.
+
+The contracts SHALL remain the source of truth; the application document SHALL be used only as the verifier.
+
+Known drift SHALL be recorded in a reviewed baseline file in which every entry carries a reason. Drift absent from the baseline SHALL fail the suite, and a baseline entry that no longer reproduces SHALL fail the suite as stale. Route shadowing SHALL have no baseline.
+
+#### Scenario: New uncontracted route fails
+- **WHEN** a route is added to the app without being added to any contract or the baseline
+- **THEN** the verification SHALL fail and name the route as `NEW`
+
+#### Scenario: Fixed drift must leave the baseline
+- **WHEN** drift recorded in the baseline is fixed in the app or the contract
+- **THEN** the verification SHALL fail and name the entry as `STALE` until the entry is removed
+
+#### Scenario: Shadowed route fails without exception
+- **WHEN** `GET /features/{feature_id}` is registered before `GET /features/active`
+- **THEN** the verification SHALL fail and report that `/features/active` is captured by `/features/{feature_id}`
+
+#### Scenario: API key enforced through a wrapper is recognised
+- **WHEN** a route's dependency calls `verify_api_key` from inside a named wrapper dependency
+- **THEN** the route SHALL be treated as requiring an API key
+- **AND** the suite SHALL fail if a listed wrapper is no longer used by any route
