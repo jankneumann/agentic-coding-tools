@@ -1,0 +1,242 @@
+schema_version: 1
+roadmap_id: durable-execution
+source_proposal: openspec/roadmaps/durable-execution/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Add effects journal core with replay policies
+  status: approved
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Add a shared append-only effects journal helper (skills/shared/effects_journal.py)
+    exposing begin, complete, fail, and resolve_interrupted over openspec/changes/<change-id>/effects.jsonl,
+    with deterministic idempotency keys derived from (change_id, phase, transition_sequence,
+    effect_kind, target) and per-effect-kind replay policies (replayable, verify_then_skip,
+    never_replay). Register the journal in docs/guides/state-artifacts.md and document
+    the supervisor application_journal as its first specialized instance.
+  rationale: Phase 1 safety foundation; every other capability (resumable phases,
+    cascading abort, durable executor mapping) relies on a durable record of whether
+    an irreversible action already happened, so the never-repeat-silently guarantee
+    must exist first.
+  change_id: add-effects-journal-core-with-replay-policies
+  acceptance_outcomes:
+  - A fault-injection test killing the process between started and completed shows
+    replayable re-runs once, verify_then_skip probes and records completed without
+    a second side effect, and never_replay parks the change with a named escalation
+    and performs no action.
+  - Idempotency keys are identical across two runs with the same inputs and contain
+    no wall-clock-dependent component.
+  - The journal works with the coordinator unreachable; any coordinator copy is an
+    optional persist-first projection never written back into the journal.
+  - docs/guides/state-artifacts.md lists the effects journal with holder, writer,
+    authority, consumers, and missing/stale behavior, scoped to "did this effect happen?"
+    only.
+  - Journal entries are bounded in size and store results (PR URL, commit SHA), never
+    transcripts.
+- item_id: ri-02
+  title: Route skill side effects through the effects journal
+  status: approved
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-01
+  description: Wrap push, PR create/update/merge, deploy/teardown, issue/comment posting,
+    non-idempotent coordinator mutations, and external notifications in /cleanup-feature,
+    /merge-pull-requests, /validate-feature, and the autopilot SUBMIT_PR step with
+    the effects journal, and add a guard test that forbids unwrapped effect-producing
+    calls in skill scripts.
+  rationale: The journal only prevents repeated irreversible actions if the skills
+    that perform them actually use it; the guard test keeps new call sites from regressing
+    the guarantee.
+  change_id: route-skill-side-effects-through-the-effects-journal
+  acceptance_outcomes:
+  - /cleanup-feature, /merge-pull-requests, /validate-feature (deploy/teardown), and
+    the autopilot SUBMIT_PR step record every listed effect via begin/complete/fail.
+  - Re-running SUBMIT_PR after a crash with a started entry finds the existing PR
+    for the head branch and records completed without creating a second PR.
+  - A guard test fails when gh pr create, git push, merge APIs, or deploy entry points
+    are invoked from a skill script outside an effects-journal wrapper.
+  - Behavior is unchanged in sequential, local-parallel, and coordinated tiers and
+    in cloud-harness environments.
+- item_id: ri-03
+  title: Add fork policy registry for durable artifacts
+  status: approved
+  priority: 2
+  effort: M
+  depends_on: []
+  description: Introduce a machine-readable registry next to the state-artifacts.md
+    inventory declaring a fork policy (fork_point, latest, or fresh) for every durable
+    artifact class, including the effects journal and phase-progress journal, and
+    have each owning writer enforce its policy at read time.
+  rationale: Phase 1 safety foundation; fork semantics are convention today and violations
+    surface only as merge conflicts or stale reads, so policies must be explicit before
+    enforcement checks and sync-point skills can reference them.
+  change_id: add-fork-policy-registry-for-durable-artifacts
+  acceptance_outcomes:
+  - Every artifact class listed in docs/guides/state-artifacts.md, plus effects.jsonl
+    and phase-progress journals, has exactly one fork policy entry in the registry,
+    enforced by a test that diffs the inventory against the registry.
+  - Owning readers of latest-policy artifacts (checkpoint.json, supervisor cycle ledger,
+    generated docs/decisions/) resolve the main-line value rather than a forked copy,
+    covered by a unit test per policy.
+  - The registry is deterministic and does not change the supervisor cycle fingerprint.
+- item_id: ri-04
+  title: Enforce fork policies in CI, worktrees, and sync points
+  status: approved
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-03
+  description: Add a fork-policy check run in CI and by /expedite, make worktree setup
+    materialize fresh artifacts empty and skip copying latest artifacts, and update
+    /merge-pull-requests, /update-specs, and /cleanup-feature to reference the registry
+    instead of restating per-artifact rules.
+  rationale: A declared policy only prevents stale reads and cross-change leakage
+    if it is checked and honored at the points where forks are created and merged.
+  change_id: enforce-fork-policies-in-ci-worktrees-and-sync-points
+  acceptance_outcomes:
+  - The check flags a latest-policy artifact modified on a feature branch outside
+    its declared single writer and a fresh-policy artifact copied into a new change
+    from another change, and passes on a clean branch.
+  - Worktree setup for a work package creates fresh artifacts empty and does not copy
+    latest artifacts into the package branch; a test covers each of the three policies.
+  - The check short-circuits correctly in cloud-harness environments where worktree
+    operations are skipped.
+  - The three sync-point SKILL.md files reference the registry and contain no locally
+    restated per-artifact fork rules.
+- item_id: ri-05
+  title: Add phase progress checkpoints and resume in phase_agent
+  status: approved
+  priority: 1
+  effort: L
+  depends_on:
+  - ri-01
+  - ri-03
+  description: Let phase sub-agents append bounded progress checkpoints (completed
+    work-package tasks, review rounds, validation phases, rolling draft PhaseRecord
+    summary) to openspec/changes/<change-id>/phase-progress/<phase>-<transition_sequence>.jsonl,
+    and make phase_agent.py hand the latest checkpoint and draft summary to a retried
+    sub-agent so it resumes rather than restarts.
+  rationale: Phase 2 resumability; closes the gap where D8 retries IMPLEMENT/IMPL_REVIEW/VALIDATE
+    from scratch, and consults the effects journal so a checkpoint gap never repeats
+    an irreversible action.
+  change_id: add-phase-progress-checkpoints-and-resume-in-phase-agent
+  acceptance_outcomes:
+  - A phase interrupted after N of M checkpointed steps resumes and performs only
+    steps N+1..M, verified with a recording runner.
+  - For a step with a missing checkpoint but a started or completed effect, resume
+    consults the effects journal and does not repeat the effect.
+  - Retry budget counts attempts without progress; an attempt adding at least one
+    checkpoint does not consume budget, and a hard ceiling stops unbounded loops.
+  - The finalized PhaseRecord of a resumed phase has the same shape as a single-attempt
+    PhaseRecord and passes session-log validation; the (outcome, handoff_id) driver
+    contract is unchanged.
+  - Missing or corrupt progress journals fall back to retry-from-scratch with a reported
+    warning, and loop-state.json remains the sole authority for the current phase.
+- item_id: ri-06
+  title: Add cascading abort over the ownership graph
+  status: approved
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-01
+  - ri-05
+  description: Add an abort operation for roadmap items and changes that durably records
+    intent in the owning canonical artifact first, then cascades to work packages,
+    supervised dispatches and phase sub-agents, queue projection rows, and effects,
+    leaving each node terminal (aborted with reason) or parked and resumable per operator
+    choice, and skipping detached work.
+  rationale: Phase 2 control; stopping in-flight work today is a manual multi-artifact
+    operation, and abort must resolve started effects by replay policy and keep the
+    supervisor's unknown-to-quarantine rule rather than inferring death from heartbeats.
+  change_id: add-cascading-abort-over-the-ownership-graph
+  acceptance_outcomes:
+  - abort <roadmap-id>:<item-id> and the change-level form cancel every owned queue
+    row through the reconcile path, interrupt or quarantine every owned dispatch,
+    cancel requested effects, and write aborted state to the owning canonical artifact,
+    asserted by a recorded integration test.
+  - Aborting during a started never_replay effect leaves the effect quarantined and
+    the node parked, not aborted, with the effect named in the escalation.
+  - Re-running abort on a partially aborted tree completes the remaining nodes and
+    changes nothing already terminal.
+  - Abort works in all three tiers; in coordinator-free tiers it operates only on
+    loop-state and local sub-agent handles, and detached work is skipped and reported.
+  - Leases are released only where death or completion is proven; an expired heartbeat
+    alone results in quarantine.
+- item_id: ri-07
+  title: Let refine-roadmap supersede aborted items
+  status: approved
+  priority: 3
+  effort: S
+  depends_on:
+  - ri-06
+  description: Teach /refine-roadmap to recognize aborted items and changes from the
+    canonical checkpoint and loop-state so it can supersede them without a manual
+    checkpoint edit, while still refusing in-progress items that have not been aborted.
+  rationale: Closes the proposal's stated gap where /refine-roadmap correctly refuses
+    to supersede in-progress items but nothing lets the operator stop and replace
+    them.
+  change_id: let-refine-roadmap-supersede-aborted-items
+  acceptance_outcomes:
+  - After an abort, /refine-roadmap supersedes the aborted item with no manual edit
+    to checkpoint.json.
+  - /refine-roadmap still refuses to supersede an in-progress or parked (non-terminal)
+    item and names the abort command in its refusal.
+- item_id: ri-08
+  title: Define durable executor authority boundary contract
+  status: approved
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-01
+  - ri-05
+  description: Define the authority boundary for a durable intra-phase executor in
+    state-artifacts.md and phase_agent.py, with an adapter interface mapping engine
+    run events onto phase progress checkpoints and engine tool-replay declarations
+    onto effects-journal policies, and extend the AST guard so phase or package status
+    is never read back from the executor ledger.
+  rationale: Phase 3; lets a durable engine plug in without creating a second source
+    of truth, keeping loop-state.json authoritative for the phase and the effects
+    journal for irreversible actions while opaque vendor CLIs stay first-class.
+  change_id: define-durable-executor-authority-boundary-contract
+  acceptance_outcomes:
+  - state-artifacts.md has an executor-ledger row whose authority is limited to intra-phase
+    progress, and the rehydration order consults it only after loop-state.json identifies
+    the phase.
+  - The AST guard in test_work_queue_projection_invariant.py (or a sibling) fails
+    if phase or package status is read from the executor ledger.
+  - An engine tool declared non-replayable maps to a never_replay effect, verified
+    by a unit test of the adapter mapping.
+  - With no executor configured, phase_agent.py behavior and outputs are identical
+    to today's.
+- item_id: ri-09
+  title: Promote Atomic executor to opt-in IMPLEMENT and VALIDATE
+  status: approved
+  priority: 4
+  effort: L
+  depends_on:
+  - ri-08
+  - ri-02
+  description: Promote the add-atomic-harness Level-2 workflow_dispatch.py pilot from
+    fix-scrub to an opt-in, per-phase and per-change durable executor for IMPLEMENT
+    and VALIDATE behind the same (outcome, handoff_id) contract, resuming interrupted
+    runs on the same runId.
+  rationale: Delivers the proposal's success criterion that a durable intra-phase
+    executor can be plugged in; depends on the external in-flight add-atomic-harness
+    change (not part of any roadmap), whose result this item consumes rather than
+    re-implements.
+  change_id: promote-atomic-executor-to-opt-in-implement-and-validate
+  acceptance_outcomes:
+  - Resuming an interrupted Atomic-backed phase continues the engine run with the
+    same runId instead of starting a new attempt.
+  - A recorded-fixture test shows an interrupted run does not repeat a tool marked
+    non-replayable.
+  - An Atomic-backed phase produces the same metaharness-visible artifacts (phase-progress
+    journal, effects journal, PhaseRecord) as an opaque vendor CLI phase.
+  - Executor selection is opt-in per phase and per change; with it disabled, behavior
+    is identical to today's.
+updated_at: '2026-10-08T10:52:57.129198+00:00'
