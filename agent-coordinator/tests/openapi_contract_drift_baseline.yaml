@@ -1,0 +1,101 @@
+# Accepted drift between the running HTTP API and the hand-authored contracts in
+# openspec/contracts/agent-coordinator/openapi/. Read by
+# tests/test_openapi_contract_verification.py.
+#
+# This is a ratchet, not an allowlist to grow:
+#   - drift missing from this file fails the test (no new drift lands silently);
+#   - an entry here that no longer reproduces fails as STALE, so fixing drift
+#     means deleting its entry in the same change.
+# `route` and `finding` must match the test's output exactly. `reason` is
+# required and says why the drift exists today and what resolves it.
+#
+# Recorded 2026-10-08 by generate-coordinator-clients-from-contracts.
+
+uncontracted_routes:
+  - route: GET /locks
+    finding: served but not contracted
+    reason: Lists locks by agent; never added to locks.yaml. Contract it there.
+  - route: POST /locks/release-by-agent
+    finding: served but not contracted
+    reason: Releases every lock held by one agent; never added to locks.yaml. Contract it there.
+  - route: GET /routing/catalog
+    finding: served but not contracted
+    reason: add-adaptive-model-router was archived (2026-09-22) without promoting its routing contract into openspec/contracts/.
+  - route: GET /routing/decisions/{decision_id}
+    finding: served but not contracted
+    reason: Same as GET /routing/catalog — archived change, routing contract never promoted.
+  - route: GET /routing/usage
+    finding: served but not contracted
+    reason: Same as GET /routing/catalog — archived change, routing contract never promoted.
+  - route: POST /routing/feedback
+    finding: served but not contracted
+    reason: Same as GET /routing/catalog — archived change, routing contract never promoted.
+  - route: POST /routing/select_model
+    finding: served but not contracted
+    reason: Same as GET /routing/catalog; implement-the-task-router-vendor-x-location-x-model also extends it in flight.
+  - route: GET /vendors
+    finding: served but not contracted
+    reason: Contracted change-locally by in-flight add-live-vendor-capability-and-cost-registry; resolves when it promotes.
+  - route: GET /vendors/{agent_id}/availability
+    finding: served but not contracted
+    reason: Same as GET /vendors.
+  - route: POST /vendors/{agent_id}/rate-limit-observations
+    finding: served but not contracted
+    reason: Same as GET /vendors.
+
+unserved_contract_operations:
+  - route: GET /api/v1/tasks/{task_id}
+    finding: contracted but not served
+    reason: Spec names two task-read paths; tasks.yaml contracts both and flags the duplication as unresolved. Neither the spec nor the app has settled on this one.
+  - route: GET /work/task/{task_id}
+    finding: contracted but not served
+    reason: Second of the two spec-named task-read paths (see GET /api/v1/tasks/{task_id}).
+  - route: GET /status/agents
+    finding: contracted but not served
+    reason: Spec-described per-agent phase listing that the app never implemented.
+
+auth_mismatches:
+  - route: GET /features/{feature_id}
+    finding: contract security=none, app api key=required
+    reason: Contract omits security the app has always enforced. Fixed by the typed features.yaml in generate-coordinator-clients-from-contracts task 2.1.
+  - route: GET /github/prs
+    finding: contract security=none, app api key=required
+    reason: kanban-viz.yaml omits security on a keyed read. Add security to the contract.
+  - route: GET /openspec/proposals
+    finding: contract security=none, app api key=required
+    reason: kanban-viz.yaml omits security on a keyed read. Add security to the contract.
+  - route: GET /sync-points/status
+    finding: contract security=none, app api key=required
+    reason: kanban-viz.yaml omits security on a keyed read. Add security to the contract.
+  - route: GET /worktrees/active
+    finding: contract security=none, app api key=required
+    reason: kanban-viz.yaml omits security on a keyed read. Add security to the contract.
+  - route: POST /events/auth
+    finding: contract security=none, app api key=required
+    reason: kanban-viz.yaml omits security on the SSE token exchange. Add security to the contract.
+  - route: GET /merge-queue/next
+    finding: contract security=none, app api key=required
+    reason: merge-queue.yaml omits security on a keyed read. Add security to the contract.
+  - route: GET /merge-train/status/{train_id}
+    finding: contract security=none, app api key=required
+    reason: merge-train.yaml omits security on a keyed read. Add security to the contract.
+  - route: GET /issues/blocked
+    finding: contract security=required, app api key=not required
+    reason: Handler is documented "Read-only, no auth"; issues.yaml claims a key. Decide which is intended — contract change or adding verify_api_key.
+  - route: POST /status/report
+    finding: contract security=required, app api key=not required
+    reason: Deliberately optional_api_key so Stop hooks without credentials can report (agent-coordinator/CLAUDE.md lists it as no-auth). status.yaml should declare optional security.
+
+request_body_mismatches:
+  - route: POST /discovery/cleanup
+    finding: request body declared only by the app
+    reason: App accepts DiscoveryCleanupRequest; discovery.yaml declares no body. Add the body to the contract.
+  - route: POST /events/auth
+    finding: request body declared only by the app
+    reason: App accepts EventsAuthRequest; kanban-viz.yaml declares no body. Add the body to the contract.
+  - route: POST /merge-train/compose
+    finding: request body declared only by the contract
+    reason: merge-train.yaml declares a body the handler takes no parameter for; compose reads the queue server-side. Remove the body from the contract.
+  - route: POST /merge-train/eject
+    finding: "app requires fields absent from the contract: ['reason']"
+    reason: MergeTrainEjectRequest requires `reason`; merge-train.yaml does not list it, so a client built from the contract gets 422. Add `reason` to the contract.
