@@ -1348,13 +1348,32 @@ def _resolve_capability_park(
         and prior.get("outcome") == "blocked"
         and (prior.get("provenance") or {}).get("source") == "human"
     ):
-        # D5: a human rejection is final for its fingerprint subject. A member
-        # that parked on the same fingerprint since the rejection joins the
-        # listing, but the posture is never consulted, so it cannot clear the
-        # rejection; only a new operator answer (answer_escalation) does.
-        routed = RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
-        entry = _fingerprint_entry(prior, routed.decision, roadmap=roadmap, repo_root=repo_root, now=moment)
-        entry["dispatch_ids"] = [dict(item) for item in listed]
+        # D5: a human rejection is final for its fingerprint subject; the
+        # posture is never consulted, so only a new operator answer
+        # (answer_escalation) clears it. When the membership changed since the
+        # rejection, the subject is extended durably (the rejection carried
+        # forward, listing the current members) and re-projected, so the
+        # listing an operator answers is exactly the one recorded.
+        decision = _decision_from_record(prior)
+        if prior.get("dispatch_ids") == listed:
+            entry = _fingerprint_entry(prior, decision, roadmap=roadmap, repo_root=repo_root, now=moment)
+            routed = RoutedDecision(decision=decision, record=prior, reused=True)
+            return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
+        extended = dict(prior)
+        extended.update(
+            decision_id=str(uuid.uuid4()),
+            recorded_at=datetime.now(timezone.utc).isoformat(),
+            dispatch_ids=listed,
+            extends_decision_id=prior.get("decision_id"),
+            parked_commands=[
+                _redacted_parked(m["parked"]).get("command") for m in members if m["parked"].get("command")
+            ],
+        )
+        stale = {r["decision_id"] for r in prior_subjects if isinstance(r.get("decision_id"), str)}
+        entry = _fingerprint_entry(extended, decision, roadmap=roadmap, repo_root=repo_root, now=moment)
+        _project_fingerprint(entry, repo_root=repo_root, stale_ids=stale | {extended["decision_id"]}, now=moment)
+        manager.record_gate_decision(manager.load(), extended)
+        routed = RoutedDecision(decision=decision, record=extended, reused=False)
         return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
     if prior is not None and prior.get("outcome") == "blocked":
         routed = _apply_prior_record(prior, Gate.ESCALATE_RESUME, (), service=service)
@@ -1469,10 +1488,10 @@ def answer_escalation(
             skipped.append({"dispatch_id": item["dispatch_id"], "reason": "generation changed since projection"})
             continue
         members.append(current)
-    # A member that parked on this fingerprint after the subject was recorded is
-    # listed in the projected entry the operator answered (D9), so it resumes too.
-    listed_ids = {item["dispatch_id"] for item in subject["dispatch_ids"]}
-    members += [m for m in _fingerprint_members(checkpoint, fingerprint) if m["dispatch_id"] not in listed_ids]
+    # The answer authorizes only the dispatches its durable subject lists. A
+    # member that parked on this fingerprint after the subject was recorded
+    # stays parked; its own resolve_parked persists and projects a subject the
+    # operator can then answer (D9 provenance).
     records, resumed, failed = _fan_out_resume(
         members, decision, fingerprint=fingerprint, roadmap=roadmap, workspace=workspace, adapter=adapter,
         extra={"note": note} if note else None,

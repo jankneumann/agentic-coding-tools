@@ -2316,6 +2316,133 @@ def test_an_attempt_whose_generation_moved_is_skipped_and_reported(tmp_path: Pat
     assert [s["dispatch_id"] for s in answered["skipped"]] == [ids[1]]
 
 
+def _park_late_member(workspace: Path, park: dict[str, Any]) -> str:
+    """Append one more parked attempt on ``park`` after a subject was recorded."""
+    manager = execution.CheckpointManager(workspace)
+    checkpoint = manager.load()
+    clone = json.loads(json.dumps(checkpoint.dispatch_attempts[0]))
+    clone["dispatch_id"] = f"{clone['dispatch_id'].rsplit(':', 1)[0]}:attempt-9"
+    clone["attempt"] = 9
+    clone["status"] = "parked"
+    clone["parked"] = dict(park)
+    clone.pop("application_journal", None)
+    checkpoint.dispatch_attempts.append(clone)
+    manager.save(checkpoint)
+    return clone["dispatch_id"]
+
+
+def _status(workspace: Path, dispatch_id: str) -> str:
+    attempts = execution.CheckpointManager(workspace).load().dispatch_attempts
+    return next(a["status"] for a in attempts if a["dispatch_id"] == dispatch_id)
+
+
+def _durable_subject_ids(workspace: Path, fingerprint: str) -> list[str]:
+    subjects = [
+        r for r in execution.CheckpointManager(workspace).load().gate_decisions
+        if r.get("dedupe_fingerprint") == fingerprint and "dispatch_ids" in r and r.get("outcome") == "blocked"
+    ]
+    latest = max(subjects, key=lambda r: str(r.get("recorded_at") or ""))
+    return [item["dispatch_id"] for item in latest["dispatch_ids"]]
+
+
+def test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer(tmp_path: Path) -> None:
+    """Provenance (D9): an answer authorizes only the dispatches its durable
+    subject listed. A member that parked on the fingerprint later stays parked
+    until it is re-projected as a subject of its own, awaiting an answer."""
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    [first] = _clone_parked(workspace, [dict(_BLOCKED)])
+    gate_router.resolve_parked(
+        execution.CheckpointManager(workspace).load().dispatch_attempts[0],
+        workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo),
+    )
+    fingerprint = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")][0]["dedupe_fingerprint"]
+    late = _park_late_member(workspace, _BLOCKED)
+
+    answered = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter
+    )
+
+    assert [r["dispatch_id"] for r in answered["resumed"]] == [first]
+    assert [r["dispatch_id"] for r in answered["records"]] == [first]
+    assert _status(workspace, late) == "parked"
+
+    late_attempt = next(
+        a for a in execution.CheckpointManager(workspace).load().dispatch_attempts if a["dispatch_id"] == late
+    )
+    resolution = gate_router.resolve_parked(
+        late_attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+
+    assert resolution.outcome == "blocked"
+    entries = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint") == fingerprint]
+    assert [[item["dispatch_id"] for item in e["dispatch_ids"]] for e in entries] == [[late]]
+    assert _durable_subject_ids(workspace, fingerprint) == [late]
+    assert _status(workspace, late) == "parked"
+
+
+def test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved(tmp_path: Path) -> None:
+    """D5 + D9: a member joining a human-rejected subject extends the durable
+    subject and its projection (the rejection stays in force); an approval
+    given before that re-projection does not resume it."""
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    [first] = _clone_parked(workspace, [dict(_BLOCKED)])
+    gate_router.resolve_parked(
+        execution.CheckpointManager(workspace).load().dispatch_attempts[0],
+        workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo),
+    )
+    fingerprint = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")][0]["dedupe_fingerprint"]
+    gate_router.answer_escalation(fingerprint, workspace=workspace, repo_root=repo, approved=False, adapter=adapter)
+    late = _park_late_member(workspace, _BLOCKED)
+    late_attempt = next(
+        a for a in execution.CheckpointManager(workspace).load().dispatch_attempts if a["dispatch_id"] == late
+    )
+
+    resolution = gate_router.resolve_parked(
+        late_attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+
+    assert resolution.outcome == "blocked"
+    assert resolution.routed.record["provenance"]["source"] == "human"
+    assert _durable_subject_ids(workspace, fingerprint) == sorted([first, late])
+    entries = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint") == fingerprint]
+    assert [sorted(item["dispatch_id"] for item in e["dispatch_ids"]) for e in entries] == [sorted([first, late])]
+    # Re-resolving with an unchanged membership adds no further subject record.
+    count = len(execution.CheckpointManager(workspace).load().gate_decisions)
+    gate_router.resolve_parked(
+        late_attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+    assert len(execution.CheckpointManager(workspace).load().gate_decisions) == count
+
+    answered = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter
+    )
+    assert sorted(r["dispatch_id"] for r in answered["resumed"]) == sorted([first, late])
+
+
+def test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked(
+    tmp_path: Path,
+) -> None:
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    [first] = _clone_parked(workspace, [dict(_BLOCKED)])
+    gate_router.resolve_parked(
+        execution.CheckpointManager(workspace).load().dispatch_attempts[0],
+        workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo),
+    )
+    fingerprint = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")][0]["dedupe_fingerprint"]
+    gate_router.answer_escalation(fingerprint, workspace=workspace, repo_root=repo, approved=False, adapter=adapter)
+    late = _park_late_member(workspace, _BLOCKED)
+
+    answered = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter
+    )
+
+    assert [r["dispatch_id"] for r in answered["resumed"]] == [first]
+    assert _status(workspace, late) == "parked"
+
+
 def test_different_missing_lanes_are_separate_escalations(tmp_path: Path) -> None:
     repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
     _write_repo_posture(repo, escalate_resume="block")

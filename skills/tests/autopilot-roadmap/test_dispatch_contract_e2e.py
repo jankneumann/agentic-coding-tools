@@ -331,9 +331,13 @@ def test_an_operator_approval_ends_a_human_rejected_escalation(world: dict[str, 
     assert resolution.routed.record["provenance"]["source"] == "posture"
 
 
-def test_an_approval_resumes_a_member_that_joined_after_the_rejection(world: dict[str, Any]) -> None:
-    """The projected entry lists every current member, so the operator's
-    approval of that entry resumes a member the rejection record predates."""
+def test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected(
+    world: dict[str, Any],
+) -> None:
+    """Provenance (D9): an approval authorizes only the durable subject's
+    listing. A member the rejection record predates is not resumed by an
+    answer given before it was re-projected; once its resolve_parked extends
+    the subject (rejection still in force), the operator's approval resumes it."""
     repo, workspace, adapter = world["repo"], world["workspace"], world["adapter"]
     park = {"kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["codex"], "reason": "quorum"}
     _posture(repo, escalate_resume="block")
@@ -351,6 +355,24 @@ def test_an_approval_resumes_a_member_that_joined_after_the_rejection(world: dic
         )
         # The rejection predates this member: it listed only a since-resolved one.
         record["dispatch_ids"] = [{"dispatch_id": "batch-x:ri-09:attempt-1", "lease_generation": 1}]
+
+    early = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter,
+    )
+    assert early["resumed"] == []
+    assert _attempt(world)["status"] == "parked"
+
+    gate_router.answer_escalation(fingerprint, workspace=workspace, repo_root=repo, approved=False, adapter=adapter)
+    with CheckpointManager(workspace).transaction() as checkpoint:
+        latest = checkpoint.gate_decisions[-1]
+        latest["dispatch_ids"] = [{"dispatch_id": "batch-x:ri-09:attempt-1", "lease_generation": 1}]
+    resolution = gate_router.resolve_parked(
+        _attempt(world), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+    assert resolution.outcome == "blocked"
+    assert [item["dispatch_id"] for item in _mirror_fingerprint_entries(repo)[0]["dispatch_ids"]] == [
+        request["dispatch_id"]
+    ]
 
     approved = gate_router.answer_escalation(
         fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter,
