@@ -285,10 +285,10 @@ index e8a5e74..9667a54 100644
  ### Phase: Plan
 diff --git a/openspec/changes/dispatch-contract/.review-ledger/ledger.json b/openspec/changes/dispatch-contract/.review-ledger/ledger.json
 new file mode 100644
-index 0000000..e1b2239
+index 0000000..17b6182
 --- /dev/null
 +++ b/openspec/changes/dispatch-contract/.review-ledger/ledger.json
-@@ -0,0 +1,276 @@
+@@ -0,0 +1,434 @@
 +{
 +  "schema_version": 1,
 +  "change_id": "dispatch-contract",
@@ -561,9 +561,167 @@ index 0000000..e1b2239
 +      ],
 +      "description": "Task 5.2 makes roadmap-runtime/scripts/models.py depend on skills/shared/dispatch_contract.schema_registry; models.py has no skills/shared import today. Building the referencing.Registry locally from the schema directories inside models.py would avoid a new cross-skill dependency from the runtime foundation.",
 +      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 16,
++      "status": "open",
++      "axis": "security",
++      "type": "security",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/autopilot/scripts/runner.py",
++      "fingerprint": "2f8536043bf997ac",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "In a dispatched child, gate-answer compares only --approval-ref with the launch marker's gate_answer.approval_ref. It never checks --gate or --decision against gate_answer.gate/decision, so a child whose marker says {gate: proposal_approval, decision: rejected, approval_ref: R} can run gate-answer --decision approved --approval-ref R (or answer a different pending gate, or clear a park with a pending_gate answer) and record a human-provenance approval the supervisor never made. The spec requires the child to apply a gate decision only from the marker's gate_answer (skill-workflow 'Gate Authority and Re-Evaluation on Resume', design D5).",
++      "resolution": "compact: claimed fix did not take",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 17,
++      "status": "open",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/tests/autopilot/test_gate_check_reeval.py",
++      "fingerprint": "fec979559731bf9d",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The dispatched-child gate-answer tests cover only a mismatched approval_ref. No test pins that a matching approval_ref with a different --decision or --gate is refused, which is how finding 1 went unnoticed.",
++      "resolution": "compact: claimed fix did not take",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 18,
++      "status": "open",
++      "axis": "security",
++      "type": "security",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
++      "fingerprint": "23ceffe3feec42c8",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "apply_delegated_batch persists a permission_blocked result's parked.command verbatim: _terminal_attempt copies result['parked'] into the checkpoint attempt, and the application journal stores the whole result. Only the router's gate-decision record (parked_commands) is re-sanitized. checkpoint.json is a tracked file on a shared ref, and a result that did not come through runner.py park (hand-written, or from an older worker) can carry an unredacted credential; the apply-time re-derivation compares only the fingerprint (tool, rule, classifier_reason), not the command. Design D9 says the command is 're-sanitized by the router', and the supervise scenario requires the persisted command not to contain the secret. test_a_secret_in_the_blocked_command_is_redacted seeds the checkpoint attempt with the raw 'Bearer abc123...' value and checks only the record.",
++      "resolution": "compact: claimed fix did not take",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 19,
++      "status": "open",
++      "axis": "security",
++      "type": "correctness",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/tests/autopilot-roadmap/test_supervised_dispatch.py",
++      "fingerprint": "4e76f85907b32bb7",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "No test applies a permission_blocked result carrying a secret-bearing command and asserts that the persisted checkpoint (the attempt's parked payload and its application journal) contains no raw secret.",
++      "resolution": "compact: claimed fix did not take",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 20,
++      "status": "open",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/shared/dispatch_contract.py",
++      "fingerprint": "98546f72a1f3bf07",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "redact_command is not idempotent for auth headers: backtracking in \\s* defeats the (?!\\[REDACTED:) lookahead, so re-redacting 'Authorization: [REDACTED:auth-header]' rewrites it to 'Authorization:[REDACTED:auth-header]'. Harmless for secrecy, but the router's second pass changes already-redacted text.",
++      "resolution": "compact: claimed fix did not take",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 21,
++      "status": "open",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/shared/approval_gate.py",
++      "fingerprint": "f64fc9e8bf4180c1",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Carried from IMPL_ITERATE: in a dispatched child whose posture digest drifted, a notify_with_timeout gate can still take its posture-derived timeout default; the spec forbids only auto there.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 22,
++      "status": "open",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/autopilot/scripts/runner.py",
++      "fingerprint": "99566455adc7ab35",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Carried from IMPL_ITERATE: emit-result does not cross-check --dispatch-id/--generation against the launch marker; the supervisor's identity check still rejects a mismatch at apply.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 23,
++      "status": "open",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/supervise/scripts/execution.py",
++      "fingerprint": "52493cd6a655e8bd",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Carried from IMPL_ITERATE: rebind accepts a post-go attempt with no recorded evidence when only a worktree for its branch exists on this host (the evidence conditions hold vacuously).",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 24,
++      "status": "open",
++      "axis": "resilience",
++      "type": "resilience",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/supervise/scripts/gate_router.py",
++      "fingerprint": "a4507d47347e55c8",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "_resolve_capability_park's proceed path falls back to records[0] when the attempt is not among the fingerprint's parked members (its checkpoint copy moved on); with no members that raises IndexError instead of a GateRefusalError.",
++      "consensus_status": "unconfirmed"
 +    }
 +  ],
-+  "compacted_at": "2026-10-09T07:22:49Z"
++  "compacted_at": "2026-10-09T13:38:32Z"
 +}
 diff --git a/openspec/changes/dispatch-contract/design.md b/openspec/changes/dispatch-contract/design.md
 index 5779f8b..be13ed5 100644
@@ -1120,10 +1278,10 @@ index 0000000..d482996
 +}
 diff --git a/openspec/changes/dispatch-contract/impl-findings.md b/openspec/changes/dispatch-contract/impl-findings.md
 new file mode 100644
-index 0000000..aef54b2
+index 0000000..a43d6d3
 --- /dev/null
 +++ b/openspec/changes/dispatch-contract/impl-findings.md
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,50 @@
 +# Implementation Findings: dispatch-contract
 +
 +IMPL_ITERATE, threshold `medium`. Review was single-vendor (`claude_code`), under the
@@ -1150,6 +1308,24 @@ index 0000000..aef54b2
 +|---|------|-------------|-------------|-----|--------|
 +| 7 | bug | medium | Regression from fix 1: after the operator approved a rejected fingerprint, the stale rejection was still the latest blocked subject, so a new park on that fingerprint stayed blocked. Members that joined after the rejection were also not resumed by the approval | A subject answered by a later proceed is no longer the prior record. `answer_escalation` resumes current fingerprint members that the subject's listing predates | 4cc15ae |
 +
++## IMPL_REVIEW (converge, targeted fixes)
++
++`converge()` ran with `review_type=implementation`, `fix_mode=targeted`, `min_quorum=1`
++from `resolve_quorum_policy` (policy `cloud-container-single-vendor-2026-10-09`), and
++`base_ref=origin/openspec/roadmap-multiplayer-collaboration`. Review was single-vendor
++(`claude_code`), degradation `single_vendor_review`. Blocking trend per round: `[5, 0]`.
++Converged in round 2.
++
++| Ledger | Type | Criticality | Description | Fix | Commit |
++|---|---|---|---|---|---|
++| 16, 17 | security | medium | A dispatched child's `gate-answer` checked only `--approval-ref` against the marker, so a matching reference could record an approval the supervisor had rejected, or answer another gate | `--gate` and `--decision` must also equal the marker's `gate_answer` (exit 2, nothing recorded), with tests | 5b28e32 |
++| 18, 19 | security | medium | `apply_delegated_batch` persisted a `permission_blocked` result's `parked.command` verbatim into the tracked checkpoint (attempt and journal); only the router's record was re-sanitized | The command is passed through `redact_command` right after validation, before binding, journaling and persistence, with an apply-level test | b34c6af |
++| 20 | correctness | low | Auth-header redaction was not idempotent (a second pass rewrote an already-redacted header) | The lookahead skips leading whitespace | bad6de9 |
++
++Advisory (low) added in IMPL_REVIEW: `_resolve_capability_park`'s proceed path indexes
++`records[0]` when the attempt is not among its fingerprint's parked members, which
++raises `IndexError` instead of a `GateRefusalError`.
++
 +## Remaining (below threshold)
 +
 +- low: in a dispatched child whose posture digest has drifted, a `notify_with_timeout` gate can still take its posture-derived timeout default. The spec forbids only `auto` here; parking would follow the supervisor-authority intent more closely.
@@ -1158,16 +1334,16 @@ index 0000000..aef54b2
 +- open question: once a human has rejected `escalate_resume` itself, gate-check can never re-ask it. Recovery is the `abandoned` edge or an operator edit.
 diff --git a/openspec/changes/dispatch-contract/loop-state.json b/openspec/changes/dispatch-contract/loop-state.json
 new file mode 100644
-index 0000000..7e0a724
+index 0000000..094a7b9
 --- /dev/null
 +++ b/openspec/changes/dispatch-contract/loop-state.json
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,137 @@
 +{
 +  "schema_version": 6,
 +  "change_id": "dispatch-contract",
-+  "current_phase": "IMPL_REVIEW",
++  "current_phase": "VAL_REVIEW",
 +  "iteration": 0,
-+  "total_iterations": 9,
++  "total_iterations": 11,
 +  "max_phase_iterations": 3,
 +  "findings_trend": [],
 +  "blocking_findings": [],
@@ -1182,7 +1358,9 @@ index 0000000..7e0a724
 +    "9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
 +    "eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5",
 +    "8b3b7d01-452a-498f-9e34-46fdd6ca5e94",
-+    "8d309935-3b68-44db-be5c-d6b327ec8c61"
++    "8d309935-3b68-44db-be5c-d6b327ec8c61",
++    "13e77665-feba-4ef3-b28a-a9b61d278135",
++    "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9"
 +  ],
 +  "phase_history": [
 +    {
@@ -1220,17 +1398,27 @@ index 0000000..7e0a724
 +      "at": "2026-10-09T13:26:34.431681+00:00",
 +      "outcome": "complete",
 +      "phase": "IMPL_ITERATE"
++    },
++    {
++      "at": "2026-10-09T13:47:51.835672+00:00",
++      "outcome": "converged",
++      "phase": "IMPL_REVIEW"
++    },
++    {
++      "at": "2026-10-09T13:55:05.532741+00:00",
++      "outcome": "passed",
++      "phase": "VALIDATE"
 +    }
 +  ],
-+  "last_handoff_id": "8d309935-3b68-44db-be5c-d6b327ec8c61",
++  "last_handoff_id": "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9",
 +  "started_at": "2026-10-06T09:08:58.470413+00:00",
-+  "phase_started_at": "2026-10-09T13:26:37.604163+00:00",
++  "phase_started_at": "2026-10-09T13:55:08.852195+00:00",
 +  "previous_phase": "PLAN_REVIEW",
 +  "escalation_reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable (codex listed by --check-vendors but no codex CLI/credential). Quorum not lowered; awaiting operator decision on cloud review lane (GX10/policy/credential). handoff 9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
 +  "val_review_enabled": true,
 +  "cli_review_enabled": true,
 +  "error": null,
-+  "phase_archetype": "implementer",
++  "phase_archetype": "validator",
 +  "force": false,
 +  "gate_signals": {},
 +  "gate_verdict": "proceed_with_review",
@@ -1574,10 +1762,10 @@ index 7b4e3bd..0bf2507 100644
 +history; the merge choice is the operator's.
 diff --git a/openspec/changes/dispatch-contract/session-log.md b/openspec/changes/dispatch-contract/session-log.md
 new file mode 100644
-index 0000000..f716bc1
+index 0000000..0bb2906
 --- /dev/null
 +++ b/openspec/changes/dispatch-contract/session-log.md
-@@ -0,0 +1,215 @@
+@@ -0,0 +1,263 @@
 +# Session Log: dispatch-contract
 +
 +> Decision rationale, trade-offs, and alternatives recorded at each workflow phase.
@@ -1792,6 +1980,54 @@ index 0000000..f716bc1
 +
 +### Context
 +Two iterations fixed seven findings at medium or above: human-rejection finality on both sides of the gate boundary, short-credential redaction, cross-host takeover of live pre-go claims, supervisor re-derivation of v2 results through the normative mapping, and a closure enumeration that no longer reads non-enumerable gates as null. The two supervisor-requested converge() fixes (base_ref pass-through, bookkeeping excluded from the post-fix scope check) also landed as tasks 7.6 and 7.7.
++
++---
++
++## Phase: Implementation Review (2026-10-09)
++
++**Agent**: claude_code | **Session**: N/A
++
++### Decisions
++1. **A launch marker's gate_answer authorizes exactly its gate and decision** — The approval reference names a supervisor record but does not carry its content; gate-answer now also requires --gate and --decision to equal the marker's answer.
++2. **The supervisor redacts a blocked command at apply, not only in the router record** — checkpoint.json is tracked; a result that did not come through runner.py park could otherwise commit a credential in the attempt or its journal.
++
++### Alternatives Considered
++- Re-derive the whole parked payload, command included, from loop state at apply: rejected because The supervisor's checkpoint must be safe even for v1 results, which are not re-derived.
++
++### Trade-offs
++- Accepted single-vendor review (claude_code) at quorum 1 over parking IMPL_REVIEW as capability_unavailable because cloud-container quorum policy cloud-container-single-vendor-2026-10-09; degradation single_vendor_review
++
++### Open Questions
++- [ ] Once a human has rejected escalate_resume itself, gate-check can never re-ask it (carried from IMPL_ITERATE).
++
++### Completed Work
++- Fixes: 5b28e32 (gate-answer gate/decision), b34c6af (apply-time command redaction), bad6de9 (idempotent header redaction).
++- Degradations: single_vendor_review (IMPL_REVIEW, claude_code); coordinator_projection_forbidden if the handoff write falls back locally.
++
++### Next Steps
++- VAL_REVIEW / VALIDATE: low advisories remain (notify_with_timeout under posture drift, emit-result identity cross-check, vacuous rebind evidence, records[0] fallback in _resolve_capability_park).
++
++### Relevant Files
++- `skills/autopilot/scripts/runner.py` — gate-answer marker authority
++- `skills/autopilot-roadmap/scripts/orchestrator.py` — apply-time command redaction
++- `skills/shared/dispatch_contract.py` — redact_command
++- `openspec/changes/dispatch-contract/impl-findings.md` — IMPL_REVIEW findings table
++
++### Context
++converge() ran IMPL_REVIEW (review_type=implementation, fix_mode=targeted, min_quorum=1 from resolve_quorum_policy, base_ref=origin/openspec/roadmap-multiplayer-collaboration) and converged in round 2 with blocking trend [5, 0]. Round 1 found two medium security defects, each with a test gap: a dispatched child's gate-answer accepted any gate or decision as long as the approval reference matched the marker, and apply persisted a permission_blocked result's command unredacted into the tracked checkpoint. A low redaction idempotency issue was also fixed. IMPL_FIX ran inline (claude_code) and was scoped to the cited paths, which lie inside wp-autopilot-child, wp-runtime-ledger and wp-contract-lib.
++
++---
++
++## Phase: Validate (2026-10-09)
++
++**Agent**: claude_code | **Session**: N/A
++
++### Next Steps
++- VAL_REVIEW single-vendor over validation evidence
++- SUBMIT_PR against openspec/roadmap-multiplayer-collaboration
++
++### Context
++VALIDATE passed: spec compliance pass, 0 open tasks, openspec strict valid, ruff clean, suites green except known env-only failures; deploy/smoke/security/e2e N/A (non-deployable, declared); CI DEGRADED (no runs yet, no PR). All eight ri-21 outcomes mapped to passing tests; real gitleaks binary not run locally (CI only). Degradations: single_vendor_review (PLAN_REVIEW, IMPL_REVIEW), coordinator_projection_forbidden.
 +
 diff --git a/openspec/changes/dispatch-contract/specs/parallel-infrastructure/spec.md b/openspec/changes/dispatch-contract/specs/parallel-infrastructure/spec.md
 new file mode 100644
@@ -2459,12 +2695,134 @@ index b82d273..e834294 100644
 +| SW Honest Review Quorum | 6.5, 7.3 |
 +| TP Roadmap-Approval-Scoped Auto Dispositions | 3.1, 3.2, 3.3, 6.2, 9.5 |
 +| PI Dispatchable Vendor Verification | 7.1, 7.2 |
+diff --git a/openspec/changes/dispatch-contract/validation-report.md b/openspec/changes/dispatch-contract/validation-report.md
+new file mode 100644
+index 0000000..0619eca
+--- /dev/null
++++ b/openspec/changes/dispatch-contract/validation-report.md
+@@ -0,0 +1,116 @@
++# Validation Report: dispatch-contract
++
++**Date**: 2026-10-09
++**Commit**: 7cc9180c3ea49a0a9b08618d376bf0c2793bdccc
++**Branch**: openspec/dispatch-contract
++
++Scope: skills scripts, shared libraries, and JSON schemas only. There is no deployable
++service (no docker-compose, agent-coordinator/, packages/ or apps/ path changed; the only
++non-skills/openspec/docs path is the root `TRUST_POSTURE.template.md`). Container-dependent
++phases are therefore not applicable, not skipped.
++
++## Phase Results
++
++- Deploy: not applicable (no deployable surface)
++- Smoke: not applicable (no live service)
++- Gen-Eval: not applicable (no descriptors touched; no service)
++- Security: not applicable for live scanners (no service); secret scan evidence under Spec Compliance outcome 6
++- E2E: not applicable (no browser-facing surface)
++- Architecture: not run (advisory; no service/graph consumer touched)
++- Task drift: pass (0 unchecked boxes in tasks.md)
++- OpenSpec: pass (`openspec validate dispatch-contract --strict`: valid)
++- Lint: pass (`ruff check` on every changed Python file/dir: all checks passed)
++- Test suites: pass except the known environment-only failure (see Spec Compliance)
++- CI/CD: DEGRADED (not checked; GitHub MCP lists zero workflow runs for branch openspec/dispatch-contract and no PR exists yet)
++- Choices: no ledger
++
++## Spec Compliance
++
++**Status**: pass
++
++Per-directory results (each `skills/tests/<dir>` run in its own process, base-independent):
++
++| Suite | Result |
++|---|---|
++| skills/tests/autopilot | 533 passed, 6 skipped |
++| skills/tests/autopilot-roadmap | 144 passed |
++| skills/tests/install_sh | 18 passed, 14 skipped |
++| skills/tests/parallel-infrastructure | 292 passed, 2 skipped |
++| skills/tests/roadmap-runtime | 181 passed, 1 skipped |
++| skills/tests/shared | 134 passed, 1 skipped |
++| skills/tests/supervise | 459 passed, 1 failed (known) |
++| skills/autopilot/scripts/tests/test_autopilot.py | 48 passed |
++
++The single failure is the documented environment-only
++`test_workflow_contract.py::test_contract_inspects_the_canonical_source_contribution`
++(fails identically at base bdb0048 when run under a `.claude/` path). No other failures.
++
++### Acceptance outcome to test mapping (proposal.md, ri-21)
++
++1. Schemas exist and execution.py / orchestrator.py validate against them, fixtures pass: pass.
++   `shared/test_dispatch_contract.py`, `roadmap-runtime/test_dispatch_schema_parity.py`,
++   `supervise/test_execution_contract.py`, `supervise/test_execution.py`,
++   `autopilot-roadmap/test_supervised_dispatch.py`. Legacy loading: every
++   `openspec/roadmaps/**/checkpoint.json` (archived 2026-09-26, dispatch-governance,
++   multiplayer-collaboration with 4 raw-token attempts, principal-credential-architecture,
++   roadmap-jev-system-one-integration-assessment) loaded through `models.load_checkpoint`
++   from a tmp copy (5/5 LOAD OK; real files untouched), and
++   `roadmap-runtime/test_checkpoint_legacy_migration.py` (archived + live, 5 tests) passes.
++2. emit-result produces a schema-valid result for every terminal/parked shape, end to end: pass.
++   `autopilot/test_emit_result.py`, `autopilot-roadmap/test_dispatch_contract_e2e.py::test_every_shape_round_trips_through_emit_result_and_apply`,
++   `::test_apply_refuses_a_result_the_loop_state_does_not_map_to`.
++3. Closure contract test fails on any unrouted parked kind/gate: pass.
++   `supervise/test_dispatch_closure.py` (`test_every_permitted_combination_has_exactly_one_path`,
++   `test_adding_a_kind_without_a_path_fails_naming_it`, `test_pending_gate_with_escalate_resume_is_answerable`, apply-time predicate table).
++4. Posture-derived block clears on resume after posture change, human rejection does not: pass.
++   `autopilot/test_gate_check_reeval.py` (`test_a_standalone_stale_posture_block_clears_without_an_answer`,
++   `test_a_human_rejection_is_not_re_evaluated`), `autopilot-roadmap/test_dispatch_contract_e2e.py`
++   (`test_a_posture_flip_resumes_the_child_which_leaves_plan`, `test_a_human_rejection_survives_the_posture_flip`),
++   `shared/test_approval_gate_provenance.py`.
++5. execution_profile, review_requirements, degradations[] carried end to end; capability parks routed as single escalations: pass.
++   `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child`,
++   `autopilot/test_quorum_park.py`, `autopilot/test_convergence_loop.py`,
++   `parallel-infrastructure/test_check_vendors_dispatchable.py`, `parallel-infrastructure/test_review_packet.py`.
++6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass (with one sub-check not run).
++   `roadmap-runtime/test_landable_checkpoint.py`: `test_the_fixture_has_live_attempts_and_no_raw_token`,
++   `test_the_default_generic_api_key_rule_finds_nothing` (Python port of the default gitleaks
++   generic-api-key rule: keyword prefilter, regex, entropy > 3.5, applied to the committed-shape
++   fixture with 2 live attempts), `test_the_rule_port_catches_a_raw_launch_token` (calibration),
++   `test_no_scalar_field_name_matches_the_generic_api_key_keywords`,
++   `test_gitleaks_config_has_no_entry_for_the_fixture` (no allowlist help),
++   `test_the_builder_reproduces_the_fixture_shape` (fixture produced by real prepare/child_start/acknowledge).
++   child_start digest verification: `roadmap-runtime/test_delegated_checkpoint.py`, `autopilot-roadmap/test_supervised_dispatch*.py`.
++   NOT RUN: `test_gitleaks_scan_of_the_fixture_directory_is_clean` (skipped: gitleaks binary not
++   installed; binaries must not be downloaded). The CI gitleaks job remains the real-binary check.
++7. Checkpoint with live attempts committed on one host reconciles on another: pass.
++   `roadmap-runtime/test_cross_host_reconcile.py` (7 tests: rebind of matching worktree, refusal on diverged worktree / digest mismatch,
++   reinitialize of prepared attempt, unexpired vs expired pre-go claim, post-go unknown liveness quarantined).
++8. auto for proposal_approval / replan_required proceeds only with valid roadmap_approval_ref: pass.
++   `shared/test_trust_posture_scope.py` (valid ref proceeds; standalone falls back to unscoped; marker-sourced refs only),
++   `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_dispatched_child_with_a_marker_ref_takes_scoped_auto`,
++   `::test_a_standalone_run_blocks_with_scope_unscoped`.
++
++## Smoke Tests
++
++**Status**: not applicable
++Reason: skills/schemas-only change, no running service to smoke test.
++
++## Security
++
++**Status**: not applicable
++Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally (CI covers it).
++
++## E2E Tests
++
++**Status**: not applicable
++Reason: no browser or service surface.
++
++## Review Degradations
++
++- single_vendor_review: PLAN_REVIEW and IMPL_REVIEW ran claude_code only (cloud-container policy, min_quorum=1).
++- coordinator_projection_forbidden: coordinator queue projection returned forbidden (expected in this environment).
++- GATEKEEPER ran via a real judge (no degradation).
++
++## Result
++
++**PASS** — All eight acceptance outcomes are covered by passing tests. Not-run items are recorded above (gitleaks binary, CI status, live-service phases). Ready for `/cleanup-feature dispatch-contract`.
 diff --git a/openspec/changes/dispatch-contract/work-packages.yaml b/openspec/changes/dispatch-contract/work-packages.yaml
 new file mode 100644
-index 0000000..c449ac9
+index 0000000..0a87a84
 --- /dev/null
 +++ b/openspec/changes/dispatch-contract/work-packages.yaml
-@@ -0,0 +1,564 @@
+@@ -0,0 +1,565 @@
 +# Packages are shaped by file ownership; see design.md "Package boundaries and ordering".
 +schema_version: 1
 +feature:
@@ -2472,6 +2830,7 @@ index 0000000..c449ac9
 +  title: Publish the supervisor-worker dispatch contract
 +  plan_revision: 2
 +  created_by: claude-code
++  deployable: false  # skills scripts + JSON schemas only; no service surface
 +contracts:
 +  revision: 1
 +  openapi:
@@ -5542,7 +5901,7 @@ index 14d5ab8..1aa25c9 100644
    }
  }
 diff --git a/skills/autopilot-roadmap/scripts/orchestrator.py b/skills/autopilot-roadmap/scripts/orchestrator.py
-index 3d5d790..a2d721b 100644
+index 3d5d790..da57d2f 100644
 --- a/skills/autopilot-roadmap/scripts/orchestrator.py
 +++ b/skills/autopilot-roadmap/scripts/orchestrator.py
 @@ -72,8 +72,14 @@ from policy import (  # type: ignore[import-untyped]
@@ -5856,524 +6215,7 @@ index 3d5d790..a2d721b 100644
 -    ):
 -        raise ValueError("invalid success dispatch result handoff_id")
 -    if outcome == "parked":
--        parked = value.get("parked")
--        if (
--            not isinstance(parked, dict)
--            or set(parked) - {"kind", "reason", "gate", "deadline", "resume_hint"}
--            or parked.get("kind") not in {"pending_gate", "policy_pause"}
--            or not isinstance(parked.get("reason"), str)
--            or not parked["reason"]
--            or len(parked["reason"]) > 1024
--            or not _valid_nullable_string(parked, "gate", 128)
--            or not _valid_nullable_string(parked, "resume_hint", 512)
--            or not _valid_nullable_date_time(parked, "deadline")
--        ):
--            raise ValueError("invalid parked dispatch result")
--    elif "parked" in value:
--        raise ValueError("non-parked dispatch result cannot contain parked state")
--    return value
--
--
--def _valid_nullable_string(value: Mapping[str, Any], field: str, limit: int) -> bool:
--    candidate = value.get(field)
--    return field not in value or candidate is None or (
--        isinstance(candidate, str) and len(candidate) <= limit
--    )
--
--
--def _valid_nullable_date_time(value: Mapping[str, Any], field: str) -> bool:
--    candidate = value.get(field)
--    if field not in value or candidate is None:
--        return True
--    if not isinstance(candidate, str) or _DATE_TIME.fullmatch(candidate) is None:
--        return False
--    try:
--        datetime.fromisoformat(candidate.replace("Z", "+00:00").replace("z", "+00:00"))
--    except ValueError:
--        return False
--    return True
--
--
- def _result_digest(result: Mapping[str, Any]) -> str:
-     canonical = json.dumps(
-         result,
-@@ -605,7 +547,7 @@ def _validate_exact_result(
-         if result[field] != attempt[field]:
-             raise ValueError(f"{field} mismatch for dispatch {attempt['dispatch_id']}")
-     isolation = attempt["isolation"]
--    for field in ("worktree_path", "branch"):
-+    for field in ("worktree_ref", "branch", "host_id"):
-         if field in result and result[field] != isolation[field]:
-             raise ValueError(f"{field} mismatch for dispatch {attempt['dispatch_id']}")
- 
-@@ -643,6 +585,8 @@ def _terminal_attempt(
-         terminal["lease"]["state"] = "released"
-     outcome = result["outcome"]
-     terminal.update(outcome=outcome, resolved_at=now)
-+    # Outcome metadata (D10): the child's degradations, bounded by the schema.
-+    terminal["degradations"] = copy.deepcopy(list(result.get("degradations") or []))
-     if outcome == "success":
-         terminal.update(status="completed", handoff_id=result["handoff_id"])
-     elif outcome == "parked":
-@@ -666,8 +610,17 @@ def apply_delegated_batch(
-     *,
-     repo_root: Path,
-     gate_evaluator: GateEvaluator | None = None,
-+    managed_root: Path | None = None,
-+    host_id: str | None = None,
-+    parked_route: ParkedRoute | None = None,
- ) -> dict[str, Any]:
--    """Validate and apply one exact persisted batch through ``dispatch_fn`` once."""
-+    """Validate and apply one exact persisted batch through ``dispatch_fn`` once.
-+
-+    Results are validated against the published contract (v1 results are
-+    upgraded in memory with this host's context). A parked result whose
-+    ``(kind, gate)`` has no supervisor answer path (``parked_route``) is refused
-+    before any callback runs.
-+    """
-     roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
-     batch_attempts = _batch_attempts(checkpoint, batch_id)
-     attempts = [
-@@ -678,7 +631,21 @@ def apply_delegated_batch(
-     if not attempts:
-         raise ValueError(f"delegated batch already applied: {batch_id}")
- 
--    validated = [_validate_dispatch_result(result) for result in results]
-+    managed = Path(managed_root) if managed_root is not None else Path(repo_root) / ".git-worktrees"
-+    host = host_id or current_host_id()
-+    validated = []
-+    for result in results:
-+        upgraded = dispatch_contract.ensure_v2_result(
-+            result, repo_root=repo_root, managed_root=managed, host_id=host
-+        )
-+        parked = upgraded.get("parked")
-+        if (
-+            parked_route is not None
-+            and isinstance(parked, Mapping)
-+            and not parked_route(str(parked.get("kind")), parked.get("gate"))
-+        ):
-+            raise dispatch_contract.DispatchContractError("unroutable parked result")
-+        validated.append(upgraded)
-     dispatch_ids = [result["dispatch_id"] for result in validated]
-     if len(dispatch_ids) != len(set(dispatch_ids)):
-         raise ValueError("duplicate dispatch result")
-@@ -822,6 +789,11 @@ def apply_delegated_batch(
-         "failed_item_ids": failed,
-         "parked_item_ids": parked,
-         "gate_decisions": gate_decisions,
-+        "degradations": {
-+            result["dispatch_id"]: copy.deepcopy(result.get("degradations") or [])
-+            for result in validated
-+            if result.get("degradations")
-+        },
-     }
- 
- 
-diff --git a/skills/autopilot/SKILL.md b/skills/autopilot/SKILL.md
-index 2e3012d..63d50a8 100644
---- a/skills/autopilot/SKILL.md
-+++ b/skills/autopilot/SKILL.md
-@@ -105,6 +105,32 @@ python3 "<skill-base-dir>/scripts/runner.py" project-state \
-   --coordinator-url "<coordinator-url>"
- ```
- 
-+### Dispatched worker protocol (supervise children)
-+
-+A run whose worktree carries a launch marker was dispatched by `/supervise`
-+(dispatch-contract). The marker is its only view of the dispatch request; it
-+carries no token.
-+
-+- **Gates.** The supervisor is authoritative. Apply a gate decision only from the
-+  marker's `gate_answer`: `runner.py gate-answer <change-id> --gate <gate>
-+  --decision <decision> --approval-ref <gate_answer.approval_ref>`. Never answer or
-+  re-evaluate a pending gate yourself; `gate-check` prints it unchanged.
-+- **Permission denials.** When the harness denies a tool call, do not retry or wait:
-+  `runner.py park <change-id> --kind permission_blocked --tool <tool> --rule "<matched
-+  rule>" --command "<command>" --reason "<classifier reason>"`, commit
-+  `loop-state.json`, emit the result, and stop. The command is stored redacted.
-+- **Probing.** Run only `execution_profile.probe_command`. Never read environment
-+  variables or credentials to discover capabilities.
-+- **Degradations.** Record every degraded path with `runner.py record-degradation`
-+  (closed codes only: `single_vendor_review`, `review_skipped`,
-+  `coordinator_projection_forbidden`, `audit_sink_failed`, `phase_fallback_inline`,
-+  `handoff_local_fallback`).
-+- **Result.** When the loop is terminal or parked, commit `loop-state.json`, then
-+  `runner.py emit-result <change-id> --dispatch-id <id> --generation <N> --attempt <A>`
-+  (exit 5: not terminal or parked; exit 2: loop state uncommitted). Commit the file it
-+  writes under `openspec/changes/<change-id>/dispatch-results/` and return only that
-+  path and the commit — never a hand-composed result.
-+
- ### 0. Parse Arguments and Check for Resume
- 
- Parse the argument to determine:
-@@ -158,16 +184,40 @@ Append only the flags present in the Autopilot invocation; `init` persists them
- python3 "<skill-base-dir>/scripts/runner.py" init --change-id <change-id> [--force] [--val-review] [--no-review]
- ```
- 
--**Detect CLI mode** — check whether multi-vendor review is available:
-+**Detect CLI mode** — decide how multi-vendor review runs. Whether this run was
-+dispatched by `/supervise` is decided by its launch marker
-+(`.supervised-dispatch/<change-id>/*.marker`, read only through
-+`dispatch_contract.read_launch_marker`), never by inspecting the environment.
-+
-+*Dispatched child (launch marker present).* Keep review enabled. The marker's
-+`review_requirements.min_quorum[<phase>]` and `execution_profile.lanes.review`
-+are the only inputs: the supervisor resolved them as data (including any
-+per-environment quorum policy and its sunset), so the child never lowers a quorum
-+itself. At `PLAN_REVIEW` / `IMPL_REVIEW` / `VAL_REVIEW` entry, and again whenever a
-+review round's `review-manifest.json` shows a lane failed to dispatch
-+(`vendor_unavailable` / `auth_required`), compare the lanes that actually
-+dispatched with `min_quorum[<phase>]`:
-+
-+```bash
-+# fewer dispatchable lanes than the quorum: park and stop — never review below it
-+python3 "<skill-base-dir>/scripts/runner.py" park <change-id> \
-+  --kind capability_unavailable --phase <PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW> \
-+  --missing-lane <counting lane not dispatched> [--missing-lane ...]
-+# quorum met by exactly one lane (min_quorum 1 by policy): record it, then review
-+python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
-+  --code single_vendor_review --phase <phase> --detail "vendor=<the one lane>"
-+```
-+
-+*Standalone run (no marker).* Keep today's probe, and record the degradation when
-+review is disabled below quorum:
- 
- ```bash
--# CLI mode: vendor CLIs are available for multi-vendor review dispatch
- CLI_REVIEW_ENABLED=true
- if [[ "$ARGUMENTS" == *"--no-review"* ]]; then
-   CLI_REVIEW_ENABLED=false
- fi
--# Also disable if fewer than 2 vendors are dispatchable (non-interactive/cloud
--# environment). --check-vendors exits 0 at quorum, 2 below it.
-+# Disable if fewer than 2 vendors are dispatchable. --check-vendors exits 0 at
-+# quorum, 2 below it; it counts a lane only after a dry invocation succeeds.
- #
- # Run it BARE — do not pipe. A pipeline's $? is the LAST stage's status, so
- # `... --check-vendors | tail` would report tail's 0 even when the probe fails,
-@@ -176,9 +226,15 @@ if ! python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatc
-      --check-vendors --min-vendors 2; then
-   CLI_REVIEW_ENABLED=false
-   echo "[autopilot] Fewer than 2 vendor CLIs detected — multi-vendor review disabled"
-+  python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
-+    --code review_skipped --phase PLAN_REVIEW --detail "fewer than 2 dispatchable review lanes"
- fi
- ```
- 
-+Never discover vendors or credentials by reading environment variables
-+or credential files: `review_dispatcher.py --check-vendors` (or, in a dispatched
-+child, the marker's `execution_profile.probe_command`) is the only probe.
-+
- Pass `cli_review_enabled` to `run_loop()`. When False, PLAN_ITERATE and IMPL_ITERATE still run (self-review is always valuable), but PLAN_REVIEW and IMPL_REVIEW are skipped.
- 
- After each review round, check the round's `review-manifest.json` for vendors
-diff --git a/skills/autopilot/scripts/autopilot.py b/skills/autopilot/scripts/autopilot.py
-index 4b95f60..23dbaa3 100644
---- a/skills/autopilot/scripts/autopilot.py
-+++ b/skills/autopilot/scripts/autopilot.py
-@@ -77,7 +77,7 @@ from shared.approval_gate import (  # noqa: E402
- )
- from shared.trust_posture import Gate  # noqa: E402
- 
--LOOP_STATE_SCHEMA_VERSION = 5
-+LOOP_STATE_SCHEMA_VERSION = 6
- 
- 
- # ---------------------------------------------------------------------------
-@@ -99,6 +99,7 @@ class LoopState:
-         5 — adds gate_decisions, pending_gate, goal_gate (trust-posture gates
-             and the DONE evidence check; OpenSpec
-             encode-autopilot-gates-and-goal-gate-in-code, design D7)
-+        6 — adds park and degradations (OpenSpec dispatch-contract, D11)
-     """
- 
-     schema_version: int = LOOP_STATE_SCHEMA_VERSION
-@@ -157,6 +158,13 @@ class LoopState:
-     gate_decisions: list[dict[str, Any]] = field(default_factory=list)
-     pending_gate: dict[str, Any] | None = None
-     goal_gate: dict[str, Any] | None = None
-+    # NEW (v6, dispatch-contract D11): why a run stopped before reaching a gate
-+    # (`permission_blocked` / `capability_unavailable`), and the closed-code
-+    # degradations the dispatch result reports. `runner.py park` and
-+    # `runner.py record-degradation` are the only writers; `_apply_transition`
-+    # refuses while `park` is set.
-+    park: dict[str, Any] | None = None
-+    degradations: list[dict[str, Any]] = field(default_factory=list)
- 
- 
- # ---------------------------------------------------------------------------
-@@ -175,9 +183,10 @@ def load_state(path: str | Path) -> LoopState:
-     """Deserialize a LoopState from the JSON file at *path*.
- 
-     Migrates older snapshots forward (D7): a v4 file loads with
--    ``gate_decisions = []``, ``pending_gate = None`` and ``goal_gate = None``
--    while every field it did carry (``phase_history`` included) is preserved;
--    the migration is persisted on the next ``save_state`` call.
-+    ``gate_decisions = []``, ``pending_gate = None`` and ``goal_gate = None``,
-+    and a v5 file with ``park = None`` and ``degradations = []``, while every
-+    field it did carry (``phase_history`` included) is preserved; the
-+    migration is persisted on the next ``save_state`` call.
-     """
-     data = json.loads(Path(path).read_text())
-     state = LoopState(**{k: v for k, v in data.items() if k in LoopState.__dataclass_fields__})
-@@ -330,6 +339,19 @@ class GatePending(RuntimeError):
-         super().__init__(f"gate {gate!r} is pending; the loop cannot transition")
- 
- 
-+class ParkActive(RuntimeError):
-+    """Raised by ``_apply_transition`` while ``state.park`` is set (D11).
-+
-+    Same enforcement point as :class:`GatePending`: a parked child stopped
-+    before reaching a gate and no phase may move until the supervisor's
-+    ``escalate_resume`` answer clears the park.
-+    """
-+
-+    def __init__(self, kind: str) -> None:
-+        self.kind = kind
-+        super().__init__(f"run is parked ({kind!r}); the loop cannot transition")
-+
-+
- class GoalGateRefused(RuntimeError):
-     """Raised by ``_apply_transition`` when the DONE evidence check refuses."""
- 
-@@ -383,9 +405,23 @@ def _build_gate_evaluator(change_id: str, repo_root: Path) -> GateEvaluator:
-     return build_default_gate(
-         agent_id=f"autopilot:{change_id}" if change_id else "autopilot",
-         repo_root=str(repo_root),
-+        marker_reader=launch_marker_reader(change_id, repo_root),
-     )
- 
- 
-+def launch_marker_reader(change_id: str, repo_root: Path) -> Callable[[dict[str, Any]], Any]:
-+    """The gate's marker seam for this run (D8, D10a): this worktree's launch
-+    marker for ``change_id``, read through ``dispatch_contract`` only. The
-+    evaluation context plays no part, so no caller can assert a scope."""
-+
-+    def read(_context: dict[str, Any]) -> Any:
-+        from shared import dispatch_contract
-+
-+        return dispatch_contract.read_launch_marker(change_id, repo_root=repo_root)
-+
-+    return read
-+
-+
- def _scalar_context(context: dict[str, Any]) -> dict[str, Any]:
-     """Coerce a gate context to the scalars gate-request.schema.json allows."""
-     coerced: dict[str, Any] = {}
-@@ -424,6 +460,10 @@ def build_gate_request(
-             "posture_present": decision.posture_present,
-         },
-     }
-+    provenance = decision.provenance or {}
-+    if provenance.get("source") == "posture" and provenance.get("posture_digest"):
-+        # D5: a standalone gate-check re-evaluates when the posture moved.
-+        request["posture"]["posture_digest"] = provenance["posture_digest"]
-     if edge is not None:
-         request["edge"] = dict(edge)
-     return request
-@@ -684,6 +724,8 @@ def apply_outcome_or_escalate(
-         raw.setdefault("gate_decisions", [])
-         raw.setdefault("pending_gate", None)
-         raw.setdefault("goal_gate", None)
-+        raw.setdefault("park", None)
-+        raw.setdefault("degradations", [])
-         raw["schema_version"] = LOOP_STATE_SCHEMA_VERSION
-         # Retry-safe: an apply-outcome retry while already parked must publish
-         # the same generation and retain its original resume target. This
-@@ -844,9 +886,18 @@ def _apply_transition(
-     """
-     if state.pending_gate:
-         raise GatePending(str(state.pending_gate.get("gate", "unknown")))
-+    if state.park:
-+        raise ParkActive(str(state.park.get("kind", "unknown")))
- 
-     old_phase = state.current_phase
-     next_phase = transition(state, outcome)
-+    if old_phase == "GATEKEEPER" and outcome in _GATEKEEPER_OUTCOMES:
-+        # The host-driven path (`runner.py transition`) applies the judge's
-+        # verdict here, so its review scheduling must be applied here too —
-+        # not only in run_loop's GATEKEEPER handler.
-+        state.gate_verdict = outcome
-+        if outcome == "proceed_with_review":
-+            state.val_review_enabled = True
- 
-     if next_phase == "DONE":
-         _check_done_evidence(state, old_phase, outcome, change_dir)
-diff --git a/skills/autopilot/scripts/convergence_loop.py b/skills/autopilot/scripts/convergence_loop.py
-index bc4addc..d8c1a19 100644
---- a/skills/autopilot/scripts/convergence_loop.py
-+++ b/skills/autopilot/scripts/convergence_loop.py
-@@ -121,6 +121,10 @@ class ConvergenceResult:
-     escalate_findings: list[dict[str, Any]] | None = None
-     validation_errors: list[str] | None = None
-     checkpoint_dir: Path | None = None
-+    # dispatch-contract D10: with reason="capability_unavailable", the counting
-+    # lanes that were not verified. The caller records the park through
-+    # `runner.py park`; this loop never writes loop state.
-+    missing_lanes: list[str] | None = None
- 
- 
- # ---------------------------------------------------------------------------
-@@ -566,6 +570,25 @@ def _changed_paths(
-     return sorted(names)
- 
- 
-+#: converge()'s own bookkeeping under ``artifacts_dir``: the review ledger and
-+#: the per-round packet/checkpoint cache. converge writes them itself
-+#: (``save_ledger`` runs before the pre-fix snapshot), never a fix callback.
-+_BOOKKEEPING_DIRS = (".review-ledger", ".review-cache")
-+
-+
-+def _without_bookkeeping(
-+    changed: list[str], *, worktree_path: Path, artifacts_dir: Path,
-+) -> list[str]:
-+    """``changed`` minus converge's own ``artifacts_dir`` bookkeeping paths, so
-+    the post-fix scope check sees only the fix callback's edits."""
-+    try:
-+        base = Path(artifacts_dir).resolve().relative_to(Path(worktree_path).resolve())
-+    except ValueError:
-+        return changed  # artifacts outside the worktree never appear in git output
-+    prefixes = tuple(f"{(base / name).as_posix()}/" for name in _BOOKKEEPING_DIRS)
-+    return [path for path in changed if not path.startswith(prefixes)]
-+
-+
- def _compute_vendor_agreement_rate(
-     consensus_dict: dict[str, Any] | None,
- ) -> float:
-@@ -683,9 +706,18 @@ def converge(
-     blocking_criticalities: set[str] | None = None,
-     stall_window: int = _DEFAULT_STALL_WINDOW,
-     fact_check: bool = True,
-+    verified_lanes: list[str] | None = None,
-+    counting_lanes: list[str] | None = None,
-+    base_ref: str | None = None,
- ) -> ConvergenceResult:
-     """Run the review-fix convergence loop.
- 
-+    Honest quorum (dispatch-contract D10): when ``verified_lanes`` is given and
-+    holds fewer lanes than ``min_quorum``, the loop returns
-+    ``reason="capability_unavailable"`` with ``missing_lanes`` (the
-+    ``counting_lanes`` not verified) before dispatching anything. It never
-+    lowers the quorum and writes no loop state.
-+
-     Args:
-         change_id: OpenSpec change identifier.
-         review_type: Type of review (plan, implementation).
-@@ -718,12 +750,32 @@ def converge(
-             CLI adapter being resolvable, the normal case for a mocked or
-             minimal orchestrator) skips the pass for that vendor and keeps
-             every finding. Set False to disable entirely.
-+        base_ref: Ref the review packet diffs against. ``None`` (default)
-+            keeps the packet builder's ``DEFAULT_BASE_REF``; a stacked branch
-+            passes its PR base (e.g. ``origin/openspec/<parent>``).
- 
-     Returns:
-         ConvergenceResult with convergence status and details.
-     """
-     start_time = time.monotonic()
- 
-+    # 0. Pre-dispatch quorum guard (D10).
-+    if verified_lanes is not None:
-+        verified = sorted(set(verified_lanes))
-+        if len(verified) < min_quorum:
-+            missing = sorted(set(counting_lanes or []) - set(verified))
-+            logger.warning(
-+                "Convergence for %s not dispatched: %d verified review lane(s) %s, "
-+                "quorum %d; missing %s",
-+                change_id, len(verified), verified, min_quorum, missing,
-+            )
-+            return ConvergenceResult(
-+                converged=False,
-+                rounds=0,
-+                reason="capability_unavailable",
-+                missing_lanes=missing,
-+            )
-+
-     # 1. Create orchestrator
-     if orchestrator is None:
-         if agents_yaml_path:
-@@ -760,6 +812,7 @@ def converge(
-             output_dir=checkpoint_dir,
-             last_fix_diff=last_fix_diff if round_num > 1 else None,
-             ledger=ledger,
-+            **({"base_ref": base_ref} if base_ref is not None else {}),
-         )
-         prompt = packet_path.read_text(encoding="utf-8")
-         dispatch_kwargs: dict[str, Any] = {
-@@ -1194,7 +1247,11 @@ def converge(
-             pre_rev = _snapshot_rev(worktree_path)
-             pre_untracked = _untracked_paths(worktree_path)
-             fix_callback(payloads, worktree_path)
--            changed = _changed_paths(worktree_path, pre_rev, pre_untracked)
-+            changed = _without_bookkeeping(
-+                _changed_paths(worktree_path, pre_rev, pre_untracked),
-+                worktree_path=worktree_path,
-+                artifacts_dir=artifacts_dir,
-+            )
-             allowed: list[str] = []
-             seen_allowed: set[str] = set()
-             for payload in payloads:
-diff --git a/skills/autopilot/scripts/runner.py b/skills/autopilot/scripts/runner.py
-index 573eb17..3660740 100644
---- a/skills/autopilot/scripts/runner.py
-+++ b/skills/autopilot/scripts/runner.py
-@@ -27,8 +27,10 @@ Design decisions: D1, D3, D4.
- from __future__ import annotations
- 
- import argparse
-+import hashlib
- import json
- import logging
-+import subprocess
- import sys
- from pathlib import Path
- 
-@@ -45,8 +47,9 @@ if str(_SKILLS_ROOT) not in sys.path:
- import autopilot  # type: ignore[import-not-found]  # noqa: E402
- import phase_agent  # type: ignore[import-not-found]  # noqa: E402
- from shared import approval_gate as shared_approval_gate  # noqa: E402
-+from shared import dispatch_contract  # noqa: E402
- from shared.approval_gate import ApprovalDecision  # noqa: E402
--from shared.trust_posture import Gate  # noqa: E402
-+from shared.trust_posture import Gate, load_posture, posture_digest  # noqa: E402
- 
- logger = logging.getLogger("autopilot.runner")
- 
-@@ -63,6 +66,57 @@ EXIT_NO_PENDING_GATE = 3
- # ("ask, then gate-answer") because the caller must NOT continue.
- EXIT_GATE_PARKED = 4
- 
-+# Exit code for `emit-result` when the loop is neither terminal nor parked
-+# (dispatch-contract D4): nothing is written.
-+EXIT_NOT_TERMINAL = dispatch_contract.EXIT_NOT_TERMINAL
-+
-+
-+def _launch_marker(change_id: str) -> dict | None:
-+    """The dispatch launch marker for this worktree, or None (standalone).
-+
-+    "Dispatched child" in the dispatch-contract specs means this returned a
-+    marker (D10a); it is read only through ``dispatch_contract``.
-+    """
-+    return dispatch_contract.read_launch_marker(change_id, repo_root=Path.cwd())
-+
-+
-+def _last_decision(state: "autopilot.LoopState", gate: str) -> dict | None:
-+    for record in reversed(state.gate_decisions):
-+        if record.get("gate") == gate:
-+            return record
-+    return None
-+
-+
-+def _is_human_final(record: dict | None) -> bool:
-+    """A human-provenance decision is final for its subject (D5)."""
-+    provenance = (record or {}).get("provenance") or {}
-+    return provenance.get("source") == "human"
-+
-+
-+def _human_rejection_in_force(state: "autopilot.LoopState", gate: str) -> dict | None:
-+    """The human rejection of ``gate`` that still settles it, or None (D5).
-+
-+    A human rejection is final for its subject: no posture chang
+-        parked = val
 
 [diff truncated to fit packet budget; use Read/Grep for the remainder]
 
@@ -6398,6 +6240,7 @@ Applies to:
 - openspec/changes/dispatch-contract/proposal.md
 - openspec/changes/dispatch-contract/session-log.md
 - openspec/changes/dispatch-contract/tasks.md
+- openspec/changes/dispatch-contract/validation-report.md
 - openspec/changes/dispatch-contract/work-packages.yaml
 - openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json
 - skills/parallel-infrastructure/review_quorum_policy.json
@@ -6541,6 +6384,15 @@ Same standard as scripts/tests/: verify the test would fail if the behavior it t
 - [13] D7 reinitializes a parked attempt on another host by incrementing its generation, which invalidates any already-recorded escalate_resume approval bound to the old lease_generation; the operator would need to answer again.
 - [14] Round-1 fix introduced an ordering contradiction: D2's last bullet says all four existing contract tests (including skills/tests/supervise/test_execution_contract.py) validate through dispatch_contract, but task 2.3a assigns test_execution_contract.py to wp-dispatch-schemas, a root package that lands before wp-contract-lib creates skills/shared/dispatch_contract.py. Followed literally, wp-dispatch-schemas cannot pass its own edit.
 - [15] Task 5.2 makes roadmap-runtime/scripts/models.py depend on skills/shared/dispatch_contract.schema_registry; models.py has no skills/shared import today. Building the referencing.Registry locally from the schema directories inside models.py would avoid a new cross-skill dependency from the runtime foundation.
+- [16] In a dispatched child, gate-answer compares only --approval-ref with the launch marker's gate_answer.approval_ref. It never checks --gate or --decision against gate_answer.gate/decision, so a child whose marker says {gate: proposal_approval, decision: rejected, approval_ref: R} can run gate-answer --decision approved --approval-ref R (or answer a different pending gate, or clear a park with a pending_gate answer) and record a human-provenance approval the supervisor never made. The spec requires the child to apply a gate decision only from the marker's gate_answer (skill-workflow 'Gate Authority and Re-Evaluation on Resume', design D5).
+- [17] The dispatched-child gate-answer tests cover only a mismatched approval_ref. No test pins that a matching approval_ref with a different --decision or --gate is refused, which is how finding 1 went unnoticed.
+- [18] apply_delegated_batch persists a permission_blocked result's parked.command verbatim: _terminal_attempt copies result['parked'] into the checkpoint attempt, and the application journal stores the whole result. Only the router's gate-decision record (parked_commands) is re-sanitized. checkpoint.json is a tracked file on a shared ref, and a result that did not come through runner.py park (hand-written, or from an older worker) can carry an unredacted credential; the apply-time re-derivation compares only the fingerprint (tool, rule, classifier_reason), not the command. Design D9 says the command is 're-sanitized by the router', and the supervise scenario requires the persisted command not to contain the secret. test_a_secret_in_the_blocked_command_is_redacted seeds the checkpoint attempt with the raw 'Bearer abc123...' value and checks only the record.
+- [19] No test applies a permission_blocked result carrying a secret-bearing command and asserts that the persisted checkpoint (the attempt's parked payload and its application journal) contains no raw secret.
+- [20] redact_command is not idempotent for auth headers: backtracking in \s* defeats the (?!\[REDACTED:) lookahead, so re-redacting 'Authorization: [REDACTED:auth-header]' rewrites it to 'Authorization:[REDACTED:auth-header]'. Harmless for secrecy, but the router's second pass changes already-redacted text.
+- [21] Carried from IMPL_ITERATE: in a dispatched child whose posture digest drifted, a notify_with_timeout gate can still take its posture-derived timeout default; the spec forbids only auto there.
+- [22] Carried from IMPL_ITERATE: emit-result does not cross-check --dispatch-id/--generation against the launch marker; the supervisor's identity check still rejects a mismatch at apply.
+- [23] Carried from IMPL_ITERATE: rebind accepts a post-go attempt with no recorded evidence when only a worktree for its branch exists on this host (the evidence conditions hold vacuously).
+- [24] _resolve_capability_park's proceed path falls back to records[0] when the attempt is not among the fingerprint's parked members (its checkpoint copy moved on); with no members that raises IndexError instead of a GateRefusalError.
 
 Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 

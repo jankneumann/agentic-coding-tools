@@ -3,8 +3,8 @@
   "change_id": "dispatch-contract",
   "round": 2,
   "body_path": "review-packet.md",
-  "sha256": "d7bb610e1c98d0a8997d9c63d5916bb7fe36338fd656bc9658415da31f6bd732",
-  "char_length": 63948,
+  "sha256": "a6b09643e05f485b1e7cea7154905c840d87c939b3b5def879bd7bfd1e30c0dd",
+  "char_length": 76649,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -17,65 +17,58 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2010
+        "est_tokens": 1601
       },
       {
-        "path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+        "path": "openspec/changes/dispatch-contract/validation-report.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 228
+        "est_tokens": 2881
       },
       {
-        "path": "skills/autopilot/scripts/runner.py",
+        "path": "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 243
+        "est_tokens": 1197
       },
       {
-        "path": "skills/shared/dispatch_contract.py",
+        "path": "skills/tests/roadmap-runtime/test_cross_host_reconcile.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 217
-      },
-      {
-        "path": "skills/tests/autopilot-roadmap/test_supervised_dispatch.py",
-        "status": "modified",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 439
-      },
-      {
-        "path": "skills/tests/autopilot/test_gate_check_reeval.py",
-        "status": "modified",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 531
+        "est_tokens": 504
       }
     ],
     "excluded": [
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/findings-claude_code-implementation.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3146
+      },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-manifest.json",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 309
+        "est_tokens": 282
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.md",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 89897
+        "est_tokens": 14480
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.meta.json",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 8730
+        "est_tokens": 2177
       }
     ],
     "truncated": []
@@ -86,33 +79,17 @@
       "source": "default",
       "pattern": "(default)",
       "files": [
-        "openspec/changes/dispatch-contract/.review-ledger/ledger.json"
+        "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
+        "openspec/changes/dispatch-contract/validation-report.md"
       ]
     },
     {
       "group_id": 2,
       "source": "default",
-      "pattern": "skills/*/scripts/*.py",
-      "files": [
-        "skills/autopilot-roadmap/scripts/orchestrator.py",
-        "skills/autopilot/scripts/runner.py"
-      ]
-    },
-    {
-      "group_id": 3,
-      "source": "default",
-      "pattern": "**/*.py",
-      "files": [
-        "skills/shared/dispatch_contract.py"
-      ]
-    },
-    {
-      "group_id": 4,
-      "source": "default",
       "pattern": "skills/tests/**",
       "files": [
-        "skills/tests/autopilot-roadmap/test_supervised_dispatch.py",
-        "skills/tests/autopilot/test_gate_check_reeval.py"
+        "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
+        "skills/tests/roadmap-runtime/test_cross_host_reconcile.py"
       ]
     }
   ]

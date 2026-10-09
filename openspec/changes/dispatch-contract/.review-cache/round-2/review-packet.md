@@ -19,316 +19,356 @@ Output ONLY a JSON object with a top-level `findings` array.
 ### Diff
 ```diff
 diff --git a/openspec/changes/dispatch-contract/.review-ledger/ledger.json b/openspec/changes/dispatch-contract/.review-ledger/ledger.json
-index e1b2239..9cf3196 100644
+index 17b6182..9742646 100644
 --- a/openspec/changes/dispatch-contract/.review-ledger/ledger.json
 +++ b/openspec/changes/dispatch-contract/.review-ledger/ledger.json
-@@ -270,6 +270,159 @@
+@@ -428,6 +428,91 @@
        ],
-       "description": "Task 5.2 makes roadmap-runtime/scripts/models.py depend on skills/shared/dispatch_contract.schema_registry; models.py has no skills/shared import today. Building the referencing.Registry locally from the schema directories inside models.py would avoid a new cross-skill dependency from the runtime foundation.",
+       "description": "_resolve_capability_park's proceed path falls back to records[0] when the attempt is not among the fingerprint's parked members (its checkpoint copy moved on); with no members that raises IndexError instead of a GateRefusalError.",
        "consensus_status": "unconfirmed"
 +    },
 +    {
-+      "id": 16,
++      "id": 25,
 +      "status": "open",
-+      "axis": "security",
-+      "type": "security",
++      "axis": "correctness",
++      "type": "spec_gap",
 +      "criticality": "medium",
 +      "evidence_class": "deterministic",
-+      "file_path": "skills/autopilot/scripts/runner.py",
-+      "fingerprint": "2f8536043bf997ac",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "dfb2c08cbd22e20a",
 +      "first_seen_round": 1,
 +      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "In a dispatched child, gate-answer compares only --approval-ref with the launch marker's gate_answer.approval_ref. It never checks --gate or --decision against gate_answer.gate/decision, so a child whose marker says {gate: proposal_approval, decision: rejected, approval_ref: R} can run gate-answer --decision approved --approval-ref R (or answer a different pending gate, or clear a park with a pending_gate answer) and record a human-provenance approval the supervisor never made. The spec requires the child to apply a gate decision only from the marker's gate_answer (skill-workflow 'Gate Authority and Re-Evaluation on Resume', design D5).",
++      "description": "Outcome 6 evidence is overstated. The report says 'The CI gitleaks job remains the real-binary check', but .github/workflows/security.yml runs gitleaks only on push to main and on pull_request/merge_group targeting main. This change's PR targets openspec/roadmap-multiplayer-collaboration, so no real gitleaks run covers it until the roadmap PR (#662) to main runs Security. Locally only one default rule (generic-api-key) is ported to Python; the full default ruleset was never applied. The Result line ('All eight acceptance outcomes are covered by passing tests') does not qualify outcome 6.",
 +      "consensus_status": "unconfirmed"
 +    },
 +    {
-+      "id": 17,
++      "id": 26,
 +      "status": "open",
 +      "axis": "correctness",
-+      "type": "correctness",
++      "type": "spec_gap",
 +      "criticality": "medium",
 +      "evidence_class": "deterministic",
-+      "file_path": "skills/tests/autopilot/test_gate_check_reeval.py",
-+      "fingerprint": "fec979559731bf9d",
++      "file_path": "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
++      "fingerprint": "366e2a658aa13701",
 +      "first_seen_round": 1,
 +      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "The dispatched-child gate-answer tests cover only a mismatched approval_ref. No test pins that a matching approval_ref with a different --decision or --gate is refused, which is how finding 1 went unnoticed.",
++      "description": "Outcome 4 on the capability-fingerprint path is only half-proved. The human side is covered (rejection survives membership change, approval ends the subject), but no test parks a capability fingerprint under escalate_resume=block, flips the posture to auto with no human answer, and shows resolve_parked proceeds with posture provenance and resumes the child. _resolve_capability_park reaches that path only via _apply_prior_record + the dispatch_ids==listed check, which nothing exercises. test_an_operator_approval_ends_a_human_rejected_escalation reaches posture-auto only after a human approval.",
 +      "consensus_status": "unconfirmed"
 +    },
 +    {
-+      "id": 18,
++      "id": 27,
 +      "status": "open",
-+      "axis": "security",
-+      "type": "security",
++      "axis": "compatibility",
++      "type": "spec_gap",
 +      "criticality": "medium",
 +      "evidence_class": "deterministic",
-+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
-+      "fingerprint": "23ceffe3feec42c8",
++      "file_path": "skills/tests/roadmap-runtime/test_cross_host_reconcile.py",
++      "fingerprint": "71d5506efbb69e41",
 +      "first_seen_round": 1,
 +      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "apply_delegated_batch persists a permission_blocked result's parked.command verbatim: _terminal_attempt copies result['parked'] into the checkpoint attempt, and the application journal stores the whole result. Only the router's gate-decision record (parked_commands) is re-sanitized. checkpoint.json is a tracked file on a shared ref, and a result that did not come through runner.py park (hand-written, or from an older worker) can carry an unredacted credential; the apply-time re-derivation compares only the fingerprint (tool, rule, classifier_reason), not the command. Design D9 says the command is 're-sanitized by the router', and the supervise scenario requires the persisted command not to contain the secret. test_a_secret_in_the_blocked_command_is_redacted seeds the checkpoint attempt with the raw 'Bearer abc123...' value and checks only the record.",
++      "description": "Outcome 7 evidence cannot detect the defect the outcome targets. Host A and host B share the same repo root and workspace directory, so an absolute host-A path leaking into checkpoint.json (or into any record reconcile reads) would still resolve on 'host B'. Nothing asserts that a reconciled checkpoint holds no absolute path, and nothing reconciles a checkpoint copied to a different repository root (the 'committed on one host, checked out on another' case).",
 +      "consensus_status": "unconfirmed"
 +    },
 +    {
-+      "id": 19,
++      "id": 28,
 +      "status": "open",
-+      "axis": "security",
-+      "type": "correctness",
++      "axis": "correctness",
++      "type": "spec_gap",
 +      "criticality": "medium",
 +      "evidence_class": "deterministic",
-+      "file_path": "skills/tests/autopilot-roadmap/test_supervised_dispatch.py",
-+      "fingerprint": "4e76f85907b32bb7",
++      "file_path": "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
++      "fingerprint": "415c46de2fa3ecf0",
 +      "first_seen_round": 1,
 +      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "No test applies a permission_blocked result carrying a secret-bearing command and asserts that the persisted checkpoint (the attempt's parked payload and its application journal) contains no raw secret.",
++      "description": "Outcome 5 says execution_profile, review_requirements and degradations[] are 'carried end to end', which the proposal defines as request -> launch marker -> child loop-state.json -> emit-result file -> apply -> checkpoint attempt and apply return value. The report's only end-to-end citation is the capability-park routing test; degradations are proven only piecewise (test_emit_result::test_degradations_travel_into_the_result, and test_execution::test_apply_persists_degradations_on_the_attempt with a hand-composed result), and the marker's profile only in a unit test.",
 +      "consensus_status": "unconfirmed"
 +    },
 +    {
-+      "id": 20,
++      "id": 29,
 +      "status": "open",
-+      "axis": "correctness",
-+      "type": "correctness",
++      "axis": "readability",
++      "type": "spec_gap",
 +      "criticality": "low",
 +      "evidence_class": "deterministic",
-+      "file_path": "skills/shared/dispatch_contract.py",
-+      "fingerprint": "98546f72a1f3bf07",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "243ac551af658e84",
 +      "first_seen_round": 1,
 +      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "redact_command is not idempotent for auth headers: backtracking in \\s* defeats the (?!\\[REDACTED:) lookahead, so re-redacting 'Authorization: [REDACTED:auth-header]' rewrites it to 'Authorization:[REDACTED:auth-header]'. Harmless for secrecy, but the router's second pass changes already-redacted text.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 21,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "correctness",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/shared/approval_gate.py",
-+      "fingerprint": "f64fc9e8bf4180c1",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Carried from IMPL_ITERATE: in a dispatched child whose posture digest drifted, a notify_with_timeout gate can still take its posture-derived timeout default; the spec forbids only auto there.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 22,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "correctness",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/autopilot/scripts/runner.py",
-+      "fingerprint": "99566455adc7ab35",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Carried from IMPL_ITERATE: emit-result does not cross-check --dispatch-id/--generation against the launch marker; the supervisor's identity check still rejects a mismatch at apply.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 23,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "correctness",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/supervise/scripts/execution.py",
-+      "fingerprint": "52493cd6a655e8bd",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Carried from IMPL_ITERATE: rebind accepts a post-go attempt with no recorded evidence when only a worktree for its branch exists on this host (the evidence conditions hold vacuously).",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 24,
-+      "status": "open",
-+      "axis": "resilience",
-+      "type": "resilience",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/supervise/scripts/gate_router.py",
-+      "fingerprint": "a4507d47347e55c8",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "_resolve_capability_park's proceed path falls back to records[0] when the attempt is not among the fingerprint's parked members (its checkpoint copy moved on); with no members that raises IndexError instead of a GateRefusalError.",
++      "description": "Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.",
 +      "consensus_status": "unconfirmed"
      }
    ],
-   "compacted_at": "2026-10-09T07:22:49Z"
-diff --git a/skills/autopilot-roadmap/scripts/orchestrator.py b/skills/autopilot-roadmap/scripts/orchestrator.py
-index a2d721b..da57d2f 100644
---- a/skills/autopilot-roadmap/scripts/orchestrator.py
-+++ b/skills/autopilot-roadmap/scripts/orchestrator.py
-@@ -639,6 +639,11 @@ def apply_delegated_batch(
-             result, repo_root=repo_root, managed_root=managed, host_id=host
-         )
-         parked = upgraded.get("parked")
-+        if isinstance(parked, dict) and parked.get("command") is not None:
-+            # D9: the checkpoint is a tracked file, so a blocked command is
-+            # re-sanitized here whatever the child sent, before the result is
-+            # bound, journaled, or copied into the attempt.
-+            parked["command"] = dispatch_contract.redact_command(str(parked["command"]))
-         if (
-             parked_route is not None
-             and isinstance(parked, Mapping)
-diff --git a/skills/autopilot/scripts/runner.py b/skills/autopilot/scripts/runner.py
-index 3660740..4803f23 100644
---- a/skills/autopilot/scripts/runner.py
-+++ b/skills/autopilot/scripts/runner.py
-@@ -431,6 +431,17 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
-             "nothing was recorded\n"
-         )
-         return 2
-+    if marker is not None and (
-+        args.gate != marker_answer.get("gate") or args.decision != marker_answer.get("decision")
-+    ):
-+        # The reference alone does not authorize a decision: the gate and the
-+        # decision must be the ones the supervisor recorded in the marker.
-+        sys.stderr.write(
-+            "runner: --gate/--decision do not match the launch marker's gate_answer "
-+            f"({marker_answer.get('gate')!r}, {marker_answer.get('decision')!r}); "
-+            "nothing was recorded\n"
-+        )
-+        return 2
+   "compacted_at": "2026-10-09T13:38:32Z"
+diff --git a/openspec/changes/dispatch-contract/validation-report.md b/openspec/changes/dispatch-contract/validation-report.md
+index 0619eca..8e6e543 100644
+--- a/openspec/changes/dispatch-contract/validation-report.md
++++ b/openspec/changes/dispatch-contract/validation-report.md
+@@ -1,7 +1,7 @@
+ # Validation Report: dispatch-contract
  
-     pending = _load_pending(args.change_id)
-     state_for_park = (
-diff --git a/skills/shared/dispatch_contract.py b/skills/shared/dispatch_contract.py
-index 6ebc48d..5a95ad8 100644
---- a/skills/shared/dispatch_contract.py
-+++ b/skills/shared/dispatch_contract.py
-@@ -593,7 +593,7 @@ def dedupe_fingerprint(parked: Mapping[str, Any]) -> Optional[str]:
- #: these run first so a blocked command never persists such a value.
- _AUTH_SCHEME = re.compile(r"(?i)\b(bearer|basic|token|digest)(\s+)[^\s\"'`]+")
- _AUTH_HEADER = re.compile(
--    r"(?i)\b(authorization|proxy-authorization|x-api-key|api-key|cookie)(\s*:\s*)(?!\[REDACTED:)[^\"'`\r\n]+"
-+    r"(?i)\b(authorization|proxy-authorization|x-api-key|api-key|cookie)(\s*:\s*)(?!\s*\[REDACTED:)[^\"'`\r\n]+"
- )
- #: ``scheme://user:password@host`` — the password half of URL userinfo.
- _URL_USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://[^/\s:@\"'`]+:)(?!\[REDACTED:)[^/\s@\"'`]+@")
-diff --git a/skills/tests/autopilot-roadmap/test_supervised_dispatch.py b/skills/tests/autopilot-roadmap/test_supervised_dispatch.py
-index 3480954..d00fa4b 100644
---- a/skills/tests/autopilot-roadmap/test_supervised_dispatch.py
-+++ b/skills/tests/autopilot-roadmap/test_supervised_dispatch.py
-@@ -1120,6 +1120,36 @@ def test_degradations_reach_the_checkpoint_and_the_apply_summary(tmp_path: Path)
-     assert attempt["degradations"] == [degradation]
+ **Date**: 2026-10-09
+-**Commit**: 7cc9180c3ea49a0a9b08618d376bf0c2793bdccc
++**Commit**: 7cc9180c3ea49a0a9b08618d376bf0c2793bdccc (VALIDATE); counts and evidence refreshed in VAL_REVIEW at df3b98e
+ **Branch**: openspec/dispatch-contract
  
+ Scope: skills scripts, shared libraries, and JSON schemas only. There is no deployable
+@@ -33,10 +33,10 @@ Per-directory results (each `skills/tests/<dir>` run in its own process, base-in
+ | Suite | Result |
+ |---|---|
+ | skills/tests/autopilot | 533 passed, 6 skipped |
+-| skills/tests/autopilot-roadmap | 144 passed |
++| skills/tests/autopilot-roadmap | 146 passed |
+ | skills/tests/install_sh | 18 passed, 14 skipped |
+ | skills/tests/parallel-infrastructure | 292 passed, 2 skipped |
+-| skills/tests/roadmap-runtime | 181 passed, 1 skipped |
++| skills/tests/roadmap-runtime | 182 passed, 1 skipped |
+ | skills/tests/shared | 134 passed, 1 skipped |
+ | skills/tests/supervise | 459 passed, 1 failed (known) |
+ | skills/autopilot/scripts/tests/test_autopilot.py | 48 passed |
+@@ -60,18 +60,40 @@ The single failure is the documented environment-only
+    `autopilot/test_emit_result.py`, `autopilot-roadmap/test_dispatch_contract_e2e.py::test_every_shape_round_trips_through_emit_result_and_apply`,
+    `::test_apply_refuses_a_result_the_loop_state_does_not_map_to`.
+ 3. Closure contract test fails on any unrouted parked kind/gate: pass.
+-   `supervise/test_dispatch_closure.py` (`test_every_permitted_combination_has_exactly_one_path`,
+-   `test_adding_a_kind_without_a_path_fails_naming_it`, `test_pending_gate_with_escalate_resume_is_answerable`, apply-time predicate table).
+-4. Posture-derived block clears on resume after posture change, human rejection does not: pass.
+-   `autopilot/test_gate_check_reeval.py` (`test_a_standalone_stale_posture_block_clears_without_an_answer`,
+-   `test_a_human_rejection_is_not_re_evaluated`), `autopilot-roadmap/test_dispatch_contract_e2e.py`
+-   (`test_a_posture_flip_resumes_the_child_which_leaves_plan`, `test_a_human_rejection_survives_the_posture_flip`),
+-   `shared/test_approval_gate_provenance.py`.
++   `supervise/test_dispatch_closure.py` (`test_every_permitted_combination_has_exactly_one_path`, which derives the
++   permitted set from the result schema's `oneOf` branches while `ANSWER_PATHS` derives its gates from the `Gate` enum, so
++   the two sources are independent; `test_the_enumeration_covers_every_outcome_class_and_parked_kind`,
++   `test_adding_a_kind_without_a_path_fails_naming_it`, `test_a_gate_the_enumeration_cannot_list_fails_loudly`,
++   `test_a_path_for_a_forbidden_combination_fails`, `test_pending_gate_with_escalate_resume_is_answerable`, apply-time predicate table),
++   and the apply-time refusal `autopilot-roadmap/test_supervised_dispatch.py::test_unroutable_parked_result_is_refused_before_any_callback`.
++4. Posture-derived block clears on resume after posture change, human rejection does not: pass, on all three paths.
++   - Standalone child: `autopilot/test_gate_check_reeval.py` (`test_a_standalone_stale_posture_block_clears_without_an_answer`,
++     `test_a_standalone_block_under_a_new_posture_reparks_with_the_new_digest`, `test_an_unchanged_posture_is_not_re_evaluated`,
++     `test_a_human_rejection_is_not_re_evaluated`, `test_an_operator_resume_after_a_human_rejection_lets_the_gate_be_asked_again`,
++     `test_a_posture_derived_resume_does_not_end_a_human_rejection`).
++   - Dispatched child and supervisor (pending_gate): `autopilot-roadmap/test_dispatch_contract_e2e.py`
++     (`test_a_posture_flip_resumes_the_child_which_leaves_plan`, `test_a_human_rejection_survives_the_posture_flip`);
++     `supervise/test_execution.py` (`test_a_posture_derived_block_clears_after_a_posture_change`,
++     `test_an_unchanged_posture_reuses_the_prior_block`, `test_a_human_rejection_survives_a_posture_change`);
++     the child applies only the supervisor's answer: `autopilot/test_gate_check_reeval.py`
++     (`test_a_dispatched_child_does_not_self_re_evaluate`, `test_posture_drift_between_child_and_supervisor_blocks_auto`,
++     `test_a_mismatched_approval_reference_is_refused`, `test_a_matching_reference_does_not_authorize_another_gate_or_decision`,
++     `test_a_park_is_not_cleared_by_an_answer_for_another_gate`), `shared/test_approval_gate_provenance.py`.
++   - Capability fingerprint (escalate_resume): `autopilot-roadmap/test_dispatch_contract_e2e.py`
++     (`test_a_posture_derived_capability_block_clears_after_a_posture_flip`, added in VAL_REVIEW;
++     `test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes`,
++     `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection`).
+ 5. execution_profile, review_requirements, degradations[] carried end to end; capability parks routed as single escalations: pass.
+-   `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child`,
++   End to end: `autopilot-roadmap/test_dispatch_contract_e2e.py::test_profile_and_degradations_travel_the_whole_chain`
++   (added in VAL_REVIEW: request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
++   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child`.
++   Units: `autopilot/test_emit_result.py::test_degradations_travel_into_the_result`,
++   `supervise/test_execution.py` (`test_a_marker_carries_the_supervisor_view_but_no_token`, `test_apply_persists_degradations_on_the_attempt`,
++   `test_three_workers_blocked_on_one_rule_produce_one_escalation`, `test_different_missing_lanes_are_separate_escalations`),
+    `autopilot/test_quorum_park.py`, `autopilot/test_convergence_loop.py`,
+    `parallel-infrastructure/test_check_vendors_dispatchable.py`, `parallel-infrastructure/test_review_packet.py`.
+-6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass (with one sub-check not run).
++6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass locally by a
++   one-rule proxy; the real default-ruleset scan has not run.
+    `roadmap-runtime/test_landable_checkpoint.py`: `test_the_fixture_has_live_attempts_and_no_raw_token`,
+    `test_the_default_generic_api_key_rule_finds_nothing` (Python port of the default gitleaks
+    generic-api-key rule: keyword prefilter, regex, entropy > 3.5, applied to the committed-shape
+@@ -79,12 +101,22 @@ The single failure is the documented environment-only
+    `test_no_scalar_field_name_matches_the_generic_api_key_keywords`,
+    `test_gitleaks_config_has_no_entry_for_the_fixture` (no allowlist help),
+    `test_the_builder_reproduces_the_fixture_shape` (fixture produced by real prepare/child_start/acknowledge).
+-   child_start digest verification: `roadmap-runtime/test_delegated_checkpoint.py`, `autopilot-roadmap/test_supervised_dispatch*.py`.
++   child_start digest verification: `supervise/test_execution.py` (`test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint`,
++   `test_no_raw_token_is_persisted_and_each_request_hashes_to_its_digest`, `test_resume_rotates_the_token_and_revokes_the_previous_one`),
++   `autopilot-roadmap/test_supervised_dispatch.py::test_prepare_emits_v2_requests_with_digest_only_in_the_checkpoint`.
++   Limits of this evidence: only gitleaks' `generic-api-key` rule is ported (the rule that flagged the raw
++   tokens on PR #662); the other default rules were not applied locally.
+    NOT RUN: `test_gitleaks_scan_of_the_fixture_directory_is_clean` (skipped: gitleaks binary not
+-   installed; binaries must not be downloaded). The CI gitleaks job remains the real-binary check.
++   installed; binaries must not be downloaded). No CI run covers it yet either: `.github/workflows/security.yml`
++   runs gitleaks only on pushes to `main` and on pull requests / merge groups targeting `main`. This change's PR
++   targets `openspec/roadmap-multiplayer-collaboration`, so it does not trigger that job. The first real
++   default-ruleset scan of these commits is the Security workflow on PR #662 (roadmap branch to `main`). Treat
++   outcome 6 as confirmed only once that job passes.
+ 7. Checkpoint with live attempts committed on one host reconciles on another: pass.
+-   `roadmap-runtime/test_cross_host_reconcile.py` (7 tests: rebind of matching worktree, refusal on diverged worktree / digest mismatch,
+-   reinitialize of prepared attempt, unexpired vs expired pre-go claim, post-go unknown liveness quarantined).
++   `roadmap-runtime/test_cross_host_reconcile.py` (8 tests: rebind of matching worktree, refusal on diverged worktree / digest mismatch,
++   reinitialize of prepared attempt, unexpired vs expired pre-go claim, post-go unknown liveness quarantined, and
++   `test_a_checkpoint_checked_out_at_another_root_rebinds_without_host_a_paths`, added in VAL_REVIEW: the committed checkpoint
++   names no host-A absolute path, and host B rebinds from a different checkout root after host A's tree is removed).
+ 8. auto for proposal_approval / replan_required proceeds only with valid roadmap_approval_ref: pass.
+    `shared/test_trust_posture_scope.py` (valid ref proceeds; standalone falls back to unscoped; marker-sourced refs only),
+    `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_dispatched_child_with_a_marker_ref_takes_scoped_auto`,
+@@ -98,7 +130,7 @@ Reason: skills/schemas-only change, no running service to smoke test.
+ ## Security
  
-+def test_apply_never_persists_a_raw_blocked_command(tmp_path: Path) -> None:
-+    repo, workspace, prepared = _single_item(tmp_path)
-+    secret = "abc123secretvalue"
-+    result = _result(prepared["requests"][0], outcome="parked")
-+    result["parked"] = {
-+        "kind": "permission_blocked",
-+        "gate": None,
-+        "tool": "Bash",
-+        "rule": "Bash(curl *)",
-+        "classifier_reason": "sends credentials",
-+        "command": f'curl -H "Authorization: Bearer {secret}" https://example.invalid',
-+        "reason": "denied",
-+    }
-+
-+    applied = apply_delegated_batch(
-+        workspace,
-+        prepared["batch_id"],
-+        [result],
-+        lambda _item, _phase, context: context["dispatch_result"],
-+        repo_root=repo,
-+    )
-+
-+    assert applied["parked_item_ids"] == ["ri-01"]
-+    persisted = (workspace / "checkpoint.json").read_text()
-+    assert secret not in persisted
-+    attempt = json.loads(persisted)["dispatch_attempts"][0]
-+    assert "[REDACTED:" in attempt["parked"]["command"]
-+    assert attempt["application_journal"]["result"]["parked"]["command"] == attempt["parked"]["command"]
-+
-+
- def test_unroutable_parked_result_is_refused_before_any_callback(tmp_path: Path) -> None:
-     from shared.dispatch_contract import DispatchContractError
+ **Status**: not applicable
+-Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally (CI covers it).
++Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally, and the Security workflow runs only for `main` (push or PR), so the first real scan is PR #662's Security job.
  
-diff --git a/skills/tests/autopilot/test_gate_check_reeval.py b/skills/tests/autopilot/test_gate_check_reeval.py
-index c22b2ff..4539fd1 100644
---- a/skills/tests/autopilot/test_gate_check_reeval.py
-+++ b/skills/tests/autopilot/test_gate_check_reeval.py
-@@ -204,6 +204,50 @@ def test_a_mismatched_approval_reference_is_refused(workspace: Path) -> None:
-     assert path.read_bytes() == before
+ ## E2E Tests
  
+@@ -107,10 +139,10 @@ Reason: no browser or service surface.
  
-+@pytest.mark.parametrize(
-+    ("gate", "decision"),
-+    [
-+        ("proposal_approval", "approved"),  # the supervisor rejected it
-+        ("pr_creation", "rejected"),  # a gate the answer is not for
-+    ],
-+)
-+def test_a_matching_reference_does_not_authorize_another_gate_or_decision(
-+    workspace: Path, gate: str, decision: str
-+) -> None:
-+    digest = _posture(workspace, proposal_approval="block", pr_creation="block")
-+    _marker(
-+        workspace,
-+        gate_answer={"gate": "proposal_approval", "decision": "rejected", "approval_ref": _REF_Y},
-+    )
-+    path = _seed(workspace, pending=_pending(gate, digest))
-+    before = path.read_bytes()
-+
-+    rc = runner.main(
-+        ["gate-answer", "demo", "--gate", gate, "--decision", decision, "--approval-ref", _REF_Y]
-+    )
-+
-+    assert rc == 2
-+    assert path.read_bytes() == before
+ ## Review Degradations
+ 
+-- single_vendor_review: PLAN_REVIEW and IMPL_REVIEW ran claude_code only (cloud-container policy, min_quorum=1).
++- single_vendor_review: PLAN_REVIEW, IMPL_REVIEW and VAL_REVIEW ran claude_code only (cloud-container policy, min_quorum=1).
+ - coordinator_projection_forbidden: coordinator queue projection returned forbidden (expected in this environment).
+ - GATEKEEPER ran via a real judge (no degradation).
+ 
+ ## Result
+ 
+-**PASS** — All eight acceptance outcomes are covered by passing tests. Not-run items are recorded above (gitleaks binary, CI status, live-service phases). Ready for `/cleanup-feature dispatch-contract`.
++**PASS** — All eight acceptance outcomes are covered by passing tests. Outcome 6's secret-scan claim rests on a one-rule port locally; the real default-ruleset gitleaks scan first runs in PR #662's Security job and must pass there before the claim is confirmed. Other not-run items are recorded above (CI status, live-service phases). Ready for `/cleanup-feature dispatch-contract`.
+diff --git a/skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py b/skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py
+index e335d97..f2608e4 100644
+--- a/skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py
++++ b/skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py
+@@ -590,3 +590,86 @@ def test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes(
+         request["dispatch_id"]
+     ]
+     assert _attempt(world)["status"] == "parked"
 +
 +
-+def test_a_park_is_not_cleared_by_an_answer_for_another_gate(workspace: Path) -> None:
-+    _posture(workspace, escalate_resume="block")
-+    _marker(
-+        workspace,
-+        gate_answer={"gate": "proposal_approval", "decision": "approved", "approval_ref": _REF_Y},
-+    )
++def test_a_posture_derived_capability_block_clears_after_a_posture_flip(world: dict[str, Any]) -> None:
++    """Acceptance outcome 4 on the fingerprint path: a capability park blocked
++    by the posture alone (no human answer) is re-evaluated once the posture
++    changes, proceeds with posture provenance, and resumes the child."""
++    from shared.trust_posture import load_posture, posture_digest
++
++    repo, workspace, adapter = world["repo"], world["workspace"], world["adapter"]
 +    park = {"kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["codex"], "reason": "quorum"}
-+    path = _seed(workspace, park=park)
-+    before = path.read_bytes()
++    _posture(repo, escalate_resume="block")
++    first_digest = posture_digest(load_posture(repo))
++    request = _prepare(world)
++    _launch(world, request, owner="owner-nonce-0000000001")
++    _child_commits_state(world, current_phase="PLAN_REVIEW", park=dict(park))
++    _apply(world, request, _child_emits(world, request))
 +
-+    rc = runner.main(
-+        ["gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved", "--approval-ref", _REF_Y]
++    blocked = gate_router.resolve_parked(
++        _attempt(world), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
++    )
++    assert blocked.outcome == "blocked"
++    assert blocked.routed.record["provenance"] == {"source": "posture", "posture_digest": first_digest}
++    assert _attempt(world)["status"] == "parked"
++
++    _posture(repo, escalate_resume="auto")
++    second_digest = posture_digest(load_posture(repo))
++    assert second_digest != first_digest
++
++    resolved = gate_router.resolve_parked(
++        _attempt(world), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
 +    )
 +
-+    assert rc == 2
-+    assert path.read_bytes() == before
++    assert resolved.outcome == "proceed"
++    assert resolved.routed.record["provenance"] == {"source": "posture", "posture_digest": second_digest}
++    assert resolved.routed.record["dedupe_fingerprint"] == dispatch_contract.dedupe_fingerprint(park)
++    assert resolved.resume_result["dispatch_id"] == request["dispatch_id"]
++    assert resolved.resume_result["gate_answer"]["gate"] == "escalate_resume"
++    assert resolved.resume_result["gate_answer"]["provenance"]["source"] == "posture"
++    assert _attempt(world)["status"] == "prepared"
++    assert _mirror_fingerprint_entries(repo) == []
 +
 +
- # --------------------------------------------------------------------------- #
- # Standalone run
- # --------------------------------------------------------------------------- #
++# --------------------------------------------------------------------------- #
++# Profile, review requirements and degradations end to end (acceptance outcome 5)
++# --------------------------------------------------------------------------- #
++
++
++def test_profile_and_degradations_travel_the_whole_chain(world: dict[str, Any]) -> None:
++    """request -> launch marker -> child loop-state.json -> emit-result file ->
++    apply -> checkpoint attempt and apply return value."""
++    request = _prepare(world)
++    assert request["execution_profile"]["lanes"]["review"] == ["claude_code"]
++    assert request["review_requirements"]["min_quorum"]["PLAN_REVIEW"] == 2
++    _launch(world, request, owner="owner-nonce-0000000001")
++
++    marker = dispatch_contract.read_launch_marker(_CHANGE, repo_root=world["child"])
++    assert marker is not None
++    assert marker["execution_profile"] == request["execution_profile"]
++    assert marker["review_requirements"] == request["review_requirements"]
++
++    _child_commits_state(
++        world, current_phase="DONE", goal_gate={"verdict": "passed"}, last_handoff_id="h-1", handoff_ids=["h-1"],
++    )
++    world["monkeypatch"].chdir(world["child"])
++    assert runner.main(
++        ["record-degradation", _CHANGE, "--code", "single_vendor_review", "--phase", "PLAN_REVIEW",
++         "--detail", "codex not dispatchable"]
++    ) == 0
++    world["monkeypatch"].chdir(world["repo"])
++    state_path = world["child"] / "openspec" / "changes" / _CHANGE / "loop-state.json"
++    recorded = json.loads(state_path.read_text())["degradations"]
++    assert [d["code"] for d in recorded] == ["single_vendor_review"]
++    _git(world["child"], "add", "openspec")
++    _git(world["child"], "commit", "-q", "-m", "degradation")
++
++    result = _child_emits(world, request)
++    assert result["degradations"] == recorded
++
++    applied = _apply(world, request, result)
++
++    assert applied["completed_item_ids"] == ["ri-01"]
++    assert applied["degradations"] == {request["dispatch_id"]: recorded}
++    assert _attempt(world)["degradations"] == recorded
+diff --git a/skills/tests/roadmap-runtime/test_cross_host_reconcile.py b/skills/tests/roadmap-runtime/test_cross_host_reconcile.py
+index 47c7354..38077f7 100644
+--- a/skills/tests/roadmap-runtime/test_cross_host_reconcile.py
++++ b/skills/tests/roadmap-runtime/test_cross_host_reconcile.py
+@@ -167,6 +167,34 @@ def test_another_host_rebinds_a_matching_worktree(host_a: dict[str, Any]) -> Non
+     assert after["status"] == "parked"
+ 
+ 
++def test_a_checkpoint_checked_out_at_another_root_rebinds_without_host_a_paths(host_a: dict[str, Any]) -> None:
++    """The committed checkpoint names no host-A absolute path, so host B can
++    reconcile it from a different checkout root after host A's tree is gone."""
++    _park(host_a)
++    tmp = host_a["tmp"]
++    text = (host_a["workspace"] / "checkpoint.json").read_text()
++    for absolute in (str(tmp), str(host_a["repo"]), str(host_a["worktree_a"])):
++        assert absolute not in text
++
++    repo_b = tmp / "host-b-checkout" / "repo"
++    shutil.copytree(host_a["repo"], repo_b)
++    managed_b = tmp / "host-b-checkout" / "worktrees"
++    shutil.copytree(host_a["worktree_a"], managed_b / _CHANGE)
++    before = CheckpointManager(repo_b / "roadmap").load().dispatch_attempts[0]
++    shutil.rmtree(host_a["repo"])
++    shutil.rmtree(host_a["worktree_a"])
++
++    adapter_b = _adapter(managed_b, repo_b, "host-b")
++    adapter_b.reconcile(repo_b / "roadmap", dispatch_id=host_a["request"]["dispatch_id"])
++
++    after = CheckpointManager(repo_b / "roadmap").load().dispatch_attempts[0]
++    assert after["lease_generation"] == before["lease_generation"]
++    assert after["isolation"] == {**before["isolation"], "host_id": "host-b"}
++    assert after["launch_history"][-1]["state"] == "rebound"
++    assert after["status"] == "parked"
++    assert str(tmp / "host-b-checkout") not in (repo_b / "roadmap" / "checkpoint.json").read_text()
++
++
+ def test_rebind_refuses_a_diverged_worktree(host_a: dict[str, Any]) -> None:
+     _park(host_a)
+     before = _attempt(host_a)
 
 ```
 
@@ -337,26 +377,14 @@ index c22b2ff..4539fd1 100644
 #### Group 1 (default: `(default)`)
 Applies to:
 - openspec/changes/dispatch-contract/.review-ledger/ledger.json
+- openspec/changes/dispatch-contract/validation-report.md
 
 Review for correctness, security, and adherence to this repository's conventions.
 
-#### Group 2 (default: `skills/*/scripts/*.py`)
+#### Group 2 (default: `skills/tests/**`)
 Applies to:
-- skills/autopilot-roadmap/scripts/orchestrator.py
-- skills/autopilot/scripts/runner.py
-
-Check for unhandled exceptions on the failure paths this module is meant to guard (network, subprocess, file I/O). Verify a function documented as "never raises" actually catches every exception class it claims to. Flag silent behavior changes to existing callers.
-
-#### Group 3 (default: `**/*.py`)
-Applies to:
-- skills/shared/dispatch_contract.py
-
-Check for unhandled exceptions, resource leaks (files/sockets/locks not in a context manager), and mutable default arguments. Flag a docstring claim ("never raises", "pure function") the code does not actually satisfy.
-
-#### Group 4 (default: `skills/tests/**`)
-Applies to:
-- skills/tests/autopilot-roadmap/test_supervised_dispatch.py
-- skills/tests/autopilot/test_gate_check_reeval.py
+- skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py
+- skills/tests/roadmap-runtime/test_cross_host_reconcile.py
 
 Same standard as scripts/tests/: verify the test would fail if the behavior it targets were broken. Check that fixture paths use openspec_paths.change_dir rather than a literal openspec/changes/<id>/ path where the guide requires it.
 
@@ -744,6 +772,11 @@ The trust posture SHALL let the `proposal_approval` and `replan_required` gate c
 - [22] Carried from IMPL_ITERATE: emit-result does not cross-check --dispatch-id/--generation against the launch marker; the supervisor's identity check still rejects a mismatch at apply.
 - [23] Carried from IMPL_ITERATE: rebind accepts a post-go attempt with no recorded evidence when only a worktree for its branch exists on this host (the evidence conditions hold vacuously).
 - [24] _resolve_capability_park's proceed path falls back to records[0] when the attempt is not among the fingerprint's parked members (its checkpoint copy moved on); with no members that raises IndexError instead of a GateRefusalError.
+- [25] Outcome 6 evidence is overstated. The report says 'The CI gitleaks job remains the real-binary check', but .github/workflows/security.yml runs gitleaks only on push to main and on pull_request/merge_group targeting main. This change's PR targets openspec/roadmap-multiplayer-collaboration, so no real gitleaks run covers it until the roadmap PR (#662) to main runs Security. Locally only one default rule (generic-api-key) is ported to Python; the full default ruleset was never applied. The Result line ('All eight acceptance outcomes are covered by passing tests') does not qualify outcome 6.
+- [26] Outcome 4 on the capability-fingerprint path is only half-proved. The human side is covered (rejection survives membership change, approval ends the subject), but no test parks a capability fingerprint under escalate_resume=block, flips the posture to auto with no human answer, and shows resolve_parked proceeds with posture provenance and resumes the child. _resolve_capability_park reaches that path only via _apply_prior_record + the dispatch_ids==listed check, which nothing exercises. test_an_operator_approval_ends_a_human_rejected_escalation reaches posture-auto only after a human approval.
+- [27] Outcome 7 evidence cannot detect the defect the outcome targets. Host A and host B share the same repo root and workspace directory, so an absolute host-A path leaking into checkpoint.json (or into any record reconcile reads) would still resolve on 'host B'. Nothing asserts that a reconciled checkpoint holds no absolute path, and nothing reconciles a checkpoint copied to a different repository root (the 'committed on one host, checked out on another' case).
+- [28] Outcome 5 says execution_profile, review_requirements and degradations[] are 'carried end to end', which the proposal defines as request -> launch marker -> child loop-state.json -> emit-result file -> apply -> checkpoint attempt and apply return value. The report's only end-to-end citation is the capability-park routing test; degradations are proven only piecewise (test_emit_result::test_degradations_travel_into_the_result, and test_execution::test_apply_persists_degradations_on_the_attempt with a hand-composed result), and the marker's profile only in a unit test.
+- [29] Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.
 
 Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 

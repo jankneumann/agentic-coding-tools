@@ -3,7 +3,7 @@
   "change_id": "dispatch-contract",
   "round": 1,
   "body_path": "review-packet.md",
-  "sha256": "e6ddbd7e37d0ba2a8baeeee6dea73e519626574d65987e2247e40f255f723849",
+  "sha256": "36d645461f30859bce3946e1a5b51c99049cb128246763ee6a595fccf9ecab7d",
   "char_length": 320000,
   "budget_chars": 320000,
   "tools_overflow": true,
@@ -59,7 +59,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 3850
+        "est_tokens": 5731
       },
       {
         "path": "openspec/changes/dispatch-contract/design.md",
@@ -80,14 +80,14 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1033
+        "est_tokens": 1440
       },
       {
         "path": "openspec/changes/dispatch-contract/loop-state.json",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1222
+        "est_tokens": 1305
       },
       {
         "path": "openspec/changes/dispatch-contract/plan-findings.md",
@@ -108,7 +108,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 4498
+        "est_tokens": 5348
       },
       {
         "path": "openspec/changes/dispatch-contract/specs/parallel-infrastructure/spec.md",
@@ -153,11 +153,18 @@
         "est_tokens": 4198
       },
       {
+        "path": "openspec/changes/dispatch-contract/validation-report.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1922
+      },
+      {
         "path": "openspec/changes/dispatch-contract/work-packages.yaml",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 4742
+        "est_tokens": 4761
       },
       {
         "path": "openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json",
@@ -227,7 +234,7 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 4646
+        "est_tokens": 4742
       },
       {
         "path": "skills/autopilot/SKILL.md",
@@ -255,7 +262,7 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 5813
+        "est_tokens": 5953
       },
       {
         "path": "skills/autopilot/scripts/tests/test_autopilot.py",
@@ -353,7 +360,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 7802
+        "est_tokens": 7803
       },
       {
         "path": "skills/shared/environment_profile.py",
@@ -409,7 +416,7 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1953
+        "est_tokens": 2239
       },
       {
         "path": "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py",
@@ -444,7 +451,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 3005
+        "est_tokens": 3392
       },
       {
         "path": "skills/tests/autopilot/test_gate_e2e.py",
@@ -638,11 +645,32 @@
         "est_tokens": 136
       },
       {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1830
+      },
+      {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/findings-claude_code-plan.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
         "est_tokens": 3722
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 186
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 61
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/raw-claude_code-plan.meta.json",
@@ -663,21 +691,21 @@
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 288
+        "est_tokens": 293
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.md",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 8904
+        "est_tokens": 81725
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.meta.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 204
+        "est_tokens": 8661
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-2/fact-check-claude_code.json",
@@ -687,11 +715,32 @@
         "est_tokens": 136
       },
       {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1929
+      },
+      {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-2/findings-claude_code-plan.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
         "est_tokens": 3885
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 186
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 61
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-2/raw-claude_code-plan.meta.json",
@@ -712,21 +761,21 @@
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 288
+        "est_tokens": 292
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-2/review-packet.md",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 19284
+        "est_tokens": 16263
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-2/review-packet.meta.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 610
+        "est_tokens": 910
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-3/fact-check-claude_code.json",
@@ -786,6 +835,10 @@
       }
     ],
     "truncated": [
+      "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "skills/autopilot/SKILL.md",
+      "skills/autopilot/scripts/autopilot.py",
+      "skills/autopilot/scripts/convergence_loop.py",
       "skills/autopilot/scripts/runner.py",
       "skills/autopilot/scripts/tests/test_autopilot.py",
       "skills/parallel-infrastructure/review_quorum_policy.json",
@@ -863,6 +916,7 @@
         "openspec/changes/dispatch-contract/proposal.md",
         "openspec/changes/dispatch-contract/session-log.md",
         "openspec/changes/dispatch-contract/tasks.md",
+        "openspec/changes/dispatch-contract/validation-report.md",
         "openspec/changes/dispatch-contract/work-packages.yaml",
         "openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json",
         "skills/parallel-infrastructure/review_quorum_policy.json",

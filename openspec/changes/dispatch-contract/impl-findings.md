@@ -48,3 +48,19 @@ raises `IndexError` instead of a `GateRefusalError`.
 - low: `emit-result` does not cross-check `--dispatch-id`/`--generation` against the launch marker. The supervisor's identity check still rejects a mismatch at `apply`.
 - low: rebind accepts a post-go attempt that has no recorded evidence when only a worktree for its branch exists on this host. The evidence conditions hold vacuously.
 - open question: once a human has rejected `escalate_resume` itself, gate-check can never re-ask it. Recovery is the `abandoned` edge or an operator edit.
+
+## VAL_REVIEW (converge, targeted fixes)
+
+`converge()` ran with `review_type=implementation`, `fix_mode=targeted`, `min_quorum=1`
+from `resolve_quorum_policy` (policy `cloud-container-single-vendor-2026-10-09`), and
+`base_ref=origin/openspec/roadmap-multiplayer-collaboration`. Review was single-vendor
+(`claude_code`), degradation `single_vendor_review`. Blocking trend per round: `[5, 0]`.
+Converged in round 2. The critique checked whether `validation-report.md` proves each ri-21 outcome.
+
+| Ledger | Type | Criticality | Description | Fix | Commit |
+|---|---|---|---|---|---|
+| 25 | spec_gap | medium | Outcome 6 claimed CI gitleaks as the real-binary check, but `security.yml` runs only for `main`, so this change's PR (base: roadmap branch) never triggers it; the local check ports one default rule | Report states the one-rule proxy and that the first real scan is PR #662's Security job | a179b24 |
+| 26 | spec_gap | medium | Outcome 4: no test cleared a posture-derived capability-fingerprint block after a posture flip without a human answer | `test_a_posture_derived_capability_block_clears_after_a_posture_flip` | 843ad77 |
+| 27 | spec_gap | medium | Outcome 7: hosts A and B shared one repo root, so a leaked absolute path could not be detected | `test_a_checkpoint_checked_out_at_another_root_rebinds_without_host_a_paths` | df3b98e |
+| 28 | spec_gap | medium | Outcome 5 "end to end" was proven only piecewise | `test_profile_and_degradations_travel_the_whole_chain` | 843ad77 |
+| 29 | spec_gap | low | Report citations omitted the fingerprint, dispatched-child, apply-time refusal and wrong-token tests | Citations and counts corrected | a179b24 |
