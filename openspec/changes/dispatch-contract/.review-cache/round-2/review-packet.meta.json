@@ -3,8 +3,8 @@
   "change_id": "dispatch-contract",
   "round": 2,
   "body_path": "review-packet.md",
-  "sha256": "936e85cbe0c49c2cf4ba3962c409f7a2acc3ada8a8bd25b507d3f90ee33d0391",
-  "char_length": 75918,
+  "sha256": "d7bb610e1c98d0a8997d9c63d5916bb7fe36338fd656bc9658415da31f6bd732",
+  "char_length": 63948,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -13,42 +13,71 @@
     "per_file_token_ceiling": 64000,
     "selected": [
       {
-        "path": "openspec/changes/dispatch-contract/design.md",
+        "path": "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2113
+        "est_tokens": 2010
       },
       {
-        "path": "openspec/changes/dispatch-contract/proposal.md",
+        "path": "skills/autopilot-roadmap/scripts/orchestrator.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1018
+        "est_tokens": 228
       },
       {
-        "path": "openspec/changes/dispatch-contract/specs/roadmap-orchestration/spec.md",
+        "path": "skills/autopilot/scripts/runner.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1779
+        "est_tokens": 243
       },
       {
-        "path": "openspec/changes/dispatch-contract/tasks.md",
+        "path": "skills/shared/dispatch_contract.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2476
+        "est_tokens": 217
       },
       {
-        "path": "openspec/changes/dispatch-contract/work-packages.yaml",
+        "path": "skills/tests/autopilot-roadmap/test_supervised_dispatch.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1089
+        "est_tokens": 439
+      },
+      {
+        "path": "skills/tests/autopilot/test_gate_check_reeval.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 531
       }
     ],
-    "excluded": [],
+    "excluded": [
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-manifest.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 309
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.md",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 89897
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.meta.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 8730
+      }
+    ],
     "truncated": []
   },
   "rule_groups": [
@@ -57,18 +86,33 @@
       "source": "default",
       "pattern": "(default)",
       "files": [
-        "openspec/changes/dispatch-contract/design.md",
-        "openspec/changes/dispatch-contract/proposal.md",
-        "openspec/changes/dispatch-contract/tasks.md",
-        "openspec/changes/dispatch-contract/work-packages.yaml"
+        "openspec/changes/dispatch-contract/.review-ledger/ledger.json"
       ]
     },
     {
       "group_id": 2,
       "source": "default",
-      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "pattern": "skills/*/scripts/*.py",
       "files": [
-        "openspec/changes/dispatch-contract/specs/roadmap-orchestration/spec.md"
+        "skills/autopilot-roadmap/scripts/orchestrator.py",
+        "skills/autopilot/scripts/runner.py"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "**/*.py",
+      "files": [
+        "skills/shared/dispatch_contract.py"
+      ]
+    },
+    {
+      "group_id": 4,
+      "source": "default",
+      "pattern": "skills/tests/**",
+      "files": [
+        "skills/tests/autopilot-roadmap/test_supervised_dispatch.py",
+        "skills/tests/autopilot/test_gate_check_reeval.py"
       ]
     }
   ]

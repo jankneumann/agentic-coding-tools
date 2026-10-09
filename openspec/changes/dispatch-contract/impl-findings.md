@@ -24,6 +24,24 @@ post-fix scope check (9805527).
 |---|------|-------------|-------------|-----|--------|
 | 7 | bug | medium | Regression from fix 1: after the operator approved a rejected fingerprint, the stale rejection was still the latest blocked subject, so a new park on that fingerprint stayed blocked. Members that joined after the rejection were also not resumed by the approval | A subject answered by a later proceed is no longer the prior record. `answer_escalation` resumes current fingerprint members that the subject's listing predates | 4cc15ae |
 
+## IMPL_REVIEW (converge, targeted fixes)
+
+`converge()` ran with `review_type=implementation`, `fix_mode=targeted`, `min_quorum=1`
+from `resolve_quorum_policy` (policy `cloud-container-single-vendor-2026-10-09`), and
+`base_ref=origin/openspec/roadmap-multiplayer-collaboration`. Review was single-vendor
+(`claude_code`), degradation `single_vendor_review`. Blocking trend per round: `[5, 0]`.
+Converged in round 2.
+
+| Ledger | Type | Criticality | Description | Fix | Commit |
+|---|---|---|---|---|---|
+| 16, 17 | security | medium | A dispatched child's `gate-answer` checked only `--approval-ref` against the marker, so a matching reference could record an approval the supervisor had rejected, or answer another gate | `--gate` and `--decision` must also equal the marker's `gate_answer` (exit 2, nothing recorded), with tests | 5b28e32 |
+| 18, 19 | security | medium | `apply_delegated_batch` persisted a `permission_blocked` result's `parked.command` verbatim into the tracked checkpoint (attempt and journal); only the router's record was re-sanitized | The command is passed through `redact_command` right after validation, before binding, journaling and persistence, with an apply-level test | b34c6af |
+| 20 | correctness | low | Auth-header redaction was not idempotent (a second pass rewrote an already-redacted header) | The lookahead skips leading whitespace | bad6de9 |
+
+Advisory (low) added in IMPL_REVIEW: `_resolve_capability_park`'s proceed path indexes
+`records[0]` when the attempt is not among its fingerprint's parked members, which
+raises `IndexError` instead of a `GateRefusalError`.
+
 ## Remaining (below threshold)
 
 - low: in a dispatched child whose posture digest has drifted, a `notify_with_timeout` gate can still take its posture-derived timeout default. The spec forbids only `auto` here; parking would follow the supervisor-authority intent more closely.

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "change_id": "dispatch-contract",
-  "review_type": "plan",
-  "created_at": "2026-10-09T07:22:31Z",
+  "review_type": "implementation",
+  "created_at": "2026-10-09T13:39:16Z",
   "target": "dispatch-contract",
   "dispatches": [
     {
@@ -12,7 +12,7 @@
       "models_attempted": [
         "claude-opus-5-5"
       ],
-      "elapsed_seconds": 154.02527379700007,
+      "elapsed_seconds": 44.00944636999975,
       "error": null,
       "error_class": null
     }
@@ -22,8 +22,8 @@
   "vendors": [
     {
       "name": "claude_code",
-      "findings_path": "findings-claude_code-plan.json",
-      "finding_count": 15,
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 9,
       "unanchored_findings": 0,
       "fact_check": "skipped",
       "fact_check_removed": 0,
