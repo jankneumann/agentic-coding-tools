@@ -1327,6 +1327,19 @@ def _resolve_capability_park(
     prior_subjects = _subject_records(checkpoint, fingerprint, roadmap.roadmap_id)
     prior = max(prior_subjects, key=lambda r: str(r.get("recorded_at") or "")) if prior_subjects else None
 
+    if (
+        prior is not None
+        and prior.get("outcome") == "blocked"
+        and (prior.get("provenance") or {}).get("source") == "human"
+    ):
+        # D5: a human rejection is final for its fingerprint subject. A member
+        # that parked on the same fingerprint since the rejection joins the
+        # listing, but the posture is never consulted, so it cannot clear the
+        # rejection; only a new operator answer (answer_escalation) does.
+        routed = RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
+        entry = _fingerprint_entry(prior, routed.decision, roadmap=roadmap, repo_root=repo_root, now=moment)
+        entry["dispatch_ids"] = [dict(item) for item in listed]
+        return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
     if prior is not None and prior.get("outcome") == "blocked":
         routed = _apply_prior_record(prior, Gate.ESCALATE_RESUME, (), service=service)
         if routed is not None and routed.reused and prior.get("dispatch_ids") == listed:

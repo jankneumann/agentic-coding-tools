@@ -442,3 +442,44 @@ def test_a_standalone_run_blocks_with_scope_unscoped(world: dict[str, Any]) -> N
     assert record["outcome"] == "blocked"
     assert record["scope"] == "unscoped"
     assert state["pending_gate"]["gate"] == "proposal_approval"
+
+
+def test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes(
+    world: dict[str, Any],
+) -> None:
+    """D5/D9: a human rejection is final for its fingerprint subject. A change in
+    the fingerprint's member listing (a member resolved or joined since the
+    rejection) must not route the subject back through the posture."""
+    repo, workspace, adapter = world["repo"], world["workspace"], world["adapter"]
+    park = {"kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["codex"], "reason": "quorum"}
+    _posture(repo, escalate_resume="block")
+    request = _prepare(world)
+    _launch(world, request, owner="owner-nonce-0000000001")
+    _child_commits_state(world, current_phase="PLAN_REVIEW", park=dict(park))
+    _apply(world, request, _child_emits(world, request))
+    fingerprint = _mirror_fingerprint_entries(repo)[0]["dedupe_fingerprint"]
+
+    rejected = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=False, adapter=adapter,
+    )
+    assert rejected["outcome"] == "blocked"
+    with CheckpointManager(workspace).transaction() as checkpoint:
+        record = next(
+            r for r in checkpoint.gate_decisions if r.get("decision_id") == rejected["records"][0]["decision_id"]
+        )
+        # Another member was listed at rejection time and has since resolved.
+        record["dispatch_ids"] = [
+            *record["dispatch_ids"], {"dispatch_id": "batch-x:ri-09:attempt-1", "lease_generation": 1}
+        ]
+    _posture(repo, escalate_resume="auto")
+
+    resolution = gate_router.resolve_parked(
+        _attempt(world), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+
+    assert resolution.outcome == "blocked"
+    assert resolution.routed.record["provenance"]["source"] == "human"
+    assert [item["dispatch_id"] for item in resolution.pending_gate_entry["dispatch_ids"]] == [
+        request["dispatch_id"]
+    ]
+    assert _attempt(world)["status"] == "parked"
