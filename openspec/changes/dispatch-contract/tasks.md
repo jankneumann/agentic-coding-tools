@@ -154,6 +154,11 @@
   only and records `single_vendor_review` (phase, vendor). — SV Execution Profile and
   Review Requirements; SW Honest Review Quorum
 
+- [x] 7.5 Supervisor follow-up (d): `review_packet._git_diff` resolves its base ref
+  robustly (`main`, else `origin/main`), so a checkout with only the remote-tracking
+  base no longer produces an empty review packet; test in `test_review_packet.py`
+  (one-file scope extension to `review_packet.py`). — SW Honest Review Quorum
+
 ## 8. Supervisor  `[wp-supervisor]` (deps: 1.1, 3.3, 5.3)
 
 - [x] 8.1 Test first: extend `skills/tests/supervise/test_execution.py` and
