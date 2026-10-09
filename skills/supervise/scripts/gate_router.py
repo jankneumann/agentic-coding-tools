@@ -1208,6 +1208,18 @@ def _subject_records(checkpoint: Any, fingerprint: str, roadmap_id: str) -> list
     ]
 
 
+def _answered_after(checkpoint: Any, fingerprint: str, subject: dict[str, Any]) -> bool:
+    """A ``proceed`` for this fingerprint was recorded after ``subject``."""
+    since = str(subject.get("recorded_at") or "")
+    return any(
+        record.get("gate") == Gate.ESCALATE_RESUME.value
+        and record.get("dedupe_fingerprint") == fingerprint
+        and record.get("outcome") == "proceed"
+        and str(record.get("recorded_at") or "") > since
+        for record in (getattr(checkpoint, "gate_decisions", None) or [])
+    )
+
+
 def _fingerprint_entry(
     record: dict[str, Any], decision: ApprovalDecision, *, roadmap: Roadmap, repo_root: Path, now: datetime
 ) -> dict[str, Any]:
@@ -1326,6 +1338,10 @@ def _resolve_capability_park(
     service = evaluator or build_default_gate(agent_id="supervise", repo_root=str(repo_root))
     prior_subjects = _subject_records(checkpoint, fingerprint, roadmap.roadmap_id)
     prior = max(prior_subjects, key=lambda r: str(r.get("recorded_at") or "")) if prior_subjects else None
+    if prior is not None and _answered_after(checkpoint, fingerprint, prior):
+        # The subject was answered (the fan-out's per-dispatch proceed records);
+        # a park on this fingerprint since then is a new subject.
+        prior = None
 
     if (
         prior is not None
@@ -1453,6 +1469,10 @@ def answer_escalation(
             skipped.append({"dispatch_id": item["dispatch_id"], "reason": "generation changed since projection"})
             continue
         members.append(current)
+    # A member that parked on this fingerprint after the subject was recorded is
+    # listed in the projected entry the operator answered (D9), so it resumes too.
+    listed_ids = {item["dispatch_id"] for item in subject["dispatch_ids"]}
+    members += [m for m in _fingerprint_members(checkpoint, fingerprint) if m["dispatch_id"] not in listed_ids]
     records, resumed, failed = _fan_out_resume(
         members, decision, fingerprint=fingerprint, roadmap=roadmap, workspace=workspace, adapter=adapter,
         extra={"note": note} if note else None,

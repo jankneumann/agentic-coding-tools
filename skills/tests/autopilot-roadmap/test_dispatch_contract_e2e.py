@@ -301,6 +301,65 @@ def test_apply_refuses_a_result_the_loop_state_does_not_map_to(
     assert _attempt(world)["status"] == "launched"
 
 
+def test_an_operator_approval_ends_a_human_rejected_escalation(world: dict[str, Any]) -> None:
+    """After the operator approves a fingerprint they had rejected, a later park
+    on the same fingerprint is a new subject, evaluated under the posture."""
+    repo, workspace, adapter = world["repo"], world["workspace"], world["adapter"]
+    park = {"kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["codex"], "reason": "quorum"}
+    _posture(repo, escalate_resume="block")
+    request = _prepare(world)
+    _launch(world, request, owner="owner-nonce-0000000001")
+    _child_commits_state(world, current_phase="PLAN_REVIEW", park=dict(park))
+    _apply(world, request, _child_emits(world, request))
+    fingerprint = _mirror_fingerprint_entries(repo)[0]["dedupe_fingerprint"]
+    gate_router.answer_escalation(fingerprint, workspace=workspace, repo_root=repo, approved=False, adapter=adapter)
+    approved = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter,
+    )
+    resumed = approved["resumed"][0]
+
+    _launch(world, resumed, owner="owner-nonce-0000000002")
+    _child_commits_state(world, current_phase="PLAN_REVIEW", park=dict(park), total_iterations=2)
+    _apply(world, resumed, _child_emits(world, resumed))
+    _posture(repo, escalate_resume="auto")
+
+    resolution = gate_router.resolve_parked(
+        _attempt(world), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+
+    assert resolution.outcome == "proceed"
+    assert resolution.routed.record["provenance"]["source"] == "posture"
+
+
+def test_an_approval_resumes_a_member_that_joined_after_the_rejection(world: dict[str, Any]) -> None:
+    """The projected entry lists every current member, so the operator's
+    approval of that entry resumes a member the rejection record predates."""
+    repo, workspace, adapter = world["repo"], world["workspace"], world["adapter"]
+    park = {"kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["codex"], "reason": "quorum"}
+    _posture(repo, escalate_resume="block")
+    request = _prepare(world)
+    _launch(world, request, owner="owner-nonce-0000000001")
+    _child_commits_state(world, current_phase="PLAN_REVIEW", park=dict(park))
+    _apply(world, request, _child_emits(world, request))
+    fingerprint = _mirror_fingerprint_entries(repo)[0]["dedupe_fingerprint"]
+    rejected = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=False, adapter=adapter,
+    )
+    with CheckpointManager(workspace).transaction() as checkpoint:
+        record = next(
+            r for r in checkpoint.gate_decisions if r.get("decision_id") == rejected["records"][0]["decision_id"]
+        )
+        # The rejection predates this member: it listed only a since-resolved one.
+        record["dispatch_ids"] = [{"dispatch_id": "batch-x:ri-09:attempt-1", "lease_generation": 1}]
+
+    approved = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter,
+    )
+
+    assert [r["dispatch_id"] for r in approved["resumed"]] == [request["dispatch_id"]]
+    assert _attempt(world)["status"] == "prepared"
+
+
 def _router_gate(repo: Path) -> ApprovalGate:
     return ApprovalGate(coordinator=object(), audit=_Audit(), repo_root=str(repo))
 
