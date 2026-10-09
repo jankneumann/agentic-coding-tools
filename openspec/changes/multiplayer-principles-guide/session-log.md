@@ -70,3 +70,25 @@ Replaced the plan-roadmap scaffold with a full plan by restoring the lost prior 
 ### Decisions
 1. **Single-vendor review accepted for PLAN_REVIEW, IMPL_REVIEW and VAL_REVIEW in this change** `architectural: single_vendor_review` — The user (session owner) answered the PLAN_REVIEW quorum_lost escalation on 2026-10-09: "Resume with single reviewer acceptable". This matches the committed cloud policy in TRUST_POSTURE.md "Review quorum in cloud containers (temporary)" (479dcd9, gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff). The codex lane failed to dispatch (auth_required), so review phases run `converge()` with `min_quorum=1` and vendor `claude_code`. Every review phase records the degradation `single_vendor_review` (phase, vendor). The PR body states that review was single-vendor, and the human merge gate stays `block`.
 2. **Review diff base** — `review_packet.py` diffs `main...HEAD`. A local `main` ref tracking `origin/main` now exists in the container, so review packets carry the plan files instead of `(empty-diff)`. The code fix (falling back to `origin/main`) is a toolkit follow-up and out of scope here.
+
+---
+
+## Phase: Plan Review (2026-10-09)
+
+**Agent**: claude_code (autopilot PLAN_REVIEW phase sub-agent) | **Session**: N/A
+
+### Decisions
+1. **Degradation recorded: `single_vendor_review` (phase PLAN_REVIEW, vendor claude_code)** `architectural: single_vendor_review` — Per the user-accepted decision above, `converge()` ran with `min_quorum=1` and the orchestrator's roster filtered to `claude_code`; codex was dropped (auth_required). `review_dispatcher --check-vendors` still lists codex as available, so the roster was filtered explicitly rather than trusted.
+2. **Converged in round 1 with zero blocking ledger items** — 12 findings (3 medium, 9 low), all `evidence_class: judgment`. Under the ledger's D3 rule a judgment finding blocks only when confirmed at high or critical, so none blocked; the result is not a side effect of the single vendor. PLAN_FIX (the `fix_callback`) was wired as a file-handshake inline applicator but was never invoked, because no round produced blocking items.
+3. **Review packet carried the plan** — `main` resolves to `origin/main` (cb2e62c); `review-packet.meta.json` records `diff_kind: full` with all 94 changed files, including this change's proposal, design, tasks and spec.
+
+### Advisory findings carried forward (non-blocking)
+- [medium] Branch scope: `main...HEAD` also carries the roadmap bootstrap (19 sibling scaffolds, `roadmap.yaml`, `checkpoint.json`, `TRUST_POSTURE.md`, `supervisor-record.json`). The PR either lands that bootstrap first or states it in the PR body so the Non-Goals line about sibling artifacts is not misread.
+- [medium] `reviews/consensus-plan.json` and `reviews/review-manifest.json` are left over from the 2026-10-06 quorum_lost run and contradict each other. `.review-cache/round-1/` and `.review-ledger/ledger.json` are the current review record.
+- [medium] The `TRUST_POSTURE.md` section cited for single-vendor review (479dcd9) is on the roadmap branch, not on this branch.
+- [low] D3's split rule is not applied to P10: the roadmap's *Ownership-routed escalation and attention budgets* serves P1, P3, P8 and P10, so `attention-budgets-digests` belongs in the P10 row. Verified against the roadmap proposal; the implementer applies it under D3's "verify against the roadmap" instruction.
+- [low] The spec's solo/team definition (exactly one distinct human principal vs two or more) has no scenario. Mark it a review check, as the per-skill requirement does.
+
+### Completed Work
+- `converge(review_type="plan", max_rounds=3, min_quorum=1, fix_mode="inline")`: 1 round, converged, trend [0], fact-check ran (0 removed)
+- Committed `.review-cache/round-1/` findings, manifest, fact-check and `.review-ledger/ledger.json`

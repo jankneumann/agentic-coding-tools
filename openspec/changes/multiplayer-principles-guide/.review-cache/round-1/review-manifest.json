@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "change_id": "multiplayer-principles-guide",
+  "review_type": "plan",
+  "created_at": "2026-10-09T08:08:49Z",
+  "target": "multiplayer-principles-guide",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 134.554059548,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 12,
+      "unanchored_findings": 0,
+      "fact_check": "ran",
+      "fact_check_removed": 0,
+      "fact_check_tokens": 0
+    }
+  ]
+}
