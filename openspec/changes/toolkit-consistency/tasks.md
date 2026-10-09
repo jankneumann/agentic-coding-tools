@@ -64,7 +64,7 @@ on. Tasks with no shared files and no `Depends on` can run in parallel worktrees
   Files: `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/SKILL.md`, `skills/tests/improve-harness/test_shared_learnings_merge.py`.
   Depends on: T4 (record format).
 
-- [ ] **T6. State-artifact registration and guides** — Add rows for
+- [x] **T6. State-artifact registration and guides** — Add rows for
   `.agentic-toolkit/stamp.json`, `.agentic-toolkit/config.json` and
   `.agentic-toolkit/learnings.jsonl` to `docs/guides/state-artifacts.md` (writer, authority,
   consumers, missing/stale behaviour per D6–D8); document the stamp, extended `--check` and
