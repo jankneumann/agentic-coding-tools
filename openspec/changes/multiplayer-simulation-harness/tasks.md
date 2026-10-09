@@ -297,7 +297,7 @@
   **Spec scenarios**: A.1, A.2, A.3
   **Design decisions**: D10
   **Dependencies**: 7.3
-- [ ] 8.2 Write `skills/tests/multiplayer-simulation/README.md`. It should cover:
+- [x] 8.2 Write `skills/tests/multiplayer-simulation/README.md`. It should cover:
   - what the harness measures and why baselines are characterisations, not targets;
   - how `ri-06` registers a probe (one import line plus flipping `collision_detected`);
   - where `ri-11` must look: the `Roadmap.ready_items` call site in `scenarios/blocked.py`,
