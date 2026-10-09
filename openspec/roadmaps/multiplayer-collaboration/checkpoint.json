@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T08:09:51.641070+00:00",
+  "updated_at": "2026-10-09T08:11:29.486124+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -822,7 +822,7 @@
       "change_id": "multiplayer-simulation-harness",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:51.250636+00:00",
       "launch_token": "Mp2SzX-7Y7Losd0LyuH5PzlKFsrcvIng",
       "launch_marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
@@ -902,14 +902,10 @@
         "branch": "openspec/multiplayer-simulation-harness"
       },
       "context": {},
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:14d02b8a-cff3-4010-a9fe-29c849777950"
-      },
       "lease": {
         "generation": 2,
         "owner_nonce": "9d71e9b993d904b68021a86173c4aaa5",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-09T07:50:20.923575+00:00",
         "heartbeat_at": "2026-10-09T07:50:20.923575+00:00",
         "expires_at": "2026-10-09T08:05:20.923575+00:00"
@@ -926,6 +922,46 @@
         "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g2",
         "go_released_at": "2026-10-09T07:50:20.933406+00:00",
         "entered_at": "2026-10-09T07:50:20.944468+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/multiplayer-simulation-harness",
+          "change_id": "multiplayer-simulation-harness",
+          "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
+          "evidence": {
+            "commit": "0aefad2a079f0c1ed4c8927b42ed8573749d676d",
+            "loop_state_digest": "dc3384441162e271fee5cf4f5774b5a13f8096a80e36d34004a0c19905961934",
+            "loop_state_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json"
+          },
+          "handoff_id": "ab3b1133-8595-4fe0-92b6-909f7872b6f3",
+          "lease_generation": 2,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "pending_gate",
+            "reason": "IMPLEMENT failed before any edit: sub-agent worktree rooted at main; moving it to the feature branch (git reset --hard / git merge --ff-only) denied by the permission classifier. PLAN_REVIEW converged round 1 (min_quorum=1, single_vendor_review). Fix: fix/cloud-phase-isolation (PR #665).",
+            "resume_hint": "After PR #665 is merged and main merged into the branch (or with the operator-approved protected re-root), answer escalate_resume; loop resumes at IMPLEMENT."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness"
+        },
+        "result_digest": "47277ad7cda7e9ea7956075bb9d2fb4ca9064bd58f18a752c556b720e50d41c5",
+        "bound_at": "2026-10-09T08:11:29.435793+00:00",
+        "callback_started_at": "2026-10-09T08:11:29.444018+00:00",
+        "callback_acknowledged_at": "2026-10-09T08:11:29.448027+00:00",
+        "terminal_persisted_at": "2026-10-09T08:11:29.451570+00:00",
+        "effects_applied_at": "2026-10-09T08:11:29.485905+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-09T08:11:29.451471+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "pending_gate",
+        "reason": "IMPLEMENT failed before any edit: sub-agent worktree rooted at main; moving it to the feature branch (git reset --hard / git merge --ff-only) denied by the permission classifier. PLAN_REVIEW converged round 1 (min_quorum=1, single_vendor_review). Fix: fix/cloud-phase-isolation (PR #665).",
+        "resume_hint": "After PR #665 is merged and main merged into the branch (or with the operator-approved protected re-root), answer escalate_resume; loop resumes at IMPLEMENT."
       }
     },
     {
