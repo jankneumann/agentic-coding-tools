@@ -1386,7 +1386,10 @@ class ExecutionAdapter:
             raise ValueError("loop-state evidence is missing")
 
         commit = evidence.get("commit")
-        if commit != self.commit_resolver(worktree):
+        # The worker commits the emitted result file after emit-result, so the
+        # evidence commit is HEAD or an ancestor of it (D4); the loop-state
+        # digest below still pins the file itself.
+        if commit != self.commit_resolver(worktree) and not self.ancestry_check(worktree, str(commit)):
             raise ValueError("commit evidence mismatch")
         digest = evidence.get("loop_state_digest")
         if digest != hashlib.sha256(resolved_loop.read_bytes()).hexdigest():

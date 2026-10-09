@@ -183,7 +183,7 @@
 
 ## 9. Integration  `[wp-integration]` (deps: 6.5, 7.3, 8.4)
 
-- [ ] 9.1 Closure contract test `skills/tests/supervise/test_dispatch_closure.py`,
+- [x] 9.1 Closure contract test `skills/tests/supervise/test_dispatch_closure.py`,
   schema-derived enumeration plus the mutated-schema negative case. — SV Dispatch
   Result Closure (outcome 3)
 - [ ] 9.2 End-to-end test `skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py`:
