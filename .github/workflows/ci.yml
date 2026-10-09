@@ -475,6 +475,73 @@ jobs:
           path: ${{ runner.temp }}/context-gate-metrics.jsonl
           if-no-files-found: ignore
 
+  # Contract breaking-change gate (generate-coordinator-clients-from-contracts,
+  # design D4). Compares every promoted OpenAPI document under
+  # `openspec/contracts/**/openapi/` that the branch changes against its
+  # merge-base version with a pinned oasdiff, and fails on any ERR-level finding
+  # not acknowledged in a touched change's
+  # `contracts/accepted-breaking-changes.yaml`.
+  #
+  # oasdiff is pinned as a Go module version (scripts/contract_gate/oasdiff.sum),
+  # installed with `go install` under Go's checksum-database verification;
+  # fetch_oasdiff.py refuses to install if that verification is disabled or the
+  # go.mod hash differs from the recorded one. Go 1.26 is what v1.33.0 requires.
+  #
+  # Runs on all three events, like context-drift-gate, with the comparison base
+  # chosen per event inside the step: the PR's target branch, the merge group's
+  # base commit, or the pre-push tip of main (so a push compares exactly the
+  # commits it landed).
+  contract-breaking-change-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The gate needs the merge base and the base versions of each document.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+          cache: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install skills deps
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Test the gate
+        run: skills/.venv/bin/python -m pytest scripts/contract_gate/tests -q
+
+      - name: Install and verify oasdiff
+        run: skills/.venv/bin/python scripts/contract_gate/fetch_oasdiff.py --bin-dir "$RUNNER_TEMP/bin"
+
+      - name: Check promoted contracts for breaking changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          case "$EVENT_NAME" in
+            pull_request) BASE="origin/$BASE_REF" ;;
+            merge_group)  BASE="$MERGE_GROUP_BASE_SHA" ;;
+            push)         BASE="$PUSH_BEFORE_SHA" ;;
+            *)
+              echo "::error::contract gate: unhandled event '$EVENT_NAME'"
+              exit 1
+              ;;
+          esac
+          skills/.venv/bin/python scripts/contract_gate/check_breaking.py \
+            --base "$BASE" --oasdiff "$RUNNER_TEMP/bin/oasdiff"
+
   # Coverage no-decrease ratchet (introduce-fitness-function-gates, design D5).
   #
   # Deliberately its own job rather than a `--cov` flag bolted onto `test` and

@@ -74,29 +74,29 @@ Test tasks precede the implementation they verify. Scenario references use
 
 ## 4. Breaking-change gate (wp-ci)
 
-- [ ] 4.1 Write `scripts/contract_gate/tests/test_check_breaking.py` against recorded oasdiff JSON fixtures — unacknowledged break fails with document/operation/rule in output; exact acknowledgement passes and is listed; additive change passes; change-local-only PR reports nothing promoted; stale acknowledgement warns; deleted promoted document fails unless acknowledged
+- [x] 4.1 Write `scripts/contract_gate/tests/test_check_breaking.py` against recorded oasdiff JSON fixtures — unacknowledged break fails with document/operation/rule in output; exact acknowledgement passes and is listed; additive change passes; change-local-only PR reports nothing promoted; stale acknowledgement warns; deleted promoted document fails unless acknowledged
   **Spec scenarios**: agent-coordinator.gate (Unacknowledged breaking change fails the gate, Acknowledged breaking change passes the gate, Additive change passes without acknowledgement, Change-local contracts are not gated)
   **Design decisions**: D4
   **Dependencies**: None
   **Size**: M
 
-- [ ] 4.2 Implement `scripts/contract_gate/check_breaking.py` — merge-base discovery, changed-file filter on `openspec/contracts/**/openapi/*.yaml`, `git show` of base versions to temp files, oasdiff invocation with JSON output, acknowledgement collection from touched change dirs, exact-match suppression, exit codes 0/1
+- [x] 4.2 Implement `scripts/contract_gate/check_breaking.py` — merge-base discovery, changed-file filter on `openspec/contracts/**/openapi/*.yaml`, `git show` of base versions to temp files, oasdiff invocation with JSON output, acknowledgement collection from touched change dirs, exact-match suppression, exit codes 0/1
   **Dependencies**: 4.1
   **Size**: M
 
-- [ ] 4.3 Write a checksum-verification test — a tampered binary fails before any comparison runs
+- [x] 4.3 Write a checksum-verification test — a tampered recorded GoModSum, a missing module Sum, a download error, or any setting that disables Go checksum verification fails before oasdiff is installed or run (revised with D4)
   **Spec scenarios**: agent-coordinator.gate (Unverified comparison binary is refused)
   **Design decisions**: D4
   **Dependencies**: None
   **Size**: XS
 
-- [ ] 4.4 Implement `scripts/contract_gate/fetch_oasdiff.sh` with a pinned version and `scripts/contract_gate/oasdiff.sha256`; refuse on mismatch
+- [x] 4.4 Implement `scripts/contract_gate/fetch_oasdiff.py` pinning `github.com/oasdiff/oasdiff@v1.33.0` with the recorded GoModSum in `scripts/contract_gate/oasdiff.sum`; refuse on mismatch or disabled verification (revised with D4)
   **Dependencies**: 4.3
   **Size**: S
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-- [ ] 4.5 Add the `contract-breaking-change-gate` job to `.github/workflows/ci.yml` (fetch-depth 0, fetch + verify oasdiff, run the wrapper; < 60 s target)
+- [x] 4.5 Add the `contract-breaking-change-gate` job to `.github/workflows/ci.yml` (fetch-depth 0, fetch + verify oasdiff, run the wrapper; < 60 s target)
   **Dependencies**: 4.2, 4.4
   **Size**: S
 
