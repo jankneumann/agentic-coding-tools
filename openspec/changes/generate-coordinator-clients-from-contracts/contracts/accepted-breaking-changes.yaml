@@ -4,14 +4,11 @@
 # Each entry suppresses exactly one (document, operation, rule_id) finding.
 # rule_id values are oasdiff check identifiers; the gate prints the exact id of
 # any unacknowledged finding, and warns about entries here that match nothing.
+#
+# The first CI run (oasdiff v1.33.0) reported only new-required-request-property
+# (twice, one per newly required property). Adding security to getFeature is not
+# an ERR-level finding, so its planned entry was removed as stale.
 accepted:
-  - document: openspec/contracts/agent-coordinator/openapi/features.yaml
-    operation: GET /features/{feature_id}
-    rule_id: api-security-added
-    rationale: >-
-      Contract-only correction. The app has always required an API key on this
-      route (verify_api_key); the old contract simply omitted it. No client that
-      worked before stops working.
   - document: openspec/contracts/agent-coordinator/openapi/features.yaml
     operation: POST /features/conflicts
     rule_id: new-required-request-property
