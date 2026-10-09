@@ -1,0 +1,677 @@
+# Coordinated tier. Write scopes are disjoint between parallel packages; see design D1 module table.
+schema_version: 1
+feature:
+  id: pilot-test-quality-audit
+  title: Pilot multi-approach test-quality audit
+  plan_revision: 1
+  created_by: claude_code
+  created_at: '2026-10-09T00:00:00Z'
+  deployable: false
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/changes/pilot-test-quality-audit/contracts/README.md
+    files:
+    - openspec/changes/pilot-test-quality-audit/contracts/README.md
+    - openspec/changes/pilot-test-quality-audit/contracts/schemas/stage-record.schema.json
+    - openspec/changes/pilot-test-quality-audit/contracts/schemas/label-ledger.schema.json
+    - openspec/changes/pilot-test-quality-audit/contracts/schemas/mutation-result.schema.json
+    - openspec/changes/pilot-test-quality-audit/contracts/schemas/analysis-report.schema.json
+    - openspec/changes/pilot-test-quality-audit/contracts/schemas/skill-audit-kinds.delta.json
+defaults:
+  priority: 5
+  lock_ttl_minutes: 180
+  timeout_minutes: 180
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+- package_id: wp-contracts
+  title: Package skeleton, records, vocabulary, label ledger
+  task_type: implementation
+  description: 'Scaffolds packages/test-oracle-audit and owns the shared contract modules every stage imports: records.py
+    (StageRecord/TestId mirroring stage-record.schema.json), vocabulary.py (D2), ledger.py (label ledger, D9) and
+    config/thresholds.json. Contract tests validate dataclass output against contracts/schemas. Root of the DAG.'
+  role: implementation
+  priority: 1
+  depends_on: []
+  timeout_minutes: 120
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files:
+    - packages/test-oracle-audit/pyproject.toml
+    keys:
+    - contract:schemas/stage-record.schema.json
+    - contract:schemas/label-ledger.schema.json
+    - contract:schemas/mutation-result.schema.json
+    - contract:schemas/analysis-report.schema.json
+    - contract:schemas/skill-audit-kinds.delta.json
+    ttl_minutes: 120
+    reason: Package skeleton, records, vocabulary, label ledger
+  scope:
+    write_allow:
+    - packages/test-oracle-audit/pyproject.toml
+    - packages/test-oracle-audit/uv.lock
+    - packages/test-oracle-audit/src/test_oracle_audit/__init__.py
+    - packages/test-oracle-audit/src/test_oracle_audit/records.py
+    - packages/test-oracle-audit/src/test_oracle_audit/vocabulary.py
+    - packages/test-oracle-audit/src/test_oracle_audit/ledger.py
+    - packages/test-oracle-audit/src/test_oracle_audit/config/**
+    - packages/test-oracle-audit/tests/conftest.py
+    - packages/test-oracle-audit/tests/test_contracts*.py
+    - packages/test-oracle-audit/tests/test_ledger*.py
+    - packages/test-oracle-audit/tests/fixtures/contracts/**
+    - openspec/changes/pilot-test-quality-audit/contracts/**
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - apis
+    - semantic_code
+  worktree:
+    name: wp-contracts
+    mode: isolated
+  verification:
+    tier_required: B
+    steps:
+    - name: Contract tests
+      kind: command
+      command: cd packages/test-oracle-audit && uv run pytest tests/test_contracts*.py tests/test_ledger*.py -q
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/tests
+        result_keys:
+        - contract_tests_pass
+    - name: Lint
+      kind: command
+      command: cd packages/test-oracle-audit && uv run ruff check src/test_oracle_audit
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/src/test_oracle_audit
+        result_keys:
+        - ruff_clean
+  outputs:
+    result_keys:
+    - contract_tests_pass
+    - ruff_clean
+  metadata:
+    loc_estimate: 350
+  inputs:
+    tasks:
+    - '1.1'
+    - '1.2'
+    - '1.3'
+- package_id: wp-inventory-static
+  title: Test inventory and AST static checks
+  task_type: implementation
+  description: inventory.py (vendored test_linker mapping + pytest fixture resolution) and static_checks.py (six
+    AST rules, never imports test modules). Design D1.
+  role: implementation
+  priority: 2
+  depends_on:
+  - wp-contracts
+  timeout_minutes: 180
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files:
+    - packages/test-oracle-audit/src/test_oracle_audit/inventory.py
+    - packages/test-oracle-audit/src/test_oracle_audit/static_checks.py
+    keys: []
+    ttl_minutes: 180
+    reason: Test inventory and AST static checks
+  scope:
+    write_allow:
+    - packages/test-oracle-audit/src/test_oracle_audit/inventory.py
+    - packages/test-oracle-audit/src/test_oracle_audit/static_checks.py
+    - packages/test-oracle-audit/tests/test_inventory*.py
+    - packages/test-oracle-audit/tests/test_static*.py
+    - packages/test-oracle-audit/tests/fixtures/inventory/**
+    - packages/test-oracle-audit/tests/fixtures/static/**
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: wp-inventory-static
+    mode: isolated
+  verification:
+    tier_required: B
+    steps:
+    - name: Inventory and static tests
+      kind: command
+      command: cd packages/test-oracle-audit && uv run pytest tests/test_inventory*.py tests/test_static*.py -q
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/tests
+        result_keys:
+        - inventory_and_static_tests_pass
+  outputs:
+    result_keys:
+    - inventory_and_static_tests_pass
+  metadata:
+    loc_estimate: 600
+  inputs:
+    tasks:
+    - '2.1'
+    - '2.2'
+    - '2.3'
+    - '2.4'
+- package_id: wp-execution
+  title: Isolation, mutation runner, rename survival
+  task_type: implementation
+  description: isolation.py (D3), mutation.py with MutationRunner protocol, AstMutantRunner and MutmutRunner with
+    per-test kill attribution (D4; public API reused by ri-07), refactor.py private-symbol rename via libcst (D5).
+    Starts with the mutmut spike (3.1) whose verdict gates 3.6.
+  role: implementation
+  priority: 2
+  depends_on:
+  - wp-contracts
+  timeout_minutes: 360
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files:
+    - packages/test-oracle-audit/src/test_oracle_audit/mutation.py
+    - packages/test-oracle-audit/src/test_oracle_audit/refactor.py
+    - packages/test-oracle-audit/src/test_oracle_audit/isolation.py
+    keys:
+    - env:test-oracle-audit-scratch
+    ttl_minutes: 360
+    reason: Isolation, mutation runner, rename survival
+  scope:
+    write_allow:
+    - packages/test-oracle-audit/src/test_oracle_audit/isolation.py
+    - packages/test-oracle-audit/src/test_oracle_audit/mutation.py
+    - packages/test-oracle-audit/src/test_oracle_audit/refactor.py
+    - packages/test-oracle-audit/tests/test_isolation*.py
+    - packages/test-oracle-audit/tests/test_mutation*.py
+    - packages/test-oracle-audit/tests/test_refactor*.py
+    - packages/test-oracle-audit/tests/fixtures/execution/**
+    - openspec/changes/pilot-test-quality-audit/design.md
+    - openspec/changes/pilot-test-quality-audit/session-log.md
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: wp-execution
+    mode: isolated
+  verification:
+    tier_required: B
+    steps:
+    - name: Execution tests
+      kind: command
+      command: cd packages/test-oracle-audit && uv run pytest tests/test_isolation*.py tests/test_mutation*.py tests/test_refactor*.py
+        -q
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/tests
+        result_keys:
+        - execution_tests_pass
+  outputs:
+    result_keys:
+    - execution_tests_pass
+  metadata:
+    loc_estimate: 1100
+  inputs:
+    tasks:
+    - '3.1'
+    - '3.2'
+    - '3.3'
+    - '3.4'
+    - '3.5'
+    - '3.6'
+    - '3.7'
+    - '3.8'
+- package_id: wp-history
+  title: Git history signals
+  task_type: implementation
+  description: 'history.py: co_change_ratio and added_with_fix with vendored assertion-line scanner; degrades on
+    shallow clones and never fetches (D6).'
+  role: implementation
+  priority: 3
+  depends_on:
+  - wp-contracts
+  timeout_minutes: 120
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files:
+    - packages/test-oracle-audit/src/test_oracle_audit/history.py
+    keys: []
+    ttl_minutes: 120
+    reason: Git history signals
+  scope:
+    write_allow:
+    - packages/test-oracle-audit/src/test_oracle_audit/history.py
+    - packages/test-oracle-audit/tests/test_history*.py
+    - packages/test-oracle-audit/tests/fixtures/history/**
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: wp-history
+    mode: isolated
+  verification:
+    tier_required: B
+    steps:
+    - name: History tests
+      kind: command
+      command: cd packages/test-oracle-audit && uv run pytest tests/test_history*.py -q
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/tests
+        result_keys:
+        - history_tests_pass
+  outputs:
+    result_keys:
+    - history_tests_pass
+  metadata:
+    loc_estimate: 350
+  inputs:
+    tasks:
+    - '4.1'
+    - '4.2'
+- package_id: wp-judged-explain
+  title: Judged (Jev) shadow stage and flagged-test explanations
+  task_type: implementation
+  description: 'judged.py: batched, blind, shadow-only decide() questions with config-sourced thresholds (D7). explain.py:
+    ExplainBackend protocol, flagged-only prose (D8). Must keep system-one-decisions guard tests green (no SDK import,
+    module-not-name import).'
+  role: implementation
+  priority: 2
+  depends_on:
+  - wp-contracts
+  timeout_minutes: 180
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files:
+    - packages/test-oracle-audit/src/test_oracle_audit/judged.py
+    - packages/test-oracle-audit/src/test_oracle_audit/explain.py
+    keys: []
+    ttl_minutes: 180
+    reason: Judged (Jev) shadow stage and flagged-test explanations
+  scope:
+    write_allow:
+    - packages/test-oracle-audit/src/test_oracle_audit/judged.py
+    - packages/test-oracle-audit/src/test_oracle_audit/explain.py
+    - packages/test-oracle-audit/tests/test_judged*.py
+    - packages/test-oracle-audit/tests/test_explain*.py
+    - packages/test-oracle-audit/tests/fixtures/judged/**
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: wp-judged-explain
+    mode: isolated
+  verification:
+    tier_required: B
+    steps:
+    - name: Judged and explain tests
+      kind: command
+      command: cd packages/test-oracle-audit && uv run pytest tests/test_judged*.py tests/test_explain*.py -q
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/tests
+        result_keys:
+        - judged_and_explain_tests_pass
+    - name: System One guard tests
+      kind: command
+      command: cd packages/system-one-decisions && uv run pytest tests/test_no_sdk_import_outside_package.py tests/test_no_threshold_literals.py
+        -q
+      evidence:
+        artifacts:
+        - packages/system-one-decisions/tests
+        result_keys:
+        - system_one_guards_pass
+  outputs:
+    result_keys:
+    - judged_and_explain_tests_pass
+    - system_one_guards_pass
+  metadata:
+    loc_estimate: 500
+  inputs:
+    tasks:
+    - '5.1'
+    - '5.2'
+    - '5.3'
+    - '5.4'
+- package_id: wp-labels-analysis
+  title: Labelling flow, analysis metrics, disagreement report, rendering
+  task_type: implementation
+  description: labelling.py (stratified seeded sample, blind cards; D9), analysis.py (stdlib kappa/Brier/bootstrap/Cliff's
+    delta/AUC with n and CI, insufficient below 20; D10), disagreement.py (D11), report.py (advisory first line,
+    open decisions; D13).
+  role: implementation
+  priority: 2
+  depends_on:
+  - wp-contracts
+  timeout_minutes: 300
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files:
+    - packages/test-oracle-audit/src/test_oracle_audit/analysis.py
+    - packages/test-oracle-audit/src/test_oracle_audit/report.py
+    keys: []
+    ttl_minutes: 300
+    reason: Labelling flow, analysis metrics, disagreement report, rendering
+  scope:
+    write_allow:
+    - packages/test-oracle-audit/src/test_oracle_audit/labelling.py
+    - packages/test-oracle-audit/src/test_oracle_audit/analysis.py
+    - packages/test-oracle-audit/src/test_oracle_audit/disagreement.py
+    - packages/test-oracle-audit/src/test_oracle_audit/report.py
+    - packages/test-oracle-audit/tests/test_labelling*.py
+    - packages/test-oracle-audit/tests/test_analysis*.py
+    - packages/test-oracle-audit/tests/test_disagreement*.py
+    - packages/test-oracle-audit/tests/test_report*.py
+    - packages/test-oracle-audit/tests/fixtures/analysis/**
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: wp-labels-analysis
+    mode: isolated
+  verification:
+    tier_required: B
+    steps:
+    - name: Labelling and analysis tests
+      kind: command
+      command: cd packages/test-oracle-audit && uv run pytest tests/test_labelling*.py tests/test_analysis*.py tests/test_disagreement*.py
+        tests/test_report*.py -q
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/tests
+        result_keys:
+        - labelling_and_analysis_tests_pass
+  outputs:
+    result_keys:
+    - labelling_and_analysis_tests_pass
+  metadata:
+    loc_estimate: 900
+  inputs:
+    tasks:
+    - '6.1'
+    - '6.2'
+    - '6.3'
+    - '6.4'
+    - '6.5'
+    - '6.6'
+    - '6.7'
+- package_id: wp-skill-audit-lens
+  title: Skill-audit test-policy lens
+  task_type: implementation
+  description: 'Adds --lens test-policy to skill-audit: two-axis classification of test-prescribing instructions,
+    three append-only finding kinds, schema enum extension in both synced copies (D12). Precondition: add-skill-audit
+    archived (task 7.1).'
+  role: implementation
+  priority: 3
+  depends_on: []
+  timeout_minutes: 180
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files:
+    - skills/skill-audit/scripts/audit_findings.py
+    - skills/skill-audit/scripts/skill_audit.py
+    - openspec/schemas/skill-audit-findings.schema.json
+    - skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json
+    keys:
+    - contract:schemas/skill-audit-findings.schema.json
+    ttl_minutes: 180
+    reason: Skill-audit test-policy lens
+  scope:
+    write_allow:
+    - skills/skill-audit/scripts/test_policy_lens.py
+    - skills/skill-audit/scripts/skill_audit.py
+    - skills/skill-audit/scripts/audit_findings.py
+    - skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json
+    - openspec/schemas/skill-audit-findings.schema.json
+    - skills/skill-audit/SKILL.md
+    - skills/tests/skill-audit/test_test_policy_lens*.py
+    - .claude/skills/skill-audit/**
+    - .agents/skills/skill-audit/**
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - semantic_code
+    - documentation
+  worktree:
+    name: wp-skill-audit-lens
+    mode: isolated
+  verification:
+    tier_required: B
+    steps:
+    - name: Skill-audit tests
+      kind: command
+      command: cd skills && uv run pytest tests/skill-audit -q
+      evidence:
+        artifacts:
+        - skills/tests/skill-audit
+        result_keys:
+        - skill_audit_tests_pass
+    - name: Skill-audit freshness
+      kind: command
+      command: cd skills && uv run python skill-audit/scripts/skill_audit.py --all --check-freshness
+      evidence:
+        artifacts:
+        - docs/reports/skill-audit
+        result_keys:
+        - skill_audit_fresh
+  outputs:
+    result_keys:
+    - skill_audit_fresh
+    - skill_audit_tests_pass
+  metadata:
+    loc_estimate: 450
+  inputs:
+    tasks:
+    - '7.1'
+    - '7.2'
+    - '7.3'
+    - '7.4'
+    - '7.5'
+- package_id: wp-integration
+  title: CLI, end-to-end dry-run, CI job, docs, roadmap notes
+  task_type: implementation
+  description: cli.py wiring every stage; end-to-end dry-run test over a committed fixture repo proving read-only
+    (D3, D15); test-oracle-audit-tests CI job; package README; refine-roadmap notes on skill-rightsizing ri-07/ri-08.
+  role: implementation
+  priority: 4
+  depends_on:
+  - wp-inventory-static
+  - wp-execution
+  - wp-history
+  - wp-judged-explain
+  - wp-labels-analysis
+  timeout_minutes: 180
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files:
+    - .github/workflows/ci.yml
+    - openspec/roadmaps/skill-rightsizing/roadmap.yaml
+    keys: []
+    ttl_minutes: 180
+    reason: CLI, end-to-end dry-run, CI job, docs, roadmap notes
+  scope:
+    write_allow:
+    - packages/test-oracle-audit/src/test_oracle_audit/cli.py
+    - packages/test-oracle-audit/src/test_oracle_audit/__main__.py
+    - packages/test-oracle-audit/tests/test_cli*.py
+    - packages/test-oracle-audit/tests/test_e2e*.py
+    - packages/test-oracle-audit/tests/fixtures/e2e_repo/**
+    - packages/test-oracle-audit/README.md
+    - .github/workflows/ci.yml
+    - openspec/roadmaps/skill-rightsizing/**
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - semantic_code
+    - documentation
+  worktree:
+    name: wp-integration
+    mode: isolated
+  verification:
+    tier_required: A
+    steps:
+    - name: Full package suite
+      kind: command
+      command: cd packages/test-oracle-audit && uv run pytest  -q
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/tests
+        result_keys:
+        - full_package_suite_pass
+    - name: CI coverage guard
+      kind: command
+      command: cd skills && uv run pytest tests/ci_coverage -q
+      evidence:
+        artifacts:
+        - .github/workflows/ci.yml
+        result_keys:
+        - ci_coverage_guard_pass
+    - name: Lint
+      kind: command
+      command: cd packages/test-oracle-audit && uv run ruff check .
+      evidence:
+        artifacts:
+        - packages/test-oracle-audit/src/test_oracle_audit
+        result_keys:
+        - ruff_clean
+  outputs:
+    result_keys:
+    - ci_coverage_guard_pass
+    - full_package_suite_pass
+    - ruff_clean
+  metadata:
+    loc_estimate: 450
+  inputs:
+    tasks:
+    - '8.1'
+    - '8.2'
+    - '8.3'
+    - '8.4'
+    - '8.5'
+- package_id: wp-pilot-run
+  title: Pilot execution, human labelling, live judged run, report
+  task_type: pilot-run
+  description: 'Runs the audit for real: unshallow, deterministic stages over agent-coordinator/tests/test_evaluation
+    and skills/tests/parallel-infrastructure, 40-card human labelling session, live Jev run (operator env, TYPESAFE_API_KEY),
+    explanations, analysis and stamped report, skill-audit lens over five skills, follow-up linter proposal stub.
+    Read-only over audited dirs.'
+  role: pilot-run
+  priority: 5
+  depends_on:
+  - wp-integration
+  - wp-skill-audit-lens
+  timeout_minutes: 480
+  retry_budget: 1
+  min_trust_level: 2
+  locks:
+    files: []
+    keys:
+    - env:test-oracle-audit-scratch
+    ttl_minutes: 480
+    reason: Pilot execution, human labelling, live judged run, report
+  scope:
+    write_allow:
+    - docs/reports/test-oracle-audit/**
+    - docs/reports/skill-audit/**
+    - openspec/changes/pilot-test-quality-audit/session-log.md
+    - openspec/changes/pilot-test-quality-audit/followup-linter-stub.md
+    read_allow:
+    - '**'
+    deny:
+    - openspec/specs/**
+    - openspec/changes/archive/**
+  context_impact:
+    surfaces:
+    - documentation
+  worktree:
+    name: wp-pilot-run
+    mode: isolated
+  verification:
+    tier_required: A
+    steps:
+    - name: Read-only over audited suites
+      kind: command
+      command: git diff --exit-code -- agent-coordinator/tests/test_evaluation agent-coordinator/evaluation skills/tests/parallel-infrastructure
+        skills/parallel-infrastructure
+      evidence:
+        artifacts:
+        - docs/reports/test-oracle-audit
+        result_keys:
+        - audited_dirs_unchanged
+    - name: Report validates
+      kind: command
+      command: cd packages/test-oracle-audit && uv run python -m test_oracle_audit report --validate ../../docs/reports/test-oracle-audit/latest/analysis.json
+      evidence:
+        artifacts:
+        - docs/reports/test-oracle-audit
+        result_keys:
+        - report_valid
+    - name: Human labelling session
+      kind: manual
+      evidence:
+        artifacts:
+        - docs/reports/test-oracle-audit/labels.json
+        result_keys:
+        - labels_committed
+      manual_instructions: Operator labels the 40 seeded cards one at a time via `test-oracle-audit label`; each
+        card shows only the test, covered signatures/docstrings and any cited spec scenario. Commit docs/reports/test-oracle-audit/labels.json.
+  outputs:
+    result_keys:
+    - audited_dirs_unchanged
+    - labels_committed
+    - report_valid
+  metadata:
+    loc_estimate: 50
+  inputs:
+    tasks:
+    - '9.1'
+    - '9.2'
+    - '9.3'
+    - '9.4'
+    - '9.5'
+    - '9.6'
+    - '9.7'
+    - '9.8'

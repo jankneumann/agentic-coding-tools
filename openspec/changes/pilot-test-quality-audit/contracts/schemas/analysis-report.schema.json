@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "test-oracle-audit/analysis-report.schema.json",
+  "title": "AnalysisReport",
+  "description": "Machine-readable analysis (design D10, D11, D13). report.md is rendered from this.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "advisory", "generated_at", "suites", "seed", "approach_coverage", "metrics", "linter_candidates", "excluded", "disagreements", "open_decisions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "advisory": { "const": true },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source_revision": { "type": "string" },
+    "suites": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "seed": { "type": "integer" },
+    "approach_coverage": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["ok", "degraded", "insufficient", "not_run"],
+        "properties": {
+          "ok": { "type": "integer" }, "degraded": { "type": "integer" },
+          "insufficient": { "type": "integer" }, "not_run": { "type": "boolean" }
+        }
+      }
+    },
+    "metrics": { "type": "array", "items": { "$ref": "#/$defs/Metric" } },
+    "linter_candidates": { "type": "array", "items": { "$ref": "#/$defs/Candidate" } },
+    "excluded": { "type": "array", "items": { "$ref": "#/$defs/Candidate" } },
+    "disagreements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weak_assertions", "static_blind_spot", "coupled_spec_test", "judge_vs_human", "rubber_stamp"],
+      "properties": {
+        "weak_assertions": { "$ref": "#/$defs/NodeIds" },
+        "static_blind_spot": { "$ref": "#/$defs/NodeIds" },
+        "coupled_spec_test": { "$ref": "#/$defs/NodeIds" },
+        "judge_vs_human": { "$ref": "#/$defs/NodeIds" },
+        "rubber_stamp": { "$ref": "#/$defs/NodeIds" }
+      }
+    },
+    "open_decisions": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "question", "options", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "question": { "type": "string" },
+          "options": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
+          "evidence": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "NodeIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "Metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "comparison", "metric", "n", "status"],
+      "properties": {
+        "subject": { "type": "string", "description": "rule id or judged question key" },
+        "comparison": { "enum": ["human_label", "rename_survival", "kill_rate"] },
+        "metric": { "enum": ["kappa_7", "kappa_binary", "brier", "brier_base_rate", "cliffs_delta", "auc", "precision", "recall"] },
+        "n": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["ok", "insufficient"] },
+        "value": { "type": "number" },
+        "ci95": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+        "threshold": { "type": "number" },
+        "provisional": { "type": "boolean" }
+      },
+      "allOf": [
+        { "if": { "properties": { "status": { "const": "ok" } } }, "then": { "required": ["value", "ci95"] } },
+        { "if": { "properties": { "status": { "const": "insufficient" } } }, "then": { "not": { "required": ["value"] } } }
+      ]
+    },
+    "Candidate": {
+      "type": "object",
+      "required": ["subject", "kind", "reason"],
+      "properties": {
+        "subject": { "type": "string" },
+        "kind": { "enum": ["static_rule", "judged_question", "history_signal"] },
+        "reason": { "type": "string", "description": "e.g. 'kappa_binary 0.55 < 0.7 floor', 'cliffs_delta CI spans 0 (not_predictive)'" }
+      }
+    }
+  }
+}

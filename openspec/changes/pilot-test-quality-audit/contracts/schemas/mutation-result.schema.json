@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "test-oracle-audit/mutation-result.schema.json",
+  "title": "MutantResult",
+  "description": "One line of <out>/mutants.jsonl. Public contract of MutationRunner, reused by ri-07 (design D4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mutant_id", "backend", "module", "function", "operator", "covered_by", "killed_by", "status", "seed"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "mutant_id": { "type": "string", "minLength": 1 },
+    "backend": { "enum": ["mutmut", "ast"] },
+    "module": { "type": "string" },
+    "function": { "type": "string" },
+    "operator": { "type": "string", "description": "e.g. comparison_flip, boolean_negate, constant_perturb, return_none, or the mutmut operator name" },
+    "covered_by": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "killed_by": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "status": { "enum": ["killed", "survived", "no_coverage", "timeout", "error"] },
+    "seed": { "type": "integer" }
+  }
+}

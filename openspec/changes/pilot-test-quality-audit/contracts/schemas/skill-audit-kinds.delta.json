@@ -1,0 +1,9 @@
+{
+  "description": "Append-only extension of the `kind` enum in skill-audit-findings.schema.json (design D12). Applied to skills/skill-audit/install_assets/openspec/schemas/skill-audit-findings.schema.json and its synced copy openspec/schemas/skill-audit-findings.schema.json. Existing values and their order are unchanged.",
+  "target": "$defs.finding.properties.kind.enum",
+  "append": ["test_oracle_impl_derived", "test_same_context_authorship", "test_coverage_target"],
+  "lens_axes": {
+    "oracle_source": ["spec_derived", "impl_derived", "unspecified"],
+    "authorship": ["separate_context", "same_agent", "unspecified"]
+  }
+}

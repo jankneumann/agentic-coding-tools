@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "test-oracle-audit/stage-record.schema.json",
+  "title": "StageRecord",
+  "description": "One line of <out>/<stage>.jsonl. Every stage emits these; analysis joins them on test_id (design D1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "test_id", "stage", "status", "payload"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "test_id": { "$ref": "#/$defs/TestId" },
+    "stage": { "enum": ["inventory", "static", "judged", "mutation", "rename", "history", "explain"] },
+    "status": { "enum": ["ok", "degraded", "skipped", "error"] },
+    "reason": {
+      "type": "string",
+      "description": "Required when status is degraded/skipped/error, e.g. no_key, dry_run, over_budget, shallow_history, no_backend, mutmut_probe_failed."
+    },
+    "evidence_class": { "enum": ["deterministic", "judgment", "execution", "history", "prose"] },
+    "payload": { "type": "object" }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "enum": ["degraded", "skipped", "error"] } } }, "then": { "required": ["reason"] } },
+    { "if": { "properties": { "stage": { "const": "judged" } } }, "then": { "properties": { "evidence_class": { "const": "judgment" } }, "required": ["evidence_class"] } }
+  ],
+  "$defs": {
+    "TestId": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "content_hash"],
+      "properties": {
+        "node_id": { "type": "string", "minLength": 1 },
+        "content_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "InventoryPayload": {
+      "type": "object",
+      "required": ["path", "line_start", "line_end", "fixtures", "covered_modules"],
+      "properties": {
+        "path": { "type": "string" },
+        "line_start": { "type": "integer", "minimum": 1 },
+        "line_end": { "type": "integer", "minimum": 1 },
+        "fixtures": { "type": "array", "items": { "type": "string" } },
+        "covered_modules": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "StaticPayload": {
+      "type": "object",
+      "required": ["rules"],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["assertion_free", "mock_assertion_dominant", "private_attribute_assert", "private_import", "mirrored_test_file", "unscoped_patch"] }
+        }
+      }
+    },
+    "JudgedPayload": {
+      "type": "object",
+      "required": ["oracle_source", "survives_refactor", "boundary", "truncated"],
+      "properties": {
+        "oracle_source": { "$ref": "#/$defs/Distribution" },
+        "survives_refactor": { "type": "number", "minimum": 0, "maximum": 1 },
+        "boundary": { "$ref": "#/$defs/Distribution" },
+        "truncated": { "type": "boolean" }
+      }
+    },
+    "MutationPayload": {
+      "type": "object",
+      "required": ["backend", "covering_mutants", "killed_mutants", "kill_rate"],
+      "properties": {
+        "backend": { "enum": ["mutmut", "ast"] },
+        "covering_mutants": { "type": "integer", "minimum": 0 },
+        "killed_mutants": { "type": "integer", "minimum": 0 },
+        "kill_rate": { "oneOf": [ { "type": "number", "minimum": 0, "maximum": 1 }, { "const": "insufficient" } ] }
+      }
+    },
+    "RenamePayload": {
+      "type": "object",
+      "required": ["survives", "renamed_symbols", "unrenamable_symbols"],
+      "properties": {
+        "survives": { "type": "boolean" },
+        "renamed_symbols": { "type": "integer", "minimum": 0 },
+        "unrenamable_symbols": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "HistoryPayload": {
+      "type": "object",
+      "required": ["co_change_ratio", "co_change_denominator", "added_with_fix"],
+      "properties": {
+        "co_change_ratio": { "oneOf": [ { "type": "number", "minimum": 0, "maximum": 1 }, { "const": "insufficient" } ] },
+        "co_change_denominator": { "type": "integer", "minimum": 0 },
+        "added_with_fix": { "type": "boolean" }
+      }
+    },
+    "ExplainPayload": {
+      "type": "object",
+      "required": ["prose", "action", "flagged_by"],
+      "properties": {
+        "prose": { "type": "string", "maxLength": 600 },
+        "action": { "enum": ["keep", "strengthen_assertions", "rewrite_from_spec", "declare_characterization", "delete_candidate"] },
+        "flagged_by": { "type": "array", "minItems": 1, "items": { "enum": ["static", "judged", "mutation", "rename", "history"] } }
+      }
+    },
+    "Distribution": {
+      "type": "object",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    }
+  }
+}
