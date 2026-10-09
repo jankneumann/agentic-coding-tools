@@ -288,7 +288,7 @@
 
 ## 8. Archive stability and documentation
 
-- [ ] 8.1 Write `test_archive_stability.py`. Every `sim-` change id used by any fixture must be
+- [x] 8.1 Write `test_archive_stability.py`. Every `sim-` change id used by any fixture must be
   absent from the repository's real change ids, active and archived, read the same way
   `skills/tests/openspec_paths/test_change_path_stability.py` reads them (A.2). Run that guard
   and expect no violation under `skills/tests/multiplayer-simulation/` (A.1). A.3 holds by
