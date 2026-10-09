@@ -60,9 +60,13 @@ class FeatureRegisterRequest(TypedDict):
 
 
 class FeatureRegisterResult(TypedDict):
+    """
+    On failure (e.g. re-registering a completed feature) the service returns only success=false and reason, so feature_id and action are null.
+    """
+
     success: bool
-    feature_id: str
-    action: str
+    feature_id: str | None
+    action: Literal['registered', 'updated'] | None
     reason: str | None
 
 
@@ -72,8 +76,12 @@ class FeatureDeregisterRequest(TypedDict):
 
 
 class FeatureDeregisterResult(TypedDict):
+    """
+    On failure (invalid status, or feature missing or not active) the service returns only success=false and reason, so feature_id and status are null.
+    """
+
     success: bool
-    feature_id: str
+    feature_id: str | None
     status: str | None
     reason: str | None
 
