@@ -5,7 +5,7 @@
 
 ## Context
 
-Add a shared append-only effects journal helper (skills/shared/effects_journal.py) exposing begin, complete, fail, and resolve_interrupted over openspec/changes/<change-id>/effects.jsonl, with deterministic idempotency keys derived from (change_id, phase, transition_sequence, effect_kind, target) and per-effect-kind replay policies (replayable, verify_then_skip, never_replay). Register the journal in docs/guides/state-artifacts.md and document the supervisor application_journal as its first specialized instance.
+Add a shared append-only effects journal helper (skills/shared/effects_journal.py) exposing begin, complete, fail, and resolve_interrupted over openspec/changes/<change-id>/effects.jsonl, with deterministic idempotency keys derived from (change_id, phase, transition_sequence, effect_kind, target, operation_digest), where operation_digest is a deterministic digest of the effect's intended payload (commit SHA being pushed, comment body, PR head/base) so a retry reuses its key but a second distinct effect on the same target does not and per-effect-kind replay policies (replayable, verify_then_skip, never_replay). Register the journal in docs/guides/state-artifacts.md and document the supervisor application_journal as its first specialized instance.
 
 ## Why this item exists
 
