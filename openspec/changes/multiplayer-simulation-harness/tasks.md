@@ -168,7 +168,7 @@
   **Spec scenarios**: C.1, C.2, C.3
   **Design decisions**: D4, D6
   **Dependencies**: 4.2
-- [ ] 4.4 Implement `mpsim/scenarios/collision.py`. It registers both collision scenarios.
+- [x] 4.4 Implement `mpsim/scenarios/collision.py`. It registers both collision scenarios.
   Alice plans, pushes and finishes. Bob fetches, then plans. At Bob's plan step it runs the
   oracle and the selected probes and fills `collision_present`, `collision_detected` and
   `probes`. [M]

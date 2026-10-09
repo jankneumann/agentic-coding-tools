@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 STEP_NAMES = ("plan", "contract", "implement")
 
@@ -43,3 +45,26 @@ class PrincipalSpec:
 
     def step(self, name: str) -> Step | None:
         return next((s for s in self.steps if s.name == name), None)
+
+
+@dataclass(frozen=True)
+class Fixture:
+    dir: Path
+    principals: tuple[PrincipalSpec, ...]
+    seed_files: dict[str, str]
+
+
+@dataclass(frozen=True)
+class RunContext:
+    scenario_id: str
+    fixture: Fixture
+    probes: list  # selected CollisionProbe instances (empty when none is registered)
+    tick_budget: int
+    work_root: Path
+
+
+@dataclass(frozen=True)
+class Scenario:
+    id: str
+    fixture_name: str  # directory under fixtures/ used when --fixture-dir is not given
+    run: Callable[[RunContext], dict]
