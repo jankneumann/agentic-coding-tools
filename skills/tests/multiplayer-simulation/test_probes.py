@@ -59,11 +59,6 @@ def _hash_tree(*dirs: Path) -> dict[str, str]:
     return digests
 
 
-def test_registry_starts_empty_by_default():
-    saved_modules = probes.REGISTRY
-    assert saved_modules == {}  # the autouse fixture cleared it; see the next test for the import-time state
-
-
 def test_no_probe_is_registered_at_import_time():
     import importlib
     import sys

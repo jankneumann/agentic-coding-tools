@@ -149,7 +149,7 @@
   **Spec scenarios**: S.1, S.2, S.3, S.4, S.5
   **Design decisions**: D4
   **Dependencies**: 2.6, 3.2
-- [ ] 4.2 Implement `mpsim/probes/__init__.py`: the `CollisionProbe` protocol, `ProbeResult`,
+- [x] 4.2 Implement `mpsim/probes/__init__.py`: the `CollisionProbe` protocol, `ProbeResult`,
   the module-level registry with register and select, and per-probe timeout enforcement.
   Leave no probe registered by default, and add a comment marking where `ri-06` adds its
   import line. [S]
