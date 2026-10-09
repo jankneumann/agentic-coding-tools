@@ -58,6 +58,131 @@ Liveness = Literal["live", "dead", "terminal", "unknown"]
 LivenessProbe = Callable[[str], Liveness | Mapping[str, Any]]
 IsolationResolver = Callable[[Any], Mapping[str, Any]]
 DispatchFn = Callable[[str, str, dict[str, Any]], Any]
+#: Runs ``review_dispatcher.py --check-vendors --json`` for ``repo_root`` and
+#: returns ``(exit code, stdout)`` (D10).
+ProfileProbe = Callable[[Path], tuple[int, str]]
+#: ``(worktree, commit) -> bool``: does the worktree's HEAD contain ``commit``.
+AncestryCheck = Callable[[Path, str], bool]
+#: ``(repo_root, managed_root, change_id, branch) -> Path``: create a managed worktree.
+WorktreeCreator = Callable[[Path, Path, str, str], Path]
+
+_REVIEW_PHASES = ("PLAN_REVIEW", "IMPL_REVIEW", "VAL_REVIEW")
+_PROFILE_MODES = ("review", "alternative", "quick")
+_REVIEW_DISPATCHER = _SKILLS_ROOT / "parallel-infrastructure" / "scripts" / "review_dispatcher.py"
+_ROUTING_YAML = _SKILLS_ROOT.parent / "agent-coordinator" / "routing.yaml"
+
+
+def _run_profile_probe(repo_root: Path) -> tuple[int, str]:
+    """The supervisor's one capability probe (D10); workers never probe."""
+    import subprocess
+
+    completed = subprocess.run(
+        [sys.executable, str(_REVIEW_DISPATCHER), "--check-vendors", "--json", "--cwd", str(repo_root)],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+    return completed.returncode, completed.stdout
+
+
+def _git_is_ancestor(worktree: Path, commit: str) -> bool:
+    import subprocess
+
+    completed = subprocess.run(
+        ["git", "-C", str(worktree), "merge-base", "--is-ancestor", commit, "HEAD"],
+        capture_output=True,
+        check=False,
+    )
+    return completed.returncode == 0
+
+
+def _git_worktree_add(repo_root: Path, managed_root: Path, change_id: str, branch: str) -> Path:
+    import subprocess
+
+    target = managed_root / change_id
+    subprocess.run(
+        ["git", "-C", str(repo_root), "worktree", "add", str(target), branch],
+        capture_output=True,
+        check=True,
+    )
+    return target
+
+
+def _tier_order() -> list[str]:
+    """Endpoint kinds in the ``cost_policy.tiers`` ladder of routing.yaml."""
+    try:
+        import yaml
+
+        document = yaml.safe_load(_ROUTING_YAML.read_text(encoding="utf-8")) or {}
+        kinds: list[str] = []
+        for tier in (document.get("cost_policy") or {}).get("tiers") or []:
+            kinds.extend(tier.get("endpoint_kinds") or [])
+        return kinds or ["vendor-cli", "vendor-sdk", "openrouter"]
+    except Exception:  # noqa: BLE001 - ordering only; the default ladder applies
+        return ["vendor-cli", "vendor-sdk", "openrouter"]
+
+
+def resolve_execution_profile(
+    probe: tuple[int, str],
+    *,
+    min_quorum_override: Any = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """``(execution_profile, review_requirements)`` from the probe output (D10).
+
+    Raises ``ValueError`` naming the probe failure when the output is not JSON
+    or carries ``error``; a below-quorum exit (2) with valid JSON is not a
+    failure — the child parks honestly at its first review phase.
+    """
+    _code, stdout = probe
+    try:
+        document = json.loads((stdout or "").strip().splitlines()[-1])
+    except (ValueError, IndexError) as exc:
+        raise ValueError("execution profile probe failed: --check-vendors --json output is not JSON") from exc
+    if not isinstance(document, dict):
+        raise ValueError("execution profile probe failed: --check-vendors --json output is not an object")
+    if document.get("error"):
+        raise ValueError(f"execution profile probe failed: {document['error']}")
+    modes = document.get("modes") or {}
+    policy = document.get("quorum_policy") or {}
+    environment = policy.get("environment") if policy.get("environment") in {"cloud_container", "host"} else "host"
+    profile = {
+        "lanes": {mode: list((modes.get(mode) or {}).get("verified") or []) for mode in _PROFILE_MODES},
+        "location": "cloud" if environment == "cloud_container" else "local",
+        "isolation": "managed_worktree",
+        "probe_command": str(document.get("probe_command") or "review_dispatcher.py --check-vendors --json"),
+    }
+    quorum = dict(policy.get("min_quorum") or {})
+    if isinstance(min_quorum_override, int) and not isinstance(min_quorum_override, bool) and min_quorum_override >= 1:
+        quorum = {phase: min_quorum_override for phase in _REVIEW_PHASES}
+    min_quorum = {phase: int(quorum.get(phase, 2)) for phase in _REVIEW_PHASES}
+    review = modes.get("review") or {}
+    ladder = _tier_order()
+
+    def rank(lane: dict[str, Any]) -> tuple[int, int, str]:
+        # Verified CLI lanes and CLI lanes that failed their probe are
+        # subscription-local (vendor-cli); lanes without a CLI no-op are
+        # SDK/API endpoints, ordered after them by the cost ladder.
+        kind = "vendor-sdk" if lane.get("reason") == "probe_unsupported" else "vendor-cli"
+        tier = ladder.index(kind) if kind in ladder else len(ladder)
+        return (tier, 0 if lane.get("reason") is None else 1, lane["vendor"])
+
+    lanes = [{"vendor": v, "reason": None} for v in review.get("verified") or []]
+    lanes += [dict(item) for item in review.get("unverified") or [] if item.get("vendor")]
+    counting = []
+    for lane in sorted(lanes, key=rank):
+        if lane["vendor"] not in counting:
+            counting.append(lane["vendor"])
+    requirements = {
+        "min_quorum": min_quorum,
+        "counting_lanes": counting,
+        "quorum_policy": {
+            "environment": environment,
+            "policy_id": policy.get("policy_id"),
+            "sunset": policy.get("sunset"),
+        },
+    }
+    return profile, requirements
 
 _CHANGE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _SECRET_KEY = re.compile(
@@ -371,12 +496,18 @@ class ExecutionAdapter:
         result_file_observer: ResultFileObserver | None = None,
         repo_root: Path | None = None,
         host_id: str | None = None,
+        profile_probe: ProfileProbe | None = None,
+        ancestry_check: AncestryCheck | None = None,
+        worktree_creator: WorktreeCreator | None = None,
     ) -> None:
         self.managed_worktree_root = managed_worktree_root.resolve()
         # The supervisor's repo root: the base of harness_provided worktree refs
         # and the posture the marker's posture_digest is computed from.
         self.repo_root = Path(repo_root).resolve() if repo_root is not None else None
         self.host_id = host_id or current_host_id()
+        self.profile_probe = profile_probe or _run_profile_probe
+        self.ancestry_check = ancestry_check or _git_is_ancestor
+        self.worktree_creator = worktree_creator or _git_worktree_add
         self.clock = clock
         self.branch_resolver = branch_resolver
         self.commit_resolver = commit_resolver
@@ -422,7 +553,9 @@ class ExecutionAdapter:
         """
         # Pure context validation first, with zero I/O — an unsafe context is
         # rejected before this call touches the checkpoint at all.
-        sanitized = _bounded_context(dict(context or {}))
+        router_context = dict(context or {})
+        quorum_override = router_context.pop("review_min_quorum", None)
+        sanitized = _bounded_context(router_context)
         if self.repo_root is None:
             self.repo_root = Path(repo_root).resolve()
 
@@ -447,6 +580,12 @@ class ExecutionAdapter:
             gate=Gate.ROADMAP_APPROVAL,
             roadmap_id=roadmap.roadmap_id,
             roadmap=roadmap,
+        )
+
+        # D10: resolve the execution profile once per batch, before any attempt
+        # is written; a probe failure raises here with the checkpoint untouched.
+        execution_profile, review_requirements = resolve_execution_profile(
+            self.profile_probe(Path(repo_root)), min_quorum_override=quorum_override
         )
 
         seen_paths: set[Path] = set()
@@ -494,6 +633,8 @@ class ExecutionAdapter:
             managed_root=self.managed_worktree_root,
             host_id=self.host_id,
             roadmap_approval_ref=roadmap_approval_ref,
+            execution_profile=execution_profile,
+            review_requirements=review_requirements,
         )
 
     @_serialized_transition
@@ -785,9 +926,24 @@ class ExecutionAdapter:
         *,
         dispatch_id: str,
     ) -> dict[str, Any]:
-        """Reconcile positive liveness; quarantine uncertainty after durable go."""
+        """Reconcile positive liveness; quarantine uncertainty after durable go.
+
+        An attempt recorded on another host (or migrated with ``needs_rebind``)
+        is first rebound or reinitialized on this host (D7).
+        """
         manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
-        if attempt["status"] in {"completed", "failed", "parked"}:
+        if attempt["status"] in {"completed", "failed"}:
+            return copy.deepcopy(attempt)
+        foreign = attempt["isolation"].get("host_id") != self.host_id or attempt.get("needs_rebind")
+        if foreign:
+            outcome = self._reconcile_foreign_host(attempt)
+            if outcome is not None:
+                if outcome.get("state", "").startswith("rebind_refused"):
+                    return outcome
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
+                return copy.deepcopy(attempt)
+        if attempt["status"] == "parked":
             return copy.deepcopy(attempt)
         gate = attempt.get("launch_gate", {})
         handle = gate.get("handle")
@@ -852,6 +1008,96 @@ class ExecutionAdapter:
         manager.save(checkpoint)
         return copy.deepcopy(attempt)
 
+    def _evidence(self, attempt: Mapping[str, Any]) -> Mapping[str, Any]:
+        journal = attempt.get("application_journal") or {}
+        result = journal.get("result") if isinstance(journal, Mapping) else None
+        return (result or {}).get("evidence") or {}
+
+    def _find_branch_worktree(self, attempt: Mapping[str, Any]) -> Path | None:
+        branch = attempt["isolation"].get("branch")
+        if not self.managed_worktree_root.is_dir():
+            return None
+        candidates = []
+        ref = attempt["isolation"].get("worktree_ref")
+        if dispatch_contract.is_portable_path(ref):
+            candidates.append(self.managed_worktree_root / str(ref))
+        candidates += sorted(path for path in self.managed_worktree_root.iterdir() if path.is_dir())
+        for candidate in candidates:
+            if candidate.is_dir():
+                try:
+                    if self.branch_resolver(candidate.resolve()) == branch:
+                        return candidate.resolve()
+                except Exception:  # noqa: BLE001 - not a worktree of this branch
+                    continue
+        return None
+
+    def _reconcile_foreign_host(self, attempt: dict[str, Any]) -> dict[str, Any] | None:
+        """Rebind, reinitialize, or leave to the liveness rules (D7).
+
+        Mutates ``attempt`` in place for rebind/reinitialize and returns a
+        marker dict; returns a ``rebind_refused:*`` report (attempt unchanged)
+        when a worktree exists but diverged; ``None`` when neither applies.
+        """
+        now_text = _iso(self.clock())
+        worktree = self._find_branch_worktree(attempt)
+        if worktree is not None:
+            evidence = self._evidence(attempt)
+            commit = evidence.get("commit")
+            digest = evidence.get("loop_state_digest")
+            loop_path = worktree / str(evidence.get("loop_state_path") or "")
+            matches = True
+            if commit and not self.ancestry_check(worktree, str(commit)):
+                matches = False
+            if digest and (
+                not loop_path.is_file() or hashlib.sha256(loop_path.read_bytes()).hexdigest() != digest
+            ):
+                matches = False
+            if not matches:
+                return {
+                    "state": "rebind_refused:evidence_mismatch",
+                    "attempt": copy.deepcopy(attempt),
+                }
+            attempt["isolation"] = {
+                **attempt["isolation"],
+                "worktree_ref": worktree.relative_to(self.managed_worktree_root).as_posix(),
+                "host_id": self.host_id,
+                "mode": "managed_worktree",
+            }
+            attempt.pop("needs_rebind", None)
+            _history(attempt, state="rebound", observed_at=now_text)
+            attempt["launch_history"][-1]["host_id"] = self.host_id
+            return {"state": "rebound"}
+        pre_go = attempt["status"] in {"prepared", "parked"} or (
+            attempt["status"] == "claimed"
+            and (attempt.get("launch_gate") or {}).get("state") == "waiting_ack"
+        )
+        if not pre_go:
+            return None
+        if self.repo_root is None:
+            raise ExecutionStateError("reinitialize requires the supervisor repo_root")
+        created = self.worktree_creator(
+            self.repo_root, self.managed_worktree_root, attempt["change_id"], attempt["isolation"]["branch"]
+        )
+        attempt["isolation"] = {
+            "mode": "managed_worktree",
+            "worktree_ref": Path(created).resolve().relative_to(self.managed_worktree_root).as_posix(),
+            "branch": attempt["isolation"]["branch"],
+            "host_id": self.host_id,
+        }
+        attempt.pop("needs_rebind", None)
+        attempt["launch_digest"] = mint_launch_token()[1]
+        if attempt["status"] == "parked":
+            # The parked generation is kept: its escalate_resume approval is
+            # bound to it (design advisory 13). Only the isolation moves.
+            return {"state": "reinitialized"}
+        if attempt["status"] == "claimed":
+            _history(attempt, state="stale_takeover", observed_at=now_text)
+            for field in ("lease", "launch_evidence", "launch_gate"):
+                attempt.pop(field, None)
+            attempt["status"] = "prepared"
+        attempt["lease_generation"] += 1
+        return {"state": "reinitialized"}
+
     @_serialized_transition
     def resume(
         self,
@@ -864,8 +1110,11 @@ class ExecutionAdapter:
         """CAS an authorized gate/policy parked attempt into a new generation."""
         if not isinstance(approval_ref, str) or not approval_ref or len(approval_ref) > 256:
             raise ValueError("approval reference must be a 1-256 character string")
-        if kind not in {"pending_gate", "policy_pause"}:
-            raise ValueError("continuation kind must be pending_gate or policy_pause")
+        if kind not in _RESUMABLE_KINDS:
+            raise ValueError(
+                "continuation kind must be pending_gate, policy_pause, "
+                "permission_blocked, or capability_unavailable"
+            )
         manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
         if attempt["status"] == "quarantined":
             raise ExecutionStateError("quarantined dispatch cannot use approval resume")
@@ -880,14 +1129,20 @@ class ExecutionAdapter:
         # fingerprint, and a parked child's gate is never that one, so no
         # `roadmap` is passed.
         expected_gate = (
-            Gate.ESCALATE_RESUME if kind == "policy_pause" else Gate(attempt["parked"]["gate"])
+            Gate(attempt["parked"]["gate"]) if kind == "pending_gate" else Gate.ESCALATE_RESUME
         )
-        gate_router.require_approval_ref(
+        record = gate_router.require_approval_ref(
             checkpoint, approval_ref, gate=expected_gate, dispatch_id=dispatch_id,
             lease_generation=(
                 attempt["lease_generation"] if expected_gate is Gate.ESCALATE_RESUME else None
             ),
         )
+        expected_fingerprint = dispatch_contract.dedupe_fingerprint(attempt["parked"])
+        if expected_fingerprint is not None and record.get("dedupe_fingerprint") != expected_fingerprint:
+            # D9: a capability/permission answer resolves one escalation subject.
+            raise gate_router.ApprovalRefError(
+                f"approval_ref {approval_ref!r} is for a different escalation fingerprint"
+            )
         request = self._resume_attempt(checkpoint, attempt, approval_ref=approval_ref, kind=kind)
         manager.save(checkpoint)
         return request

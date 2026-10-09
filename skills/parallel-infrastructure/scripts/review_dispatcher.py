@@ -3567,7 +3567,10 @@ def check_vendors_report(
         return {"error": f"unable to resolve vendor roster ({type(exc).__name__})", "modes": {}}
     report: dict[str, Any] = {
         "modes": modes,
-        "probe_command": f"python3 {Path(__file__).resolve()} --check-vendors --json",
+        "probe_command": (
+            "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py "
+            "--check-vendors --json"
+        ),
     }
     report["quorum_policy"] = resolve_quorum_policy(
         environment=environment or _execution_environment(),

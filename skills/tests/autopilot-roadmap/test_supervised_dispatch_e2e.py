@@ -42,6 +42,27 @@ _CONTRACT_ROOT = (
 )
 
 
+
+def _profile_probe(_repo_root: Path) -> tuple[int, str]:
+    """The supervisor's capability probe, faked (dispatch-contract D10): two
+    verified review lanes and the default quorum."""
+    return 0, json.dumps(
+        {
+            "modes": {
+                "review": {"verified": ["claude_code", "codex"], "unverified": []},
+                "alternative": {"verified": ["claude_code"], "unverified": []},
+                "quick": {"verified": ["claude_code"], "unverified": []},
+            },
+            "probe_command": "review_dispatcher.py --check-vendors --json",
+            "quorum_policy": {
+                "environment": "host",
+                "min_quorum": {"PLAN_REVIEW": 2, "IMPL_REVIEW": 2, "VAL_REVIEW": 2},
+                "policy_id": None,
+                "sunset": None,
+            },
+        }
+    )
+
 def _write_work_packages(repo: Path, entry: dict[str, Any]) -> None:
     change_id = entry["change_id"]
     package = {
@@ -361,6 +382,7 @@ def _run_scenario(
     ]
     host = FakeHostCapture({entry["change_id"]: entry["sentinel"] for entry in scenario})
     adapter = ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         branch_resolver=lambda path: branches[str(path.resolve())],
         commit_resolver=lambda _: "a" * 40,

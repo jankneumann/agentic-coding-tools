@@ -54,6 +54,27 @@ class FakeClock:
         self.value += timedelta(seconds=seconds)
 
 
+
+def _profile_probe(_repo_root: Path) -> tuple[int, str]:
+    """The supervisor's capability probe, faked (dispatch-contract D10): two
+    verified review lanes and the default quorum."""
+    return 0, json.dumps(
+        {
+            "modes": {
+                "review": {"verified": ["claude_code", "codex"], "unverified": []},
+                "alternative": {"verified": ["claude_code"], "unverified": []},
+                "quick": {"verified": ["claude_code"], "unverified": []},
+            },
+            "probe_command": "review_dispatcher.py --check-vendors --json",
+            "quorum_policy": {
+                "environment": "host",
+                "min_quorum": {"PLAN_REVIEW": 2, "IMPL_REVIEW": 2, "VAL_REVIEW": 2},
+                "policy_id": None,
+                "sunset": None,
+            },
+        }
+    )
+
 def _write_work_packages(repo: Path, change_id: str) -> None:
     package = {
         "package_id": f"wp-{change_id}",
@@ -196,6 +217,7 @@ def _adapter(
 ) -> ExecutionAdapter:
     calls = host_calls if host_calls is not None else []
     return ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         repo_root=managed_root.parent,
         clock=clock,
@@ -503,6 +525,7 @@ def test_prepare_rejects_managed_isolation_before_launch_or_attempt_persistence(
 def test_prepare_rejects_exact_managed_branch_mismatch(tmp_path: Path) -> None:
     repo, workspace, managed_root = _workspace(tmp_path)
     adapter = ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         clock=FakeClock(),
         branch_resolver=lambda _: "openspec/wrong-change",
@@ -632,6 +655,7 @@ def test_enter_revalidates_managed_branch_before_host_entry(tmp_path: Path) -> N
     host_calls: list[tuple[str, dict[str, Any]]] = []
     branch = {"value": "openspec/change-alpha"}
     adapter = ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         clock=FakeClock(),
         branch_resolver=lambda _: branch["value"],
@@ -860,6 +884,7 @@ def test_harness_provided_isolation_preserves_exact_external_path_and_branch(
     harness_path = repo / "harness-checkout"
     (harness_path / ".git" / "autopilot").mkdir(parents=True)
     adapter = ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         clock=FakeClock(),
         branch_resolver=lambda path: "harness/session-123"
@@ -1367,6 +1392,7 @@ def test_invalid_optional_parked_fields_never_reach_temp_result_file(
     repo, workspace, managed_root = _workspace(tmp_path)
     observed: list[Path] = []
     adapter = ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         clock=FakeClock(),
         branch_resolver=lambda _: "openspec/change-alpha",
@@ -1408,6 +1434,7 @@ def test_invalid_result_scalar_types_never_reach_temp_result_file(
     repo, workspace, managed_root = _workspace(tmp_path)
     observed: list[Path] = []
     adapter = ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         clock=FakeClock(),
         branch_resolver=lambda _: "openspec/change-alpha",
@@ -1820,3 +1847,273 @@ def test_stale_atomic_escalation_candidate_does_not_append_a_decision(
         )
 
     assert all(record.get("decision_id") != "11111111-2222-4333-8444-555555555555" for record in manager.load().gate_decisions)
+
+
+# --------------------------------------------------------------------------- #
+# dispatch-contract: launch digests, reissue, execution profile, new parks
+# --------------------------------------------------------------------------- #
+
+
+def test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    before = (workspace / "checkpoint.json").read_bytes()
+
+    with pytest.raises(ExecutionStateError, match="launch token mismatch"):
+        adapter.child_start(
+            workspace,
+            dispatch_id=request["dispatch_id"],
+            launch_token=request["launch_token"] + "-wrong",
+            lease_generation=1,
+            owner_nonce="owner-nonce-0001",
+        )
+    assert (workspace / "checkpoint.json").read_bytes() == before
+
+
+def test_no_raw_token_is_persisted_and_each_request_hashes_to_its_digest(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    text = (workspace / "checkpoint.json").read_text()
+    assert "launch_token" not in text and request["launch_token"] not in text
+    assert _attempt(workspace)["launch_digest"] == (
+        "sha256:" + hashlib.sha256(request["launch_token"].encode()).hexdigest()
+    )
+
+
+def test_resume_rotates_the_token_and_revokes_the_previous_one(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[_result("parked-result.json", request)],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    resumed = adapter.resume(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        approval_ref=approve_parked(workspace, repo, _attempt(workspace), gate="pr_creation"),
+        kind="pending_gate",
+    )
+    assert resumed["launch_token"] != request["launch_token"]
+    assert resumed["gate_answer"]["gate"] == "pr_creation"
+    assert resumed["gate_answer"]["decision"] == "approved"
+    with pytest.raises(ExecutionStateError, match="launch token mismatch"):
+        adapter.child_start(
+            workspace,
+            dispatch_id=request["dispatch_id"],
+            launch_token=request["launch_token"],
+            lease_generation=2,
+            owner_nonce="owner-nonce-0002",
+        )
+
+
+def test_reissue_is_refused_after_go(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    before = _attempt(workspace)
+
+    with pytest.raises(ExecutionStateError, match="reissue"):
+        adapter.reissue(workspace, dispatch_id=request["dispatch_id"])
+    after = _attempt(workspace)
+    assert after["launch_digest"] == before["launch_digest"]
+    assert after["lease_generation"] == before["lease_generation"]
+
+
+def test_reissue_of_a_prepared_attempt_rearms_the_same_generation(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+
+    reissued = adapter.reissue(workspace, dispatch_id=request["dispatch_id"])
+
+    assert reissued["lease_generation"] == 1
+    assert reissued["launch_token"] != request["launch_token"]
+    with pytest.raises(ExecutionStateError, match="launch token mismatch"):
+        adapter.child_start(
+            workspace, dispatch_id=request["dispatch_id"], launch_token=request["launch_token"],
+            lease_generation=1, owner_nonce="owner-nonce-0001",
+        )
+
+
+def test_a_marker_carries_the_supervisor_view_but_no_token(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    adapter.child_start(
+        workspace, dispatch_id=request["dispatch_id"], launch_token=request["launch_token"],
+        lease_generation=1, owner_nonce="owner-nonce-0001",
+    )
+    marker = json.loads(Path(_wt(request), request["launch_marker_path"]).read_text())
+    assert request["launch_token"] not in json.dumps(marker)
+    assert marker["roadmap_approval_ref"] == request["roadmap_approval_ref"]
+    assert marker["execution_profile"] == request["execution_profile"]
+    assert marker["review_requirements"] == request["review_requirements"]
+    assert len(marker["posture_digest"]) == 64
+    assert marker["isolation"] == request["isolation"]
+
+
+def test_request_carries_a_resolved_profile(tmp_path: Path) -> None:
+    from shared import dispatch_contract
+
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    assert dispatch_contract.validate_request(request)["schema_version"] == 2
+    assert request["execution_profile"]["lanes"]["review"]
+    assert request["execution_profile"]["probe_command"]
+    assert set(request["review_requirements"]["min_quorum"]) == {"PLAN_REVIEW", "IMPL_REVIEW", "VAL_REVIEW"}
+
+
+def test_router_context_overrides_the_review_quorum(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(
+        adapter, workspace, repo, managed_root, context={"review_min_quorum": 3}
+    )["requests"][0]
+    assert request["review_requirements"]["min_quorum"]["PLAN_REVIEW"] == 3
+    assert "review_min_quorum" not in request["context"]
+
+
+@pytest.mark.parametrize(
+    "stdout, message",
+    [("not json at all", "not JSON"), (json.dumps({"error": "roster unreadable", "modes": {}}), "roster unreadable")],
+)
+def test_profile_resolution_failure_blocks_launch(tmp_path: Path, stdout: str, message: str) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    adapter.profile_probe = lambda _repo: (2, stdout)
+    ref = approve_roadmap(workspace, repo)
+    before = json.loads((workspace / "checkpoint.json").read_text()).get("dispatch_attempts", [])
+
+    with pytest.raises(ValueError, match=message):
+        _prepare(adapter, workspace, repo, managed_root, roadmap_approval_ref=ref)
+    assert json.loads((workspace / "checkpoint.json").read_text()).get("dispatch_attempts", []) == before
+
+
+def test_below_quorum_availability_still_launches_with_an_honest_profile(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    adapter.profile_probe = lambda _repo: (
+        2,
+        json.dumps(
+            {
+                "modes": {
+                    "review": {
+                        "verified": ["claude_code"],
+                        "unverified": [{"vendor": "codex", "reason": "cli_not_found"}],
+                    }
+                },
+                "probe_command": "review_dispatcher.py --check-vendors --json",
+            }
+        ),
+    )
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    assert request["execution_profile"]["lanes"]["review"] == ["claude_code"]
+    assert request["review_requirements"]["counting_lanes"] == ["claude_code", "codex"]
+    assert request["review_requirements"]["min_quorum"]["PLAN_REVIEW"] == 2
+
+
+def _capability_parked(tmp_path: Path) -> tuple[Path, Path, ExecutionAdapter, dict[str, Any]]:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    result = _result("parked-result.json", request)
+    result["parked"] = {
+        "kind": "capability_unavailable",
+        "gate": None,
+        "phase": "PLAN_REVIEW",
+        "missing_lanes": ["codex"],
+        "reason": "quorum 2 unmet",
+    }
+    loop_state = _wt(request) / "openspec" / "changes" / "change-alpha" / "loop-state.json"
+    state = json.loads(loop_state.read_text())
+    state.update(pending_gate=None, park=dict(result["parked"]))
+    loop_state.write_text(json.dumps(state) + "\n")
+    result["evidence"]["loop_state_digest"] = hashlib.sha256(loop_state.read_bytes()).hexdigest()
+    adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[result],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    return repo, workspace, adapter, request
+
+
+def _escalate_record(attempt: dict[str, Any], *, fingerprint: str | None) -> dict[str, Any]:
+    import uuid as _uuid
+
+    record = {
+        "decision_id": str(_uuid.uuid4()),
+        "gate": "escalate_resume",
+        "outcome": "proceed",
+        "resolution": "console_approved",
+        "disposition": "block",
+        "reason": "operator fixed the lane",
+        "posture_present": True,
+        "recorded_at": "2026-10-09T00:00:00+00:00",
+        "roadmap_id": "roadmap-host-adapter",
+        "dispatch_id": attempt["dispatch_id"],
+        "lease_generation": attempt["lease_generation"],
+        "provenance": {"source": "human", "approval_ref": None},
+    }
+    if fingerprint is not None:
+        record["dedupe_fingerprint"] = fingerprint
+    return record
+
+
+def test_resume_accepts_a_capability_park_only_with_its_fingerprint(tmp_path: Path) -> None:
+    from shared import dispatch_contract
+
+    repo, workspace, adapter, request = _capability_parked(tmp_path)
+    attempt = _attempt(workspace)
+    assert attempt["status"] == "parked"
+    manager = execution.CheckpointManager(workspace)
+    wrong = _escalate_record(attempt, fingerprint="0" * 64)
+    right = _escalate_record(attempt, fingerprint=dispatch_contract.dedupe_fingerprint(attempt["parked"]))
+    checkpoint = manager.load()
+    checkpoint.gate_decisions.extend([wrong, right])
+    manager.save(checkpoint)
+
+    with pytest.raises(ValueError, match="fingerprint"):
+        adapter.resume(
+            workspace, dispatch_id=request["dispatch_id"],
+            approval_ref=f"gate-decision:{wrong['decision_id']}", kind="capability_unavailable",
+        )
+    resumed = adapter.resume(
+        workspace, dispatch_id=request["dispatch_id"],
+        approval_ref=f"gate-decision:{right['decision_id']}", kind="capability_unavailable",
+    )
+    assert resumed["continuation"]["kind"] == "capability_unavailable"
+    assert resumed["gate_answer"]["gate"] == "escalate_resume"
+    assert resumed["lease_generation"] == 2
+
+
+def test_apply_persists_degradations_on_the_attempt(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    result = _result("success-result.json", request)
+    degradation = {"code": "single_vendor_review", "phase": "PLAN_REVIEW", "detail": "codex not dispatchable"}
+    result["degradations"] = [degradation]
+
+    applied = adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[result],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["degradations"] == {request["dispatch_id"]: [degradation]}
+    assert _attempt(workspace)["degradations"] == [degradation]

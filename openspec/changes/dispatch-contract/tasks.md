@@ -163,7 +163,7 @@
   `test_gate_router_e2e.py` and `test_cycle_state.py` (schema copies, 5.2a); leave the existing `fixtures/execution/contracts/` v1
   fixtures byte-unchanged (outcome 1: they must pass through the v1 reader) and add
   v2 fixtures beside them. — RO, SV
-- [ ] 8.2 `execution.py`: delete hand validators; `child_start` digest verify;
+- [x] 8.2 `execution.py`: delete hand validators; `child_start` digest verify;
   `reissue`; token rotation in `resume`; `resume` accepts parked kinds
   `permission_blocked` / `capability_unavailable` (expected gate `escalate_resume`,
   `dedupe_fingerprint` recomputed and compared); marker v2 contents including the supervisor's

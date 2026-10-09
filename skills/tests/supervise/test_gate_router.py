@@ -44,6 +44,27 @@ from shared.trust_posture import Disposition, Gate, GateDisposition, TrustPostur
 # --------------------------------------------------------------------------- #
 
 
+
+def _profile_probe(_repo_root: Path) -> tuple[int, str]:
+    """The supervisor's capability probe, faked (dispatch-contract D10): two
+    verified review lanes and the default quorum."""
+    return 0, json.dumps(
+        {
+            "modes": {
+                "review": {"verified": ["claude_code", "codex"], "unverified": []},
+                "alternative": {"verified": ["claude_code"], "unverified": []},
+                "quick": {"verified": ["claude_code"], "unverified": []},
+            },
+            "probe_command": "review_dispatcher.py --check-vendors --json",
+            "quorum_policy": {
+                "environment": "host",
+                "min_quorum": {"PLAN_REVIEW": 2, "IMPL_REVIEW": 2, "VAL_REVIEW": 2},
+                "policy_id": None,
+                "sunset": None,
+            },
+        }
+    )
+
 def _install_schemas(repo: Path) -> None:
     target = repo / "openspec" / "schemas"
     target.mkdir(parents=True, exist_ok=True)
@@ -1002,6 +1023,7 @@ def test_rehydrate_restores_blocked_escalation_after_mirror_projection_failure(
 
 def _execution_adapter(repo: Path) -> execution.ExecutionAdapter:
     return execution.ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=repo / ".git-worktrees",
         branch_resolver=lambda _path: "openspec/demo-change",
         commit_resolver=lambda _path: "a" * 40,

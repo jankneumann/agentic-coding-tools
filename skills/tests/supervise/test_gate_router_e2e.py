@@ -47,6 +47,27 @@ _SCHEMAS = _REPO_ROOT / "openspec" / "schemas"
 # --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #
+
+def _profile_probe(_repo_root: Path) -> tuple[int, str]:
+    """The supervisor's capability probe, faked (dispatch-contract D10): two
+    verified review lanes and the default quorum."""
+    return 0, json.dumps(
+        {
+            "modes": {
+                "review": {"verified": ["claude_code", "codex"], "unverified": []},
+                "alternative": {"verified": ["claude_code"], "unverified": []},
+                "quick": {"verified": ["claude_code"], "unverified": []},
+            },
+            "probe_command": "review_dispatcher.py --check-vendors --json",
+            "quorum_policy": {
+                "environment": "host",
+                "min_quorum": {"PLAN_REVIEW": 2, "IMPL_REVIEW": 2, "VAL_REVIEW": 2},
+                "policy_id": None,
+                "sunset": None,
+            },
+        }
+    )
+
 def _install_schemas(repo: Path) -> None:
     target = repo / "openspec" / "schemas"
     target.mkdir(parents=True, exist_ok=True)
@@ -213,6 +234,7 @@ def scenario(tmp_path: Path):
 
 def _adapter(managed_root: Path) -> ExecutionAdapter:
     return ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         branch_resolver=lambda _: "openspec/change-alpha",
         commit_resolver=lambda _: "a" * 40,
