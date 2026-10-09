@@ -253,6 +253,54 @@ def test_every_shape_round_trips_through_emit_result_and_apply(
         assert applied["failed_item_ids"] == ["ri-01"]
 
 
+@pytest.mark.parametrize(
+    ("fields", "claimed"),
+    [
+        (
+            {"current_phase": "DONE", "goal_gate": {"verdict": "abandoned"}, "last_handoff_id": "h-1",
+             "handoff_ids": ["h-1"]},
+            {"outcome": "success", "handoff_id": "h-1"},
+        ),
+        (
+            {"current_phase": "DONE", "goal_gate": {"verdict": "refused"}, "last_handoff_id": "h-1",
+             "handoff_ids": ["h-1"]},
+            {"outcome": "success", "handoff_id": "h-1"},
+        ),
+        (
+            {"current_phase": "PLAN", "pending_gate": {"gate": "merge", "prompt": "Merge?"}},
+            {"parked": {"kind": "pending_gate", "gate": "proposal_approval", "reason": "Approve?",
+                        "deadline": None, "resume_hint": None}},
+        ),
+        (
+            {"current_phase": "PLAN_REVIEW", "park": {
+                "kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["codex"],
+                "reason": "quorum"}},
+            {"parked": {"kind": "capability_unavailable", "gate": None, "phase": "PLAN_REVIEW",
+                        "missing_lanes": ["gemini"], "reason": "quorum", "deadline": None, "resume_hint": None}},
+        ),
+    ],
+    ids=["success-over-abandoned", "success-over-refused", "wrong-pending-gate", "wrong-missing-lanes"],
+)
+def test_apply_refuses_a_result_the_loop_state_does_not_map_to(
+    world: dict[str, Any], fields: dict[str, Any], claimed: dict[str, Any]
+) -> None:
+    """D4: the supervisor re-derives the result from the evidenced loop state
+    through the same normative mapping, so a hand-edited outcome or parked
+    payload is refused rather than applied."""
+    request = _prepare(world)
+    _launch(world, request, owner="owner-nonce-0000000001")
+    _child_commits_state(world, **fields)
+    result = _child_emits(world, request)
+    forged = {**result, **claimed}
+    if "handoff_id" not in claimed:
+        forged.pop("handoff_id", None)
+    assert dispatch_contract.validate_result(forged) == forged
+
+    with pytest.raises(ValueError, match="does not map"):
+        _apply(world, request, forged)
+    assert _attempt(world)["status"] == "launched"
+
+
 def _router_gate(repo: Path) -> ApprovalGate:
     return ApprovalGate(coordinator=object(), audit=_Audit(), repo_root=str(repo))
 

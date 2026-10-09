@@ -163,6 +163,7 @@ def _build_runtime(
                     "schema_version": 5,
                     "change_id": entry["change_id"],
                     "current_phase": "DONE",
+                    "goal_gate": {"verdict": "passed"},
                     "handoff_ids": [handoff_id],
                     "last_handoff_id": handoff_id,
                     "pending_gate": None,

@@ -1223,6 +1223,13 @@ class ExecutionAdapter:
         attempts = {attempt["dispatch_id"]: attempt for attempt in checkpoint.dispatch_attempts}
         if self.repo_root is None:
             self.repo_root = Path(repo_root).resolve()
+        # A version-1 result predates the normative mapping (D1 tolerance), so
+        # only a native version-2 result is re-derived from its loop state.
+        native_v2 = {
+            str(result.get("dispatch_id"))
+            for result in results
+            if isinstance(result, Mapping) and result.get("schema_version") == 2
+        }
         validated = [
             dispatch_contract.ensure_v2_result(
                 result,
@@ -1240,7 +1247,9 @@ class ExecutionAdapter:
                 if result[field] != attempt[field]:
                     raise ValueError(f"{field} mismatch")
             if result["outcome"] in {"success", "parked"}:
-                self._validate_exact_evidence(attempt, result)
+                self._validate_exact_evidence(
+                    attempt, result, rederive=result["dispatch_id"] in native_v2
+                )
 
         self.temp_dir.mkdir(parents=True, exist_ok=True) if self.temp_dir else None
         temporary_path: Path | None = None
@@ -1368,6 +1377,8 @@ class ExecutionAdapter:
         self,
         attempt: Mapping[str, Any],
         result: Mapping[str, Any],
+        *,
+        rederive: bool = False,
     ) -> None:
         isolation = attempt["isolation"]
         if result["worktree_ref"] != isolation["worktree_ref"]:
@@ -1405,7 +1416,6 @@ class ExecutionAdapter:
             raise ValueError("loop-state evidence is invalid") from exc
         if not isinstance(loop_state, dict) or loop_state.get("change_id") != attempt["change_id"]:
             raise ValueError("loop-state change identity mismatch")
-
         if result["outcome"] == "success":
             handoff_id = result["handoff_id"]
             handoff_ids = loop_state.get("handoff_ids", [])
@@ -1424,3 +1434,39 @@ class ExecutionAdapter:
                 raise ValueError("loop-state pending gate evidence is missing")
         elif loop_state.get("current_phase") != "ESCALATE":
             raise ValueError("loop-state policy pause evidence is missing")
+        if rederive:
+            self._require_mapped_outcome(loop_state, result)
+
+    @staticmethod
+    def _require_mapped_outcome(loop_state: Mapping[str, Any], result: Mapping[str, Any]) -> None:
+        """The result must be what the normative mapping (D4) derives from its
+        evidenced loop state: same outcome, same handoff for a success, same
+        parked kind, the same gate for a pending gate, and the same escalation
+        fingerprint for a capability park. Prose fields are not compared."""
+        ctx = {
+            key: result.get(key)
+            for key in ("dispatch_id", "change_id", "attempt", "lease_generation",
+                        "worktree_ref", "branch", "host_id", "evidence")
+        }
+        try:
+            expected = dispatch_contract.result_from_loop_state(loop_state, ctx)
+        except dispatch_contract.DispatchContractError as exc:
+            raise ValueError(f"loop-state evidence does not map to a result: {exc}") from exc
+        if expected is None:
+            raise ValueError("result does not map from its loop-state: the loop is not terminal or parked")
+        mismatch = expected["outcome"] != result["outcome"]
+        if expected["outcome"] == "success":
+            mismatch = mismatch or expected.get("handoff_id") != result.get("handoff_id")
+        if expected["outcome"] == "parked" and not mismatch:
+            want, got = expected["parked"], result["parked"]
+            mismatch = want["kind"] != got.get("kind")
+            if not mismatch and want["kind"] == "pending_gate":
+                mismatch = want["gate"] != got.get("gate")
+            if not mismatch:
+                mismatch = dispatch_contract.dedupe_fingerprint(want) != dispatch_contract.dedupe_fingerprint(got)
+        if mismatch:
+            raise ValueError(
+                f"result does not map from its loop-state: expected {expected['outcome']!r}"
+                + (f" ({expected['parked']['kind']})" if expected.get("parked") else "")
+                + f", got {result['outcome']!r}"
+            )

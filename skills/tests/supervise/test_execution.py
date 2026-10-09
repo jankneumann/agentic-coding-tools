@@ -199,6 +199,7 @@ def _use_linked_worktree_layout(managed_root: Path) -> Path:
                 "schema_version": 5,
                 "change_id": "change-alpha",
                 "current_phase": "DONE",
+                "goal_gate": {"verdict": "passed"},
                 "last_handoff_id": "handoff-alpha-001",
                 "handoff_ids": ["handoff-alpha-001"],
             }
@@ -366,6 +367,7 @@ def _result(name: str, request: dict[str, Any]) -> dict[str, Any]:
             "schema_version": 5,
             "change_id": request["change_id"],
             "current_phase": "DONE",
+            "goal_gate": {"verdict": "passed"},
             "handoff_ids": [value["handoff_id"]],
             "last_handoff_id": value["handoff_id"],
             "pending_gate": None,
