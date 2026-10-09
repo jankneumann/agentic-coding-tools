@@ -86,7 +86,7 @@
   **Spec scenarios**: P.1, P.2, P.3, P.4
   **Design decisions**: D6
   **Dependencies**: 1.4
-- [ ] 2.2 Implement `mpsim/world.py`: a `World` that owns the temporary root, the `file://`
+- [x] 2.2 Implement `mpsim/world.py`: a `World` that owns the temporary root, the `file://`
   bare remote, per-principal clones and worktrees, and a `PrincipalView` that is read-only for
   probes. [M]
   **Dependencies**: 2.1
