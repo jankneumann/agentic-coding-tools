@@ -34,6 +34,11 @@ test = [
     # Pinned to the same floor as agent-coordinator so both trees are linted by
     # one ruff version and cannot disagree about what is an error.
     "ruff>=0.15.21",
+    # Generates the coordination-bridge contract bindings
+    # (coordination-bridge/scripts/generate_bindings.py). Pinned exactly: its
+    # output is checked in and `generate_bindings.py --check` gates CI, so a
+    # floating version would turn a tool release into a stale-bindings failure.
+    "datamodel-code-generator==0.83.0",
 ]
 
 [tool.uv.sources]

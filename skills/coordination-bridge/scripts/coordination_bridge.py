@@ -8,16 +8,46 @@ when coordinator access is unavailable.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import logging
 import os
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib import error as url_error
 from urllib import parse as url_parse
 from urllib import request as url_request
 
+if TYPE_CHECKING:
+    # Python 3.11+ syntax (NotRequired/TypeAlias): type-checking only, never at
+    # runtime, because skills run this module with bare python3 (design D3).
+    from _generated.features_models import (
+        FeatureConflictsRequest,
+        FeatureDeregisterRequest,
+        FeatureRegisterRequest,
+    )
+
 logger = logging.getLogger(__name__)
+
+
+def _load_generated(name: str) -> Any:
+    """Load a module from ``_generated/`` beside this file.
+
+    Loaded by file location rather than ``import _generated...`` because many
+    callers load this bridge by path without putting its directory on
+    ``sys.path``. Regenerate with ``generate_bindings.py``; never edit by hand.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_generated", f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"_generated.{name}", path)
+    assert spec is not None and spec.loader is not None, path
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# operationId -> Operation(method, path, path_params, requires_api_key, ...),
+# generated from openspec/contracts/agent-coordinator/openapi/features.yaml.
+_FEATURE_OPERATIONS: dict[str, Any] = _load_generated("features_operations").OPERATIONS
 
 DEFAULT_TIMEOUT_SECONDS = float(os.environ.get("COORDINATION_HTTP_TIMEOUT", "1.5"))
 
@@ -60,7 +90,13 @@ _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
     "CAN_HANDOFF": [("POST", "/handoffs/write", {})],
     "CAN_MEMORY": [("POST", "/memory/query", {})],
     "CAN_GUARDRAILS": [("POST", "/guardrails/check", {})],
-    "CAN_FEATURE_REGISTRY": [("GET", "/features/active", None)],
+    "CAN_FEATURE_REGISTRY": [
+        (
+            _FEATURE_OPERATIONS["listActiveFeatures"].method,
+            _FEATURE_OPERATIONS["listActiveFeatures"].path,
+            None,
+        )
+    ],
     "CAN_MERGE_QUEUE": [("GET", "/merge-queue", None)],
     # Read-only list with empty filter — returns 200 on healthy deployments,
     # 404 when the issues feature isn't deployed.
@@ -1220,6 +1256,31 @@ def try_check_guardrails(
     )
 
 
+def _execute_feature_operation(
+    *,
+    operation: str,
+    operation_id: str,
+    payload: dict[str, Any] | None = None,
+    path_values: dict[str, str] | None = None,
+    http_url: str | None,
+    api_key: str | None,
+) -> dict[str, Any]:
+    """Run a feature-registry operation whose method and path come from the contract."""
+    op = _FEATURE_OPERATIONS[operation_id]
+    path = op.path
+    for name in op.path_params:
+        path = path.replace("{" + name + "}", url_parse.quote((path_values or {})[name], safe=""))
+    return _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_FEATURE_REGISTRY",
+        method=op.method,
+        path=path,
+        payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def try_register_feature(
     *,
     feature_id: str,
@@ -1232,21 +1293,23 @@ def try_register_feature(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Register a feature with resource claims via HTTP."""
-    return _execute_single_endpoint_operation(
+    """Register a feature with resource claims via HTTP.
+
+    On ``ok``, ``data`` is a ``FeatureRegisterResult``.
+    """
+    payload: FeatureRegisterRequest = {
+        "feature_id": feature_id,
+        "resource_claims": resource_claims,
+        "title": title,
+        "agent_id": agent_id,
+        "branch_name": branch_name,
+        "merge_priority": merge_priority,
+        "metadata": metadata,
+    }
+    return _execute_feature_operation(
         operation="try_register_feature",
-        capability_flag="CAN_FEATURE_REGISTRY",
-        method="POST",
-        path="/features/register",
-        payload={
-            "feature_id": feature_id,
-            "resource_claims": resource_claims,
-            "title": title,
-            "agent_id": agent_id,
-            "branch_name": branch_name,
-            "merge_priority": merge_priority,
-            "metadata": metadata,
-        },
+        operation_id="registerFeature",
+        payload=dict(payload),
         http_url=http_url,
         api_key=api_key,
     )
@@ -1259,16 +1322,80 @@ def try_deregister_feature(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Deregister a feature (mark completed/cancelled) via HTTP."""
-    return _execute_single_endpoint_operation(
+    """Deregister a feature (mark completed/cancelled) via HTTP.
+
+    On ``ok``, ``data`` is a ``FeatureDeregisterResult``.
+    """
+    payload: FeatureDeregisterRequest = {
+        "feature_id": feature_id,
+        "status": status,  # type: ignore[typeddict-item]  # validated server-side
+    }
+    return _execute_feature_operation(
         operation="try_deregister_feature",
-        capability_flag="CAN_FEATURE_REGISTRY",
-        method="POST",
-        path="/features/deregister",
-        payload={
-            "feature_id": feature_id,
-            "status": status,
-        },
+        operation_id="deregisterFeature",
+        payload=dict(payload),
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_get_feature(
+    *,
+    feature_id: str,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Get one feature's details via HTTP.
+
+    On ``ok``, ``data`` is a ``FeatureDetail``. An unknown ``feature_id`` (404)
+    returns a non-``ok`` envelope; it never raises.
+    """
+    return _execute_feature_operation(
+        operation="try_get_feature",
+        operation_id="getFeature",
+        path_values={"feature_id": feature_id},
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_list_active_features(
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """List active features by merge priority via HTTP.
+
+    On ``ok``, ``data`` is an ``ActiveFeaturesEnvelope`` (``features``, ``count``,
+    ``truncated``).
+    """
+    return _execute_feature_operation(
+        operation="try_list_active_features",
+        operation_id="listActiveFeatures",
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_analyze_feature_conflicts(
+    *,
+    candidate_feature_id: str,
+    candidate_claims: list[str],
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Analyze a candidate's resource conflicts against active features via HTTP.
+
+    On ``ok``, ``data`` is a ``ConflictReport``.
+    """
+    payload: FeatureConflictsRequest = {
+        "candidate_feature_id": candidate_feature_id,
+        "candidate_claims": candidate_claims,
+    }
+    return _execute_feature_operation(
+        operation="try_analyze_feature_conflicts",
+        operation_id="analyzeFeatureConflicts",
+        payload=dict(payload),
         http_url=http_url,
         api_key=api_key,
     )

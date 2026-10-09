@@ -103,48 +103,48 @@ Test tasks precede the implementation they verify. Scenario references use
 
 ## 5. Generated bindings and bridge helpers (wp-bridge)
 
-- [ ] 5.1 Write `skills/coordination-bridge/scripts/tests/test_generated_bindings.py` — generator writes models + operations for every operation/schema in `features.yaml`; two runs byte-identical; `--check` exits non-zero and names the file and command when stale; no timestamps or absolute paths in output
+- [x] 5.1 Write `skills/coordination-bridge/scripts/tests/test_generated_bindings.py` — generator writes models + operations for every operation/schema in `features.yaml`; two runs byte-identical; `--check` exits non-zero and names the file and command when stale; no timestamps or absolute paths in output
   **Spec scenarios**: coordination-bridge.bindings (Bindings are regenerated from the contract, Regeneration is byte-identical, Stale bindings fail CI)
   **Contracts**: openspec/contracts/agent-coordinator/openapi/features.yaml
   **Design decisions**: D2
   **Dependencies**: 2.1
   **Size**: S
 
-- [ ] 5.2 Write the stdlib-only import test — run `python3 -I` in a subprocess that imports `coordination_bridge` and assert no loaded module outside the stdlib and the bridge package; assert models are imported only under `TYPE_CHECKING`
+- [x] 5.2 Write the stdlib-only import test — run `python3 -I` in a subprocess that imports `coordination_bridge` and assert no loaded module outside the stdlib and the bridge package; assert models are imported only under `TYPE_CHECKING`
   **Spec scenarios**: coordination-bridge.bindings (Bindings stay standard-library only)
   **Design decisions**: D3
   **Dependencies**: None
   **Size**: S
 
-- [ ] 5.3 Implement `skills/coordination-bridge/scripts/generate_bindings.py` — wraps pinned `datamodel-codegen` (models) and emits the `OPERATIONS` table (operations); `--check` mode; add `datamodel-code-generator==0.83.0` to the `skills` test extra
+- [x] 5.3 Implement `skills/coordination-bridge/scripts/generate_bindings.py` — wraps pinned `datamodel-codegen` (models) and emits the `OPERATIONS` table (operations); `--check` mode; add `datamodel-code-generator==0.83.0` to the `skills` test extra
   **Dependencies**: 5.1
   **Size**: M
 
-- [ ] 5.4 Generate and commit `skills/coordination-bridge/scripts/_generated/{__init__,features_models,features_operations}.py`
+- [x] 5.4 Generate and commit `skills/coordination-bridge/scripts/_generated/{__init__,features_models,features_operations}.py`
   **Dependencies**: 5.3
   **Size**: XS
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-- [ ] 5.5 Write helper tests — all five helpers resolve method/path from `OPERATIONS`; `try_get_feature` URL-encodes the id; unknown feature returns non-`ok` without raising; unreachable coordinator returns `skipped/coordinator_unreachable`; `CAN_FEATURE_REGISTRY` probe reports available when `/features/active` returns 200; correct the existing fixture at `test_coordination_bridge.py:107` from 404 to 200
+- [x] 5.5 Write helper tests — all five helpers resolve method/path from `OPERATIONS`; `try_get_feature` URL-encodes the id; unknown feature returns non-`ok` without raising; unreachable coordinator returns `skipped/coordinator_unreachable`; `CAN_FEATURE_REGISTRY` probe reports available when `/features/active` returns 200; add a probe test for the 200 case (the existing 404 fixture at `test_coordination_bridge.py:107` is kept: it deliberately simulates a deployment without the feature registry)
   **Spec scenarios**: coordination-bridge.fr-helpers (all five scenarios)
   **Design decisions**: D3, D6
   **Dependencies**: 5.4
   **Size**: M
 
-- [ ] 5.6 Refactor `try_register_feature` and `try_deregister_feature` to resolve from `OPERATIONS`, keeping every keyword parameter and default
+- [x] 5.6 Refactor `try_register_feature` and `try_deregister_feature` to resolve from `OPERATIONS`, keeping every keyword parameter and default
   **Dependencies**: 5.5
   **Size**: S
 
-- [ ] 5.7 Add `try_get_feature`, `try_list_active_features`, `try_analyze_feature_conflicts` using the uniform envelope
+- [x] 5.7 Add `try_get_feature`, `try_list_active_features`, `try_analyze_feature_conflicts` using the uniform envelope
   **Dependencies**: 5.5
   **Size**: S
 
-- [ ] 5.8 Document the generator workflow and the five feature helpers in `skills/coordination-bridge/SKILL.md`
+- [x] 5.8 Document the generator workflow and the five feature helpers in `skills/coordination-bridge/SKILL.md`
   **Dependencies**: 5.6, 5.7
   **Size**: XS
 
-- [ ] 5.9 Refresh runtime mirrors with `./install.sh` so `_generated/` reaches `.claude/skills/` and `.agents/skills/`
+- [x] 5.9 Refresh runtime mirrors with `./install.sh` so `_generated/` reaches `.claude/skills/` and `.agents/skills/`
   **Dependencies**: 5.8
   **Size**: XS
 
