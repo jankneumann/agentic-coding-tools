@@ -10,6 +10,7 @@ Design decisions: D5, D8, D9, D13.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
 import coordination_bridge
@@ -65,6 +66,23 @@ def test_build_options_omits_isolation_in_cloud(
     options = phase_agent._build_options(phase, {})
     assert "isolation" not in options
     assert options["model"] == "opus"
+
+
+def test_build_options_passes_agent_id_to_environment_detection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Coordinator-reported isolation needs the agent id to be consulted."""
+    seen: list[str | None] = []
+
+    def fake_detect(agent_id: str | None = None) -> SimpleNamespace:
+        seen.append(agent_id)
+        return SimpleNamespace(isolation_provided=agent_id == "agent-7")
+
+    monkeypatch.setattr(phase_agent, "_detect_environment", fake_detect)
+    _stub_bridge(monkeypatch, _RESOLVED_ARCHITECT)
+    assert "isolation" not in phase_agent._build_options("IMPLEMENT", {}, agent_id="agent-7")
+    assert phase_agent._build_options("IMPLEMENT", {})["isolation"] == "worktree"
+    assert seen == ["agent-7", None]
 
 
 def test_build_options_archetype_path_sets_model_and_prompt(

@@ -107,7 +107,7 @@ _WORKTREE_PHASES: set[str] = {
 }
 
 
-def _isolation_provided() -> bool:
+def _isolation_provided(agent_id: str | None = None) -> bool:
     """True when the environment already isolates this agent (cloud harness).
 
     Harness ``isolation="worktree"`` roots the sub-agent at the default
@@ -116,7 +116,7 @@ def _isolation_provided() -> bool:
     """
     if _detect_environment is None:
         return False
-    return _detect_environment().isolation_provided
+    return _detect_environment(agent_id).isolation_provided
 
 
 # Crash-recovery cap (D8).
@@ -361,6 +361,7 @@ def _build_options(
     state_dict: dict[str, Any],
     *,
     provider: str | None = None,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """Assemble sub-agent dispatch options for *phase*.
 
@@ -377,7 +378,8 @@ def _build_options(
 
     ``isolation="worktree"`` is set independently for phases in
     :data:`_WORKTREE_PHASES`, unless the environment already provides
-    isolation (see :func:`_isolation_provided`).
+    isolation (see :func:`_isolation_provided`; *agent_id* lets detection
+    consult the coordinator's record for this agent).
 
     Mutates *state_dict* by writing ``_resolved_archetype`` only on the
     archetype-resolution path (path 2). The override path (path 1) does
@@ -385,7 +387,7 @@ def _build_options(
     archetype semantics.
     """
     options: dict[str, Any] = {}
-    if phase in _WORKTREE_PHASES and not _isolation_provided():
+    if phase in _WORKTREE_PHASES and not _isolation_provided(agent_id):
         options["isolation"] = "worktree"
 
     # Path 1: operator override
@@ -1049,7 +1051,9 @@ def build_phase_dispatch_kwargs(
     # _build_options writes _resolved_archetype into state_dict on the
     # archetype path; we read it back below to populate the cache.
     selected_provider = _selected_provider(provider)
-    options = _build_options(phase, state_dict, provider=selected_provider)
+    options = _build_options(
+        phase, state_dict, provider=selected_provider, agent_id=agent_id,
+    )
     phase_prompt = _build_prompt(phase, state_dict, incoming, artifacts_manifest=None)
 
     system_prompt = options.get("system_prompt")
