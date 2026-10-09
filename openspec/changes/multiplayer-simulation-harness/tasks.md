@@ -39,7 +39,7 @@
   **Contracts**: contracts/cli/mpsim.yaml, contracts/schemas/sim-report.schema.json
   **Design decisions**: D8, D10
   **Dependencies**: 1.4
-- [ ] 1.2 Promote `contracts/cli/mpsim.yaml` and `contracts/schemas/sim-report.schema.json` to
+- [x] 1.2 Promote `contracts/cli/mpsim.yaml` and `contracts/schemas/sim-report.schema.json` to
   `openspec/contracts/multiplayer-simulation/{cli,schemas}/`, and add a row to the contents
   table in `openspec/contracts/README.md`. When this is done, 1.1 passes. [XS]
   **Dependencies**: 1.1

@@ -14,6 +14,7 @@ from pathlib import Path
 import jsonschema
 import pytest
 import yaml
+from referencing import Registry, Resource
 from openspec_paths import change_dir, repo_root_from
 
 CHANGE_ID = "multiplayer-simulation-harness"
@@ -26,6 +27,15 @@ REPORT_SCHEMA = PROMOTED / "schemas" / "sim-report.schema.json"
 CLI_CONTRACT_SCHEMA = (
     REPO / "openspec" / "contracts" / "gen-eval-framework" / "schemas" / "cli-contract.schema.json"
 )
+
+
+def _local_registry() -> Registry:
+    """Resolve the schema's sibling $refs from disk; the harness runs offline (D9)."""
+    registry: Registry = Registry()
+    for path in sorted(CLI_CONTRACT_SCHEMA.parent.glob("*.schema.json")):
+        doc = json.loads(path.read_text())
+        registry = registry.with_resource(doc["$id"], Resource.from_contents(doc))
+    return registry
 
 
 def _change_local(rel: str) -> Path:
@@ -60,7 +70,8 @@ def _citations(node) -> list[str]:
 def test_cli_contract_validates_against_the_cli_contract_schema():
     schema = json.loads(CLI_CONTRACT_SCHEMA.read_text())
     contract = yaml.safe_load(CLI_CONTRACT.read_text())
-    errors = [e.message for e in jsonschema.Draft202012Validator(schema).iter_errors(contract)]
+    validator = jsonschema.Draft202012Validator(schema, registry=_local_registry())
+    errors = [e.message for e in validator.iter_errors(contract)]
     assert errors == []
 
 
