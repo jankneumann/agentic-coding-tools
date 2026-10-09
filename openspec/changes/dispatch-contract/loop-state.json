@@ -194,5 +194,31 @@
   },
   "goal_gate": null,
   "park": null,
-  "degradations": []
+  "degradations": [
+    {
+      "code": "single_vendor_review",
+      "phase": "PLAN_REVIEW",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "IMPL_REVIEW",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "VAL_REVIEW",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "phase": "SUBMIT_PR",
+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "SUBMIT_PR",
+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions"
+    }
+  ]
 }
