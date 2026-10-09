@@ -131,7 +131,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       the path specificity ranking (M)
       **Dependencies**: 3.3
 - [x] Checkpoint: run tests, review diff, verify scope
-- [ ] 3.5 Write `skills/tests/ownership-runtime/test_check_owners.py` — `unowned_capability`
+- [x] 3.5 Write `skills/tests/ownership-runtime/test_check_owners.py` — `unowned_capability`
       and `unowned_roadmap_item` warnings in team mode and their suppression in solo mode (D14);
       `unknown_capability` / `unknown_roadmap_item` warnings for dangling keys (archived roadmaps
       excluded); `unknown_owner`, `agent_as_owner`, `registry_outside_repo` and
@@ -143,10 +143,10 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       as error", "Team registry without a map is an error"
       **Design decisions**: D9, D14
       **Dependencies**: 3.4
-- [ ] 3.6 Implement `skills/ownership-runtime/scripts/check_owners.py` (CLI; `--codeowners`
+- [x] 3.6 Implement `skills/ownership-runtime/scripts/check_owners.py` (CLI; `--codeowners`
       delegates to 4.4's reconcile when present) (S)
       **Dependencies**: 3.5
-- [ ] 3.7 Write the coordinator-independence test — the resolver suite runs with
+- [x] 3.7 Write the coordinator-independence test — the resolver suite runs with
       `COORDINATION_API_URL` pointing at a closed port and a socket guard asserting no
       connection is attempted; AST scan asserts no `src.` import or `agent-coordinator` path in
       `skills/ownership-runtime/scripts/` (S)
@@ -154,7 +154,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       private coordinator imports"
       **Design decisions**: D7
       **Dependencies**: 3.4
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — CODEOWNERS projection
 
