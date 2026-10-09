@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "ownership-map",
-  "current_phase": "VALIDATE",
+  "current_phase": "VAL_REVIEW",
   "iteration": 0,
-  "total_iterations": 14,
+  "total_iterations": 15,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -18,7 +18,8 @@
     "a33ad94f-fce1-46ec-8ea9-b6e4faf625de",
     "implement-ownership-map-be0bf22",
     "impl-iterate-ownership-map-a1e679e",
-    "impl-review-ownership-map-8bf8dd0"
+    "impl-review-ownership-map-8bf8dd0",
+    "validate-ownership-map-3a2d896"
   ],
   "phase_history": [
     {
@@ -68,17 +69,22 @@
       "at": "2026-10-09T13:08:11.325487+00:00",
       "outcome": "converged",
       "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-10-09T13:17:11.683632+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "impl-review-ownership-map-8bf8dd0",
+  "last_handoff_id": "validate-ownership-map-3a2d896",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-09T13:08:11.532778+00:00",
+  "phase_started_at": "2026-10-09T13:17:11.834812+00:00",
   "previous_phase": "IMPLEMENT",
   "escalation_reason": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "reviewer",
+  "phase_archetype": "validator",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
