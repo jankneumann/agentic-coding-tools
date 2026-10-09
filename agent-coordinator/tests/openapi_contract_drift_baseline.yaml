@@ -55,9 +55,6 @@ unserved_contract_operations:
     reason: Spec-described per-agent phase listing that the app never implemented.
 
 auth_mismatches:
-  - route: GET /features/{feature_id}
-    finding: contract security=none, app api key=required
-    reason: Contract omits security the app has always enforced. Fixed by the typed features.yaml in generate-coordinator-clients-from-contracts task 2.1.
   - route: GET /github/prs
     finding: contract security=none, app api key=required
     reason: kanban-viz.yaml omits security on a keyed read. Add security to the contract.

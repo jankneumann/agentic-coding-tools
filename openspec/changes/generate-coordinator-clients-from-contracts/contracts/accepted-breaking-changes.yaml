@@ -1,0 +1,21 @@
+# Breaking changes this change makes to promoted contracts, acknowledged for the
+# contract breaking-change gate (scripts/contract_gate/check_breaking.py, design D4).
+#
+# Each entry suppresses exactly one (document, operation, rule_id) finding.
+# rule_id values are oasdiff check identifiers; the gate prints the exact id of
+# any unacknowledged finding, and warns about entries here that match nothing.
+accepted:
+  - document: openspec/contracts/agent-coordinator/openapi/features.yaml
+    operation: GET /features/{feature_id}
+    rule_id: api-security-added
+    rationale: >-
+      Contract-only correction. The app has always required an API key on this
+      route (verify_api_key); the old contract simply omitted it. No client that
+      worked before stops working.
+  - document: openspec/contracts/agent-coordinator/openapi/features.yaml
+    operation: POST /features/conflicts
+    rule_id: new-required-request-property
+    rationale: >-
+      Contract-only correction. The old contract typed the body as a bare object;
+      the app has always required candidate_feature_id and candidate_claims
+      (FeatureConflictsRequest) and answered 422 without them.
