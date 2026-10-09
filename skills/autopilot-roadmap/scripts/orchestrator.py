@@ -639,6 +639,11 @@ def apply_delegated_batch(
             result, repo_root=repo_root, managed_root=managed, host_id=host
         )
         parked = upgraded.get("parked")
+        if isinstance(parked, dict) and parked.get("command") is not None:
+            # D9: the checkpoint is a tracked file, so a blocked command is
+            # re-sanitized here whatever the child sent, before the result is
+            # bound, journaled, or copied into the attempt.
+            parked["command"] = dispatch_contract.redact_command(str(parked["command"]))
         if (
             parked_route is not None
             and isinstance(parked, Mapping)
