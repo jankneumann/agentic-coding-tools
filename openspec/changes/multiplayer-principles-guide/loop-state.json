@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "multiplayer-principles-guide",
-  "current_phase": "ESCALATE",
+  "current_phase": "PLAN_REVIEW",
   "iteration": 0,
-  "total_iterations": 7,
+  "total_iterations": 8,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -42,7 +42,7 @@
   ],
   "last_handoff_id": "2a44bdc8-051f-4c39-ab9d-c1c299adbc2c",
   "started_at": "2026-10-05T07:03:40.733622+00:00",
-  "phase_started_at": "2026-10-06T09:46:40.644332+00:00",
+  "phase_started_at": "2026-10-09T08:03:33.100667+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "PLAN_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
   "val_review_enabled": false,
@@ -140,27 +140,24 @@
       "disposition": "block",
       "phase": "ESCALATE",
       "recorded_at": "2026-10-06T09:47:04.574190+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-09: 'Resume with single reviewer acceptable'. Cloud single-vendor review policy, TRUST_POSTURE.md 479dcd9; gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T08:03:33.100507+00:00",
+      "note": "User (session owner) 2026-10-09: 'Resume with single reviewer acceptable'. Cloud single-vendor review policy, TRUST_POSTURE.md 479dcd9; gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff"
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "multiplayer-principles-guide",
-    "gate": "escalate_resume",
-    "phase": "ESCALATE",
-    "requested_at": "2026-10-06T09:47:04.575468+00:00",
-    "prompt": "Has this escalation been resolved? Resume the loop?",
-    "context": {
-      "escalation_reason": "PLAN_REVIEW quorum_lost: codex auth_required, single reviewer",
-      "previous_phase": "PLAN_REVIEW"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true
-    },
-    "edge": {
-      "outcome": "resolved",
-      "target": "PLAN_REVIEW"
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
