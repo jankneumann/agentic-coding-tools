@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T13:43:45.531109+00:00",
+  "updated_at": "2026-10-09T14:11:47.528897+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -1478,7 +1478,7 @@
       "change_id": "dispatch-contract",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
       "launch_token": "p4ZVttf27O_h5wk8PTy32Smp1hf9FJw-",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
@@ -1558,14 +1558,10 @@
         "branch": "openspec/dispatch-contract"
       },
       "context": {},
-      "continuation": {
-        "kind": "policy_pause",
-        "approval_ref": "gate-decision:b8ed62ec-6530-48bf-9228-4db0dd9889dc"
-      },
       "lease": {
         "generation": 2,
         "owner_nonce": "834a2a0f17023e79ed2079399e87505e",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-09T07:50:20.974709+00:00",
         "heartbeat_at": "2026-10-09T07:50:20.974709+00:00",
         "expires_at": "2026-10-09T08:05:20.974709+00:00"
@@ -1582,6 +1578,46 @@
         "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2",
         "go_released_at": "2026-10-09T07:50:20.982798+00:00",
         "entered_at": "2026-10-09T07:50:20.992790+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/dispatch-contract",
+          "change_id": "dispatch-contract",
+          "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+          "evidence": {
+            "commit": "b66144b122452c48ddcdf21121c206c6cf265f2a",
+            "loop_state_digest": "ccdcdedc0b4ef529458a42ac64128c0b077f71c0baa1c5a9bba1f777f2b71e7e",
+            "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
+          },
+          "handoff_id": "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
+          "lease_generation": 2,
+          "outcome": "parked",
+          "parked": {
+            "gate": "merge",
+            "kind": "pending_gate",
+            "reason": "PR #667 open against openspec/roadmap-multiplayer-collaboration; all phases passed (single_vendor_review x3). Awaiting the merge gate. Worker emitted a schema v2 result (dispatch-results/...-g2.json at e768b60); recorded here in the v1 shape the current supervisor validates.",
+            "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/667."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/dispatch-contract"
+        },
+        "result_digest": "8c2503377b45c1b3fada744f7050007f1a64032d91df6bec0f3f9a6e78cd67e1",
+        "bound_at": "2026-10-09T14:11:47.488313+00:00",
+        "callback_started_at": "2026-10-09T14:11:47.495184+00:00",
+        "callback_acknowledged_at": "2026-10-09T14:11:47.499697+00:00",
+        "terminal_persisted_at": "2026-10-09T14:11:47.502859+00:00",
+        "effects_applied_at": "2026-10-09T14:11:47.528732+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-09T14:11:47.502831+00:00",
+      "parked": {
+        "gate": "merge",
+        "kind": "pending_gate",
+        "reason": "PR #667 open against openspec/roadmap-multiplayer-collaboration; all phases passed (single_vendor_review x3). Awaiting the merge gate. Worker emitted a schema v2 result (dispatch-results/...-g2.json at e768b60); recorded here in the v1 shape the current supervisor validates.",
+        "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/667."
       }
     }
   ]
