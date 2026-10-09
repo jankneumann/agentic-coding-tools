@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "ownership-map",
-  "current_phase": "ESCALATE",
+  "current_phase": "PLAN_REVIEW",
   "iteration": 0,
-  "total_iterations": 5,
+  "total_iterations": 6,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -36,7 +36,7 @@
   ],
   "last_handoff_id": "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-06T11:09:27.712085+00:00",
+  "phase_started_at": "2026-10-09T07:52:39.950645+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "PLAN_REVIEW quorum unavailable: codex lane has no CLI/key in cloud container (min_quorum 2)",
   "val_review_enabled": true,
@@ -87,27 +87,24 @@
       "disposition": "block",
       "phase": "ESCALATE",
       "recorded_at": "2026-10-06T11:09:33.966947+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 gate-decision:f24d569f-0e1f-4378-89d5-4617d7e4bcf5; cloud single-vendor review policy (TRUST_POSTURE.md 479dcd9)",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T07:52:39.950531+00:00",
+      "note": "gate-decision:f24d569f-0e1f-4378-89d5-4617d7e4bcf5; cloud single-vendor review policy (TRUST_POSTURE.md 479dcd9)"
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "ownership-map",
-    "gate": "escalate_resume",
-    "phase": "ESCALATE",
-    "requested_at": "2026-10-06T11:09:33.967980+00:00",
-    "prompt": "Has this escalation been resolved? Resume the loop?",
-    "context": {
-      "escalation_reason": "PLAN_REVIEW quorum unavailable: codex lane has no CLI/key in cloud container (min_quorum 2)",
-      "previous_phase": "PLAN_REVIEW"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true
-    },
-    "edge": {
-      "outcome": "resolved",
-      "target": "PLAN_REVIEW"
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
