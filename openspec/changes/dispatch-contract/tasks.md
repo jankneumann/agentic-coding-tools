@@ -98,23 +98,23 @@
 
 ## 6. Autopilot child  `[wp-autopilot-child]` (deps: 3.3, 4.2)
 
-- [ ] 6.1 Test first: `skills/tests/autopilot/test_emit_result.py`,
+- [x] 6.1 Test first: `skills/tests/autopilot/test_emit_result.py`,
   `test_loop_state_v6.py`, `test_gate_check_reeval.py`. — SW all four requirements
-- [ ] 6.2 `autopilot.py`: LoopState v6 (`park`, `degradations`), v5 migration,
+- [x] 6.2 `autopilot.py`: LoopState v6 (`park`, `degradations`), v5 migration,
   `_apply_transition` refuses while parked; the gate session constructs
   `ApprovalGate` with its default `marker_reader`
   (`dispatch_contract.read_launch_marker`) and passes no `roadmap_approval_ref` or
   other scope value through the gate context, which D8 ignores. (dep 6.1) — SW Loop
   State Parks and Degradations; TP
-- [ ] 6.3 `runner.py`: `emit-result`, `park`, `record-degradation`. (dep 6.2) — SW
+- [x] 6.3 `runner.py`: `emit-result`, `park`, `record-degradation`. (dep 6.2) — SW
   Code-Emitted Dispatch Result, Loop State Parks and Degradations
-- [ ] 6.4 `runner.py` + gate session: dispatched-vs-standalone authority (marker
+- [x] 6.4 `runner.py` + gate session: dispatched-vs-standalone authority (marker
   present => apply only `gate_answer`; worktree/marker posture-digest drift => no
   `auto`, park `pending_gate`); standalone `gate-check` re-evaluation on digest change;
   `gate-answer --approval-ref` with marker check; clears `park` for `escalate_resume`.
   (dep 6.3)
   — SW Gate Authority and Re-Evaluation on Resume
-- [ ] 6.5 `skills/autopilot/SKILL.md`: worker protocol — `emit-result` + commit, `park`
+- [x] 6.5 `skills/autopilot/SKILL.md`: worker protocol — `emit-result` + commit, `park`
   on permission denial, `probe_command` only, no env probing. Replace the
   below-quorum `CLI_REVIEW_ENABLED=false` step: in a dispatched child (marker present)
   keep review enabled and, at `PLAN_REVIEW` / `IMPL_REVIEW` entry, compare

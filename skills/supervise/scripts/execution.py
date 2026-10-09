@@ -261,6 +261,7 @@ _MARKER_FIELDS = {
     "posture_digest",
     "execution_profile",
     "review_requirements",
+    "isolation",
 }
 
 
@@ -289,6 +290,8 @@ def _write_marker_exclusive(
         "roadmap_approval_ref": attempt.get("roadmap_approval_ref"),
         "execution_profile": copy.deepcopy(attempt.get("execution_profile") or {}),
         "review_requirements": copy.deepcopy(attempt.get("review_requirements") or {}),
+        # Host-portable identity of the worktree, for `runner.py emit-result`.
+        "isolation": copy.deepcopy(attempt["isolation"]),
     }
     if supervisor_posture_digest is not None:
         record["posture_digest"] = supervisor_posture_digest

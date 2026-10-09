@@ -31,7 +31,7 @@ import runner
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from shared.approval_gate import ApprovalGate, CoordinatorUnavailable  # noqa: E402
-from shared.trust_posture import Gate  # noqa: E402
+from shared.trust_posture import Gate, posture_digest  # noqa: E402
 
 _CONTRACTS = (
     Path(__file__).resolve().parents[3]
@@ -327,7 +327,11 @@ def test_absent_posture_parks_with_a_schema_valid_request(
     assert pending["gate"] == "proposal_approval"
     assert pending["change_id"] == "demo"
     assert pending["phase"] == "PLAN"
-    assert pending["posture"] == {"disposition": "block", "posture_present": False}
+    assert pending["posture"] == {
+        "disposition": "block",
+        "posture_present": False,
+        "posture_digest": posture_digest(None),
+    }
     assert pending["prompt"].strip(), "the host renders this verbatim"
     jsonschema.validate(
         pending, json.loads((_CONTRACTS / "gate-request.schema.json").read_text())
