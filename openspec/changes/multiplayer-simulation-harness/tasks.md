@@ -126,7 +126,7 @@
   **Spec scenarios**: C.1, C.2
   **Design decisions**: D4
   **Dependencies**: 1.4
-- [ ] 3.2 Implement `mpsim/oracle.py`. It reads only the fixture files and no git history.
+- [x] 3.2 Implement `mpsim/oracle.py`. It reads only the fixture files and no git history.
   [XS]
   **Dependencies**: 3.1
 
