@@ -54,6 +54,8 @@ packages:
       surfaces:
         - "apis"
         - "documentation"
+        # contracts/generated/models.py is generated Python, indexed as semantic_code.
+        - "semantic_code"
     worktree:
       name: gen-clients-wp-contracts
       mode: isolated
@@ -307,7 +309,11 @@ packages:
     scope:
       write_allow:
         - ".github/workflows/ci.yml"
-        - "openspec/changes/generate-coordinator-clients-from-contracts/**"
+        # Only integration outputs; contracts/ and specs/ belong to wp-contracts.
+        - "openspec/changes/generate-coordinator-clients-from-contracts/decision.md"
+        - "openspec/changes/generate-coordinator-clients-from-contracts/tasks.md"
+        - "openspec/changes/generate-coordinator-clients-from-contracts/session-log.md"
+        - "openspec/changes/generate-coordinator-clients-from-contracts/handoffs/**"
       read_allow:
         - "**"
     context_impact:

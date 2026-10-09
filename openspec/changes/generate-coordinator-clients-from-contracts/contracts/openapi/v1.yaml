@@ -280,11 +280,14 @@ components:
         metadata: {type: [object, "null"], additionalProperties: true}
     FeatureRegisterResult:
       type: object
+      description: >-
+        On failure (e.g. re-registering a completed feature) the service returns
+        only success=false and reason, so feature_id and action are null.
       required: [success, feature_id, action, reason]
       properties:
         success: {type: boolean}
-        feature_id: {type: string}
-        action: {type: string, description: "e.g. registered, updated"}
+        feature_id: {type: [string, "null"]}
+        action: {type: [string, "null"], enum: [registered, updated, null]}
         reason: {type: [string, "null"]}
     FeatureDeregisterRequest:
       type: object
@@ -294,10 +297,13 @@ components:
         status: {type: string, enum: [completed, cancelled], default: completed}
     FeatureDeregisterResult:
       type: object
+      description: >-
+        On failure (invalid status, or feature missing or not active) the service
+        returns only success=false and reason, so feature_id and status are null.
       required: [success, feature_id, status, reason]
       properties:
         success: {type: boolean}
-        feature_id: {type: string}
+        feature_id: {type: [string, "null"]}
         status: {type: [string, "null"]}
         reason: {type: [string, "null"]}
     FeatureConflictsRequest:
