@@ -251,7 +251,7 @@
 
 ## 7. gen-eval pack and offline guarantees
 
-- [ ] 7.1 Generate `evaluation/descriptor.yaml` with
+- [x] 7.1 Generate `evaluation/descriptor.yaml` with
   `packages/gen-eval/scripts/generate_tool_descriptor.py --contract
   openspec/contracts/multiplayer-simulation/cli/mpsim.yaml --out
   skills/tests/multiplayer-simulation/evaluation/descriptor.yaml`. Add a test that runs the
