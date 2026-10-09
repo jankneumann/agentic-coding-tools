@@ -53,7 +53,11 @@ comment posting, coordinator mutations that are not already idempotency-keyed, a
 external notifications. Each effect is written as `requested` **before** it executes,
 moves to `started` and then to `completed` (with its observable result, e.g. PR URL or
 commit SHA) or `failed`, and carries a stable idempotency key derived from
-`(change_id, phase, transition_sequence, effect_kind, target)`.
+`(change_id, phase, transition_sequence, effect_kind, target, operation_digest)`.
+`operation_digest` is a deterministic digest of the effect's intended payload (the
+commit SHA being pushed, a comment body, a PR's head/base), so a retry of the same
+effect reuses its key while a second, distinct effect on the same target (another
+comment on one issue, a later push to one ref) gets its own.
 
 Each effect kind declares a **replay policy**: `replayable` (safe to re-run, e.g.
 an idempotent upsert), `verify_then_skip` (probe the world for the result before re-running,
@@ -66,6 +70,7 @@ projection follows the persist-first rule from the work-queue contract. The supe
 rather than rewritten.
 
 **Acceptance Outcomes:**
+- Two distinct effects of the same kind on the same target within one phase receive distinct keys, while a retry of the same effect reuses its key.
 - A shared helper (`skills/shared/effects_journal.py` or equivalent) exposes `begin`, `complete`, `fail`, and `resolve_interrupted` and is used by `/cleanup-feature`, `/merge-pull-requests`, `/validate-feature` (deploy/teardown), and the autopilot SUBMIT_PR step.
 - A fault-injection test that kills the process between `started` and `completed` for each policy shows: `replayable` re-runs once; `verify_then_skip` finds the existing PR/commit and records `completed` without a second side effect; `never_replay` parks the change with a named escalation and performs no action.
 - A guard test fails if a listed effect-producing command (`gh pr create`, `git push`, merge APIs, deploy entry points) is called from a skill script outside an effects-journal wrapper.
@@ -149,7 +154,8 @@ and engine tool-replay declarations onto effects-journal policies, so a durable
 executor and an opaque vendor CLI produce the same metaharness-visible artifacts.
 
 Builds on, and does not duplicate, the in-flight `add-atomic-harness` change (its
-Level-2 `workflow_dispatch.py` pilot). Scope here is the contract and its enforcement
+Level-2 `workflow_dispatch.py` pilot), which this roadmap adopts as its own item so the
+dependency is a real scheduling edge. Scope here is the contract and its enforcement
 in `phase_agent.py`, and promoting the pilot from `fix-scrub` to an opt-in IMPLEMENT /
 VALIDATE executor.
 
@@ -185,7 +191,8 @@ VALIDATE executor.
 
 ### Phase 3: Durable executor integration
 
-- Capability: Durable intra-phase executor boundary (depends on phase progress checkpoints, the effects journal, and the external `add-atomic-harness` change)
+- Adopted change: `add-atomic-harness` (no dependencies; can run in parallel with Phase 1)
+- Capability: Durable intra-phase executor boundary (depends on phase progress checkpoints, the effects journal, and `add-atomic-harness`)
 
 ## Out of Scope
 
@@ -194,4 +201,4 @@ VALIDATE executor.
 - Preemptive scheduling of agent work (the operating-system analogy in the source article).
 - A single atomic transaction spanning git and the coordinator database. Atomicity continues to come from persist-first ordering plus idempotent re-derivation.
 - The Symphony dispatcher daemon, retry queue, and tracker reconciliation (`openspec/roadmaps/symphony/`); cascading abort shall integrate with them when they land, not reimplement them.
-- Executing the `add-atomic-harness` change itself; this roadmap consumes its result.
+- Re-planning `add-atomic-harness`. The roadmap adopts it as an item and owns its execution and scheduling, but its proposal, design, and tasks stay as authored in that change.

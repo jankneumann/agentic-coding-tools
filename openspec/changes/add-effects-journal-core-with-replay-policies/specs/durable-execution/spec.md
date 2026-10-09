@@ -23,6 +23,15 @@ The system SHALL ensure that idempotency keys are identical across two runs with
 WHEN `add-effects-journal-core-with-replay-policies` is implemented
 THEN Idempotency keys are identical across two runs with the same inputs and contain no wall-clock-dependent component.
 
+### Requirement: Two distinct effects of the same kind on the same target within one phase...
+
+The system SHALL ensure that two distinct effects of the same kind on the same target within one phase (e.g. two comments on one issue, successive pushes to one ref) receive distinct keys, while a retry of the same effect reuses its key.
+
+#### Scenario: Two distinct effects of the same kind on the same target within one phase...
+
+WHEN `add-effects-journal-core-with-replay-policies` is implemented
+THEN Two distinct effects of the same kind on the same target within one phase (e.g. two comments on one issue, successive pushes to one ref) receive distinct keys, while a retry of the same effect reuses its key.
+
 ### Requirement: The journal works with the coordinator unreachable; any coordinator copy is...
 
 The system SHALL ensure that the journal works with the coordinator unreachable; any coordinator copy is an optional persist-first projection never written back into the journal.

@@ -61,11 +61,12 @@ graph TD
 - **Effort**: M
 - **Change ID**: add-effects-journal-core-with-replay-policies
 
-Add a shared append-only effects journal helper (skills/shared/effects_journal.py) exposing begin, complete, fail, and resolve_interrupted over openspec/changes/<change-id>/effects.jsonl, with deterministic idempotency keys derived from (change_id, phase, transition_sequence, effect_kind, target) and per-effect-kind replay policies (replayable, verify_then_skip, never_replay). Register the journal in docs/guides/state-artifacts.md and document the supervisor application_journal as its first specialized instance.
+Add a shared append-only effects journal helper (skills/shared/effects_journal.py) exposing begin, complete, fail, and resolve_interrupted over openspec/changes/<change-id>/effects.jsonl, with deterministic idempotency keys derived from (change_id, phase, transition_sequence, effect_kind, target, operation_digest), where operation_digest is a deterministic digest of the effect's intended payload (commit SHA being pushed, comment body, PR head/base) so a retry reuses its key but a second distinct effect on the same target does not and per-effect-kind replay policies (replayable, verify_then_skip, never_replay). Register the journal in docs/guides/state-artifacts.md and document the supervisor application_journal as its first specialized instance.
 
 **Acceptance outcomes**:
 - [ ] A fault-injection test killing the process between started and completed shows replayable re-runs once, verify_then_skip probes and records completed without a second side effect, and never_replay parks the change with a named escalation and performs no action.
 - [ ] Idempotency keys are identical across two runs with the same inputs and contain no wall-clock-dependent component.
+- [ ] Two distinct effects of the same kind on the same target within one phase (e.g. two comments on one issue, successive pushes to one ref) receive distinct keys, while a retry of the same effect reuses its key.
 - [ ] The journal works with the coordinator unreachable; any coordinator copy is an optional persist-first projection never written back into the journal.
 - [ ] docs/guides/state-artifacts.md lists the effects journal with holder, writer, authority, consumers, and missing/stale behavior, scoped to "did this effect happen?" only.
 - [ ] Journal entries are bounded in size and store results (PR URL, commit SHA), never transcripts.

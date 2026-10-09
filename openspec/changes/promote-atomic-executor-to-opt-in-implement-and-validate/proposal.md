@@ -13,6 +13,7 @@ Promote the add-atomic-harness Level-2 workflow_dispatch.py pilot from fix-scrub
 
 - `ri-08`
 - `ri-02`
+- `ri-10`
 
 ## Acceptance Outcomes
 
@@ -23,4 +24,4 @@ Promote the add-atomic-harness Level-2 workflow_dispatch.py pilot from fix-scrub
 
 ## Rationale
 
-Delivers the proposal's success criterion that a durable intra-phase executor can be plugged in; depends on the external in-flight add-atomic-harness change (not part of any roadmap), whose result this item consumes rather than re-implements.
+Delivers the proposal's success criterion that a durable intra-phase executor can be plugged in; consumes the result of ri-10 (the adopted add-atomic-harness change) rather than re-implementing it.

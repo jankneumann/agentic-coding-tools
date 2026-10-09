@@ -15,7 +15,10 @@ items:
   description: Add a shared append-only effects journal helper (skills/shared/effects_journal.py)
     exposing begin, complete, fail, and resolve_interrupted over openspec/changes/<change-id>/effects.jsonl,
     with deterministic idempotency keys derived from (change_id, phase, transition_sequence,
-    effect_kind, target) and per-effect-kind replay policies (replayable, verify_then_skip,
+    effect_kind, target, operation_digest), where operation_digest is a deterministic
+    digest of the effect's intended payload (commit SHA being pushed, comment body,
+    PR head/base) so a retry reuses its key but a second distinct effect on the same
+    target does not and per-effect-kind replay policies (replayable, verify_then_skip,
     never_replay). Register the journal in docs/guides/state-artifacts.md and document
     the supervisor application_journal as its first specialized instance.
   rationale: Phase 1 safety foundation; every other capability (resumable phases,
@@ -30,6 +33,9 @@ items:
     and performs no action.
   - Idempotency keys are identical across two runs with the same inputs and contain
     no wall-clock-dependent component.
+  - Two distinct effects of the same kind on the same target within one phase (e.g.
+    two comments on one issue, successive pushes to one ref) receive distinct keys,
+    while a retry of the same effect reuses its key.
   - The journal works with the coordinator unreachable; any coordinator copy is an
     optional persist-first projection never written back into the journal.
   - docs/guides/state-artifacts.md lists the effects journal with holder, writer,
@@ -258,7 +264,7 @@ items:
     journal, effects journal, PhaseRecord) as an opaque vendor CLI phase.
   - Executor selection is opt-in per phase and per change; with it disabled, behavior
     is identical to today's.
-updated_at: '2026-10-09T07:05:26.401453+00:00'
+updated_at: '2026-10-09T07:10:52.111060+00:00'
 refinements:
 - timestamp: '2026-10-09T07:05:26.401453+00:00'
   actor: claude-code (operator request)
@@ -271,3 +277,13 @@ refinements:
   operations:
   - adopt:ri-10
   - edit:ri-09
+- timestamp: '2026-10-09T07:10:52.111060+00:00'
+  actor: claude-code (operator-authorized PR follow-up)
+  source: https://github.com/jankneumann/agentic-coding-tools/pull/664 review comment
+    4227597423
+  rationale: 'Codex review on PR #664: the key tuple (change_id, phase, transition_sequence,
+    effect_kind, target) collides for repeated distinct effects on one target, so
+    a later effect could be mistaken for a replay.'
+  base_sha256: 57b70f8ec51a6d0d36542dea58cfa6285afa98e90a1dd3d9a2f1c7fdc36bd06b
+  operations:
+  - edit:ri-01
