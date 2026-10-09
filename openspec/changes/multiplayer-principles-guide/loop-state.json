@@ -1,0 +1,270 @@
+{
+  "schema_version": 5,
+  "change_id": "multiplayer-principles-guide",
+  "current_phase": "SUBMIT_PR",
+  "iteration": 0,
+  "total_iterations": 15,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "a97b7229-4868-4a94-801f-6d56414b111d",
+    "28f4bed6-6c1d-4d1d-b483-4af45ff5f5dc",
+    "2a44bdc8-051f-4c39-ab9d-c1c299adbc2c",
+    "5fe1c4fe-2d19-4e6b-82e1-ef5d40654b41",
+    "0d93042b-2da5-42ce-99ec-50e7880ce78d",
+    "ff647b09-6f37-4515-beaf-edee4599dcba",
+    "323b6f25-0e3d-48b8-b5aa-919b8fa7957c",
+    "b78e5326-fe14-4111-80f9-ac7c4466123a"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-05T07:05:00.234995+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-10-05T09:35:19.341836+00:00",
+      "note": "PLAN_ITERATE failed: phase sub-agent was denied read access to openspec/changes/multiplayer-principles-guide/ plan artifacts by the harness permission classifier (labelled 'Irreversible Local Destruction' on a read-only cat/ls); no PhaseRecord produced. Prior attempt lost to container restart; its partial edits are kept locally at f4e388e (branch openspec/multiplayer-principles-guide--plan-iterate, not pushed). Retained handoff a97b7229-4868-4a94-801f-6d56414b111d",
+      "outcome": "host_escalate",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-10-06T09:41:12.604164+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-10-06T09:46:37.299323+00:00",
+      "outcome": "max_iter",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-09T08:10:56.113174+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-09T08:16:27.392296+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-10-09T08:19:09.503823+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-10-09T08:24:56.374990+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-10-09T08:30:21.741688+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    }
+  ],
+  "last_handoff_id": "b78e5326-fe14-4111-80f9-ac7c4466123a",
+  "started_at": "2026-10-05T07:03:40.733622+00:00",
+  "phase_started_at": "2026-10-09T12:16:46.494024+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": false,
+    "package_count": 0,
+    "total_loc_estimate": null
+  },
+  "gate_verdict": null,
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-05T07:05:14.767558+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "operator approved: answered 'Approve whole roadmap' + 'Posture: plans auto' to a question that explicitly covered ri-01's pending proposal_approval (supervisor session_01J39bSygVy2r68wyPyHN5VA, 2026-10-05)",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 operator approved: answered 'Approve whole roadmap' + 'Posture: plans auto' to a question that explicitly covered ri-01's pending proposal_approval (supervisor session_01J39bSygVy2r68wyPyHN5VA, 2026-10-05)",
+      "recorded_at": "2026-10-05T07:12:43.951276+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-05T09:35:25.942695+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "Operator decision B1 (2026-10-05, supervisor session_01J39bSygVy2r68wyPyHN5VA): resume PLAN_ITERATE; read-only file inspection is already allowed by .claude/settings.json, vendor probing moves to review_dispatcher --check-vendors instead of env reads.",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator decision B1 (2026-10-05, supervisor session_01J39bSygVy2r68wyPyHN5VA): resume PLAN_ITERATE; read-only file inspection is already allowed by .claude/settings.json, vendor probing moves to review_dispatcher --check-vendors instead of env reads.",
+      "recorded_at": "2026-10-05T13:44:43.020139+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-06T09:47:04.574190+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "User (session owner) 2026-10-09: 'Resume with single reviewer acceptable'. Cloud single-vendor review policy, TRUST_POSTURE.md 479dcd9; gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-09: 'Resume with single reviewer acceptable'. Cloud single-vendor review policy, TRUST_POSTURE.md 479dcd9; gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff",
+      "recorded_at": "2026-10-09T08:03:33.100507+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "coordinator_unreachable",
+      "authorizing_disposition": "notify_with_timeout",
+      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "notify_with_timeout",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-09T12:16:18.411838+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T12:16:46.292366+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T12:16:46.493945+00:00",
+      "note": "User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block."
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-09T12:17:28.246464+00:00"
+    }
+  ],
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "multiplayer-principles-guide",
+    "gate": "merge",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-10-09T12:17:28.247738+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/666",
+      "branch": "openspec/multiplayer-principles-guide",
+      "change_id": "multiplayer-principles-guide"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true
+    }
+  },
+  "goal_gate": null
+}
