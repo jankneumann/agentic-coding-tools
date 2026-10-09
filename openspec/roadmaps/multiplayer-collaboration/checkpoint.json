@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T08:11:29.486124+00:00",
+  "updated_at": "2026-10-09T08:28:14.069823+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -465,6 +465,53 @@
       "item_id": "ri-20",
       "lease_generation": 2,
       "note": "Operator approved in supervisor session_01J39bSygVy2r68wyPyHN5VA 2026-10-09: resume ri-20 using the protected re-root (git switch -c, as approved for ri-02) instead of git reset --hard; no forced worktree removal; cloud single-vendor review policy (TRUST_POSTURE.md 479dcd9)."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T08:28:12.840417+00:00",
+      "decision_id": "1fc1288a-e9d1-4a3b-9ed7-d3251a2a67e8",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 3
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Park caused by a supervisor instruction (merge origin/main) that the classifier refused; instruction retracted. Resume on the path the operator approved directly in worker session_011LTtuyAcYi2oaHLoJtpwwM at 2026-10-09T08:06:26Z (protected git switch -c re-root).",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T08:28:13.354509+00:00",
+      "decision_id": "3b606cf0-64a1-4c74-b7a3-d90c8c09d55e",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 3,
+      "note": "Park caused by a supervisor instruction (merge origin/main) that the classifier refused; instruction retracted. Resume on the path the operator approved directly in worker session_011LTtuyAcYi2oaHLoJtpwwM at 2026-10-09T08:06:26Z (protected git switch -c re-root)."
     }
   ],
   "dispatch_attempts": [
@@ -683,7 +730,7 @@
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_token": "KQrZDLksm--dBjDWB7rzaGhHy-fSa7TB",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
-      "lease_generation": 3,
+      "lease_generation": 4,
       "launch_history": [
         {
           "generation": 1,
@@ -777,6 +824,37 @@
           "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
           "observed_at": "2026-10-09T08:07:45.991282+00:00",
           "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g3"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "1a052d4b9f5d630f9a0879f1302787d8",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T08:28:14.046984+00:00"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "1a052d4b9f5d630f9a0879f1302787d8",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T08:28:14.058235+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g4"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "1a052d4b9f5d630f9a0879f1302787d8",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T08:28:14.058235+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g4"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "1a052d4b9f5d630f9a0879f1302787d8",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T08:28:14.069734+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g4"
         }
       ],
       "scope": {
@@ -792,28 +870,28 @@
       "context": {},
       "continuation": {
         "kind": "pending_gate",
-        "approval_ref": "gate-decision:89f29e7b-e4b3-4261-b110-23b86c2ecc76"
+        "approval_ref": "gate-decision:3b606cf0-64a1-4c74-b7a3-d90c8c09d55e"
       },
       "lease": {
-        "generation": 3,
-        "owner_nonce": "021c68813f5203d28469fd62da2861f6",
+        "generation": 4,
+        "owner_nonce": "1a052d4b9f5d630f9a0879f1302787d8",
         "state": "active",
-        "acquired_at": "2026-10-09T08:07:45.969181+00:00",
-        "heartbeat_at": "2026-10-09T08:07:45.969181+00:00",
-        "expires_at": "2026-10-09T08:22:45.969181+00:00"
+        "acquired_at": "2026-10-09T08:28:14.046984+00:00",
+        "heartbeat_at": "2026-10-09T08:28:14.046984+00:00",
+        "expires_at": "2026-10-09T08:43:14.046984+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 3,
-        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g3",
-        "observed_at": "2026-10-09T08:07:45.979878+00:00"
+        "generation": 4,
+        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g4",
+        "observed_at": "2026-10-09T08:28:14.058235+00:00"
       },
       "launch_gate": {
-        "generation": 3,
+        "generation": 4,
         "state": "entered",
-        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g3",
-        "go_released_at": "2026-10-09T08:07:45.979878+00:00",
-        "entered_at": "2026-10-09T08:07:45.991282+00:00"
+        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g4",
+        "go_released_at": "2026-10-09T08:28:14.058235+00:00",
+        "entered_at": "2026-10-09T08:28:14.069734+00:00"
       }
     },
     {
