@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T12:18:06.662511+00:00",
+  "updated_at": "2026-10-09T12:23:21.512312+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -983,7 +983,7 @@
       "change_id": "multiplayer-simulation-harness",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:51.250636+00:00",
       "launch_token": "Mp2SzX-7Y7Losd0LyuH5PzlKFsrcvIng",
       "launch_marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
@@ -1094,14 +1094,10 @@
         "branch": "openspec/multiplayer-simulation-harness"
       },
       "context": {},
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:3f281a16-180e-41e0-a7ec-9b1db997feff"
-      },
       "lease": {
         "generation": 3,
         "owner_nonce": "de65d2016b45b357e6bb2c519ba9fc44",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-09T12:16:32.526381+00:00",
         "heartbeat_at": "2026-10-09T12:16:32.526381+00:00",
         "expires_at": "2026-10-09T12:31:32.526381+00:00"
@@ -1118,6 +1114,46 @@
         "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g3",
         "go_released_at": "2026-10-09T12:16:32.532228+00:00",
         "entered_at": "2026-10-09T12:16:32.539755+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/multiplayer-simulation-harness",
+          "change_id": "multiplayer-simulation-harness",
+          "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
+          "evidence": {
+            "commit": "4932f544913c765e596ace3122ceeaea25dae97b",
+            "loop_state_digest": "9d63b9ebbd7e3300640bdbf5b3ca116a1b77de5292d7b188b2831c4ae7e299d1",
+            "loop_state_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json"
+          },
+          "handoff_id": "cc44baf6-dd8c-4ae4-931c-2203d6928c33",
+          "lease_generation": 3,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "pending_gate",
+            "reason": "IMPLEMENT and IMPL_ITERATE complete (93 tests). IMPL_REVIEW blocked before any review: classifier denied a converge() driver shim (base_ref override, bookkeeping-path exclusion, min_quorum=1) as CI Bypass. Root cause: converge() lacks base_ref and counts its own ledger/cache writes in _changed_paths.",
+            "resume_hint": "After converge() gains base_ref and excludes its own bookkeeping paths (and the fix reaches this branch), answer escalate_resume; loop resumes at IMPL_REVIEW unshimmed."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness"
+        },
+        "result_digest": "03b8277dba835cef2b62b05c91280af41343fdf7ad63de825abde8419419606a",
+        "bound_at": "2026-10-09T12:23:21.463827+00:00",
+        "callback_started_at": "2026-10-09T12:23:21.467975+00:00",
+        "callback_acknowledged_at": "2026-10-09T12:23:21.471173+00:00",
+        "terminal_persisted_at": "2026-10-09T12:23:21.474464+00:00",
+        "effects_applied_at": "2026-10-09T12:23:21.512126+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-09T12:23:21.474439+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "pending_gate",
+        "reason": "IMPLEMENT and IMPL_ITERATE complete (93 tests). IMPL_REVIEW blocked before any review: classifier denied a converge() driver shim (base_ref override, bookkeeping-path exclusion, min_quorum=1) as CI Bypass. Root cause: converge() lacks base_ref and counts its own ledger/cache writes in _changed_paths.",
+        "resume_hint": "After converge() gains base_ref and excludes its own bookkeeping paths (and the fix reaches this branch), answer escalate_resume; loop resumes at IMPL_REVIEW unshimmed."
       }
     },
     {
