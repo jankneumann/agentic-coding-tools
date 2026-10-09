@@ -15,7 +15,7 @@
 Each task is single-commit sized, names the files it owns, and lists the tasks it depends
 on. Tasks with no shared files and no `Depends on` can run in parallel worktrees.
 
-- [ ] **T1. Payload hash helper** — Add `skills/shared/payload_hash.py` (`hash_payload(root,
+- [x] **T1. Payload hash helper** — Add `skills/shared/payload_hash.py` (`hash_payload(root,
   skill_names, shared_libraries)` plus a `--root/--manifest` CLI printing the `sha256:` value)
   implementing D4, and tests proving source/mirror equality, content sensitivity and exclusion
   of `tests/`, `__pycache__/`, `node_modules/`.
