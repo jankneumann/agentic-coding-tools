@@ -97,6 +97,18 @@ def _write_work_packages(repo: Path, change_id: str) -> None:
     path.write_text(yaml.safe_dump(document, sort_keys=False))
 
 
+#: The roots of the most recent fixture workspace: requests carry only a
+#: host-portable worktree_ref (dispatch-contract D7), resolved here by `_wt`.
+_ROOTS: dict[str, Path] = {}
+
+
+def _wt(request: dict[str, Any]) -> Path:
+    """The absolute worktree of a request's portable isolation, in this test host."""
+    isolation = request["isolation"]
+    base = _ROOTS["managed"] if isolation["mode"] == "managed_worktree" else _ROOTS["repo"]
+    return base / isolation["worktree_ref"]
+
+
 def _workspace(tmp_path: Path) -> tuple[Path, Path, Path]:
     repo = tmp_path / "repo"
     schema_root = repo / "openspec" / "schemas"
@@ -132,6 +144,7 @@ def _workspace(tmp_path: Path) -> tuple[Path, Path, Path]:
     )
     _write_work_packages(repo, "change-alpha")
     managed_root = repo / ".git-worktrees"
+    _ROOTS.update(managed=managed_root.resolve(), repo=repo.resolve())
     worktree = managed_root / "change-alpha"
     (worktree / ".git").mkdir(parents=True)
     loop_state = worktree / "openspec" / "changes" / "change-alpha" / "loop-state.json"
@@ -184,6 +197,7 @@ def _adapter(
     calls = host_calls if host_calls is not None else []
     return ExecutionAdapter(
         managed_worktree_root=managed_root,
+        repo_root=managed_root.parent,
         clock=clock,
         branch_resolver=lambda _: "openspec/change-alpha",
         commit_resolver=lambda _: "a" * 40,
@@ -304,16 +318,22 @@ def _attempt(workspace: Path) -> dict[str, Any]:
 
 def _result(name: str, request: dict[str, Any]) -> dict[str, Any]:
     value = json.loads((_FIXTURES / name).read_text())
+    # The lifecycle fixtures are version-1 documents; build the version-2
+    # result emit-result produces (dispatch-contract D1, D7).
+    value.pop("worktree_path", None)
     value.update(
+        schema_version=2,
         dispatch_id=request["dispatch_id"],
         change_id=request["change_id"],
         attempt=request["attempt"],
         lease_generation=request["lease_generation"],
-        worktree_path=request["isolation"]["worktree_path"],
+        worktree_ref=request["isolation"]["worktree_ref"],
         branch=request["isolation"]["branch"],
+        host_id=request["isolation"]["host_id"],
+        degradations=[],
     )
     loop_state_path = (
-        Path(request["isolation"]["worktree_path"])
+        _wt(request)
         / "openspec"
         / "changes"
         / request["change_id"]
@@ -521,7 +541,7 @@ def test_child_start_waits_for_durable_ack_and_go_before_host_entry(tmp_path: Pa
     )
     assert claimed["status"] == "claimed"
     assert claimed["launch_gate"]["state"] == "waiting_ack"
-    assert Path(request["isolation"]["worktree_path"], request["launch_marker_path"]).exists()
+    assert Path(_wt(request), request["launch_marker_path"]).exists()
     with pytest.raises(ValueError, match="go has not been released"):
         adapter.enter(
             workspace,
@@ -554,7 +574,7 @@ def test_marker_collision_refuses_duplicate_owner_without_state_change(tmp_path:
     repo, workspace, managed_root = _workspace(tmp_path)
     adapter = _adapter(managed_root, FakeClock())
     request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
-    marker = Path(request["isolation"]["worktree_path"], request["launch_marker_path"])
+    marker = Path(_wt(request), request["launch_marker_path"])
     marker.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text("other-owner\n")
 
@@ -584,7 +604,7 @@ def test_child_start_supports_real_linked_worktree_gitfile(tmp_path: Path) -> No
         owner_nonce="owner-nonce-0001",
     )
 
-    marker = Path(request["isolation"]["worktree_path"], request["launch_marker_path"])
+    marker = Path(_wt(request), request["launch_marker_path"])
     assert claimed["status"] == "claimed"
     assert not request["launch_marker_path"].startswith(".git/")
     assert marker.is_file()
@@ -757,7 +777,7 @@ def test_hard_termination_before_claim_persistence_cannot_orphan_marker(
     repo, workspace, managed_root = _workspace(tmp_path)
     adapter = _adapter(managed_root, FakeClock())
     request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
-    marker = Path(request["isolation"]["worktree_path"], request["launch_marker_path"])
+    marker = Path(_wt(request), request["launch_marker_path"])
 
     def terminate_before_persistence(*_args: Any, **_kwargs: Any) -> None:
         raise SystemExit("simulated hard termination")
@@ -863,8 +883,9 @@ def test_harness_provided_isolation_preserves_exact_external_path_and_branch(
 
     assert prepared["requests"][0]["isolation"] == {
         "mode": "harness_provided",
-        "worktree_path": str(harness_path.resolve()),
+        "worktree_ref": "harness-checkout",
         "branch": "harness/session-123",
+        "host_id": adapter.host_id,
     }
 
 
@@ -912,10 +933,21 @@ def test_only_positive_task_death_allows_post_go_generation_takeover(tmp_path: P
 
     assert reclaimed["status"] == "prepared"
     assert reclaimed["lease_generation"] == 2
+    # The dead generation's token is revoked (D6); reissue mints the next one.
+    with pytest.raises(execution.ExecutionStateError, match="launch token mismatch"):
+        adapter.child_start(
+            workspace,
+            dispatch_id=request["dispatch_id"],
+            launch_token=request["launch_token"],
+            lease_generation=2,
+            owner_nonce="owner-nonce-0002",
+        )
+    reissued = adapter.reissue(workspace, dispatch_id=request["dispatch_id"])
+    assert reissued["lease_generation"] == 2
     restarted = adapter.child_start(
         workspace,
         dispatch_id=request["dispatch_id"],
-        launch_token=request["launch_token"],
+        launch_token=reissued["launch_token"],
         lease_generation=2,
         owner_nonce="owner-nonce-0002",
     )
@@ -950,7 +982,11 @@ def test_parked_attempt_releases_lease_and_authorized_resume_increments_generati
     )
     assert resumed["dispatch_id"] == request["dispatch_id"]
     assert resumed["attempt"] == request["attempt"]
-    assert resumed["launch_token"] == request["launch_token"]
+    # D6: a token is minted per launch generation.
+    assert resumed["launch_token"] != request["launch_token"]
+    assert _attempt(workspace)["launch_digest"] == (
+        "sha256:" + hashlib.sha256(resumed["launch_token"].encode()).hexdigest()
+    )
     assert resumed["lease_generation"] == 2
     assert resumed["continuation"] == {
         "kind": "pending_gate",
@@ -991,7 +1027,7 @@ def test_resumed_parked_generation_runs_normal_ack_go_with_exact_continuation(
     claimed = adapter.child_start(
         workspace,
         dispatch_id=request["dispatch_id"],
-        launch_token=request["launch_token"],
+        launch_token=resumed["launch_token"],
         lease_generation=2,
         owner_nonce="owner-nonce-0002",
     )
@@ -1018,7 +1054,7 @@ def test_resumed_parked_generation_runs_normal_ack_go_with_exact_continuation(
             lease_generation=1,
             owner_nonce="owner-nonce-0001",
         )
-    marker = Path(request["isolation"]["worktree_path"], request["launch_marker_path"])
+    marker = Path(_wt(request), request["launch_marker_path"])
     marker_record = json.loads(marker.read_text())
     assert marker_record["generation"] == 2
     assert marker_record["owner_nonce"] == "owner-nonce-0002"
@@ -1128,7 +1164,7 @@ def test_pre_go_stale_takeover_preserves_parked_continuation(tmp_path: Path) -> 
     adapter.child_start(
         workspace,
         dispatch_id=request["dispatch_id"],
-        launch_token=request["launch_token"],
+        launch_token=resumed["launch_token"],
         lease_generation=2,
         owner_nonce="owner-nonce-0002",
         lease_seconds=5,
@@ -1138,7 +1174,7 @@ def test_pre_go_stale_takeover_preserves_parked_continuation(tmp_path: Path) -> 
     reclaimed = adapter.child_start(
         workspace,
         dispatch_id=request["dispatch_id"],
-        launch_token=request["launch_token"],
+        launch_token=resumed["launch_token"],
         lease_generation=2,
         owner_nonce="owner-nonce-0003",
     )
@@ -1162,7 +1198,7 @@ def test_failed_child_start_never_creates_an_orphan_marker(tmp_path: Path) -> No
     repo, workspace, managed_root = _workspace(tmp_path)
     adapter = _adapter(managed_root, FakeClock())
     request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
-    marker = Path(request["isolation"]["worktree_path"], request["launch_marker_path"])
+    marker = Path(_wt(request), request["launch_marker_path"])
 
     with pytest.raises(ValueError, match="owner nonce"):
         adapter.child_start(
@@ -1184,7 +1220,7 @@ def test_apply_rejects_stale_unbound_loop_state_evidence(tmp_path: Path) -> None
     _launch(adapter, workspace, request)
     result = _result("success-result.json", request)
     loop_state = (
-        Path(request["isolation"]["worktree_path"])
+        _wt(request)
         / result["evidence"]["loop_state_path"]
     )
     loop_state.write_text(
@@ -1244,11 +1280,11 @@ def test_apply_accepts_real_autopilot_loop_state_in_linked_worktree(tmp_path: Pa
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [
-        (lambda result: result.update(worktree_path="/other"), "worktree"),
+        (lambda result: result.update(worktree_ref="other"), "worktree"),
         (lambda result: result.update(branch="openspec/other"), "branch"),
         (
             lambda result: result["evidence"].update(loop_state_path="../outside.json"),
-            "loop-state containment",
+            "loop-state containment|loop_state_path",
         ),
         (
             lambda result: result["evidence"].update(loop_state_digest="0" * 64),
@@ -1291,7 +1327,7 @@ def test_apply_rejects_noncanonical_inside_worktree_evidence_before_callback(
     _launch(adapter, workspace, request)
     result = _result("success-result.json", request)
     other = (
-        Path(request["isolation"]["worktree_path"])
+        _wt(request)
         / "openspec"
         / "changes"
         / "change-alpha"
@@ -1361,7 +1397,7 @@ def test_invalid_optional_parked_fields_never_reach_temp_result_file(
     "mutation",
     [
         lambda result: result.update(schema_version=True),
-        lambda result: result.update(outcome="failed:boom", worktree_path=7),
+        lambda result: result.update(outcome="failed:boom", worktree_ref=7),
         lambda result: result.update(outcome="vendor_limit:test:busy", branch=""),
     ],
 )
@@ -1404,7 +1440,7 @@ def test_apply_rejects_symlinked_loop_state_escape_before_callback(tmp_path: Pat
     request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
     _launch(adapter, workspace, request)
     result = _result("success-result.json", request)
-    worktree = Path(request["isolation"]["worktree_path"])
+    worktree = _wt(request)
     outside = repo / "outside-loop-state.json"
     outside.write_text('{"status":"outside"}\n')
     link = worktree / result["evidence"]["loop_state_path"]
@@ -1431,7 +1467,7 @@ def test_apply_accepts_exact_digest_and_uses_bounded_temp_result_only(tmp_path: 
     request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
     _launch(adapter, workspace, request)
     result = _result("success-result.json", request)
-    loop_state = Path(request["isolation"]["worktree_path"]) / result["evidence"][
+    loop_state = _wt(request) / result["evidence"][
         "loop_state_path"
     ]
     result["evidence"]["loop_state_digest"] = hashlib.sha256(loop_state.read_bytes()).hexdigest()
@@ -1588,7 +1624,8 @@ def _fully_applied_policy_pause(
     )
     manager = execution.CheckpointManager(workspace)
     checkpoint = manager.load()
-    checkpoint.dispatch_attempts[0]["parked"]["kind"] = "policy_pause"
+    # D3: a policy_pause carries gate null or escalate_resume.
+    checkpoint.dispatch_attempts[0]["parked"].update(kind="policy_pause", gate=None)
     manager.save(checkpoint)
     return repo, workspace, adapter, request, batch_id
 
@@ -1691,7 +1728,7 @@ def test_atomic_escalation_resume_publishes_decision_and_generation_together(
     manager = execution.CheckpointManager(workspace)
     checkpoint = manager.load()
     attempt = checkpoint.dispatch_attempts[0]
-    attempt["parked"]["kind"] = "policy_pause"
+    attempt["parked"].update(kind="policy_pause", gate=None)  # D3: gate null or escalate_resume
     manager.save(checkpoint)
     record = {
         "decision_id": "11111111-2222-4333-8444-555555555555",
@@ -1751,7 +1788,7 @@ def test_stale_atomic_escalation_candidate_does_not_append_a_decision(
     attempt.update(
         status="prepared",
         lease_generation=2,
-        continuation={"kind": "policy_pause", "approval_ref": "gate-decision:old"},
+        continuation={"kind": "policy_pause", "approval_ref": "gate-decision:00000000-0000-4000-8000-000000000000"},
     )
     for field in (
         "lease", "launch_evidence", "launch_gate", "parked", "outcome",

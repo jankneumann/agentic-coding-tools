@@ -21,6 +21,10 @@ _MIRRORED = (
     "schemas/dispatch-request.schema.json",
     "schemas/dispatch-result.schema.json",
     "schemas/checkpoint.schema.json",
+    "contracts/roadmap-orchestration/schemas/bounded-dispatch-context.schema.json",
+    "contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json",
+    "contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json",
+    "contracts/roadmap-orchestration/schemas/supervised-dispatch-result.schema.json",
 )
 
 

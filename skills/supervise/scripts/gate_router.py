@@ -1165,12 +1165,19 @@ def require_approval_ref(
 # --------------------------------------------------------------------------- #
 
 
-def gate_log(workspace: Path, repo_root: Path) -> list[dict[str, Any]]:
+def gate_log(
+    workspace: Path, repo_root: Path, *, managed_root: Optional[Path] = None
+) -> list[dict[str, Any]]:
     """The sidecar `gate_decisions` for the roadmap at `workspace`, unioned with
     each ready-or-not item's child `gate_decisions` resolved through the
-    attempt's recorded worktree (D6). Sorted by `recorded_at`."""
+    attempt's recorded worktree (D6). Sorted by `recorded_at`.
+
+    The attempt's portable `worktree_ref` resolves against `managed_root`
+    (default `<repo_root>/.git-worktrees`) or, for harness-provided isolation,
+    `repo_root` (dispatch-contract D7)."""
     workspace = Path(workspace)
     repo_root = Path(repo_root)
+    managed = Path(managed_root) if managed_root is not None else repo_root / ".git-worktrees"
     manager = CheckpointManager(workspace, repo_root)
     records: list[dict[str, Any]] = []
     if not manager.exists():
@@ -1192,7 +1199,7 @@ def gate_log(workspace: Path, repo_root: Path) -> list[dict[str, Any]]:
         if not change_id:
             continue
         loop_state_path = _resolve_child_loop_state_path(
-            attempts_by_change.get(change_id), repo_root, change_id
+            attempts_by_change.get(change_id), repo_root, change_id, managed
         )
         if loop_state_path is None:
             continue
@@ -1228,16 +1235,16 @@ def _load_roadmap_quiet(workspace: Path, repo_root: Path) -> Optional[Roadmap]:
 
 
 def _resolve_child_loop_state_path(
-    attempt: Optional[dict[str, Any]], repo_root: Path, change_id: str
+    attempt: Optional[dict[str, Any]], repo_root: Path, change_id: str, managed_root: Path
 ) -> Optional[Path]:
     if attempt is not None:
-        isolation = attempt.get("isolation") or {}
-        worktree_path = isolation.get("worktree_path")
-        if worktree_path:
-            return Path(worktree_path) / "openspec" / "changes" / change_id / "loop-state.json"
-        evidence_path = ((attempt.get("evidence") or {}).get("loop_state_path"))
-        if evidence_path:
-            return Path(evidence_path)
+        from shared import dispatch_contract
+
+        worktree = dispatch_contract.resolve_worktree(
+            attempt.get("isolation") or {}, repo_root=repo_root, managed_root=managed_root
+        )
+        if worktree is not None:
+            return worktree / "openspec" / "changes" / change_id / "loop-state.json"
     # Fallback: the change has since merged into the supervisor's own tree.
     fallback = repo_root / "openspec" / "changes" / change_id / "loop-state.json"
     return fallback if fallback.parent.is_dir() else None

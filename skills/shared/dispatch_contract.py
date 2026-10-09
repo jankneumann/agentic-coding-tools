@@ -27,6 +27,7 @@ import hashlib
 import hmac
 import json
 import re
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, Optional, Union
 
@@ -190,9 +191,36 @@ def _version(document: Any, label: str) -> int:
     version = document.get("schema_version")
     if isinstance(version, bool) or version not in (1, 2):
         raise DispatchContractError(
-            f"{label} has unsupported schema_version {version!r}", pointer="/schema_version"
+            f"{label} is not schema-valid at /schema_version: unsupported schema_version "
+            f"{version!r}",
+            pointer="/schema_version",
         )
     return int(version)
+
+
+_RFC3339 = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$"
+)
+
+
+def _check_date_times(document: Mapping[str, Any], label: str) -> None:
+    """``format: date-time`` is only asserted when an optional format package is
+    installed, so the parked deadline is checked here unconditionally."""
+    parked = document.get("parked")
+    deadline = parked.get("deadline") if isinstance(parked, Mapping) else None
+    if deadline is None:
+        return
+    valid = isinstance(deadline, str) and _RFC3339.fullmatch(deadline) is not None
+    if valid:
+        try:
+            datetime.fromisoformat(deadline.replace("Z", "+00:00").replace("z", "+00:00"))
+        except ValueError:
+            valid = False
+    if not valid:
+        raise DispatchContractError(
+            f"{label} is not schema-valid at /parked/deadline: {deadline!r} is not a date-time",
+            pointer="/parked/deadline",
+        )
 
 
 def validate_request(document: Any, *, repo_root: Optional[PathLike] = None) -> dict[str, Any]:
@@ -213,6 +241,7 @@ def validate_result(document: Any, *, repo_root: Optional[PathLike] = None) -> d
     """Validate a v1 (frozen reader schema) or v2 result; return a deep copy."""
     version = _version(document, "dispatch result")
     _check(RESULT_V1 if version == 1 else RESULT_V2, document, "dispatch result", repo_root)
+    _check_date_times(document, "dispatch result")
     if len(_canonical(document)) > MAX_RESULT_BYTES:
         raise DispatchContractError("dispatch result canonical JSON exceeds 16 KiB", pointer="/")
     return copy.deepcopy(dict(document))

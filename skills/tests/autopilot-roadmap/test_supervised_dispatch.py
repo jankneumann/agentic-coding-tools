@@ -12,10 +12,21 @@ import yaml
 
 from models import Effort, ItemStatus, Roadmap, RoadmapItem
 import orchestrator as orchestrator_module
-from orchestrator import apply_delegated_batch, execute_roadmap, prepare_delegated_batch
+from orchestrator import apply_delegated_batch, execute_roadmap
+from orchestrator import prepare_delegated_batch as _prepare_delegated_batch
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
+#: The fixture isolation resolver names worktrees under /worktrees; isolation
+#: is persisted relative to the managed root (dispatch-contract D7).
+_MANAGED_ROOT = Path("/worktrees")
+_HOST = "test-host"
+
+
+def prepare_delegated_batch(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    kwargs.setdefault("managed_root", _MANAGED_ROOT)
+    kwargs.setdefault("host_id", _HOST)
+    return _prepare_delegated_batch(*args, **kwargs)
 _NOW = "2026-09-01T00:00:00+00:00"
 
 
@@ -127,14 +138,16 @@ def _mark_batch_launched(workspace: Path) -> None:
 
 def _result(request: dict[str, Any], outcome: str = "success") -> dict[str, Any]:
     result: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "dispatch_id": request["dispatch_id"],
         "change_id": request["change_id"],
         "attempt": request["attempt"],
         "lease_generation": request["lease_generation"],
         "outcome": outcome,
-        "worktree_path": request["isolation"]["worktree_path"],
+        "worktree_ref": request["isolation"]["worktree_ref"],
         "branch": request["isolation"]["branch"],
+        "host_id": request["isolation"]["host_id"],
+        "degradations": [],
         "evidence": {
             "loop_state_path": ".git/autopilot/loop-state.json",
             "commit": "a" * 40,
@@ -165,7 +178,7 @@ def _mark_attempt_effects_applied(
         result["parked"] = {
             "kind": "pending_gate",
             "reason": "operator approval required",
-            "gate": "deploy",
+            "gate": "pr_creation",
         }
     canonical = json.dumps(
         result,
@@ -560,7 +573,8 @@ def test_apply_terminal_attempt_drops_continuation_state(tmp_path: Path) -> None
         ("change_id", "other-change", "change_id mismatch"),
         ("attempt", 2, "attempt mismatch"),
         ("lease_generation", 2, "lease_generation mismatch"),
-        ("worktree_path", "/worktrees/other", "worktree_path mismatch"),
+        ("worktree_ref", "other", "worktree_ref mismatch"),
+        ("host_id", "other-host", "host_id mismatch"),
         ("branch", "openspec/other", "branch mismatch"),
     ],
 )
@@ -960,7 +974,7 @@ def test_apply_rejects_invalid_optional_parked_fields_before_dispatch(
     }
     calls: list[str] = []
 
-    with pytest.raises(ValueError, match="invalid parked dispatch result"):
+    with pytest.raises(ValueError, match="not schema-valid at /parked"):
         apply_delegated_batch(
             workspace,
             prepared["batch_id"],
@@ -999,7 +1013,7 @@ def test_parked_result_is_nonterminal_and_does_not_unblock_dependent(tmp_path: P
     result["parked"] = {
         "kind": "pending_gate",
         "reason": "operator approval required",
-        "gate": "deploy",
+        "gate": "pr_creation",
     }
 
     applied = apply_delegated_batch(
@@ -1040,3 +1054,97 @@ def test_legacy_execute_roadmap_call_shape_remains_exact(tmp_path: Path) -> None
         ("ri-01", "reviewing", {"item_id": "ri-01", "roadmap_id": "roadmap-supervised", "completed_items": []}),
         ("ri-01", "validating", {"item_id": "ri-01", "roadmap_id": "roadmap-supervised", "completed_items": []}),
     ]
+
+
+# --------------------------------------------------------------------------- #
+# dispatch-contract: one definition, degradations, unroutable parks, v2 requests
+# --------------------------------------------------------------------------- #
+
+
+def _single_item(tmp_path: Path) -> tuple[Path, Path, dict[str, Any]]:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [RoadmapItem("ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S, change_id="change-alpha")],
+    )
+    _write_work_packages(repo, "change-alpha", "src/alpha/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    return repo, workspace, prepared
+
+
+def test_no_hand_written_result_field_set_remains() -> None:
+    scripts = _REPO_ROOT / "skills"
+    for path in (
+        scripts / "supervise" / "scripts" / "execution.py",
+        scripts / "autopilot-roadmap" / "scripts" / "orchestrator.py",
+    ):
+        source = path.read_text()
+        for name in ("_RESULT_REQUIRED", "_RESULT_ALLOWED", "_validate_result", "_validate_dispatch_result"):
+            assert f"{name} =" not in source and f"def {name}(" not in source, (path.name, name)
+
+
+def test_prepare_emits_v2_requests_with_digest_only_in_the_checkpoint(tmp_path: Path) -> None:
+    from shared import dispatch_contract
+
+    _repo, workspace, prepared = _single_item(tmp_path)
+    request = prepared["requests"][0]
+    assert dispatch_contract.validate_request(request)["schema_version"] == 2
+    attempt = json.loads((workspace / "checkpoint.json").read_text())["dispatch_attempts"][0]
+    assert "launch_token" not in attempt
+    assert dispatch_contract.verify_launch_token(request["launch_token"], attempt["launch_digest"])
+    assert attempt["isolation"] == {
+        "mode": "managed_worktree",
+        "worktree_ref": "change-alpha",
+        "branch": "openspec/change-alpha",
+        "host_id": _HOST,
+    }
+
+
+def test_degradations_reach_the_checkpoint_and_the_apply_summary(tmp_path: Path) -> None:
+    repo, workspace, prepared = _single_item(tmp_path)
+    result = _result(prepared["requests"][0])
+    degradation = {"code": "single_vendor_review", "phase": "PLAN_REVIEW", "detail": "codex not dispatchable"}
+    result["degradations"] = [degradation]
+
+    applied = apply_delegated_batch(
+        workspace,
+        prepared["batch_id"],
+        [result],
+        lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["degradations"] == {result["dispatch_id"]: [degradation]}
+    attempt = json.loads((workspace / "checkpoint.json").read_text())["dispatch_attempts"][0]
+    assert attempt["degradations"] == [degradation]
+
+
+def test_unroutable_parked_result_is_refused_before_any_callback(tmp_path: Path) -> None:
+    from shared.dispatch_contract import DispatchContractError
+
+    repo, workspace, prepared = _single_item(tmp_path)
+    result = _result(prepared["requests"][0], outcome="parked")
+    result["parked"] = {
+        "kind": "permission_blocked",
+        "gate": None,
+        "tool": "Bash",
+        "rule": "Bash(env *)",
+        "classifier_reason": "reads credentials",
+        "reason": "denied",
+    }
+    before = (workspace / "checkpoint.json").read_bytes()
+    calls: list[str] = []
+
+    with pytest.raises(DispatchContractError, match="unroutable parked result"):
+        apply_delegated_batch(
+            workspace,
+            prepared["batch_id"],
+            [result],
+            lambda item, _phase, context: calls.append(item) or context["dispatch_result"],
+            repo_root=repo,
+            parked_route=lambda kind, gate: kind in {"pending_gate", "policy_pause"},
+        )
+
+    assert calls == []
+    assert (workspace / "checkpoint.json").read_bytes() == before

@@ -851,7 +851,8 @@ def _parked_policy_pause_attempt(*, generation: int = 3) -> dict:
         "attempt": 1,
         "status": "parked",
         "prepared_at": "2026-09-01T00:00:00+00:00",
-        "launch_token": "launch-token-0001",
+        # dispatch-contract D6/D7: only a digest and portable isolation persist.
+        "launch_digest": "sha256:" + "1" * 64,
         "launch_marker_path": ".supervised-dispatch/demo-change/d-1.marker",
         "lease_generation": generation,
         "launch_history": [
@@ -871,8 +872,9 @@ def _parked_policy_pause_attempt(*, generation: int = 3) -> dict:
         },
         "isolation": {
             "mode": "managed_worktree",
-            "worktree_path": "/tmp/d-1",
+            "worktree_ref": "d-1",
             "branch": "openspec/demo-change",
+            "host_id": "test-host",
         },
         "context": {},
         "lease": {
@@ -1076,7 +1078,7 @@ def test_concurrent_blocked_subjects_preserve_both_mirror_entries(
     first = _parked_policy_pause_attempt(generation=3)
     second = json.loads(json.dumps(first))
     second["dispatch_id"] = "d-2"
-    second["launch_token"] = "launch-token-0002"
+    second["launch_digest"] = "sha256:" + "2" * 64
     second["launch_marker_path"] = ".supervised-dispatch/demo-change/d-2.marker"
     second["launch_history"][0]["marker_path"] = second["launch_marker_path"]
     checkpoint.dispatch_attempts.extend([first, second])

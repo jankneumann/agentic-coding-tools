@@ -172,7 +172,8 @@ def scenario(tmp_path: Path):
     """A roadmap `alpha` (one item, change `change-alpha`) plus a managed
     worktree root placed OUTSIDE the supervisor repo -- so `gate-log`'s child
     loop-state resolution exercises D6's attempt-resolved path (the recorded
-    `isolation.worktree_path`), never the co-located-tmp-tree shortcut."""
+    `isolation.worktree_ref` resolved against the managed root), never the
+    co-located-tmp-tree shortcut."""
     repo = tmp_path / "repo"
     _install_schemas(repo)
     roadmap_dir = repo / "openspec" / "roadmaps" / "alpha"
@@ -228,6 +229,11 @@ def _isolation(managed_root: Path) -> dict[str, str]:
     }
 
 
+#: The scenario's managed root: requests carry only a host-portable
+#: worktree_ref (dispatch-contract D7).
+_MANAGED: dict[str, Path] = {}
+
+
 def _result(request: dict[str, Any], *, gate: str = "pr_creation") -> dict[str, Any]:
     """Overwrite the child's loop-state.json to match the `parked` outcome and
     compute its digest fresh, matching `apply`'s exact-evidence check --
@@ -235,7 +241,8 @@ def _result(request: dict[str, Any], *, gate: str = "pr_creation") -> dict[str, 
     import hashlib
 
     loop_state_path = (
-        Path(request["isolation"]["worktree_path"]) / "openspec" / "changes" / "change-alpha" / "loop-state.json"
+        _MANAGED["root"] / request["isolation"]["worktree_ref"]
+        / "openspec" / "changes" / "change-alpha" / "loop-state.json"
     )
     loop_state_path.write_text(
         json.dumps(
@@ -252,14 +259,16 @@ def _result(request: dict[str, Any], *, gate: str = "pr_creation") -> dict[str, 
         + "\n"
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "dispatch_id": request["dispatch_id"],
         "change_id": request["change_id"],
         "attempt": request["attempt"],
         "lease_generation": request["lease_generation"],
         "outcome": "parked",
-        "worktree_path": request["isolation"]["worktree_path"],
+        "worktree_ref": request["isolation"]["worktree_ref"],
         "branch": request["isolation"]["branch"],
+        "host_id": request["isolation"]["host_id"],
+        "degradations": [],
         "parked": {"kind": "pending_gate", "reason": "operator approval required", "gate": gate},
         "evidence": {
             "loop_state_path": "openspec/changes/change-alpha/loop-state.json",
@@ -274,6 +283,7 @@ def _result(request: dict[str, Any], *, gate: str = "pr_creation") -> dict[str, 
 # --------------------------------------------------------------------------- #
 def test_cycle_execute_parked_flip_resume_second_cycle_late_answer(scenario) -> None:
     repo, workspace, managed_root = scenario
+    _MANAGED["root"] = managed_root.resolve()
 
     # --- cycle 1: roadmap_approval under notify_with_timeout, unanswered --- #
     coord1 = FakeCoordinator(statuses=["pending"], notify_return=False)
@@ -350,7 +360,7 @@ def test_cycle_execute_parked_flip_resume_second_cycle_late_answer(scenario) -> 
     assert resolution.routed.decision.resolution.value == "auto"
 
     # --- the log: one record per real decision, none for reuse/re-surface -- #
-    log = gate_router.gate_log(workspace, repo)
+    log = gate_router.gate_log(workspace, repo, managed_root=managed_root)
     checkpoint_records = [r for r in log if r.get("origin") == "checkpoint"]
     # roadmap_approval: timeout_default_block (cycle 1) + approved (cycle 2) = 2.
     # cycle 3's reuse adds nothing. pr_creation: auto (resume) = 1. Total 3.

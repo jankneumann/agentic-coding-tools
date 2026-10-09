@@ -39,11 +39,15 @@ from orchestrator import (  # type: ignore[import-untyped]  # noqa: E402
     _batch_attempts,
     _has_current_effects_applied,
     apply_delegated_batch,
+    mint_launch_token,
     prepare_delegated_batch,
+    request_from_attempt,
 )
 
 import gate_router  # type: ignore[import-untyped]  # noqa: E402
-from shared.trust_posture import Gate  # noqa: E402
+from shared import dispatch_contract  # noqa: E402
+from shared.environment_profile import host_id as current_host_id  # noqa: E402
+from shared.trust_posture import Gate, load_posture, posture_digest  # noqa: E402
 
 
 Clock = Callable[[], datetime]
@@ -61,28 +65,9 @@ _SECRET_KEY = re.compile(
     r"raw[_-]?response|transcript",
     re.IGNORECASE,
 )
-_HEX_40 = re.compile(r"^[0-9a-f]{40}$")
-_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
-_RESULT_OUTCOME = re.compile(r"^(success|failed:.+|vendor_limit:[^:]+:.+|parked)$")
-_DATE_TIME = re.compile(
-    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$"
+_RESUMABLE_KINDS = frozenset(
+    {"pending_gate", "policy_pause", "permission_blocked", "capability_unavailable"}
 )
-_RESULT_REQUIRED = {
-    "schema_version",
-    "dispatch_id",
-    "change_id",
-    "attempt",
-    "lease_generation",
-    "outcome",
-}
-_RESULT_ALLOWED = _RESULT_REQUIRED | {
-    "replan",
-    "handoff_id",
-    "worktree_path",
-    "branch",
-    "parked",
-    "evidence",
-}
 
 
 class ExecutionStateError(ValueError):
@@ -189,25 +174,47 @@ def _load_attempt(
     return manager, checkpoint, matches[0]
 
 
-def _request(checkpoint: Any, attempt: Mapping[str, Any]) -> dict[str, Any]:
-    request = {
-        "schema_version": 1,
-        "dispatch_id": attempt["dispatch_id"],
-        "roadmap_id": checkpoint.roadmap_id,
-        "item_id": attempt["item_id"],
-        "change_id": attempt["change_id"],
-        "phase": "autopilot",
-        "attempt": attempt["attempt"],
-        "launch_token": attempt["launch_token"],
-        "lease_generation": attempt["lease_generation"],
-        "launch_marker_path": attempt["launch_marker_path"],
-        "scope": copy.deepcopy(attempt["scope"]),
-        "isolation": copy.deepcopy(attempt["isolation"]),
-        "context": copy.deepcopy(attempt["context"]),
+def _gate_answer(checkpoint: Any, attempt: Mapping[str, Any]) -> dict[str, Any] | None:
+    """The typed answer a continuation carries to the child (D5).
+
+    Derived from the durable ``proceed`` decision the continuation's
+    ``approval_ref`` names, so the child applies exactly the supervisor's record.
+    """
+    continuation = attempt.get("continuation")
+    if not isinstance(continuation, Mapping):
+        return None
+    approval_ref = continuation.get("approval_ref")
+    decision_id = str(approval_ref or "").removeprefix("gate-decision:")
+    record = next(
+        (
+            item
+            for item in getattr(checkpoint, "gate_decisions", None) or []
+            if item.get("decision_id") == decision_id
+        ),
+        None,
+    )
+    if record is None:
+        return None
+    answer: dict[str, Any] = {
+        "gate": record.get("gate"),
+        "decision": "approved" if record.get("outcome") == "proceed" else "rejected",
+        "approval_ref": approval_ref,
     }
-    if "continuation" in attempt:
-        request["continuation"] = copy.deepcopy(attempt["continuation"])
-    return request
+    provenance = record.get("provenance")
+    if isinstance(provenance, Mapping) and provenance.get("source") in {"posture", "human"}:
+        answer["provenance"] = dict(provenance)
+    return answer
+
+
+def _request(
+    checkpoint: Any, attempt: Mapping[str, Any], *, launch_token: str | None = None
+) -> dict[str, Any]:
+    return request_from_attempt(
+        checkpoint.roadmap_id,
+        attempt,
+        launch_token=launch_token,
+        gate_answer=_gate_answer(checkpoint, attempt),
+    )
 
 
 def _history(
@@ -235,30 +242,60 @@ def _history(
     history.append(entry)
 
 
-def _marker(attempt: Mapping[str, Any]) -> Path:
-    root = Path(attempt["isolation"]["worktree_path"]).resolve()
+def _marker(attempt: Mapping[str, Any], worktree: Path) -> Path:
+    root = Path(worktree).resolve()
     marker = (root / attempt["launch_marker_path"]).resolve(strict=False)
     if not _contains(root, marker):
         raise ExecutionStateError("launch marker escapes verified worktree")
     return marker
 
 
+_MARKER_FIELDS = {
+    "schema_version",
+    "dispatch_id",
+    "generation",
+    "owner_nonce",
+    "continuation",
+    "gate_answer",
+    "roadmap_approval_ref",
+    "posture_digest",
+    "execution_profile",
+    "review_requirements",
+}
+
+
 def _write_marker_exclusive(
     attempt: Mapping[str, Any],
+    worktree: Path,
     *,
     generation: int,
     owner_nonce: str,
     continuation: Mapping[str, Any] | None = None,
+    gate_answer: Mapping[str, Any] | None = None,
+    supervisor_posture_digest: str | None = None,
 ) -> None:
-    marker = _marker(attempt)
+    """Write the launch marker v2 (D10a): the child's only view of its request.
+
+    It carries no token. ``posture_digest`` is the supervisor's, so a child
+    whose worktree posture differs takes no auto disposition (D5).
+    """
+    marker = _marker(attempt, worktree)
     marker.parent.mkdir(parents=True, exist_ok=True)
-    record = {
+    record: dict[str, Any] = {
+        "schema_version": 2,
         "dispatch_id": attempt["dispatch_id"],
         "generation": generation,
         "owner_nonce": owner_nonce,
+        "roadmap_approval_ref": attempt.get("roadmap_approval_ref"),
+        "execution_profile": copy.deepcopy(attempt.get("execution_profile") or {}),
+        "review_requirements": copy.deepcopy(attempt.get("review_requirements") or {}),
     }
+    if supervisor_posture_digest is not None:
+        record["posture_digest"] = supervisor_posture_digest
     if continuation is not None:
         record["continuation"] = copy.deepcopy(dict(continuation))
+    if gate_answer is not None:
+        record["gate_answer"] = copy.deepcopy(dict(gate_answer))
     descriptor = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         os.write(descriptor, (json.dumps(record, sort_keys=True) + "\n").encode())
@@ -269,12 +306,13 @@ def _write_marker_exclusive(
 
 def _marker_record(
     attempt: Mapping[str, Any],
+    worktree: Path,
     *,
     generation: int,
     owner_nonce: str,
 ) -> dict[str, Any]:
     try:
-        record = json.loads(_marker(attempt).read_text())
+        record = json.loads(_marker(attempt, worktree).read_text())
     except (FileNotFoundError, OSError, ValueError, TypeError) as exc:
         raise ExecutionStateError("generation launch marker is missing or invalid") from exc
     if (
@@ -282,14 +320,14 @@ def _marker_record(
         or record.get("dispatch_id") != attempt["dispatch_id"]
         or record.get("generation") != generation
         or record.get("owner_nonce") != owner_nonce
-        or set(record) - {"dispatch_id", "generation", "owner_nonce", "continuation"}
+        or set(record) - _MARKER_FIELDS
     ):
         raise ExecutionStateError("generation launch marker identity mismatch")
     continuation = record.get("continuation")
     if continuation is not None and (
         not isinstance(continuation, dict)
         or set(continuation) != {"kind", "approval_ref"}
-        or continuation.get("kind") not in {"pending_gate", "policy_pause"}
+        or continuation.get("kind") not in _RESUMABLE_KINDS
         or not isinstance(continuation.get("approval_ref"), str)
         or not 1 <= len(continuation["approval_ref"]) <= 256
     ):
@@ -297,8 +335,10 @@ def _marker_record(
     return record
 
 
-def _remove_owned_marker(attempt: Mapping[str, Any]) -> None:
-    marker = _marker(attempt)
+def _remove_owned_marker(attempt: Mapping[str, Any], worktree: Path | None) -> None:
+    if worktree is None:
+        return
+    marker = _marker(attempt, worktree)
     try:
         record = json.loads(marker.read_text())
     except (FileNotFoundError, OSError, ValueError, TypeError):
@@ -310,117 +350,6 @@ def _remove_owned_marker(attempt: Mapping[str, Any]) -> None:
         and record.get("owner_nonce") == lease.get("owner_nonce")
     ):
         marker.unlink(missing_ok=True)
-
-
-def _valid_nullable_string(value: Mapping[str, Any], field: str, limit: int) -> bool:
-    candidate = value.get(field)
-    return field not in value or candidate is None or (
-        isinstance(candidate, str) and len(candidate) <= limit
-    )
-
-
-def _valid_nullable_date_time(value: Mapping[str, Any], field: str) -> bool:
-    candidate = value.get(field)
-    if field not in value or candidate is None:
-        return True
-    if not isinstance(candidate, str) or _DATE_TIME.fullmatch(candidate) is None:
-        return False
-    try:
-        datetime.fromisoformat(candidate.replace("Z", "+00:00").replace("z", "+00:00"))
-    except ValueError:
-        return False
-    return True
-
-
-def _validate_result(value: Mapping[str, Any]) -> dict[str, Any]:
-    result = copy.deepcopy(dict(value))
-    if _RESULT_REQUIRED - result.keys() or result.keys() - _RESULT_ALLOWED:
-        raise ValueError("result is not schema-valid")
-    if (
-        isinstance(result["schema_version"], bool)
-        or not isinstance(result["schema_version"], int)
-        or result["schema_version"] != 1
-    ):
-        raise ValueError("result is not schema-valid")
-    if not isinstance(result["dispatch_id"], str) or not 1 <= len(result["dispatch_id"]) <= 256:
-        raise ValueError("result is not schema-valid")
-    if (
-        not isinstance(result["change_id"], str)
-        or len(result["change_id"]) > 160
-        or _CHANGE_ID.fullmatch(result["change_id"]) is None
-    ):
-        raise ValueError("result is not schema-valid")
-    for field in ("attempt", "lease_generation"):
-        if isinstance(result[field], bool) or not isinstance(result[field], int) or result[field] < 1:
-            raise ValueError("result is not schema-valid")
-    outcome = result["outcome"]
-    if (
-        not isinstance(outcome, str)
-        or len(outcome) > 1024
-        or _RESULT_OUTCOME.fullmatch(outcome) is None
-    ):
-        raise ValueError("result is not schema-valid")
-    if "replan" in result and not isinstance(result["replan"], bool):
-        raise ValueError("result is not schema-valid")
-    if "handoff_id" in result and result["handoff_id"] is not None and (
-        not isinstance(result["handoff_id"], str) or len(result["handoff_id"]) > 256
-    ):
-        raise ValueError("result is not schema-valid")
-    for field in ("worktree_path", "branch"):
-        if field in result and (
-            not isinstance(result[field], str) or not result[field]
-        ):
-            raise ValueError("result is not schema-valid")
-    evidence = result.get("evidence")
-    if evidence is not None:
-        if not isinstance(evidence, dict) or set(evidence) - {
-            "loop_state_path",
-            "commit",
-            "loop_state_digest",
-        }:
-            raise ValueError("result is not schema-valid")
-        if not isinstance(evidence.get("loop_state_path"), str) or not evidence["loop_state_path"]:
-            raise ValueError("result is not schema-valid")
-        if "commit" in evidence and (
-            not isinstance(evidence["commit"], str) or _HEX_40.fullmatch(evidence["commit"]) is None
-        ):
-            raise ValueError("result is not schema-valid")
-        if "loop_state_digest" in evidence and (
-            not isinstance(evidence["loop_state_digest"], str)
-            or _HEX_64.fullmatch(evidence["loop_state_digest"]) is None
-        ):
-            raise ValueError("result is not schema-valid")
-    if outcome in {"success", "parked"}:
-        if not {"worktree_path", "branch", "evidence"} <= result.keys():
-            raise ValueError("result is not schema-valid")
-        if not all(isinstance(result[field], str) and result[field] for field in ("worktree_path", "branch")):
-            raise ValueError("result is not schema-valid")
-        if not isinstance(evidence, dict) or not {"commit", "loop_state_digest"} <= evidence.keys():
-            raise ValueError("result is not schema-valid")
-    if outcome == "success" and (
-        not isinstance(result.get("handoff_id"), str) or not result["handoff_id"]
-    ):
-        raise ValueError("result is not schema-valid")
-    if outcome == "parked":
-        parked = result.get("parked")
-        if (
-            not isinstance(parked, dict)
-            or set(parked) - {"kind", "reason", "gate", "deadline", "resume_hint"}
-            or parked.get("kind") not in {"pending_gate", "policy_pause"}
-            or not isinstance(parked.get("reason"), str)
-            or not parked["reason"]
-            or len(parked["reason"]) > 1024
-            or not _valid_nullable_string(parked, "gate", 128)
-            or not _valid_nullable_date_time(parked, "deadline")
-            or not _valid_nullable_string(parked, "resume_hint", 512)
-        ):
-            raise ValueError("result is not schema-valid")
-    elif "parked" in result:
-        raise ValueError("result is not schema-valid")
-    canonical = json.dumps(result, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    if len(canonical) > 16 * 1024:
-        raise ValueError("result is not schema-valid")
-    return result
 
 
 class ExecutionAdapter:
@@ -437,8 +366,14 @@ class ExecutionAdapter:
         host_entry: HostEntry,
         temp_dir: Path | None = None,
         result_file_observer: ResultFileObserver | None = None,
+        repo_root: Path | None = None,
+        host_id: str | None = None,
     ) -> None:
         self.managed_worktree_root = managed_worktree_root.resolve()
+        # The supervisor's repo root: the base of harness_provided worktree refs
+        # and the posture the marker's posture_digest is computed from.
+        self.repo_root = Path(repo_root).resolve() if repo_root is not None else None
+        self.host_id = host_id or current_host_id()
         self.clock = clock
         self.branch_resolver = branch_resolver
         self.commit_resolver = commit_resolver
@@ -446,6 +381,23 @@ class ExecutionAdapter:
         self.host_entry = host_entry
         self.temp_dir = temp_dir
         self.result_file_observer = result_file_observer
+
+    def _worktree(self, attempt: Mapping[str, Any]) -> Path | None:
+        """The attempt's absolute worktree on this host, in memory only (D7)."""
+        return dispatch_contract.resolve_worktree(
+            attempt["isolation"],
+            repo_root=self.repo_root,
+            managed_root=self.managed_worktree_root,
+        )
+
+    def _require_worktree(self, attempt: Mapping[str, Any]) -> Path:
+        worktree = self._worktree(attempt)
+        if worktree is None:
+            raise ExecutionStateError("isolation worktree cannot be resolved on this host")
+        return worktree
+
+    def _supervisor_posture_digest(self) -> str:
+        return posture_digest(load_posture(self.repo_root) if self.repo_root else None)
 
     @_serialized_transition
     def prepare(
@@ -468,6 +420,8 @@ class ExecutionAdapter:
         # Pure context validation first, with zero I/O — an unsafe context is
         # rejected before this call touches the checkpoint at all.
         sanitized = _bounded_context(dict(context or {}))
+        if self.repo_root is None:
+            self.repo_root = Path(repo_root).resolve()
 
         roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
         approval_manager = CheckpointManager(workspace, repo_root)
@@ -534,6 +488,9 @@ class ExecutionAdapter:
             repo_root=repo_root,
             isolation_resolver=verified,
             context=sanitized,
+            managed_root=self.managed_worktree_root,
+            host_id=self.host_id,
+            roadmap_approval_ref=roadmap_approval_ref,
         )
 
     @_serialized_transition
@@ -556,8 +513,9 @@ class ExecutionAdapter:
         if isinstance(lease_seconds, bool) or not isinstance(lease_seconds, int) or lease_seconds < 1:
             raise ValueError("lease_seconds must be positive")
         manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
-        if launch_token != attempt["launch_token"]:
+        if not dispatch_contract.verify_launch_token(launch_token, attempt.get("launch_digest")):
             raise ExecutionStateError("launch token mismatch")
+        worktree = self._require_worktree(attempt)
         now = self.clock()
         now_text = _iso(now)
         generation = attempt["lease_generation"]
@@ -571,7 +529,7 @@ class ExecutionAdapter:
                 raise ExecutionStateError("stale lease generation")
             old_generation = generation
             old_owner = lease["owner_nonce"]
-            _remove_owned_marker(attempt)
+            _remove_owned_marker(attempt, worktree)
             generation += 1
             candidate["lease_generation"] = generation
             _history(
@@ -624,9 +582,12 @@ class ExecutionAdapter:
         try:
             _write_marker_exclusive(
                 candidate,
+                worktree,
                 generation=generation,
                 owner_nonce=owner_nonce,
                 continuation=continuation,
+                gate_answer=_gate_answer(checkpoint, candidate),
+                supervisor_posture_digest=self._supervisor_posture_digest(),
             )
         except BaseException:
             attempt.clear()
@@ -634,6 +595,51 @@ class ExecutionAdapter:
             manager.save(checkpoint)
             raise
         return copy.deepcopy(attempt)
+
+    @_serialized_transition
+    def reissue(self, workspace: Path, *, dispatch_id: str) -> dict[str, Any]:
+        """Mint a fresh launch token for a generation that may be taken over (D6).
+
+        Allowed only for a ``prepared`` attempt (re-armed in place, same
+        generation) and a pre-go expired claim (generation incremented under
+        the same compare-and-swap) — the states where takeover is already
+        permitted — so it never hands a second owner a post-go generation.
+        Returns the request carrying the new raw token; only its digest is saved.
+        """
+        manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
+        now = self.clock()
+        now_text = _iso(now)
+        candidate = copy.deepcopy(attempt)
+        if attempt["status"] == "claimed":
+            lease = attempt.get("lease") or {}
+            gate = attempt.get("launch_gate") or {}
+            if gate.get("state") != "waiting_ack" or now <= datetime.fromisoformat(
+                str(lease.get("expires_at"))
+            ):
+                raise ExecutionStateError("reissue requires a prepared attempt or an expired pre-go claim")
+            _remove_owned_marker(attempt, self._worktree(attempt))
+            _history(
+                candidate,
+                state="stale_takeover",
+                observed_at=now_text,
+                generation=attempt["lease_generation"],
+                owner_nonce=lease.get("owner_nonce"),
+            )
+            candidate["lease_generation"] += 1
+            candidate["status"] = "prepared"
+            for field in ("lease", "launch_evidence", "launch_gate"):
+                candidate.pop(field, None)
+        elif attempt["status"] != "prepared":
+            raise ExecutionStateError(
+                f"reissue requires a prepared attempt or an expired pre-go claim, not {attempt['status']}"
+            )
+        token, digest = mint_launch_token()
+        candidate["launch_digest"] = digest
+        validate_delegated_dispatch_attempt(candidate)
+        attempt.clear()
+        attempt.update(candidate)
+        manager.save(checkpoint)
+        return _request(checkpoint, attempt, launch_token=token)
 
     @_serialized_transition
     def heartbeat_waiting(
@@ -705,11 +711,13 @@ class ExecutionAdapter:
 
     def _verify_current_isolation(self, attempt: Mapping[str, Any]) -> Path:
         isolation = attempt["isolation"]
-        worktree = Path(isolation["worktree_path"])
+        if isolation.get("host_id") != self.host_id:
+            raise ExecutionStateError("attempt isolation belongs to another host; reconcile first")
+        worktree = self._require_worktree(attempt)
         if not worktree.is_dir():
             raise ExecutionStateError("isolation worktree path no longer exists")
         resolved = worktree.resolve()
-        if str(resolved) != isolation["worktree_path"]:
+        if resolved != Path(os.path.normpath(worktree)):
             raise ExecutionStateError("isolation worktree realpath changed")
         branch = isolation["branch"]
         actual_branch = self.branch_resolver(resolved)
@@ -745,9 +753,10 @@ class ExecutionAdapter:
                 raise ExecutionStateError("stale lease generation")
             if lease.get("owner_nonce") != owner_nonce or lease.get("state") != "active":
                 raise ExecutionStateError("lease owner mismatch")
-            self._verify_current_isolation(attempt)
+            worktree = self._verify_current_isolation(attempt)
             marker_record = _marker_record(
                 attempt,
+                worktree,
                 generation=lease_generation,
                 owner_nonce=owner_nonce,
             )
@@ -811,7 +820,7 @@ class ExecutionAdapter:
 
         old_generation = attempt["lease_generation"]
         old_owner = attempt["lease"]["owner_nonce"]
-        _remove_owned_marker(attempt)
+        _remove_owned_marker(attempt, self._worktree(attempt))
         _history(
             attempt,
             state="stale_takeover",
@@ -822,6 +831,9 @@ class ExecutionAdapter:
         )
         attempt["status"] = "prepared"
         attempt["lease_generation"] = old_generation + 1
+        # The dead generation's token must not launch the new one (D6): the
+        # digest is rotated to a token nobody holds; `reissue` mints the next.
+        attempt["launch_digest"] = mint_launch_token()[1]
         for field in (
             "lease",
             "launch_evidence",
@@ -885,10 +897,16 @@ class ExecutionAdapter:
         approval_ref: str,
         kind: str,
     ) -> dict[str, Any]:
-        """Mutate one already-authorized parked attempt without I/O or saving."""
-        _remove_owned_marker(attempt)
+        """Mutate one already-authorized parked attempt without I/O or saving.
+
+        Mints the next generation's token under the same CAS that increments the
+        generation (D6); the raw token exists only in the returned request.
+        """
+        _remove_owned_marker(attempt, self._worktree(attempt))
+        token, digest = mint_launch_token()
         attempt["status"] = "prepared"
         attempt["lease_generation"] += 1
+        attempt["launch_digest"] = digest
         attempt["continuation"] = {"kind": kind, "approval_ref": approval_ref}
         for field in (
             "lease", "launch_evidence", "launch_gate", "parked", "quarantine",
@@ -896,7 +914,7 @@ class ExecutionAdapter:
         ):
             attempt.pop(field, None)
         validate_delegated_dispatch_attempt(attempt)
-        return _request(checkpoint, attempt)
+        return _request(checkpoint, attempt, launch_token=token)
 
     @_serialized_transition
     def resume_with_gate_decision(
@@ -922,8 +940,8 @@ class ExecutionAdapter:
             raise ExecutionStateError("stale or mismatched escalation decision")
         if any(existing.get("decision_id") == record.get("decision_id") for existing in checkpoint.gate_decisions):
             raise ExecutionStateError("escalation decision was already committed")
-        request = self._resume_attempt(checkpoint, attempt, approval_ref=approval_ref, kind=kind)
         checkpoint.gate_decisions.append(dict(record))
+        request = self._resume_attempt(checkpoint, attempt, approval_ref=approval_ref, kind=kind)
         manager.save(checkpoint)
         return request
 
@@ -940,7 +958,17 @@ class ExecutionAdapter:
         manager = CheckpointManager(workspace, repo_root)
         checkpoint = manager.load()
         attempts = {attempt["dispatch_id"]: attempt for attempt in checkpoint.dispatch_attempts}
-        validated = [_validate_result(result) for result in results]
+        if self.repo_root is None:
+            self.repo_root = Path(repo_root).resolve()
+        validated = [
+            dispatch_contract.ensure_v2_result(
+                result,
+                repo_root=repo_root,
+                managed_root=self.managed_worktree_root,
+                host_id=self.host_id,
+            )
+            for result in results
+        ]
         for result in validated:
             attempt = attempts.get(result["dispatch_id"])
             if attempt is None:
@@ -974,6 +1002,8 @@ class ExecutionAdapter:
                 bounded_results,
                 dispatch_fn,
                 repo_root=repo_root,
+                managed_root=self.managed_worktree_root,
+                host_id=self.host_id,
             )
             applied["escalation_route"] = self.route_parked_escalations(
                 workspace, batch_id=batch_id, repo_root=repo_root
@@ -1075,25 +1105,20 @@ class ExecutionAdapter:
         result: Mapping[str, Any],
     ) -> None:
         isolation = attempt["isolation"]
-        if result["worktree_path"] != isolation["worktree_path"]:
+        if result["worktree_ref"] != isolation["worktree_ref"]:
             raise ValueError("worktree mismatch")
         if result["branch"] != isolation["branch"]:
             raise ValueError("branch mismatch")
+        if result["host_id"] != isolation["host_id"]:
+            raise ValueError("host mismatch")
         worktree = self._verify_current_isolation(attempt)
-        result_worktree = Path(result["worktree_path"]).resolve()
-        if result_worktree != worktree:
-            raise ValueError("worktree realpath mismatch")
 
         evidence = result["evidence"]
         expected_loop_path = (
             Path("openspec") / "changes" / attempt["change_id"] / "loop-state.json"
         )
         supplied_loop_path = Path(evidence["loop_state_path"])
-        resolved_loop = (
-            supplied_loop_path.resolve(strict=False)
-            if supplied_loop_path.is_absolute()
-            else (worktree / supplied_loop_path).resolve(strict=False)
-        )
+        resolved_loop = (worktree / supplied_loop_path).resolve(strict=False)
         expected_resolved = (worktree / expected_loop_path).resolve(strict=False)
         if resolved_loop != expected_resolved or not _contains(worktree, resolved_loop):
             raise ValueError("exact loop-state path mismatch; loop-state containment failure")
@@ -1122,6 +1147,10 @@ class ExecutionAdapter:
                 not isinstance(handoff_ids, list) or handoff_id not in handoff_ids
             ):
                 raise ValueError("loop-state handoff evidence mismatch")
+        elif result["parked"]["kind"] in {"permission_blocked", "capability_unavailable"}:
+            park = loop_state.get("park")
+            if not isinstance(park, dict) or park.get("kind") != result["parked"]["kind"]:
+                raise ValueError("loop-state park evidence is missing")
         elif result["parked"]["kind"] == "pending_gate":
             if not isinstance(loop_state.get("pending_gate"), dict):
                 raise ValueError("loop-state pending gate evidence is missing")

@@ -24,18 +24,18 @@
   `review_requirements`, optional `continuation` and `gate_answer`,
   `roadmap_approval_ref`. — RO Published Dispatch Contract Schemas; SV Execution
   Profile and Review Requirements
-- [ ] 2.3 Edit `checkpoint.schema.json`: attempt `result` -> `$ref`; `launch_token` ->
+- [x] 2.3 Edit `checkpoint.schema.json`: attempt `result` -> `$ref`; `launch_token` ->
   `launch_digest` (`^sha256:[0-9a-f]{64}$`); attempt `roadmap_approval_ref`; isolation
   `{mode, worktree_ref, branch, host_id}`; parked kinds extended; `rebound` history state. — RO Launch Token Digest,
   Host-Portable Attempt Isolation
-- [ ] 2.3a Existing contract schemas (design D2): edit
+- [x] 2.3a Existing contract schemas (design D2): edit
   `openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json`
   to the new attempt shape and make `checkpoint.schema.json` `dispatch_attempts.items`
   `$ref` it; keep `supervised-dispatch-request`/`-result.schema.json` byte-unchanged as
   v1 reader schemas; `$ref` `bounded-dispatch-context.schema.json` from the v2
   request. Repoint `skills/tests/supervise/test_execution_contract.py` at the v2/v1
   schemas through a registry. (dep 2.1-2.3) — RO Published Dispatch Contract Schemas
-- [ ] 2.4 Mirror 2.1-2.3a into `skills/roadmap-runtime/install_assets/openspec/`
+- [x] 2.4 Mirror 2.1-2.3a into `skills/roadmap-runtime/install_assets/openspec/`
   (`schemas/` and `contracts/roadmap-orchestration/schemas/`) and add the byte-parity
   test; add the new installed paths to
   `skills/tests/install_sh/test_openspec_assets.py`. (dep 2.1-2.3a) — RO Published
@@ -72,23 +72,23 @@
 
 ## 5. Runtime ledger  `[wp-runtime-ledger]` (deps: 4.2)
 
-- [ ] 5.1 Test first: legacy-load tests that copy the archived checkpoint and the live
+- [x] 5.1 Test first: legacy-load tests that copy the archived checkpoint and the live
   `multiplayer-collaboration` checkpoint into `tmp_path` at test time (never commit a
   copy: both contain raw tokens); persisted-shape tests (no raw token, no absolute
   path). Update `test_delegated_checkpoint.py` and `test_dispatch_scheduler.py`,
   which pin `launch_token` today. — RO Launch Token Digest, Host-Portable Attempt Isolation
-- [ ] 5.2 `roadmap-runtime/scripts/models.py` + `checkpoint.py`: attempt fields
+- [x] 5.2 `roadmap-runtime/scripts/models.py` + `checkpoint.py`: attempt fields
   `launch_digest` and portable isolation; legacy migration on load; `needs_rebind`;
   `validate_against_schema` builds its `Draft202012Validator` with
   `dispatch_contract.schema_registry(repo_root)` so the checkpoint's `$ref`s resolve
   (today it uses a bare validator, so `resolve_readiness.py` and checkpoint load would
   fail on an unresolvable reference). (dep 5.1)
-- [ ] 5.2a Update every test helper that copies only `checkpoint.schema.json` into a
+- [x] 5.2a Update every test helper that copies only `checkpoint.schema.json` into a
   temporary repo to also copy the schemas it `$ref`s: `roadmap-runtime/test_readiness.py`,
   `autopilot-roadmap/test_supervised_dispatch.py`, `test_supervised_dispatch_e2e.py`
   (this package), and `supervise/test_execution.py`, `test_gate_router.py`,
   `test_gate_router_e2e.py`, `test_cycle_state.py` (in 8.1). (dep 5.2)
-- [ ] 5.3 `autopilot-roadmap/scripts/orchestrator.py`: mint token, store digest,
+- [x] 5.3 `autopilot-roadmap/scripts/orchestrator.py`: mint token, store digest,
   take and persist the verified `roadmap_approval_ref` from `ExecutionAdapter.prepare`,
   emit v2 request; replace `_validate_dispatch_result` with `dispatch_contract`;
   `resolve_worktree()` for every path read; persist `degradations` in outcome
