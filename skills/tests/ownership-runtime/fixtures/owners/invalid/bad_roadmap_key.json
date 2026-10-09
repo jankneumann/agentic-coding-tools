@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "default_owner": "jan",
+  "assignments": {
+    "roadmap_items": {
+      "no-slash": {
+        "owners": [
+          "jan"
+        ]
+      }
+    }
+  }
+}

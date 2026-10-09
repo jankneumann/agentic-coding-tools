@@ -18,7 +18,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
 
 ## Phase 1 — Contracts: schemas promoted to their stable homes
 
-- [ ] 1.1 Write `skills/tests/ownership-runtime/test_schema_copies.py` pinning the two schema
+- [x] 1.1 Write `skills/tests/ownership-runtime/test_schema_copies.py` pinning the two schema
       files: `openspec/schemas/owners.schema.json` and
       `openspec/schemas/human-principals.schema.json` are byte-identical to their
       `skills/ownership-runtime/install_assets/openspec/schemas/` copies and to the drafts under
@@ -27,7 +27,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       **Spec scenarios**: ownership-map / "Schema copies pinned"
       **Design decisions**: D2, D7, D12
       **Dependencies**: none
-- [ ] 1.2 Promote the draft schemas from `contracts/schemas/` to `openspec/schemas/` and to
+- [x] 1.2 Promote the draft schemas from `contracts/schemas/` to `openspec/schemas/` and to
       `skills/ownership-runtime/install_assets/openspec/schemas/`; add positive and negative
       fixture instances under `skills/tests/ownership-runtime/fixtures/` exercising every
       `additionalProperties: false` boundary and the restricted glob pattern (S)
@@ -35,13 +35,13 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       rejected", "Registry path escaping the repository rejected" (schema half)
       **Design decisions**: D3
       **Dependencies**: 1.1
-- [ ] 1.3 Create the test package skeleton `skills/tests/ownership-runtime/__init__.py` and
+- [x] 1.3 Create the test package skeleton `skills/tests/ownership-runtime/__init__.py` and
       `conftest.py` with the shared fixture builder (`make_repo(tmp_path, humans=..., owners=...,
       agents=..., git=True)` writing a registry, an optional map and an initialized git
       checkout), so every later package only adds test modules to an existing package (S)
       **Design decisions**: D12
       **Dependencies**: none
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — Registry extension (agent-coordinator)
 
