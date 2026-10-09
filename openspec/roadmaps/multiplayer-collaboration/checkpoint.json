@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T08:03:36.469390+00:00",
+  "updated_at": "2026-10-09T08:07:45.991550+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -394,6 +394,53 @@
       "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
       "item_id": "ri-20",
       "lease_generation": 2
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T08:07:36.091613+00:00",
+      "decision_id": "ec029863-979a-4924-9a69-4eee47d86dd4",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 2
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator approved directly in worker session_011LTtuyAcYi2oaHLoJtpwwM at 2026-10-09T08:06:26Z: re-root sub-agent worktrees with protected 'git switch -c' instead of 'git reset --hard'; proceed. Child loop resumed at 46dcc9a.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T08:07:36.562849+00:00",
+      "decision_id": "89f29e7b-e4b3-4261-b110-23b86c2ecc76",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 2,
+      "note": "Operator approved directly in worker session_011LTtuyAcYi2oaHLoJtpwwM at 2026-10-09T08:06:26Z: re-root sub-agent worktrees with protected 'git switch -c' instead of 'git reset --hard'; proceed. Child loop resumed at 46dcc9a."
     }
   ],
   "dispatch_attempts": [
@@ -608,11 +655,11 @@
       "change_id": "ownership-map",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_token": "KQrZDLksm--dBjDWB7rzaGhHy-fSa7TB",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
-      "lease_generation": 2,
+      "lease_generation": 3,
       "launch_history": [
         {
           "generation": 1,
@@ -675,6 +722,37 @@
           "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
           "observed_at": "2026-10-09T07:50:20.915730+00:00",
           "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "021c68813f5203d28469fd62da2861f6",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T08:07:45.969181+00:00"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "021c68813f5203d28469fd62da2861f6",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T08:07:45.979878+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "021c68813f5203d28469fd62da2861f6",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T08:07:45.979878+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "021c68813f5203d28469fd62da2861f6",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T08:07:45.991282+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g3"
         }
       ],
       "scope": {
@@ -688,66 +766,30 @@
         "branch": "openspec/ownership-map"
       },
       "context": {},
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:89f29e7b-e4b3-4261-b110-23b86c2ecc76"
+      },
       "lease": {
-        "generation": 2,
-        "owner_nonce": "e266bc6d4d1c4f7c630691667fc0c2a1",
-        "state": "released",
-        "acquired_at": "2026-10-09T07:50:20.894934+00:00",
-        "heartbeat_at": "2026-10-09T07:50:20.894934+00:00",
-        "expires_at": "2026-10-09T08:05:20.894934+00:00"
+        "generation": 3,
+        "owner_nonce": "021c68813f5203d28469fd62da2861f6",
+        "state": "active",
+        "acquired_at": "2026-10-09T08:07:45.969181+00:00",
+        "heartbeat_at": "2026-10-09T08:07:45.969181+00:00",
+        "expires_at": "2026-10-09T08:22:45.969181+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 2,
-        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2",
-        "observed_at": "2026-10-09T07:50:20.904192+00:00"
+        "generation": 3,
+        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g3",
+        "observed_at": "2026-10-09T08:07:45.979878+00:00"
       },
       "launch_gate": {
-        "generation": 2,
+        "generation": 3,
         "state": "entered",
-        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2",
-        "go_released_at": "2026-10-09T07:50:20.904192+00:00",
-        "entered_at": "2026-10-09T07:50:20.915730+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/ownership-map",
-          "change_id": "ownership-map",
-          "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
-          "evidence": {
-            "commit": "24bbcb6ef95a0a55b1375b6904084369db2874ad",
-            "loop_state_digest": "0f809165cbbed21e859b2d2642d7721b197c7aae9df480e66ea8241d09cf2e02",
-            "loop_state_path": "openspec/changes/ownership-map/loop-state.json"
-          },
-          "handoff_id": "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
-          "lease_generation": 2,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "pending_gate",
-            "reason": "PLAN_REVIEW blocked: reviewer sub-agent's re-root of its main-rooted harness worktree (git reset --hard origin/openspec/ownership-map) denied twice; converge() never ran. Root cause: phase_agent sets isolation=worktree in cloud (fix/cloud-phase-isolation 3af00d0).",
-            "resume_hint": "After the isolation fix is on the worker branch, answer escalate_resume; loop returns to PLAN_REVIEW."
-          },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/ownership-map"
-        },
-        "result_digest": "4bef1ba4dfb7c133a96e7cd1d76416ab064f4406e1537fe47c187c478def8278",
-        "bound_at": "2026-10-09T08:03:32.326529+00:00",
-        "callback_started_at": "2026-10-09T08:03:32.340256+00:00",
-        "callback_acknowledged_at": "2026-10-09T08:03:32.345178+00:00",
-        "terminal_persisted_at": "2026-10-09T08:03:32.349674+00:00",
-        "effects_applied_at": "2026-10-09T08:03:32.389637+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-09T08:03:32.349624+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "pending_gate",
-        "reason": "PLAN_REVIEW blocked: reviewer sub-agent's re-root of its main-rooted harness worktree (git reset --hard origin/openspec/ownership-map) denied twice; converge() never ran. Root cause: phase_agent sets isolation=worktree in cloud (fix/cloud-phase-isolation 3af00d0).",
-        "resume_hint": "After the isolation fix is on the worker branch, answer escalate_resume; loop returns to PLAN_REVIEW."
+        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g3",
+        "go_released_at": "2026-10-09T08:07:45.979878+00:00",
+        "entered_at": "2026-10-09T08:07:45.991282+00:00"
       }
     },
     {
