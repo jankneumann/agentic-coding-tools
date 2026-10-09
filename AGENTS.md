@@ -56,6 +56,11 @@ See [OpenSpec path stability guide](docs/guides/openspec-path-stability.md) for 
 Every mutating skill works in a managed worktree, never the shared checkout. Cloud-harness environments short-circuit worktree ops. Branch naming uses `--` separator.
 See [worktree management guide](docs/guides/worktree-management.md) for commands, sync-point skills, and execution-environment detection.
 
+## Multiplayer Collaboration
+
+Principles P1-P10 and the solo/team mode vocabulary for work shared across several human principals; solo mode adds no new prompts, gates, or PR checkpoints.
+See [multiplayer collaboration guide](docs/guides/multiplayer-collaboration.md) for the principles, single-principal assumptions, and per-skill behavior.
+
 ## Documentation
 
 Foundational docs (read before contributing), discovery and reference, setup and deployment, coordination reference, and subdirectory index.
