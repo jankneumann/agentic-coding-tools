@@ -230,3 +230,23 @@ IMPLEMENT sub-agent aborted before any edit: its harness worktree was rooted at 
 ### Context
 Implemented all of tasks.md (groups 1-9) in the orchestrator-supplied worktree: mpsim driver, probe seam, oracle, status applier, tick scheduler, CLI, gen-eval pack, README, design alignment. Harness suite 93 passed; gen-eval pack 10/10.
 
+---
+
+## Phase: Implementation Iteration (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **skill-procedure-deviation: orchestrator-supplied worktree** — Used the operator-approved managed worktree .git-worktrees/multiplayer-simulation-harness/impl (branch openspec/multiplayer-simulation-harness--impl) instead of creating one via the worktree skill, because the harness worktree could not be re-rooted.
+2. **Suite runtime over 30s budget left recorded** — Suite takes ~37s; ~11s is test_the_path_stability_guard_reports_nothing_in_the_harness, a whole-tree subprocess run of tests/openspec_paths. Narrowing it would weaken the assertion, so it is left as is.
+
+### Completed Work
+- Ran harness suite (93 passed) and ruff check (clean)
+- Reviewed world, applier, fixture, runner, oracle, agents and archive-stability tests
+
+### Next Steps
+- Consider a faster scoped path-stability guard in a follow-up if the 30s budget must hold
+
+### Context
+Reviewed harness against spec/design/contracts; 93 tests pass, ruff clean; no real defects found, no code changes.
+
