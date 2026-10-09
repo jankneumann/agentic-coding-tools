@@ -177,3 +177,39 @@ PLAN_REVIEW resumed after the operator's escalate_resume approval and ran the co
 ### Context
 Implemented all nine work packages sequentially (tier: sequential, no sub-agents): v2 dispatch schemas and the shared dispatch_contract library, digest-only and host-portable checkpoint attempts with legacy migration, LoopState v6 with emit-result/park/record-degradation and gate authority, dispatchable-lane verification with a data-driven per-environment quorum, the supervisor's profile resolution, provenance re-evaluation, fingerprint escalations and cross-host reconcile, plus closure, end-to-end, cross-host and landable-fixture tests. Supervisor follow-ups (a)-(e) are folded in.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **A child human rejection ends only at a later human escalate_resume proceed** — Keeps 'a posture change never reopens a human rejection' while removing the permanent deadlock after an operator resume; a posture-derived resume does not end it.
+2. **apply re-derives only native v2 results** — v1 results predate the normative mapping and keep the D1 tolerance window.
+3. **A fingerprint subject ends at a later proceed for that fingerprint** — The fan-out writes per-dispatch proceed records without dispatch_ids, so the prior blocked subject would otherwise outlive its own answer.
+
+### Alternatives Considered
+- Re-ask a human-rejected gate as a fresh pending_gate: rejected because The spec scenario requires gate-check to record nothing while the rejection is in force.
+- Snapshot after the ledger write in converge(): rejected because Excluding the bookkeeping paths also covers .review-cache writes and is order-independent.
+
+### Trade-offs
+- Accepted Keyed-secret redaction over-redacts words like 'token' followed by a value over Leaving short credentials in park.command because The stored command is diagnostic only; it is not part of the dedupe fingerprint.
+
+### Open Questions
+- [ ] Should a dispatched child with a drifted posture also refuse notify_with_timeout timeout defaults?
+- [ ] How is a human rejection of escalate_resume itself recovered other than via abandoned?
+
+### Completed Work
+- Human-rejected capability escalation stays final when membership changes (9c52005)
+- Child human rejection ends at an operator resume and parks in ESCALATE (6892017)
+- redact_command drops URL, -u and keyed short credentials (af0817f)
+- Cross-host reinitialize respects an unexpired pre-go lease (a3330ff)
+- apply re-derives v2 results via result_from_loop_state (8b76939)
+- Closure enumeration refuses non-enumerable kind/gate nodes (609aff1)
+- Operator answer ends a fingerprint subject and covers late members (4cc15ae)
+- converge(base_ref=) pass-through, task 7.6 (9cdc27d)
+- converge bookkeeping excluded from post-fix scope check, task 7.7 (9805527)
+
+### Context
+Two iterations fixed seven findings at medium or above: human-rejection finality on both sides of the gate boundary, short-credential redaction, cross-host takeover of live pre-go claims, supervisor re-derivation of v2 results through the normative mapping, and a closure enumeration that no longer reads non-enumerable gates as null. The two supervisor-requested converge() fixes (base_ref pass-through, bookkeeping excluded from the post-fix scope check) also landed as tasks 7.6 and 7.7.
+
