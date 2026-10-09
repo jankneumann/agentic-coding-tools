@@ -57,8 +57,10 @@ items:
     and missing/stale behavior.
 - item_id: ri-21
   title: Publish the supervisor-worker dispatch contract
-  change_id: dispatch-contract
-  status: approved
+  status: in_progress
+  priority: 1
+  effort: L
+  depends_on: []
   description: 'Publish versioned dispatch-request and dispatch-result JSON schemas
     as the single definition of the supervisor-worker boundary; emit results from
     loop-state via runner.py emit-result; add gate provenance with posture-digest
@@ -72,9 +74,7 @@ items:
   rationale: Every stall in the first supervised run occurred at an unwritten part
     of the supervisor-worker boundary; queue-dispatched work (team-work-queue, owner-routed-escalation,
     queue-dispatch-owner-acceptance) is built on it.
-  priority: 1
-  effort: L
-  depends_on: []
+  change_id: dispatch-contract
   acceptance_outcomes:
   - dispatch-request and dispatch-result schemas exist under openspec/schemas and
     execution.py and orchestrator.py validate against them with existing fixtures
@@ -97,6 +97,42 @@ items:
   - An auto disposition for proposal_approval or replan_required proceeds only for
     a dispatch carrying a valid roadmap_approval_ref; a standalone autopilot run without
     one is gated by its non-auto fallback.
+- item_id: ri-22
+  title: OpenRouter review lane for cloud workers
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-21
+  description: Make API-based multi-vendor review available in cloud containers by
+    registering OpenRouter-backed reviewer lanes (non-Anthropic model families) that
+    dispatch over HTTP through the existing OpenAI-compatible adapter, need no vendor
+    CLI, and count toward converge() quorum. Lanes are declared in the dispatch request's
+    execution_profile and review_requirements from ri-21, verified by a dry invocation
+    rather than credential probing, bounded by the existing spend ceiling, and their
+    use retires the temporary cloud single-vendor review policy.
+  rationale: Restores the two-vendor review quorum for cloud workers at metered API
+    cost instead of waiting on the GX10 review lane, and replaces a prompt-level policy
+    exception with a configured, observable lane.
+  change_id: openrouter-review-lane
+  acceptance_outcomes:
+  - In a cloud container with an OpenRouter credential provisioned as an environment
+    secret, converge() reaches min_quorum=2 for PLAN_REVIEW using claude_code plus
+    at least one OpenRouter lane from a different model family, verified end to end
+    on a fixture change.
+  - Lane availability is established by a dry invocation of the lane for the requested
+    mode and reported in execution_profile; no worker reads environment variables
+    or credentials to discover it, and --check-vendors no longer reports a lane that
+    cannot dispatch.
+  - Every OpenRouter review records model, generation id and cost against the existing
+    monthly spend ceiling; exceeding the ceiling parks with capability_unavailable
+    instead of silently dropping to single-vendor review.
+  - OpenRouter findings conform to review-findings.schema.json and are synthesized
+    by ConsensusSynthesizer like CLI lanes, with vendor attribution preserved in the
+    ledger.
+  - The "Review quorum in cloud containers (temporary)" section of TRUST_POSTURE.md
+    is removed once the lane passes in cloud, restoring quorum 2 everywhere, and review_requirements
+    expresses any remaining per-environment exception as data with a sunset.
 - item_id: ri-03
   title: Add on-behalf-of chains and causal trace IDs to coordinator records
   status: approved
@@ -533,7 +569,7 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-06T09:07:05.783053+00:00'
+updated_at: '2026-10-09T14:11:47.506107+00:00'
 refinements:
 - timestamp: '2026-10-06T08:36:39.023367+00:00'
   actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
@@ -562,3 +598,16 @@ refinements:
   base_sha256: bd39d3d0ffe538d49df86022e6306f98c9298a53bbec3948cf302cb50969c5f6
   operations:
   - edit:ri-21
+- timestamp: '2026-10-09T07:58:33.574230+00:00'
+  actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
+  source: operator request 2026-10-09 ("add open router integration"), cloud single-vendor
+    review policy in TRUST_POSTURE.md
+  rationale: Cloud containers run on the Claude subscription only, so multi-vendor
+    review quorum is unattainable there and the operator accepted single-vendor review
+    as a temporary, sunset policy (TRUST_POSTURE.md 479dcd9). The repository already
+    carries an OpenAI-compatible OpenRouter adapter with spend tracking; wiring it
+    as a quorum-counting review lane gives cloud workers a second (and third) vendor
+    without the GX10 and lets the temporary policy be retired.
+  base_sha256: 7b774483ca37d4afa397d819f78a288f76d5aaf414566e662b09759af6def7f8
+  operations:
+  - add:ri-22

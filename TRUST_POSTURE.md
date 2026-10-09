@@ -38,6 +38,28 @@ This is the **active** trust posture for this repository. The copy at
 | `pr_creation` | auto | PRs open without waiting; review happens on the PR. `notify_with_timeout` cannot proceed until a real approval-notification channel exists. |
 | `merge` and all failure/escalation gates | block | Irreversible or judgment-requiring; reached through escalation. |
 
+## Review quorum in cloud containers (temporary)
+
+*Operator decision, 2026-10-09.* In Claude Code cloud containers, a
+single-vendor review is accepted for the multi-vendor review phases
+(`PLAN_REVIEW`, `IMPL_REVIEW`, `VAL_REVIEW`): `converge()` runs with
+`min_quorum=1`. The reason is that cloud containers run on the Claude
+subscription, and the other vendors' CLIs and OAuth logins are not there.
+
+- **Scope:** cloud containers only. A host with two or more dispatchable
+  review lanes (for example the GX10) keeps `min_quorum=2`.
+- **Verification:** "only one lane" means the other lanes failed to dispatch.
+  It is never decided by reading environment variables or credentials, and
+  `review_dispatcher.py --check-vendors` alone is not enough, because it can
+  report a lane that cannot run.
+- **Visibility:** every such review records the degradation
+  `single_vendor_review` (phase and vendor) in its session log and dispatch
+  result, and the PR body says so. The human merge review, which stays
+  `block`, is the compensating control.
+- **Sunset:** delete this section, which restores quorum 2 everywhere, once
+  API-based multi-vendor review (an OpenRouter integration) or the GX10
+  review lane is available to cloud workers.
+
 ## What this file does
 
 Each human gate in the autopilot / roadmap loops gets a machine-readable
