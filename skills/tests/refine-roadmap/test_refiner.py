@@ -677,3 +677,27 @@ def test_apply_adopt_failure_never_removes_the_adopted_change(repo_root: Path):
         )
 
     assert (change_dir / "proposal.md").read_text() == "# hand-refined plan\n"
+
+
+@pytest.mark.parametrize("ceded_status", ["skipped", "superseded"])
+def test_adopt_accepts_change_ceded_by_another_roadmap(repo_root: Path, ceded_status: str):
+    _write_roadmap(
+        repo_root,
+        [_item("ri-01", status=ceded_status, change_id="in-flight-pilot")],
+        roadmap_id="former",
+    )
+    roadmap_path = _write_roadmap(repo_root, [_item("ri-01", change_id="first-change")])
+    _existing_change(repo_root, "in-flight-pilot")
+
+    preview = preview_refinement(
+        roadmap_path,
+        _request({
+            "op": "add",
+            "adopt_existing": True,
+            "item": _new_item("ri-02", "Pilot", change_id="in-flight-pilot"),
+        }),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert preview.adopted_change_ids == ["in-flight-pilot"]

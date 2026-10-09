@@ -34,6 +34,7 @@ for _scripts_dir in (_PLAN_SCRIPTS, _RUNTIME_SCRIPTS):
         sys.path.insert(0, str(_scripts_dir))
 
 from decomposer import (  # type: ignore[import-untyped]
+    _CEDED_STATUSES,
     scan_archive_state,
     validate_cross_roadmap,
     validate_roadmap,
@@ -483,7 +484,12 @@ def _apply_operations(
 
 
 def _change_owners(repo_root: Path, exclude_roadmap_id: str) -> dict[str, str]:
-    """Map change_id -> owning ``<roadmap-id>:<item-id>`` across other active roadmaps."""
+    """Map change_id -> owning ``<roadmap-id>:<item-id>`` across other active roadmaps.
+
+    Items in a ceded status (skipped, superseded) have handed their change off,
+    matching ``validate_cross_roadmap``, so they are not owners.
+    """
+    ceded = {status.value for status in _CEDED_STATUSES}
     owners: dict[str, str] = {}
     roadmaps_dir = repo_root / "openspec" / "roadmaps"
     for path in sorted(roadmaps_dir.glob("*/roadmap.yaml")) if roadmaps_dir.is_dir() else []:
@@ -492,7 +498,7 @@ def _change_owners(repo_root: Path, exclude_roadmap_id: str) -> dict[str, str]:
             if data["roadmap_id"] == exclude_roadmap_id:
                 continue
             for item in data.get("items", []):
-                if item.get("change_id"):
+                if item.get("change_id") and item.get("status") not in ceded:
                     owners.setdefault(item["change_id"], f"{data['roadmap_id']}:{item['item_id']}")
         except (OSError, TypeError, KeyError, yaml.YAMLError):
             continue
