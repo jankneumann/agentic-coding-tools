@@ -45,7 +45,8 @@ from shared.approval_gate import (  # noqa: E402
     build_gate_decision_record,
     console_decision,
 )
-from shared.trust_posture import Disposition, Gate  # noqa: E402
+from shared import dispatch_contract  # noqa: E402
+from shared.trust_posture import Disposition, Gate, posture_digest  # noqa: E402
 
 _RUNTIME_SCRIPTS = _SKILLS_ROOT / "roadmap-runtime" / "scripts"
 if str(_RUNTIME_SCRIPTS) not in sys.path:
@@ -77,6 +78,38 @@ _TERMINAL_BLOCK_RESOLUTIONS = frozenset({"rejected", "console_rejected"})
 
 _POLICY_PAUSE_REASON = "supervised phase retry budget exhausted"
 
+# --------------------------------------------------------------------------- #
+# Dispatch result closure (dispatch-contract D3, "Dispatch Result Closure")
+# --------------------------------------------------------------------------- #
+
+#: The child gates a parked ``pending_gate`` may name (the Gate enum minus
+#: ``roadmap_approval``, which a child never evaluates).
+_CHILD_GATES = tuple(gate.value for gate in Gate if gate is not Gate.ROADMAP_APPROVAL)
+
+#: Exactly one answer or resume path for every ``(outcome class, parked.kind,
+#: parked.gate)`` the result schema permits. The closure contract test derives
+#: the permitted set from ``dispatch-result.schema.json`` and compares.
+ANSWER_PATHS: dict[tuple[str, Optional[str], Optional[str]], str] = {
+    ("success", None, None): "orchestrator: complete the item and write its learning entry",
+    ("failed", None, None): "orchestrator._handle_failure",
+    ("vendor_limit", None, None): "orchestrator._handle_vendor_limit",
+    **{
+        ("parked", "pending_gate", gate): "resolve_parked: evaluate Gate(parked.gate)"
+        for gate in _CHILD_GATES
+    },
+    ("parked", "policy_pause", None): "resolve_parked: escalate_resume for the generation",
+    ("parked", "policy_pause", "escalate_resume"): "resolve_parked: escalate_resume for the generation",
+    ("parked", "permission_blocked", None): "resolve_parked: escalate_resume keyed by rule fingerprint (D9)",
+    ("parked", "capability_unavailable", None): "resolve_parked: escalate_resume keyed by missing-lane set (D9)",
+}
+
+_CAPABILITY_KINDS = frozenset({"permission_blocked", "capability_unavailable"})
+
+
+def has_answer_path(kind: str, gate: Optional[str]) -> bool:
+    """The apply-time predicate the execution adapter injects (D3)."""
+    return ("parked", kind, gate) in ANSWER_PATHS
+
 
 @contextlib.contextmanager
 def _mirror_projection_lock(repo_root: Path) -> Iterator[None]:
@@ -96,7 +129,19 @@ def _mirror_projection_lock(repo_root: Path) -> Iterator[None]:
 @contextlib.contextmanager
 def _escalate_subject_lock(workspace: Path, dispatch_id: str, generation: int) -> Iterator[None]:
     """Serialize one parked escalation generation without blocking other work."""
-    identity = hashlib.sha256(f"{workspace.resolve()}|{dispatch_id}|{generation}".encode()).hexdigest()
+    with _subject_lock(workspace, f"{dispatch_id}|{generation}"):
+        yield
+
+
+def _fingerprint_subject_lock(workspace: Path, fingerprint: str) -> contextlib.AbstractContextManager[None]:
+    """Serialize one capability/permission escalation subject (D9): keyed by
+    workspace + dedupe fingerprint, the identity its members share."""
+    return _subject_lock(workspace, f"fingerprint|{fingerprint}")
+
+
+@contextlib.contextmanager
+def _subject_lock(workspace: Path, subject: str) -> Iterator[None]:
+    identity = hashlib.sha256(f"{workspace.resolve()}|{subject}".encode()).hexdigest()
     lock_dir = Path(tempfile.gettempdir()) / "supervise-escalate-subject-locks"
     lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     descriptor = os.open(lock_dir / f"{identity}.lock", os.O_CREAT | os.O_RDWR, 0o600)
@@ -798,8 +843,19 @@ def _apply_prior_record(
         return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
 
     resolution = prior.get("resolution")
+    provenance = prior.get("provenance") or {}
+    if provenance.get("source") == "human":
+        # D5: a human decision is final for its subject.
+        return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
     if resolution == "posture_block":
         posture = service.posture_loader(service.repo_root, path=service.posture_path)
+        recorded_digest = provenance.get("posture_digest")
+        if isinstance(recorded_digest, str):
+            # D5: compare the whole parsed posture, so a notify_with_timeout
+            # parameter change also re-evaluates.
+            if recorded_digest == posture_digest(posture):
+                return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
+            return None
         current_gd = posture.disposition_for(gate)
         if current_gd.disposition.value == prior.get("disposition"):
             return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
@@ -880,6 +936,8 @@ def _decision_from_record(record: dict[str, Any]) -> ApprovalDecision:
         posture_present=bool(record.get("posture_present", False)),
         notified=record.get("notified"),
         timeout_seconds=record.get("timeout_seconds"),
+        provenance=record.get("provenance"),
+        scope=record.get("scope"),
     )
 
 
@@ -1004,6 +1062,12 @@ def resolve_parked(
     PROCEED, resume it through `adapter.resume(...)`."""
     parked = attempt.get("parked") or {}
     kind = parked.get("kind")
+    if kind in _CAPABILITY_KINDS:
+        return _resolve_capability_park(
+            attempt, workspace=workspace, repo_root=repo_root, adapter=adapter,
+            evaluator=evaluator, now=now,
+        )
+    evaluator = _with_attempt_scope(evaluator, attempt, repo_root)
     if kind == "policy_pause":
         gate_enum = Gate.ESCALATE_RESUME
     elif kind == "pending_gate":
@@ -1101,6 +1165,419 @@ def resolve_parked(
     return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
 
 
+def _with_attempt_scope(
+    evaluator: Optional[ApprovalGate], attempt: dict[str, Any], repo_root: Path
+) -> ApprovalGate:
+    """The supervisor applies the D8 scope rule from the same recorded fact the
+    child's marker carries: the attempt's verified ``roadmap_approval_ref``."""
+    import dataclasses
+
+    ref = attempt.get("roadmap_approval_ref")
+
+    def reader(_context: dict[str, Any]) -> Optional[dict[str, Any]]:
+        return {"roadmap_approval_ref": ref} if ref else None
+
+    if evaluator is None:
+        return build_default_gate(agent_id="supervise", repo_root=str(repo_root), marker_reader=reader)
+    if isinstance(evaluator, ApprovalGate) and evaluator.marker_reader is None:
+        return dataclasses.replace(evaluator, marker_reader=reader)
+    return evaluator
+
+
+# --------------------------------------------------------------------------- #
+# Capability / permission parks — one escalation per fingerprint (D9)
+# --------------------------------------------------------------------------- #
+
+
+def _redacted_parked(parked: dict[str, Any]) -> dict[str, Any]:
+    cleaned = dict(parked)
+    if cleaned.get("command") is not None:
+        cleaned["command"] = dispatch_contract.redact_command(str(cleaned["command"]))
+    return cleaned
+
+
+def _fingerprint_members(checkpoint: Any, fingerprint: str) -> list[dict[str, Any]]:
+    return sorted(
+        (
+            attempt
+            for attempt in (getattr(checkpoint, "dispatch_attempts", None) or [])
+            if attempt.get("status") == "parked"
+            and (attempt.get("parked") or {}).get("kind") in _CAPABILITY_KINDS
+            and dispatch_contract.dedupe_fingerprint(attempt["parked"]) == fingerprint
+        ),
+        key=lambda attempt: str(attempt.get("dispatch_id")),
+    )
+
+
+def _subject_records(checkpoint: Any, fingerprint: str, roadmap_id: str) -> list[dict[str, Any]]:
+    return [
+        record
+        for record in (getattr(checkpoint, "gate_decisions", None) or [])
+        if record.get("gate") == Gate.ESCALATE_RESUME.value
+        and record.get("dedupe_fingerprint") == fingerprint
+        and record.get("roadmap_id") == roadmap_id
+        and "dispatch_ids" in record
+    ]
+
+
+def _answered_after(checkpoint: Any, fingerprint: str, subject: dict[str, Any]) -> bool:
+    """A ``proceed`` for this fingerprint was recorded after ``subject``."""
+    since = str(subject.get("recorded_at") or "")
+    return any(
+        record.get("gate") == Gate.ESCALATE_RESUME.value
+        and record.get("dedupe_fingerprint") == fingerprint
+        and record.get("outcome") == "proceed"
+        and str(record.get("recorded_at") or "") > since
+        for record in (getattr(checkpoint, "gate_decisions", None) or [])
+    )
+
+
+def _fingerprint_entry(
+    record: dict[str, Any], decision: ApprovalDecision, *, roadmap: Roadmap, repo_root: Path, now: datetime
+) -> dict[str, Any]:
+    entry = _pending_gate_entry(
+        Gate.ESCALATE_RESUME, decision, record, roadmap=roadmap, repo_root=repo_root, now=now
+    )
+    entry["dedupe_fingerprint"] = record["dedupe_fingerprint"]
+    entry["dispatch_ids"] = [dict(item) for item in record["dispatch_ids"]]
+    return entry
+
+
+def _project_fingerprint(
+    entry: Optional[dict[str, Any]], *, repo_root: Path, stale_ids: set[str], now: datetime
+) -> None:
+    """Upsert (or, with ``entry=None``, remove) the one pending entry of a fingerprint."""
+    from cycle_state import _extract_supervisor_record, write_mirror  # lazy
+
+    with _mirror_projection_lock(repo_root):
+        current = _extract_supervisor_record(_read_current_mirror(repo_root)) or {
+            "pending_gates": [],
+            "standing_decisions": [],
+            "back_edge": {"last_digest_at": None, "last_fingerprint": None, "digested_stubs": []},
+        }
+        pending = [
+            item for item in current.get("pending_gates", []) if item.get("decision_id") not in stale_ids
+        ]
+        if entry is not None:
+            pending.append(entry)
+        write_mirror(
+            repo_root,
+            {
+                "written_at": now.isoformat(),
+                "pending_gates": pending,
+                "standing_decisions": list(current.get("standing_decisions", [])),
+                "back_edge": current.get(
+                    "back_edge", {"last_digest_at": None, "last_fingerprint": None, "digested_stubs": []}
+                ),
+            },
+            now=now,
+        )
+
+
+def _fan_out_resume(
+    members: list[dict[str, Any]],
+    decision: ApprovalDecision,
+    *,
+    fingerprint: str,
+    roadmap: Roadmap,
+    workspace: Path,
+    adapter: Any,
+    extra: Optional[dict[str, Any]] = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Write one per-dispatch ``proceed`` record and resume each member through
+    its own generation-checked CAS (D9). Returns ``(records, resumed, skipped)``."""
+    manager = CheckpointManager(workspace)
+    records: list[dict[str, Any]] = []
+    for member in members:
+        record_extra = {
+            "decision_id": str(uuid.uuid4()),
+            "source": "supervise",
+            "verb": "resume",
+            "roadmap_id": roadmap.roadmap_id,
+            "dispatch_id": member["dispatch_id"],
+            "change_id": member.get("change_id"),
+            "item_id": member.get("item_id"),
+            "lease_generation": member["lease_generation"],
+            "dedupe_fingerprint": fingerprint,
+        }
+        record_extra.update(extra or {})
+        records.append(build_gate_decision_record(decision, phase=_PHASE, extra=record_extra))
+    checkpoint = manager.load()
+    for record in records:
+        manager.record_gate_decision(checkpoint, record)
+    resumed: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    for record in records:
+        kind = None
+        for member in members:
+            if member["dispatch_id"] == record["dispatch_id"]:
+                kind = (member.get("parked") or {}).get("kind")
+        try:
+            request = adapter.resume(
+                workspace,
+                dispatch_id=record["dispatch_id"],
+                approval_ref=f"gate-decision:{record['decision_id']}",
+                kind=kind,
+            )
+        except (ValueError, ApprovalRefError) as exc:
+            skipped.append({"dispatch_id": record["dispatch_id"], "reason": str(exc)})
+            continue
+        resumed.append(request)
+    return records, resumed, skipped
+
+
+def _resolve_capability_park(
+    attempt: dict[str, Any],
+    *,
+    workspace: Path,
+    repo_root: Path,
+    adapter: Any,
+    evaluator: Optional[ApprovalGate],
+    now: Optional[datetime],
+) -> ParkedResolution:
+    """One ``escalate_resume`` subject per dedupe fingerprint (D9), single-flight
+    per workspace + fingerprint: evaluate, project and record run under one lock."""
+    workspace = Path(workspace)
+    fingerprint = dispatch_contract.dedupe_fingerprint(attempt["parked"])
+    with _fingerprint_subject_lock(workspace, fingerprint):
+        return _resolve_capability_park_locked(
+            attempt, fingerprint, workspace=workspace, repo_root=Path(repo_root), adapter=adapter,
+            evaluator=evaluator, now=now,
+        )
+
+
+def _resolve_capability_park_locked(
+    attempt: dict[str, Any],
+    fingerprint: str,
+    *,
+    workspace: Path,
+    repo_root: Path,
+    adapter: Any,
+    evaluator: Optional[ApprovalGate],
+    now: Optional[datetime],
+) -> ParkedResolution:
+    moment = now or datetime.now(timezone.utc)
+    roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
+    manager = CheckpointManager(workspace, repo_root)
+    checkpoint = manager.load()
+    members = _fingerprint_members(checkpoint, fingerprint)
+    if not any(m["dispatch_id"] == attempt.get("dispatch_id") for m in members):
+        # A concurrent resolver on this fingerprint already resumed this
+        # attempt (its fan-out covered every member); report that answer
+        # instead of evaluating a subject with no members.
+        return _already_resumed(checkpoint, attempt, fingerprint)
+    listed = [
+        {"dispatch_id": m["dispatch_id"], "lease_generation": m["lease_generation"]} for m in members
+    ]
+    service = evaluator or build_default_gate(agent_id="supervise", repo_root=str(repo_root))
+    prior_subjects = _subject_records(checkpoint, fingerprint, roadmap.roadmap_id)
+    prior = max(prior_subjects, key=lambda r: str(r.get("recorded_at") or "")) if prior_subjects else None
+    if prior is not None and _answered_after(checkpoint, fingerprint, prior):
+        # The subject was answered (the fan-out's per-dispatch proceed records);
+        # a park on this fingerprint since then is a new subject.
+        prior = None
+
+    if (
+        prior is not None
+        and prior.get("outcome") == "blocked"
+        and (prior.get("provenance") or {}).get("source") == "human"
+    ):
+        # D5: a human rejection is final for its fingerprint subject; the
+        # posture is never consulted, so only a new operator answer
+        # (answer_escalation) clears it. When the membership changed since the
+        # rejection, the subject is extended durably (the rejection carried
+        # forward, listing the current members) and re-projected, so the
+        # listing an operator answers is exactly the one recorded.
+        decision = _decision_from_record(prior)
+        if prior.get("dispatch_ids") == listed:
+            entry = _fingerprint_entry(prior, decision, roadmap=roadmap, repo_root=repo_root, now=moment)
+            routed = RoutedDecision(decision=decision, record=prior, reused=True)
+            return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
+        extended = dict(prior)
+        extended.update(
+            decision_id=str(uuid.uuid4()),
+            recorded_at=datetime.now(timezone.utc).isoformat(),
+            dispatch_ids=listed,
+            extends_decision_id=prior.get("decision_id"),
+            parked_commands=[
+                _redacted_parked(m["parked"]).get("command") for m in members if m["parked"].get("command")
+            ],
+        )
+        stale = {r["decision_id"] for r in prior_subjects if isinstance(r.get("decision_id"), str)}
+        entry = _fingerprint_entry(extended, decision, roadmap=roadmap, repo_root=repo_root, now=moment)
+        _project_fingerprint(entry, repo_root=repo_root, stale_ids=stale | {extended["decision_id"]}, now=moment)
+        manager.record_gate_decision(manager.load(), extended)
+        routed = RoutedDecision(decision=decision, record=extended, reused=False)
+        return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
+    if prior is not None and prior.get("outcome") == "blocked":
+        routed = _apply_prior_record(prior, Gate.ESCALATE_RESUME, (), service=service)
+        if routed is not None and routed.reused and prior.get("dispatch_ids") == listed:
+            entry = _fingerprint_entry(prior, routed.decision, roadmap=roadmap, repo_root=repo_root, now=moment)
+            return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
+
+    reasons = sorted({str((m.get("parked") or {}).get("reason") or "") for m in members})
+    decision = service.evaluate(
+        Gate.ESCALATE_RESUME,
+        {
+            "change_id": attempt.get("change_id"),
+            "dispatch_ids": ",".join(item["dispatch_id"] for item in listed),
+            "reason": "; ".join(reasons)[:1024],
+            "verb": "resume",
+        },
+    )
+    stale = {r["decision_id"] for r in prior_subjects if isinstance(r.get("decision_id"), str)}
+    if decision.outcome is Outcome.PROCEED:
+        records, resumed, skipped = _fan_out_resume(
+            members, decision, fingerprint=fingerprint, roadmap=roadmap, workspace=workspace, adapter=adapter
+        )
+        _project_fingerprint(None, repo_root=repo_root, stale_ids=stale, now=moment)
+        own = next((r for r in records if r["dispatch_id"] == attempt["dispatch_id"]), records[0])
+        own_request = next((r for r in resumed if r.get("dispatch_id") == attempt["dispatch_id"]), None)
+        return ParkedResolution(
+            outcome="proceed",
+            routed=RoutedDecision(decision=decision, record=own, reused=False),
+            resume_result=own_request or {"resumed": resumed, "skipped": skipped},
+        )
+
+    extra = {
+        "decision_id": str(uuid.uuid4()),
+        "source": "supervise",
+        "verb": "resume",
+        "roadmap_id": roadmap.roadmap_id,
+        "change_id": attempt.get("change_id"),
+        "dedupe_fingerprint": fingerprint,
+        "dispatch_ids": listed,
+        "parked_commands": [
+            _redacted_parked(m["parked"]).get("command") for m in members if m["parked"].get("command")
+        ],
+    }
+    record = build_gate_decision_record(decision, phase=_PHASE, extra=extra)
+    entry = _fingerprint_entry(record, decision, roadmap=roadmap, repo_root=repo_root, now=moment)
+    _project_fingerprint(entry, repo_root=repo_root, stale_ids=stale | {record["decision_id"]}, now=moment)
+    manager.record_gate_decision(manager.load(), record)
+    return ParkedResolution(
+        outcome="blocked",
+        routed=RoutedDecision(decision=decision, record=record, reused=False),
+        pending_gate_entry=entry,
+    )
+
+
+def _already_resumed(checkpoint: Any, attempt: dict[str, Any], fingerprint: str) -> ParkedResolution:
+    dispatch_id = attempt.get("dispatch_id")
+    generation = attempt.get("lease_generation")
+    record = next(
+        (
+            r for r in reversed(getattr(checkpoint, "gate_decisions", None) or [])
+            if r.get("gate") == Gate.ESCALATE_RESUME.value
+            and r.get("outcome") == "proceed"
+            and r.get("dedupe_fingerprint") == fingerprint
+            and r.get("dispatch_id") == dispatch_id
+            and r.get("lease_generation") == generation
+        ),
+        None,
+    )
+    current = next(
+        (a for a in (getattr(checkpoint, "dispatch_attempts", None) or []) if a.get("dispatch_id") == dispatch_id),
+        None,
+    )
+    if record is None or current is None:
+        raise GateRefusalError("stale capability park resolution: the attempt is no longer parked")
+    return ParkedResolution(
+        outcome="proceed",
+        routed=RoutedDecision(decision=_decision_from_record(record), record=record, reused=True),
+        resume_result={"dispatch_id": dispatch_id, "lease_generation": current.get("lease_generation")},
+    )
+
+
+def answer_escalation(
+    fingerprint: str,
+    *,
+    workspace: Path,
+    repo_root: Path,
+    approved: bool,
+    adapter: Any,
+    note: Optional[str] = None,
+    now: Optional[datetime] = None,
+) -> dict[str, Any]:
+    """Answer one fingerprint escalation (D9): an approval writes one
+    ``escalate_resume`` record per listed dispatch (its own ``dispatch_id`` and
+    projected ``lease_generation``, the shared fingerprint, human provenance)
+    and resumes each through its own CAS; a member whose generation moved
+    since projection is skipped and reported. Single-flight with
+    ``resolve_parked`` on the same workspace + fingerprint."""
+    workspace = Path(workspace)
+    with _fingerprint_subject_lock(workspace, fingerprint):
+        return _answer_escalation_locked(
+            fingerprint, workspace=workspace, repo_root=Path(repo_root), approved=approved,
+            adapter=adapter, note=note, now=now,
+        )
+
+
+def _answer_escalation_locked(
+    fingerprint: str,
+    *,
+    workspace: Path,
+    repo_root: Path,
+    approved: bool,
+    adapter: Any,
+    note: Optional[str],
+    now: Optional[datetime],
+) -> dict[str, Any]:
+    moment = now or datetime.now(timezone.utc)
+    roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
+    manager = CheckpointManager(workspace, repo_root)
+    checkpoint = manager.load()
+    subjects = [
+        r for r in _subject_records(checkpoint, fingerprint, roadmap.roadmap_id) if r.get("outcome") == "blocked"
+    ]
+    if not subjects:
+        raise GateRefusalError("escalate_resume has no open escalation for this fingerprint")
+    subject = max(subjects, key=lambda r: str(r.get("recorded_at") or ""))
+    decision = console_decision(
+        Gate.ESCALATE_RESUME,
+        {"disposition": subject.get("disposition"), "posture_present": subject.get("posture_present", False)},
+        approved,
+        note,
+    )
+    stale = {r["decision_id"] for r in subjects if isinstance(r.get("decision_id"), str)}
+    if not approved:
+        record = build_gate_decision_record(
+            decision, phase=_PHASE,
+            extra={
+                "decision_id": str(uuid.uuid4()), "source": "supervise", "verb": "resume",
+                "roadmap_id": roadmap.roadmap_id, "change_id": subject.get("change_id"),
+                "dedupe_fingerprint": fingerprint, "dispatch_ids": subject["dispatch_ids"], "note": note,
+            },
+        )
+        entry = _fingerprint_entry(record, decision, roadmap=roadmap, repo_root=repo_root, now=moment)
+        _project_fingerprint(entry, repo_root=repo_root, stale_ids=stale, now=moment)
+        manager.record_gate_decision(checkpoint, record)
+        return {"outcome": "blocked", "resumed": [], "skipped": [], "records": [record]}
+    by_id = {a.get("dispatch_id"): a for a in checkpoint.dispatch_attempts}
+    members: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    for item in subject["dispatch_ids"]:
+        current = by_id.get(item["dispatch_id"])
+        if (
+            current is None
+            or current.get("status") != "parked"
+            or current.get("lease_generation") != item["lease_generation"]
+        ):
+            skipped.append({"dispatch_id": item["dispatch_id"], "reason": "generation changed since projection"})
+            continue
+        members.append(current)
+    # The answer authorizes only the dispatches its durable subject lists. A
+    # member that parked on this fingerprint after the subject was recorded
+    # stays parked; its own resolve_parked persists and projects a subject the
+    # operator can then answer (D9 provenance).
+    records, resumed, failed = _fan_out_resume(
+        members, decision, fingerprint=fingerprint, roadmap=roadmap, workspace=workspace, adapter=adapter,
+        extra={"note": note} if note else None,
+    )
+    _project_fingerprint(None, repo_root=repo_root, stale_ids=stale, now=moment)
+    return {"outcome": "proceed", "resumed": resumed, "skipped": skipped + failed, "records": records}
+
+
 # --------------------------------------------------------------------------- #
 # require_approval_ref() — D3
 # --------------------------------------------------------------------------- #
@@ -1165,12 +1642,19 @@ def require_approval_ref(
 # --------------------------------------------------------------------------- #
 
 
-def gate_log(workspace: Path, repo_root: Path) -> list[dict[str, Any]]:
+def gate_log(
+    workspace: Path, repo_root: Path, *, managed_root: Optional[Path] = None
+) -> list[dict[str, Any]]:
     """The sidecar `gate_decisions` for the roadmap at `workspace`, unioned with
     each ready-or-not item's child `gate_decisions` resolved through the
-    attempt's recorded worktree (D6). Sorted by `recorded_at`."""
+    attempt's recorded worktree (D6). Sorted by `recorded_at`.
+
+    The attempt's portable `worktree_ref` resolves against `managed_root`
+    (default `<repo_root>/.git-worktrees`) or, for harness-provided isolation,
+    `repo_root` (dispatch-contract D7)."""
     workspace = Path(workspace)
     repo_root = Path(repo_root)
+    managed = Path(managed_root) if managed_root is not None else repo_root / ".git-worktrees"
     manager = CheckpointManager(workspace, repo_root)
     records: list[dict[str, Any]] = []
     if not manager.exists():
@@ -1192,7 +1676,7 @@ def gate_log(workspace: Path, repo_root: Path) -> list[dict[str, Any]]:
         if not change_id:
             continue
         loop_state_path = _resolve_child_loop_state_path(
-            attempts_by_change.get(change_id), repo_root, change_id
+            attempts_by_change.get(change_id), repo_root, change_id, managed
         )
         if loop_state_path is None:
             continue
@@ -1228,16 +1712,16 @@ def _load_roadmap_quiet(workspace: Path, repo_root: Path) -> Optional[Roadmap]:
 
 
 def _resolve_child_loop_state_path(
-    attempt: Optional[dict[str, Any]], repo_root: Path, change_id: str
+    attempt: Optional[dict[str, Any]], repo_root: Path, change_id: str, managed_root: Path
 ) -> Optional[Path]:
     if attempt is not None:
-        isolation = attempt.get("isolation") or {}
-        worktree_path = isolation.get("worktree_path")
-        if worktree_path:
-            return Path(worktree_path) / "openspec" / "changes" / change_id / "loop-state.json"
-        evidence_path = ((attempt.get("evidence") or {}).get("loop_state_path"))
-        if evidence_path:
-            return Path(evidence_path)
+        from shared import dispatch_contract
+
+        worktree = dispatch_contract.resolve_worktree(
+            attempt.get("isolation") or {}, repo_root=repo_root, managed_root=managed_root
+        )
+        if worktree is not None:
+            return worktree / "openspec" / "changes" / change_id / "loop-state.json"
     # Fallback: the change has since merged into the supervisor's own tree.
     fallback = repo_root / "openspec" / "changes" / change_id / "loop-state.json"
     return fallback if fallback.parent.is_dir() else None

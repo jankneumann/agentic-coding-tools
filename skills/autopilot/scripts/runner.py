@@ -27,8 +27,10 @@ Design decisions: D1, D3, D4.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
+import subprocess
 import sys
 from pathlib import Path
 
@@ -45,8 +47,9 @@ if str(_SKILLS_ROOT) not in sys.path:
 import autopilot  # type: ignore[import-not-found]  # noqa: E402
 import phase_agent  # type: ignore[import-not-found]  # noqa: E402
 from shared import approval_gate as shared_approval_gate  # noqa: E402
+from shared import dispatch_contract  # noqa: E402
 from shared.approval_gate import ApprovalDecision  # noqa: E402
-from shared.trust_posture import Gate  # noqa: E402
+from shared.trust_posture import Gate, load_posture, posture_digest  # noqa: E402
 
 logger = logging.getLogger("autopilot.runner")
 
@@ -62,6 +65,57 @@ EXIT_NO_PENDING_GATE = 3
 # in ESCALATE, and there is no question to put to the operator. Distinct from 0
 # ("ask, then gate-answer") because the caller must NOT continue.
 EXIT_GATE_PARKED = 4
+
+# Exit code for `emit-result` when the loop is neither terminal nor parked
+# (dispatch-contract D4): nothing is written.
+EXIT_NOT_TERMINAL = dispatch_contract.EXIT_NOT_TERMINAL
+
+
+def _launch_marker(change_id: str) -> dict | None:
+    """The dispatch launch marker for this worktree, or None (standalone).
+
+    "Dispatched child" in the dispatch-contract specs means this returned a
+    marker (D10a); it is read only through ``dispatch_contract``.
+    """
+    return dispatch_contract.read_launch_marker(change_id, repo_root=Path.cwd())
+
+
+def _last_decision(state: "autopilot.LoopState", gate: str) -> dict | None:
+    for record in reversed(state.gate_decisions):
+        if record.get("gate") == gate:
+            return record
+    return None
+
+
+def _is_human_final(record: dict | None) -> bool:
+    """A human-provenance decision is final for its subject (D5)."""
+    provenance = (record or {}).get("provenance") or {}
+    return provenance.get("source") == "human"
+
+
+def _human_rejection_in_force(state: "autopilot.LoopState", gate: str) -> dict | None:
+    """The human rejection of ``gate`` that still settles it, or None (D5).
+
+    A human rejection is final for its subject: no posture change reopens it.
+    The subject ends only when a human later approves ``escalate_resume`` —
+    the operator explicitly resuming the run — after which the gate is asked
+    again. Without that rule a rejected gate could never be re-asked.
+    """
+    decisions = state.gate_decisions
+    for index in range(len(decisions) - 1, -1, -1):
+        record = decisions[index]
+        if record.get("gate") != gate:
+            continue
+        if not (_is_human_final(record) and record.get("outcome") == "blocked"):
+            return None
+        resumed = any(
+            later.get("gate") == Gate.ESCALATE_RESUME.value
+            and later.get("outcome") == "proceed"
+            and _is_human_final(later)
+            for later in decisions[index + 1:]
+        )
+        return None if resumed else record
+    return None
 
 
 def _change_dir(change_id: str) -> Path:
@@ -83,6 +137,18 @@ def _load_pending(change_id: str) -> dict | None:
         return None
     pending = raw.get("pending_gate") if isinstance(raw, dict) else None
     return pending if isinstance(pending, dict) else None
+
+
+def _load_park(change_id: str) -> dict | None:
+    path = _state_path(change_id)
+    if not path.exists():
+        return None
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    park = raw.get("park") if isinstance(raw, dict) else None
+    return park if isinstance(park, dict) and park else None
 
 
 def _parse_context(pairs: list[str] | None) -> dict[str, str]:
@@ -112,12 +178,68 @@ def _cmd_gate_check(args: argparse.Namespace) -> int:
         return 2
     pending = _load_pending(args.change_id)
     if pending is not None:
+        if _launch_marker(args.change_id) is None and _posture_moved(pending):
+            # Standalone run: this worktree's posture is authoritative, and it
+            # changed since the gate parked (D5). A dispatched child never
+            # re-evaluates; it applies only its marker's gate_answer.
+            return _reevaluate_pending(args, pending)
         sys.stdout.write(json.dumps(pending, indent=2, sort_keys=True) + "\n")
         return 0
     if getattr(args, "gate", None) is None:
         sys.stderr.write(f"runner: no gate pending for {args.change_id}\n")
         return EXIT_NO_PENDING_GATE
     return _evaluate_gate(args)
+
+
+def _posture_moved(pending: dict) -> bool:
+    recorded = (pending.get("posture") or {}).get("posture_digest")
+    if not isinstance(recorded, str):
+        return False
+    try:
+        current = posture_digest(load_posture(Path.cwd()))
+    except Exception:  # noqa: BLE001 - an invalid posture is not a re-evaluation
+        return False
+    return current != recorded
+
+
+def _reevaluate_pending(args: argparse.Namespace, pending: dict) -> int:
+    """Re-evaluate a standalone pending gate whose posture digest moved (D5)."""
+    state_path = _state_path(args.change_id)
+    state = autopilot.load_state(state_path)
+    gate = Gate(str(pending.get("gate")))
+    if _is_human_final(_last_decision(state, gate.value)):
+        sys.stdout.write(json.dumps(pending, indent=2, sort_keys=True) + "\n")
+        return 0
+    session = autopilot._GateSession(
+        change_id=args.change_id, state_path=state_path, repo_root=Path.cwd()
+    )
+    context = {k: v for k, v in (pending.get("context") or {}).items()}
+    context.setdefault("change_id", args.change_id)
+    decision = session.evaluate(gate, context)
+    phase = str(pending.get("phase", state.current_phase))
+    state.pending_gate = None
+    session.record(state, decision, phase=phase)
+    record = state.gate_decisions[-1]
+    if decision.proceed:
+        edge = pending.get("edge")
+        if isinstance(edge, dict) and edge.get("outcome"):
+            try:
+                autopilot._apply_transition(
+                    state, str(edge["outcome"]), change_dir=_change_dir(args.change_id)
+                )
+            except autopilot.GoalGateRefused as exc:
+                autopilot.enter_escalate(state, f"goal gate refused: {exc.reason}")
+        autopilot.save_state(state, state_path)
+        sys.stdout.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
+        return EXIT_NO_PENDING_GATE
+    edge = pending.get("edge") if isinstance(pending.get("edge"), dict) else None
+    if session.park(state, decision, phase=phase, context=context, edge=edge) == autopilot.GATE_PENDING:
+        sys.stdout.write(json.dumps(state.pending_gate, indent=2, sort_keys=True) + "\n")
+        return 0
+    autopilot.enter_escalate(state, f"{gate.value}: {decision.resolution.value} — {decision.reason}")
+    autopilot.save_state(state, state_path)
+    sys.stdout.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
+    return EXIT_GATE_PARKED
 
 
 def _evaluate_gate(args: argparse.Namespace) -> int:
@@ -148,6 +270,21 @@ def _evaluate_gate(args: argparse.Namespace) -> int:
 
     gate = Gate(args.gate)
     phase = state.current_phase
+    prior = _human_rejection_in_force(state, gate.value)
+    if prior is not None:
+        # D5: a human rejection is final for its subject; a posture change
+        # does not reopen it. The run is parked in ESCALATE (entered here if a
+        # caller reached the gate outside it) so only an operator resume clears it.
+        if state.current_phase != "ESCALATE":
+            autopilot.enter_escalate(
+                state, f"{gate.value}: rejected by a human; awaiting operator resume"
+            )
+            autopilot.save_state(state, state_path)
+        sys.stdout.write(json.dumps(prior, indent=2, sort_keys=True) + "\n")
+        sys.stderr.write(
+            f"runner: gate {gate.value!r} was rejected by a human; not re-evaluated\n"
+        )
+        return EXIT_GATE_PARKED
     session = autopilot._GateSession(
         change_id=args.change_id,
         state_path=state_path,
@@ -207,17 +344,71 @@ def _evaluate_gate(args: argparse.Namespace) -> int:
 
 
 def _console_decision(
-    gate: Gate, pending: dict, approved: bool, note: str | None
+    gate: Gate,
+    pending: dict,
+    approved: bool,
+    note: str | None,
+    *,
+    approval_ref: str | None = None,
+    answer: dict | None = None,
 ) -> ApprovalDecision:
     """Build the ApprovalDecision for an answer the operator gave in-conversation.
 
     Thin delegate (ri-04, D2): the shared shape now lives in
     shared.approval_gate.console_decision, so supervise's gate_router.py can
-    build the identical record without importing autopilot.py.
+    build the identical record without importing autopilot.py. The record's
+    provenance names ``approval_ref`` (D5), or — when the supervisor's answer
+    was posture-derived — the posture provenance copied from the answer.
     """
-    return shared_approval_gate.console_decision(
-        gate, pending.get("posture") or {}, approved, note
+    decision = shared_approval_gate.console_decision(
+        gate, pending.get("posture") or {}, approved, note, approval_ref=approval_ref
     )
+    provenance = (answer or {}).get("provenance") or {}
+    if provenance.get("source") == "posture" and provenance.get("posture_digest"):
+        import dataclasses
+
+        decision = dataclasses.replace(
+            decision,
+            provenance={"source": "posture", "posture_digest": provenance["posture_digest"]},
+        )
+    return decision
+
+
+def _answer_park(
+    args: argparse.Namespace,
+    state: "autopilot.LoopState",
+    marker_answer: dict,
+    approval_ref: str | None,
+) -> int:
+    """Clear a capability/permission park with the supervisor's escalate_resume (D11)."""
+    if args.gate != Gate.ESCALATE_RESUME.value:
+        sys.stderr.write(
+            f"runner: run is parked ({state.park.get('kind')!r}); only escalate_resume "
+            "answers a park; nothing was recorded\n"
+        )
+        return 2
+    gate = Gate.ESCALATE_RESUME
+    approved = args.decision == "approved"
+    decision = _console_decision(
+        gate,
+        {"posture": {}},
+        approved,
+        args.note,
+        approval_ref=approval_ref,
+        answer=marker_answer,
+    )
+    state.gate_decisions.append(
+        autopilot.build_gate_decision_record(
+            decision, phase=state.current_phase, extra={"note": args.note}
+        )
+    )
+    kind = state.park.get("kind")
+    state.park = None
+    if not approved:
+        note = f" — {args.note}" if args.note else ""
+        autopilot.enter_escalate(state, f"{kind} park: rejected{note}")
+    autopilot.save_state(state, _state_path(args.change_id))
+    return 0
 
 
 def _cmd_gate_answer(args: argparse.Namespace) -> int:
@@ -228,7 +419,38 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
         sys.stderr.write(f"runner: {exc}\n")
         return 2
 
+    marker = _launch_marker(args.change_id)
+    approval_ref = getattr(args, "approval_ref", None)
+    marker_answer = (marker or {}).get("gate_answer") or {}
+    if marker is not None and (
+        approval_ref is None or approval_ref != marker_answer.get("approval_ref")
+    ):
+        # D5: a dispatched child applies only the answer its marker carries.
+        sys.stderr.write(
+            "runner: --approval-ref does not match the launch marker's gate_answer; "
+            "nothing was recorded\n"
+        )
+        return 2
+    if marker is not None and (
+        args.gate != marker_answer.get("gate") or args.decision != marker_answer.get("decision")
+    ):
+        # The reference alone does not authorize a decision: the gate and the
+        # decision must be the ones the supervisor recorded in the marker.
+        sys.stderr.write(
+            "runner: --gate/--decision do not match the launch marker's gate_answer "
+            f"({marker_answer.get('gate')!r}, {marker_answer.get('decision')!r}); "
+            "nothing was recorded\n"
+        )
+        return 2
+
     pending = _load_pending(args.change_id)
+    state_for_park = (
+        autopilot.load_state(_state_path(args.change_id))
+        if pending is None and _state_path(args.change_id).exists()
+        else None
+    )
+    if pending is None and state_for_park is not None and state_for_park.park:
+        return _answer_park(args, state_for_park, marker_answer, approval_ref)
     if pending is None:
         sys.stderr.write(f"runner: no gate pending for {args.change_id}\n")
         return 2
@@ -245,7 +467,9 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
     state = autopilot.load_state(state_path)
     gate = Gate(args.gate)
     approved = args.decision == "approved"
-    decision = _console_decision(gate, pending, approved, args.note)
+    decision = _console_decision(
+        gate, pending, approved, args.note, approval_ref=approval_ref, answer=marker_answer
+    )
 
     state.gate_decisions.append(
         autopilot.build_gate_decision_record(
@@ -353,6 +577,14 @@ def _cmd_apply_outcome(args: argparse.Namespace) -> int:
         if not isinstance(val, str) or not val.strip():
             sys.stderr.write(f"runner: --{name.replace('_', '-')} must be a non-empty string\n")
             return 2
+    park = _load_park(args.change_id)
+    if park is not None:
+        # D11: a parked run has no authorized phase; this is a fault, not a stop.
+        sys.stderr.write(
+            f"runner: run is parked ({park.get('kind')!r}) for {args.change_id}; "
+            "apply-outcome recorded nothing\n"
+        )
+        return 2
     pending = _load_pending(args.change_id)
     if pending is not None:
         # Refuse rather than record: while a gate is unanswered the run is
@@ -433,6 +665,9 @@ def _cmd_transition(args: argparse.Namespace) -> int:
     except autopilot.GatePending as exc:
         sys.stderr.write(f"runner: transition stopped: {exc}\n")
         return 0
+    except autopilot.ParkActive as exc:
+        sys.stderr.write(f"runner: transition refused: {exc}\n")
+        return 2
     except autopilot.GoalGateRefused as exc:
         autopilot.enter_escalate(state, f"goal gate refused: {exc.reason}")
         try:
@@ -536,6 +771,161 @@ def _cmd_project_state(args: argparse.Namespace) -> int:
     # Projection is observability-only. A structured degraded envelope is a
     # successfully reported projection attempt and must not halt phase work.
     return 0
+
+# --------------------------------------------------------------------------- #
+# dispatch-contract: park, record-degradation, emit-result
+# --------------------------------------------------------------------------- #
+
+
+def _degradation_codes() -> list[str]:
+    schema = dispatch_contract.load_schema(dispatch_contract.RESULT_V2)
+    return list(schema["$defs"]["Degradation"]["properties"]["code"]["enum"])
+
+
+def _cmd_park(args: argparse.Namespace) -> int:
+    """Record why the run stopped before a gate (D11); the only writer of `park`."""
+    try:
+        phase_agent._validate_change_id(args.change_id)
+        state_path = _state_path(args.change_id)
+        state = autopilot.load_state(state_path)
+    except (ValueError, OSError) as exc:
+        sys.stderr.write(f"runner: park failed: {exc}\n")
+        return 2
+    if args.kind == "permission_blocked":
+        missing = [name for name in ("tool", "rule", "reason") if not getattr(args, name)]
+        if missing:
+            sys.stderr.write(f"runner: permission_blocked requires --{', --'.join(missing)}\n")
+            return 2
+        park = {
+            "kind": "permission_blocked",
+            "tool": args.tool,
+            "rule": args.rule,
+            "classifier_reason": args.reason,
+            "command": dispatch_contract.redact_command(args.command),
+            "reason": f"permission denied for {args.tool} under rule {args.rule}",
+        }
+    else:
+        if not args.phase or not args.missing_lane:
+            sys.stderr.write("runner: capability_unavailable requires --phase and --missing-lane\n")
+            return 2
+        lanes = sorted(set(args.missing_lane))
+        park = {
+            "kind": "capability_unavailable",
+            "phase": args.phase,
+            "missing_lanes": lanes,
+            "reason": args.reason
+            or f"{args.phase} review quorum unmet: missing {', '.join(lanes)}",
+        }
+    state.park = park
+    autopilot.save_state(state, state_path)
+    sys.stdout.write(json.dumps(park, indent=2, sort_keys=True) + "\n")
+    return 0
+
+
+def _cmd_record_degradation(args: argparse.Namespace) -> int:
+    """Append one closed-code degradation (D10); the only writer of `degradations`."""
+    try:
+        phase_agent._validate_change_id(args.change_id)
+    except ValueError as exc:
+        sys.stderr.write(f"runner: {exc}\n")
+        return 2
+    codes = _degradation_codes()
+    if args.code not in codes:
+        sys.stderr.write(
+            f"runner: unknown degradation code {args.code!r}; expected one of {', '.join(codes)}\n"
+        )
+        return 2
+    if len(args.detail or "") > 512:
+        sys.stderr.write("runner: --detail must be at most 512 characters\n")
+        return 2
+    state_path = _state_path(args.change_id)
+    try:
+        state = autopilot.load_state(state_path)
+    except (ValueError, OSError) as exc:
+        sys.stderr.write(f"runner: record-degradation failed: {exc}\n")
+        return 2
+    entry = {"code": args.code, "phase": args.phase, "detail": args.detail or ""}
+    if entry not in state.degradations:
+        if len(state.degradations) >= 32:
+            sys.stderr.write("runner: at most 32 degradations are recorded\n")
+            return 2
+        state.degradations.append(entry)
+        autopilot.save_state(state, state_path)
+    return 0
+
+
+def _git(*argv: str) -> bytes:
+    completed = subprocess.run(["git", *argv], capture_output=True, check=False)
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr.decode("utf-8", "replace").strip() or "git failed")
+    return completed.stdout
+
+
+def _cmd_emit_result(args: argparse.Namespace) -> int:
+    """Derive, write and print the dispatch result from committed loop state (D4)."""
+    try:
+        phase_agent._validate_change_id(args.change_id)
+    except ValueError as exc:
+        sys.stderr.write(f"runner: {exc}\n")
+        return 2
+    rel = _state_path(args.change_id).as_posix()
+    try:
+        commit = _git("rev-parse", "HEAD").decode().strip()
+        committed = _git("show", f"HEAD:{rel}")
+    except RuntimeError as exc:
+        sys.stderr.write(f"runner: loop-state is not committed at HEAD: {exc}\n")
+        return 2
+    try:
+        working = Path(rel).read_bytes()
+    except OSError as exc:
+        sys.stderr.write(f"runner: cannot read {rel}: {exc}\n")
+        return 2
+    if working != committed:
+        sys.stderr.write(
+            f"runner: {rel} differs from its HEAD version; commit it before emit-result\n"
+        )
+        return 2
+    state = json.loads(committed.decode("utf-8"))
+    marker = _launch_marker(args.change_id) or {}
+    isolation = marker.get("isolation") or {}
+    try:
+        branch = args.branch or isolation.get("branch") or _git(
+            "rev-parse", "--abbrev-ref", "HEAD"
+        ).decode().strip()
+    except RuntimeError as exc:
+        sys.stderr.write(f"runner: cannot resolve the branch: {exc}\n")
+        return 2
+    from shared.environment_profile import host_id
+
+    ctx = {
+        "dispatch_id": args.dispatch_id,
+        "change_id": args.change_id,
+        "attempt": args.attempt,
+        "lease_generation": args.generation,
+        "worktree_ref": args.worktree_ref or isolation.get("worktree_ref"),
+        "branch": branch,
+        "host_id": args.host_id or isolation.get("host_id") or host_id(),
+        "evidence": {
+            "loop_state_path": rel,
+            "commit": commit,
+            "loop_state_digest": hashlib.sha256(committed).hexdigest(),
+        },
+    }
+    try:
+        result = dispatch_contract.result_from_loop_state(state, ctx)
+    except dispatch_contract.DispatchContractError as exc:
+        sys.stderr.write(f"runner: emit-result failed: {exc}\n")
+        return 2
+    if result is None:
+        sys.stderr.write(f"runner: {dispatch_contract.NOT_TERMINAL_MESSAGE}\n")
+        return EXIT_NOT_TERMINAL
+    out = Path(dispatch_contract.result_relpath(args.change_id, args.dispatch_id, args.generation))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    out.write_text(payload)
+    sys.stdout.write(payload)
+    return 0
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -694,7 +1084,55 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     ga.add_argument("--decision", required=True, choices=["approved", "rejected"])
     ga.add_argument("--note", default=None, help="Operator note recorded with the decision.")
+    ga.add_argument(
+        "--approval-ref",
+        default=None,
+        help=(
+            "gate-decision:<id> from the resume request's gate_answer. Recorded in "
+            "the decision's provenance; a dispatched child refuses a reference "
+            "that differs from its launch marker's."
+        ),
+    )
     ga.set_defaults(func=_cmd_gate_answer)
+
+    pk = sub.add_parser(
+        "park",
+        help="Record why the run stopped before a gate (permission or capability).",
+    )
+    pk.add_argument("change_id")
+    pk.add_argument("--kind", required=True, choices=["permission_blocked", "capability_unavailable"])
+    pk.add_argument("--tool", default=None)
+    pk.add_argument("--rule", default=None, help="The matched permission rule, e.g. Bash(env *).")
+    pk.add_argument("--command", default=None, help="The blocked command; stored redacted.")
+    pk.add_argument("--reason", default=None, help="The classifier's reason (permission) or a note.")
+    pk.add_argument("--phase", default=None, choices=list(dispatch_contract.REVIEW_PHASES))
+    pk.add_argument("--missing-lane", action="append", default=None)
+    pk.set_defaults(func=_cmd_park)
+
+    rd = sub.add_parser("record-degradation", help="Append one closed-code degradation.")
+    rd.add_argument("change_id")
+    rd.add_argument("--code", required=True)
+    rd.add_argument("--phase", required=True)
+    rd.add_argument("--detail", default="")
+    rd.set_defaults(func=_cmd_record_degradation)
+
+    er = sub.add_parser(
+        "emit-result",
+        help="Write the dispatch result derived from the committed loop state.",
+        description=(
+            "Exit 0: result written to openspec/changes/<id>/dispatch-results/ "
+            "and printed. Exit 2: loop-state uncommitted or invalid. Exit 5: "
+            "the loop is not terminal or parked; nothing is written."
+        ),
+    )
+    er.add_argument("change_id")
+    er.add_argument("--dispatch-id", required=True)
+    er.add_argument("--generation", required=True, type=int)
+    er.add_argument("--attempt", required=True, type=int)
+    er.add_argument("--worktree-ref", default=None)
+    er.add_argument("--branch", default=None)
+    er.add_argument("--host-id", default=None)
+    er.set_defaults(func=_cmd_emit_result)
 
     return parser
 

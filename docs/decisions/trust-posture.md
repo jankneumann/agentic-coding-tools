@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-10-06 — dispatch-contract
+
+### Phase: Plan Iteration 2
+
+**ApprovalGate reads the launch marker through an injected seam and ignores context refs** — A context value can be set by any caller; the marker is written by child_start after supervisor verification. The seam also keeps wp-posture independent of wp-contract-lib.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
+
+---
+
+## 2026-10-06 — dispatch-contract
+
+### Phase: Plan Iteration 1
+
+**Non-auto fallback is an optional `unscoped` posture sub-config defaulting to block** — The outcome names a fallback but the posture schema has none; a declared field keeps operators able to choose notify_with_timeout while failing closed by default. Recorded as a decision rather than asked: this phase sub-agent has no interactive channel to the operator.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D4)
+
+---
+
 ## 2026-09-03 — 2026-09-03-route-supervise-gates-through-the-approval-gate-service
 
 ### Phase: Plan

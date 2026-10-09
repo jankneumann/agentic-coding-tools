@@ -105,6 +105,32 @@ python3 "<skill-base-dir>/scripts/runner.py" project-state \
   --coordinator-url "<coordinator-url>"
 ```
 
+### Dispatched worker protocol (supervise children)
+
+A run whose worktree carries a launch marker was dispatched by `/supervise`
+(dispatch-contract). The marker is its only view of the dispatch request; it
+carries no token.
+
+- **Gates.** The supervisor is authoritative. Apply a gate decision only from the
+  marker's `gate_answer`: `runner.py gate-answer <change-id> --gate <gate>
+  --decision <decision> --approval-ref <gate_answer.approval_ref>`. Never answer or
+  re-evaluate a pending gate yourself; `gate-check` prints it unchanged.
+- **Permission denials.** When the harness denies a tool call, do not retry or wait:
+  `runner.py park <change-id> --kind permission_blocked --tool <tool> --rule "<matched
+  rule>" --command "<command>" --reason "<classifier reason>"`, commit
+  `loop-state.json`, emit the result, and stop. The command is stored redacted.
+- **Probing.** Run only `execution_profile.probe_command`. Never read environment
+  variables or credentials to discover capabilities.
+- **Degradations.** Record every degraded path with `runner.py record-degradation`
+  (closed codes only: `single_vendor_review`, `review_skipped`,
+  `coordinator_projection_forbidden`, `audit_sink_failed`, `phase_fallback_inline`,
+  `handoff_local_fallback`).
+- **Result.** When the loop is terminal or parked, commit `loop-state.json`, then
+  `runner.py emit-result <change-id> --dispatch-id <id> --generation <N> --attempt <A>`
+  (exit 5: not terminal or parked; exit 2: loop state uncommitted). Commit the file it
+  writes under `openspec/changes/<change-id>/dispatch-results/` and return only that
+  path and the commit — never a hand-composed result.
+
 ### 0. Parse Arguments and Check for Resume
 
 Parse the argument to determine:
@@ -158,16 +184,40 @@ Append only the flags present in the Autopilot invocation; `init` persists them 
 python3 "<skill-base-dir>/scripts/runner.py" init --change-id <change-id> [--force] [--val-review] [--no-review]
 ```
 
-**Detect CLI mode** — check whether multi-vendor review is available:
+**Detect CLI mode** — decide how multi-vendor review runs. Whether this run was
+dispatched by `/supervise` is decided by its launch marker
+(`.supervised-dispatch/<change-id>/*.marker`, read only through
+`dispatch_contract.read_launch_marker`), never by inspecting the environment.
+
+*Dispatched child (launch marker present).* Keep review enabled. The marker's
+`review_requirements.min_quorum[<phase>]` and `execution_profile.lanes.review`
+are the only inputs: the supervisor resolved them as data (including any
+per-environment quorum policy and its sunset), so the child never lowers a quorum
+itself. At `PLAN_REVIEW` / `IMPL_REVIEW` / `VAL_REVIEW` entry, and again whenever a
+review round's `review-manifest.json` shows a lane failed to dispatch
+(`vendor_unavailable` / `auth_required`), compare the lanes that actually
+dispatched with `min_quorum[<phase>]`:
 
 ```bash
-# CLI mode: vendor CLIs are available for multi-vendor review dispatch
+# fewer dispatchable lanes than the quorum: park and stop — never review below it
+python3 "<skill-base-dir>/scripts/runner.py" park <change-id> \
+  --kind capability_unavailable --phase <PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW> \
+  --missing-lane <counting lane not dispatched> [--missing-lane ...]
+# quorum met by exactly one lane (min_quorum 1 by policy): record it, then review
+python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
+  --code single_vendor_review --phase <phase> --detail "vendor=<the one lane>"
+```
+
+*Standalone run (no marker).* Keep today's probe, and record the degradation when
+review is disabled below quorum:
+
+```bash
 CLI_REVIEW_ENABLED=true
 if [[ "$ARGUMENTS" == *"--no-review"* ]]; then
   CLI_REVIEW_ENABLED=false
 fi
-# Also disable if fewer than 2 vendors are dispatchable (non-interactive/cloud
-# environment). --check-vendors exits 0 at quorum, 2 below it.
+# Disable if fewer than 2 vendors are dispatchable. --check-vendors exits 0 at
+# quorum, 2 below it; it counts a lane only after a dry invocation succeeds.
 #
 # Run it BARE — do not pipe. A pipeline's $? is the LAST stage's status, so
 # `... --check-vendors | tail` would report tail's 0 even when the probe fails,
@@ -176,8 +226,14 @@ if ! python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatc
      --check-vendors --min-vendors 2; then
   CLI_REVIEW_ENABLED=false
   echo "[autopilot] Fewer than 2 vendor CLIs detected — multi-vendor review disabled"
+  python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
+    --code review_skipped --phase PLAN_REVIEW --detail "fewer than 2 dispatchable review lanes"
 fi
 ```
+
+Never discover vendors or credentials by reading environment variables
+or credential files: `review_dispatcher.py --check-vendors` (or, in a dispatched
+child, the marker's `execution_profile.probe_command`) is the only probe.
 
 Pass `cli_review_enabled` to `run_loop()`. When False, PLAN_ITERATE and IMPL_ITERATE still run (self-review is always valuable), but PLAN_REVIEW and IMPL_REVIEW are skipped.
 

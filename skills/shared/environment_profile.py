@@ -21,12 +21,16 @@ decision and not re-query inside tight loops.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
+import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal
 
 Source = Literal["env_var", "coordinator", "heuristic", "default"]
@@ -247,6 +251,43 @@ def detect(
             details={},
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# Host identity (dispatch-contract D7)
+# ---------------------------------------------------------------------------
+
+#: Variables naming the cloud session environment, highest precedence first.
+#: ``AGENT_HOST_ID`` is the explicit operator/harness override.
+_HOST_ID_VARS = ("AGENT_HOST_ID", "CLOUD_ENVIRONMENT_ID")
+_MACHINE_ID_PATHS = ("/etc/machine-id", "/var/lib/dbus/machine-id")
+_HOST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+
+
+def _hashed(prefix: str, value: str) -> str:
+    return f"{prefix}-{hashlib.sha256(value.encode('utf-8')).hexdigest()[:16]}"
+
+
+def host_id() -> str:
+    """A stable, non-secret identifier for the host running this process.
+
+    The cloud session environment ID when the harness provides one (used as is
+    when it already has the portable shape, hashed otherwise), else a hash of
+    the machine ID, else a hash of the network node id. Never a hostname or a
+    username; only the identifier itself is read, never printed or logged.
+    """
+    for name in _HOST_ID_VARS:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value if _HOST_ID_PATTERN.fullmatch(value) else _hashed("env", value)
+    for path in _MACHINE_ID_PATHS:
+        try:
+            machine = Path(path).read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if machine:
+            return _hashed("machine", machine)
+    return _hashed("node", str(uuid.getnode()))
 
 
 def _emit_debug(profile: EnvironmentProfile) -> EnvironmentProfile:

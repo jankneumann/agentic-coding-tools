@@ -541,6 +541,56 @@ def test_converge_writes_packet_and_passes_body_as_prompt(tmp_path: Path) -> Non
     assert meta["budget_chars"] == 320000
 
 
+def _converge_capturing_base_ref(tmp_path: Path, **kwargs: object) -> list[object]:
+    """Run one clean round and return the base_ref each packet build received."""
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    results = [
+        _make_review_result("vendor_a", findings=[]),
+        _make_review_result("vendor_b", findings=[]),
+    ]
+    report = _make_consensus_report(findings=[])
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.dispatch_and_wait.return_value = results
+    mock_synthesizer = MagicMock()
+    mock_synthesizer.synthesize.return_value = report
+    real_synth = __import__(
+        "consensus_synthesizer", fromlist=["ConsensusSynthesizer"]
+    ).ConsensusSynthesizer()
+    mock_synthesizer.to_dict.return_value = real_synth.to_dict(report)
+    import convergence_loop
+
+    seen: list[object] = []
+    real_build = convergence_loop.build_review_packet
+
+    def spy(**build_kwargs: object):
+        seen.append(build_kwargs.get("base_ref", "<default>"))
+        return real_build(**build_kwargs)
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=mock_synthesizer), \
+            patch("convergence_loop.build_review_packet", side_effect=spy):
+        result = converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=artifacts,
+            worktree_path=tmp_path,
+            orchestrator=mock_orchestrator,
+            **kwargs,
+        )
+    assert result.converged is True
+    return seen
+
+
+def test_converge_passes_base_ref_to_the_review_packet(tmp_path: Path) -> None:
+    """A stacked branch diffs against its PR base, not the hard-coded main."""
+    base = "origin/openspec/roadmap-multiplayer-collaboration"
+    assert _converge_capturing_base_ref(tmp_path, base_ref=base) == [base]
+
+
+def test_converge_without_base_ref_keeps_the_packet_default(tmp_path: Path) -> None:
+    assert _converge_capturing_base_ref(tmp_path) == ["<default>"]
+
+
 def test_missing_ledger_still_runs(tmp_path: Path) -> None:
     artifacts = tmp_path / "artifacts"
     artifacts.mkdir()
@@ -714,6 +764,47 @@ def test_converge_rejects_out_of_scope_fix(tmp_path: Path) -> None:
             )
     ledger = load_or_create(ctx["artifacts_dir"], "test-change")
     assert ledger["items"][0]["status"] == "open"
+
+
+def test_converge_bookkeeping_is_not_a_fix_edit(tmp_path: Path) -> None:
+    """converge's own .review-ledger/ and .review-cache/ writes under
+    artifacts_dir (here tracked, as on a branch that committed an earlier
+    round) are not attributed to the fix callback by the scope check."""
+    _init_git_repo(tmp_path)
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "api.py").write_text("ok\n")
+    ctx, _finding = _blocking_round(tmp_path)
+    artifacts = ctx["artifacts_dir"]
+    ledger_dir = artifacts / ".review-ledger"
+    ledger_dir.mkdir()
+    (ledger_dir / "ledger.json").write_text(
+        json.dumps({"change_id": "test-change", "items": []}) + "\n"
+    )
+    cache = artifacts / ".review-cache" / "round-1"
+    cache.mkdir(parents=True)
+    (cache / "review-packet.md").write_text("stale\n")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "earlier round"], cwd=tmp_path, check=True, capture_output=True,
+    )
+
+    def edit_allowed(_blocking: list, worktree: Path) -> None:
+        (worktree / "src" / "api.py").write_text("fixed\n")
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=artifacts,
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            fix_callback=edit_allowed,
+        )
+    # Accepted by the scope check (no ScopeViolation), then retired by the
+    # clean second round.
+    ledger = load_or_create(artifacts, "test-change")
+    assert ledger["items"][0]["status"] in {"addressed", "retired"}
 
 
 def test_last_fix_diff_includes_committed_callback_edits(tmp_path: Path) -> None:

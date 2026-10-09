@@ -294,7 +294,7 @@ def test_escalate_wrapper_carries_the_v5_gate_keys_through(chdir_tmp: Path) -> N
     )
 
     state = json.loads(state_path.read_text())
-    assert state["schema_version"] == 5
+    assert state["schema_version"] == 6
     assert state["gate_decisions"] == []
     assert state["pending_gate"] is None
     assert state["goal_gate"] is None

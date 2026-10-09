@@ -72,7 +72,13 @@ from policy import (  # type: ignore[import-untyped]
 )
 from replanner import replan  # type: ignore[import-untyped]
 from sanitizer import sanitize_dict  # type: ignore[import-untyped]
+from shared import dispatch_contract  # noqa: E402
+from shared.environment_profile import host_id as current_host_id  # noqa: E402
 from shared.trust_posture import Gate  # noqa: E402
+
+#: Answers whether the supervisor has an answer path for a parked ``(kind,
+#: gate)`` pair; injected by the supervise execution adapter (D3, closure).
+ParkedRoute = Callable[[str, Any], bool]
 
 logger = logging.getLogger(__name__)
 
@@ -125,30 +131,7 @@ def _normalize_outcome(result: DispatchResult) -> tuple[str, bool]:
 
 
 IsolationResolver = Callable[[RoadmapItem], Mapping[str, Any]]
-_RESULT_REQUIRED = {
-    "schema_version",
-    "dispatch_id",
-    "change_id",
-    "attempt",
-    "lease_generation",
-    "outcome",
-}
-_RESULT_ALLOWED = _RESULT_REQUIRED | {
-    "replan",
-    "handoff_id",
-    "worktree_path",
-    "branch",
-    "parked",
-    "evidence",
-}
-_EXACT_CHANGE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _BATCH_ID = re.compile(r"^batch-[0-9a-f]{24}$")
-_RESULT_OUTCOME = re.compile(r"^(success|failed:.+|vendor_limit:[^:]+:.+|parked)$")
-_DATE_TIME = re.compile(
-    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$"
-)
-_HEX_40 = re.compile(r"^[0-9a-f]{40}$")
-_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _TERMINAL_ATTEMPT_STATUSES = {"completed", "failed", "parked"}
 _RESERVED_DISPATCH_CONTEXT_KEYS = frozenset(
     {
@@ -201,17 +184,37 @@ def _copy_context(context: Mapping[str, Any] | None) -> dict[str, Any]:
     return value
 
 
-def _validated_isolation(value: Mapping[str, Any]) -> dict[str, str]:
+def _portable_isolation(
+    value: Mapping[str, Any],
+    *,
+    repo_root: Path,
+    managed_root: Path,
+    host_id: str,
+) -> dict[str, Any]:
+    """Convert a resolver's absolute isolation to the persisted portable shape (D7).
+
+    The absolute path exists only here, in memory; a path outside the root its
+    mode is relative to is refused.
+    """
     isolation = dict(value)
     if set(isolation) != {"mode", "worktree_path", "branch"}:
         raise ValueError("isolation must contain exactly mode, worktree_path, and branch")
-    if isolation["mode"] not in {"managed_worktree", "harness_provided"}:
+    mode = isolation["mode"]
+    if mode not in {"managed_worktree", "harness_provided"}:
         raise ValueError("unsupported isolation mode")
     if not isinstance(isolation["worktree_path"], str) or not isolation["worktree_path"]:
         raise ValueError("isolation worktree_path must be non-empty")
     if not isinstance(isolation["branch"], str) or not isolation["branch"]:
         raise ValueError("isolation branch must be non-empty")
-    return isolation  # type: ignore[return-value]
+    ref = dispatch_contract.portable_ref(
+        Path(isolation["worktree_path"]).resolve(),
+        mode=mode,
+        repo_root=Path(repo_root).resolve(),
+        managed_root=Path(managed_root).resolve(),
+    )
+    if ref is None and mode == "managed_worktree":
+        raise ValueError("managed worktree is not inside the managed worktree root")
+    return {"mode": mode, "worktree_ref": ref, "branch": isolation["branch"], "host_id": host_id}
 
 
 def _next_attempt_number(checkpoint: Any, item_id: str) -> int:
@@ -225,25 +228,51 @@ def _next_attempt_number(checkpoint: Any, item_id: str) -> int:
     )
 
 
-def _request_from_attempt(
+def request_from_attempt(
     roadmap_id: str,
     attempt: Mapping[str, Any],
+    *,
+    launch_token: str | None,
+    gate_answer: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
-        "schema_version": 1,
+    """The version-2 request for an attempt's current generation (D1, D6).
+
+    ``launch_token`` is the raw per-generation token, held only in memory by the
+    caller that just minted it; it is never read back from the checkpoint. With
+    ``launch_token=None`` the returned entry view omits it and is not a full
+    request.
+    """
+    request: dict[str, Any] = {
+        "schema_version": 2,
         "dispatch_id": attempt["dispatch_id"],
         "roadmap_id": roadmap_id,
         "item_id": attempt["item_id"],
         "change_id": attempt["change_id"],
         "phase": attempt["phase"],
         "attempt": attempt["attempt"],
-        "launch_token": attempt["launch_token"],
         "lease_generation": attempt["lease_generation"],
         "launch_marker_path": attempt["launch_marker_path"],
         "scope": copy.deepcopy(attempt["scope"]),
         "isolation": copy.deepcopy(attempt["isolation"]),
         "context": copy.deepcopy(attempt["context"]),
+        "execution_profile": copy.deepcopy(attempt.get("execution_profile") or {}),
+        "review_requirements": copy.deepcopy(attempt.get("review_requirements") or {}),
+        "roadmap_approval_ref": attempt.get("roadmap_approval_ref"),
     }
+    if "continuation" in attempt:
+        request["continuation"] = copy.deepcopy(attempt["continuation"])
+    if gate_answer is not None:
+        request["gate_answer"] = copy.deepcopy(dict(gate_answer))
+    if launch_token is None:
+        return request
+    request["launch_token"] = launch_token
+    return dispatch_contract.validate_request(request)
+
+
+def mint_launch_token() -> tuple[str, str]:
+    """A fresh raw launch token and its persisted digest (D6)."""
+    token = secrets.token_urlsafe(24)
+    return token, dispatch_contract.launch_digest(token)
 
 
 def prepare_delegated_batch(
@@ -252,9 +281,24 @@ def prepare_delegated_batch(
     repo_root: Path,
     isolation_resolver: IsolationResolver,
     context: Mapping[str, Any] | None = None,
+    managed_root: Path | None = None,
+    host_id: str | None = None,
+    roadmap_approval_ref: str | None = None,
+    execution_profile: Mapping[str, Any] | None = None,
+    review_requirements: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Persist one scope-safe generation batch without invoking ``dispatch_fn``."""
+    """Persist one scope-safe generation batch without invoking ``dispatch_fn``.
+
+    Each attempt stores only the launch digest; the raw token of each
+    generation is minted here and returned in its request alone (D6).
+    Isolation is persisted host-portably (D7), and the verified
+    ``roadmap_approval_ref`` plus the resolved execution profile and review
+    requirements are persisted so every generation's request and marker carry
+    them (D8, D10).
+    """
     base_context = _copy_context(context)
+    managed = Path(managed_root) if managed_root is not None else Path(repo_root) / ".git-worktrees"
+    host = host_id or current_host_id()
     roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
     unresolved_items = {
         attempt["item_id"]
@@ -298,7 +342,9 @@ def prepare_delegated_batch(
     for selected in plan.items:
         item = by_id[selected.item_id]
         try:
-            isolation = _validated_isolation(isolation_resolver(item))
+            isolation = _portable_isolation(
+                isolation_resolver(item), repo_root=repo_root, managed_root=managed, host_id=host
+            )
         except Exception as exc:
             failures.append(
                 {
@@ -334,12 +380,14 @@ def prepare_delegated_batch(
     )
     batch_id = f"batch-{hashlib.sha256(digest_input.encode()).hexdigest()[:24]}"
     prepared: list[dict[str, Any]] = []
+    tokens: dict[str, str] = {}
     dispatch_ids: list[str] = []
     for selected, item, attempt_number, isolation in generation_specs:
         dispatch_id = f"{batch_id}:{item.item_id}:attempt-{attempt_number}"
         dispatch_ids.append(dispatch_id)
-        prepared.append(
-            {
+        token, digest = mint_launch_token()
+        tokens[dispatch_id] = token
+        attempt_record: dict[str, Any] = {
                 "dispatch_id": dispatch_id,
                 "item_id": item.item_id,
                 "change_id": selected.change_id,
@@ -347,7 +395,7 @@ def prepare_delegated_batch(
                 "attempt": attempt_number,
                 "status": "prepared",
                 "prepared_at": datetime.now(timezone.utc).isoformat(),
-                "launch_token": secrets.token_urlsafe(24),
+                "launch_digest": digest,
                 "launch_marker_path": (
                     f".supervised-dispatch/{item.change_id}/"
                     f"{item.item_id}-attempt-{attempt_number}.marker"
@@ -357,8 +405,12 @@ def prepare_delegated_batch(
                 "scope": selected.scope.to_request_scope(),
                 "isolation": isolation,
                 "context": copy.deepcopy(base_context),
-            }
-        )
+                "execution_profile": copy.deepcopy(dict(execution_profile or {})),
+                "review_requirements": copy.deepcopy(dict(review_requirements or {})),
+        }
+        if roadmap_approval_ref is not None:
+            attempt_record["roadmap_approval_ref"] = roadmap_approval_ref
+        prepared.append(attempt_record)
 
     for attempt in prepared:
         validate_delegated_dispatch_attempt(attempt)
@@ -375,124 +427,14 @@ def prepare_delegated_batch(
     return {
         "batch_id": batch_id,
         "requests": [
-            _request_from_attempt(roadmap.roadmap_id, attempt) for attempt in prepared
+            request_from_attempt(
+                roadmap.roadmap_id, attempt, launch_token=tokens[attempt["dispatch_id"]]
+            )
+            for attempt in prepared
         ],
         "failures": failures,
         "deferred_item_ids": list(plan.deferred_item_ids),
     }
-
-
-def _validate_dispatch_result(result: Mapping[str, Any]) -> dict[str, Any]:
-    value = copy.deepcopy(dict(result))
-    missing = _RESULT_REQUIRED - value.keys()
-    extra = value.keys() - _RESULT_ALLOWED
-    if missing or extra:
-        raise ValueError(
-            "invalid supervised dispatch result fields: "
-            f"missing={sorted(missing)} extra={sorted(extra)}"
-        )
-    if isinstance(value["schema_version"], bool) or value["schema_version"] != 1:
-        raise ValueError("invalid supervised dispatch result schema_version")
-    if not isinstance(value["dispatch_id"], str) or not 1 <= len(value["dispatch_id"]) <= 256:
-        raise ValueError("invalid supervised dispatch result dispatch_id")
-    change_id = value["change_id"]
-    if (
-        not isinstance(change_id, str)
-        or len(change_id) > 160
-        or _EXACT_CHANGE_ID.fullmatch(change_id) is None
-    ):
-        raise ValueError("invalid supervised dispatch result change_id")
-    for field in ("attempt", "lease_generation"):
-        number = value[field]
-        if isinstance(number, bool) or not isinstance(number, int) or number < 1:
-            raise ValueError(f"invalid supervised dispatch result {field}")
-    outcome = value["outcome"]
-    if (
-        not isinstance(outcome, str)
-        or len(outcome) > 1024
-        or _RESULT_OUTCOME.fullmatch(outcome) is None
-    ):
-        raise ValueError("invalid supervised dispatch result outcome")
-    if "replan" in value and not isinstance(value["replan"], bool):
-        raise ValueError("invalid supervised dispatch result replan")
-    if "handoff_id" in value and (
-        value["handoff_id"] is not None
-        and (
-            not isinstance(value["handoff_id"], str)
-            or len(value["handoff_id"]) > 256
-        )
-    ):
-        raise ValueError("invalid supervised dispatch result handoff_id")
-    for field in ("worktree_path", "branch"):
-        if field in value and (
-            not isinstance(value[field], str) or not value[field]
-        ):
-            raise ValueError(f"invalid supervised dispatch result {field}")
-    if "evidence" in value:
-        evidence = value["evidence"]
-        if not isinstance(evidence, dict) or set(evidence) - {
-            "loop_state_path",
-            "commit",
-            "loop_state_digest",
-        }:
-            raise ValueError("invalid supervised dispatch result evidence")
-        if not isinstance(evidence.get("loop_state_path"), str) or not evidence["loop_state_path"]:
-            raise ValueError("invalid supervised dispatch result loop_state_path")
-        if (
-            not isinstance(evidence.get("commit"), str)
-            or _HEX_40.fullmatch(evidence["commit"]) is None
-        ):
-            raise ValueError("invalid supervised dispatch result commit")
-        if (
-            not isinstance(evidence.get("loop_state_digest"), str)
-            or _HEX_64.fullmatch(evidence["loop_state_digest"]) is None
-        ):
-            raise ValueError("invalid supervised dispatch result loop_state_digest")
-    if outcome in {"success", "parked"}:
-        required = {"worktree_path", "branch", "evidence"}
-        if not required <= value.keys():
-            raise ValueError(f"invalid {outcome} dispatch result evidence")
-    if outcome == "success" and (
-        not isinstance(value.get("handoff_id"), str) or not value["handoff_id"]
-    ):
-        raise ValueError("invalid success dispatch result handoff_id")
-    if outcome == "parked":
-        parked = value.get("parked")
-        if (
-            not isinstance(parked, dict)
-            or set(parked) - {"kind", "reason", "gate", "deadline", "resume_hint"}
-            or parked.get("kind") not in {"pending_gate", "policy_pause"}
-            or not isinstance(parked.get("reason"), str)
-            or not parked["reason"]
-            or len(parked["reason"]) > 1024
-            or not _valid_nullable_string(parked, "gate", 128)
-            or not _valid_nullable_string(parked, "resume_hint", 512)
-            or not _valid_nullable_date_time(parked, "deadline")
-        ):
-            raise ValueError("invalid parked dispatch result")
-    elif "parked" in value:
-        raise ValueError("non-parked dispatch result cannot contain parked state")
-    return value
-
-
-def _valid_nullable_string(value: Mapping[str, Any], field: str, limit: int) -> bool:
-    candidate = value.get(field)
-    return field not in value or candidate is None or (
-        isinstance(candidate, str) and len(candidate) <= limit
-    )
-
-
-def _valid_nullable_date_time(value: Mapping[str, Any], field: str) -> bool:
-    candidate = value.get(field)
-    if field not in value or candidate is None:
-        return True
-    if not isinstance(candidate, str) or _DATE_TIME.fullmatch(candidate) is None:
-        return False
-    try:
-        datetime.fromisoformat(candidate.replace("Z", "+00:00").replace("z", "+00:00"))
-    except ValueError:
-        return False
-    return True
 
 
 def _result_digest(result: Mapping[str, Any]) -> str:
@@ -605,7 +547,7 @@ def _validate_exact_result(
         if result[field] != attempt[field]:
             raise ValueError(f"{field} mismatch for dispatch {attempt['dispatch_id']}")
     isolation = attempt["isolation"]
-    for field in ("worktree_path", "branch"):
+    for field in ("worktree_ref", "branch", "host_id"):
         if field in result and result[field] != isolation[field]:
             raise ValueError(f"{field} mismatch for dispatch {attempt['dispatch_id']}")
 
@@ -643,6 +585,8 @@ def _terminal_attempt(
         terminal["lease"]["state"] = "released"
     outcome = result["outcome"]
     terminal.update(outcome=outcome, resolved_at=now)
+    # Outcome metadata (D10): the child's degradations, bounded by the schema.
+    terminal["degradations"] = copy.deepcopy(list(result.get("degradations") or []))
     if outcome == "success":
         terminal.update(status="completed", handoff_id=result["handoff_id"])
     elif outcome == "parked":
@@ -666,8 +610,17 @@ def apply_delegated_batch(
     *,
     repo_root: Path,
     gate_evaluator: GateEvaluator | None = None,
+    managed_root: Path | None = None,
+    host_id: str | None = None,
+    parked_route: ParkedRoute | None = None,
 ) -> dict[str, Any]:
-    """Validate and apply one exact persisted batch through ``dispatch_fn`` once."""
+    """Validate and apply one exact persisted batch through ``dispatch_fn`` once.
+
+    Results are validated against the published contract (v1 results are
+    upgraded in memory with this host's context). A parked result whose
+    ``(kind, gate)`` has no supervisor answer path (``parked_route``) is refused
+    before any callback runs.
+    """
     roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
     batch_attempts = _batch_attempts(checkpoint, batch_id)
     attempts = [
@@ -678,7 +631,26 @@ def apply_delegated_batch(
     if not attempts:
         raise ValueError(f"delegated batch already applied: {batch_id}")
 
-    validated = [_validate_dispatch_result(result) for result in results]
+    managed = Path(managed_root) if managed_root is not None else Path(repo_root) / ".git-worktrees"
+    host = host_id or current_host_id()
+    validated = []
+    for result in results:
+        upgraded = dispatch_contract.ensure_v2_result(
+            result, repo_root=repo_root, managed_root=managed, host_id=host
+        )
+        parked = upgraded.get("parked")
+        if isinstance(parked, dict) and parked.get("command") is not None:
+            # D9: the checkpoint is a tracked file, so a blocked command is
+            # re-sanitized here whatever the child sent, before the result is
+            # bound, journaled, or copied into the attempt.
+            parked["command"] = dispatch_contract.redact_command(str(parked["command"]))
+        if (
+            parked_route is not None
+            and isinstance(parked, Mapping)
+            and not parked_route(str(parked.get("kind")), parked.get("gate"))
+        ):
+            raise dispatch_contract.DispatchContractError("unroutable parked result")
+        validated.append(upgraded)
     dispatch_ids = [result["dispatch_id"] for result in validated]
     if len(dispatch_ids) != len(set(dispatch_ids)):
         raise ValueError("duplicate dispatch result")
@@ -822,6 +794,11 @@ def apply_delegated_batch(
         "failed_item_ids": failed,
         "parked_item_ids": parked,
         "gate_decisions": gate_decisions,
+        "degradations": {
+            result["dispatch_id"]: copy.deepcopy(result.get("degradations") or [])
+            for result in validated
+            if result.get("degradations")
+        },
     }
 
 
