@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "ownership-map",
-  "current_phase": "IMPLEMENT",
+  "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 9,
+  "total_iterations": 10,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -44,13 +44,19 @@
       "at": "2026-10-09T08:26:20.347225+00:00",
       "outcome": "converged",
       "phase": "PLAN_REVIEW"
+    },
+    {
+      "phase": "IMPLEMENT",
+      "outcome": "host_escalate",
+      "at": "2026-10-09T08:26:49.899641+00:00",
+      "note": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary"
     }
   ],
   "last_handoff_id": "a33ad94f-fce1-46ec-8ea9-b6e4faf625de",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-09T08:26:20.528651+00:00",
-  "previous_phase": "PLAN_REVIEW",
-  "escalation_reason": "PLAN_REVIEW blocked: permission denial on sub-agent worktree re-root (git fetch origin openspec/ownership-map && git reset --hard origin/openspec/ownership-map) \u2014 harness worktrees are rooted at main and cannot be re-rooted; converge() not run",
+  "phase_started_at": "2026-10-09T08:26:49.899667+00:00",
+  "previous_phase": "IMPLEMENT",
+  "escalation_reason": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
@@ -146,8 +152,42 @@
       "recorded_at": "2026-10-09T08:06:39.847096+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T08:26:55.893654+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "ownership-map",
+    "gate": "escalate_resume",
+    "phase": "ESCALATE",
+    "requested_at": "2026-10-09T08:26:55.894795+00:00",
+    "prompt": "Has this escalation been resolved? Resume the loop?",
+    "context": {
+      "escalation_reason": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary",
+      "previous_phase": "IMPLEMENT"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true
+    },
+    "edge": {
+      "outcome": "resolved",
+      "target": "IMPLEMENT"
+    }
+  },
   "goal_gate": null
 }
