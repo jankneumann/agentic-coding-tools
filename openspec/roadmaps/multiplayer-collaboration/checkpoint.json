@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T14:11:47.528897+00:00",
+  "updated_at": "2026-10-09T18:40:29.956620+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -640,7 +640,6 @@
       "attempt": 1,
       "status": "parked",
       "prepared_at": "2026-10-05T07:01:35.452722+00:00",
-      "launch_token": "M9MMyQ-nh5sn3_tvN0qA6TtJ_P-FvRzP",
       "launch_marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
       "lease_generation": 5,
       "launch_history": [
@@ -807,8 +806,9 @@
       },
       "isolation": {
         "mode": "managed_worktree",
-        "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-principles-guide",
-        "branch": "openspec/multiplayer-principles-guide"
+        "worktree_ref": "multiplayer-principles-guide",
+        "branch": "openspec/multiplayer-principles-guide",
+        "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
       "lease": {
@@ -854,10 +854,12 @@
             "reason": "PR #666 open against openspec/roadmap-multiplayer-collaboration (VALIDATE passed; PLAN_REVIEW and IMPL_REVIEW converged round 1, single_vendor_review). Loop at SUBMIT_PR awaiting the merge gate (block). Worker reported 'success'; normalized to the merge-gate park its loop-state backs.",
             "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/666; /cleanup-feature merges."
           },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-principles-guide"
+          "schema_version": 2,
+          "degradations": [],
+          "worktree_ref": "multiplayer-principles-guide",
+          "host_id": "machine-dc39bf1e25efdf45"
         },
-        "result_digest": "a9829df63f10989bccd3aa1d22c84be6dc9a03f535c1b4deba4a2a830b950d0b",
+        "result_digest": "376121d6bb8fbb5a165d7e46ca709ea1090b63e2814efdfb28fe5474840eec7b",
         "bound_at": "2026-10-09T12:18:06.626672+00:00",
         "callback_started_at": "2026-10-09T12:18:06.631199+00:00",
         "callback_acknowledged_at": "2026-10-09T12:18:06.634500+00:00",
@@ -871,7 +873,8 @@
         "kind": "pending_gate",
         "reason": "PR #666 open against openspec/roadmap-multiplayer-collaboration (VALIDATE passed; PLAN_REVIEW and IMPL_REVIEW converged round 1, single_vendor_review). Loop at SUBMIT_PR awaiting the merge gate (block). Worker reported 'success'; normalized to the merge-gate park its loop-state backs.",
         "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/666; /cleanup-feature merges."
-      }
+      },
+      "launch_digest": "sha256:5703c01606f8dc59648f5e12a5671035b8e42e1473605c1de0e488b8e7609c98"
     },
     {
       "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
@@ -881,7 +884,6 @@
       "attempt": 1,
       "status": "parked",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
-      "launch_token": "KQrZDLksm--dBjDWB7rzaGhHy-fSa7TB",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
       "lease_generation": 5,
       "launch_history": [
@@ -1048,8 +1050,9 @@
       },
       "isolation": {
         "mode": "managed_worktree",
-        "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/ownership-map",
-        "branch": "openspec/ownership-map"
+        "worktree_ref": "ownership-map",
+        "branch": "openspec/ownership-map",
+        "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
       "lease": {
@@ -1095,10 +1098,12 @@
             "reason": "Resume to SUBMIT_PR refused: classifier denied the worker's relayed gate-answer (Auto-Mode Bypass). Loop unchanged (ESCALATE after SUBMIT_PR). Needs the operator's in-session answer.",
             "resume_hint": "Posture-derived block: the current operator posture (roadmap branch, 7fea1cd) has pr_creation: auto. Answer escalate_resume; loop returns to SUBMIT_PR and opens the PR against openspec/roadmap-multiplayer-collaboration."
           },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/ownership-map"
+          "schema_version": 2,
+          "degradations": [],
+          "worktree_ref": "ownership-map",
+          "host_id": "machine-dc39bf1e25efdf45"
         },
-        "result_digest": "0a4ce2e0d7ba577518ec2051a5acaac9f10e8fafa7b0af81eaaaa89698d56a99",
+        "result_digest": "2ce23eb52e19389c8c03a19b27c3f87b832808a5169f3c657f07ddd1c1e4f5fe",
         "bound_at": "2026-10-09T13:43:45.495468+00:00",
         "callback_started_at": "2026-10-09T13:43:45.499261+00:00",
         "callback_acknowledged_at": "2026-10-09T13:43:45.502810+00:00",
@@ -1112,7 +1117,8 @@
         "kind": "pending_gate",
         "reason": "Resume to SUBMIT_PR refused: classifier denied the worker's relayed gate-answer (Auto-Mode Bypass). Loop unchanged (ESCALATE after SUBMIT_PR). Needs the operator's in-session answer.",
         "resume_hint": "Posture-derived block: the current operator posture (roadmap branch, 7fea1cd) has pr_creation: auto. Answer escalate_resume; loop returns to SUBMIT_PR and opens the PR against openspec/roadmap-multiplayer-collaboration."
-      }
+      },
+      "launch_digest": "sha256:cdda4b652be915081b14fe167d18d518878f90c9bc755bc9827bcf7504386cdc"
     },
     {
       "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
@@ -1122,7 +1128,6 @@
       "attempt": 1,
       "status": "parked",
       "prepared_at": "2026-10-05T07:10:51.250636+00:00",
-      "launch_token": "Mp2SzX-7Y7Losd0LyuH5PzlKFsrcvIng",
       "launch_marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
       "lease_generation": 3,
       "launch_history": [
@@ -1227,8 +1232,9 @@
       },
       "isolation": {
         "mode": "managed_worktree",
-        "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness",
-        "branch": "openspec/multiplayer-simulation-harness"
+        "worktree_ref": "multiplayer-simulation-harness",
+        "branch": "openspec/multiplayer-simulation-harness",
+        "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
       "lease": {
@@ -1274,10 +1280,12 @@
             "reason": "IMPLEMENT and IMPL_ITERATE complete (93 tests). IMPL_REVIEW blocked before any review: classifier denied a converge() driver shim (base_ref override, bookkeeping-path exclusion, min_quorum=1) as CI Bypass. Root cause: converge() lacks base_ref and counts its own ledger/cache writes in _changed_paths.",
             "resume_hint": "After converge() gains base_ref and excludes its own bookkeeping paths (and the fix reaches this branch), answer escalate_resume; loop resumes at IMPL_REVIEW unshimmed."
           },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness"
+          "schema_version": 2,
+          "degradations": [],
+          "worktree_ref": "multiplayer-simulation-harness",
+          "host_id": "machine-dc39bf1e25efdf45"
         },
-        "result_digest": "03b8277dba835cef2b62b05c91280af41343fdf7ad63de825abde8419419606a",
+        "result_digest": "a6faf97b7e3e23093adc19663cbdebb04bc9a5f6fbac812ef9bfad8fbd371417",
         "bound_at": "2026-10-09T12:23:21.463827+00:00",
         "callback_started_at": "2026-10-09T12:23:21.467975+00:00",
         "callback_acknowledged_at": "2026-10-09T12:23:21.471173+00:00",
@@ -1291,7 +1299,8 @@
         "kind": "pending_gate",
         "reason": "IMPLEMENT and IMPL_ITERATE complete (93 tests). IMPL_REVIEW blocked before any review: classifier denied a converge() driver shim (base_ref override, bookkeeping-path exclusion, min_quorum=1) as CI Bypass. Root cause: converge() lacks base_ref and counts its own ledger/cache writes in _changed_paths.",
         "resume_hint": "After converge() gains base_ref and excludes its own bookkeeping paths (and the fix reaches this branch), answer escalate_resume; loop resumes at IMPL_REVIEW unshimmed."
-      }
+      },
+      "launch_digest": "sha256:88c51079161469885b923be25f35a945c68b3c811a9b167a809477c2eb51eeb9"
     },
     {
       "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
@@ -1301,7 +1310,6 @@
       "attempt": 1,
       "status": "parked",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
-      "launch_token": "rBNx1ZzYdKtO2DdXLxIKJXfl1OOO-bVt",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
       "lease_generation": 3,
       "launch_history": [
@@ -1406,8 +1414,9 @@
       },
       "isolation": {
         "mode": "managed_worktree",
-        "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/toolkit-consistency",
-        "branch": "openspec/toolkit-consistency"
+        "worktree_ref": "toolkit-consistency",
+        "branch": "openspec/toolkit-consistency",
+        "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
       "lease": {
@@ -1453,10 +1462,12 @@
             "reason": "PLAN_REVIEW converged (single_vendor_review); IMPLEMENT T1-T6 done (149 tests). T7 verification denied: compound command with rm -rf of a scratch dir. Safer form proposed: separate commands, fresh mktemp dir, no rm -rf.",
             "resume_hint": "Resume IMPLEMENT: run T7 verification as plain separate commands in a fresh mktemp dir, tick T7, then IMPL_ITERATE."
           },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/toolkit-consistency"
+          "schema_version": 2,
+          "degradations": [],
+          "worktree_ref": "toolkit-consistency",
+          "host_id": "machine-dc39bf1e25efdf45"
         },
-        "result_digest": "cdbce19bcfb20213249f9e08afcad5ddfd94d90ff7491b020f7d22c7ed8b8dfc",
+        "result_digest": "8d22a284410df45fabd0c0b9248d940debe5030cb8699a18d63916a4972a9ff9",
         "bound_at": "2026-10-09T12:34:16.230959+00:00",
         "callback_started_at": "2026-10-09T12:34:16.236792+00:00",
         "callback_acknowledged_at": "2026-10-09T12:34:16.240084+00:00",
@@ -1470,7 +1481,8 @@
         "kind": "policy_pause",
         "reason": "PLAN_REVIEW converged (single_vendor_review); IMPLEMENT T1-T6 done (149 tests). T7 verification denied: compound command with rm -rf of a scratch dir. Safer form proposed: separate commands, fresh mktemp dir, no rm -rf.",
         "resume_hint": "Resume IMPLEMENT: run T7 verification as plain separate commands in a fresh mktemp dir, tick T7, then IMPL_ITERATE."
-      }
+      },
+      "launch_digest": "sha256:639d4110d8c3dc46a9da8a08384aecdbb9370a632a8ae834ab6b0701b4abc892"
     },
     {
       "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
@@ -1480,7 +1492,6 @@
       "attempt": 1,
       "status": "parked",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
-      "launch_token": "p4ZVttf27O_h5wk8PTy32Smp1hf9FJw-",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
       "lease_generation": 2,
       "launch_history": [
@@ -1554,8 +1565,9 @@
       },
       "isolation": {
         "mode": "managed_worktree",
-        "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/dispatch-contract",
-        "branch": "openspec/dispatch-contract"
+        "worktree_ref": "dispatch-contract",
+        "branch": "openspec/dispatch-contract",
+        "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
       "lease": {
@@ -1601,10 +1613,12 @@
             "reason": "PR #667 open against openspec/roadmap-multiplayer-collaboration; all phases passed (single_vendor_review x3). Awaiting the merge gate. Worker emitted a schema v2 result (dispatch-results/...-g2.json at e768b60); recorded here in the v1 shape the current supervisor validates.",
             "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/667."
           },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/dispatch-contract"
+          "schema_version": 2,
+          "degradations": [],
+          "worktree_ref": "dispatch-contract",
+          "host_id": "machine-dc39bf1e25efdf45"
         },
-        "result_digest": "8c2503377b45c1b3fada744f7050007f1a64032d91df6bec0f3f9a6e78cd67e1",
+        "result_digest": "98a2da6b762e90b33d80ce59041d98321eed03578cdbebd98b26847561412d03",
         "bound_at": "2026-10-09T14:11:47.488313+00:00",
         "callback_started_at": "2026-10-09T14:11:47.495184+00:00",
         "callback_acknowledged_at": "2026-10-09T14:11:47.499697+00:00",
@@ -1618,7 +1632,8 @@
         "kind": "pending_gate",
         "reason": "PR #667 open against openspec/roadmap-multiplayer-collaboration; all phases passed (single_vendor_review x3). Awaiting the merge gate. Worker emitted a schema v2 result (dispatch-results/...-g2.json at e768b60); recorded here in the v1 shape the current supervisor validates.",
         "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/667."
-      }
+      },
+      "launch_digest": "sha256:352e1c1919795af20038a9c63811b8e632d6b53a8a5695226a3934e07f835417"
     }
   ]
 }
