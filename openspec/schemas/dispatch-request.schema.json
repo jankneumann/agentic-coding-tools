@@ -171,7 +171,18 @@
             "VAL_REVIEW": {"type": "integer", "minimum": 1}
           }
         },
-        "counting_lanes": {"$ref": "#/$defs/Lanes"}
+        "counting_lanes": {"$ref": "#/$defs/Lanes"},
+        "quorum_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The per-environment quorum policy min_quorum was resolved from, as data (D10): which environment, which policy entry (null for the default quorum) and its sunset condition.",
+          "required": ["environment", "policy_id", "sunset"],
+          "properties": {
+            "environment": {"enum": ["cloud_container", "host"]},
+            "policy_id": {"type": ["string", "null"], "maxLength": 128},
+            "sunset": {"type": ["string", "null"], "maxLength": 512}
+          }
+        }
       }
     },
     "GateAnswer": {

@@ -124,18 +124,35 @@
   record-degradation --code review_skipped --phase PLAN_REVIEW`. Resync mirrors with
   `install.sh`. (dep 6.4) — SV Execution Profile and Review Requirements; SW
   Code-Emitted Dispatch Result, Honest Review Quorum
+- [x] 6.6 Supervisor follow-up (a): `autopilot._apply_transition` applies GATEKEEPER
+  `proceed_with_review` (sets `val_review_enabled`, records `gate_verdict`) so the
+  host-driven `runner.py transition` path schedules VAL_REVIEW like `run_loop`; tests in
+  `test_loop_state_v6.py`. — SV Execution Profile and Review Requirements
+- [x] 6.7 Supervisor follow-up (b): `emit-result` derives `parked` only from `park`,
+  `pending_gate` or `ESCALATE`, so a parked result without that loop-state evidence is
+  unproducible; `apply` accepts `park` evidence for the two new kinds. Covered in the
+  `test_emit_result.py` matrix. — SW Code-Emitted Dispatch Result
 
 ## 7. Review honesty  `[wp-review-honesty]` (deps: 6.3)
 
-- [ ] 7.1 Test first: `skills/tests/parallel-infrastructure/test_check_vendors_dispatchable.py`
+- [x] 7.1 Test first: `skills/tests/parallel-infrastructure/test_check_vendors_dispatchable.py`
   and `skills/tests/autopilot/test_quorum_park.py`. — PI; SW Honest Review Quorum
-- [ ] 7.2 `review_dispatcher.py`: dry-invocation verification, `--json` output,
+- [x] 7.2 `review_dispatcher.py`: dry-invocation verification, `--json` output,
   env-free probe. (dep 7.1) — PI Dispatchable Vendor Verification
-- [ ] 7.3 `convergence_loop.py`: pre-dispatch guard that returns
+- [x] 7.3 `convergence_loop.py`: pre-dispatch guard that returns
   `ConvergenceResult(reason="capability_unavailable")` with the missing lanes when it
   is handed fewer verified lanes than `min_quorum`, before any dispatch; it writes no
   loop state (the caller runs `runner.py park`, the only writer of `park`). (dep 7.1,
   6.3) — SW Honest Review Quorum
+- [x] 7.4 Supervisor follow-up 1: per-environment review quorum as data —
+  `skills/parallel-infrastructure/review_quorum_policy.json` (cloud container below 2
+  verified lanes -> `min_quorum` 1, with the sunset from the operator's TRUST_POSTURE.md
+  decision of 2026-10-09; any other host keeps 2), resolved by
+  `review_dispatcher.resolve_quorum_policy()` into `--check-vendors --json`
+  `quorum_policy`, carried as `review_requirements.quorum_policy`
+  (`dispatch-request.schema.json`). A single-lane review is detected by failed dispatch
+  only and records `single_vendor_review` (phase, vendor). — SV Execution Profile and
+  Review Requirements; SW Honest Review Quorum
 
 ## 8. Supervisor  `[wp-supervisor]` (deps: 1.1, 3.3, 5.3)
 

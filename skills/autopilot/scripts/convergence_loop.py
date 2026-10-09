@@ -121,6 +121,10 @@ class ConvergenceResult:
     escalate_findings: list[dict[str, Any]] | None = None
     validation_errors: list[str] | None = None
     checkpoint_dir: Path | None = None
+    # dispatch-contract D10: with reason="capability_unavailable", the counting
+    # lanes that were not verified. The caller records the park through
+    # `runner.py park`; this loop never writes loop state.
+    missing_lanes: list[str] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -683,8 +687,16 @@ def converge(
     blocking_criticalities: set[str] | None = None,
     stall_window: int = _DEFAULT_STALL_WINDOW,
     fact_check: bool = True,
+    verified_lanes: list[str] | None = None,
+    counting_lanes: list[str] | None = None,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
+
+    Honest quorum (dispatch-contract D10): when ``verified_lanes`` is given and
+    holds fewer lanes than ``min_quorum``, the loop returns
+    ``reason="capability_unavailable"`` with ``missing_lanes`` (the
+    ``counting_lanes`` not verified) before dispatching anything. It never
+    lowers the quorum and writes no loop state.
 
     Args:
         change_id: OpenSpec change identifier.
@@ -723,6 +735,23 @@ def converge(
         ConvergenceResult with convergence status and details.
     """
     start_time = time.monotonic()
+
+    # 0. Pre-dispatch quorum guard (D10).
+    if verified_lanes is not None:
+        verified = sorted(set(verified_lanes))
+        if len(verified) < min_quorum:
+            missing = sorted(set(counting_lanes or []) - set(verified))
+            logger.warning(
+                "Convergence for %s not dispatched: %d verified review lane(s) %s, "
+                "quorum %d; missing %s",
+                change_id, len(verified), verified, min_quorum, missing,
+            )
+            return ConvergenceResult(
+                converged=False,
+                rounds=0,
+                reason="capability_unavailable",
+                missing_lanes=missing,
+            )
 
     # 1. Create orchestrator
     if orchestrator is None:
