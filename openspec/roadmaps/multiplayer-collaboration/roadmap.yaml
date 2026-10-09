@@ -569,7 +569,7 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-09T08:27:57.003845+00:00'
+updated_at: '2026-10-09T12:18:06.641433+00:00'
 refinements:
 - timestamp: '2026-10-06T08:36:39.023367+00:00'
   actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
