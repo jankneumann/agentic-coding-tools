@@ -178,7 +178,7 @@
   `require_approval_ref` keeps its per-dispatch checks); typed `gate_answer` in continuation.
   (dep 8.2) — SV Dispatch Result Closure, Typed Gate Answers With Provenance, Single
   Escalation Per Capability Park
-- [ ] 8.4 `skills/supervise/SKILL.md`: collect results by committed file path, profile
+- [x] 8.4 `skills/supervise/SKILL.md`: collect results by committed file path, profile
   resolution, new park kinds; resync mirrors. (dep 8.3)
 
 ## 9. Integration  `[wp-integration]` (deps: 6.5, 7.3, 8.4)
