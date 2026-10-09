@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T12:23:21.512312+00:00",
+  "updated_at": "2026-10-09T12:34:19.243366+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -559,6 +559,29 @@
       "item_id": "ri-05",
       "lease_generation": 2,
       "note": "Operator approved directly in worker session_01GTShWgrUnZ1sK8G98uXsda at 2026-10-09T08:15Z (fast-forward the IMPLEMENT sub-agent worktree); child resumed at d22417e and completed IMPLEMENT (5bfb6c2)."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T12:34:19.232869+00:00",
+      "decision_id": "809f20ac-6bab-4f80-9054-f2b6d8ca3a5e",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 3
     }
   ],
   "dispatch_attempts": [
@@ -1162,7 +1185,7 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_token": "rBNx1ZzYdKtO2DdXLxIKJXfl1OOO-bVt",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
@@ -1273,14 +1296,10 @@
         "branch": "openspec/toolkit-consistency"
       },
       "context": {},
-      "continuation": {
-        "kind": "policy_pause",
-        "approval_ref": "gate-decision:b8af977d-fcec-445a-bbb8-741078975828"
-      },
       "lease": {
         "generation": 3,
         "owner_nonce": "323d8d5abeca3c64d3c3ec3f9123d16d",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-09T08:09:51.619835+00:00",
         "heartbeat_at": "2026-10-09T08:09:51.619835+00:00",
         "expires_at": "2026-10-09T08:24:51.619835+00:00"
@@ -1297,6 +1316,46 @@
         "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3",
         "go_released_at": "2026-10-09T08:09:51.629034+00:00",
         "entered_at": "2026-10-09T08:09:51.640963+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/toolkit-consistency",
+          "change_id": "toolkit-consistency",
+          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+          "evidence": {
+            "commit": "b0d5f7c262193e0e6f7fa1c92c4f4bfdc7950d51",
+            "loop_state_digest": "3b0cfe1fb1aefb0f7ace2f48bdfb3b69501ebb05e345fb0d7bc2105a7b09c64b",
+            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+          },
+          "handoff_id": "378b1d98-54f5-419d-87e4-f62745b14c3d",
+          "lease_generation": 3,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "policy_pause",
+            "reason": "PLAN_REVIEW converged (single_vendor_review); IMPLEMENT T1-T6 done (149 tests). T7 verification denied: compound command with rm -rf of a scratch dir. Safer form proposed: separate commands, fresh mktemp dir, no rm -rf.",
+            "resume_hint": "Resume IMPLEMENT: run T7 verification as plain separate commands in a fresh mktemp dir, tick T7, then IMPL_ITERATE."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/toolkit-consistency"
+        },
+        "result_digest": "cdbce19bcfb20213249f9e08afcad5ddfd94d90ff7491b020f7d22c7ed8b8dfc",
+        "bound_at": "2026-10-09T12:34:16.230959+00:00",
+        "callback_started_at": "2026-10-09T12:34:16.236792+00:00",
+        "callback_acknowledged_at": "2026-10-09T12:34:16.240084+00:00",
+        "terminal_persisted_at": "2026-10-09T12:34:16.242859+00:00",
+        "effects_applied_at": "2026-10-09T12:34:16.268858+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-09T12:34:16.242832+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "policy_pause",
+        "reason": "PLAN_REVIEW converged (single_vendor_review); IMPLEMENT T1-T6 done (149 tests). T7 verification denied: compound command with rm -rf of a scratch dir. Safer form proposed: separate commands, fresh mktemp dir, no rm -rf.",
+        "resume_hint": "Resume IMPLEMENT: run T7 verification as plain separate commands in a fresh mktemp dir, tick T7, then IMPL_ITERATE."
       }
     },
     {
