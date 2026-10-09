@@ -153,9 +153,45 @@
       "disposition": "auto",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-10-09T14:08:17.017603+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-09T14:09:04.031160+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "dispatch-contract",
+    "gate": "merge",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-10-09T14:09:04.032176+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/667",
+      "branch": "openspec/dispatch-contract",
+      "change_id": "dispatch-contract"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true,
+      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+    }
+  },
   "goal_gate": null,
   "park": null,
   "degradations": []
