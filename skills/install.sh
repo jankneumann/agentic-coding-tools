@@ -37,7 +37,10 @@ Options:
                          (default: .skills-venv)
   --copy                 Shorthand for --mode copy
   --force                Replace conflicting existing files/symlinks at destination paths
-  --check                Validate the complete install payload and exit without syncing
+  --check                Validate the complete install payload and exit without syncing.
+                         Also compares .agentic-toolkit/stamp.json (when present) with
+                         this checkout (checkout drift) and each installed mirror
+                         (runtime drift); an absent stamp is reported as unpinned
   -h, --help             Show this help
 
 Examples:
@@ -234,6 +237,20 @@ if [[ ${#skills[@]} -eq 0 ]]; then
 fi
 
 
+# True when the target root is the very repository that owns this skills/ tree.
+#
+# The distinction decides who wins when an asset and its installed copy differ.
+# In a consumer repo, openspec/ holds install output and the shipped asset is
+# authoritative, so overwriting is the whole point.  In THIS repository,
+# openspec/ is hand-maintained source that the assets are copied FROM, and
+# overwriting it silently reverts whatever feature work last edited it --
+# three schemas were rolled back that way before this guard existed.
+is_self_install() {
+  local target_skills
+  target_skills="$(canonicalize_existing_dir "$TARGET_ROOT/skills" 2>/dev/null || true)"
+  [[ -n "$target_skills" && "$target_skills" == "$SCRIPT_DIR" ]]
+}
+
 check_install_payload() {
   local drift=0
   local agent rel_dir dest_dir skill_path skill_name dest_path library_name
@@ -293,9 +310,110 @@ check_install_payload() {
 
   if [[ $drift -ne 0 ]]; then
     echo "Installed skill mirror validation failed" >&2
+  else
+    echo "Installed skill mirrors match canonical payload"
+  fi
+
+  # The stamp comparison is additive: it can only add failures, never
+  # clear the mirror-parity result above.
+  if ! check_install_stamp; then
+    drift=1
+  fi
+
+  [[ $drift -eq 0 ]]
+}
+
+# Compare .agentic-toolkit/stamp.json (the pin) with the source checkout
+# (checkout drift) and with each installed mirror (runtime drift).  An absent
+# stamp is advisory; an unreadable or schema-invalid one fails loud and is
+# never rewritten.
+check_install_stamp() {
+  local stamp="$TARGET_ROOT/.agentic-toolkit/stamp.json"
+  local status=0
+  local -a fields=()
+  local raw_fields
+  local pinned_version pinned_commit pinned_hash source_hash agent rel_dir mirror_hash
+
+  if is_self_install; then
+    echo "Self-install: source tree is the pin; stamp comparison skipped"
+    return 0
+  fi
+
+  if [[ ! -e "$stamp" && ! -L "$stamp" ]]; then
+    echo "Unpinned: no $stamp"
+    echo "  Run install.sh (without --check) from the toolkit checkout and commit .agentic-toolkit/stamp.json to pin this repository."
+    return 0
+  fi
+
+  if ! raw_fields="$(python3 - "$stamp" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+except (OSError, ValueError) as exc:
+    print(f"cannot read: {exc}", file=sys.stderr)
+    sys.exit(1)
+if not isinstance(data, dict):
+    print("not a JSON object", file=sys.stderr)
+    sys.exit(1)
+version = data.get("schema_version")
+if isinstance(version, bool) or version != 1:
+    print(f"unsupported schema_version {version!r} (expected 1)", file=sys.stderr)
+    sys.exit(1)
+payload_hash = data.get("payload_hash")
+if not isinstance(payload_hash, str) or not payload_hash.startswith("sha256:"):
+    print("missing or malformed payload_hash", file=sys.stderr)
+    sys.exit(1)
+print(data.get("toolkit_version") or "unknown")
+print(data.get("source_commit") or "unknown")
+print(payload_hash)
+PY
+  )"; then
+    echo "Invalid toolkit stamp: $stamp" >&2
     return 1
   fi
-  echo "Installed skill mirrors match canonical payload"
+  mapfile -t fields <<< "$raw_fields"
+  if [[ ${#fields[@]} -ne 3 ]]; then
+    echo "Invalid toolkit stamp: $stamp" >&2
+    return 1
+  fi
+  pinned_version="${fields[0]}"
+  pinned_commit="${fields[1]}"
+  pinned_hash="${fields[2]}"
+
+  source_hash="$(python3 "$SCRIPT_DIR/shared/payload_hash.py" --root "$SCRIPT_DIR" --manifest "$INSTALL_MANIFEST")" || {
+    echo "Cannot compute source payload hash" >&2
+    return 1
+  }
+  if [[ "$source_hash" != "$pinned_hash" ]]; then
+    echo "Checkout drift: this toolkit checkout is not the pinned version (pinned $pinned_version @ $pinned_commit, $pinned_hash; checkout $source_hash)" >&2
+    echo "  Check out the pinned toolkit commit, or re-run install.sh and commit the new stamp to move the pin." >&2
+    status=1
+  fi
+
+  for agent in "${agent_list[@]}"; do
+    agent="${agent//[[:space:]]/}"
+    [[ -n "$agent" ]] || continue
+    rel_dir="$(agent_dir_for "$agent")" || continue
+    mirror_hash="$(python3 "$SCRIPT_DIR/shared/payload_hash.py" --root "$TARGET_ROOT/$rel_dir" --manifest "$INSTALL_MANIFEST")" || {
+      echo "Cannot compute mirror payload hash for $agent" >&2
+      status=1
+      continue
+    }
+    if [[ "$mirror_hash" != "$pinned_hash" ]]; then
+      echo "Runtime drift: installed $agent copies are not the pinned payload (pinned $pinned_version @ $pinned_commit, $pinned_hash; installed $mirror_hash)" >&2
+      echo "  Re-run install.sh from the pinned toolkit commit to resync $rel_dir." >&2
+      status=1
+    fi
+  done
+
+  if [[ $status -eq 0 ]]; then
+    echo "Pinned toolkit matches: $pinned_version (${pinned_hash:0:19})"
+  fi
+  return "$status"
 }
 
 if [[ $CHECK_ONLY -eq 1 ]]; then
@@ -481,20 +599,6 @@ mirror_tree() {
   for e in ${excludes[@]+"${excludes[@]}"}; do
     find "$dest" -type d -name "$e" -prune -exec rm -rf {} + 2>/dev/null || true
   done
-}
-
-# True when the target root is the very repository that owns this skills/ tree.
-#
-# The distinction decides who wins when an asset and its installed copy differ.
-# In a consumer repo, openspec/ holds install output and the shipped asset is
-# authoritative, so overwriting is the whole point.  In THIS repository,
-# openspec/ is hand-maintained source that the assets are copied FROM, and
-# overwriting it silently reverts whatever feature work last edited it --
-# three schemas were rolled back that way before this guard existed.
-is_self_install() {
-  local target_skills
-  target_skills="$(canonicalize_existing_dir "$TARGET_ROOT/skills" 2>/dev/null || true)"
-  [[ -n "$target_skills" && "$target_skills" == "$SCRIPT_DIR" ]]
 }
 
 sync_skill_openspec_assets() {

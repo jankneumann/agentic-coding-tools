@@ -33,7 +33,7 @@ on. Tasks with no shared files and no `Depends on` can run in parallel worktrees
   Files: `skills/install.sh` (stamp section only), `skills/tests/install_sh/test_install_stamp.py`.
   Depends on: T1.
 
-- [ ] **T3. Drift check extension** — Extend `check_install_payload()` with the stamp
+- [x] **T3. Drift check extension** — Extend `check_install_payload()` with the stamp
   comparison of D7 (checkout drift, runtime drift per agent, unpinned notice, invalid stamp
   error, self-install skip) and update the `usage()` text for `--check`. Existing parity output
   and exit codes are unchanged. Tests cover every scenario of the Drift check requirement.
