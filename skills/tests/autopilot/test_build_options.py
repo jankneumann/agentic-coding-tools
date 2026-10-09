@@ -54,6 +54,19 @@ def test_build_options_sets_isolation_for_validate(
     assert options.get("isolation") == "worktree"
 
 
+@pytest.mark.parametrize("phase", ["PLAN_REVIEW", "IMPLEMENT", "VAL_REVIEW"])
+def test_build_options_omits_isolation_in_cloud(
+    monkeypatch: pytest.MonkeyPatch, phase: str,
+) -> None:
+    """A cloud container is already isolated; a harness worktree would be
+    rooted at the default branch instead of the feature branch."""
+    monkeypatch.setenv("AGENT_EXECUTION_ENV", "cloud")
+    _stub_bridge(monkeypatch, _RESOLVED_ARCHITECT)
+    options = phase_agent._build_options(phase, {})
+    assert "isolation" not in options
+    assert options["model"] == "opus"
+
+
 def test_build_options_archetype_path_sets_model_and_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
