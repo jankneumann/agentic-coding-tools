@@ -204,7 +204,7 @@
   outcome 6
 - [x] 9.5 Scoped-auto e2e: dispatched child with marker ref proceeds; standalone run
   blocks with `scope: unscoped`. — outcome 8
-- [ ] 9.6 Full suites: `skills/.venv/bin/python -m pytest skills/tests/{supervise,autopilot,autopilot-roadmap,roadmap-runtime,shared,parallel-infrastructure}`,
+- [x] 9.6 Full suites: `skills/.venv/bin/python -m pytest skills/tests/{supervise,autopilot,autopilot-roadmap,roadmap-runtime,shared,parallel-infrastructure}`,
   `openspec validate dispatch-contract --strict`, existing fixtures unchanged. —
   outcome 1
 

@@ -136,3 +136,44 @@ PLAN_REVIEW parked before any review round: min_quorum=2 is unmeetable in this c
 
 ### Context
 PLAN_REVIEW resumed after the operator's escalate_resume approval and ran the convergence loop with the claude_code lane only. Round 1 found 11 blocking defects verified against the repository, most importantly that published v1 dispatch schemas already exist under `openspec/contracts/roadmap-orchestration/schemas/`, that a `$ref` in `checkpoint.schema.json` breaks the registry-less validator in `models.py`, and that the D9 fan-out could not pass `require_approval_ref`. All were fixed and re-verified; one ordering contradiction introduced by the fix was caught and fixed in round 2. Degradations: `single_vendor_review`, `coordinator_projection_forbidden`, `handoff_local_fallback`.
+
+---
+
+## Phase: Implementation (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Commit order keeps every commit green rather than following package boundaries literally** `architectural: roadmap-orchestration` — The checkpoint/attempt schema $ref switch, models, orchestrator and execution must change together; schemas 2.3-2.4 landed in the ledger commit.
+2. **Review quorum per environment is data (review_quorum_policy.json) carried as review_requirements.quorum_policy** `architectural: supervise` — Supervisor follow-up 1: a worker gets min_quorum 1 only through data with an explicit sunset; single-lane is detected by failed dispatch.
+3. **Cross-host reinitialize keeps a parked attempt's generation** `architectural: roadmap-orchestration` — Its escalate_resume approval is bound to the generation (advisory finding 13).
+
+### Alternatives Considered
+- Rename authorizing_disposition / lock_keys to satisfy a literal keyword test: rejected because Breaking rename outside scope; a port of the default generic-api-key rule proves the fixture clean.
+
+### Trade-offs
+- Accepted SDK/API review lanes reported unverified (probe_unsupported) over counting them on importability because no authenticated no-op exists in their adapters; fail closed
+
+### Open Questions
+- [ ] IMPLEMENT phase prompt should name the stacked feature base (worktree launchpads are rooted at main).
+- [ ] Removal of v1 reading once no unresolved attempt carries a v1 result.
+
+### Completed Work
+- Tasks 1.1-9.7 ticked in tasks.md (9.6 = full suites + openspec validate --strict).
+- Degradations: coordinator_projection_forbidden not exercised (local handoff fallback used).
+
+### Next Steps
+- IMPL_REVIEW: start with skills/supervise/scripts/gate_router.py (fingerprint escalation) and execution.py (reconcile).
+- Pre-existing env-only failures: test_workflow_contract canonical-source (.claude worktree path), two project-context-refresh shared-checkout tests (fail at bdb0048 too).
+
+### Relevant Files
+- `skills/shared/dispatch_contract.py` — single runtime definition of the boundary
+- `openspec/schemas/dispatch-result.schema.json` — v2 result
+- `openspec/schemas/dispatch-request.schema.json` — v2 request
+- `skills/supervise/scripts/gate_router.py` — ANSWER_PATHS, provenance, fingerprint escalations
+- `skills/supervise/scripts/execution.py` — profile, digests, reissue, cross-host reconcile
+- `skills/autopilot/scripts/runner.py` — emit-result, park, record-degradation, gate authority
+
+### Context
+Implemented all nine work packages sequentially (tier: sequential, no sub-agents): v2 dispatch schemas and the shared dispatch_contract library, digest-only and host-portable checkpoint attempts with legacy migration, LoopState v6 with emit-result/park/record-degradation and gate authority, dispatchable-lane verification with a data-driven per-environment quorum, the supervisor's profile resolution, provenance re-evaluation, fingerprint escalations and cross-host reconcile, plus closure, end-to-end, cross-host and landable-fixture tests. Supervisor follow-ups (a)-(e) are folded in.
+

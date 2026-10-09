@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-10-09 — dispatch-contract
+
+### Phase: Plan Review
+
+**Capability-park fan-out writes one escalate_resume record per dispatch** — keeps `require_approval_ref`'s per-dispatch and per-generation checks unchanged.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D2)
+
+---
+
+## 2026-10-09 — dispatch-contract
+
+### Phase: Implementation
+
+**Review quorum per environment is data (review_quorum_policy.json) carried as review_requirements.quorum_policy** — Supervisor follow-up 1: a worker gets min_quorum 1 only through data with an explicit sunset; single-lane is detected by failed dispatch.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D2)
+
+---
+
+## 2026-10-09 — dispatch-contract
+
+### Phase: Plan Review
+
+**counting_lanes includes unverified roster lanes** — otherwise `missing_lanes` is always empty and distinct capability gaps share one fingerprint.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)
+
+---
+
 ## 2026-10-06 — dispatch-contract
 
 ### Phase: Plan Iteration 2
