@@ -87,21 +87,37 @@ on 3.9. The import test in the bridge suite (spec "Bindings stay standard-librar
 bridge under `python3 -I` with an empty `sys.path` extension to prove no third-party import is
 reachable.
 
-### D4 — Breaking-change gate: oasdiff, pinned, acknowledgement files
+### D4 — Breaking-change gate: oasdiff, pinned Go module, acknowledgement files
 
-- **Tool:** `oasdiff breaking --fail-on ERR`, a pinned release binary downloaded in CI and
-  verified with `sha256sum -c` against a checksum committed in
-  `scripts/contract_gate/oasdiff.sha256`. A mismatch fails before any comparison runs.
-- **Scope:** files under `openspec/contracts/**/openapi/*.yaml` that the PR changes, each
-  compared with `git show <merge-base>:<path>`. New files are reported and pass; deleted files
-  fail unless acknowledged.
+- **Tool:** `oasdiff breaking -f json` (v1.33.0); ERR-level findings are breaking.
+- **Pin (revised at implementation, 2026-10-09):** oasdiff is pinned as the Go module
+  `github.com/oasdiff/oasdiff@v1.33.0` and installed by
+  `scripts/contract_gate/fetch_oasdiff.py`, which (1) refuses to run when Go's
+  checksum verification is disabled for the module (`GOSUMDB=off`, `-insecure` in
+  `GOFLAGS`, or a matching `GONOSUMDB`/`GONOSUMCHECK`/`GOINSECURE`/`GOPRIVATE`
+  pattern, read from the environment and `go env`); (2) runs
+  `go mod download -json` and refuses unless `Sum` is present and `GoModSum`
+  equals the value recorded in `scripts/contract_gate/oasdiff.sum`; (3) runs
+  `go install`. Go verifies the module zip against the public checksum database,
+  so content is pinned by a transparency log rather than a hand-recorded tarball
+  hash. *Why not the planned release tarball + `sha256sum -c`:* the planning
+  sandbox could not reach release-asset hosts to record the hash, and every
+  oasdiff release from v1.24 on requires Go 1.26, so the recorded value had to be
+  derivable from the tagged source. The fetch script is Python so its refusal
+  paths are unit-tested without network.
+- **Scope:** files under `openspec/contracts/**/openapi/*.yaml` that the PR changes,
+  each compared with `git show <merge-base>:<path>`. New files are reported and
+  pass; deleted files (and renames, detected as delete + add) fail unless
+  acknowledged with rule `contract-document-deleted` and operation `*`.
 - **Acknowledgement:** `openspec/changes/<id>/contracts/accepted-breaking-changes.yaml`, a list of
   `{document, operation, rule_id, rationale}`. The gate collects acknowledgement files from every
   change directory touched by the PR and suppresses only exact `(document, operation, rule_id)`
   matches. Unmatched acknowledgements are reported as warnings so stale ones are visible.
-- **Wrapper:** `scripts/contract_gate/check_breaking.py` owns the git plumbing and matching, and
-  calls oasdiff with JSON output. It is unit-tested with recorded oasdiff JSON so its logic
-  is tested without the binary.
+- **Wrapper:** `scripts/contract_gate/check_breaking.py` owns the git plumbing and matching
+  (exit 0 pass, 1 unacknowledged break, 2 apparatus error), with oasdiff injected so its
+  logic is tested with recorded oasdiff JSON and real temporary git repositories.
+- **oasdiff JSON assumptions** (`id`, `text`, `level`, `operation`, `path`; integer or
+  string level) are confirmed by the gate's first CI run against the real binary.
 
 This change's own `features.yaml` typing is the first acknowledged change (task 2.2).
 

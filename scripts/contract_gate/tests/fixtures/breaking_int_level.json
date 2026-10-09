@@ -1,0 +1,21 @@
+[
+  {
+    "id": "response-required-property-removed",
+    "text": "removed the required property 'status' from the response with the '200' status",
+    "level": 3,
+    "operation": "GET",
+    "operationId": "getFeature",
+    "path": "/features/{feature_id}",
+    "source": "head.yaml",
+    "section": "paths"
+  },
+  {
+    "id": "response-optional-property-added",
+    "text": "added the optional property 'notes' to the response with the '200' status",
+    "level": 1,
+    "operation": "GET",
+    "operationId": "getFeature",
+    "path": "/features/{feature_id}",
+    "section": "paths"
+  }
+]

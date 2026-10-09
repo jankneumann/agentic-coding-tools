@@ -36,7 +36,7 @@ An acknowledgement SHALL be a checked-in file inside an OpenSpec change director
 
 OpenAPI documents under `openspec/changes/**/contracts/` SHALL NOT be gated; they are gated when promoted into `openspec/contracts/`.
 
-The comparison tool SHALL be pinned to an exact version and its downloaded binary SHALL be verified against a recorded checksum before it runs.
+The comparison tool SHALL be pinned to an exact version, and the pinned source SHALL be verified against a recorded checksum before the tool is built or run.
 
 #### Scenario: Unacknowledged breaking change fails the gate
 - **WHEN** a pull request removes a required response property from an operation in `openspec/contracts/agent-coordinator/openapi/features.yaml`
@@ -58,9 +58,9 @@ The comparison tool SHALL be pinned to an exact version and its downloaded binar
 - **WHEN** a pull request modifies only `openspec/changes/<id>/contracts/openapi/v1.yaml`
 - **THEN** the gate SHALL report that no promoted contracts changed and SHALL pass
 
-#### Scenario: Unverified comparison binary is refused
-- **WHEN** the downloaded comparison binary's checksum does not match the recorded checksum
-- **THEN** the gate SHALL fail before running any comparison
+#### Scenario: Unverified comparison tool is refused
+- **WHEN** the comparison tool's fetched module checksum does not match the recorded checksum, or checksum verification is disabled for it
+- **THEN** the gate SHALL fail before installing the tool or running any comparison
 
 ### Requirement: Feature Registry Response Conformance
 
