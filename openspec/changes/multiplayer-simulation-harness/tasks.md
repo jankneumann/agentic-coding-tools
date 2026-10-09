@@ -245,7 +245,7 @@
   **Contracts**: openspec/contracts/multiplayer-simulation/cli/mpsim.yaml
   **Design decisions**: D8, D9
   **Dependencies**: 4.4, 5.2
-- [ ] 6.2 Implement `mpsim/__main__.py` exactly per the CLI contract: the `list` and `run`
+- [x] 6.2 Implement `mpsim/__main__.py` exactly per the CLI contract: the `list` and `run`
   commands, the four `run` flags, and exit codes 0, 1, 2 and 64. [S]
   **Dependencies**: 6.1
 
