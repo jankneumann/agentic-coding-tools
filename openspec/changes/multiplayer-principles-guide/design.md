@@ -77,7 +77,7 @@ against the roadmap and may add existing mechanisms):
 | P7 Detect collisions early | `agent-coordinator/src/feature_registry.py` | `plan-time-collision-detection`, `coordinator-contract-overlap`, `declare-early-draft-pr` |
 | P8 Attention is scarce | `agent-coordinator/src/event_bus.py` (`classify_urgency`) | `declare-early-draft-pr`, `reviewer-shaped-prs`, `owner-routed-escalation`, `attention-budgets-digests`, `intervention-capture`, `trust-posture-calibration` |
 | P9 Traceable; interventions are signals | `agent-coordinator/src/audit.py`, `agent-coordinator/src/handoffs.py`, `skills/session-log/` | `causal-trace-ids`, `attribution-trailers`, `intervention-capture`, `trust-posture-calibration`, `toolkit-consistency` |
-| P10 Agents work the queue | `agent-coordinator/src/work_queue.py`, `docs/guides/work-queue-truth-projection.md` | `team-work-queue`, `queue-dispatch-owner-acceptance`, `owner-routed-escalation` |
+| P10 Agents work the queue | `agent-coordinator/src/work_queue.py`, `docs/guides/work-queue-truth-projection.md` | `team-work-queue`, `queue-dispatch-owner-acceptance`, `owner-routed-escalation`, `attention-budgets-digests` |
 
 Where one roadmap capability was split into two roadmap items (for example
 *Ownership-routed escalation and attention budgets* into `owner-routed-escalation` and
@@ -115,7 +115,9 @@ Adding a row later requires a sibling change whose outcome alters that skill. Co
 *Skill*, *Solo mode*, *Team mode*, *Delivered by*. A skill whose solo behavior is
 unchanged says "Unchanged" in the *Solo mode* cell; any other *Solo mode* cell may
 describe only passive output (D2), never a new prompt, gate, or checkpoint. The guard
-test checks cells are non-empty; content accuracy is a review check. The implementer derives cells from the
+test checks cells are non-empty; content accuracy is a review check. The same holds for the `## Modes` definitions of solo and team mode:
+the guard test checks the section's required terms and guarantee sentence, not that the
+definition is right, so the definition has no test scenario and is checked in review. The implementer derives cells from the
 sibling changes' roadmap acceptance outcomes (`roadmap.yaml`), not from scaffold spec
 text.
 
