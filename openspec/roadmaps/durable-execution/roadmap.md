@@ -2,7 +2,6 @@
 
 > Source: `openspec/roadmaps/durable-execution/proposal.md` | Status: **planning** | Items: 9
 
-
 <!-- GENERATED: begin phase-table -->
 ## Phase Table
 
@@ -16,7 +15,8 @@
 | 3 | Enforce fork policies in CI, worktrees, and sync points | M | approved | ri-03 |
 | 3 | Let refine-roadmap supersede aborted items | S | approved | ri-06 |
 | 3 | Define durable executor authority boundary contract | M | approved | ri-01, ri-05 |
-| 4 | Promote Atomic executor to opt-in IMPLEMENT and VALIDATE | L | approved | ri-08, ri-02 |
+| 4 | Integrate Atomic harness as experimental vendor with workflow-dispatch pilot | L | approved | - |
+| 4 | Promote Atomic executor to opt-in IMPLEMENT and VALIDATE | L | approved | ri-08, ri-02, ri-10 |
 <!-- GENERATED: end phase-table -->
 
 
@@ -33,6 +33,7 @@ graph TD
     ri-06["Add cascading abort over the ownership g"]
     ri-07["Let refine-roadmap supersede aborted ite"]
     ri-08["Define durable executor authority bounda"]
+    ri-10["Integrate Atomic harness as experimental"]
     ri-09["Promote Atomic executor to opt-in IMPLEM"]
     ri-01 --> ri-02
     ri-03 --> ri-04
@@ -45,6 +46,7 @@ graph TD
     ri-05 --> ri-08
     ri-08 --> ri-09
     ri-02 --> ri-09
+    ri-10 --> ri-09
 ```
 <!-- GENERATED: end dependency-dag -->
 
@@ -178,13 +180,27 @@ Define the authority boundary for a durable intra-phase executor in state-artifa
 - [ ] An engine tool declared non-replayable maps to a never_replay effect, verified by a unit test of the adapter mapping.
 - [ ] With no executor configured, phase_agent.py behavior and outputs are identical to today's.
 
+### ri-10: Integrate Atomic harness as experimental vendor with workflow-dispatch pilot
+
+- **Status**: approved
+- **Priority**: 4
+- **Effort**: L
+- **Change ID**: add-atomic-harness
+
+Adopt the existing add-atomic-harness change (experimental provider class, atomic-local agent entry, NDJSON review dispatch, Level-2 workflow_dispatch.py pilot in fix-scrub, atomic_cli transcript adapter) as a durable-execution roadmap item. The change directory already exists and is not re-scaffolded.
+
+**Acceptance outcomes**:
+- [ ] The atomic-local agent is dispatchable through CliVendorAdapter in review, alternative, and quick modes as an experimental provider.
+- [ ] workflow_dispatch.py parses workflow.run.start and workflow.run.end events into a typed result and is selectable behind an opt-in flag in fix-scrub.
+- [ ] Unknown non-experimental providers still fail roster validation loudly.
+
 ### ri-09: Promote Atomic executor to opt-in IMPLEMENT and VALIDATE
 
 - **Status**: approved
 - **Priority**: 4
 - **Effort**: L
 - **Change ID**: promote-atomic-executor-to-opt-in-implement-and-validate
-- **Depends on**: `ri-08`, `ri-02`
+- **Depends on**: `ri-08`, `ri-02`, `ri-10`
 
 Promote the add-atomic-harness Level-2 workflow_dispatch.py pilot from fix-scrub to an opt-in, per-phase and per-change durable executor for IMPLEMENT and VALIDATE behind the same (outcome, handoff_id) contract, resuming interrupted runs on the same runId.
 
