@@ -41,7 +41,7 @@ on. Tasks with no shared files and no `Depends on` can run in parallel worktrees
   Files: `skills/install.sh` (`check_install_payload`, `usage`), `skills/tests/install_sh/test_install_check_drift.py`.
   Depends on: T2 (same file; sequential after T2).
 
-- [ ] **T4. Shared-learnings export** — Add
+- [x] **T4. Shared-learnings export** — Add
   `skills/improve-harness/scripts/export_shared_learnings.py`: read
   `.agentic-toolkit/config.json`, refuse with exit `2` when absent/disabled, query episodic
   memory through the existing `analyze_failures.query_memory()` path, apply the D8 allowlist,
