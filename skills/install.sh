@@ -799,6 +799,72 @@ validate_related_keys() {
   return 0
 }
 
+# Write <target-root>/.agentic-toolkit/stamp.json: the pin that `--check`
+# compares against.  Called only after every mirror, shared-library, manifest
+# and asset step has succeeded (set -e aborts earlier, leaving any prior stamp
+# untouched), never for --check, and never for a self-install where the source
+# tree itself is the pin.  Written via a temp file + mv so a crash cannot leave
+# a truncated stamp.
+write_install_stamp() {
+  if is_self_install; then
+    echo "Install stamp: skipped (self-install: source tree is the pin)"
+    return 0
+  fi
+
+  local stamp_dir="$TARGET_ROOT/.agentic-toolkit"
+  local stamp_tmp payload_hash source_commit toolkit_version agents_csv
+  local -a stamped_agents=()
+  local agent
+
+  for agent in "${agent_list[@]}"; do
+    agent="${agent//[[:space:]]/}"
+    [[ -n "$agent" ]] || continue
+    agent_dir_for "$agent" >/dev/null 2>&1 || continue
+    stamped_agents+=("$agent")
+  done
+  agents_csv="$(IFS=','; echo "${stamped_agents[*]}")"
+
+  payload_hash="$(python3 "$SCRIPT_DIR/shared/payload_hash.py" --root "$SCRIPT_DIR" --manifest "$INSTALL_MANIFEST")" || {
+    echo "Install stamp: payload hash failed; stamp not written" >&2
+    return 1
+  }
+  source_commit="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || true)"
+  toolkit_version="unknown"
+  if [[ -f "$SCRIPT_DIR/../VERSION" ]]; then
+    toolkit_version="$(tr -d '[:space:]' < "$SCRIPT_DIR/../VERSION")"
+  fi
+
+  mkdir -p "$stamp_dir"
+  stamp_tmp="$(mktemp "$stamp_dir/.stamp.XXXXXX")"
+  if ! python3 - "$stamp_tmp" "$toolkit_version" "$source_commit" "$payload_hash" "$agents_csv" "$MODE" <<'PY'
+import datetime
+import json
+import sys
+
+path, version, commit, payload_hash, agents_csv, mode = sys.argv[1:7]
+stamp = {
+    "schema_version": 1,
+    "toolkit_version": version,
+    "source_commit": commit or None,
+    "payload_hash": payload_hash,
+    "installed_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "agents": sorted(a for a in agents_csv.split(",") if a),
+    "mode": mode,
+}
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(stamp, handle, indent=2)
+    handle.write("\n")
+PY
+  then
+    rm -f "$stamp_tmp"
+    echo "Install stamp: write failed" >&2
+    return 1
+  fi
+  chmod 644 "$stamp_tmp"
+  mv -f "$stamp_tmp" "$stamp_dir/stamp.json"
+  echo "Install stamp: $stamp_dir/stamp.json ($payload_hash)"
+}
+
 echo "Installing ${#skills[@]} skill directorie(s) from: $SCRIPT_DIR"
 echo "Target root: $TARGET_ROOT"
 echo "Mode: $MODE"
@@ -967,6 +1033,7 @@ sync_skill_openspec_assets "$OPENSPEC_ASSETS_MODE"
 check_openspec_cli "$OPENSPEC_CLI_MODE"
 run_skill_dependency_hooks "$DEPS_MODE"
 install_python_tools "$PYTHON_TOOLS_MODE" "$PYTHON_PACKAGES" "$python_venv_path"
+write_install_stamp
 
 if [[ "$MODE" == "symlink" ]]; then
   printf '\nDone. Created %d symlink(s), skipped %d.\n' "$total_installed" "$total_skipped"

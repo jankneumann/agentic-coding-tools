@@ -66,6 +66,7 @@ def _copy_installer(scripts_dir: Path) -> Path:
     shared_dir = scripts_dir / "shared"
     shared_dir.mkdir(exist_ok=True)
     shutil.copy(SKILLS_ROOT / "shared" / "validate_install_manifest.py", shared_dir)
+    shutil.copy(SKILLS_ROOT / "shared" / "payload_hash.py", shared_dir)
     skill_names = sorted(
         path.parent.name for path in scripts_dir.glob("*/SKILL.md")
     )
