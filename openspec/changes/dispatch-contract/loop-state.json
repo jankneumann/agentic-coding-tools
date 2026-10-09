@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "dispatch-contract",
-  "current_phase": "VAL_REVIEW",
+  "current_phase": "SUBMIT_PR",
   "iteration": 0,
-  "total_iterations": 11,
+  "total_iterations": 12,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -20,7 +20,8 @@
     "8b3b7d01-452a-498f-9e34-46fdd6ca5e94",
     "8d309935-3b68-44db-be5c-d6b327ec8c61",
     "13e77665-feba-4ef3-b28a-a9b61d278135",
-    "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9"
+    "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9",
+    "c832cb1d-c7ab-48cb-9285-4f4b037d029a"
   ],
   "phase_history": [
     {
@@ -68,17 +69,22 @@
       "at": "2026-10-09T13:55:05.532741+00:00",
       "outcome": "passed",
       "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-10-09T14:08:06.250432+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
     }
   ],
-  "last_handoff_id": "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9",
+  "last_handoff_id": "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
   "started_at": "2026-10-06T09:08:58.470413+00:00",
-  "phase_started_at": "2026-10-09T13:55:08.852195+00:00",
+  "phase_started_at": "2026-10-09T14:08:09.206576+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable (codex listed by --check-vendors but no codex CLI/credential). Quorum not lowered; awaiting operator decision on cloud review lane (GX10/policy/credential). handoff 9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "validator",
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {},
   "gate_verdict": "proceed_with_review",
@@ -128,6 +134,25 @@
       "recorded_at": "2026-10-09T07:09:10.123228+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'pr_creation' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "auto",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-09T14:08:17.017603+00:00"
     }
   ],
   "pending_gate": null,
