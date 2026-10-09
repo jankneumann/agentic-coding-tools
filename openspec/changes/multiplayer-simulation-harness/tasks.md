@@ -73,7 +73,7 @@
 
 ## 2. World, agents, clock and report (sequential chain)
 
-- [ ] 2.1 Write failing tests in `test_world.py`:
+- [x] 2.1 Write failing tests in `test_world.py`:
   - two principals get distinct identities (`<name>@sim.invalid`), clones, worktrees and agent
     ids (P.1);
   - an unpushed commit is invisible to the other principal after fetch (P.2);
