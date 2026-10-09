@@ -46,9 +46,11 @@ share learnings without sharing private session transcripts.
    `improve-harness` gains `export_shared_learnings.py`, which projects capability-gap
    entries from episodic memory into a tracked `.agentic-toolkit/learnings.jsonl` using an
    allowlist of fields (`event_type`, `summary`, `outcome`, `lessons`, `tags`, `created_at`),
-   drops `details`, `agent_id` and `session_id`, excludes every entry tagged
-   `source:transcript-mined`, and passes exported text through the session-log secret
-   sanitizer. `analyze_failures.py` merges the shared file into its analysis, tagging merged
+   drops `details`, `agent_id` and `session_id`, keeps only the gap-schema tags
+   (`failure_type:`, `capability_gap:`, `affected_skill:`, `severity:`, `source:`), excludes
+   every entry tagged `source:transcript-mined`, and passes exported text through the
+   session-log secret sanitizer. `analyze_failures.py` merges the shared file into its
+   analysis, deduplicating on `(capability_gap, affected_skill, summary)`, tagging merged
    entries `origin:shared-repo`, and never writes them back into episodic memory. The file is
    a one-way projection of the existing learning store, not a second store.
 5. **State-artifact registration.** `docs/guides/state-artifacts.md` gains rows for the

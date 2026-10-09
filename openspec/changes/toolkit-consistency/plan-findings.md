@@ -46,8 +46,8 @@ Remaining findings after fixes: none at or above `medium`. Findings 15–16 (low
 
 Autopilot PLAN_REVIEW ran `converge(review_type="plan", min_quorum=1)` under the cloud
 single-vendor review policy (`TRUST_POSTURE.md` "Review quorum in cloud containers
-(temporary)", commit 479dcd9). Dispatch evidence (`.review-ledger/ledger.json`,
-`.review-cache/round-1/review-manifest.json`): `claude_code` (claude-local CLI, model
+(temporary)", commit 479dcd9). Dispatch evidence (`.review-ledger/ledger.json` and the committed
+`.review-cache/round-1-initial/review-manifest.json`): `claude_code` (claude-local CLI, model
 `fable`, 194 s) succeeded with 16 findings; the `codex` lane (codex-remote, SDK tier) failed
 with `auth_required` ("No API key available for SDK dispatch"); grok, pi, antigravity and ocr
 had no CLI, SDK or endpoint. Degradation recorded: `single_vendor_review`. Diff-grounded
@@ -85,5 +85,33 @@ their owners and were not edited (change-scoped commits only).
 Blocking ledger items after round 1: 0 (converged). In-scope findings 8, 9, 11, 14 fixed
 inline and marked addressed in the ledger; 10 deferred as an open question; 1–7, 12, 13, 15,
 16 recorded for their owners. `openspec validate toolkit-consistency --strict` passes after
-the fixes. A verification run of `converge()` over the committed fix follows (see the Plan
-Review entry in `session-log.md` for its result).
+the fixes. A verification run of `converge()` over the committed fix follows as Iteration 3.
+
+## Iteration 3 — PLAN_REVIEW verification round — 2026-10-09T08:30Z
+
+Second `converge(min_quorum=1)` run over the committed Iteration 2 fix (the first run's
+round-1 artifacts were preserved under `.review-cache/round-1-initial/` because `converge()`
+always writes `.review-cache/round-1/`). Same dispatch shape, recorded in
+`.review-cache/round-1/review-manifest.json`: `claude_code` succeeded (fable, 143 s, 18
+findings, fact-check kept all), `codex` failed `auth_required`. 0 blocking, converged in
+round 1. Of the 18 findings, 12 (ledger 23–34) are "re-verified, still open" echoes of open
+items 1–7, 10, 12, 13, 15, 16 that the ledger merge did not match because their descriptions
+changed; they are retired as duplicates. Six are new:
+
+| Ledger | Type | Criticality | Cited file | Disposition |
+|---|---|---|---|---|
+| 17 | contract_mismatch | medium | `tasks.md` (also `design.md` D8, `proposal.md` item 4) | **Fixed.** Iteration 2 edited `spec.md` only; T4/T5, D8 and proposal item 4 now carry the tag-namespace filter, the `(capability_gap, affected_skill, summary)` dedupe key and `<target-root>`. |
+| 18 | spec_gap | medium | `specs/toolkit-distribution/spec.md` | **Fixed.** Scenario "Exporter passes the portability gate" added under Exported learning privacy, so Iteration 1 row 8 now holds. |
+| 19 | spec_gap | low | `specs/toolkit-distribution/spec.md` | **Fixed.** Scenario "Duplicate shared record appears once" covers the explicit `--shared-learnings` path and the dedupe; an entry lacking a `capability_gap:` or `affected_skill:` tag maps to `unknown`, as in `analyze_failures.py`. |
+| 20 | observability | low | `.review-ledger/ledger.json` | **Fixed.** Item 16's derived `spec_file` (an absolute worktree path pointing at the wrong spec) cleared. |
+| 21 | contract_mismatch | low | `TRUST_POSTURE.md` | Out of scope: the summary table says `pr_creation` fails closed on an undelivered notification, but the Dispositions section defines no such rule. Trust-posture owner. |
+| 22 | observability | low | `plan-findings.md` | **Fixed.** Evidence path corrected to `.review-cache/round-1-initial/`; manifest, vendor findings, fact-check decisions and raw meta files are committed for both runs (the 250 KB packets and raw outputs are not). |
+
+### Termination
+
+Blocking ledger items: 0 after both runs. Addressed inline: 8, 9, 11, 14 (Iteration 2) and
+17, 18, 19, 20, 22 (Iteration 3); retired as echoes: 23–34; open advisory for other owners:
+1–7, 12, 13, 15, 16, 21; deferred open question: 10. Scenario count is now 29. No third run:
+each single-vendor run re-emits the open advisory items as new echoes, and the Iteration 3
+fixes are scenario and consistency additions checked by
+`openspec validate toolkit-consistency --strict`.

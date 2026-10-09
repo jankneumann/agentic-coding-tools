@@ -2,7 +2,7 @@
   "schema_version": 1,
   "change_id": "toolkit-consistency",
   "review_type": "plan",
-  "created_at": "2026-10-09T08:30:03Z",
+  "created_at": "2026-10-09T08:21:21Z",
   "target": "toolkit-consistency",
   "dispatches": [
     {
@@ -12,7 +12,7 @@
       "models_attempted": [
         "fable"
       ],
-      "elapsed_seconds": 142.77802250700006,
+      "elapsed_seconds": 194.24629840899996,
       "error": null,
       "error_class": null
     },
@@ -32,8 +32,8 @@
     {
       "name": "claude_code",
       "findings_path": "findings-claude_code-plan.json",
-      "finding_count": 18,
-      "unanchored_findings": 0,
+      "finding_count": 16,
+      "unanchored_findings": 12,
       "fact_check": "ran",
       "fact_check_removed": 0,
       "fact_check_tokens": 0

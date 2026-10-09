@@ -108,12 +108,18 @@ succeeded, so an aborted install leaves the previous stamp in place (writer orde
 switch; `install.sh` never creates or edits it. `export_shared_learnings.py` refuses (exit
 `2`, writes nothing) when the file is absent or disabled. Records carry only `event_type`,
 `summary`, `outcome`, `lessons`, `tags`, `created_at`; `details`, `agent_id`, `session_id`
-are dropped; entries tagged `source:transcript-mined` are excluded; remaining text is run
+are dropped; `tags` are filtered to the D4 gap namespaces (`failure_type:`, `capability_gap:`,
+`affected_skill:`, `severity:`, `source:`) so `agent:`, `session:`, `change:`, vendor and
+model tags never leave the repository; entries tagged `source:transcript-mined` are excluded;
+remaining text is run
 through `sanitize_session_log.sanitize()` from the co-installed `session-log` skill. Output is
 deterministic (sorted by `created_at`, then `summary`; deduplicated on
 `(capability_gap, affected_skill, summary)`), so re-exports produce reviewable diffs.
-`analyze_failures.py` reads the file when enabled, tags merged entries `origin:shared-repo`,
-and never calls `remember` with them.
+`analyze_failures.py` reads the file when enabled, dedupes merged records against local and
+other shared findings on `(capability_gap, affected_skill, summary)` (its local key uses
+`session_id`, which exported records do not carry; `capability_gap` and `affected_skill` are
+the retained tag values, `unknown` when absent, as today), tags merged entries
+`origin:shared-repo`, and never calls `remember` with them.
 
 - *Alternative: embed the opt-in in the stamp.* The stamp is overwritten on every install;
   a human choice must not live in an installer-owned file.

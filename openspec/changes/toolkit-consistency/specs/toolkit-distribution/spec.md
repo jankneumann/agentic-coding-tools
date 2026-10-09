@@ -152,7 +152,8 @@ tagged `source:transcript-mined`, SHALL pass every exported string through the `
 sanitizer's `sanitize()`, and SHALL write records sorted by `created_at` then `summary`,
 deduplicated on `(capability_gap, affected_skill, summary)`, where `capability_gap` and
 `affected_skill` are the values of the retained `capability_gap:` and `affected_skill:` tags
-(the same tags `analyze_failures.py` reads today). The exporter SHALL pass the Cross-Repo
+(the same tags `analyze_failures.py` reads today; an entry lacking either tag SHALL use
+`unknown` for that key, as `analyze_failures.py` does). The exporter SHALL pass the Cross-Repo
 Portability gate.
 
 #### Scenario: Transcript-mined entries are excluded
@@ -183,6 +184,12 @@ Portability gate.
 - **WHEN** the exporter runs twice against the same memory response
 - **THEN** both `learnings.jsonl` files SHALL be byte-identical
 
+#### Scenario: Exporter passes the portability gate
+
+- **WHEN** `validate_install_manifest.py` and the consumer-portability test run after
+  `export_shared_learnings.py` is added
+- **THEN** they SHALL pass and the exporter SHALL be listed in `smoke_entrypoints`
+
 ### Requirement: One-way consumption of shared learnings
 
 `analyze_failures.py` SHALL accept `--shared-learnings <path>` (default
@@ -198,6 +205,14 @@ apply to them — and SHALL NOT be written back into episodic memory.
 - **WHEN** sharing is enabled and `learnings.jsonl` holds a record not present in the
   developer's own memory
 - **THEN** the analysis SHALL include it tagged `origin:shared-repo`
+
+#### Scenario: Duplicate shared record appears once
+
+- **WHEN** `analyze_failures.py --shared-learnings <custom path>` runs with sharing enabled
+  and the file holds a record whose `(capability_gap, affected_skill, summary)` equals a
+  local finding's
+- **THEN** the analysis SHALL read the file from `<custom path>` and SHALL contain that
+  finding once, with `origin:shared-repo` listed among its sources
 
 #### Scenario: Disabled sharing ignores the file
 

@@ -70,14 +70,6 @@
     {
       "finding_id": "16",
       "verdict": "kept"
-    },
-    {
-      "finding_id": "17",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "18",
-      "verdict": "kept"
     }
   ]
 }
