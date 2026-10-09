@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "ownership-map",
-  "current_phase": "ESCALATE",
+  "current_phase": "PLAN_REVIEW",
   "iteration": 0,
-  "total_iterations": 7,
+  "total_iterations": 8,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -42,7 +42,7 @@
   ],
   "last_handoff_id": "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-09T07:54:29.737910+00:00",
+  "phase_started_at": "2026-10-09T08:06:39.847199+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "PLAN_REVIEW blocked: permission denial on sub-agent worktree re-root (git fetch origin openspec/ownership-map && git reset --hard origin/openspec/ownership-map) \u2014 harness worktrees are rooted at main and cannot be re-rooted; converge() not run",
   "val_review_enabled": true,
@@ -124,27 +124,24 @@
       "disposition": "block",
       "phase": "ESCALATE",
       "recorded_at": "2026-10-09T07:54:35.205534+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 operator (user) approved 2026-10-09: re-root sub-agent worktrees with protected 'git switch -c <branch> origin/openspec/ownership-map' (refuses on dirty tree) instead of 'git reset --hard'",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T08:06:39.847096+00:00",
+      "note": "operator (user) approved 2026-10-09: re-root sub-agent worktrees with protected 'git switch -c <branch> origin/openspec/ownership-map' (refuses on dirty tree) instead of 'git reset --hard'"
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "ownership-map",
-    "gate": "escalate_resume",
-    "phase": "ESCALATE",
-    "requested_at": "2026-10-09T07:54:35.206786+00:00",
-    "prompt": "Has this escalation been resolved? Resume the loop?",
-    "context": {
-      "escalation_reason": "PLAN_REVIEW blocked: permission denial on sub-agent worktree re-root (git fetch origin openspec/ownership-map && git reset --hard origin/openspec/ownership-map) \u2014 harness worktrees are rooted at main and cannot be re-rooted; converge() not run",
-      "previous_phase": "PLAN_REVIEW"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true
-    },
-    "edge": {
-      "outcome": "resolved",
-      "target": "PLAN_REVIEW"
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
