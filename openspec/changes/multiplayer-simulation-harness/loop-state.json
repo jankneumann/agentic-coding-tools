@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "multiplayer-simulation-harness",
-  "current_phase": "IMPLEMENT",
+  "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 7,
+  "total_iterations": 8,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -16,7 +16,8 @@
     "fd37041f-3151-464f-b6b5-918c1295fc67",
     "9403b68a-7911-4949-a775-3b689b8ecb54",
     "44759acd-c2f6-4d02-8dfd-278037b64a61",
-    "11f32d63-4f2f-4bf4-a4d0-deebdea265f9"
+    "11f32d63-4f2f-4bf4-a4d0-deebdea265f9",
+    "ab3b1133-8595-4fe0-92b6-909f7872b6f3"
   ],
   "phase_history": [
     {
@@ -38,17 +39,22 @@
       "at": "2026-10-09T08:08:36.154426+00:00",
       "outcome": "converged",
       "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-09T08:10:30.617950+00:00",
+      "outcome": "failed",
+      "phase": "IMPLEMENT"
     }
   ],
-  "last_handoff_id": "11f32d63-4f2f-4bf4-a4d0-deebdea265f9",
+  "last_handoff_id": "ab3b1133-8595-4fe0-92b6-909f7872b6f3",
   "started_at": "2026-10-05T07:12:02.399401+00:00",
-  "phase_started_at": "2026-10-09T08:08:36.371045+00:00",
-  "previous_phase": "PLAN_REVIEW",
-  "escalation_reason": "PLAN_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
+  "phase_started_at": "2026-10-09T08:10:30.849563+00:00",
+  "previous_phase": "IMPLEMENT",
+  "escalation_reason": "IMPLEMENT transitioned to ESCALATE via outcome 'failed'",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "reviewer",
+  "phase_archetype": "implementer",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -109,8 +115,42 @@
       "recorded_at": "2026-10-05T13:44:40.103541+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T08:10:36.683211+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "multiplayer-simulation-harness",
+    "gate": "escalate_resume",
+    "phase": "ESCALATE",
+    "requested_at": "2026-10-09T08:10:36.684325+00:00",
+    "prompt": "Has this escalation been resolved? Resume the loop?",
+    "context": {
+      "escalation_reason": "IMPLEMENT failed: sub-agent worktree rooted at main could not adopt openspec/multiplayer-simulation-harness; git reset --hard / merge --ff-only denied by permission classifier",
+      "previous_phase": "IMPLEMENT"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true
+    },
+    "edge": {
+      "outcome": "resolved",
+      "target": "IMPLEMENT"
+    }
+  },
   "goal_gate": null
 }
