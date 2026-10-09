@@ -48,3 +48,62 @@
 ### Context
 Replaced the roadmap scaffold (circular scenarios, placeholder tasks, placeholder capability) with a reviewable proposal: 7 requirements / 25 scenarios under a new toolkit-distribution capability, 7 requirement-traced tasks with file scopes and a dependency graph (max width 3), and a design.md recording D1-D9 with alternatives. 16 findings (2 critical, 5 high, 7 medium, 2 low) were all addressed; openspec validate --strict passes; no findings remain at or above medium.
 
+---
+
+## Phase: Plan Review 1 (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Degradation single_vendor_review recorded for PLAN_REVIEW (vendor claude_code)** — Policy: TRUST_POSTURE.md section 'Review quorum in cloud containers (temporary)', commit 479dcd9 (operator decision 2026-10-09; escalate_resume approved twice). converge() ran with min_quorum=1. Only claude_code dispatched: agent claude-local, CLI tier, model fable, 194 s in the review round. The codex lane (codex-remote, SDK tier) failed at dispatch with error_class auth_required ('No API key available for SDK dispatch'); grok, pi, antigravity and ocr had no CLI, SDK or endpoint. The failed dispatch, not an environment probe, is the evidence; it is persisted in .review-cache/round-1-initial/review-manifest.json. Compensating control: the human merge review stays block.
+2. **Conductor applied the in-scope findings inline as a PLAN_FIX sub-step although none was blocking** — All 16 round-1 findings were judgment class and single-vendor unconfirmed. Ledger rule D3 blocks only deterministic items or confirmed high/critical, so with one vendor no judgment finding can ever block and the loop converged vacuously in round 1 without dispatching PLAN_FIX. Two medium findings on this change's own spec were real contract defects (ledger 8: dedupe key uses fields the allowlist excludes; ledger 9: identity re-enters through tags). The conductor fixed 8, 9, 11 and 14 by editing only their cited files (specs/toolkit-distribution/spec.md, plan-findings.md), marked them addressed in the ledger with resolutions, and committed as 34809ea. Sub-step record: phase PLAN_FIX, outcome fix_callback, blocking_count 0, conductor_applied 4, for the orchestrator's phase_history.
+3. **Verification converge run over the committed fix, then a second inline PLAN_FIX sub-step** — Second converge(min_quorum=1) run after the fix commit: converged=True rounds=1 reason=None blocking=0 unique=18 new_ledger_items=18. Same dispatch shape (claude_code fable 143 s; codex auth_required). Of its 18 findings, 12 (ledger 23-34) were 're-verified, still open' echoes of open items 1-7, 10, 12, 13, 15, 16 that merge_findings did not match because the descriptions changed; they were retired as duplicates. Six were new: 17 (medium) showed the round-1 spec fix had not been propagated to tasks.md T4/T5, design.md D8 and proposal.md item 4; 18 (medium) and 19 (low) were missing scenarios; 20 (low) was an absolute worktree path in the ledger; 22 (low) a stale evidence path; 21 is out of scope (TRUST_POSTURE.md). 17, 18, 19, 20 and 22 were fixed inline, committed as f4467fd. Round-1 artifacts of the first run were moved to .review-cache/round-1-initial beforehand because converge() names its checkpoint dir .review-cache/round-<n>. No third run: each single-vendor run re-emits the open advisory items as echoes, and the round-2 fixes are consistency and scenario additions checked by openspec validate --strict.
+4. **Findings outside the change directory were recorded, not edited** — The review packet is the full main...HEAD diff (88 files), so 9 of 16 findings cite TRUST_POSTURE.md, roadmap.yaml, checkpoint.json, the supervisor record or other changes' scaffolds. Commits in this phase are change-scoped by policy, so those are tabled in plan-findings.md Iteration 2 with owners and raised below as open questions.
+5. **Ran under the orchestrator policy addendum and a condensed phase-context JSON instead of the stock PLAN_REVIEW dispatch** `architectural: skill-procedure-deviation` — The orchestrator prompt carried an operator-approved addendum (gate-decision b8af977d, second escalate_resume) and a condensed phase-context JSON rather than the autopilot skill's standard phase handoff. The addendum changed the procedure in five ways, all followed: re-root with git fetch plus git switch -c from the change branch (no reset, no worktree removal); converge() with min_quorum=1 under the cloud single-vendor policy with dispatch failure as the only vendor evidence; record the single_vendor_review degradation in this log; commit change-scoped files only, no push, orchestrator cherry-picks; stop on any permission denial. The PLAN_FIX sub-steps are therefore reported in the handoff rather than appended to loop-state.json phase_history, which stays orchestrator-owned. No permission prompt or classifier denial occurred in this run.
+6. **Worked on branch openspec/toolkit-consistency--plan-review in the harness worktree; created a local main ref** `architectural: skill-procedure-deviation` — Re-rooted with git fetch and git switch -c from origin/openspec/toolkit-consistency as instructed. The worktree had no local main, which review_packet diffs against (main...HEAD), so a local main branch was created from origin/main without checkout; otherwise round 1 would have reviewed an empty diff.
+
+### Alternatives Considered
+- Return converged immediately after the first run with no edits: rejected because the degraded quorum would have passed two medium spec contradictions into IMPLEMENT unseen; the policy's compensating control is a human reading the PR, who would then find them late
+- Dispatch PLAN_FIX through phase_fixer's vendor CLI write mode: rejected because fix_mode inline means the conductor fixes, and the default applicator writes pending-fixes.json inside the change dir, which the post-fix scope check would reject as out of scope
+- Edit loop-state.json to append the PLAN_FIX sub-step to phase_history: rejected because the orchestrator owns loop-state.json; the sub-step is reported in the handoff for the orchestrator to apply
+
+### Trade-offs
+- Accepted a second full-packet dispatch (about four minutes) as a verification round over trusting openspec validate --strict alone because validate checks structure; a reader was needed to confirm the reconciled requirements read consistently
+- Accepted committing the small round evidence (manifest, vendor findings, fact-check, raw meta) and the ledger over committing the whole .review-cache because the review packet (250 KB) and raw vendor output are reproducible and would bloat the branch; the manifest is the dispatch evidence the policy requires
+
+### Capability Gaps Observed
+- **convergence_failed**: With min_quorum=1 the ledger rule D3 can never produce a blocking judgment finding, so converge() converges vacuously in round 1 and PLAN_FIX is never dispatched; single-vendor policy needs a blocking rule (for example unconfirmed medium+ on files inside the change dir) or an explicit conductor-review step (skill: autopilot, severity: medium)
+- **verification_failed**: discover_reviewers reported codex-remote available=true at the SDK tier although no key was resolvable, and the dispatch then failed auth_required; availability should include key resolution so quorum planning matches what can run (skill: parallel-infrastructure, severity: low)
+- **convergence_failed**: review_ledger.merge_findings does not match a reviewer's 'Re-verified ledger N: still open' finding to item N, so every re-verification of an open item lands as a new ledger item (12 echoes in one round); the packet asks for re-verification but the ledger has no id-based match path (skill: parallel-infrastructure, severity: medium)
+- **context_exhaustion**: For a plan review the packet diff is the full main...HEAD branch diff; on a roadmap branch that is 88 files, so most findings target other artifacts than the change under review. A plan packet should scope the diff to openspec/changes/<change-id>/ plus cited dependencies (skill: parallel-infrastructure, severity: low)
+
+### Open Questions
+- [ ] Finding 3 (security, medium, TRUST_POSTURE.md): proposal_approval is auto on the grounds that a roadmap_approval exists, but the gate also fires for standalone /plan-feature or /autopilot changes with no roadmap. Operator decision needed.
+- [ ] Finding 6 (correctness, medium, roadmap.yaml): ri-20 is still approved with current_item_id ri-01 while this change has run GATEKEEPER, PLAN_ITERATE and PLAN_REVIEW; a queue projection would re-dispatch it. autopilot-roadmap reconciliation needed.
+- [ ] Finding 5: commit 479dcd9 (the single-vendor policy) is on openspec/roadmap-multiplayer-collaboration but not on the change branch, so the loop-state's citation does not resolve from this checkout. Should the orchestrator bring it onto the change branch?
+- [ ] Finding 10 (low): every successful install moves the pin (D3). Should install.sh print a notice when the new payload hash differs from the existing stamp? Deferred to keep T2 single-commit.
+
+### Completed Work
+- converge(review_type=plan, min_quorum=1) review round: 16 findings, 0 blocking, converged round 1; dispatch evidence in .review-cache/round-1-initial/
+- PLAN_FIX sub-step (conductor, inline, cited files only): ledger 8, 9, 11, 14 fixed in specs/toolkit-distribution/spec.md and plan-findings.md; marked addressed with resolutions
+- Verification converge run over the fix commit: converged=True rounds=1 reason=None blocking=0 unique=18 new_ledger_items=18
+- PLAN_FIX sub-step 2 (conductor, inline): ledger 17 (tasks.md, design.md, proposal.md consistency), 18 and 19 (scenarios), 20 (ledger spec_file), 22 (evidence path) fixed and marked addressed; echoes 23-34 retired
+- plan-findings.md Iterations 2 and 3: review-round tables with a disposition for every ledger item (29 scenarios now)
+- openspec validate toolkit-consistency --strict passes after the fixes
+
+### Next Steps
+- Orchestrator: apply outcome converged for PLAN_REVIEW and cherry-pick the reported commits from openspec/toolkit-consistency--plan-review (not pushed)
+- Orchestrator: append the PLAN_FIX sub-step record to phase_history and record degradation single_vendor_review in the dispatch result and PR body
+- IMPLEMENT: T4/T5 follow the reconciled Exported learning privacy and One-way consumption requirements (tag-namespace filter, dedupe on capability_gap/affected_skill/summary)
+- Roadmap owner: findings 1, 2, 7, 13, 16 (scaffold scenarios, truncated headings, committed tokens, priority inversion, ri-id dependencies)
+
+### Relevant Files
+- `openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md` — PLAN_FIX edits for ledger 8, 9, 14
+- `openspec/changes/toolkit-consistency/plan-findings.md` — Iteration 2 review-round ledger and dispositions
+- `openspec/changes/toolkit-consistency/.review-ledger/ledger.json` — gate-time review ledger (34 items: 13 open advisory, 9 addressed, 12 retired echoes; 0 blocking)
+- `openspec/changes/toolkit-consistency/.review-cache/round-1-initial/review-manifest.json` — review-round dispatch evidence: claude_code success, codex auth_required
+- `openspec/changes/toolkit-consistency/.review-cache/round-1/review-manifest.json` — verification-round dispatch evidence
+
+### Context
+Autopilot PLAN_REVIEW ran converge(review_type=plan, min_quorum=1) twice: the review round and a verification round over the committed PLAN_FIX. Both converged with 0 blocking ledger items. Ledger: {"open": 13, "addressed": 9, "retired": 12}; blocking now 0.
+
