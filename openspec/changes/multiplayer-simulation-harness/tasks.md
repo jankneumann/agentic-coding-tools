@@ -224,7 +224,7 @@
 
 ## 6. CLI and determinism
 
-- [ ] 6.1 Write failing tests in `test_cli.py`, running `bin/mpsim` by subprocess:
+- [x] 6.1 Write failing tests in `test_cli.py`, running `bin/mpsim` by subprocess:
   - `list` prints the four scenario ids in sorted order;
   - `run` with an unknown scenario, an unknown probe, a `--fixture-dir` that does not exist,
     `--tick-budget 0`, or a one-principal `--fixture-dir` exits 64 and names the problem on
