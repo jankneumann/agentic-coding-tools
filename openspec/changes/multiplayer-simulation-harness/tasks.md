@@ -120,7 +120,7 @@
 
 ## 3. Collision oracle (parallel-safe with section 2)
 
-- [ ] 3.1 Write failing tests in `test_oracle.py`. Two spec deltas that name the same
+- [x] 3.1 Write failing tests in `test_oracle.py`. Two spec deltas that name the same
   `### Requirement:` heading of the same capability give `collision_present: true`. Different
   headings, or the same heading in different capabilities, give `false`. [XS]
   **Spec scenarios**: C.1, C.2
