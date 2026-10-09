@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "change_id": "dispatch-contract",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "a6b6982e607f03bb0d5ebd686e817a7dc5c2001448d798ee2f796b9ae3bdd5ad",
+  "char_length": 34890,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "empty",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": []
+}

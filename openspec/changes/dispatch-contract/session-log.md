@@ -113,3 +113,26 @@ Third pass found one medium gap: the verified roadmap_approval_ref was not persi
 ### Context
 PLAN_REVIEW parked before any review round: min_quorum=2 is unmeetable in this cloud environment. review_dispatcher --check-vendors reports claude_code+codex, but codex is a known false positive (no codex binary on PATH, no credential). Per supervisor resume instructions (contract Issue 3) quorum was not lowered; loop escalated with capability_unavailable (missing lane: codex / any second review vendor). Coordinator projection forbidden (expected for trust-2 cloud agents).
 
+
+---
+
+## Phase: Plan Review (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A | **Handoff**: eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5
+
+### Decisions
+1. **Existing v1 contract schemas are given one role each instead of being duplicated** `architectural: roadmap-orchestration` — `openspec/contracts/roadmap-orchestration/schemas/` already published request/result/attempt/context schemas; request/result are frozen as v1 reader schemas, the attempt schema becomes the single attempt definition `$ref`'d by `checkpoint.schema.json`, and the context schema is `$ref`'d by the v2 request.
+2. **Capability-park fan-out writes one escalate_resume record per dispatch** `architectural: supervise` — keeps `require_approval_ref`'s per-dispatch and per-generation checks unchanged.
+3. **counting_lanes includes unverified roster lanes** `architectural: supervise` — otherwise `missing_lanes` is always empty and distinct capability gaps share one fingerprint.
+4. **Quorum park happens in the worker protocol, not convergence_loop** `architectural: skill-workflow` — below quorum the SKILL.md probe skips review entirely, so convergence_loop never runs; `runner.py park` stays the only writer.
+
+### Trade-offs
+- Accepted single-vendor review (`single_vendor_review`, min_quorum=1) by recorded operator decision over waiting for a second lane; findings carry no cross-vendor confirmation.
+
+### Completed Work
+- converge() for PLAN_REVIEW: 3 rounds, blocking trend [11, 1, 0], converged
+- PLAN_FIX round 1 (items 1-11) and round 2 (item 14), inline edits to cited files only; scope check passed both rounds
+- Advisory (non-blocking) left open: 13 (cross-host reinitialize of a parked attempt invalidates its approval), 15 (roadmap-runtime -> shared dependency)
+
+### Context
+PLAN_REVIEW resumed after the operator's escalate_resume approval and ran the convergence loop with the claude_code lane only. Round 1 found 11 blocking defects verified against the repository, most importantly that published v1 dispatch schemas already exist under `openspec/contracts/roadmap-orchestration/schemas/`, that a `$ref` in `checkpoint.schema.json` breaks the registry-less validator in `models.py`, and that the D9 fan-out could not pass `require_approval_ref`. All were fixed and re-verified; one ordering contradiction introduced by the fix was caught and fixed in round 2. Degradations: `single_vendor_review`, `coordinator_projection_forbidden`, `handoff_local_fallback`.
