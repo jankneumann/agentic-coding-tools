@@ -590,3 +590,86 @@ def test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes(
         request["dispatch_id"]
     ]
     assert _attempt(world)["status"] == "parked"
+
+
+def test_a_posture_derived_capability_block_clears_after_a_posture_flip(world: dict[str, Any]) -> None:
+    """Acceptance outcome 4 on the fingerprint path: a capability park blocked
+    by the posture alone (no human answer) is re-evaluated once the posture
+    changes, proceeds with posture provenance, and resumes the child."""
+    from shared.trust_posture import load_posture, posture_digest
+
+    repo, workspace, adapter = world["repo"], world["workspace"], world["adapter"]
+    park = {"kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["codex"], "reason": "quorum"}
+    _posture(repo, escalate_resume="block")
+    first_digest = posture_digest(load_posture(repo))
+    request = _prepare(world)
+    _launch(world, request, owner="owner-nonce-0000000001")
+    _child_commits_state(world, current_phase="PLAN_REVIEW", park=dict(park))
+    _apply(world, request, _child_emits(world, request))
+
+    blocked = gate_router.resolve_parked(
+        _attempt(world), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+    assert blocked.outcome == "blocked"
+    assert blocked.routed.record["provenance"] == {"source": "posture", "posture_digest": first_digest}
+    assert _attempt(world)["status"] == "parked"
+
+    _posture(repo, escalate_resume="auto")
+    second_digest = posture_digest(load_posture(repo))
+    assert second_digest != first_digest
+
+    resolved = gate_router.resolve_parked(
+        _attempt(world), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+
+    assert resolved.outcome == "proceed"
+    assert resolved.routed.record["provenance"] == {"source": "posture", "posture_digest": second_digest}
+    assert resolved.routed.record["dedupe_fingerprint"] == dispatch_contract.dedupe_fingerprint(park)
+    assert resolved.resume_result["dispatch_id"] == request["dispatch_id"]
+    assert resolved.resume_result["gate_answer"]["gate"] == "escalate_resume"
+    assert resolved.resume_result["gate_answer"]["provenance"]["source"] == "posture"
+    assert _attempt(world)["status"] == "prepared"
+    assert _mirror_fingerprint_entries(repo) == []
+
+
+# --------------------------------------------------------------------------- #
+# Profile, review requirements and degradations end to end (acceptance outcome 5)
+# --------------------------------------------------------------------------- #
+
+
+def test_profile_and_degradations_travel_the_whole_chain(world: dict[str, Any]) -> None:
+    """request -> launch marker -> child loop-state.json -> emit-result file ->
+    apply -> checkpoint attempt and apply return value."""
+    request = _prepare(world)
+    assert request["execution_profile"]["lanes"]["review"] == ["claude_code"]
+    assert request["review_requirements"]["min_quorum"]["PLAN_REVIEW"] == 2
+    _launch(world, request, owner="owner-nonce-0000000001")
+
+    marker = dispatch_contract.read_launch_marker(_CHANGE, repo_root=world["child"])
+    assert marker is not None
+    assert marker["execution_profile"] == request["execution_profile"]
+    assert marker["review_requirements"] == request["review_requirements"]
+
+    _child_commits_state(
+        world, current_phase="DONE", goal_gate={"verdict": "passed"}, last_handoff_id="h-1", handoff_ids=["h-1"],
+    )
+    world["monkeypatch"].chdir(world["child"])
+    assert runner.main(
+        ["record-degradation", _CHANGE, "--code", "single_vendor_review", "--phase", "PLAN_REVIEW",
+         "--detail", "codex not dispatchable"]
+    ) == 0
+    world["monkeypatch"].chdir(world["repo"])
+    state_path = world["child"] / "openspec" / "changes" / _CHANGE / "loop-state.json"
+    recorded = json.loads(state_path.read_text())["degradations"]
+    assert [d["code"] for d in recorded] == ["single_vendor_review"]
+    _git(world["child"], "add", "openspec")
+    _git(world["child"], "commit", "-q", "-m", "degradation")
+
+    result = _child_emits(world, request)
+    assert result["degradations"] == recorded
+
+    applied = _apply(world, request, result)
+
+    assert applied["completed_item_ids"] == ["ri-01"]
+    assert applied["degradations"] == {request["dispatch_id"]: recorded}
+    assert _attempt(world)["degradations"] == recorded
