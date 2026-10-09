@@ -34,7 +34,9 @@ def run(
     probe_ids: Sequence[str] | None = None,
     tick_budget: int = DEFAULT_TICK_BUDGET,
     fixture_dir: Path | None = None,
+    work_root: Path | None = None,
 ) -> RunResult:
+    """Run one scenario. ``work_root`` (tests only) keeps the simulated world for inspection."""
     scenarios = discover()
     if scenario_id not in scenarios:
         raise UsageError(f"unknown scenario {scenario_id!r}; known: {', '.join(scenarios)}")
@@ -46,7 +48,11 @@ def run(
     fixture = load_fixture(Path(fixture_dir) if fixture_dir else FIXTURES_ROOT / scenario.fixture_name)
     selected = probe_registry.select(probe_ids)
 
-    work_root = Path(tempfile.mkdtemp(prefix="mpsim-", dir=os.environ.get("TMPDIR") or None))
+    keep = work_root is not None
+    if work_root is None:
+        work_root = Path(tempfile.mkdtemp(prefix="mpsim-", dir=os.environ.get("TMPDIR") or None))
+    else:
+        work_root.mkdir(parents=True, exist_ok=True)
     scrub = _scrub_values(work_root, fixture.dir)
     try:
         ctx = RunContext(scenario_id, fixture, selected, tick_budget, work_root)
@@ -58,7 +64,8 @@ def run(
             exit_code = 1
         text = render(report, forbidden_paths=[v for v, _ in scrub])
     finally:
-        shutil.rmtree(work_root, ignore_errors=True)
+        if not keep:
+            shutil.rmtree(work_root, ignore_errors=True)
     return RunResult(exit_code, report, text)
 
 

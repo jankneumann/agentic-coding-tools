@@ -205,7 +205,7 @@
   **Spec scenarios**: B.1, B.2, B.3, B.4, B.5, B.6
   **Design decisions**: D5, D7
   **Dependencies**: 2.6
-- [ ] 5.2 Implement `mpsim/applier.py` (the status applier, which commits declared
+- [x] 5.2 Implement `mpsim/applier.py` (the status applier, which commits declared
   transitions to `roadmap.yaml` on `main` as `sim-supervisor` and pushes) and
   `mpsim/scenarios/blocked.py`, the tick scheduler:
   - follow the intra-tick order from D5 exactly: finishing steps push their work to their
