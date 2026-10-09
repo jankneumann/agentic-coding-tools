@@ -138,7 +138,8 @@ the contract has an operation with no request driver, or a success response with
 Move the `@app.get("/features/active")` block above `@app.get("/features/{feature_id}")`. No
 `APIRouter` refactor. The conformance test's `listActiveFeatures` case is the regression guard;
 the bridge fixture that mocks `/features/active` as 404
-(`skills/coordination-bridge/scripts/tests/test_coordination_bridge.py:107`) is corrected to 200.
+(`skills/coordination-bridge/scripts/tests/test_coordination_bridge.py:107`) is kept — it
+simulates a deployment without the feature registry — and a separate test covers the 200 probe.
 
 ### D7 — Go/no-go is a scored record, not a judgement call
 
