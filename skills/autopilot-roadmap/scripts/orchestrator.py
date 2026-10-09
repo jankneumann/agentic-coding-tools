@@ -387,6 +387,11 @@ def prepare_delegated_batch(
         dispatch_ids.append(dispatch_id)
         token, digest = mint_launch_token()
         tokens[dispatch_id] = token
+        attempt_profile = copy.deepcopy(dict(execution_profile or {}))
+        if attempt_profile:
+            # The profile is resolved once per batch; isolation is per item, so
+            # report the mode this attempt's isolation was verified as.
+            attempt_profile["isolation"] = isolation["mode"]
         attempt_record: dict[str, Any] = {
                 "dispatch_id": dispatch_id,
                 "item_id": item.item_id,
@@ -405,7 +410,7 @@ def prepare_delegated_batch(
                 "scope": selected.scope.to_request_scope(),
                 "isolation": isolation,
                 "context": copy.deepcopy(base_context),
-                "execution_profile": copy.deepcopy(dict(execution_profile or {})),
+                "execution_profile": attempt_profile,
                 "review_requirements": copy.deepcopy(dict(review_requirements or {})),
         }
         if roadmap_approval_ref is not None:

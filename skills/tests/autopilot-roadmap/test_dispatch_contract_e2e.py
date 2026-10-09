@@ -329,6 +329,8 @@ def test_a_cloud_worker_at_the_repo_root_prepares_and_starts(world: dict[str, An
     )
     request = prepared["requests"][0]
     assert request["isolation"]["worktree_ref"] == "."
+    # The batch-wide profile reports the mode this item was verified as.
+    assert request["execution_profile"]["isolation"] == "harness_provided"
     assert dispatch_contract.validate_request(request) == request
 
     claimed = adapter.child_start(
@@ -704,6 +706,7 @@ def test_profile_and_degradations_travel_the_whole_chain(world: dict[str, Any]) 
     apply -> checkpoint attempt and apply return value."""
     request = _prepare(world)
     assert request["execution_profile"]["lanes"]["review"] == ["claude_code"]
+    assert request["execution_profile"]["isolation"] == "managed_worktree"
     assert request["review_requirements"]["min_quorum"]["PLAN_REVIEW"] == 2
     _launch(world, request, owner="owner-nonce-0000000001")
 
