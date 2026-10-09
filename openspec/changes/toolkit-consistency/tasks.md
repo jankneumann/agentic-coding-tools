@@ -54,7 +54,7 @@ on. Tasks with no shared files and no `Depends on` can run in parallel worktrees
   Files: `skills/improve-harness/scripts/export_shared_learnings.py`, `skills/tests/improve-harness/test_export_shared_learnings.py`.
   Depends on: none.
 
-- [ ] **T5. Shared-learnings consumption** — Add `--shared-learnings <path>` to
+- [x] **T5. Shared-learnings consumption** — Add `--shared-learnings <path>` to
   `analyze_failures.py` (default `<target-root>/.agentic-toolkit/learnings.jsonl`, read only
   when the config enables sharing), dedupe merged records against local and other shared
   findings on `(capability_gap, affected_skill, summary)` (exported records carry no

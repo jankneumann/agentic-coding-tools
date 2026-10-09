@@ -46,6 +46,40 @@ The skill also scans `openspec/changes/**/session-log.md` for `### Capability Ga
 
 Deduplication is keyed on `(capability_gap, affected_skill, session_id)`. When the same gap appears from multiple sources, all sources are preserved — cross-source agreement is the strongest signal.
 
+## Shared Learnings (opt-in, repository-scoped)
+
+A team can share capability-gap learnings through the repository without sharing private
+session transcripts. Sharing is off unless a human enables it in
+`<repo-root>/.agentic-toolkit/config.json` (`install.sh` never creates or edits this file):
+
+```json
+{"schema_version": 1, "shared_learnings": {"enabled": true}}
+```
+
+**Export** (writes the tracked projection `.agentic-toolkit/learnings.jsonl`; review and commit it):
+
+```bash
+python3 <agent-skills-dir>/improve-harness/scripts/export_shared_learnings.py \
+  --repo-root . --time-window ${TIME_WINDOW:-30}
+```
+
+- Exit `2` and nothing written when the config is absent, unreadable or not enabled.
+- Exit `3` and the existing file left unchanged when memory returns no entries (for example
+  the coordinator is unreachable), so a bad run cannot wipe the projection.
+- Only `event_type`, `summary`, `outcome`, `lessons`, `tags` and `created_at` are exported;
+  `details`, `agent_id` and `session_id` are dropped, tags are limited to `failure_type:`,
+  `capability_gap:`, `affected_skill:`, `severity:` and `source:`, entries tagged
+  `source:transcript-mined` are excluded, and all text passes the `session-log` sanitizer.
+- Output is sorted and deduplicated on `(capability_gap, affected_skill, summary)`, so
+  re-exports produce reviewable diffs.
+
+**Consumption**: `analyze_failures.py` reads the file only when sharing is enabled, from
+`--shared-learnings <path>` (default `<repo-root>/.agentic-toolkit/learnings.jsonl`). Merged
+records are tagged `origin:shared-repo`, deduplicated against local and other shared findings
+on `(capability_gap, affected_skill, summary)` and never written back to episodic memory.
+The file is advisory context: never derive loop state, checkpoint state or trust posture
+from it.
+
 ## Prerequisites
 
 - Python 3.11+
