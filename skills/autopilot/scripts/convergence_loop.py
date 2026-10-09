@@ -570,6 +570,25 @@ def _changed_paths(
     return sorted(names)
 
 
+#: converge()'s own bookkeeping under ``artifacts_dir``: the review ledger and
+#: the per-round packet/checkpoint cache. converge writes them itself
+#: (``save_ledger`` runs before the pre-fix snapshot), never a fix callback.
+_BOOKKEEPING_DIRS = (".review-ledger", ".review-cache")
+
+
+def _without_bookkeeping(
+    changed: list[str], *, worktree_path: Path, artifacts_dir: Path,
+) -> list[str]:
+    """``changed`` minus converge's own ``artifacts_dir`` bookkeeping paths, so
+    the post-fix scope check sees only the fix callback's edits."""
+    try:
+        base = Path(artifacts_dir).resolve().relative_to(Path(worktree_path).resolve())
+    except ValueError:
+        return changed  # artifacts outside the worktree never appear in git output
+    prefixes = tuple(f"{(base / name).as_posix()}/" for name in _BOOKKEEPING_DIRS)
+    return [path for path in changed if not path.startswith(prefixes)]
+
+
 def _compute_vendor_agreement_rate(
     consensus_dict: dict[str, Any] | None,
 ) -> float:
@@ -1228,7 +1247,11 @@ def converge(
             pre_rev = _snapshot_rev(worktree_path)
             pre_untracked = _untracked_paths(worktree_path)
             fix_callback(payloads, worktree_path)
-            changed = _changed_paths(worktree_path, pre_rev, pre_untracked)
+            changed = _without_bookkeeping(
+                _changed_paths(worktree_path, pre_rev, pre_untracked),
+                worktree_path=worktree_path,
+                artifacts_dir=artifacts_dir,
+            )
             allowed: list[str] = []
             seen_allowed: set[str] = set()
             for payload in payloads:

@@ -766,6 +766,47 @@ def test_converge_rejects_out_of_scope_fix(tmp_path: Path) -> None:
     assert ledger["items"][0]["status"] == "open"
 
 
+def test_converge_bookkeeping_is_not_a_fix_edit(tmp_path: Path) -> None:
+    """converge's own .review-ledger/ and .review-cache/ writes under
+    artifacts_dir (here tracked, as on a branch that committed an earlier
+    round) are not attributed to the fix callback by the scope check."""
+    _init_git_repo(tmp_path)
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "api.py").write_text("ok\n")
+    ctx, _finding = _blocking_round(tmp_path)
+    artifacts = ctx["artifacts_dir"]
+    ledger_dir = artifacts / ".review-ledger"
+    ledger_dir.mkdir()
+    (ledger_dir / "ledger.json").write_text(
+        json.dumps({"change_id": "test-change", "items": []}) + "\n"
+    )
+    cache = artifacts / ".review-cache" / "round-1"
+    cache.mkdir(parents=True)
+    (cache / "review-packet.md").write_text("stale\n")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "earlier round"], cwd=tmp_path, check=True, capture_output=True,
+    )
+
+    def edit_allowed(_blocking: list, worktree: Path) -> None:
+        (worktree / "src" / "api.py").write_text("fixed\n")
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=artifacts,
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            fix_callback=edit_allowed,
+        )
+    # Accepted by the scope check (no ScopeViolation), then retired by the
+    # clean second round.
+    ledger = load_or_create(artifacts, "test-change")
+    assert ledger["items"][0]["status"] in {"addressed", "retired"}
+
+
 def test_last_fix_diff_includes_committed_callback_edits(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
     ctx, _finding = _blocking_round(tmp_path)
