@@ -154,7 +154,7 @@
   Leave no probe registered by default, and add a comment marking where `ri-06` adds its
   import line. [S]
   **Dependencies**: 4.1
-- [ ] 4.3 Author fixtures under `fixtures/same-requirement-collision/` and
+- [x] 4.3 Author fixtures under `fixtures/same-requirement-collision/` and
   `fixtures/different-requirement-control/`:
   - a seeded capability spec `openspec/specs/sim-notes/spec.md` with at least two
     requirements;
