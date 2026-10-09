@@ -34,8 +34,13 @@ fixtures stay byte-unchanged and must pass this way (acceptance outcome 1). A v1
 request gains an empty `execution_profile`/`review_requirements` (which the child
 treats as standalone for D10 purposes). A v1 result gains
 `degradations: []`, its absolute `worktree_path` is converted to `worktree_ref`
-against the current host's repo root, and `host_id` is set to the current host. A v1
-result whose path cannot be made repo-relative is rejected with a named error.
+against the current host's managed worktree root or repo root, its absolute
+`evidence.loop_state_path` is rewritten relative to that worktree, and `host_id` is
+set to the current host. A v1 result whose paths cannot be made relative is rejected
+with a named error. `upgrade_v1(doc, *, repo_root, managed_root, host_id)` takes the
+host context explicitly; schema validation of a v1 document (against the frozen v1
+reader schemas, D2) is host-independent, so the existing fixtures validate on any
+host and only the upgrade step is host-bound.
 
 - *Alternative:* bump in place with no v1 support. Rejected: workers already running on
   `multiplayer-collaboration` return v1 results, and refusing them would strand those
@@ -56,6 +61,33 @@ the worktree, size of canonical JSON is at most 16 KiB. `_RESULT_REQUIRED`,
 object in `checkpoint.schema.json` becomes a `$ref` to
 `dispatch-result.schema.json`, resolved through a `referencing.Registry` built from
 the schema directory.
+
+The v1 boundary is also published, but unused at runtime, as JSON Schemas under
+`openspec/contracts/roadmap-orchestration/schemas/` (`supervised-dispatch-request`,
+`supervised-dispatch-result`, `delegated-dispatch-attempt`, `bounded-dispatch-context`,
+each with an `https://agentic-coding-tools.dev/contracts/...` `$id`). They are
+validated today only by tests (`skills/tests/supervise/test_execution_contract.py`,
+`test_execution.py`, `roadmap-runtime/test_dispatch_scheduler.py`,
+`autopilot-roadmap/test_supervised_dispatch_e2e.py`). To end with one definition per
+shape:
+
+- `supervised-dispatch-request.schema.json` and `supervised-dispatch-result.schema.json`
+  are frozen as the **v1 reader schemas**: `upgrade_v1()` validates a v1 document
+  against them before upgrading it, and nothing writes v1. They are deleted with v1
+  reading (Open questions).
+- `delegated-dispatch-attempt.schema.json` becomes the **single attempt definition**:
+  it gains `launch_digest`, `roadmap_approval_ref` and portable isolation, and
+  `checkpoint.schema.json`'s `dispatch_attempts.items` becomes a `$ref` to it (its
+  `result` in turn `$ref`s `dispatch-result.schema.json`).
+- `bounded-dispatch-context.schema.json` is kept and `$ref`'d by the v2 request.
+- The v2 request/result live only at `openspec/schemas/dispatch-*.schema.json`.
+  `dispatch_contract`'s registry loads every schema in `openspec/schemas/` and
+  `openspec/contracts/roadmap-orchestration/schemas/` by `$id`; the four contract
+  files are mirrored under `skills/roadmap-runtime/install_assets/openspec/` at the
+  same relative paths, and the locator's install_assets fallback covers both
+  directories.
+- The four tests above validate through `dispatch_contract` instead of building their
+  own validators.
 
 - *Alternative:* generate Python validators from the schema at build time. Rejected:
   adds a build step that installed copies in consumer repos would not run.
@@ -251,11 +283,27 @@ an `escalate_resume` subject keyed by a *dedupe fingerprint* instead of by dispa
 - `capability_unavailable`: `sha256(phase, sorted(missing_lanes))`.
 
 N parked attempts with the same fingerprint produce one `pending_gates` entry listing
-all their dispatch IDs. One operator answer resumes every attempt in that entry, each
-through its own generation-checked CAS. The redacted command is stored only after
-passing through `skills/session-log/scripts/sanitize_session_log.sanitize()`
-(secret-pattern and high-entropy redaction), truncated to 256 characters; it is
-redacted by `runner.py park` in the child, and re-sanitized by the router.
+all their dispatch IDs, each with the `lease_generation` it had at projection. One
+operator answer resumes every attempt in that entry, each through its own
+generation-checked CAS.
+
+Decision-record shape for the fan-out: answering a fingerprint entry writes **one
+`escalate_resume` record per listed dispatch**, each with that dispatch's own
+`dispatch_id` and projected `lease_generation`, plus the shared `dedupe_fingerprint`
+and the answer's `provenance`. `gate_router.require_approval_ref` therefore keeps its
+existing per-dispatch checks (`dispatch_id` equal, and for `escalate_resume`
+`lease_generation` equal) unchanged; an attempt whose generation moved since
+projection fails that check and is skipped and reported. `ExecutionAdapter.resume`
+accepts parked kinds `permission_blocked` and `capability_unavailable` in addition to
+`pending_gate` and `policy_pause`, with expected gate `escalate_resume`, and also
+requires the record's `dedupe_fingerprint` to equal the fingerprint recomputed from
+the attempt's parked payload.
+
+The redacted command is stored only after passing through
+`skills/session-log/scripts/sanitize_session_log.sanitize()` (secret-pattern and
+high-entropy redaction; the stored value is the first element of its
+`(content, redactions)` return value), truncated to 256 characters; it is redacted by
+`runner.py park` in the child, and re-sanitized by the router.
 
 ### D10. Execution profile and honest quorum
 
@@ -267,16 +315,33 @@ inside the adapter's existing credential path and never printed; workers never p
 `probe_command`, the only probe a worker may re-run. `review_requirements` holds
 `min_quorum` per review phase (`PLAN_REVIEW`, `IMPL_REVIEW`, `VAL_REVIEW`; default 2,
 today's `--min-vendors` value, overridable by router context key `review_min_quorum`)
-and `counting_lanes`: verified lanes ordered by the `cost_policy.tiers` ladder in
+and `counting_lanes`: every lane the roster (`agents.yaml`) configures for mode
+`review`, **verified or not**, ordered by the `cost_policy.tiers` ladder in
 `agent-coordinator/routing.yaml` (subscription-local, subscription-cloud, metered-api).
-The ladder orders lanes; it does not exclude any tier from counting. `routing.yaml`
-itself is not edited.
+`execution_profile.lanes.review` holds the verified subset, so a park's
+`missing_lanes` is `counting_lanes` minus the verified lanes and is non-empty
+whenever quorum is unmet by a configured-but-unverified lane; distinct gaps therefore
+fingerprint differently (D9). The ladder orders lanes; it does not exclude any tier
+from counting. `routing.yaml` itself is not edited.
 
 In a dispatched child (launch marker present), a review phase whose verified lanes are
 fewer than `review_requirements.min_quorum[phase]` records
 `park(kind=capability_unavailable)` and stops; it never lowers the quorum. A
 standalone run keeps today's behaviour (disable CLI review) but appends a
 `single_vendor_review` or `review_skipped` degradation.
+
+Where this happens: today the below-quorum decision is made in the worker protocol
+(`skills/autopilot/SKILL.md` runs `--check-vendors` and sets
+`CLI_REVIEW_ENABLED=false`, so the review phases are skipped and `converge()` never
+runs). In a dispatched child the protocol instead keeps review enabled and, at
+`PLAN_REVIEW` / `IMPL_REVIEW` entry, compares `execution_profile.lanes.review` with
+`review_requirements.min_quorum[phase]` and runs `runner.py park --kind
+capability_unavailable`. A standalone run below quorum runs `runner.py
+record-degradation --code review_skipped` when it disables review.
+`convergence_loop.converge()` gains a pre-dispatch guard that returns
+`reason="capability_unavailable"` when handed fewer verified lanes than `min_quorum`;
+it never writes loop state (`runner.py` stays the only writer of `park` and
+`degradations`, D11).
 
 Degradation codes (closed enum): `single_vendor_review`, `review_skipped`,
 `coordinator_projection_forbidden`, `audit_sink_failed`, `phase_fallback_inline`,

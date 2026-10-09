@@ -9,11 +9,14 @@
 
 The first `/supervise execute` run of `multiplayer-collaboration` (2026-10-05/06)
 dispatched four workers (ri-01, ri-02, ri-05, ri-20) and none reached
-implementation. Every stall traced to the supervisor-worker boundary, which has no
-published contract: the dispatch request and result exist only as three hand-kept
-validators (`execution.py` `_validate_result`, `orchestrator.py`
-`_validate_dispatch_result`, and an inline copy inside `checkpoint.schema.json`) plus
-test fixtures. Each worker prompt restated the result shape by hand, and every
+implementation. Every stall traced to the supervisor-worker boundary, whose published
+contract is not the one the runtime enforces: v1 JSON Schemas exist under
+`openspec/contracts/roadmap-orchestration/schemas/` (`supervised-dispatch-request`,
+`supervised-dispatch-result`, `delegated-dispatch-attempt`,
+`bounded-dispatch-context`), but only tests validate against them. At runtime the
+request and result are checked by three hand-kept validators (`execution.py`
+`_validate_result`, `orchestrator.py` `_validate_dispatch_result`, and an inline copy
+inside `checkpoint.schema.json`), none of which reads those schemas. Each worker prompt restated the result shape by hand, and every
 behaviour the prompt left out was decided by the worker. The observed failures:
 
 1. A gate parked under a missing posture stayed parked after the operator adopted a
@@ -42,7 +45,10 @@ first.
 
 - **Published schemas.** Add `openspec/schemas/dispatch-request.schema.json` and
   `dispatch-result.schema.json` (`schema_version` 2) as the only definition of the
-  boundary. A new `skills/shared/dispatch_contract.py` loads and validates them;
+  boundary. The existing v1 contract schemas are frozen as v1 reader schemas
+  (request, result), become the single attempt definition `$ref`'d by
+  `checkpoint.schema.json` (attempt), or are `$ref`'d by the v2 request (context)
+  (design D2). A new `skills/shared/dispatch_contract.py` loads and validates them;
   `execution.py`, `orchestrator.py` and `checkpoint.schema.json` (via `$ref`) consume
   that single definition, and their hand-written field sets are deleted. Version-1
   documents remain readable (D1).
@@ -142,6 +148,10 @@ Affected code:
   edited `checkpoint.schema.json`, `gate-decision.schema.json`,
   `gate-request.schema.json`, `trust-posture.schema.json`; mirrors in
   `skills/roadmap-runtime/install_assets/openspec/schemas/`.
+- `openspec/contracts/roadmap-orchestration/schemas/`: `delegated-dispatch-attempt`
+  edited (digest, portable isolation); `supervised-dispatch-request`/`-result` frozen
+  as v1 reader schemas; all four mirrored under `install_assets`.
+- `skills/shared/environment_profile.py` (`host_id()`).
 - `skills/shared/`: new `dispatch_contract.py`; `trust_posture.py` (digest, `unscoped`
   fallback), `approval_gate.py` (provenance, scoped auto).
 - `skills/autopilot/scripts/`: `runner.py` (`emit-result`, `park`,
@@ -153,7 +163,9 @@ Affected code:
 - `skills/autopilot-roadmap/scripts/orchestrator.py` (prepare, validation via contract).
 - `skills/supervise/scripts/execution.py`, `gate_router.py`, `skills/supervise/SKILL.md`,
   `skills/autopilot/SKILL.md` (worker protocol: emit-result, park, no env probing).
-- Tests under `skills/tests/{supervise,autopilot,autopilot-roadmap,roadmap-runtime,shared,parallel-infrastructure}/`.
+- Tests under `skills/tests/{supervise,autopilot,autopilot-roadmap,roadmap-runtime,shared,parallel-infrastructure,install_sh}/`,
+  including `supervise/test_execution_contract.py` and every helper that copies
+  `checkpoint.schema.json` into a temporary repo.
 
 Compatibility: v1 results and legacy checkpoints keep loading (D1, D6, D7). Loop
 state moves to `schema_version` 6 with defaulted new fields. In-flight workers on

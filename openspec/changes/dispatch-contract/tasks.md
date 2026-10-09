@@ -28,8 +28,18 @@
   `launch_digest` (`^sha256:[0-9a-f]{64}$`); attempt `roadmap_approval_ref`; isolation
   `{mode, worktree_ref, branch, host_id}`; parked kinds extended; `rebound` history state. — RO Launch Token Digest,
   Host-Portable Attempt Isolation
-- [ ] 2.4 Mirror 2.1-2.3 into `skills/roadmap-runtime/install_assets/openspec/schemas/`
-  and add the byte-parity test. (dep 2.1-2.3) — RO Published Dispatch Contract Schemas
+- [ ] 2.3a Existing contract schemas (design D2): edit
+  `openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json`
+  to the new attempt shape and make `checkpoint.schema.json` `dispatch_attempts.items`
+  `$ref` it; keep `supervised-dispatch-request`/`-result.schema.json` byte-unchanged as
+  v1 reader schemas; `$ref` `bounded-dispatch-context.schema.json` from the v2
+  request. Repoint `skills/tests/supervise/test_execution_contract.py` at the v2/v1
+  schemas through a registry. (dep 2.1-2.3) — RO Published Dispatch Contract Schemas
+- [ ] 2.4 Mirror 2.1-2.3a into `skills/roadmap-runtime/install_assets/openspec/`
+  (`schemas/` and `contracts/roadmap-orchestration/schemas/`) and add the byte-parity
+  test; add the new installed paths to
+  `skills/tests/install_sh/test_openspec_assets.py`. (dep 2.1-2.3a) — RO Published
+  Dispatch Contract Schemas
 
 ## 3. Posture provenance and scope  `[wp-posture]` (no deps)
 
@@ -53,7 +63,12 @@
 - [ ] 4.2 `skills/shared/dispatch_contract.py`: schema locator with install_assets
   fallback, `validate_request`, `validate_result`, `upgrade_v1`,
   `result_from_loop_state`, `dispatch_slug`, `read_launch_marker`,
-  `DispatchContractError`. (dep 4.1)
+  `DispatchContractError`; a `referencing.Registry` built from every schema under
+  `openspec/schemas/` and `openspec/contracts/roadmap-orchestration/schemas/`
+  (`$id`-keyed) and exported as `schema_registry(repo_root)`. (dep 4.1)
+- [ ] 4.3 `skills/shared/environment_profile.py`: add `host_id()` (cloud session
+  environment ID when present, else a hash of the machine ID; never a hostname or
+  username) with a unit test. — RO Host-Portable Attempt Isolation (D7)
 
 ## 5. Runtime ledger  `[wp-runtime-ledger]` (deps: 4.2)
 
@@ -63,8 +78,16 @@
   path). Update `test_delegated_checkpoint.py` and `test_dispatch_scheduler.py`,
   which pin `launch_token` today. — RO Launch Token Digest, Host-Portable Attempt Isolation
 - [ ] 5.2 `roadmap-runtime/scripts/models.py` + `checkpoint.py`: attempt fields
-  `launch_digest` and portable isolation; legacy migration on load; `needs_rebind`.
-  (dep 5.1)
+  `launch_digest` and portable isolation; legacy migration on load; `needs_rebind`;
+  `validate_against_schema` builds its `Draft202012Validator` with
+  `dispatch_contract.schema_registry(repo_root)` so the checkpoint's `$ref`s resolve
+  (today it uses a bare validator, so `resolve_readiness.py` and checkpoint load would
+  fail on an unresolvable reference). (dep 5.1)
+- [ ] 5.2a Update every test helper that copies only `checkpoint.schema.json` into a
+  temporary repo to also copy the schemas it `$ref`s: `roadmap-runtime/test_readiness.py`,
+  `autopilot-roadmap/test_supervised_dispatch.py`, `test_supervised_dispatch_e2e.py`
+  (this package), and `supervise/test_execution.py`, `test_gate_router.py`,
+  `test_gate_router_e2e.py`, `test_cycle_state.py` (in 8.1). (dep 5.2)
 - [ ] 5.3 `autopilot-roadmap/scripts/orchestrator.py`: mint token, store digest,
   take and persist the verified `roadmap_approval_ref` from `ExecutionAdapter.prepare`,
   emit v2 request; replace `_validate_dispatch_result` with `dispatch_contract`;
@@ -78,9 +101,11 @@
 - [ ] 6.1 Test first: `skills/tests/autopilot/test_emit_result.py`,
   `test_loop_state_v6.py`, `test_gate_check_reeval.py`. — SW all four requirements
 - [ ] 6.2 `autopilot.py`: LoopState v6 (`park`, `degradations`), v5 migration,
-  `_apply_transition` refuses while parked; gate session passes the marker's
-  `roadmap_approval_ref` into gate context. (dep 6.1) — SW Loop State Parks and
-  Degradations; TP
+  `_apply_transition` refuses while parked; the gate session constructs
+  `ApprovalGate` with its default `marker_reader`
+  (`dispatch_contract.read_launch_marker`) and passes no `roadmap_approval_ref` or
+  other scope value through the gate context, which D8 ignores. (dep 6.1) — SW Loop
+  State Parks and Degradations; TP
 - [ ] 6.3 `runner.py`: `emit-result`, `park`, `record-degradation`. (dep 6.2) — SW
   Code-Emitted Dispatch Result, Loop State Parks and Degradations
 - [ ] 6.4 `runner.py` + gate session: dispatched-vs-standalone authority (marker
@@ -90,9 +115,15 @@
   (dep 6.3)
   — SW Gate Authority and Re-Evaluation on Resume
 - [ ] 6.5 `skills/autopilot/SKILL.md`: worker protocol — `emit-result` + commit, `park`
-  on permission denial, `probe_command` only, no env probing; resync mirrors with
+  on permission denial, `probe_command` only, no env probing. Replace the
+  below-quorum `CLI_REVIEW_ENABLED=false` step: in a dispatched child (marker present)
+  keep review enabled and, at `PLAN_REVIEW` / `IMPL_REVIEW` entry, compare
+  `execution_profile.lanes.review` with `review_requirements.min_quorum[phase]` and run
+  `runner.py park --kind capability_unavailable --phase P --missing-lane ...` when
+  short; in a standalone run keep disabling review and run `runner.py
+  record-degradation --code review_skipped --phase PLAN_REVIEW`. Resync mirrors with
   `install.sh`. (dep 6.4) — SV Execution Profile and Review Requirements; SW
-  Code-Emitted Dispatch Result
+  Code-Emitted Dispatch Result, Honest Review Quorum
 
 ## 7. Review honesty  `[wp-review-honesty]` (deps: 6.3)
 
@@ -100,27 +131,34 @@
   and `skills/tests/autopilot/test_quorum_park.py`. — PI; SW Honest Review Quorum
 - [ ] 7.2 `review_dispatcher.py`: dry-invocation verification, `--json` output,
   env-free probe. (dep 7.1) — PI Dispatchable Vendor Verification
-- [ ] 7.3 `convergence_loop.py`: park `capability_unavailable` when a marker's
-  `review_requirements` is unmet; standalone degradation. (dep 7.1, 6.3) — SW Honest
-  Review Quorum
+- [ ] 7.3 `convergence_loop.py`: pre-dispatch guard that returns
+  `ConvergenceResult(reason="capability_unavailable")` with the missing lanes when it
+  is handed fewer verified lanes than `min_quorum`, before any dispatch; it writes no
+  loop state (the caller runs `runner.py park`, the only writer of `park`). (dep 7.1,
+  6.3) — SW Honest Review Quorum
 
 ## 8. Supervisor  `[wp-supervisor]` (deps: 1.1, 3.3, 5.3)
 
 - [ ] 8.1 Test first: extend `skills/tests/supervise/test_execution.py` and
   `test_gate_router.py` for token verify/rotate/reissue, cross-host reconcile,
-  provenance re-evaluation, dedupe escalation, degradations persistence. Update
-  `test_gate_router_e2e.py`; leave the existing `fixtures/execution/contracts/` v1
+  provenance re-evaluation, dedupe escalation (one `escalate_resume` record per
+  listed dispatch, design D9), degradations persistence. Update
+  `test_gate_router_e2e.py` and `test_cycle_state.py` (schema copies, 5.2a); leave the existing `fixtures/execution/contracts/` v1
   fixtures byte-unchanged (outcome 1: they must pass through the v1 reader) and add
   v2 fixtures beside them. — RO, SV
 - [ ] 8.2 `execution.py`: delete hand validators; `child_start` digest verify;
-  `reissue`; token rotation in `resume`; marker v2 contents including the supervisor's
+  `reissue`; token rotation in `resume`; `resume` accepts parked kinds
+  `permission_blocked` / `capability_unavailable` (expected gate `escalate_resume`,
+  `dedupe_fingerprint` recomputed and compared); marker v2 contents including the supervisor's
   `posture_digest` (D10a);
   `execution_profile` / `review_requirements` resolution in `prepare`; host-portable
   verify, rebind and reinitialize in `reconcile`. (dep 8.1) — RO Launch Token Digest,
   Host-Portable Attempt Isolation; SV Execution Profile and Review Requirements
 - [ ] 8.3 `gate_router.py`: `ANSWER_PATHS` table; provenance-aware
   `_apply_prior_record` (digest, human-final); `resolve_parked` for the two new kinds
-  with fingerprint dedupe and fan-out resume; typed `gate_answer` in continuation.
+  with fingerprint dedupe and fan-out resume (one per-dispatch `escalate_resume`
+  record carrying its own `lease_generation` and the shared `dedupe_fingerprint`, so
+  `require_approval_ref` keeps its per-dispatch checks); typed `gate_answer` in continuation.
   (dep 8.2) — SV Dispatch Result Closure, Typed Gate Answers With Provenance, Single
   Escalation Per Capability Park
 - [ ] 8.4 `skills/supervise/SKILL.md`: collect results by committed file path, profile
@@ -152,9 +190,9 @@
 
 | Requirement | Tasks |
 |---|---|
-| RO Published Dispatch Contract Schemas | 2.1, 2.2, 2.4, 4.1, 4.2, 5.3, 8.2, 9.6 |
+| RO Published Dispatch Contract Schemas | 2.1, 2.2, 2.3a, 2.4, 4.1, 4.2, 5.2, 5.2a, 5.3, 8.2, 9.6 |
 | RO Launch Token Digest | 2.3, 5.1, 5.2, 5.3, 8.2, 9.4 |
-| RO Host-Portable Attempt Isolation | 2.3, 5.1, 5.2, 8.2, 9.3 |
+| RO Host-Portable Attempt Isolation | 2.3, 4.3, 5.1, 5.2, 8.2, 9.3 |
 | RO Outcome-Only Resume Contract (MOD) | 5.3, 8.3, 9.2 |
 | RO Durable Delegated Attempt Ledger (MOD) | 5.3, 8.2, 9.2 |
 | SV Dispatch Result Closure | 1.1, 8.3, 9.1 |
@@ -164,6 +202,6 @@
 | SW Code-Emitted Dispatch Result | 4.2, 6.3, 6.5, 9.2 |
 | SW Loop State Parks and Degradations | 6.2, 6.3 |
 | SW Gate Authority and Re-Evaluation on Resume | 6.4, 9.2 |
-| SW Honest Review Quorum | 7.3 |
+| SW Honest Review Quorum | 6.5, 7.3 |
 | TP Roadmap-Approval-Scoped Auto Dispositions | 3.1, 3.2, 3.3, 6.2, 9.5 |
 | PI Dispatchable Vendor Verification | 7.1, 7.2 |

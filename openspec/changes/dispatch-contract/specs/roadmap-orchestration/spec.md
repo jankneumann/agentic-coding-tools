@@ -2,11 +2,11 @@
 
 ### Requirement: Published Dispatch Contract Schemas
 
-The repository SHALL publish `openspec/schemas/dispatch-request.schema.json` and `openspec/schemas/dispatch-result.schema.json` at `schema_version` 2 as the only definition of the supervisor-worker dispatch boundary, mirrored byte-identically under `skills/roadmap-runtime/install_assets/openspec/schemas/`. `skills/shared/dispatch_contract.py` SHALL load and validate both with JSON Schema Draft 2020-12, and the roadmap orchestrator, the supervise execution adapter, and `checkpoint.schema.json` (through `$ref`) SHALL validate against that definition and SHALL NOT keep their own field sets for the request or result. Readers SHALL accept a `schema_version` 1 result by upgrading it in memory; writers SHALL emit only version 2.
+The repository SHALL publish `openspec/schemas/dispatch-request.schema.json` and `openspec/schemas/dispatch-result.schema.json` at `schema_version` 2 as the only definition of the supervisor-worker dispatch boundary, mirrored byte-identically under `skills/roadmap-runtime/install_assets/openspec/schemas/`. `skills/shared/dispatch_contract.py` SHALL load and validate both with JSON Schema Draft 2020-12, and the roadmap orchestrator, the supervise execution adapter, and `checkpoint.schema.json` (through `$ref`) SHALL validate against that definition and SHALL NOT keep their own field sets for the request or result. Readers SHALL accept a `schema_version` 1 result by upgrading it in memory; writers SHALL emit only version 2. The existing `openspec/contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json` and `supervised-dispatch-result.schema.json` SHALL be kept unchanged as the version-1 reader schemas that a version-1 document is validated against before upgrade, `delegated-dispatch-attempt.schema.json` SHALL be the only definition of a checkpoint attempt (`checkpoint.schema.json` SHALL `$ref` it), and `bounded-dispatch-context.schema.json` SHALL be `$ref`'d by the version-2 request. Schema validation of a version-1 document SHALL be host-independent; only the upgrade step, which takes `repo_root`, `managed_root`, and `host_id` explicitly, depends on the host.
 
 #### Scenario: Existing fixtures validate against the published schemas
-- **WHEN** the test suite validates every request and result fixture under `skills/tests/supervise/fixtures/execution/contracts/` and `skills/tests/autopilot-roadmap/` through `dispatch_contract.validate_request` / `validate_result`
-- **THEN** every fixture named `valid-*` SHALL validate and every fixture named `invalid-*` SHALL be rejected with a `DispatchContractError` naming the failing JSON pointer
+- **WHEN** the test suite validates the byte-unchanged fixtures under `skills/tests/supervise/fixtures/execution/contracts/` with this mapping: `valid-request.json` and `invalid-continuation-without-kind.json` through `dispatch_contract.validate_request`; each entry (`success`, `parked`) of `valid-results.json` through `dispatch_contract.validate_result`; `valid-prepared-attempt.json` through the checkpoint attempt validator after the legacy reader converts its `launch_token`
+- **THEN** every `valid-*` document SHALL validate and every `invalid-*` document SHALL be rejected with a `DispatchContractError` naming the failing JSON pointer, on any host and without a managed worktree root existing at the fixtures' `/workspace/...` paths
 
 #### Scenario: No hand-written result field set remains
 - **WHEN** a guard test scans `skills/supervise/scripts/execution.py` and `skills/autopilot-roadmap/scripts/orchestrator.py`
@@ -19,7 +19,7 @@ The repository SHALL publish `openspec/schemas/dispatch-request.schema.json` and
 
 #### Scenario: A version-1 result is upgraded, not rejected
 - **WHEN** `ExecutionAdapter.apply` receives a schema-valid version-1 `success` result whose absolute `worktree_path` lies inside the current host's managed worktree root
-- **THEN** the result SHALL be upgraded to version 2 with `degradations: []`, a repo-relative `worktree_ref`, and the current `host_id`, and applied
+- **THEN** the result SHALL be upgraded to version 2 with `degradations: []`, a relative `worktree_ref`, an `evidence.loop_state_path` relative to that worktree, and the current `host_id`, and applied
 
 #### Scenario: A version-1 result that cannot be made portable is rejected
 - **WHEN** a version-1 result's `worktree_path` lies outside both the managed worktree root and the repo root
@@ -127,8 +127,8 @@ The roadmap checkpoint SHALL record every delegated dispatch attempt before its 
 
 #### Scenario: Resume an authorized parked attempt
 - **WHEN** the supervise gate router supplies an `approval_ref` of the form `gate-decision:<decision_id>` for a parked dispatch of any kind
-- **THEN** the resume command verifies the reference resolves to a `gate_decisions` record in the same checkpoint with outcome `proceed`, a gate equal to the parked gate (or `escalate_resume` for `policy_pause`, `permission_blocked`, and `capability_unavailable`), and a subject matching the dispatch, then compare-and-swaps parked to prepared, increments the lease generation, mints a new launch token, and emits one continuation with the same dispatch ID, attempt, worktree reference, and loop-state, carrying a typed `gate_answer`
-- **AND** a reference that does not resolve, resolves to a `blocked` decision, or names a different gate or subject is rejected without mutating the attempt
+- **THEN** the resume command verifies the reference resolves to a `gate_decisions` record in the same checkpoint with outcome `proceed`, a gate equal to the parked gate (or `escalate_resume` for `policy_pause`, `permission_blocked`, and `capability_unavailable`), a `dispatch_id` equal to the parked dispatch, for `escalate_resume` a `lease_generation` equal to the attempt's current generation, and for `permission_blocked` and `capability_unavailable` a `dedupe_fingerprint` equal to the one recomputed from the attempt's parked payload, then compare-and-swaps parked to prepared, increments the lease generation, mints a new launch token, and emits one continuation with the same dispatch ID, attempt, worktree reference, and loop-state, carrying a typed `gate_answer`
+- **AND** a reference that does not resolve, resolves to a `blocked` decision, or names a different gate, dispatch, lease generation, or fingerprint is rejected without mutating the attempt
 - **AND** the normal child-start protocol transitions it to launched while duplicate or unauthorized resumes are rejected
 - **AND** `ExecutionAdapter.prepare` likewise requires a `roadmap_approval_ref` resolving to a `proceed` `roadmap_approval` decision for the checkpoint's roadmap before any attempt is written
 
