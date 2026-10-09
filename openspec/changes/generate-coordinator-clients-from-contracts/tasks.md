@@ -43,7 +43,7 @@ Test tasks precede the implementation they verify. Scenario references use
 
 ## 3. HTTP API route order and conformance (wp-api)
 
-- [ ] 3.1 Write `agent-coordinator/tests/test_feature_registry_contract_conformance.py` — load promoted `features.yaml`, resolve refs, drive all five operations through `TestClient(create_coordination_api())` with a fake feature registry service, validate bodies with `Draft202012Validator`; assert every contracted operation is exercised and every success response has a schema; include the `/features/active` not-shadowed case and 401 on `getFeature` without a key. Expect RED on the shadowing case.
+- [x] 3.1 Write `agent-coordinator/tests/test_feature_registry_contract_conformance.py` — load promoted `features.yaml`, resolve refs, drive all five operations through `TestClient(create_coordination_api())` with a fake feature registry service, validate bodies with `Draft202012Validator`; assert every contracted operation is exercised and every success response has a schema; include the `/features/active` not-shadowed case and 401 on `getFeature` without a key. Expect RED on the shadowing case.
   **Spec scenarios**: agent-coordinator.conformance (Every contracted feature operation is exercised, Response shape drift is detected, Untyped success response is rejected), agent-coordinator.fr-http (Active-features route is not shadowed by the feature-id route, Unauthorized single-feature access)
   **Contracts**: openspec/contracts/agent-coordinator/openapi/features.yaml
   **Design decisions**: D5, D6
@@ -56,7 +56,7 @@ Test tasks precede the implementation they verify. Scenario references use
   **Dependencies**: 3.1
   **Size**: XS
 
-- [ ] 3.3 Fix any further conformance failures 3.1 reports by correcting the endpoint body (not the contract), or — if the contract is wrong against the spec — record the correction in `session-log.md` and update both the promoted file and `contracts/openapi/v1.yaml`
+- [x] 3.3 Fix any further conformance failures 3.1 reports by correcting the endpoint body (not the contract), or — if the contract is wrong against the spec — record the correction in `session-log.md` and update both the promoted file and `contracts/openapi/v1.yaml`
   **Dependencies**: 3.2
   **Size**: S
 
