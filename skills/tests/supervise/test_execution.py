@@ -2443,6 +2443,71 @@ def test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_
     assert _status(workspace, late) == "parked"
 
 
+class _SlowGate:
+    """The real router gate, with an evaluate() slow enough that two unlocked
+    resolvers on one fingerprint would both evaluate before either records."""
+
+    def __init__(self, gate: ApprovalGate) -> None:
+        self._gate = gate
+
+    def evaluate(self, *args: Any, **kwargs: Any) -> Any:
+        import time
+
+        time.sleep(0.3)
+        return self._gate.evaluate(*args, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._gate, name)
+
+
+@pytest.mark.parametrize("disposition", ["block", "auto"])
+def test_concurrent_resolvers_on_one_fingerprint_are_single_flight(tmp_path: Path, disposition: str) -> None:
+    """D9 + single-flight: two resolvers racing on one dedupe fingerprint yield
+    exactly one escalation subject (block) or one proceed per dispatch (auto)."""
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume=disposition)
+    ids = _clone_parked(workspace, [dict(_BLOCKED), dict(_BLOCKED)])
+    attempts = execution.CheckpointManager(workspace).load().dispatch_attempts
+    gate = _SlowGate(_router_gate(repo))
+    errors: list[BaseException] = []
+    outcomes: list[str] = []
+
+    def resolve(attempt: dict[str, Any]) -> None:
+        try:
+            outcomes.append(
+                gate_router.resolve_parked(
+                    attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=gate
+                ).outcome
+            )
+        except BaseException as exc:  # noqa: BLE001 - surfaced by the assertion below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=resolve, args=(attempt,)) for attempt in attempts]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+
+    assert errors == []
+    decisions = [
+        r for r in execution.CheckpointManager(workspace).load().gate_decisions
+        if r.get("gate") == "escalate_resume" and r.get("dedupe_fingerprint")
+    ]
+    entries = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")]
+    if disposition == "block":
+        assert outcomes == ["blocked", "blocked"]
+        assert len([r for r in decisions if "dispatch_ids" in r]) == 1
+        assert len(entries) == 1
+        assert sorted(item["dispatch_id"] for item in entries[0]["dispatch_ids"]) == sorted(ids)
+    else:
+        assert outcomes == ["proceed", "proceed"]
+        proceeds = [r for r in decisions if r.get("outcome") == "proceed"]
+        assert sorted(r["dispatch_id"] for r in proceeds) == sorted(ids)
+        assert entries == []
+        assert all(a["status"] == "prepared" and a["lease_generation"] == 2
+                   for a in execution.CheckpointManager(workspace).load().dispatch_attempts)
+
+
 def test_different_missing_lanes_are_separate_escalations(tmp_path: Path) -> None:
     repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
     _write_repo_posture(repo, escalate_resume="block")

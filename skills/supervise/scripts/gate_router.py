@@ -129,7 +129,19 @@ def _mirror_projection_lock(repo_root: Path) -> Iterator[None]:
 @contextlib.contextmanager
 def _escalate_subject_lock(workspace: Path, dispatch_id: str, generation: int) -> Iterator[None]:
     """Serialize one parked escalation generation without blocking other work."""
-    identity = hashlib.sha256(f"{workspace.resolve()}|{dispatch_id}|{generation}".encode()).hexdigest()
+    with _subject_lock(workspace, f"{dispatch_id}|{generation}"):
+        yield
+
+
+def _fingerprint_subject_lock(workspace: Path, fingerprint: str) -> contextlib.AbstractContextManager[None]:
+    """Serialize one capability/permission escalation subject (D9): keyed by
+    workspace + dedupe fingerprint, the identity its members share."""
+    return _subject_lock(workspace, f"fingerprint|{fingerprint}")
+
+
+@contextlib.contextmanager
+def _subject_lock(workspace: Path, subject: str) -> Iterator[None]:
+    identity = hashlib.sha256(f"{workspace.resolve()}|{subject}".encode()).hexdigest()
     lock_dir = Path(tempfile.gettempdir()) / "supervise-escalate-subject-locks"
     lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     descriptor = os.open(lock_dir / f"{identity}.lock", os.O_CREAT | os.O_RDWR, 0o600)
@@ -1323,15 +1335,37 @@ def _resolve_capability_park(
     evaluator: Optional[ApprovalGate],
     now: Optional[datetime],
 ) -> ParkedResolution:
-    """One ``escalate_resume`` subject per dedupe fingerprint (D9)."""
+    """One ``escalate_resume`` subject per dedupe fingerprint (D9), single-flight
+    per workspace + fingerprint: evaluate, project and record run under one lock."""
     workspace = Path(workspace)
-    repo_root = Path(repo_root)
+    fingerprint = dispatch_contract.dedupe_fingerprint(attempt["parked"])
+    with _fingerprint_subject_lock(workspace, fingerprint):
+        return _resolve_capability_park_locked(
+            attempt, fingerprint, workspace=workspace, repo_root=Path(repo_root), adapter=adapter,
+            evaluator=evaluator, now=now,
+        )
+
+
+def _resolve_capability_park_locked(
+    attempt: dict[str, Any],
+    fingerprint: str,
+    *,
+    workspace: Path,
+    repo_root: Path,
+    adapter: Any,
+    evaluator: Optional[ApprovalGate],
+    now: Optional[datetime],
+) -> ParkedResolution:
     moment = now or datetime.now(timezone.utc)
     roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
     manager = CheckpointManager(workspace, repo_root)
     checkpoint = manager.load()
-    fingerprint = dispatch_contract.dedupe_fingerprint(attempt["parked"])
     members = _fingerprint_members(checkpoint, fingerprint)
+    if not any(m["dispatch_id"] == attempt.get("dispatch_id") for m in members):
+        # A concurrent resolver on this fingerprint already resumed this
+        # attempt (its fan-out covered every member); report that answer
+        # instead of evaluating a subject with no members.
+        return _already_resumed(checkpoint, attempt, fingerprint)
     listed = [
         {"dispatch_id": m["dispatch_id"], "lease_generation": m["lease_generation"]} for m in members
     ]
@@ -1428,6 +1462,33 @@ def _resolve_capability_park(
     )
 
 
+def _already_resumed(checkpoint: Any, attempt: dict[str, Any], fingerprint: str) -> ParkedResolution:
+    dispatch_id = attempt.get("dispatch_id")
+    generation = attempt.get("lease_generation")
+    record = next(
+        (
+            r for r in reversed(getattr(checkpoint, "gate_decisions", None) or [])
+            if r.get("gate") == Gate.ESCALATE_RESUME.value
+            and r.get("outcome") == "proceed"
+            and r.get("dedupe_fingerprint") == fingerprint
+            and r.get("dispatch_id") == dispatch_id
+            and r.get("lease_generation") == generation
+        ),
+        None,
+    )
+    current = next(
+        (a for a in (getattr(checkpoint, "dispatch_attempts", None) or []) if a.get("dispatch_id") == dispatch_id),
+        None,
+    )
+    if record is None or current is None:
+        raise GateRefusalError("stale capability park resolution: the attempt is no longer parked")
+    return ParkedResolution(
+        outcome="proceed",
+        routed=RoutedDecision(decision=_decision_from_record(record), record=record, reused=True),
+        resume_result={"dispatch_id": dispatch_id, "lease_generation": current.get("lease_generation")},
+    )
+
+
 def answer_escalation(
     fingerprint: str,
     *,
@@ -1442,9 +1503,26 @@ def answer_escalation(
     ``escalate_resume`` record per listed dispatch (its own ``dispatch_id`` and
     projected ``lease_generation``, the shared fingerprint, human provenance)
     and resumes each through its own CAS; a member whose generation moved
-    since projection is skipped and reported."""
+    since projection is skipped and reported. Single-flight with
+    ``resolve_parked`` on the same workspace + fingerprint."""
     workspace = Path(workspace)
-    repo_root = Path(repo_root)
+    with _fingerprint_subject_lock(workspace, fingerprint):
+        return _answer_escalation_locked(
+            fingerprint, workspace=workspace, repo_root=Path(repo_root), approved=approved,
+            adapter=adapter, note=note, now=now,
+        )
+
+
+def _answer_escalation_locked(
+    fingerprint: str,
+    *,
+    workspace: Path,
+    repo_root: Path,
+    approved: bool,
+    adapter: Any,
+    note: Optional[str],
+    now: Optional[datetime],
+) -> dict[str, Any]:
     moment = now or datetime.now(timezone.utc)
     roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
     manager = CheckpointManager(workspace, repo_root)
