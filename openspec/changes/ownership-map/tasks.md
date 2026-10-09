@@ -45,7 +45,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
 
 ## Phase 2 — Registry extension (agent-coordinator)
 
-- [ ] 2.1 Write `agent-coordinator/tests/test_human_principals.py` — `humans:` block validates,
+- [x] 2.1 Write `agent-coordinator/tests/test_human_principals.py` — `humans:` block validates,
       missing `display_name` rejected, unknown field rejected, human id colliding with an agent
       name raises `ValueError` naming both, `load_human_principals()` returns `HumanEntry`
       records and an empty list for a registry without humans, `load_agents_config()` return
@@ -54,16 +54,16 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       "Human entry missing display name rejected", "Registry without humans unchanged"
       **Design decisions**: D1
       **Dependencies**: none
-- [ ] 2.2 Write the schema-mirror test — `HUMAN_PRINCIPAL_SCHEMA` equals
+- [x] 2.2 Write the schema-mirror test — `HUMAN_PRINCIPAL_SCHEMA` equals
       `openspec/schemas/human-principals.schema.json` minus `$schema`/`$id`/`title`/`description` (S)
       **Spec scenarios**: agent-identity / "Schema mirror pinned"
       **Design decisions**: D2
       **Dependencies**: 1.2
-- [ ] 2.3 Implement `HUMAN_PRINCIPAL_SCHEMA`, the `humans` property on `AGENTS_SCHEMA`, the
+- [x] 2.3 Implement `HUMAN_PRINCIPAL_SCHEMA`, the `humans` property on `AGENTS_SCHEMA`, the
       `HumanEntry` dataclass, `load_human_principals()`, and the agent/human namespace collision
       check inside `load_agents_config()` in `agent-coordinator/src/agents_config.py` (M)
       **Dependencies**: 2.1, 2.2
-- [ ] 2.4 Write the projection-invariant extension tests — rule 6 checker (no human id in
+- [x] 2.4 Write the projection-invariant extension tests — rule 6 checker (no human id in
       profile rows, assignments, identity map, dispatch configs or `project_principals()`
       output) plus the negative test that injects a human-named profile row and proves the
       checker fires (S)
@@ -71,11 +71,11 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       "Invariant catches a human projected as an agent"
       **Design decisions**: D1, D12
       **Dependencies**: 2.3
-- [ ] 2.5 Add rule 6 (`_human_projection_violations`) to
+- [x] 2.5 Add rule 6 (`_human_projection_violations`) to
       `agent-coordinator/tests/test_registry_projection.py` and wire it into the positive
       invariant test over the real registry (S)
       **Dependencies**: 2.4
-- [ ] 2.6 Declare the maintainer as the first human principal in
+- [x] 2.6 Declare the maintainer as the first human principal in
       `agent-coordinator/agents.yaml` (`humans:` block with `display_name`, `github`, `domains`
       and, only if the maintainer wants it published, `email` — nothing in this change reads it,
       D5), taking the handle from `gh api user` (falling back to the owner of the `origin` remote
@@ -83,7 +83,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       explaining the block and pointing at the `ownership-map` capability (S)
       **Design decisions**: D1
       **Dependencies**: 2.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 3 — Resolver, principals and check (skills/ownership-runtime)
 
