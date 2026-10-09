@@ -261,3 +261,41 @@ converge() ran IMPL_REVIEW (review_type=implementation, fix_mode=targeted, min_q
 ### Context
 VALIDATE passed: spec compliance pass, 0 open tasks, openspec strict valid, ruff clean, suites green except known env-only failures; deploy/smoke/security/e2e N/A (non-deployable, declared); CI DEGRADED (no runs yet, no PR). All eight ri-21 outcomes mapped to passing tests; real gitleaks binary not run locally (CI only). Degradations: single_vendor_review (PLAN_REVIEW, IMPL_REVIEW), coordinator_projection_forbidden.
 
+---
+
+## Phase: Validation Review (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Outcome 6 stays pass but is labelled a one-rule proxy pending PR #662's Security job** — The generic-api-key port is the rule that flagged the raw tokens. The full default ruleset has not run anywhere yet, and the report now says so instead of naming CI as the check.
+2. **Strengthen evidence with tests, not code changes** — Every new test passed against the existing implementation; the gaps were in evidence, not behaviour.
+
+### Alternatives Considered
+- Download a gitleaks binary to run the skipped real-binary test: rejected because Binaries must not be downloaded in this environment.
+
+### Trade-offs
+- Accepted single-vendor review (claude_code) at quorum 1 over parking VAL_REVIEW as capability_unavailable because cloud-container quorum policy cloud-container-single-vendor-2026-10-09; degradation single_vendor_review
+
+### Open Questions
+- [ ] Outcome 6 is confirmed only once the Security workflow passes on PR #662 (roadmap branch to main).
+
+### Completed Work
+- 843ad77: posture-derived capability block clears after a posture flip; profile/review_requirements/degradations whole-chain e2e test
+- df3b98e: cross-host reconcile from a different checkout root with no host-A absolute path
+- a179b24: validation-report.md evidence corrected (outcomes 3-7, Result line, counts); gate_logic still returns continue
+- 7bbd8b9: VAL_REVIEW findings and converge bookkeeping
+- Degradations: single_vendor_review (VAL_REVIEW, claude_code); coordinator_projection_forbidden if the handoff write falls back locally.
+
+### Next Steps
+- Confirm the Security (gitleaks) job passes on PR #662 before treating outcome 6 as confirmed.
+
+### Relevant Files
+- `openspec/changes/dispatch-contract/validation-report.md` — corrected evidence map
+- `skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py` — outcome 4/5 e2e tests
+- `skills/tests/roadmap-runtime/test_cross_host_reconcile.py` — outcome 7 relocated-root test
+- `openspec/changes/dispatch-contract/impl-findings.md` — VAL_REVIEW findings table
+
+### Context
+converge() ran VAL_REVIEW (review_type=implementation, fix_mode=targeted, min_quorum=1 from resolve_quorum_policy, base_ref=origin/openspec/roadmap-multiplayer-collaboration) and converged in round 2 with blocking trend [5, 0]. The critique checked whether validation-report.md proves each ri-21 outcome. Four medium gaps: outcome 6 overstated CI coverage (security.yml runs gitleaks only for main, so this change's PR never triggers it); outcome 4 had no test clearing a posture-derived capability-fingerprint block after a posture flip; outcome 7's cross-host tests shared one repo root; outcome 5 was proven only piecewise. VAL_FIX (inline, claude_code) added three tests and corrected the report. No production code changed. The closure test (outcome 3) was confirmed to enumerate every schema-permitted kind/gate from the schema, independently of ANSWER_PATHS, which is built from the Gate enum.
+
