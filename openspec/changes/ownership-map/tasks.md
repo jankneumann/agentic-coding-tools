@@ -87,7 +87,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
 
 ## Phase 3 — Resolver, principals and check (skills/ownership-runtime)
 
-- [ ] 3.1 Write `skills/tests/ownership-runtime/test_principals.py` — registry location order
+- [x] 3.1 Write `skills/tests/ownership-runtime/test_principals.py` — registry location order
       (env var, `registry:` field, `agent-coordinator/agents.yaml`, root `agents.yaml`, none);
       only `humans:` and `agents:` keys are read (a registry with an invalid `agents:` entry
       still yields its humans); solo derivation order (single human, synthetic `git:<email>`,
@@ -100,11 +100,11 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       repository rejected" (loader half)
       **Design decisions**: D5, D6, D10
       **Dependencies**: 1.2, 1.3
-- [ ] 3.2 Implement `skills/ownership-runtime/scripts/principals.py` — `Principal`,
+- [x] 3.2 Implement `skills/ownership-runtime/scripts/principals.py` — `Principal`,
       `locate_registry()`, `load_human_principals()` (validated against the shipped JSON schema),
       `derive_solo_principal()`, `derive_mode()` (S)
       **Dependencies**: 3.1
-- [ ] 3.3 Write `skills/tests/ownership-runtime/test_owners.py` — minimal map loads; missing
+- [x] 3.3 Write `skills/tests/ownership-runtime/test_owners.py` — minimal map loads; missing
       `default_owner`, unregistered owner, agent-as-owner each raise `OwnershipConfigError`;
       explicit capability with distinct acceptance rights; default fallback with
       `matched_rule is None`; most-specific path rule wins; equal-specificity tie by rule order;
@@ -126,11 +126,11 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       repository with a map stays solo"
       **Design decisions**: D3, D4, D5, D13
       **Dependencies**: 3.2
-- [ ] 3.4 Implement `skills/ownership-runtime/scripts/owners.py` — `load_ownership()`,
+- [x] 3.4 Implement `skills/ownership-runtime/scripts/owners.py` — `load_ownership()`,
       `OwnershipContext`, `OwnerSet`, `OwnershipConfigError`, the three `resolve_*` methods and
       the path specificity ranking (M)
       **Dependencies**: 3.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [ ] 3.5 Write `skills/tests/ownership-runtime/test_check_owners.py` — `unowned_capability`
       and `unowned_roadmap_item` warnings in team mode and their suppression in solo mode (D14);
       `unknown_capability` / `unknown_roadmap_item` warnings for dangling keys (archived roadmaps
