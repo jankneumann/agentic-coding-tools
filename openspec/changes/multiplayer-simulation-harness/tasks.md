@@ -90,7 +90,7 @@
   bare remote, per-principal clones and worktrees, and a `PrincipalView` that is read-only for
   probes. [M]
   **Dependencies**: 2.1
-- [ ] 2.3 Write failing tests in `test_agents.py`:
+- [x] 2.3 Write failing tests in `test_agents.py`:
   - `ScriptedAgent` writes the step's OpenSpec files under a `sim-` change id;
   - it commits as its principal and pushes to `refs/heads/sim/<principal>/<change>`;
   - it returns the step's declared status transitions and never modifies `roadmap.yaml` or
