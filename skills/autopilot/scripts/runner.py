@@ -431,6 +431,17 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
             "nothing was recorded\n"
         )
         return 2
+    if marker is not None and (
+        args.gate != marker_answer.get("gate") or args.decision != marker_answer.get("decision")
+    ):
+        # The reference alone does not authorize a decision: the gate and the
+        # decision must be the ones the supervisor recorded in the marker.
+        sys.stderr.write(
+            "runner: --gate/--decision do not match the launch marker's gate_answer "
+            f"({marker_answer.get('gate')!r}, {marker_answer.get('decision')!r}); "
+            "nothing was recorded\n"
+        )
+        return 2
 
     pending = _load_pending(args.change_id)
     state_for_park = (

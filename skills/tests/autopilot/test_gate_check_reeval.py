@@ -204,6 +204,50 @@ def test_a_mismatched_approval_reference_is_refused(workspace: Path) -> None:
     assert path.read_bytes() == before
 
 
+@pytest.mark.parametrize(
+    ("gate", "decision"),
+    [
+        ("proposal_approval", "approved"),  # the supervisor rejected it
+        ("pr_creation", "rejected"),  # a gate the answer is not for
+    ],
+)
+def test_a_matching_reference_does_not_authorize_another_gate_or_decision(
+    workspace: Path, gate: str, decision: str
+) -> None:
+    digest = _posture(workspace, proposal_approval="block", pr_creation="block")
+    _marker(
+        workspace,
+        gate_answer={"gate": "proposal_approval", "decision": "rejected", "approval_ref": _REF_Y},
+    )
+    path = _seed(workspace, pending=_pending(gate, digest))
+    before = path.read_bytes()
+
+    rc = runner.main(
+        ["gate-answer", "demo", "--gate", gate, "--decision", decision, "--approval-ref", _REF_Y]
+    )
+
+    assert rc == 2
+    assert path.read_bytes() == before
+
+
+def test_a_park_is_not_cleared_by_an_answer_for_another_gate(workspace: Path) -> None:
+    _posture(workspace, escalate_resume="block")
+    _marker(
+        workspace,
+        gate_answer={"gate": "proposal_approval", "decision": "approved", "approval_ref": _REF_Y},
+    )
+    park = {"kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["codex"], "reason": "quorum"}
+    path = _seed(workspace, park=park)
+    before = path.read_bytes()
+
+    rc = runner.main(
+        ["gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved", "--approval-ref", _REF_Y]
+    )
+
+    assert rc == 2
+    assert path.read_bytes() == before
+
+
 # --------------------------------------------------------------------------- #
 # Standalone run
 # --------------------------------------------------------------------------- #
