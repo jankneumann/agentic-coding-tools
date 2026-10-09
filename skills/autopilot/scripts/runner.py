@@ -93,6 +93,31 @@ def _is_human_final(record: dict | None) -> bool:
     return provenance.get("source") == "human"
 
 
+def _human_rejection_in_force(state: "autopilot.LoopState", gate: str) -> dict | None:
+    """The human rejection of ``gate`` that still settles it, or None (D5).
+
+    A human rejection is final for its subject: no posture change reopens it.
+    The subject ends only when a human later approves ``escalate_resume`` —
+    the operator explicitly resuming the run — after which the gate is asked
+    again. Without that rule a rejected gate could never be re-asked.
+    """
+    decisions = state.gate_decisions
+    for index in range(len(decisions) - 1, -1, -1):
+        record = decisions[index]
+        if record.get("gate") != gate:
+            continue
+        if not (_is_human_final(record) and record.get("outcome") == "blocked"):
+            return None
+        resumed = any(
+            later.get("gate") == Gate.ESCALATE_RESUME.value
+            and later.get("outcome") == "proceed"
+            and _is_human_final(later)
+            for later in decisions[index + 1:]
+        )
+        return None if resumed else record
+    return None
+
+
 def _change_dir(change_id: str) -> Path:
     return Path("openspec") / "changes" / change_id
 
@@ -245,10 +270,16 @@ def _evaluate_gate(args: argparse.Namespace) -> int:
 
     gate = Gate(args.gate)
     phase = state.current_phase
-    prior = _last_decision(state, gate.value)
-    if _is_human_final(prior) and (prior or {}).get("outcome") == "blocked":
+    prior = _human_rejection_in_force(state, gate.value)
+    if prior is not None:
         # D5: a human rejection is final for its subject; a posture change
-        # does not reopen it.
+        # does not reopen it. The run is parked in ESCALATE (entered here if a
+        # caller reached the gate outside it) so only an operator resume clears it.
+        if state.current_phase != "ESCALATE":
+            autopilot.enter_escalate(
+                state, f"{gate.value}: rejected by a human; awaiting operator resume"
+            )
+            autopilot.save_state(state, state_path)
         sys.stdout.write(json.dumps(prior, indent=2, sort_keys=True) + "\n")
         sys.stderr.write(
             f"runner: gate {gate.value!r} was rejected by a human; not re-evaluated\n"

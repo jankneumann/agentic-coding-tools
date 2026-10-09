@@ -261,3 +261,54 @@ def test_a_human_rejection_is_not_re_evaluated(workspace: Path) -> None:
     state = _read(path)
     assert state["gate_decisions"] == [rejected]
     assert state["current_phase"] == "ESCALATE"
+
+
+def _human(gate: str, outcome: str, at: str) -> dict[str, Any]:
+    return {
+        "gate": gate,
+        "outcome": outcome,
+        "resolution": "console_approved" if outcome == "proceed" else "console_rejected",
+        "disposition": "block",
+        "reason": outcome,
+        "posture_present": True,
+        "recorded_at": at,
+        "provenance": {"source": "human", "approval_ref": None},
+    }
+
+
+def test_an_operator_resume_after_a_human_rejection_lets_the_gate_be_asked_again(
+    workspace: Path,
+) -> None:
+    """The rejection's subject ends at a later human escalate_resume approval;
+    otherwise a rejected gate could never be asked again in this run."""
+    rejected = _human("merge", "blocked", "2026-10-01T00:00:00+00:00")
+    resumed = _human("escalate_resume", "proceed", "2026-10-01T01:00:00+00:00")
+    path = _seed(workspace, current_phase="SUBMIT_PR", gate_decisions=[rejected, resumed])
+    _posture(workspace, merge="block")
+
+    rc = runner.main(["gate-check", "demo", "--gate", "merge"])
+
+    assert rc == 0
+    state = _read(path)
+    assert state["pending_gate"]["gate"] == "merge"
+    assert state["gate_decisions"][-1]["provenance"]["source"] == "posture"
+
+
+def test_a_posture_derived_resume_does_not_end_a_human_rejection(workspace: Path) -> None:
+    rejected = _human("merge", "blocked", "2026-10-01T00:00:00+00:00")
+    auto_resume = dict(
+        _human("escalate_resume", "proceed", "2026-10-01T01:00:00+00:00"),
+        resolution="auto",
+        provenance={"source": "posture", "posture_digest": "0" * 64},
+    )
+    path = _seed(workspace, current_phase="SUBMIT_PR", gate_decisions=[rejected, auto_resume])
+    _posture(workspace, merge="auto")
+
+    rc = runner.main(["gate-check", "demo", "--gate", "merge"])
+
+    assert rc == runner.EXIT_GATE_PARKED
+    state = _read(path)
+    assert state["gate_decisions"] == [rejected, auto_resume]
+    # Parked where only an operator resume clears it, not silently stuck.
+    assert state["current_phase"] == "ESCALATE"
+    assert state["previous_phase"] == "SUBMIT_PR"
