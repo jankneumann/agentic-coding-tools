@@ -5,6 +5,7 @@ feature:
   title: Publish the supervisor-worker dispatch contract
   plan_revision: 2
   created_by: claude-code
+  deployable: false  # skills scripts + JSON schemas only; no service surface
 contracts:
   revision: 1
   openapi:
