@@ -115,7 +115,7 @@
   **Spec scenarios**: D.2
   **Design decisions**: D8
   **Dependencies**: 1.2, 2.4
-- [ ] 2.6 Implement `mpsim/report.py`. [S]
+- [x] 2.6 Implement `mpsim/report.py`. [S]
   **Dependencies**: 2.5
 
 ## 3. Collision oracle (parallel-safe with section 2)
