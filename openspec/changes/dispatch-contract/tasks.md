@@ -8,7 +8,7 @@
 
 ## 1. Merge the narrow fix  `[wp-merge-narrow-fix]` (no deps)
 
-- [ ] 1.1 Merge `origin/openspec/supervise-pending-escalate-answer` (6e6e9a6) into
+- [x] 1.1 Merge `origin/openspec/supervise-pending-escalate-answer` (6e6e9a6) into
   `openspec/dispatch-contract`; resolve nothing by re-implementing. Run
   `skills/tests/supervise/test_gate_router.py`. — SV Dispatch Result Closure
   (pending_gate/escalate_resume path)
