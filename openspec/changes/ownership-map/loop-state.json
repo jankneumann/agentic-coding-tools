@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "ownership-map",
-  "current_phase": "ESCALATE",
+  "current_phase": "IMPLEMENT",
   "iteration": 0,
-  "total_iterations": 10,
+  "total_iterations": 11,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -54,7 +54,7 @@
   ],
   "last_handoff_id": "a33ad94f-fce1-46ec-8ea9-b6e4faf625de",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-09T08:26:49.899667+00:00",
+  "phase_started_at": "2026-10-09T08:28:32.248309+00:00",
   "previous_phase": "IMPLEMENT",
   "escalation_reason": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary",
   "val_review_enabled": true,
@@ -167,27 +167,24 @@
       "disposition": "block",
       "phase": "ESCALATE",
       "recorded_at": "2026-10-09T08:26:55.893654+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 gate-decision:3b606cf0-64a1-4c74-b7a3-d90c8c09d55e; park caused by a retracted supervisor instruction; resume on the operator-approved protected re-root (08:06Z)",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T08:28:32.248252+00:00",
+      "note": "gate-decision:3b606cf0-64a1-4c74-b7a3-d90c8c09d55e; park caused by a retracted supervisor instruction; resume on the operator-approved protected re-root (08:06Z)"
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "ownership-map",
-    "gate": "escalate_resume",
-    "phase": "ESCALATE",
-    "requested_at": "2026-10-09T08:26:55.894795+00:00",
-    "prompt": "Has this escalation been resolved? Resume the loop?",
-    "context": {
-      "escalation_reason": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary",
-      "previous_phase": "IMPLEMENT"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true
-    },
-    "edge": {
-      "outcome": "resolved",
-      "target": "IMPLEMENT"
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
