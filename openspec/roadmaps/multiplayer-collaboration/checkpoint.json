@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T07:50:20.992882+00:00",
+  "updated_at": "2026-10-09T08:03:36.469390+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -371,6 +371,29 @@
       "item_id": "ri-21",
       "lease_generation": 1,
       "note": "Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T08:03:36.452923+00:00",
+      "decision_id": "5afe3d68-8df4-4533-bc33-cc940dfc10a0",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 2
     }
   ],
   "dispatch_attempts": [
@@ -585,7 +608,7 @@
       "change_id": "ownership-map",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_token": "KQrZDLksm--dBjDWB7rzaGhHy-fSa7TB",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
@@ -665,14 +688,10 @@
         "branch": "openspec/ownership-map"
       },
       "context": {},
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:f24d569f-0e1f-4378-89d5-4617d7e4bcf5"
-      },
       "lease": {
         "generation": 2,
         "owner_nonce": "e266bc6d4d1c4f7c630691667fc0c2a1",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-09T07:50:20.894934+00:00",
         "heartbeat_at": "2026-10-09T07:50:20.894934+00:00",
         "expires_at": "2026-10-09T08:05:20.894934+00:00"
@@ -689,6 +708,46 @@
         "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2",
         "go_released_at": "2026-10-09T07:50:20.904192+00:00",
         "entered_at": "2026-10-09T07:50:20.915730+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/ownership-map",
+          "change_id": "ownership-map",
+          "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+          "evidence": {
+            "commit": "24bbcb6ef95a0a55b1375b6904084369db2874ad",
+            "loop_state_digest": "0f809165cbbed21e859b2d2642d7721b197c7aae9df480e66ea8241d09cf2e02",
+            "loop_state_path": "openspec/changes/ownership-map/loop-state.json"
+          },
+          "handoff_id": "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
+          "lease_generation": 2,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "pending_gate",
+            "reason": "PLAN_REVIEW blocked: reviewer sub-agent's re-root of its main-rooted harness worktree (git reset --hard origin/openspec/ownership-map) denied twice; converge() never ran. Root cause: phase_agent sets isolation=worktree in cloud (fix/cloud-phase-isolation 3af00d0).",
+            "resume_hint": "After the isolation fix is on the worker branch, answer escalate_resume; loop returns to PLAN_REVIEW."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/ownership-map"
+        },
+        "result_digest": "4bef1ba4dfb7c133a96e7cd1d76416ab064f4406e1537fe47c187c478def8278",
+        "bound_at": "2026-10-09T08:03:32.326529+00:00",
+        "callback_started_at": "2026-10-09T08:03:32.340256+00:00",
+        "callback_acknowledged_at": "2026-10-09T08:03:32.345178+00:00",
+        "terminal_persisted_at": "2026-10-09T08:03:32.349674+00:00",
+        "effects_applied_at": "2026-10-09T08:03:32.389637+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-09T08:03:32.349624+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "pending_gate",
+        "reason": "PLAN_REVIEW blocked: reviewer sub-agent's re-root of its main-rooted harness worktree (git reset --hard origin/openspec/ownership-map) denied twice; converge() never ran. Root cause: phase_agent sets isolation=worktree in cloud (fix/cloud-phase-isolation 3af00d0).",
+        "resume_hint": "After the isolation fix is on the worker branch, answer escalate_resume; loop returns to PLAN_REVIEW."
       }
     },
     {
@@ -809,7 +868,7 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_token": "rBNx1ZzYdKtO2DdXLxIKJXfl1OOO-bVt",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
@@ -889,14 +948,10 @@
         "branch": "openspec/toolkit-consistency"
       },
       "context": {},
-      "continuation": {
-        "kind": "policy_pause",
-        "approval_ref": "gate-decision:c0aeac2a-5f9c-4e72-8e01-505ff9f752e2"
-      },
       "lease": {
         "generation": 2,
         "owner_nonce": "2cd19aa90f08f118a037c27ad93272ca",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-09T07:50:20.950195+00:00",
         "heartbeat_at": "2026-10-09T07:50:20.950195+00:00",
         "expires_at": "2026-10-09T08:05:20.950195+00:00"
@@ -913,6 +968,46 @@
         "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2",
         "go_released_at": "2026-10-09T07:50:20.958544+00:00",
         "entered_at": "2026-10-09T07:50:20.967885+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/toolkit-consistency",
+          "change_id": "toolkit-consistency",
+          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+          "evidence": {
+            "commit": "18c3432227b1540eb5e1fcdecf34b1dd0f223e4d",
+            "loop_state_digest": "87f1f42de3ce6f83771844de59fb94744615672de1c11fd17d1c9318bf354242",
+            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+          },
+          "handoff_id": "ae54d0bb-3d83-4adb-a15e-d5ce86f016d6",
+          "lease_generation": 2,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "policy_pause",
+            "reason": "permission_denied: classifier denied a bundled commit/push + git worktree remove --force of the stale PLAN_REVIEW harness worktree right after escalate_resume was approved; PLAN_REVIEW not dispatched.",
+            "resume_hint": "After the isolation fix is on the worker branch, answer escalate_resume; loop returns to PLAN_REVIEW."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/toolkit-consistency"
+        },
+        "result_digest": "f5c2852d203738d2819acbfabe8dc7ffce8587f2ddbc4a9733df984a30465b91",
+        "bound_at": "2026-10-09T08:03:33.315085+00:00",
+        "callback_started_at": "2026-10-09T08:03:33.327219+00:00",
+        "callback_acknowledged_at": "2026-10-09T08:03:33.340244+00:00",
+        "terminal_persisted_at": "2026-10-09T08:03:33.348178+00:00",
+        "effects_applied_at": "2026-10-09T08:03:33.411215+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-09T08:03:33.348090+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "policy_pause",
+        "reason": "permission_denied: classifier denied a bundled commit/push + git worktree remove --force of the stale PLAN_REVIEW harness worktree right after escalate_resume was approved; PLAN_REVIEW not dispatched.",
+        "resume_hint": "After the isolation fix is on the worker branch, answer escalate_resume; loop returns to PLAN_REVIEW."
       }
     },
     {

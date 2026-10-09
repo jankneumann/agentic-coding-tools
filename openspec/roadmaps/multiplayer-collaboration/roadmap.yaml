@@ -99,7 +99,11 @@ items:
     one is gated by its non-auto fallback.
 - item_id: ri-22
   title: OpenRouter review lane for cloud workers
-  change_id: openrouter-review-lane
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-21
   description: Make API-based multi-vendor review available in cloud containers by
     registering OpenRouter-backed reviewer lanes (non-Anthropic model families) that
     dispatch over HTTP through the existing OpenAI-compatible adapter, need no vendor
@@ -110,10 +114,7 @@ items:
   rationale: Restores the two-vendor review quorum for cloud workers at metered API
     cost instead of waiting on the GX10 review lane, and replaces a prompt-level policy
     exception with a configured, observable lane.
-  effort: M
-  priority: 2
-  depends_on:
-  - ri-21
+  change_id: openrouter-review-lane
   acceptance_outcomes:
   - In a cloud container with an OpenRouter credential provisioned as an environment
     secret, converge() reaches min_quorum=2 for PLAN_REVIEW using claude_code plus
@@ -132,7 +133,6 @@ items:
   - The "Review quorum in cloud containers (temporary)" section of TRUST_POSTURE.md
     is removed once the lane passes in cloud, restoring quorum 2 everywhere, and review_requirements
     expresses any remaining per-environment exception as data with a sunset.
-  status: candidate
 - item_id: ri-03
   title: Add on-behalf-of chains and causal trace IDs to coordinator records
   status: approved
@@ -569,7 +569,7 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-09T07:58:33.574230+00:00'
+updated_at: '2026-10-09T08:03:33.354976+00:00'
 refinements:
 - timestamp: '2026-10-06T08:36:39.023367+00:00'
   actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
