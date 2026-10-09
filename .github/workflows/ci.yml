@@ -143,6 +143,12 @@ jobs:
       - name: Lint (ruff)
         run: uv run ruff check .
 
+      # The bridge's _generated/ bindings are derived from the promoted
+      # contracts; fail when a contract edit was not followed by regeneration
+      # (generate-coordinator-clients-from-contracts).
+      - name: Bridge bindings are current
+        run: uv run python coordination-bridge/scripts/generate_bindings.py --check
+
       - name: Validate standalone skill install payload
         run: |
           bash install.sh --mode copy --force --deps none --openspec-assets none --openspec-cli none --python-tools none
