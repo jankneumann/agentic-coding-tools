@@ -213,3 +213,38 @@ Implemented all nine work packages sequentially (tier: sequential, no sub-agents
 ### Context
 Two iterations fixed seven findings at medium or above: human-rejection finality on both sides of the gate boundary, short-credential redaction, cross-host takeover of live pre-go claims, supervisor re-derivation of v2 results through the normative mapping, and a closure enumeration that no longer reads non-enumerable gates as null. The two supervisor-requested converge() fixes (base_ref pass-through, bookkeeping excluded from the post-fix scope check) also landed as tasks 7.6 and 7.7.
 
+---
+
+## Phase: Implementation Review (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **A launch marker's gate_answer authorizes exactly its gate and decision** — The approval reference names a supervisor record but does not carry its content; gate-answer now also requires --gate and --decision to equal the marker's answer.
+2. **The supervisor redacts a blocked command at apply, not only in the router record** — checkpoint.json is tracked; a result that did not come through runner.py park could otherwise commit a credential in the attempt or its journal.
+
+### Alternatives Considered
+- Re-derive the whole parked payload, command included, from loop state at apply: rejected because The supervisor's checkpoint must be safe even for v1 results, which are not re-derived.
+
+### Trade-offs
+- Accepted single-vendor review (claude_code) at quorum 1 over parking IMPL_REVIEW as capability_unavailable because cloud-container quorum policy cloud-container-single-vendor-2026-10-09; degradation single_vendor_review
+
+### Open Questions
+- [ ] Once a human has rejected escalate_resume itself, gate-check can never re-ask it (carried from IMPL_ITERATE).
+
+### Completed Work
+- Fixes: 5b28e32 (gate-answer gate/decision), b34c6af (apply-time command redaction), bad6de9 (idempotent header redaction).
+- Degradations: single_vendor_review (IMPL_REVIEW, claude_code); coordinator_projection_forbidden if the handoff write falls back locally.
+
+### Next Steps
+- VAL_REVIEW / VALIDATE: low advisories remain (notify_with_timeout under posture drift, emit-result identity cross-check, vacuous rebind evidence, records[0] fallback in _resolve_capability_park).
+
+### Relevant Files
+- `skills/autopilot/scripts/runner.py` — gate-answer marker authority
+- `skills/autopilot-roadmap/scripts/orchestrator.py` — apply-time command redaction
+- `skills/shared/dispatch_contract.py` — redact_command
+- `openspec/changes/dispatch-contract/impl-findings.md` — IMPL_REVIEW findings table
+
+### Context
+converge() ran IMPL_REVIEW (review_type=implementation, fix_mode=targeted, min_quorum=1 from resolve_quorum_policy, base_ref=origin/openspec/roadmap-multiplayer-collaboration) and converged in round 2 with blocking trend [5, 0]. Round 1 found two medium security defects, each with a test gap: a dispatched child's gate-answer accepted any gate or decision as long as the approval reference matched the marker, and apply persisted a permission_blocked result's command unredacted into the tracked checkpoint. A low redaction idempotency issue was also fixed. IMPL_FIX ran inline (claude_code) and was scoped to the cited paths, which lie inside wp-autopilot-child, wp-runtime-ledger and wp-contract-lib.
+
