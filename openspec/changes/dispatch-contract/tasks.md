@@ -56,17 +56,17 @@
 
 ## 4. Contract library  `[wp-contract-lib]` (deps: 2.4)
 
-- [ ] 4.1 Test first: `skills/tests/shared/test_dispatch_contract.py` — fixture
+- [x] 4.1 Test first: `skills/tests/shared/test_dispatch_contract.py` — fixture
   validation, v1 upgrade (both scenarios), mapping table rows from D4, slug rule,
   marker reader. — RO Published Dispatch Contract Schemas; SW Code-Emitted Dispatch
   Result
-- [ ] 4.2 `skills/shared/dispatch_contract.py`: schema locator with install_assets
+- [x] 4.2 `skills/shared/dispatch_contract.py`: schema locator with install_assets
   fallback, `validate_request`, `validate_result`, `upgrade_v1`,
   `result_from_loop_state`, `dispatch_slug`, `read_launch_marker`,
   `DispatchContractError`; a `referencing.Registry` built from every schema under
   `openspec/schemas/` and `openspec/contracts/roadmap-orchestration/schemas/`
   (`$id`-keyed) and exported as `schema_registry(repo_root)`. (dep 4.1)
-- [ ] 4.3 `skills/shared/environment_profile.py`: add `host_id()` (cloud session
+- [x] 4.3 `skills/shared/environment_profile.py`: add `host_id()` (cloud session
   environment ID when present, else a hash of the machine ID; never a hostname or
   username) with a unit test. — RO Host-Portable Attempt Isolation (D7)
 

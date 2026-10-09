@@ -100,10 +100,7 @@
     },
     {
       "if": {"required": ["continuation"]},
-      "then": {
-        "required": ["gate_answer"],
-        "properties": {"lease_generation": {"minimum": 2}}
-      }
+      "then": {"properties": {"lease_generation": {"minimum": 2}}}
     },
     {
       "if": {"required": ["gate_answer"]},
