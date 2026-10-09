@@ -194,3 +194,17 @@ PLAN_REVIEW ran as converge() (skills/autopilot/scripts/convergence_loop.py) wit
 2. **D8 wording corrected** — CODEOWNERS line order is D4's precedence written lowest-first, not its inverse.
 3. **Test-edit invariant made consistent** — task 5.7, the proposal NFR and the spec scenario now say "no pre-existing assertion modified or removed; only additive extensions (tasks 2.5, 5.4)" (resolves open question (b)).
 4. **proposal.md** Selected Approach now cites D1–D14 (ledger advisory #2).
+
+---
+
+## Phase: Implementation (2026-10-09)
+
+**Agent**: claude-code (implementer) | **Session**: session_01J39bSygVy2r68wyPyHN5VA
+
+### Decisions
+1. **Task 5.2 capability set** — `openspec/owners.yaml` assigns capabilities `agent-identity` and `agent-coordinator`, not `ownership-map`: `openspec/specs/ownership-map/` does not exist until this change is archived, so assigning it would emit an `unknown_capability` warning and break the warning-free `--strict` repository invariant (task 5.1). Roadmap item `multiplayer-collaboration/ri-02` and the `openspec/contracts/**` and `openspec/schemas/**` path rules are as planned. The repository-invariant test asserts against `agent-coordinator` accordingly.
+2. **Extra check codes** — `check_owners.py` also emits `invalid_registry` and `registry_not_found` (errors) for an invalid or missing principal registry; they are additions to the D9 table, not changes to existing codes.
+3. **`OwnerSet.owners` are `Principal` objects** (with an `owner_ids` convenience property); spec scenarios writing `(jan,)` are asserted on ids.
+4. **Task 2.6** — the maintainer's handle was derived from `git log` authorship (`Jan Neumann <...+jankneumann@users.noreply.github.com>`); no `gh`, environment or credential access. `email` was left out (nothing reads it, D5).
+5. **Registration** — `tests/ownership-runtime` added to `skills/pyproject.toml` `testpaths` (the CI-coverage guard requires every test directory to be listed). `skills/install.sh --check` cannot pass in this container because no runtime mirrors (`.claude/skills`, `.agents/skills`) are installed (it fails identically for every skill); `skills/shared/validate_install_manifest.py --skills-root skills` and `tests/install_sh` pass.
+6. **Pre-existing environmental failures** — 24 tests in `tests/cleanup-feature`, `tests/worktree`, `tests/validate-feature`, `tests/project-context-refresh`, `tests/supervise` fail in this cloud container (worktree setup is short-circuited by `isolation_provided`); none touch this change.

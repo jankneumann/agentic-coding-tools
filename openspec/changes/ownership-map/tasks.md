@@ -11,8 +11,8 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
 ## Status
 
 - [x] Planning
-- [ ] Implementation
-- [ ] Testing
+- [x] Implementation
+- [x] Testing
 - [ ] Review
 - [ ] Done
 
@@ -226,20 +226,20 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       **Spec scenarios**: ownership-map / "Install payload validates"
       **Design decisions**: D7
       **Dependencies**: 3.6, 4.4
-- [ ] 5.7 Solo-mode regression — with `openspec/owners.yaml` moved aside, run the full
+- [x] 5.7 Solo-mode regression — with `openspec/owners.yaml` moved aside, run the full
       `skills/tests` and `agent-coordinator/tests` unit suites and record in the checkpoint that
       no pre-existing test assertion was modified or removed — the only edits to pre-existing test
       files are the additive extensions of tasks 2.5 and 5.4, listed by name in the checkpoint (S)
       **Spec scenarios**: ownership-map / "Existing suites unchanged with the map absent"
       **Design decisions**: D6
       **Dependencies**: 5.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 6 — Integration
 
-- [ ] 6.1 Merge package branches; run `bash skills/install.sh --check`,
+- [x] 6.1 Merge package branches; run `bash skills/install.sh --check`,
       `openspec validate --strict --all`, `skills/.venv/bin/python -m pytest skills/tests/`,
       `uv run pytest -m "not e2e and not integration"` plus `mypy --strict src/` and
       `ruff check .` in `agent-coordinator`; fix fallout (S)
       **Dependencies**: 5.1, 5.5, 5.6, 5.7
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
