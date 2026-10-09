@@ -68,7 +68,7 @@
   **Spec scenarios**: O.1, O.3
   **Design decisions**: D2, D9
   **Dependencies**: None
-- [ ] Checkpoint: run `skills/tests/ci_coverage/` and the harness directory. Only the contract,
+- [x] Checkpoint: run `skills/tests/ci_coverage/` and the harness directory. Only the contract,
   scaffold, `pyproject.toml`/`uv.lock` and `ci.yml` should have changed.
 
 ## 2. World, agents, clock and report (sequential chain)
@@ -311,7 +311,7 @@
 
 ## 9. Verification
 
-- [ ] 9.1 Run the following and record their results in the validation report:
+- [x] 9.1 Run the following and record their results in the validation report:
   - the harness directory with `pytest`, recording its wall time against the 30-second
     budget;
   - `skills/tests/ci_coverage/` and `skills/tests/openspec_paths/`;
@@ -320,6 +320,13 @@
 
   [XS]
   **Dependencies**: 8.1, 8.2
+
+> **9.1 results (2026-10-09):** harness `pytest` 93 passed in 34 s wall time. That is over the
+> 30 s budget; about 8 s of it is `test_archive_stability.py` running the whole-tree path-stability
+> guard in a subprocess. The budget is recorded, not asserted (plan finding, iteration 3).
+> `tests/ci_coverage` and `tests/openspec_paths` pass, `ruff check` is clean, and
+> `openspec validate multiplayer-simulation-harness --strict` is valid. gen-eval pack: 10/10 scenarios
+> pass at `--fail-threshold 1.0`, 100% coverage, no "Invalid scenario" lines.
 
 ## Dependency Graph Summary
 

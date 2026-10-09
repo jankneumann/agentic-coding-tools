@@ -115,7 +115,7 @@ time?" today has one honest answer: nothing ran.
     probe can read git state but cannot mutate the world.
   - `ProbeResult` fields: `probe_id`, `status ∈ {ok, error}`, `collisions: list[{level,
     other_change, requirement}]`, `error: str | null`.
-- At each principal's plan step, the driver calls every registered probe. It records
+- At the second principal's plan step, the driver calls every registered probe. It records
   `probes` (one entry per probe that ran) and sets `collision_detected` to true when any probe
   with status `ok` reported a collision at level `requirement` against the other principal's
   change.
@@ -167,7 +167,8 @@ time?" today has one honest answer: nothing ran.
 - **Status transitions are fixture data, not harness code.** Each step in a principal's
   fixture script may declare `on_start.set_status` and `on_finish.set_status` for that
   principal's own roadmap item. The agent does not apply them. It reports them as step
-  results, and the status applier commits each one to `roadmap.yaml` on `main` and pushes.
+  results. The status applier (part of the `mpsim` package, operating on its own clone of
+  the shared remote, not a principal's clone) commits each one to `roadmap.yaml` on `main` and pushes.
   The applier holds no transition logic of its own: it writes exactly the status the fixture
   declared, for the item of the principal that reported it. In the baseline fixture:
   - `plan` and `contract` change no status, so the item stays `approved` and remains
@@ -191,7 +192,9 @@ time?" today has one honest answer: nothing ran.
   - `earliest_start_tick` is the tick at which that principal's own preceding steps finished
     (its plan).
   - `ready_tick` is the first tick at which `ready_items()` admits its implement step.
-  - A principal with no dependency is ready at `earliest_start_tick`, so its value is 0.
+  - A principal with no dependency is also admitted through `Roadmap.ready_items()`. The
+    harness never short-circuits readiness. Such a principal is admitted at
+    `earliest_start_tick`, so its value is 0.
 - **Baseline fixture durations**:
   - `storage-owner`: plan 1, contract 2, implement 8. Its implementation completes at tick
     11.
@@ -249,13 +252,14 @@ time?" today has one honest answer: nothing ran.
 
 ### D7: Scripted agents behind an `Agent` protocol
 
-- `Agent.act(view: PrincipalView, step: Step) -> None` performs one step's file edits and
-  git operations.
+- `Agent.act(world, step, tick)` performs one step's file edits and git operations and
+  returns the step's declared status transitions (it never applies them).
 - `ScriptedAgent` replays the fixture's step script deterministically:
   - write the OpenSpec change files under a synthetic change id;
   - commit;
   - push to `refs/heads/sim/<principal>/<change>`, which models an open PR branch;
-  - return the step's declared status transitions to the scheduler.
+  - return the step's declared status transitions to the scheduler. `on_start` data is read
+    through `declared_transitions(step, "start")`, since it applies before the step runs.
 - Agents never write `roadmap.yaml` and never push to `main`. A test asserts that no commit
   on any `sim/*` branch touches `roadmap.yaml`, and that every commit on `main` after the
   seed is authored by `sim-supervisor` (D5, operator decision A1).
