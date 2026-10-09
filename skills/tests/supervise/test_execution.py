@@ -2117,3 +2117,222 @@ def test_apply_persists_degradations_on_the_attempt(tmp_path: Path) -> None:
 
     assert applied["degradations"] == {request["dispatch_id"]: [degradation]}
     assert _attempt(workspace)["degradations"] == [degradation]
+
+
+# --------------------------------------------------------------------------- #
+# Typed gate answers with provenance (D5) and one escalation per park (D9)
+# --------------------------------------------------------------------------- #
+
+
+def _write_repo_posture(repo: Path, **gates: str) -> str:
+    from shared.trust_posture import load_posture, posture_digest
+
+    doc = {"schema_version": 1, "gates": {k: {"disposition": v} for k, v in gates.items()}}
+    (repo / "TRUST_POSTURE.md").write_text("---\n" + yaml.safe_dump(doc) + "---\n\n# body\n")
+    return posture_digest(load_posture(repo))
+
+
+def _router_gate(repo: Path) -> ApprovalGate:
+    return ApprovalGate(coordinator=object(), audit=_RecordingAudit(), repo_root=str(repo))
+
+
+def _parked_on(tmp_path: Path, gate: str) -> tuple[Path, Path, ExecutionAdapter, dict[str, Any]]:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    result = _result("parked-result.json", request)
+    result["parked"]["gate"] = gate
+    loop_state = _wt(request) / "openspec" / "changes" / "change-alpha" / "loop-state.json"
+    state = json.loads(loop_state.read_text())
+    state["pending_gate"] = {"gate": gate}
+    loop_state.write_text(json.dumps(state) + "\n")
+    result["evidence"]["loop_state_digest"] = hashlib.sha256(loop_state.read_bytes()).hexdigest()
+    adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[result],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    return repo, workspace, adapter, request
+
+
+def test_a_posture_derived_block_clears_after_a_posture_change(tmp_path: Path) -> None:
+    repo, workspace, adapter, request = _parked_on(tmp_path, "proposal_approval")
+    first_digest = _write_repo_posture(repo, proposal_approval="block")
+    blocked = gate_router.resolve_parked(
+        _attempt(workspace), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+    assert blocked.outcome == "blocked"
+    assert blocked.routed.record["provenance"] == {"source": "posture", "posture_digest": first_digest}
+
+    second_digest = _write_repo_posture(repo, proposal_approval="auto")
+    resolved = gate_router.resolve_parked(
+        _attempt(workspace), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+
+    assert resolved.outcome == "proceed"
+    assert resolved.routed.record["provenance"] == {"source": "posture", "posture_digest": second_digest}
+    # D8: the attempt's verified roadmap_approval_ref scoped the auto.
+    assert resolved.routed.record["scope"] == "roadmap_approval"
+    assert resolved.resume_result["gate_answer"]["decision"] == "approved"
+    assert resolved.resume_result["gate_answer"]["provenance"]["source"] == "posture"
+
+
+def test_an_unchanged_posture_reuses_the_prior_block(tmp_path: Path) -> None:
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, pr_creation="block")
+    first = gate_router.resolve_parked(
+        _attempt(workspace), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+    count = len(execution.CheckpointManager(workspace).load().gate_decisions)
+    (repo / "TRUST_POSTURE.md").write_text(
+        (repo / "TRUST_POSTURE.md").read_text() + "\nA prose-only edit.\n"
+    )
+    second = gate_router.resolve_parked(
+        _attempt(workspace), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+    assert second.routed.reused is True
+    assert second.routed.record["decision_id"] == first.routed.record["decision_id"]
+    assert len(execution.CheckpointManager(workspace).load().gate_decisions) == count
+
+
+def test_a_human_rejection_survives_a_posture_change(tmp_path: Path) -> None:
+    repo, workspace, adapter, request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, pr_creation="block")
+    gate_router.resolve_parked(
+        _attempt(workspace), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+    rejected = gate_router.answer(
+        "pr_creation", workspace=workspace, repo_root=repo, approved=False,
+        context={"dispatch_id": request["dispatch_id"], "change_id": "change-alpha", "verb": "resume"},
+    )
+    assert rejected.record["provenance"]["source"] == "human"
+    count = len(execution.CheckpointManager(workspace).load().gate_decisions)
+    _write_repo_posture(repo, pr_creation="auto")
+
+    resolution = gate_router.resolve_parked(
+        _attempt(workspace), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+
+    assert resolution.outcome == "blocked"
+    assert resolution.routed.record["decision_id"] == rejected.record["decision_id"]
+    assert len(execution.CheckpointManager(workspace).load().gate_decisions) == count
+    assert _attempt(workspace)["status"] == "parked"
+
+
+def _clone_parked(workspace: Path, parks: list[dict[str, Any]]) -> list[str]:
+    """Replace the parked attempt with one parked copy per payload (same
+    isolation; distinct dispatch ids), each a schema-valid parked attempt."""
+    manager = execution.CheckpointManager(workspace)
+    checkpoint = manager.load()
+    base = checkpoint.dispatch_attempts[0]
+    attempts, ids = [], []
+    for index, park in enumerate(parks, start=1):
+        clone = json.loads(json.dumps(base))
+        clone["dispatch_id"] = f"{base['dispatch_id'].rsplit(':', 1)[0]}:attempt-{index}"
+        clone["attempt"] = index
+        clone["parked"] = dict(park)
+        clone.pop("application_journal", None)
+        attempts.append(clone)
+        ids.append(clone["dispatch_id"])
+    checkpoint.dispatch_attempts = attempts
+    manager.save(checkpoint)
+    return ids
+
+
+_BLOCKED = {
+    "kind": "permission_blocked",
+    "gate": None,
+    "tool": "Bash",
+    "rule": "Bash(env *)",
+    "classifier_reason": "reads credentials",
+    "reason": "permission denied",
+}
+
+
+def _mirror_entries(repo: Path) -> list[dict[str, Any]]:
+    record = gate_router._read_current_mirror(repo) or {}
+    from cycle_state import _extract_supervisor_record
+
+    return (_extract_supervisor_record(record) or {}).get("pending_gates", [])
+
+
+def test_three_workers_blocked_on_one_rule_produce_one_escalation(tmp_path: Path) -> None:
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    ids = _clone_parked(
+        workspace,
+        [dict(_BLOCKED, command=f"env | grep KEY_{n}") for n in range(3)],
+    )
+    for attempt in execution.CheckpointManager(workspace).load().dispatch_attempts:
+        gate_router.resolve_parked(
+            attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+        )
+
+    entries = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")]
+    assert len(entries) == 1
+    assert [item["dispatch_id"] for item in entries[0]["dispatch_ids"]] == ids
+
+    # One answer resumes every listed attempt, each through its own CAS.
+    answered = gate_router.answer_escalation(
+        entries[0]["dedupe_fingerprint"], workspace=workspace, repo_root=repo, approved=True, adapter=adapter,
+    )
+    assert sorted(r["dispatch_id"] for r in answered["resumed"]) == ids
+    assert answered["skipped"] == []
+    records = answered["records"]
+    assert len({r["decision_id"] for r in records}) == 3
+    assert {r["dedupe_fingerprint"] for r in records} == {entries[0]["dedupe_fingerprint"]}
+    assert all(a["status"] == "prepared" and a["lease_generation"] == 2
+               for a in execution.CheckpointManager(workspace).load().dispatch_attempts)
+    assert [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")] == []
+
+
+def test_an_attempt_whose_generation_moved_is_skipped_and_reported(tmp_path: Path) -> None:
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    ids = _clone_parked(workspace, [dict(_BLOCKED), dict(_BLOCKED)])
+    for attempt in execution.CheckpointManager(workspace).load().dispatch_attempts:
+        gate_router.resolve_parked(
+            attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+        )
+    fingerprint = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")][0]["dedupe_fingerprint"]
+    manager = execution.CheckpointManager(workspace)
+    checkpoint = manager.load()
+    moved = checkpoint.dispatch_attempts[1]
+    for key in ("lease", "launch_evidence", "launch_gate"):
+        moved[key]["generation"] = 5
+    moved["lease_generation"] = 5
+    manager.save(checkpoint)
+
+    answered = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter
+    )
+
+    assert [r["dispatch_id"] for r in answered["resumed"]] == [ids[0]]
+    assert [s["dispatch_id"] for s in answered["skipped"]] == [ids[1]]
+
+
+def test_different_missing_lanes_are_separate_escalations(tmp_path: Path) -> None:
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    base = {"kind": "capability_unavailable", "gate": None, "phase": "PLAN_REVIEW", "reason": "quorum unmet"}
+    _clone_parked(workspace, [dict(base, missing_lanes=["codex"]), dict(base, missing_lanes=["codex", "gemini"])])
+    for attempt in execution.CheckpointManager(workspace).load().dispatch_attempts:
+        gate_router.resolve_parked(
+            attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+        )
+    assert len([e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")]) == 2
+
+
+def test_a_secret_in_the_blocked_command_is_redacted(tmp_path: Path) -> None:
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    _clone_parked(workspace, [dict(_BLOCKED, command='curl -H "Authorization: Bearer abc123..."')])
+    attempt = execution.CheckpointManager(workspace).load().dispatch_attempts[0]
+    resolution = gate_router.resolve_parked(
+        attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+    )
+    commands = resolution.routed.record["parked_commands"]
+    assert commands and "abc123" not in commands[0] and "[REDACTED:" in commands[0]

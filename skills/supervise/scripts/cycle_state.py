@@ -293,6 +293,23 @@ def _clean_pending_gate(value: Any) -> dict[str, Any] | None:
     if decision_id is None or isinstance(decision_id, str):
         if "decision_id" in value:
             cleaned["decision_id"] = _clean_optional_text(decision_id)
+    # dispatch-contract D9: one escalation entry per dedupe fingerprint lists
+    # every parked dispatch (with its projected generation) one answer resumes.
+    fingerprint = value.get("dedupe_fingerprint")
+    if isinstance(fingerprint, str) and re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+        cleaned["dedupe_fingerprint"] = fingerprint
+    listed = value.get("dispatch_ids")
+    if isinstance(listed, list):
+        cleaned["dispatch_ids"] = [
+            {"dispatch_id": item["dispatch_id"], "lease_generation": item["lease_generation"]}
+            for item in listed[:64]
+            if isinstance(item, dict)
+            and isinstance(item.get("dispatch_id"), str)
+            and 1 <= len(item["dispatch_id"]) <= 256
+            and isinstance(item.get("lease_generation"), int)
+            and not isinstance(item["lease_generation"], bool)
+            and item["lease_generation"] >= 1
+        ]
     return cleaned
 
 

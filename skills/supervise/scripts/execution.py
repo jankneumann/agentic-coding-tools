@@ -1262,6 +1262,7 @@ class ExecutionAdapter:
                 repo_root=repo_root,
                 managed_root=self.managed_worktree_root,
                 host_id=self.host_id,
+                parked_route=gate_router.has_answer_path,
             )
             applied["escalation_route"] = self.route_parked_escalations(
                 workspace, batch_id=batch_id, repo_root=repo_root
@@ -1329,10 +1330,11 @@ class ExecutionAdapter:
                     }
                 )
                 continue
-            if (
-                candidate.get("status") != "parked"
-                or candidate.get("parked", {}).get("kind") != "policy_pause"
-            ):
+            if candidate.get("status") != "parked" or candidate.get("parked", {}).get("kind") not in {
+                "policy_pause",
+                "permission_blocked",
+                "capability_unavailable",
+            }:
                 continue
             resolution = gate_router.resolve_parked(
                 candidate,
@@ -1349,9 +1351,9 @@ class ExecutionAdapter:
                 ),
             }
             if resolution.outcome == "proceed":
-                entry["resumed_lease_generation"] = resolution.resume_result[
+                entry["resumed_lease_generation"] = (resolution.resume_result or {}).get(
                     "lease_generation"
-                ]
+                )
             else:
                 entry["pending_gate"] = dict(resolution.pending_gate_entry or {})
             resolutions.append(entry)

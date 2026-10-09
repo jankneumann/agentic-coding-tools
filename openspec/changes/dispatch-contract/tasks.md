@@ -156,7 +156,7 @@
 
 ## 8. Supervisor  `[wp-supervisor]` (deps: 1.1, 3.3, 5.3)
 
-- [ ] 8.1 Test first: extend `skills/tests/supervise/test_execution.py` and
+- [x] 8.1 Test first: extend `skills/tests/supervise/test_execution.py` and
   `test_gate_router.py` for token verify/rotate/reissue, cross-host reconcile,
   provenance re-evaluation, dedupe escalation (one `escalate_resume` record per
   listed dispatch, design D9), degradations persistence. Update
@@ -171,7 +171,7 @@
   `execution_profile` / `review_requirements` resolution in `prepare`; host-portable
   verify, rebind and reinitialize in `reconcile`. (dep 8.1) — RO Launch Token Digest,
   Host-Portable Attempt Isolation; SV Execution Profile and Review Requirements
-- [ ] 8.3 `gate_router.py`: `ANSWER_PATHS` table; provenance-aware
+- [x] 8.3 `gate_router.py`: `ANSWER_PATHS` table; provenance-aware
   `_apply_prior_record` (digest, human-final); `resolve_parked` for the two new kinds
   with fingerprint dedupe and fan-out resume (one per-dispatch `escalate_resume`
   record carrying its own `lease_generation` and the shared `dedupe_fingerprint`, so
