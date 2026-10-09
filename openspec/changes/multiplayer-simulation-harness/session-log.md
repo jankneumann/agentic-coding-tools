@@ -203,3 +203,30 @@ Re-ran PLAN_REVIEW as converge(review_type=plan) after the operator's A1 decisio
 ### Context
 IMPLEMENT sub-agent aborted before any edit: its harness worktree was rooted at main; worktree.py setup skipped re-rooting (isolation_provided=true, source=env_var); the feature branch is checked out in the main checkout; bringing the agent worktree to origin/openspec/multiplayer-simulation-harness via git reset --hard / merge --ff-only was denied by the permission classifier. Per supervisor rules a classifier denial parks the run; no workaround attempted.
 
+---
+
+## Phase: Implementation (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Used the orchestrator-supplied worktree instead of worktree.py setup** `architectural: skill-procedure-deviation` — Two earlier attempts could not re-root a main-rooted harness worktree; the operator approved the managed agent worktree on openspec/multiplayer-simulation-harness--impl. /implement-feature's worktree.py setup was therefore not run.
+2. **Agent.act takes (world, step, tick) and returns declared transitions** `architectural: multiplayer-simulation` — Ledger 12. on_start data is read via declared_transitions(step, 'start') because it applies before the step runs; act returns the on_finish ones.
+3. **Scheduler fast-forwards to the tick budget when nothing is running** `architectural: multiplayer-simulation` — If no step is running and nobody was admitted, main cannot change again, so the result equals running idle ticks; it keeps blocked-budget runs fast.
+4. **gen-eval pack test asserts scenario count and absence of 'Invalid scenario'** `architectural: multiplayer-simulation` — gen-eval silently skips scenarios that fail to load (missing description), so the pass alone is not evidence.
+
+### Open Questions
+- [ ] Harness wall time is 34 s against the 30 s budget; ~8 s is the whole-tree path-stability guard subprocess in test_archive_stability.py.
+
+### Completed Work
+- Tasks 1.1-9.1 and all checkpoints ticked and pushed to openspec/multiplayer-simulation-harness
+
+### Next Steps
+- IMPL_REVIEW / validation
+
+### Relevant Files
+- `skills/tests/multiplayer-simulation/` — harness root
+
+### Context
+Implemented all of tasks.md (groups 1-9) in the orchestrator-supplied worktree: mpsim driver, probe seam, oracle, status applier, tick scheduler, CLI, gen-eval pack, README, design alignment. Harness suite 93 passed; gen-eval pack 10/10.
+
