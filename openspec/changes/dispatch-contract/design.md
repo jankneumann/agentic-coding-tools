@@ -86,8 +86,12 @@ shape:
   files are mirrored under `skills/roadmap-runtime/install_assets/openspec/` at the
   same relative paths, and the locator's install_assets fallback covers both
   directories.
-- The four tests above validate through `dispatch_contract` instead of building their
-  own validators.
+- `test_execution_contract.py` is repointed in `wp-dispatch-schemas` (task 2.3a), which
+  lands before `dispatch_contract` exists, so it keeps building its own
+  `referencing.Registry`, now over both schema directories. `test_execution.py`,
+  `test_dispatch_scheduler.py` and `test_supervised_dispatch_e2e.py` move to
+  `dispatch_contract` in their own later packages (`wp-supervisor`,
+  `wp-runtime-ledger`).
 
 - *Alternative:* generate Python validators from the schema at build time. Rejected:
   adds a build step that installed copies in consumer repos would not run.
