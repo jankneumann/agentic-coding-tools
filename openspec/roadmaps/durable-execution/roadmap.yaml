@@ -213,6 +213,25 @@ items:
     by a unit test of the adapter mapping.
   - With no executor configured, phase_agent.py behavior and outputs are identical
     to today's.
+- item_id: ri-10
+  title: Integrate Atomic harness as experimental vendor with workflow-dispatch pilot
+  description: Adopt the existing add-atomic-harness change (experimental provider
+    class, atomic-local agent entry, NDJSON review dispatch, Level-2 workflow_dispatch.py
+    pilot in fix-scrub, atomic_cli transcript adapter) as a durable-execution roadmap
+    item. The change directory already exists and is not re-scaffolded.
+  rationale: Prerequisite for ri-09; the Atomic workflow-dispatch pilot is what ri-09
+    promotes to an opt-in IMPLEMENT/VALIDATE executor.
+  effort: L
+  change_id: add-atomic-harness
+  depends_on: []
+  acceptance_outcomes:
+  - The atomic-local agent is dispatchable through CliVendorAdapter in review, alternative,
+    and quick modes as an experimental provider.
+  - workflow_dispatch.py parses workflow.run.start and workflow.run.end events into
+    a typed result and is selectable behind an opt-in flag in fix-scrub.
+  - Unknown non-experimental providers still fail roster validation loudly.
+  priority: 4
+  status: approved
 - item_id: ri-09
   title: Promote Atomic executor to opt-in IMPLEMENT and VALIDATE
   status: approved
@@ -221,14 +240,14 @@ items:
   depends_on:
   - ri-08
   - ri-02
+  - ri-10
   description: Promote the add-atomic-harness Level-2 workflow_dispatch.py pilot from
     fix-scrub to an opt-in, per-phase and per-change durable executor for IMPLEMENT
     and VALIDATE behind the same (outcome, handoff_id) contract, resuming interrupted
     runs on the same runId.
   rationale: Delivers the proposal's success criterion that a durable intra-phase
-    executor can be plugged in; depends on the external in-flight add-atomic-harness
-    change (not part of any roadmap), whose result this item consumes rather than
-    re-implements.
+    executor can be plugged in; consumes the result of ri-10 (the adopted add-atomic-harness
+    change) rather than re-implementing it.
   change_id: promote-atomic-executor-to-opt-in-implement-and-validate
   acceptance_outcomes:
   - Resuming an interrupted Atomic-backed phase continues the engine run with the
@@ -239,4 +258,16 @@ items:
     journal, effects journal, PhaseRecord) as an opaque vendor CLI phase.
   - Executor selection is opt-in per phase and per change; with it disabled, behavior
     is identical to today's.
-updated_at: '2026-10-08T10:52:57.129198+00:00'
+updated_at: '2026-10-09T07:05:26.401453+00:00'
+refinements:
+- timestamp: '2026-10-09T07:05:26.401453+00:00'
+  actor: claude-code (operator request)
+  source: operator request in session 2026-10-08 after durable-execution decomposition
+  rationale: ri-09 depends on the in-flight add-atomic-harness change, which belonged
+    to no roadmap, so the dependency was prose-only and autopilot-roadmap could dispatch
+    ri-09 before it landed. Adopting the existing change as a roadmap item makes the
+    prerequisite a real DAG edge.
+  base_sha256: 9620b8a62fbe2af1670ba14815890fe59663614a3118028ae31a300048066885
+  operations:
+  - adopt:ri-10
+  - edit:ri-09
