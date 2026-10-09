@@ -13,7 +13,7 @@ Sequential chains: 1 (`1.1 -> {1.2, 2.1, 3.1, 4.1} -> 5.1`).
 
 ## 1. Guard test (red)
 
-- [ ] 1.1 Write `skills/tests/multiplayer-collaboration/test_multiplayer_guide.py` per
+- [x] 1.1 Write `skills/tests/multiplayer-collaboration/test_multiplayer_guide.py` per
   design D7, with one test per spec requirement: inbound links and no links into
   `openspec/changes/` or `openspec/roadmaps/` (D8); P1-P10 headings and
   `**Existing:**` / `**Planned:**` implementer resolution; assumption table (columns, eight
