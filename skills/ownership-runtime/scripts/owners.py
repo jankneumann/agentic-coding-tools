@@ -155,7 +155,7 @@ def compile_pattern(pattern: str) -> re.Pattern[str]:
         out += "/.+"
     elif segments[-1] != "**":
         out += "(?:/.+)?"
-    return re.compile(out)
+    return re.compile(out, re.DOTALL)
 
 
 def pattern_matches(pattern: str, path: str) -> bool:

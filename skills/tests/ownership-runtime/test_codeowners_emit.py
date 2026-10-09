@@ -199,3 +199,16 @@ class TestFailClosed:
         assert emit(repo, "--json") == 1
         out = json.loads(capsys.readouterr().out)
         assert out["code"] == "no_ownership_map"
+
+
+class TestUnterminatedBlock:
+    def test_emit_over_unterminated_block_is_idempotent(self, make_repo: MakeRepo) -> None:
+        repo = make_repo(humans=TWO, owners=doc())
+        codeowners(repo).parent.mkdir(parents=True, exist_ok=True)
+        codeowners(repo).write_text(
+            f"{BEGIN_MARKER} (truncated)\n* @someone\n", encoding="utf-8"
+        )
+        assert emit(repo, "--write") == 0
+        first = codeowners(repo).read_text(encoding="utf-8")
+        assert emit(repo, "--write") == 0
+        assert codeowners(repo).read_text(encoding="utf-8") == first

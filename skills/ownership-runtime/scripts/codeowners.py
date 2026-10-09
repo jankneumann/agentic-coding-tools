@@ -85,7 +85,9 @@ def find_block(text: str) -> tuple[int, int] | None:
     start: int | None = None
     for raw in text.splitlines(keepends=True):
         stripped = raw.strip()
-        if start is None and stripped.startswith(BEGIN_MARKER):
+        if stripped.startswith(BEGIN_MARKER):
+            # A later BEGIN supersedes an unterminated earlier one, so re-emitting over a
+            # truncated block is idempotent.
             start = offset
         elif start is not None and stripped == END_MARKER:
             return start, offset + len(raw)

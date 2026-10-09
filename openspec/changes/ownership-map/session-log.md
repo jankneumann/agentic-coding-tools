@@ -208,3 +208,17 @@ PLAN_REVIEW ran as converge() (skills/autopilot/scripts/convergence_loop.py) wit
 4. **Task 2.6** — the maintainer's handle was derived from `git log` authorship (`Jan Neumann <...+jankneumann@users.noreply.github.com>`); no `gh`, environment or credential access. `email` was left out (nothing reads it, D5).
 5. **Registration** — `tests/ownership-runtime` added to `skills/pyproject.toml` `testpaths` (the CI-coverage guard requires every test directory to be listed). `skills/install.sh --check` cannot pass in this container because no runtime mirrors (`.claude/skills`, `.agents/skills`) are installed (it fails identically for every skill); `skills/shared/validate_install_manifest.py --skills-root skills` and `tests/install_sh` pass.
 6. **Pre-existing environmental failures** — 24 tests in `tests/cleanup-feature`, `tests/worktree`, `tests/validate-feature`, `tests/project-context-refresh`, `tests/supervise` fail in this cloud container (worktree setup is short-circuited by `isolation_provided`); none touch this change.
+
+---
+
+## Phase: Implementation Iteration (2026-10-09)
+
+**Agent**: claude-code (implementer) | **Session**: session_01J39bSygVy2r68wyPyHN5VA | **Iterations**: 1
+
+### Findings fixed
+1. **(low, matcher)** Compiled patterns used `.`-based fragments without `re.DOTALL`, so a tracked file whose name contains a newline escaped every directory/`**` rule and fell to the default owner (fail-open on ownership, wrong in reconcile probes). Fixed with `re.DOTALL`; test `test_paths_with_newlines_still_match`.
+2. **(low, emit)** Re-emitting over a managed block with a BEGIN marker but no END appended a second block and the next reconcile reported `codeowners_stale` (not idempotent). `find_block` now lets a later BEGIN supersede an unterminated one; test `TestUnterminatedBlock`.
+
+### Residuals (design-level, not changed)
+- **R1 (medium, needs operator decision):** D3 pins `a/*` as matching `a/b/c` (gitignore semantics, asserted in `test_owners.py` MATCH_TABLE). GitHub's CODEOWNERS documents `docs/*` as matching only files directly in `docs/`, not nested. Where a map uses a trailing-`*` path key the resolver and GitHub can disagree for nested files; reconcile probes only literal prefixes and tracked-file matches of the rule itself. The repository's own map uses only `**` and `/` forms, so the invariant is unaffected. Options: reject a final-segment `*`/`?`-only wildcard in the loader, or change the matcher and D3 table.
+- Last-match-wins vs specificity for equal-text patterns differing only by leading `/` is harmless (same semantics).

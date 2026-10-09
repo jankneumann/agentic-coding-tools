@@ -459,3 +459,8 @@ def test_performance_budget(make_repo: MakeRepo) -> None:
     for i in range(1000):
         ctx.resolve_path(f"area{i % 250}/sub{i % 250}/dir/file{i}.py")
     assert time.perf_counter() - started < 1.0
+
+
+def test_paths_with_newlines_still_match() -> None:
+    assert pattern_matches("docs/**", "docs/a\nb.md") is True
+    assert pattern_matches("*.md", "weird\nname.md") is True
