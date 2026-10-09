@@ -107,6 +107,24 @@ class TestLoadHumanPrincipals:
         assert "jan" in str(excinfo.value)
         assert "display_name" in str(excinfo.value)
 
+    def test_human_id_must_follow_the_principal_id_pattern(self, make_repo: MakeRepo) -> None:
+        # The coordinator constrains `humans:` keys through AGENTS_SCHEMA propertyNames; the
+        # skills-side reader must reject the same ids or the two readers disagree (design D2).
+        repo = make_repo(humans={"Jan_N": JAN})
+        with pytest.raises(OwnershipConfigError) as excinfo:
+            load_human_principals(repo)
+        assert excinfo.value.code == "invalid_registry"
+        assert excinfo.value.subject == "Jan_N"
+        assert "Jan_N" in str(excinfo.value)
+        assert "principal id" in str(excinfo.value)
+
+    def test_human_id_longer_than_64_characters_rejected(self, make_repo: MakeRepo) -> None:
+        repo = make_repo(humans={"a" * 65: JAN})
+        with pytest.raises(OwnershipConfigError) as excinfo:
+            load_human_principals(repo)
+        assert excinfo.value.code == "invalid_registry"
+        assert excinfo.value.subject == "a" * 65
+
     def test_agent_human_collision_raises(self, make_repo: MakeRepo) -> None:
         repo = make_repo(humans={"claude-local": JAN}, agents=["claude-local"])
         with pytest.raises(OwnershipConfigError, match="claude-local"):

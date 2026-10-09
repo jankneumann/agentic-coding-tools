@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from codeowners import (
     parse_codeowners,
     reconcile,
     selected_handles,
+    tracked_files,
 )
 from owners import load_ownership
 
@@ -50,6 +52,27 @@ def emit_write(repo: Path) -> None:
 
 def finding_codes(report: dict[str, Any]) -> list[str]:
     return [f["code"] for f in report["findings"]]
+
+
+class TestTrackedFiles:
+    @pytest.mark.parametrize(
+        "failure",
+        [subprocess.TimeoutExpired(["git", "ls-files"], 60), OSError("git binary missing")],
+        ids=["timeout", "oserror"],
+    )
+    def test_git_failure_yields_no_tracked_files(
+        self, make_repo: MakeRepo, monkeypatch: pytest.MonkeyPatch, failure: Exception
+    ) -> None:
+        """A hung or missing ``git`` is handled like a non-zero exit, as ``principals._git`` does."""
+        import codeowners
+
+        repo = make_repo(humans=TWO, owners=doc())
+
+        def boom(*args: Any, **kwargs: Any) -> None:
+            raise failure
+
+        monkeypatch.setattr(codeowners.subprocess, "run", boom)
+        assert tracked_files(repo) == []
 
 
 class TestMatcher:

@@ -76,7 +76,10 @@ python3 "<skill-base-dir>/scripts/codeowners.py" reconcile [--json]
 
 - `check_owners.py` exits `1` on any error finding; `--strict` also promotes warnings (never
   `info`). `--json` emits `{schema_version, mode, strict, exit_code, findings:[{severity, code,
-  subject, message}]}`; consumers key on `code`. Codes: `invalid_map`, `invalid_registry`,
+  subject, message}]}`; consumers key on `code`. `mode` is `"solo"` or `"team"`, and `null` when
+  no context could be built (an `invalid_map`, `invalid_registry`, `unknown_owner`,
+  `agent_as_owner`, `team_registry_without_map` or registry-location error is then present).
+  Codes: `invalid_map`, `invalid_registry`,
   `registry_not_found`, `unknown_owner`, `agent_as_owner`, `team_registry_without_map`,
   `registry_outside_repo`, `missing_github_handle`, `codeowners_disagreement`, `not_a_git_checkout`
   (errors); `unowned_capability`, `unowned_roadmap_item` (warnings, team mode only),

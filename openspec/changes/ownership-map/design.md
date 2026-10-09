@@ -279,6 +279,8 @@ test proves it on the real tree.
 | Code | Finding | Severity | Why |
 |---|---|---|---|
 | `invalid_map` | `owners.yaml` fails schema, or a `paths` key falls outside the D3 table | error | invalid authority state (D4) |
+| `invalid_registry` | the registry cannot be parsed, a `humans:` entry fails the human schema, a human id fails the principal-id pattern, or a human id collides with an agent name | error | the registry is an authority input (D1, D10); fail closed |
+| `registry_not_found` | `OWNERSHIP_REGISTRY_PATH` or the map's `registry:` names a file that does not exist | error | an explicit location that is missing is a configuration error, not "no registry" (D10) |
 | `unknown_owner` | owner id not a registered human (incl. `default_owner`) | error | outcome 2; fail closed |
 | `agent_as_owner` | agent id used as owner | error | D13 |
 | `team_registry_without_map` | registry declares ≥ 2 humans and no `owners.yaml` | error | D5 |

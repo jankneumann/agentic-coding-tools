@@ -225,3 +225,21 @@ class TestSchemaMirror:
         assert humans["type"] == "object"
         assert humans["additionalProperties"] == HUMAN_PRINCIPAL_SCHEMA
         assert "humans" not in AGENTS_SCHEMA.get("required", [])
+
+    def test_principal_id_key_constraint_matches_the_owners_schema(self) -> None:
+        """The ``humans:`` key constraint lives outside the mirrored entry schema.
+
+        Pin it to ``owners.schema.json`` ``$defs.PrincipalId``, which the skills-side
+        reader validates human ids against, so the two readers accept the same ids.
+        """
+        from src.agents_config import AGENTS_SCHEMA, PRINCIPAL_ID_PATTERN
+
+        owners_schema = json.loads(
+            (REPO_ROOT / "openspec" / "schemas" / "owners.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        principal_id = owners_schema["$defs"]["PrincipalId"]
+        names = AGENTS_SCHEMA["properties"]["humans"]["propertyNames"]
+        assert principal_id["pattern"] == PRINCIPAL_ID_PATTERN == names["pattern"]
+        assert principal_id["maxLength"] == names["maxLength"] == 64

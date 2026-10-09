@@ -24,6 +24,7 @@ from jsonschema import Draft202012Validator
 SENTINEL_ID = "repository-default"
 REGISTRY_ENV_VAR = "OWNERSHIP_REGISTRY_PATH"
 HUMAN_SCHEMA_NAME = "human-principals.schema.json"
+OWNERS_SCHEMA_NAME = "owners.schema.json"
 _DEFAULT_REGISTRY_LOCATIONS = ("agent-coordinator/agents.yaml", "agents.yaml")
 
 
@@ -125,19 +126,33 @@ def locate_registry(repo_root: Path, registry_field: str | None = None) -> Path 
     return None
 
 
-def _human_schema(repo_root: Path) -> dict[str, Any]:
-    """The shipped schema: the skill's own copy, else the installed ``openspec/schemas``."""
+def _shipped_schema(repo_root: Path, name: str) -> dict[str, Any]:
+    """A shipped schema: the skill's own copy, else the installed ``openspec/schemas``."""
     here = Path(__file__).resolve().parent.parent
     for candidate in (
-        here / "install_assets" / "openspec" / "schemas" / HUMAN_SCHEMA_NAME,
-        repo_root / "openspec" / "schemas" / HUMAN_SCHEMA_NAME,
+        here / "install_assets" / "openspec" / "schemas" / name,
+        repo_root / "openspec" / "schemas" / name,
     ):
         if candidate.is_file():
             loaded: dict[str, Any] = json.loads(candidate.read_text(encoding="utf-8"))
             return loaded
-    raise OwnershipConfigError(
-        "invalid_registry", f"{HUMAN_SCHEMA_NAME} is not installed", HUMAN_SCHEMA_NAME
-    )
+    raise OwnershipConfigError("invalid_registry", f"{name} is not installed", name)
+
+
+def _human_schema(repo_root: Path) -> dict[str, Any]:
+    return _shipped_schema(repo_root, HUMAN_SCHEMA_NAME)
+
+
+def _principal_id_schema(repo_root: Path) -> dict[str, Any]:
+    """The principal-id constraint (slug pattern, length) shared with agent names.
+
+    The coordinator enforces it on ``humans:`` keys through ``AGENTS_SCHEMA``
+    ``propertyNames``; it lives outside the per-entry human schema, so this reader
+    takes it from ``owners.schema.json`` ``$defs.PrincipalId`` to accept exactly the
+    ids the coordinator accepts (design D2).
+    """
+    schema: dict[str, Any] = _shipped_schema(repo_root, OWNERS_SCHEMA_NAME)["$defs"]["PrincipalId"]
+    return schema
 
 
 def read_registry(
@@ -167,9 +182,18 @@ def read_registry(
             "invalid_registry", f"'humans' in {path} must be a mapping", "humans"
         )
     validator = Draft202012Validator(_human_schema(repo_root))
+    id_validator = Draft202012Validator(_principal_id_schema(repo_root))
     humans: list[Principal] = []
     for key, entry in humans_raw.items():
         human_id = str(key)
+        id_errors = list(id_validator.iter_errors(human_id))
+        if id_errors:
+            raise OwnershipConfigError(
+                "invalid_registry",
+                f"human id '{human_id}' in {path.name} is not a valid principal id: "
+                f"{id_errors[0].message} (ids share the agent-name slug pattern)",
+                human_id,
+            )
         errors = sorted(validator.iter_errors(entry), key=lambda e: list(e.absolute_path))
         if errors:
             raise OwnershipConfigError(

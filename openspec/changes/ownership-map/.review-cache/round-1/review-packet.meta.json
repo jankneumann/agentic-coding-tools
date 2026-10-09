@@ -3,7 +3,7 @@
   "change_id": "ownership-map",
   "round": 1,
   "body_path": "review-packet.md",
-  "sha256": "7ca1a5271c8027b4c3ab1852af44e85f864dc4d84d979648c7754d034869b704",
+  "sha256": "189b911aebd72b3dd985bf3e6e5a44d0423c2c696a8f9de2edf48a9cb943acdd",
   "char_length": 320000,
   "budget_chars": 320000,
   "tools_overflow": true,
@@ -13,11 +13,39 @@
     "per_file_token_ceiling": 64000,
     "selected": [
       {
-        "path": "TRUST_POSTURE.md",
+        "path": ".github/CODEOWNERS",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1170
+        "est_tokens": 161
+      },
+      {
+        "path": "agent-coordinator/agents.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 253
+      },
+      {
+        "path": "agent-coordinator/src/agents_config.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1720
+      },
+      {
+        "path": "agent-coordinator/tests/test_human_principals.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2165
+      },
+      {
+        "path": "agent-coordinator/tests/test_registry_projection.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1252
       },
       {
         "path": "docs/decisions/agent-identity.md",
@@ -27,340 +55,25 @@
         "est_tokens": 452
       },
       {
-        "path": "openspec/changes/attention-budgets-digests/design.md",
-        "status": "added",
+        "path": "docs/guides/state-artifacts.md",
+        "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 283
+        "est_tokens": 807
       },
       {
-        "path": "openspec/changes/attention-budgets-digests/proposal.md",
-        "status": "added",
+        "path": "docs/skills-catalogue.md",
+        "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 316
+        "est_tokens": 220
       },
       {
-        "path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+        "path": "openspec/changes/ownership-map/.review-ledger/ledger.json",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 551
-      },
-      {
-        "path": "openspec/changes/attention-budgets-digests/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 151
-      },
-      {
-        "path": "openspec/changes/attribution-trailers/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 280
-      },
-      {
-        "path": "openspec/changes/attribution-trailers/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 310
-      },
-      {
-        "path": "openspec/changes/attribution-trailers/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 540
-      },
-      {
-        "path": "openspec/changes/attribution-trailers/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 150
-      },
-      {
-        "path": "openspec/changes/causal-trace-ids/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 296
-      },
-      {
-        "path": "openspec/changes/causal-trace-ids/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 372
-      },
-      {
-        "path": "openspec/changes/causal-trace-ids/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 696
-      },
-      {
-        "path": "openspec/changes/causal-trace-ids/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 147
-      },
-      {
-        "path": "openspec/changes/consumer-contract-tests/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 313
-      },
-      {
-        "path": "openspec/changes/consumer-contract-tests/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 346
-      },
-      {
-        "path": "openspec/changes/consumer-contract-tests/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 547
-      },
-      {
-        "path": "openspec/changes/consumer-contract-tests/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 149
-      },
-      {
-        "path": "openspec/changes/contract-dependencies/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 311
-      },
-      {
-        "path": "openspec/changes/contract-dependencies/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 420
-      },
-      {
-        "path": "openspec/changes/contract-dependencies/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 823
-      },
-      {
-        "path": "openspec/changes/contract-dependencies/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 145
-      },
-      {
-        "path": "openspec/changes/coordinator-contract-overlap/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 280
-      },
-      {
-        "path": "openspec/changes/coordinator-contract-overlap/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 333
-      },
-      {
-        "path": "openspec/changes/coordinator-contract-overlap/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 597
-      },
-      {
-        "path": "openspec/changes/coordinator-contract-overlap/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 159
-      },
-      {
-        "path": "openspec/changes/declare-early-draft-pr/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 294
-      },
-      {
-        "path": "openspec/changes/declare-early-draft-pr/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 324
-      },
-      {
-        "path": "openspec/changes/declare-early-draft-pr/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 546
-      },
-      {
-        "path": "openspec/changes/declare-early-draft-pr/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 149
-      },
-      {
-        "path": "openspec/changes/intervention-capture/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 301
-      },
-      {
-        "path": "openspec/changes/intervention-capture/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 342
-      },
-      {
-        "path": "openspec/changes/intervention-capture/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 564
-      },
-      {
-        "path": "openspec/changes/intervention-capture/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 147
-      },
-      {
-        "path": "openspec/changes/multiplayer-principles-guide/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 296
-      },
-      {
-        "path": "openspec/changes/multiplayer-principles-guide/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 347
-      },
-      {
-        "path": "openspec/changes/multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 587
-      },
-      {
-        "path": "openspec/changes/multiplayer-principles-guide/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 156
-      },
-      {
-        "path": "openspec/changes/multiplayer-simulation-harness/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 288
-      },
-      {
-        "path": "openspec/changes/multiplayer-simulation-harness/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 345
-      },
-      {
-        "path": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 670
-      },
-      {
-        "path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 155
-      },
-      {
-        "path": "openspec/changes/owned-intent-blocks/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 297
-      },
-      {
-        "path": "openspec/changes/owned-intent-blocks/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 368
-      },
-      {
-        "path": "openspec/changes/owned-intent-blocks/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 691
-      },
-      {
-        "path": "openspec/changes/owned-intent-blocks/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 148
-      },
-      {
-        "path": "openspec/changes/owner-routed-escalation/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 334
-      },
-      {
-        "path": "openspec/changes/owner-routed-escalation/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 441
-      },
-      {
-        "path": "openspec/changes/owner-routed-escalation/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 834
-      },
-      {
-        "path": "openspec/changes/owner-routed-escalation/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 150
+        "est_tokens": 1778
       },
       {
         "path": "openspec/changes/ownership-map/contracts/README.md",
@@ -385,17 +98,17 @@
       },
       {
         "path": "openspec/changes/ownership-map/design.md",
-        "status": "added",
+        "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 6842
+        "est_tokens": 7266
       },
       {
         "path": "openspec/changes/ownership-map/loop-state.json",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1458
+        "est_tokens": 2005
       },
       {
         "path": "openspec/changes/ownership-map/plan-findings.md",
@@ -406,10 +119,10 @@
       },
       {
         "path": "openspec/changes/ownership-map/proposal.md",
-        "status": "added",
+        "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 3583
+        "est_tokens": 3998
       },
       {
         "path": "openspec/changes/ownership-map/review-findings-plan.json",
@@ -423,14 +136,21 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 837
+        "est_tokens": 1807
+      },
+      {
+        "path": "openspec/changes/ownership-map/reviews/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1734
       },
       {
         "path": "openspec/changes/ownership-map/session-log.md",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 4244
+        "est_tokens": 8087
       },
       {
         "path": "openspec/changes/ownership-map/specs/agent-identity/spec.md",
@@ -444,14 +164,14 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 5333
+        "est_tokens": 5460
       },
       {
         "path": "openspec/changes/ownership-map/tasks.md",
-        "status": "added",
+        "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 3961
+        "est_tokens": 4105
       },
       {
         "path": "openspec/changes/ownership-map/work-packages.yaml",
@@ -461,234 +181,500 @@
         "est_tokens": 4954
       },
       {
-        "path": "openspec/changes/plan-time-collision-detection/design.md",
+        "path": "openspec/owners.yaml",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 304
+        "est_tokens": 357
       },
       {
-        "path": "openspec/changes/plan-time-collision-detection/proposal.md",
+        "path": "openspec/schemas/human-principals.schema.json",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 386
+        "est_tokens": 832
       },
       {
-        "path": "openspec/changes/plan-time-collision-detection/specs/multiplayer-collaboration/spec.md",
+        "path": "openspec/schemas/owners.schema.json",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 798
+        "est_tokens": 1374
       },
       {
-        "path": "openspec/changes/plan-time-collision-detection/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 155
-      },
-      {
-        "path": "openspec/changes/queue-dispatch-owner-acceptance/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 330
-      },
-      {
-        "path": "openspec/changes/queue-dispatch-owner-acceptance/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 428
-      },
-      {
-        "path": "openspec/changes/queue-dispatch-owner-acceptance/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 833
-      },
-      {
-        "path": "openspec/changes/queue-dispatch-owner-acceptance/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 161
-      },
-      {
-        "path": "openspec/changes/reconcile-skill/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 316
-      },
-      {
-        "path": "openspec/changes/reconcile-skill/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 401
-      },
-      {
-        "path": "openspec/changes/reconcile-skill/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 713
-      },
-      {
-        "path": "openspec/changes/reconcile-skill/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 144
-      },
-      {
-        "path": "openspec/changes/reviewer-shaped-prs/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 309
-      },
-      {
-        "path": "openspec/changes/reviewer-shaped-prs/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 338
-      },
-      {
-        "path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 533
-      },
-      {
-        "path": "openspec/changes/reviewer-shaped-prs/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 143
-      },
-      {
-        "path": "openspec/changes/team-work-queue/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 330
-      },
-      {
-        "path": "openspec/changes/team-work-queue/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 419
-      },
-      {
-        "path": "openspec/changes/team-work-queue/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 786
-      },
-      {
-        "path": "openspec/changes/team-work-queue/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 142
-      },
-      {
-        "path": "openspec/changes/toolkit-consistency/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 293
-      },
-      {
-        "path": "openspec/changes/toolkit-consistency/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 338
-      },
-      {
-        "path": "openspec/changes/toolkit-consistency/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 638
-      },
-      {
-        "path": "openspec/changes/toolkit-consistency/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 144
-      },
-      {
-        "path": "openspec/changes/trust-posture-calibration/design.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 285
-      },
-      {
-        "path": "openspec/changes/trust-posture-calibration/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 317
-      },
-      {
-        "path": "openspec/changes/trust-posture-calibration/specs/multiplayer-collaboration/spec.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 546
-      },
-      {
-        "path": "openspec/changes/trust-posture-calibration/tasks.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 151
-      },
-      {
-        "path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 2193
-      },
-      {
-        "path": "openspec/roadmaps/multiplayer-collaboration/proposal.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 6451
-      },
-      {
-        "path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 6374
-      },
-      {
-        "path": "openspec/supervise/supervisor-record.json",
+        "path": "skills/install-manifest.json",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 230
+        "est_tokens": 102
+      },
+      {
+        "path": "skills/ownership-runtime/SKILL.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1619
+      },
+      {
+        "path": "skills/ownership-runtime/install_assets/openspec/schemas/human-principals.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 862
+      },
+      {
+        "path": "skills/ownership-runtime/install_assets/openspec/schemas/owners.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1404
+      },
+      {
+        "path": "skills/ownership-runtime/scripts/__init__.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 37
+      },
+      {
+        "path": "skills/ownership-runtime/scripts/check_owners.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1910
+      },
+      {
+        "path": "skills/ownership-runtime/scripts/codeowners.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3628
+      },
+      {
+        "path": "skills/ownership-runtime/scripts/owners.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3720
+      },
+      {
+        "path": "skills/ownership-runtime/scripts/principals.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2137
+      },
+      {
+        "path": "skills/pyproject.toml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 122
+      },
+      {
+        "path": "skills/tests/ownership-runtime/__init__.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 36
+      },
+      {
+        "path": "skills/tests/ownership-runtime/conftest.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1416
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_day.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 99
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_email.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 91
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_github_handle.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 97
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_hours.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 96
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/duplicate_domains.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 100
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/empty_display_name.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 90
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/missing_display_name.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 93
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/unknown_availability_field.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 115
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/invalid/unknown_field.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 92
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/valid/full.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 167
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/humans/valid/minimal.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 83
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_capability_key.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 131
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_principal_id.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 98
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_roadmap_key.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 129
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/duplicate_owners.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 132
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/empty_owners.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 118
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/missing_default_owner.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 93
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/missing_owners.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 129
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/path_char_class.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 128
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/path_empty_segment.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 128
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/path_negation.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 126
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/path_whitespace.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 128
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_absolute.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 105
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_nested_parent_escape.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 115
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_parent_escape.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 111
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_assignment_key.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 146
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_assignments_key.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 112
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_root_key.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 100
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/invalid/wrong_schema_version.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 99
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/valid/embedded_double_star_schema_ok.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 139
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/valid/full.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 307
+      },
+      {
+        "path": "skills/tests/ownership-runtime/fixtures/owners/valid/minimal.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 87
+      },
+      {
+        "path": "skills/tests/ownership-runtime/test_check_owners.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2741
+      },
+      {
+        "path": "skills/tests/ownership-runtime/test_codeowners_emit.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2262
+      },
+      {
+        "path": "skills/tests/ownership-runtime/test_codeowners_reconcile.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3165
+      },
+      {
+        "path": "skills/tests/ownership-runtime/test_coordinator_independence.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1298
+      },
+      {
+        "path": "skills/tests/ownership-runtime/test_owners.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5129
+      },
+      {
+        "path": "skills/tests/ownership-runtime/test_principals.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2234
+      },
+      {
+        "path": "skills/tests/ownership-runtime/test_repository_invariant.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 975
+      },
+      {
+        "path": "skills/tests/ownership-runtime/test_schema_copies.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1209
+      },
+      {
+        "path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 493
       }
     ],
-    "excluded": [],
+    "excluded": [
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 227
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1744
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 184
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-claude_code-plan.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 156
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1440
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 163
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 51
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 338
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 6866
+      },
+      {
+        "path": "openspec/changes/ownership-map/specs/multiplayer-collaboration/spec.md",
+        "status": "deleted",
+        "reason": "deleted",
+        "gate": "deleted",
+        "est_tokens": 879
+      }
+    ],
     "truncated": [
-      "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
-      "openspec/supervise/supervisor-record.json"
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_principal_id.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_roadmap_key.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/duplicate_owners.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/empty_owners.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/missing_default_owner.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/missing_owners.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/path_char_class.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/path_empty_segment.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/path_negation.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/path_whitespace.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_absolute.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_nested_parent_escape.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_parent_escape.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_assignment_key.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_assignments_key.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_root_key.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/wrong_schema_version.json",
+      "skills/tests/ownership-runtime/fixtures/owners/valid/embedded_double_star_schema_ok.json",
+      "skills/tests/ownership-runtime/fixtures/owners/valid/full.json",
+      "skills/tests/ownership-runtime/fixtures/owners/valid/minimal.json",
+      "skills/tests/ownership-runtime/test_check_owners.py",
+      "skills/tests/ownership-runtime/test_codeowners_emit.py",
+      "skills/tests/ownership-runtime/test_codeowners_reconcile.py",
+      "skills/tests/ownership-runtime/test_coordinator_independence.py",
+      "skills/tests/ownership-runtime/test_owners.py",
+      "skills/tests/ownership-runtime/test_principals.py",
+      "skills/tests/ownership-runtime/test_repository_invariant.py",
+      "skills/tests/ownership-runtime/test_schema_copies.py",
+      "skills/tests/state-artifacts/test_state_artifacts_guide.py"
     ]
   },
   "rule_groups": [
@@ -697,44 +683,11 @@
       "source": "default",
       "pattern": "(default)",
       "files": [
-        "TRUST_POSTURE.md",
+        ".github/CODEOWNERS",
         "docs/decisions/agent-identity.md",
-        "openspec/changes/attention-budgets-digests/design.md",
-        "openspec/changes/attention-budgets-digests/proposal.md",
-        "openspec/changes/attention-budgets-digests/tasks.md",
-        "openspec/changes/attribution-trailers/design.md",
-        "openspec/changes/attribution-trailers/proposal.md",
-        "openspec/changes/attribution-trailers/tasks.md",
-        "openspec/changes/causal-trace-ids/design.md",
-        "openspec/changes/causal-trace-ids/proposal.md",
-        "openspec/changes/causal-trace-ids/tasks.md",
-        "openspec/changes/consumer-contract-tests/design.md",
-        "openspec/changes/consumer-contract-tests/proposal.md",
-        "openspec/changes/consumer-contract-tests/tasks.md",
-        "openspec/changes/contract-dependencies/design.md",
-        "openspec/changes/contract-dependencies/proposal.md",
-        "openspec/changes/contract-dependencies/tasks.md",
-        "openspec/changes/coordinator-contract-overlap/design.md",
-        "openspec/changes/coordinator-contract-overlap/proposal.md",
-        "openspec/changes/coordinator-contract-overlap/tasks.md",
-        "openspec/changes/declare-early-draft-pr/design.md",
-        "openspec/changes/declare-early-draft-pr/proposal.md",
-        "openspec/changes/declare-early-draft-pr/tasks.md",
-        "openspec/changes/intervention-capture/design.md",
-        "openspec/changes/intervention-capture/proposal.md",
-        "openspec/changes/intervention-capture/tasks.md",
-        "openspec/changes/multiplayer-principles-guide/design.md",
-        "openspec/changes/multiplayer-principles-guide/proposal.md",
-        "openspec/changes/multiplayer-principles-guide/tasks.md",
-        "openspec/changes/multiplayer-simulation-harness/design.md",
-        "openspec/changes/multiplayer-simulation-harness/proposal.md",
-        "openspec/changes/multiplayer-simulation-harness/tasks.md",
-        "openspec/changes/owned-intent-blocks/design.md",
-        "openspec/changes/owned-intent-blocks/proposal.md",
-        "openspec/changes/owned-intent-blocks/tasks.md",
-        "openspec/changes/owner-routed-escalation/design.md",
-        "openspec/changes/owner-routed-escalation/proposal.md",
-        "openspec/changes/owner-routed-escalation/tasks.md",
+        "docs/guides/state-artifacts.md",
+        "docs/skills-catalogue.md",
+        "openspec/changes/ownership-map/.review-ledger/ledger.json",
         "openspec/changes/ownership-map/contracts/README.md",
         "openspec/changes/ownership-map/contracts/schemas/human-principals.schema.json",
         "openspec/changes/ownership-map/contracts/schemas/owners.schema.json",
@@ -744,62 +697,121 @@
         "openspec/changes/ownership-map/proposal.md",
         "openspec/changes/ownership-map/review-findings-plan.json",
         "openspec/changes/ownership-map/reviews/consensus-plan.json",
+        "openspec/changes/ownership-map/reviews/findings-claude_code-plan.json",
         "openspec/changes/ownership-map/session-log.md",
         "openspec/changes/ownership-map/tasks.md",
         "openspec/changes/ownership-map/work-packages.yaml",
-        "openspec/changes/plan-time-collision-detection/design.md",
-        "openspec/changes/plan-time-collision-detection/proposal.md",
-        "openspec/changes/plan-time-collision-detection/tasks.md",
-        "openspec/changes/queue-dispatch-owner-acceptance/design.md",
-        "openspec/changes/queue-dispatch-owner-acceptance/proposal.md",
-        "openspec/changes/queue-dispatch-owner-acceptance/tasks.md",
-        "openspec/changes/reconcile-skill/design.md",
-        "openspec/changes/reconcile-skill/proposal.md",
-        "openspec/changes/reconcile-skill/tasks.md",
-        "openspec/changes/reviewer-shaped-prs/design.md",
-        "openspec/changes/reviewer-shaped-prs/proposal.md",
-        "openspec/changes/reviewer-shaped-prs/tasks.md",
-        "openspec/changes/team-work-queue/design.md",
-        "openspec/changes/team-work-queue/proposal.md",
-        "openspec/changes/team-work-queue/tasks.md",
-        "openspec/changes/toolkit-consistency/design.md",
-        "openspec/changes/toolkit-consistency/proposal.md",
-        "openspec/changes/toolkit-consistency/tasks.md",
-        "openspec/changes/trust-posture-calibration/design.md",
-        "openspec/changes/trust-posture-calibration/proposal.md",
-        "openspec/changes/trust-posture-calibration/tasks.md",
-        "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
-        "openspec/roadmaps/multiplayer-collaboration/proposal.md",
-        "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
-        "openspec/supervise/supervisor-record.json"
+        "openspec/owners.yaml",
+        "skills/install-manifest.json",
+        "skills/ownership-runtime/install_assets/openspec/schemas/human-principals.schema.json",
+        "skills/ownership-runtime/install_assets/openspec/schemas/owners.schema.json",
+        "skills/pyproject.toml"
       ]
     },
     {
       "group_id": 2,
       "source": "default",
+      "pattern": "agent-coordinator/agents.yaml",
+      "files": [
+        "agent-coordinator/agents.yaml"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "**/*.py",
+      "files": [
+        "agent-coordinator/src/agents_config.py",
+        "agent-coordinator/tests/test_human_principals.py",
+        "agent-coordinator/tests/test_registry_projection.py"
+      ]
+    },
+    {
+      "group_id": 4,
+      "source": "default",
       "pattern": "openspec/changes/*/specs/**/spec.md",
       "files": [
-        "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/attribution-trailers/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/causal-trace-ids/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/consumer-contract-tests/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/contract-dependencies/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/coordinator-contract-overlap/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/declare-early-draft-pr/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/intervention-capture/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/owned-intent-blocks/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/owner-routed-escalation/specs/multiplayer-collaboration/spec.md",
         "openspec/changes/ownership-map/specs/agent-identity/spec.md",
-        "openspec/changes/ownership-map/specs/ownership-map/spec.md",
-        "openspec/changes/plan-time-collision-detection/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/queue-dispatch-owner-acceptance/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/reconcile-skill/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/team-work-queue/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/toolkit-consistency/specs/multiplayer-collaboration/spec.md",
-        "openspec/changes/trust-posture-calibration/specs/multiplayer-collaboration/spec.md"
+        "openspec/changes/ownership-map/specs/ownership-map/spec.md"
+      ]
+    },
+    {
+      "group_id": 5,
+      "source": "default",
+      "pattern": "openspec/schemas/*.schema.json",
+      "files": [
+        "openspec/schemas/human-principals.schema.json",
+        "openspec/schemas/owners.schema.json"
+      ]
+    },
+    {
+      "group_id": 6,
+      "source": "default",
+      "pattern": "skills/*/SKILL.md",
+      "files": [
+        "skills/ownership-runtime/SKILL.md"
+      ]
+    },
+    {
+      "group_id": 7,
+      "source": "default",
+      "pattern": "skills/*/scripts/*.py",
+      "files": [
+        "skills/ownership-runtime/scripts/__init__.py",
+        "skills/ownership-runtime/scripts/check_owners.py",
+        "skills/ownership-runtime/scripts/codeowners.py",
+        "skills/ownership-runtime/scripts/owners.py",
+        "skills/ownership-runtime/scripts/principals.py"
+      ]
+    },
+    {
+      "group_id": 8,
+      "source": "default",
+      "pattern": "skills/tests/**",
+      "files": [
+        "skills/tests/ownership-runtime/__init__.py",
+        "skills/tests/ownership-runtime/conftest.py",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_day.json",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_email.json",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_github_handle.json",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_hours.json",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/duplicate_domains.json",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/empty_display_name.json",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/missing_display_name.json",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/unknown_availability_field.json",
+        "skills/tests/ownership-runtime/fixtures/humans/invalid/unknown_field.json",
+        "skills/tests/ownership-runtime/fixtures/humans/valid/full.json",
+        "skills/tests/ownership-runtime/fixtures/humans/valid/minimal.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_capability_key.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_principal_id.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_roadmap_key.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/duplicate_owners.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/empty_owners.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/missing_default_owner.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/missing_owners.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/path_char_class.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/path_empty_segment.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/path_negation.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/path_whitespace.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_absolute.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_nested_parent_escape.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/registry_parent_escape.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_assignment_key.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_assignments_key.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_root_key.json",
+        "skills/tests/ownership-runtime/fixtures/owners/invalid/wrong_schema_version.json",
+        "skills/tests/ownership-runtime/fixtures/owners/valid/embedded_double_star_schema_ok.json",
+        "skills/tests/ownership-runtime/fixtures/owners/valid/full.json",
+        "skills/tests/ownership-runtime/fixtures/owners/valid/minimal.json",
+        "skills/tests/ownership-runtime/test_check_owners.py",
+        "skills/tests/ownership-runtime/test_codeowners_emit.py",
+        "skills/tests/ownership-runtime/test_codeowners_reconcile.py",
+        "skills/tests/ownership-runtime/test_coordinator_independence.py",
+        "skills/tests/ownership-runtime/test_owners.py",
+        "skills/tests/ownership-runtime/test_principals.py",
+        "skills/tests/ownership-runtime/test_repository_invariant.py",
+        "skills/tests/ownership-runtime/test_schema_copies.py",
+        "skills/tests/state-artifacts/test_state_artifacts_guide.py"
       ]
     }
   ]

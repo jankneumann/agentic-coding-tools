@@ -209,14 +209,16 @@ class TestJsonContract:
                 assert f["severity"] in {"error", "warning", "info"}
 
     def test_codes_table_has_the_documented_codes(self) -> None:
+        # The design D9 table is the normative enumeration; CODES must match it exactly.
         documented = {
-            "invalid_map", "unknown_owner", "agent_as_owner", "team_registry_without_map",
-            "registry_outside_repo", "missing_github_handle", "codeowners_disagreement",
-            "not_a_git_checkout", "unowned_capability", "unowned_roadmap_item",
-            "unknown_capability", "unknown_roadmap_item", "sentinel_principal",
-            "codeowners_stale", "codeowners_missing", "orphan_managed_block", "no_ownership_map",
+            "invalid_map", "invalid_registry", "registry_not_found", "unknown_owner",
+            "agent_as_owner", "team_registry_without_map", "registry_outside_repo",
+            "missing_github_handle", "codeowners_disagreement", "not_a_git_checkout",
+            "unowned_capability", "unowned_roadmap_item", "unknown_capability",
+            "unknown_roadmap_item", "sentinel_principal", "codeowners_stale",
+            "codeowners_missing", "orphan_managed_block", "no_ownership_map",
         }
-        assert documented <= set(CODES)
+        assert documented == set(CODES)
 
     def test_json_shape_is_stable(
         self, make_repo: MakeRepo, capsys: pytest.CaptureFixture[str]

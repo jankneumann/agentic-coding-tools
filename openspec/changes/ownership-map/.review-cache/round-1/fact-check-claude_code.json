@@ -30,6 +30,18 @@
     {
       "finding_id": "6",
       "verdict": "kept"
+    },
+    {
+      "finding_id": "7",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "8",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "9",
+      "verdict": "kept"
     }
   ]
 }

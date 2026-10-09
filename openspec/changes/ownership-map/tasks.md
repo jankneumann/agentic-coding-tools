@@ -202,7 +202,9 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       **Dependencies**: 2.6, 3.6, 4.4
 - [x] 5.2 Author `openspec/owners.yaml` for this repository — `default_owner` is the maintainer,
       plus a *representative* set of explicit assignments that exercises every resolver branch:
-      capabilities `ownership-map` and `agent-identity`, roadmap item
+      capabilities `agent-identity` and `agent-coordinator` (not `ownership-map`:
+      `openspec/specs/ownership-map/` does not exist until this change is archived and would
+      trip `unknown_capability` under `--strict`), roadmap item
       `multiplayer-collaboration/ri-02`, and `paths` rules for `openspec/contracts/**` and
       `openspec/schemas/**`. Not an exhaustive list: the repository is in solo mode, `unowned_*`
       findings are suppressed (D14), and the file must not churn with every new capability or

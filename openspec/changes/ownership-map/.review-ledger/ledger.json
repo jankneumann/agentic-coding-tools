@@ -23,7 +23,7 @@
     },
     {
       "id": 2,
-      "status": "open",
+      "status": "addressed",
       "axis": "readability",
       "type": "style",
       "criticality": "low",
@@ -36,7 +36,8 @@
         "claude_code"
       ],
       "description": "The proposal's Selected Approach section says design.md records decisions '(D1\u2013D13)', but design.md now has D14 (solo-mode suppression of unowned_* findings) added in plan iteration 1, and the proposal itself cites D14 elsewhere. The readiness checklist in plan-findings.md correctly says D1\u2013D14.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: fixed earlier by PLAN_FIX commit 0a4659f (proposal Selected Approach cites D1-D14); re-verified by the round-1 lane (finding 8 / ledger 14)."
     },
     {
       "id": 3,
@@ -112,6 +113,166 @@
       ],
       "description": "The `PathPattern` schema regex admits an embedded `**` (e.g. `openspec/spec**s/`) and also sequences like `***`, relying on the loader to reject them per design D3. The split is documented in both the schema description and D3, and the spec has a scenario for the loader half, so this is a deliberate two-layer validation rather than a gap; noting it because schema-only validators (e.g. an editor plugin) will accept a value the resolver refuses.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/design.md",
+      "fingerprint": "a83a30ce22fbfec2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "check_owners.py CODES emits `invalid_registry` and `registry_not_found` (both errors, also documented in SKILL.md and the session log), but the design D9 table in design.md does not list them. The spec's Ownership Check requirement says `code` is 'one of the stable identifiers enumerated in design D9' and task 3.5 asserts 'every emitted code is in the D9 table', so the normative enumeration and the implementation disagree; test_codes_table_has_the_documented_codes only checks a subset relation and so does not catch it.",
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: design.md D9 table now lists invalid_registry and registry_not_found; test_codes_table_has_the_documented_codes tightened to equality with the table."
+    },
+    {
+      "id": 8,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/tasks.md",
+      "fingerprint": "cfbfad3316515526",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "tasks.md 5.2 (marked done) says the repository map assigns capabilities `ownership-map` and `agent-identity`, but openspec/owners.yaml assigns `agent-identity` and `agent-coordinator`. The session log records why (`openspec/specs/ownership-map/` does not exist until archival and would trip `unknown_capability`), but the task text was not updated, so the checked-off task no longer describes the delivered artifact.",
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: tasks.md 5.2 now names the delivered capabilities agent-identity and agent-coordinator and explains why ownership-map is not assigned until archival."
+    },
+    {
+      "id": 9,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/principals.py",
+      "fingerprint": "469063995fb58b8c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The skills-side registry reader validates each `humans:` entry against human-principals.schema.json, but that schema is per-entry; the principal-id slug pattern and 64-char limit live only in the coordinator's AGENTS_SCHEMA `propertyNames`. principals.read_registry therefore accepts an id such as `Jan_N` that load_agents_config() rejects, so the resolver can resolve owners the coordinator will never load. This is the 'reader duplication' risk D2 names, and the pinned schema does not cover it because the key constraint is outside the mirrored dict.",
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: principals.read_registry validates each humans: key against owners.schema.json $defs.PrincipalId (slug pattern, 1-64 chars) and raises invalid_registry naming the id; tests test_human_id_must_follow_the_principal_id_pattern / test_human_id_longer_than_64_characters_rejected; coordinator test pins PRINCIPAL_ID_PATTERN and propertyNames.maxLength to that schema."
+    },
+    {
+      "id": 10,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/codeowners.py",
+      "fingerprint": "9c21ab72c98feaca",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "codeowners.tracked_files calls subprocess.run with timeout=60 but catches nothing; a hung `git ls-files` raises subprocess.TimeoutExpired out of reconcile() and check_owners --codeowners instead of producing a finding. principals._git handles the same failure classes (OSError, SubprocessError) and returns None, so the two git wrappers behave differently on the failure path this module is meant to guard.",
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: codeowners.tracked_files catches OSError and subprocess.SubprocessError (incl. TimeoutExpired) and returns [] like a non-zero exit, matching principals._git; test TestTrackedFiles."
+    },
+    {
+      "id": 11,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/SKILL.md",
+      "fingerprint": "389dc54351315135",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "check_owners.check() returns `mode: null` whenever collect_problems yields no context (invalid map, unknown owner, team registry without map), but SKILL.md documents the --json shape with `mode` and the mode contract as `\"solo\" | \"team\"` only. Consumers keying on mode will see a third value the contract does not mention.",
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: SKILL.md documents that --json mode is null when no context could be built and which error codes accompany it."
+    },
+    {
+      "id": 12,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/test_registry_projection.py",
+      "fingerprint": "108e6b4befc3fea2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The rule-6 human-projection checkers (_strings / _strings_in) test exact string equality against the human id, so a projection that embedded the id in a composite string (e.g. `agent:jan`, a role path `agents/jan/...` or an AppRole name) would not be reported. The negative tests only inject a bare `jan` row, so they do not prove coverage of that shape; the invariant is weaker than the spec's 'no human id appears in any projection' wording.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ownership-runtime/test_repository_invariant.py",
+      "fingerprint": "751d74ac18b9b0e0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_adding_a_capability_directory_causes_no_unowned_churn asserts `report[\"findings\"] == []` and then asserts no finding code starts with `unowned_`; the second assertion is vacuous after the first and would never fail independently, so the D14-specific intent it documents is not separately exercised.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 14,
+      "status": "retired",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/proposal.md",
+      "fingerprint": "c5d27961141bcd2a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger item 2: proposal.md Selected Approach now reads '(D1\u2013D14)' in the diff, so the range mismatch is resolved and the item can be closed.",
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: duplicate: the lane's re-verification note for ledger item 2, which is now addressed."
+    },
+    {
+      "id": 15,
+      "status": "retired",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/schemas/owners.schema.json",
+      "fingerprint": "0d86aba683110577",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger item 6: the PathPattern regex in owners.schema.json (all three copies) still admits an embedded `**`; the loader rejects it (compile_pattern, covered by test_embedded_double_star_rejected and fixture embedded_double_star_schema_ok.json). The two-layer split remains as designed in D3; no change in status.",
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: duplicate: the lane's re-verification note for ledger item 6 (two-layer PathPattern validation is as designed in D3); item 6 stays open as a low advisory."
     }
   ]
 }

@@ -199,12 +199,16 @@ def selected_handles(entries: list[Entry], path: str) -> frozenset[str]:
 
 
 def tracked_files(repo_root: Path) -> list[str]:
-    done = subprocess.run(
-        ["git", "-C", str(repo_root), "ls-files", "-z"],
-        capture_output=True,
-        check=False,
-        timeout=60,
-    )
+    """Tracked paths from ``git ls-files``; empty when git fails, hangs or is missing."""
+    try:
+        done = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-files", "-z"],
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
     if done.returncode != 0:
         return []
     return [p for p in done.stdout.decode("utf-8", "replace").split("\0") if p]
