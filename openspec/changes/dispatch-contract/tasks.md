@@ -43,12 +43,12 @@
 
 ## 3. Posture provenance and scope  `[wp-posture]` (no deps)
 
-- [ ] 3.1 Test first: `skills/tests/shared/test_trust_posture_scope.py` covering every
+- [x] 3.1 Test first: `skills/tests/shared/test_trust_posture_scope.py` covering every
   TP scenario (digest stability, `unscoped` validation). — TP
-- [ ] 3.2 `trust_posture.py`: `posture_digest()`, `unscoped` sub-config parse and
+- [x] 3.2 `trust_posture.py`: `posture_digest()`, `unscoped` sub-config parse and
   validation; `trust-posture.schema.json` and `TRUST_POSTURE.template.md` document it.
   (dep 3.1) — TP Roadmap-Approval-Scoped Auto Dispositions
-- [ ] 3.3 `approval_gate.py`: `provenance` on every decision record; scoped `auto` for
+- [x] 3.3 `approval_gate.py`: `provenance` on every decision record; scoped `auto` for
   `proposal_approval` / `replan_required` using a `marker_reader` seam (context-supplied
   refs ignored); `scope` recorded. `gate-decision.schema.json` and
   `gate-request.schema.json` gain `provenance`, `scope`, `posture.posture_digest`.

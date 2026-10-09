@@ -80,6 +80,9 @@ class _EvaluatorSpy:
     def __init__(self) -> None:
         self.calls: list[tuple[str, Path]] = []
         self.contexts: list[dict[str, Any]] = []
+        # The launch marker the gate's marker_reader seam returns (D8); None
+        # is a standalone run.
+        self.marker: dict[str, Any] | None = None
 
     def __call__(self, change_id: str, repo_root: Path) -> ApprovalGate:
         self.calls.append((change_id, Path(repo_root)))
@@ -96,6 +99,7 @@ class _EvaluatorSpy:
             agent_id=f"autopilot:{change_id}",
             repo_root=str(repo_root),
             poll_interval_seconds=0.001,
+            marker_reader=lambda _ctx: spy.marker,
         )
 
 
@@ -160,6 +164,11 @@ def test_auto_posture_records_a_decision_and_says_continue(
 
     state_path = seed(workspace)
     write_posture(workspace, {g.value: {"disposition": "auto"} for g in Gate})
+    # proposal_approval's auto is scoped to a roadmap approval (dispatch-contract
+    # D8): this is a dispatched run whose launch marker carries one.
+    evaluator.marker = {
+        "roadmap_approval_ref": "gate-decision:11111111-2222-4333-8444-555555555555"
+    }
 
     rc = runner.main(["gate-check", "demo", "--gate", "proposal_approval"])
 
@@ -172,10 +181,37 @@ def test_auto_posture_records_a_decision_and_says_continue(
     assert record["resolution"] == "auto"
     assert record["outcome"] == "proceed"
     assert record["posture_present"] is True
+    assert record["scope"] == "roadmap_approval"
+    assert record["provenance"]["source"] == "posture"
     jsonschema.validate(
         record, json.loads((_CONTRACTS / "gate-decision.schema.json").read_text())
     )
     assert json.loads(capsys.readouterr().out) == record
+
+
+def test_standalone_auto_proposal_approval_falls_back_to_unscoped_block(
+    workspace: Path, evaluator: _EvaluatorSpy
+) -> None:
+    """D8: without a launch marker, auto for proposal_approval does not apply."""
+    state_path = seed(workspace)
+    write_posture(workspace, {g.value: {"disposition": "auto"} for g in Gate})
+
+    rc = runner.main(
+        [
+            "gate-check", "demo", "--gate", "proposal_approval",
+            "--context",
+            "roadmap_approval_ref=gate-decision:11111111-2222-4333-8444-555555555555",
+        ]
+    )
+
+    assert rc == 0, "a standalone scoped auto parks for the operator"
+    state = read_state(state_path)
+    assert state["pending_gate"]["gate"] == "proposal_approval"
+    record = state["gate_decisions"][-1]
+    assert record["outcome"] == "blocked"
+    assert record["resolution"] == "posture_block"
+    assert record["scope"] == "unscoped"
+    assert "unscoped fallback" in record["reason"]
 
 
 def test_auto_escalate_resume_transitions_and_flushes_before_continue(
