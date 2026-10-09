@@ -282,7 +282,7 @@ def _park_on_proposal_approval(world: dict[str, Any]) -> dict[str, Any]:
 def test_a_posture_flip_resumes_the_child_which_leaves_plan(world: dict[str, Any]) -> None:
     repo, workspace, adapter = world["repo"], world["workspace"], world["adapter"]
     _posture(repo, proposal_approval="block")
-    request = _park_on_proposal_approval(world)
+    _park_on_proposal_approval(world)
     blocked = gate_router.resolve_parked(
         _attempt(world), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
     )
