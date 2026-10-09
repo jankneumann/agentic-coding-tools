@@ -190,7 +190,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
 
 ## Phase 5 — Dogfood, documentation, portability
 
-- [ ] 5.1 Write `skills/tests/ownership-runtime/test_repository_invariant.py` — against the real
+- [x] 5.1 Write `skills/tests/ownership-runtime/test_repository_invariant.py` — against the real
       checkout: `check_owners.py --codeowners --strict --json` exits `0` with an empty findings
       list; `codeowners.py reconcile` reports zero disagreements and a fresh block;
       `load_ownership().mode == "solo"`; the run stays green when a capability directory is
@@ -200,7 +200,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       unowned findings"
       **Design decisions**: D6, D9, D12, D14
       **Dependencies**: 2.6, 3.6, 4.4
-- [ ] 5.2 Author `openspec/owners.yaml` for this repository — `default_owner` is the maintainer,
+- [x] 5.2 Author `openspec/owners.yaml` for this repository — `default_owner` is the maintainer,
       plus a *representative* set of explicit assignments that exercises every resolver branch:
       capabilities `ownership-map` and `agent-identity`, roadmap item
       `multiplayer-collaboration/ri-02`, and `paths` rules for `openspec/contracts/**` and
@@ -209,18 +209,18 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       roadmap item (S)
       **Design decisions**: D3, D6, D14
       **Dependencies**: 5.1
-- [ ] 5.3 Generate `.github/CODEOWNERS` with `codeowners.py emit --write` (S)
+- [x] 5.3 Generate `.github/CODEOWNERS` with `codeowners.py emit --write` (S)
       **Dependencies**: 5.2
-- [ ] 5.4 Write the state-artifacts guide test extension — `skills/tests/state-artifacts/`
+- [x] 5.4 Write the state-artifacts guide test extension — `skills/tests/state-artifacts/`
       asserts the inventory row for `openspec/owners.yaml` names `CODEOWNERS` as a derived
       projection and covers writer, authority and missing/stale cells; existing assertions
       untouched (S)
       **Spec scenarios**: ownership-map / "Inventory row present", "Guide tests still pass"
       **Design decisions**: D11
       **Dependencies**: none
-- [ ] 5.5 Add the **Ownership map** row to `docs/guides/state-artifacts.md` per D11 (S)
+- [x] 5.5 Add the **Ownership map** row to `docs/guides/state-artifacts.md` per D11 (S)
       **Dependencies**: 5.4
-- [ ] 5.6 Write `skills/ownership-runtime/SKILL.md` — import surface, `mode` contract for
+- [x] 5.6 Write `skills/ownership-runtime/SKILL.md` — import surface, `mode` contract for
       downstream items, CLI usage, roadmap-item-has-no-path note; add the skill to
       `skills/install-manifest.json` (`portable`) and `docs/skills-catalogue.md` (S)
       **Spec scenarios**: ownership-map / "Install payload validates"
