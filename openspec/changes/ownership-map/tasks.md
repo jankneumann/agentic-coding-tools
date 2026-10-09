@@ -158,7 +158,7 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
 
 ## Phase 4 — CODEOWNERS projection
 
-- [ ] 4.1 Write `skills/tests/ownership-runtime/test_codeowners_emit.py` — managed block
+- [x] 4.1 Write `skills/tests/ownership-runtime/test_codeowners_emit.py` — managed block
       markers; `*` first; two lines per capability; ascending specificity order with implied
       capability lines before explicit `paths` lines at equal specificity; `@handle` rendering;
       unmanaged text before and after the block preserved byte-for-byte on `emit --write`;
@@ -169,10 +169,10 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       without a map fails closed"
       **Design decisions**: D8
       **Dependencies**: 3.4
-- [ ] 4.2 Implement `emit` in `skills/ownership-runtime/scripts/codeowners.py` — line
+- [x] 4.2 Implement `emit` in `skills/ownership-runtime/scripts/codeowners.py` — line
       generation, ordering, marker handling, `--write` (M)
       **Dependencies**: 4.1
-- [ ] 4.3 Write `skills/tests/ownership-runtime/test_codeowners_reconcile.py` — probe set
+- [x] 4.3 Write `skills/tests/ownership-runtime/test_codeowners_reconcile.py` — probe set
       construction (tracked spec/contract files, rule matches, literal prefixes, one unmatched
       path); GitHub last-match-wins matcher over the whole file including unmanaged lines;
       disagreement for a hand-added conflicting line; stale block detected with diff; clean emit
@@ -183,10 +183,10 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       managed block reported"
       **Design decisions**: D8
       **Dependencies**: 4.2
-- [ ] 4.4 Implement `reconcile` in `codeowners.py` — CODEOWNERS-semantics matcher, probe set,
+- [x] 4.4 Implement `reconcile` in `codeowners.py` — CODEOWNERS-semantics matcher, probe set,
       comparison, stale detection, exit codes, `--json` (M)
       **Dependencies**: 4.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 5 — Dogfood, documentation, portability
 
