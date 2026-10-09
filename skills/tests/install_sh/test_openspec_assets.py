@@ -348,6 +348,8 @@ def test_canonical_install_syncs_required_openspec_schemas(tmp_path: Path) -> No
         "schemas/roadmap/schema.yaml",
         "schemas/roadmap/templates/roadmap.yaml",
         "schemas/checkpoint.schema.json",
+        "schemas/dispatch-request.schema.json",
+        "schemas/dispatch-result.schema.json",
         "schemas/learning-log.schema.json",
         "schemas/convergence-state.schema.json",
         "schemas/archetypes.schema.json",

@@ -15,11 +15,11 @@
 
 ## 2. Schemas  `[wp-dispatch-schemas]` (no deps)
 
-- [ ] 2.1 Write `openspec/schemas/dispatch-result.schema.json` v2: outcome classes,
+- [x] 2.1 Write `openspec/schemas/dispatch-result.schema.json` v2: outcome classes,
   `parked` `oneOf` per kind (D3), `gate` as the `Gate` enum, `degradations` code enum
   (D10), isolation echo `{worktree_ref, branch, host_id}`, evidence. — RO Published
   Dispatch Contract Schemas
-- [ ] 2.2 Write `openspec/schemas/dispatch-request.schema.json` v2: identity, raw
+- [x] 2.2 Write `openspec/schemas/dispatch-request.schema.json` v2: identity, raw
   `launch_token`, host-portable `isolation`, `execution_profile`,
   `review_requirements`, optional `continuation` and `gate_answer`,
   `roadmap_approval_ref`. — RO Published Dispatch Contract Schemas; SV Execution
