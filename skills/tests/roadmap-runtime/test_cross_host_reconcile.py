@@ -167,6 +167,34 @@ def test_another_host_rebinds_a_matching_worktree(host_a: dict[str, Any]) -> Non
     assert after["status"] == "parked"
 
 
+def test_a_checkpoint_checked_out_at_another_root_rebinds_without_host_a_paths(host_a: dict[str, Any]) -> None:
+    """The committed checkpoint names no host-A absolute path, so host B can
+    reconcile it from a different checkout root after host A's tree is gone."""
+    _park(host_a)
+    tmp = host_a["tmp"]
+    text = (host_a["workspace"] / "checkpoint.json").read_text()
+    for absolute in (str(tmp), str(host_a["repo"]), str(host_a["worktree_a"])):
+        assert absolute not in text
+
+    repo_b = tmp / "host-b-checkout" / "repo"
+    shutil.copytree(host_a["repo"], repo_b)
+    managed_b = tmp / "host-b-checkout" / "worktrees"
+    shutil.copytree(host_a["worktree_a"], managed_b / _CHANGE)
+    before = CheckpointManager(repo_b / "roadmap").load().dispatch_attempts[0]
+    shutil.rmtree(host_a["repo"])
+    shutil.rmtree(host_a["worktree_a"])
+
+    adapter_b = _adapter(managed_b, repo_b, "host-b")
+    adapter_b.reconcile(repo_b / "roadmap", dispatch_id=host_a["request"]["dispatch_id"])
+
+    after = CheckpointManager(repo_b / "roadmap").load().dispatch_attempts[0]
+    assert after["lease_generation"] == before["lease_generation"]
+    assert after["isolation"] == {**before["isolation"], "host_id": "host-b"}
+    assert after["launch_history"][-1]["state"] == "rebound"
+    assert after["status"] == "parked"
+    assert str(tmp / "host-b-checkout") not in (repo_b / "roadmap" / "checkpoint.json").read_text()
+
+
 def test_rebind_refuses_a_diverged_worktree(host_a: dict[str, Any]) -> None:
     _park(host_a)
     before = _attempt(host_a)
