@@ -1,12 +1,110 @@
 {
-  "blocking_findings": [],
+  "schema_version": 5,
   "change_id": "ownership-map",
-  "cli_review_enabled": true,
-  "current_phase": "SUBMIT_PR",
-  "error": null,
-  "escalation_reason": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary",
+  "current_phase": "ESCALATE",
+  "iteration": 0,
+  "total_iterations": 17,
+  "max_phase_iterations": 3,
   "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-ownership-map-20261005T0711Z",
+    "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
+    "a33ad94f-fce1-46ec-8ea9-b6e4faf625de",
+    "implement-ownership-map-be0bf22",
+    "impl-iterate-ownership-map-a1e679e",
+    "impl-review-ownership-map-8bf8dd0",
+    "validate-ownership-map-3a2d896",
+    "val-review-ownership-map-b71f042"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-05T07:15:13.485167+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-10-05T07:59:41.805020+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-10-06T11:09:27.712054+00:00",
+      "note": "PLAN_REVIEW quorum unavailable: codex lane has no CLI/key in cloud container (min_quorum 2)",
+      "outcome": "host_escalate",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-09T07:54:29.737885+00:00",
+      "note": "PLAN_REVIEW blocked: permission denial on sub-agent worktree re-root (git fetch origin openspec/ownership-map && git reset --hard origin/openspec/ownership-map) \u2014 harness worktrees are rooted at main and cannot be re-rooted; converge() not run",
+      "outcome": "host_escalate",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-09T08:26:20.347225+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-09T08:26:49.899641+00:00",
+      "note": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary",
+      "outcome": "host_escalate",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-10-09T12:42:08.501157+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-10-09T12:46:16.282853+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-10-09T13:08:11.325487+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-10-09T13:17:11.683632+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-10-09T13:39:44.110215+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
+    }
+  ],
+  "last_handoff_id": "val-review-ownership-map-b71f042",
+  "started_at": "2026-10-05T07:11:19.832453+00:00",
+  "phase_started_at": "2026-10-09T13:39:58.453066+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
   "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": false,
+    "package_count": 0,
+    "total_loc_estimate": null
+  },
+  "gate_verdict": null,
   "gate_decisions": [
     {
       "approval_id": null,
@@ -115,106 +213,57 @@
       "recorded_at": "2026-10-09T08:28:32.248252+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "coordinator_unreachable",
+      "authorizing_disposition": "notify_with_timeout",
+      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "notify_with_timeout",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-09T13:39:58.451707+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-09T13:40:43.166017+00:00"
     }
   ],
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": false,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": false,
-    "package_count": 0,
-    "total_loc_estimate": null
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "ownership-map",
+    "gate": "escalate_resume",
+    "phase": "ESCALATE",
+    "requested_at": "2026-10-09T13:40:43.167546+00:00",
+    "prompt": "Has this escalation been resolved? Resume the loop?",
+    "context": {
+      "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+      "previous_phase": "SUBMIT_PR"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true
+    },
+    "edge": {
+      "outcome": "resolved",
+      "target": "SUBMIT_PR"
+    }
   },
-  "gate_verdict": null,
-  "goal_gate": null,
-  "handoff_ids": [
-    "gatekeeper-ownership-map-20261005T0711Z",
-    "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
-    "a33ad94f-fce1-46ec-8ea9-b6e4faf625de",
-    "implement-ownership-map-be0bf22",
-    "impl-iterate-ownership-map-a1e679e",
-    "impl-review-ownership-map-8bf8dd0",
-    "validate-ownership-map-3a2d896",
-    "val-review-ownership-map-b71f042"
-  ],
-  "implementation_strategy": {},
-  "iteration": 0,
-  "last_handoff_id": "val-review-ownership-map-b71f042",
-  "max_phase_iterations": 3,
-  "memory_ids": [],
-  "package_authors": {},
-  "packages_status": {},
-  "pending_gate": null,
-  "phase_archetype": "runner",
-  "phase_history": [
-    {
-      "at": "2026-10-05T07:15:13.485167+00:00",
-      "outcome": "proceed_with_review",
-      "phase": "GATEKEEPER"
-    },
-    {
-      "at": "2026-10-05T07:59:41.805020+00:00",
-      "outcome": "complete",
-      "phase": "PLAN_ITERATE"
-    },
-    {
-      "at": "2026-10-06T11:09:27.712054+00:00",
-      "note": "PLAN_REVIEW quorum unavailable: codex lane has no CLI/key in cloud container (min_quorum 2)",
-      "outcome": "host_escalate",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-10-09T07:54:29.737885+00:00",
-      "note": "PLAN_REVIEW blocked: permission denial on sub-agent worktree re-root (git fetch origin openspec/ownership-map && git reset --hard origin/openspec/ownership-map) \u2014 harness worktrees are rooted at main and cannot be re-rooted; converge() not run",
-      "outcome": "host_escalate",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-10-09T08:26:20.347225+00:00",
-      "outcome": "converged",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-10-09T08:26:49.899641+00:00",
-      "note": "IMPLEMENT not started: classifier denial [Modify Shared Resources] on supervisor-requested 'git fetch origin main && git merge --no-ff origin/main' (cloud phase isolation fix #665) at the PLAN_REVIEW->IMPLEMENT boundary",
-      "outcome": "host_escalate",
-      "phase": "IMPLEMENT"
-    },
-    {
-      "at": "2026-10-09T12:42:08.501157+00:00",
-      "outcome": "complete",
-      "phase": "IMPLEMENT"
-    },
-    {
-      "at": "2026-10-09T12:46:16.282853+00:00",
-      "outcome": "complete",
-      "phase": "IMPL_ITERATE"
-    },
-    {
-      "at": "2026-10-09T13:08:11.325487+00:00",
-      "outcome": "converged",
-      "phase": "IMPL_REVIEW"
-    },
-    {
-      "at": "2026-10-09T13:17:11.683632+00:00",
-      "outcome": "passed",
-      "phase": "VALIDATE"
-    },
-    {
-      "at": "2026-10-09T13:39:44.110215+00:00",
-      "outcome": "converged",
-      "phase": "VAL_REVIEW"
-    }
-  ],
-  "phase_started_at": "2026-10-09T13:39:44.247874+00:00",
-  "previous_phase": "IMPLEMENT",
-  "schema_version": 5,
-  "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "total_iterations": 16,
-  "val_review_enabled": true,
-  "vendor_availability": {}
+  "goal_gate": null
 }
