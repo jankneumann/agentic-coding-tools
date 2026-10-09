@@ -1,8 +1,9 @@
 """Legacy checkpoint migration and the persisted attempt shape (dispatch-contract
 Launch Token Digest, Host-Portable Attempt Isolation; design D6, D7).
 
-The archived and live roadmap checkpoints carry raw launch tokens, so they are
-copied into ``tmp_path`` at test time and never committed as fixtures.
+The archived roadmap checkpoint carries raw launch tokens, so sources are copied
+into ``tmp_path`` at test time and never committed as fixtures. The live checkpoint
+may already be digest-only; re-saving it must leave every digest unchanged.
 """
 
 from __future__ import annotations
@@ -62,10 +63,17 @@ def test_legacy_checkpoint_loads_and_the_next_save_drops_raw_tokens(
     if not source.is_file():
         pytest.skip(f"{source.relative_to(_REPO_ROOT)} is not present on this branch")
     raw = json.loads(source.read_text())
+    source_attempts = raw.get("dispatch_attempts", [])
     tokens = {
         attempt["dispatch_id"]: attempt["launch_token"]
-        for attempt in raw.get("dispatch_attempts", [])
+        for attempt in source_attempts
         if "launch_token" in attempt
+    }
+    # An already-migrated source carries digests only; they must survive unchanged.
+    digests = {
+        attempt["dispatch_id"]: attempt["launch_digest"]
+        for attempt in source_attempts
+        if "launch_digest" in attempt and "launch_token" not in attempt
     }
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -81,12 +89,16 @@ def test_legacy_checkpoint_loads_and_the_next_save_drops_raw_tokens(
     for token in tokens.values():
         assert token not in text
     for attempt in saved["dispatch_attempts"]:
-        token = tokens[attempt["dispatch_id"]]
-        assert attempt["launch_digest"] == "sha256:" + hashlib.sha256(token.encode()).hexdigest()
+        dispatch_id = attempt["dispatch_id"]
+        if dispatch_id in tokens:
+            expected = "sha256:" + hashlib.sha256(tokens[dispatch_id].encode()).hexdigest()
+        else:
+            expected = digests[dispatch_id]
+        assert attempt["launch_digest"] == expected
     _assert_portable(saved["dispatch_attempts"])
     # The saved file reloads against the published schema.
     assert len(load_checkpoint(workspace / "checkpoint.json", _REPO_ROOT).dispatch_attempts) == len(
-        tokens
+        source_attempts
     )
 
 
