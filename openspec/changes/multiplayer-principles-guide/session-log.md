@@ -58,17 +58,7 @@ GATEKEEPER fell back to the permissive signal-only verdict: this worker session 
 - Wrote plan-findings.md, review-findings-plan.json, reviews/consensus-plan.json
 
 ### Context
-Replaced the plan-roadmap scaffold with a full plan by restoring the lost prior attempt's edits (f4e388e) and re-reviewing them against the tree; fixed one high finding (guard-test directory not registered in skills/pyproject.toml testpaths, which the CI-coverage guard requires) and six medium testability/consistency findings. A second review pass found nothing at or above medium; the cross-vendor review could not run (codex had no API key).
-
-
----
-
-## Phase: Orchestrator Decision — Review Quorum (2026-10-09)
-
-**Agent**: claude_code (autopilot orchestrator) | **Session**: https://claude.ai/code/session_01J39bSygVy2r68wyPyHN5VA
-
-### Decisions
-1. **Single-vendor review accepted for PLAN_REVIEW, IMPL_REVIEW and VAL_REVIEW in this change** `architectural: single_vendor_review` — The user (session owner) answered the PLAN_REVIEW quorum_lost escalation on 2026-10-09: "Resume with single reviewer acceptable". This matches the committed cloud policy in TRUST_POSTURE.md "Review quorum in cloud containers (temporary)" (479dcd9, gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff). The codex lane failed to dispatch (auth_required), so review phases run `converge()` with `min_quorum=1` and vendor `claude_code`. Every review phase records the degradation `single_vendor_review` (phase, vendor). The PR body states that review was single-vendor, and the human merge gate stays `block`.
+Replaced the plan-roadmap scaffold with a full plan by restoring the lost prior attempt[REDACTED:high-entropy]Resume with single reviewer acceptable". This matches the committed cloud policy in TRUST_POSTURE.md "Review quorum in cloud containers (temporary)" (479dcd9, gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff). The codex lane failed to dispatch (auth_required), so review phases run `converge()` with `min_quorum=1` and vendor `claude_code`. Every review phase records the degradation `single_vendor_review` (phase, vendor). The PR body states that review was single-vendor, and the human merge gate stays `block`.
 2. **Review diff base** — `review_packet.py` diffs `main...HEAD`. A local `main` ref tracking `origin/main` now exists in the container, so review packets carry the plan files instead of `(empty-diff)`. The code fix (falling back to `origin/main`) is a toolkit follow-up and out of scope here.
 
 ---
@@ -92,3 +82,44 @@ Replaced the plan-roadmap scaffold with a full plan by restoring the lost prior 
 ### Completed Work
 - `converge(review_type="plan", max_rounds=3, min_quorum=1, fix_mode="inline")`: 1 round, converged, trend [0], fact-check ran (0 removed)
 - Committed `.review-cache/round-1/` findings, manifest, fact-check and `.review-ledger/ledger.json`
+
+---
+
+## Phase: Implementation (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Commit 1.2 after the guide** `architectural: multiplayer-collaboration` — Registering the test dir in testpaths before the guide exists would turn the default sweep red (Implementation Rule 2).
+2. **Carry-forward fixes in design.md** `architectural: multiplayer-collaboration` — Added attention-budgets-digests to D3 P10 row; noted the Modes definitions have no test scenario and are checked in review.
+
+### Alternatives Considered
+- Run worktree.py setup for re-rooting: rejected because Script absent from launchpad checkout; used the operator-approved branch switch from origin instead.
+
+### Trade-offs
+- Accepted Checkboxes for 3.1, 4.1, 5.1, 1.2 flipped in the 2.1 commit over Per-task checkbox flips in each task commit because Keeps every commit green and avoids staging hunks; recorded in the commit message.
+
+### Open Questions
+- [ ] Quality checks mypy/ruff/validate_flows and /validate-feature spec,evidence phases not run in IMPLEMENT.
+
+### Completed Work
+- 1.1 guard test (commit 2d1f461)
+- 2.1/5.1 guide (ae4a023)
+- 3.1 AGENTS.md link (472d766)
+- 4.1 documentation.md index (56ba56f)
+- 1.2 testpaths registration (ee0d358)
+- design.md carry-forward fixes (8a10537)
+- Tests: 1717 passed, 6 skipped; openspec validate --strict valid
+
+### Next Steps
+- IMPL_ITERATE: review guide prose accuracy of solo/team cells and principle titles against the roadmap proposal; run quality checks and /validate-feature spec,evidence.
+
+### Relevant Files
+- `docs/guides/multiplayer-collaboration.md` — the guide
+- `skills/tests/multiplayer-collaboration/test_multiplayer_guide.py` — guard test
+- `skills/pyproject.toml` — testpaths registration
+- `openspec/changes/multiplayer-principles-guide/design.md` — carry-forward fixes
+
+### Context
+Implemented all tasks (1.1, 1.2, 2.1, 3.1, 4.1, 5.1): guard test, testpaths registration, docs/guides/multiplayer-collaboration.md, AGENTS.md and documentation.md links. Pushed 6 commits (13814e0..8a10537) to the feature branch. Verification: 1717 passed, 6 skipped; openspec validate --strict valid; no unchecked tasks.
+
