@@ -267,7 +267,8 @@ def is_portable_path(value: Any) -> bool:
     return ".." not in PurePosixPath(value.replace("\\", "/")).parts
 
 
-def _relative_to(path: Path, root: Optional[PathLike]) -> Optional[str]:
+def _relative_to(path: Path, root: Optional[PathLike], *, allow_root: bool = False) -> Optional[str]:
+    """``path`` relative to ``root``; ``root`` itself is ``.`` when ``allow_root``."""
     if root is None:
         return None
     try:
@@ -275,7 +276,9 @@ def _relative_to(path: Path, root: Optional[PathLike]) -> Optional[str]:
     except ValueError:
         return None
     text = relative.as_posix()
-    return text if text not in ("", ".") else None
+    if text in ("", "."):
+        return "." if allow_root else None
+    return text
 
 
 def portable_ref(
@@ -290,13 +293,17 @@ def portable_ref(
 
     With ``mode=None`` (a v1 document without a mode) the managed root is tried
     first, then the repo root. Lexical only: the path need not exist here.
+
+    A harness checkout that is the repo root itself (every cloud worker) is
+    ``.``: portable, and resolved back to the repo root on any host. The
+    managed root itself is never a managed worktree, so it stays ``None``.
     """
     path = Path(worktree)
     if mode == "managed_worktree":
         return _relative_to(path, managed_root)
     if mode == "harness_provided":
-        return _relative_to(path, repo_root)
-    return _relative_to(path, managed_root) or _relative_to(path, repo_root)
+        return _relative_to(path, repo_root, allow_root=True)
+    return _relative_to(path, managed_root) or _relative_to(path, repo_root, allow_root=True)
 
 
 def resolve_worktree(
@@ -307,7 +314,8 @@ def resolve_worktree(
 ) -> Optional[Path]:
     """The absolute worktree for a portable isolation on this host (in memory only).
 
-    Returns ``None`` when the reference is null or its root is unknown.
+    Returns ``None`` when the reference is null or its root is unknown. A
+    ``.`` reference resolves to the root itself (a repo-root harness checkout).
     """
     ref = isolation.get("worktree_ref")
     if not is_portable_path(ref):
@@ -315,7 +323,7 @@ def resolve_worktree(
     root = managed_root if isolation.get("mode") == "managed_worktree" else repo_root
     if root is None:
         return None
-    return Path(root) / str(ref)
+    return Path(root) / str(ref)  # pathlib drops a "." segment: "." is the root
 
 
 # --------------------------------------------------------------------------- #

@@ -156,6 +156,32 @@ def test_v1_request_upgrade_gains_empty_profile_and_portable_isolation() -> None
     }
 
 
+def test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot(tmp_path: Path) -> None:
+    """A cloud worker's harness checkout IS the repo root: its portable ref is
+    ``.`` (schema-valid) and resolves back to the repo root on any host."""
+    repo = tmp_path / "host-a" / "repo"
+    ref = dc.portable_ref(repo, mode="harness_provided", repo_root=repo, managed_root=repo / ".git-worktrees")
+    assert ref == "."
+    assert dc.is_portable_path(ref)
+    isolation = {"mode": "harness_provided", "worktree_ref": ref, "branch": "claude/x", "host_id": "host-a"}
+    other = tmp_path / "host-b" / "checkout"
+    assert dc.resolve_worktree(isolation, repo_root=repo, managed_root=None) == repo
+    assert dc.resolve_worktree(isolation, repo_root=other, managed_root=None) == other
+    # A managed worktree can never be the managed root itself.
+    assert dc.portable_ref(repo / ".git-worktrees", mode="managed_worktree", repo_root=repo,
+                           managed_root=repo / ".git-worktrees") is None
+
+
+def test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref() -> None:
+    """upgrade_v1 validates the upgraded request, so this is the schema check."""
+    document = _fixture("valid-request.json")
+    document["isolation"] = {"mode": "harness_provided", "worktree_path": "/workspace", "branch": "claude/x"}
+    upgraded = dc.upgrade_v1(
+        document, repo_root=Path("/workspace"), managed_root=Path("/workspace/.git-worktrees"), host_id="host-a",
+    )
+    assert upgraded["isolation"]["worktree_ref"] == "."
+
+
 # --------------------------------------------------------------------------- #
 # D4 mapping, one test per row
 # --------------------------------------------------------------------------- #

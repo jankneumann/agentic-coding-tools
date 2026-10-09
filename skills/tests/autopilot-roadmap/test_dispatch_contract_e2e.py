@@ -301,6 +301,46 @@ def test_apply_refuses_a_result_the_loop_state_does_not_map_to(
     assert _attempt(world)["status"] == "launched"
 
 
+def test_a_cloud_worker_at_the_repo_root_prepares_and_starts(world: dict[str, Any]) -> None:
+    """A cloud worker's harness checkout is the repository root itself: its
+    `harness_provided` isolation round-trips as `.` and child_start resolves
+    it to the repo root (no "cannot be resolved on this host")."""
+    repo, workspace = world["repo"], world["workspace"]
+    _git(repo, "init", "-q", "-b", "claude/cloud-worker")
+    _git(repo, "-c", "user.email=test@example.invalid", "-c", "user.name=test",
+         "commit", "-q", "--allow-empty", "-m", "harness checkout")
+    adapter = ExecutionAdapter(
+        managed_worktree_root=repo / ".git-worktrees",
+        repo_root=repo,
+        host_id=_HOST,
+        branch_resolver=lambda path: _git(path, "rev-parse", "--abbrev-ref", "HEAD"),
+        commit_resolver=lambda _path: "a" * 40,
+        liveness_probe=lambda _handle: "live",
+        host_entry=lambda _change, _request: "entered",
+        profile_probe=_probe,
+    )
+    prepared = adapter.prepare(
+        workspace,
+        repo_root=repo,
+        isolation_resolver=lambda _item: {
+            "mode": "harness_provided", "worktree_path": str(repo), "branch": "claude/cloud-worker",
+        },
+        roadmap_approval_ref=world["roadmap_ref"],
+    )
+    request = prepared["requests"][0]
+    assert request["isolation"]["worktree_ref"] == "."
+    assert dispatch_contract.validate_request(request) == request
+
+    claimed = adapter.child_start(
+        workspace, dispatch_id=request["dispatch_id"], launch_token=request["launch_token"],
+        lease_generation=request["lease_generation"], owner_nonce="owner-nonce-0000000001",
+    )
+
+    assert claimed["status"] == "claimed"
+    marker = dispatch_contract.read_launch_marker(_CHANGE, repo_root=repo)
+    assert marker is not None and marker["dispatch_id"] == request["dispatch_id"]
+
+
 def test_an_operator_approval_ends_a_human_rejected_escalation(world: dict[str, Any]) -> None:
     """After the operator approves a fingerprint they had rejected, a later park
     on the same fingerprint is a new subject, evaluated under the posture."""
