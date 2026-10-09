@@ -187,3 +187,16 @@ attempts resolve.
   re-implemented (task 1.1).
 - Out of scope for edits: `openspec/roadmaps/multiplayer-collaboration/roadmap.yaml`,
   its `checkpoint.json`, `openspec/supervise/*`, `.supervised-dispatch/`.
+
+## Landing approach for PR #662
+
+The raw launch tokens that the `multiplayer-collaboration` roadmap branch committed
+before this change are allowlisted by commit SHA in `.gitleaks.toml` (commit
+`bf85ea1`: `ddd2c4a`, `c6424d7`, `3c06430`). They are single-use, run-scoped nonces,
+not credentials, and from this change on a checkpoint stores only `launch_digest`.
+
+Land PR #662 on `main` with a **squash merge** (or from a fresh branch cut from the
+roadmap branch's tip), so those introducing commits never enter `main`'s history.
+After landing, the three SHA entries can be removed from `.gitleaks.toml` once no
+branch that still carries those commits is scanned. This change rewrites no
+history; the merge choice is the operator's.

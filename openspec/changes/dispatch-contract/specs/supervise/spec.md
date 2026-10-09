@@ -55,6 +55,11 @@ Before launching a batch, the supervisor SHALL resolve an `execution_profile` (v
 - **WHEN** `--check-vendors --json` exits 2 (below quorum) with valid JSON and no `error` field
 - **THEN** `prepare` SHALL succeed, and each request's `execution_profile.lanes.review` SHALL list only the verified lanes, so the child parks `capability_unavailable` at its first review phase
 
+#### Scenario: The per-environment quorum is resolved from data
+- **WHEN** the quorum policy data declares an active `cloud_container` entry with `min_quorum` 1 that applies below 2 verified review lanes, and `prepare` runs in a cloud container where one review lane verifies
+- **THEN** every request's `review_requirements.min_quorum` SHALL be 1 for each review phase and `review_requirements.quorum_policy` SHALL name the environment, the policy entry, and its sunset condition
+- **AND** on a host, or in a container where two or more review lanes verify, `min_quorum` SHALL stay 2
+
 #### Scenario: Degradations reach the checkpoint
 - **WHEN** a success result carries `degradations: [{code: single_vendor_review, phase: PLAN_REVIEW, detail: "codex not dispatchable"}]`
 - **THEN** after `apply` the checkpoint attempt's outcome metadata and the `apply` return value SHALL both contain that entry unchanged

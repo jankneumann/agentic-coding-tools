@@ -347,6 +347,26 @@ record-degradation --code review_skipped` when it disables review.
 it never writes loop state (`runner.py` stays the only writer of `park` and
 `degradations`, D11).
 
+Per-environment quorum as data. The operator's cloud review-quorum decision
+(TRUST_POSTURE.md "Review quorum in cloud containers (temporary)", 2026-10-09) is
+expressed as data, not as a prompt instruction:
+`skills/parallel-infrastructure/review_quorum_policy.json` holds a default
+`min_quorum` of 2 and an active policy entry for `environment: cloud_container`
+that applies only while fewer than 2 review lanes verify, setting `min_quorum: 1`,
+with its `source` and `sunset` (delete the entry once API-based multi-vendor
+review or the GX10 lane reaches cloud workers). `resolve_quorum_policy()` in
+`review_dispatcher.py` resolves it (environment from
+`environment_profile.detect()`), `--check-vendors --json` reports it as
+`quorum_policy`, and the supervisor copies `min_quorum` plus
+`review_requirements.quorum_policy {environment, policy_id, sunset}` into every
+request. A worker gets `min_quorum` 1 only through that data. A single-lane run is
+detected by lanes failing to dispatch (the dry invocation, or a round's
+`vendor_unavailable`/`auth_required`), never by reading environment variables or
+credentials, and the review records `single_vendor_review` with `phase` and
+`detail: "vendor=<lane>"`. GATEKEEPER `proceed_with_review` now schedules
+VAL_REVIEW on the host-driven `runner.py transition` path too (it was set only by
+`run_loop`).
+
 Degradation codes (closed enum): `single_vendor_review`, `review_skipped`,
 `coordinator_projection_forbidden`, `audit_sink_failed`, `phase_fallback_inline`,
 `handoff_local_fallback`. Each entry is `{code, phase, detail<=512}`, at most 32 per
@@ -403,6 +423,48 @@ See `work-packages.yaml`. The DAG is shaped by file ownership:
   cover v1.
 - **Scope.** L effort across four skills. Mitigated by eight packages with disjoint
   write scopes.
+
+## Known constraints
+
+- **Worktree launchpads are rooted at `main`.** `Agent(isolation="worktree")`
+  creates the sub-agent's checkout from the default branch, not from a stacked
+  feature base such as `openspec/dispatch-contract`. The IMPLEMENT phase prompt
+  already tells the sub-agent its launchpad is disposable and to adopt the feature
+  branch through `/implement-feature`; in a cloud harness, where worktree ops
+  short-circuit, the orchestrator must instead name the feature base explicitly
+  (`git switch -c <branch> origin/<feature-branch>`). A cheap in-scope fix did not
+  exist here — the prompt lives in `phase_agent.py` outside this change's packages —
+  so making the prompt carry the resolved feature base is an open follow-up.
+
+## Implementation notes
+
+Recorded during IMPLEMENT (sequential tier):
+
+- `dispatch_contract`'s schema locator falls back to the shipping repository's own
+  `openspec/` before the install_assets mirror, so the test helpers that copy only
+  `checkpoint.schema.json` into a temporary repo resolve its `$ref`s without copying
+  them (task 5.2a needed no helper change).
+- The v2 request keeps `gate_answer` optional next to `continuation`, so an upgraded
+  v1 continuation stays valid; writers always emit both.
+- `redact_command` redacts HTTP auth-scheme and auth-header values before
+  `sanitize_session_log.sanitize()`: the sanitizer alone leaves
+  `Authorization: Bearer <short token>` intact.
+- SDK/API review lanes have no authenticated no-op in their adapters yet; they are
+  reported unverified (`probe_unsupported`) rather than counted on importability.
+- `apply` accepts evidence whose commit is an ancestor of the worktree HEAD, because
+  the worker commits the emitted result file after `emit-result`; the loop-state
+  digest still pins the file.
+- Cross-host reinitialize keeps a parked attempt's generation (only its isolation and
+  digest move), so the attempt's bound `escalate_resume` approval stays valid
+  (advisory finding 13); prepared and pre-go claimed attempts get generation + 1.
+- `reissue` launches a reinitialized attempt; `prepare` itself still skips an item
+  with an unresolved attempt.
+- The launch marker also carries the attempt's portable `isolation`, which
+  `emit-result` reads for `worktree_ref` and `host_id`.
+- The landable-fixture keyword test exempts the pre-existing gate-decision field
+  `authorizing_disposition` (contains `auth`; its values are a closed enum below the
+  rule's entropy threshold); every dispatch-attempt field is keyword-free, and a
+  port of the default `generic-api-key` rule finds nothing in the fixture.
 
 ## Open questions
 

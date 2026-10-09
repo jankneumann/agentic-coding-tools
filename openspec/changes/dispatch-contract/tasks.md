@@ -208,6 +208,13 @@
   `openspec validate dispatch-contract --strict`, existing fixtures unchanged. —
   outcome 1
 
+- [x] 9.7 Supervisor follow-ups (c), (e) and plan sync: design.md records the
+  per-environment quorum policy as data (D10), the `main`-rooted worktree launchpad as
+  a known constraint with an open follow-up, and the implementation notes; the
+  supervise and skill-workflow spec deltas gain the quorum-policy, single-lane and
+  GATEKEEPER scenarios; proposal.md gains "Landing approach for PR #662" (squash merge
+  so the SHA-allowlisted token commits never enter `main`; no history rewritten).
+
 ## Traceability
 
 | Requirement | Tasks |

@@ -78,6 +78,15 @@ When the launch marker of a dispatched child carries `review_requirements`, a re
 - **WHEN** `review_requirements.min_quorum.PLAN_REVIEW` is 2 and only `claude_code` is verified
 - **THEN** the loop SHALL have `park.kind == capability_unavailable` with `missing_lanes` naming the counting lanes not verified, no review dispatch SHALL have run, and `emit-result` SHALL return `parked/capability_unavailable`
 
+#### Scenario: A single-lane review under a quorum-1 policy is recorded
+- **WHEN** a dispatched child's `review_requirements.min_quorum.PLAN_REVIEW` is 1 by policy data and exactly one review lane dispatches, the others having failed to dispatch
+- **THEN** the review SHALL run and `degradations` SHALL contain a `single_vendor_review` entry for `PLAN_REVIEW` whose detail names the vendor
+- **AND** the child SHALL NOT have read environment variables or credentials to decide that only one lane exists
+
+#### Scenario: GATEKEEPER review scheduling on the host-driven path
+- **WHEN** `runner.py transition --outcome proceed_with_review` is applied in `GATEKEEPER`
+- **THEN** `val_review_enabled` SHALL be True and `gate_verdict` SHALL be `proceed_with_review`
+
 #### Scenario: Standalone run below quorum records a degradation
 - **WHEN** no launch marker exists and `--check-vendors` reports one vendor
 - **THEN** `cli_review_enabled` SHALL be False and `degradations` SHALL contain one `review_skipped` entry for `PLAN_REVIEW`
