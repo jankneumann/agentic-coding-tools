@@ -64,3 +64,9 @@ Converged in round 2. The critique checked whether `validation-report.md` proves
 | 27 | spec_gap | medium | Outcome 7: hosts A and B shared one repo root, so a leaked absolute path could not be detected | `test_a_checkpoint_checked_out_at_another_root_rebinds_without_host_a_paths` | df3b98e |
 | 28 | spec_gap | medium | Outcome 5 "end to end" was proven only piecewise | `test_profile_and_degradations_travel_the_whole_chain` | 843ad77 |
 | 29 | spec_gap | low | Report citations omitted the fingerprint, dispatched-child, apply-time refusal and wrong-token tests | Citations and counts corrected | a179b24 |
+
+## PR #667 review
+
+- P1 provenance: `answer_escalation` resumed fingerprint members that parked after the subject was recorded; an approval now resumes only the durable subject's `dispatch_ids`, and a member joining a human rejection extends the subject durably and re-projects it before it can be answered (765f9d8).
+- P1 cloud workers: `harness_provided` isolation at the repo root became `worktree_ref: null`, so `child_start` could not resolve it; the repo root now round-trips as `.` (b35e544).
+- P2 single-flight: capability/permission park resolution and `answer_escalation` now run under the subject lock keyed by workspace + dedupe fingerprint; a resolver whose attempt a concurrent winner resumed reports that proceed (this also closes the IMPL_REVIEW `records[0]` advisory) (43a9b11).
