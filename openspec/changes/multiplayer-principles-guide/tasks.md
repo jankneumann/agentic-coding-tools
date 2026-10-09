@@ -34,7 +34,7 @@ Sequential chains: 1 (`1.1 -> {1.2, 2.1, 3.1, 4.1} -> 5.1`).
     `.venv/bin/python -m pytest tests/openspec_paths` passes.
   - Requirements: the six guide requirements in `specs/multiplayer-collaboration/spec.md`
 
-- [ ] 1.2 Register `tests/multiplayer-collaboration` in `testpaths` in
+- [x] 1.2 Register `tests/multiplayer-collaboration` in `testpaths` in
   `skills/pyproject.toml`, next to `tests/state-artifacts`, with a one-line comment
   naming this change. Naming the directory on the pytest command line bypasses
   `testpaths`, so 1.1's verify step alone cannot catch a missing entry.
@@ -46,7 +46,7 @@ Sequential chains: 1 (`1.1 -> {1.2, 2.1, 3.1, 4.1} -> 5.1`).
 
 ## 2. Write the guide
 
-- [ ] 2.1 Create `docs/guides/multiplayer-collaboration.md` with, in order: introduction
+- [x] 2.1 Create `docs/guides/multiplayer-collaboration.md` with, in order: introduction
   (purpose; the roadmap named by id `multiplayer-collaboration` in prose, **not linked**,
   because `/archive-roadmap` moves it to `openspec/roadmaps/archive/<date>-<id>/`;
   `multiplayer-simulation-harness` cited as serving all principles); `## Modes` (D2 definitions, exact guarantee sentence,
@@ -68,7 +68,7 @@ Sequential chains: 1 (`1.1 -> {1.2, 2.1, 3.1, 4.1} -> 5.1`).
 
 ## 3. Link from AGENTS.md
 
-- [ ] 3.1 Add a `## Multiplayer Collaboration` section to `AGENTS.md`, after
+- [x] 3.1 Add a `## Multiplayer Collaboration` section to `AGENTS.md`, after
   *Worktree Management* and before *Documentation*, in the existing house style: at
   most four lines, one sentence of purpose (principles P1-P10 and the solo/team mode
   vocabulary) and a `See [multiplayer collaboration guide](docs/guides/multiplayer-collaboration.md)`
@@ -80,7 +80,7 @@ Sequential chains: 1 (`1.1 -> {1.2, 2.1, 3.1, 4.1} -> 5.1`).
 
 ## 4. Link from the documentation index
 
-- [ ] 4.1 Add `- [Multiplayer Collaboration](multiplayer-collaboration.md) — Principles
+- [x] 4.1 Add `- [Multiplayer Collaboration](multiplayer-collaboration.md) — Principles
   P1-P10, solo vs team mode, and the single-principal assumptions later capabilities
   cite.` under *Foundational* in `docs/guides/documentation.md`.
   - Files: `docs/guides/documentation.md`
@@ -90,7 +90,7 @@ Sequential chains: 1 (`1.1 -> {1.2, 2.1, 3.1, 4.1} -> 5.1`).
 
 ## 5. Verify
 
-- [ ] 5.1 Run `cd skills && .venv/bin/python -m pytest tests/multiplayer-collaboration tests/openspec_paths tests/state-artifacts tests/docs tests/ci_coverage`
+- [x] 5.1 Run `cd skills && .venv/bin/python -m pytest tests/multiplayer-collaboration tests/openspec_paths tests/state-artifacts tests/docs tests/ci_coverage`
   (all pass) and `openspec validate multiplayer-principles-guide --strict` (valid).
   - Files: none
   - Depends on: 1.2, 2.1, 3.1, 4.1
