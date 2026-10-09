@@ -83,6 +83,7 @@
       "worktree"
     ],
     "improve-harness": [
+      "session-log",
       "shared"
     ],
     "iterate-on-implementation": [
@@ -467,6 +468,18 @@
     {
       "path": "validate-flows/scripts/validate_flows.py",
       "mode": "import"
+    },
+    {
+      "path": "shared/payload_hash.py",
+      "args": [
+        "--help"
+      ]
+    },
+    {
+      "path": "improve-harness/scripts/export_shared_learnings.py",
+      "args": [
+        "--help"
+      ]
     }
   ],
   "declared_external_prerequisites": [
