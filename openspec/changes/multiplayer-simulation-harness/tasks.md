@@ -132,7 +132,7 @@
 
 ## 4. Probe seam and collision scenarios
 
-- [ ] 4.1 Write failing tests in `test_probes.py`, against a registry that starts empty:
+- [x] 4.1 Write failing tests in `test_probes.py`, against a registry that starts empty:
   - a stub probe reporting a requirement-level collision sets `collision_detected: true`
     (S.1);
   - a probe that raises is recorded as `status: error` with a non-empty `error`, and the run
