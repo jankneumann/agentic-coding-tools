@@ -104,7 +104,7 @@
 - [x] 2.4 Implement `mpsim/agents.py` (the `Agent` protocol and `ScriptedAgent`) and
   `mpsim/clock.py`. [S]
   **Dependencies**: 2.3
-- [ ] 2.5 Write failing tests in `test_report.py`:
+- [x] 2.5 Write failing tests in `test_report.py`:
   - the report builder emits sorted-key JSON with every schema property present, using `null`
     for anything that does not apply;
   - it validates against the promoted `sim-report.schema.json`;
