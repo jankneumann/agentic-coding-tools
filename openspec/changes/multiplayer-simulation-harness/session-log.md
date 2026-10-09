@@ -153,3 +153,41 @@ converge() ran 1 round of plan review. Only one vendor was available (claude_cod
 ### Context
 Applied operator decision A1 (gate-decision:14d02b8a-cff3-4010-a9fe-29c849777950) and ledger items 1-4, 7, 8. roadmap.yaml is authoritative only on the shared remote's main (integration ref); a simulated status applier (sim-supervisor) writes all status transitions there; principals never edit roadmap.yaml. Added spec scenarios S.5, B.5, B.6, O.4; schema now admits exit-1 error reports. Items 5, 6, 9 left open (low).
 
+---
+
+## Phase: Plan Review (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Record PLAN_FIX fe0b333 in the review ledger before re-running converge()** `architectural: skill-procedure-deviation` — The earlier PLAN_FIX edited the plan but left ledger items 1-4, 7 and 8 open. Item 1 was a high-impact, unconfirmed judgment finding that the operator had already adjudicated as A1. Left open, it would make round 1 exit adjudication_required again without reviewing anything. The items were marked addressed through review_ledger.mark_addressed; merge_findings reopens any of them that a reviewer raises again. Item 9 targets loop-state.json, which the orchestrator owns, so it was parked as out_of_scope.
+2. **Driver shims: base_ref=4a9e81b^ and engine-owned paths excluded from the fix-scope check** `architectural: skill-procedure-deviation` — Neither shim edits code. The local main ref points at origin/main, which predates the whole roadmap branch, so the default main...HEAD diff would include unrelated roadmap changes. converge() saves the tracked ledger.json before it takes the pre-fix snapshot, so reject_out_of_scope_fix would treat a legitimate fix as out of scope. The shim drops .review-ledger/ and .review-cache/ before the check runs.
+3. **Degradation: single_vendor_review (PLAN_REVIEW, vendor claude_code), min_quorum=1** `architectural: skill-procedure-deviation` — Only claude-local and claude-remote can dispatch: codex, antigravity, grok, pi and ocr have no CLI, and there are no OpenAI keys. TRUST_POSTURE.md accepts this as 'Review quorum in cloud containers (temporary)'.
+
+### Capability Gaps Observed
+- **convergence_failed**: converge() saves the tracked .review-ledger/ledger.json before it snapshots pre_rev, and _changed_paths reports it as changed. The first real fix_callback invocation would therefore raise ScopeViolation. _changed_paths should exclude the engine's own bookkeeping paths. (skill: autopilot, severity: high)
+- **convergence_failed**: An out-of-loop PLAN_FIX after ESCALATE does not mark the ledger items it fixed as addressed. Round 1 of the next converge() does not compact, so an adjudicated high item re-triggers adjudication_required. (skill: autopilot, severity: medium)
+- **convergence_failed**: converge() has no base_ref parameter, and review_packet's default 'main' gives the wrong diff on long-lived roadmap branches. (skill: parallel-infrastructure, severity: medium)
+
+### Open Questions
+- [ ] Ledger 10 (medium): design D4 runs probes 'at each principal's plan step' (design.md:118), but the Same-Requirement requirement says 'at the second principal's plan step' (spec.md:48). Pick one.
+- [ ] Ledger 11 (medium): D5 does not say whether a principal with no dependency is admitted through Roadmap.ready_items() or by harness logic. 'Ready at earliest_start_tick' reads as harness-local readiness, which the Memory-Store requirement forbids.
+
+### Completed Work
+- converge(review_type=plan, max_rounds=3, min_quorum=1, fix_mode=inline) converged in round 1 with trend [0]
+- 8 new findings merged; ledger items 10-16 added (2 medium, 5 low); items 5 and 6 seen again (low, open)
+- PLAN_FIX sub-step: fix_callback wired up, 0 invocations (no blocking items)
+- Checkpoint .review-cache/round-1/. The 2026-10-05 round-1 checkpoint was archived to .review-cache/run-2026-10-05/
+
+### Next Steps
+- Proceed to IMPLEMENT. Fold the advisory ledger items 10-16 and 5-6 into IMPL or a later plan touch-up, starting with mediums 10 and 11
+- Fix the _changed_paths/ledger scope-check gap before any convergence run that actually invokes fix_callback
+
+### Relevant Files
+- `openspec/changes/multiplayer-simulation-harness/.review-ledger/ledger.json` — Ledger: 0 blocking; open advisory items 5, 6, 10-16
+- `openspec/changes/multiplayer-simulation-harness/.review-cache/round-1/findings-claude_code-plan.json` — Round-1 raw findings
+- `openspec/changes/multiplayer-simulation-harness/design.md` — Target of medium items 10 and 11
+
+### Context
+Re-ran PLAN_REVIEW as converge(review_type=plan) after the operator's A1 decision and PLAN_FIX fe0b333. Round 1 reviewed the full change diff (packet of 134k chars, diff_kind=full, nothing truncated) and returned 8 findings: 2 medium and 6 low, all single-vendor judgment. The reviewer did not re-raise ledger items 1-4, 7 or 8. No ledger item is blocking under D3, and none needs adjudication, so the loop converged in round 1. fix_callback (PLAN_FIX) was wired up but not invoked, because there were 0 blocking items. Outcome: converged.
+

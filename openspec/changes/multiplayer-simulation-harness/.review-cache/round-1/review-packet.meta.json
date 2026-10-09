@@ -1,0 +1,179 @@
+{
+  "schema_version": 2,
+  "change_id": "multiplayer-simulation-harness",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "ce012d493e8e1f3b0314768757d9a287f9473050e1eeb1b289190cf1a40dc658",
+  "char_length": 133928,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-ledger/ledger.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2759
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/contracts/cli/mpsim.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1214
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/contracts/schemas/sim-report.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1624
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/design.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 6050
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/loop-state.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1093
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/plan-findings.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1991
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/proposal.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2358
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/session-log.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3733
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4126
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4595
+      }
+    ],
+    "excluded": [
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-cache/run-2026-10-05/round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 301
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-cache/run-2026-10-05/round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3385
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-cache/run-2026-10-05/round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 208
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-cache/run-2026-10-05/round-1/raw-claude_code-plan.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 180
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-cache/run-2026-10-05/round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2857
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-cache/run-2026-10-05/round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 307
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-cache/run-2026-10-05/round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 27230
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/.review-cache/run-2026-10-05/round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1031
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-collaboration/spec.md",
+        "status": "deleted",
+        "reason": "deleted",
+        "gate": "deleted",
+        "est_tokens": 671
+      }
+    ],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/multiplayer-simulation-harness/.review-ledger/ledger.json",
+        "openspec/changes/multiplayer-simulation-harness/contracts/cli/mpsim.yaml",
+        "openspec/changes/multiplayer-simulation-harness/contracts/schemas/sim-report.schema.json",
+        "openspec/changes/multiplayer-simulation-harness/design.md",
+        "openspec/changes/multiplayer-simulation-harness/loop-state.json",
+        "openspec/changes/multiplayer-simulation-harness/plan-findings.md",
+        "openspec/changes/multiplayer-simulation-harness/proposal.md",
+        "openspec/changes/multiplayer-simulation-harness/session-log.md",
+        "openspec/changes/multiplayer-simulation-harness/tasks.md"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md"
+      ]
+    }
+  ]
+}
