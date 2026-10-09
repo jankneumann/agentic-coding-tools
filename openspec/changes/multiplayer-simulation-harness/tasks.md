@@ -101,7 +101,7 @@
   **Spec scenarios**: P.1
   **Design decisions**: D5, D7
   **Dependencies**: 2.2
-- [ ] 2.4 Implement `mpsim/agents.py` (the `Agent` protocol and `ScriptedAgent`) and
+- [x] 2.4 Implement `mpsim/agents.py` (the `Agent` protocol and `ScriptedAgent`) and
   `mpsim/clock.py`. [S]
   **Dependencies**: 2.3
 - [ ] 2.5 Write failing tests in `test_report.py`:
