@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T13:42:09.023612+00:00",
+  "updated_at": "2026-10-09T13:43:45.531109+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -879,7 +879,7 @@
       "change_id": "ownership-map",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_token": "KQrZDLksm--dBjDWB7rzaGhHy-fSa7TB",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
@@ -1052,14 +1052,10 @@
         "branch": "openspec/ownership-map"
       },
       "context": {},
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:1604a5da-ad48-4166-a84e-721b323ffc61"
-      },
       "lease": {
         "generation": 5,
         "owner_nonce": "1eb722cb95a19be225d0012430c6ae2d",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-09T13:42:09.010435+00:00",
         "heartbeat_at": "2026-10-09T13:42:09.010435+00:00",
         "expires_at": "2026-10-09T13:57:09.010435+00:00"
@@ -1076,6 +1072,46 @@
         "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g5",
         "go_released_at": "2026-10-09T13:42:09.017136+00:00",
         "entered_at": "2026-10-09T13:42:09.023558+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/ownership-map",
+          "change_id": "ownership-map",
+          "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+          "evidence": {
+            "commit": "c2cf585e8f6fb7fb63563931a50cf19a5ee773f5",
+            "loop_state_digest": "237206058e6b1a16624b015ace4c3c45e78ffed93c95e0c99cae4d500a3546fd",
+            "loop_state_path": "openspec/changes/ownership-map/loop-state.json"
+          },
+          "handoff_id": "val-review-ownership-map-b71f042",
+          "lease_generation": 5,
+          "outcome": "parked",
+          "parked": {
+            "gate": "escalate_resume",
+            "kind": "pending_gate",
+            "reason": "Resume to SUBMIT_PR refused: classifier denied the worker's relayed gate-answer (Auto-Mode Bypass). Loop unchanged (ESCALATE after SUBMIT_PR). Needs the operator's in-session answer.",
+            "resume_hint": "Posture-derived block: the current operator posture (roadmap branch, 7fea1cd) has pr_creation: auto. Answer escalate_resume; loop returns to SUBMIT_PR and opens the PR against openspec/roadmap-multiplayer-collaboration."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/ownership-map"
+        },
+        "result_digest": "0a4ce2e0d7ba577518ec2051a5acaac9f10e8fafa7b0af81eaaaa89698d56a99",
+        "bound_at": "2026-10-09T13:43:45.495468+00:00",
+        "callback_started_at": "2026-10-09T13:43:45.499261+00:00",
+        "callback_acknowledged_at": "2026-10-09T13:43:45.502810+00:00",
+        "terminal_persisted_at": "2026-10-09T13:43:45.505687+00:00",
+        "effects_applied_at": "2026-10-09T13:43:45.530975+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-09T13:43:45.505662+00:00",
+      "parked": {
+        "gate": "escalate_resume",
+        "kind": "pending_gate",
+        "reason": "Resume to SUBMIT_PR refused: classifier denied the worker's relayed gate-answer (Auto-Mode Bypass). Loop unchanged (ESCALATE after SUBMIT_PR). Needs the operator's in-session answer.",
+        "resume_hint": "Posture-derived block: the current operator posture (roadmap branch, 7fea1cd) has pr_creation: auto. Answer escalate_resume; loop returns to SUBMIT_PR and opens the PR against openspec/roadmap-multiplayer-collaboration."
       }
     },
     {
