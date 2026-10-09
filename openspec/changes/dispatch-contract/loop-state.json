@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "dispatch-contract",
-  "current_phase": "VALIDATE",
+  "current_phase": "VAL_REVIEW",
   "iteration": 0,
-  "total_iterations": 10,
+  "total_iterations": 11,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -19,7 +19,8 @@
     "eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5",
     "8b3b7d01-452a-498f-9e34-46fdd6ca5e94",
     "8d309935-3b68-44db-be5c-d6b327ec8c61",
-    "13e77665-feba-4ef3-b28a-a9b61d278135"
+    "13e77665-feba-4ef3-b28a-a9b61d278135",
+    "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9"
   ],
   "phase_history": [
     {
@@ -62,17 +63,22 @@
       "at": "2026-10-09T13:47:51.835672+00:00",
       "outcome": "converged",
       "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-10-09T13:55:05.532741+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "13e77665-feba-4ef3-b28a-a9b61d278135",
+  "last_handoff_id": "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9",
   "started_at": "2026-10-06T09:08:58.470413+00:00",
-  "phase_started_at": "2026-10-09T13:47:55.365363+00:00",
+  "phase_started_at": "2026-10-09T13:55:08.852195+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable (codex listed by --check-vendors but no codex CLI/credential). Quorum not lowered; awaiting operator decision on cloud review lane (GX10/policy/credential). handoff 9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "reviewer",
+  "phase_archetype": "validator",
   "force": false,
   "gate_signals": {},
   "gate_verdict": "proceed_with_review",
