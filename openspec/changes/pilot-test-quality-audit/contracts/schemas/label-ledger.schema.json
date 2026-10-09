@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "test-oracle-audit/label-ledger.schema.json",
+  "title": "LabelLedger",
+  "description": "Human oracle-source labels (design D2, D9). Sidecar file; never written into test files. Reusable by ri-08 via a different entry_type.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "vocabulary", "entries"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "entry_type": { "type": "string", "default": "pytest_test" },
+    "vocabulary": {
+      "type": "array",
+      "const": ["spec", "property", "reference_impl", "external_contract", "characterization", "current_impl_output", "none"]
+    },
+    "sample": {
+      "type": "object",
+      "required": ["seed", "n", "strata"],
+      "properties": {
+        "seed": { "type": "integer" },
+        "n": { "type": "integer", "minimum": 1 },
+        "strata": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id", "content_hash", "label", "labeller", "labelled_at"],
+        "properties": {
+          "node_id": { "type": "string", "minLength": 1 },
+          "content_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "label": { "enum": ["spec", "property", "reference_impl", "external_contract", "characterization", "current_impl_output", "none"] },
+          "labeller": { "type": "string", "minLength": 1 },
+          "labelled_at": { "type": "string", "format": "date-time" },
+          "note": { "type": "string", "maxLength": 500 }
+        }
+      }
+    }
+  }
+}
