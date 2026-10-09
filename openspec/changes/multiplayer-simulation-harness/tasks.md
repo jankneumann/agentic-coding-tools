@@ -176,7 +176,7 @@
 
 ## 5. Memory-store scenario (parallel-safe with section 4)
 
-- [ ] 5.1 Author fixtures under `fixtures/memory-store-blocked-dependency/` and
+- [x] 5.1 Author fixtures under `fixtures/memory-store-blocked-dependency/` and
   `fixtures/independent-principals-control/`. Each needs:
   - a `roadmap.yaml` that validates against the real roadmap schema. In the first fixture,
     `ri-retrieval` declares `depends_on: [ri-storage]`; in the control the two items are
