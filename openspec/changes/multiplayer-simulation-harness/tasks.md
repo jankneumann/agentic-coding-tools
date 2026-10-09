@@ -43,7 +43,7 @@
   `openspec/contracts/multiplayer-simulation/{cli,schemas}/`, and add a row to the contents
   table in `openspec/contracts/README.md`. When this is done, 1.1 passes. [XS]
   **Dependencies**: 1.1
-- [ ] 1.3 Add `gen-eval` to the `test` extra in `skills/pyproject.toml`, add
+- [x] 1.3 Add `gen-eval` to the `test` extra in `skills/pyproject.toml`, add
   `gen-eval = { path = "../packages/gen-eval" }` under `[tool.uv.sources]`, and run `uv lock`
   in `skills/`. A scratch resolution during planning succeeded, resolving 56 packages. Verify
   that `uv run --project skills gen-eval --print-contract-version` exits 0. If resolution
