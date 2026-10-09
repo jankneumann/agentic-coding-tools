@@ -1067,9 +1067,14 @@ class ExecutionAdapter:
             _history(attempt, state="rebound", observed_at=now_text)
             attempt["launch_history"][-1]["host_id"] = self.host_id
             return {"state": "rebound"}
+        # A claimed attempt is a takeover: allowed only once its pre-go lease
+        # expired, the rule child_start and reissue already apply (D6).
+        lease_expires = (attempt.get("lease") or {}).get("expires_at")
         pre_go = attempt["status"] in {"prepared", "parked"} or (
             attempt["status"] == "claimed"
             and (attempt.get("launch_gate") or {}).get("state") == "waiting_ack"
+            and isinstance(lease_expires, str)
+            and self.clock() > datetime.fromisoformat(lease_expires)
         )
         if not pre_go:
             return None

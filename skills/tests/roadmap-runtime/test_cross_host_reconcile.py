@@ -223,6 +223,49 @@ def test_another_host_reinitializes_a_prepared_attempt_without_a_worktree(host_a
     assert claimed["status"] == "claimed"
 
 
+def test_an_unexpired_pre_go_claim_on_another_host_is_not_taken_over(host_a: dict[str, Any]) -> None:
+    """D6/D7: reinitializing a claimed attempt is a takeover, allowed only once
+    its pre-go lease expired (the same rule child_start and reissue apply)."""
+    request = host_a["request"]
+    host_a["adapter"].child_start(host_a["workspace"], dispatch_id=request["dispatch_id"],
+                                  launch_token=request["launch_token"], lease_generation=1,
+                                  owner_nonce="owner-nonce-0000000001", lease_seconds=60)
+    before = _attempt(host_a)
+    managed_b = host_a["tmp"] / "host-b-worktrees"
+    managed_b.mkdir()
+    adapter_b = _adapter(managed_b, host_a["repo"], "host-b")  # creating a worktree fails the test
+
+    adapter_b.reconcile(host_a["workspace"], dispatch_id=request["dispatch_id"])
+
+    assert _attempt(host_a) == before
+
+
+def test_an_expired_pre_go_claim_on_another_host_is_reinitialized(host_a: dict[str, Any]) -> None:
+    from datetime import timedelta
+
+    request = host_a["request"]
+    host_a["adapter"].child_start(host_a["workspace"], dispatch_id=request["dispatch_id"],
+                                  launch_token=request["launch_token"], lease_generation=1,
+                                  owner_nonce="owner-nonce-0000000001", lease_seconds=60)
+    managed_b = host_a["tmp"] / "host-b-worktrees"
+    managed_b.mkdir()
+
+    def create(_repo: Path, managed: Path, change_id: str, _branch: str) -> Path:
+        (managed / change_id / ".git").mkdir(parents=True)
+        return managed / change_id
+
+    clock = _Clock()
+    clock.now += timedelta(seconds=61)
+    adapter_b = _adapter(managed_b, host_a["repo"], "host-b", worktree_creator=create, clock=clock)
+
+    adapter_b.reconcile(host_a["workspace"], dispatch_id=request["dispatch_id"])
+
+    after = _attempt(host_a)
+    assert after["status"] == "prepared"
+    assert after["lease_generation"] == 2
+    assert after["isolation"]["host_id"] == "host-b"
+
+
 def test_a_post_go_attempt_of_unknown_liveness_is_quarantined_not_rebound(host_a: dict[str, Any]) -> None:
     _launch(host_a)
     managed_b = host_a["tmp"] / "host-b-worktrees"
