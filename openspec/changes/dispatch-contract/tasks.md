@@ -186,7 +186,7 @@
 - [x] 9.1 Closure contract test `skills/tests/supervise/test_dispatch_closure.py`,
   schema-derived enumeration plus the mutated-schema negative case. — SV Dispatch
   Result Closure (outcome 3)
-- [ ] 9.2 End-to-end test `skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py`:
+- [x] 9.2 End-to-end test `skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py`:
   prepare -> child_start -> loop-state shapes -> `emit-result` -> `apply` for every
   shape; includes posture flip vs human rejection and the two single-escalation
   cases. — outcomes 2, 4, 5
@@ -197,7 +197,7 @@
   no `.gitleaks.toml` change. Run `gitleaks detect --no-git --source
   skills/tests/roadmap-runtime/fixtures` locally when the binary is present. —
   outcome 6
-- [ ] 9.5 Scoped-auto e2e: dispatched child with marker ref proceeds; standalone run
+- [x] 9.5 Scoped-auto e2e: dispatched child with marker ref proceeds; standalone run
   blocks with `scope: unscoped`. — outcome 8
 - [ ] 9.6 Full suites: `skills/.venv/bin/python -m pytest skills/tests/{supervise,autopilot,autopilot-roadmap,roadmap-runtime,shared,parallel-infrastructure}`,
   `openspec validate dispatch-contract --strict`, existing fixtures unchanged. —
