@@ -593,7 +593,7 @@ def dedupe_fingerprint(parked: Mapping[str, Any]) -> Optional[str]:
 #: these run first so a blocked command never persists such a value.
 _AUTH_SCHEME = re.compile(r"(?i)\b(bearer|basic|token|digest)(\s+)[^\s\"'`]+")
 _AUTH_HEADER = re.compile(
-    r"(?i)\b(authorization|proxy-authorization|x-api-key|api-key|cookie)(\s*:\s*)(?!\[REDACTED:)[^\"'`\r\n]+"
+    r"(?i)\b(authorization|proxy-authorization|x-api-key|api-key|cookie)(\s*:\s*)(?!\s*\[REDACTED:)[^\"'`\r\n]+"
 )
 #: ``scheme://user:password@host`` — the password half of URL userinfo.
 _URL_USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://[^/\s:@\"'`]+:)(?!\[REDACTED:)[^/\s@\"'`]+@")
