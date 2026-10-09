@@ -158,6 +158,15 @@
   robustly (`main`, else `origin/main`), so a checkout with only the remote-tracking
   base no longer produces an empty review packet; test in `test_review_packet.py`
   (one-file scope extension to `review_packet.py`). — SW Honest Review Quorum
+- [x] 7.6 Supervisor follow-up (d), IMPL_ITERATE: `converge(..., base_ref=None)`
+  passes `base_ref` through to `build_review_packet`, so a stacked branch diffs
+  against its PR base; `None` keeps `DEFAULT_BASE_REF`. Tests in
+  `skills/tests/autopilot/test_convergence_loop.py`. — SW Honest Review Quorum
+- [x] 7.7 Supervisor follow-up (d), IMPL_ITERATE: the post-fix scope check in
+  `converge()` excludes converge's own `artifacts_dir` bookkeeping
+  (`.review-ledger/`, `.review-cache/`), so a fix that edits only an allowed path is
+  not rejected by `reject_out_of_scope_fix`. Regression test in
+  `skills/tests/autopilot/test_convergence_loop.py`. — SW Honest Review Quorum
 
 ## 8. Supervisor  `[wp-supervisor]` (deps: 1.1, 3.3, 5.3)
 

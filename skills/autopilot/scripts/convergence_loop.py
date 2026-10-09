@@ -689,6 +689,7 @@ def converge(
     fact_check: bool = True,
     verified_lanes: list[str] | None = None,
     counting_lanes: list[str] | None = None,
+    base_ref: str | None = None,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
 
@@ -730,6 +731,9 @@ def converge(
             CLI adapter being resolvable, the normal case for a mocked or
             minimal orchestrator) skips the pass for that vendor and keeps
             every finding. Set False to disable entirely.
+        base_ref: Ref the review packet diffs against. ``None`` (default)
+            keeps the packet builder's ``DEFAULT_BASE_REF``; a stacked branch
+            passes its PR base (e.g. ``origin/openspec/<parent>``).
 
     Returns:
         ConvergenceResult with convergence status and details.
@@ -789,6 +793,7 @@ def converge(
             output_dir=checkpoint_dir,
             last_fix_diff=last_fix_diff if round_num > 1 else None,
             ledger=ledger,
+            **({"base_ref": base_ref} if base_ref is not None else {}),
         )
         prompt = packet_path.read_text(encoding="utf-8")
         dispatch_kwargs: dict[str, Any] = {
