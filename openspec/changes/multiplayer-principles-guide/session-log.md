@@ -60,3 +60,13 @@ GATEKEEPER fell back to the permissive signal-only verdict: this worker session 
 ### Context
 Replaced the plan-roadmap scaffold with a full plan by restoring the lost prior attempt's edits (f4e388e) and re-reviewing them against the tree; fixed one high finding (guard-test directory not registered in skills/pyproject.toml testpaths, which the CI-coverage guard requires) and six medium testability/consistency findings. A second review pass found nothing at or above medium; the cross-vendor review could not run (codex had no API key).
 
+
+---
+
+## Phase: Orchestrator Decision — Review Quorum (2026-10-09)
+
+**Agent**: claude_code (autopilot orchestrator) | **Session**: https://claude.ai/code/session_01J39bSygVy2r68wyPyHN5VA
+
+### Decisions
+1. **Single-vendor review accepted for PLAN_REVIEW, IMPL_REVIEW and VAL_REVIEW in this change** `architectural: single_vendor_review` — The user (session owner) answered the PLAN_REVIEW quorum_lost escalation on 2026-10-09: "Resume with single reviewer acceptable". This matches the committed cloud policy in TRUST_POSTURE.md "Review quorum in cloud containers (temporary)" (479dcd9, gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff). The codex lane failed to dispatch (auth_required), so review phases run `converge()` with `min_quorum=1` and vendor `claude_code`. Every review phase records the degradation `single_vendor_review` (phase, vendor). The PR body states that review was single-vendor, and the human merge gate stays `block`.
+2. **Review diff base** — `review_packet.py` diffs `main...HEAD`. A local `main` ref tracking `origin/main` now exists in the container, so review packets carry the plan files instead of `(empty-diff)`. The code fix (falling back to `origin/main`) is a toolkit follow-up and out of scope here.
