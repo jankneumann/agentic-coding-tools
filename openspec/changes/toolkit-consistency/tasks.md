@@ -23,7 +23,7 @@ on. Tasks with no shared files and no `Depends on` can run in parallel worktrees
   Files: `skills/shared/payload_hash.py`, `skills/tests/install_sh/test_payload_hash.py`.
   Depends on: none.
 
-- [ ] **T2. Stamp writing in `install.sh`** — After all mirror, shared-library, manifest and
+- [x] **T2. Stamp writing in `install.sh`** — After all mirror, shared-library, manifest and
   asset steps succeed and only when `is_self_install()` is false, write
   `<target-root>/.agentic-toolkit/stamp.json` (schema_version, toolkit_version from `VERSION`,
   source_commit, payload_hash via T1, installed_at, agents, mode). `--check` must not write it.
