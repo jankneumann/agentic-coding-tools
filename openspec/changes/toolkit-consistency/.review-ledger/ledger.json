@@ -1,0 +1,285 @@
+{
+  "schema_version": 1,
+  "change_id": "toolkit-consistency",
+  "items": [
+    {
+      "id": 1,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "spec_file": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "f12367b29cf4cf83",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "19 of the 20 spec deltas (every change except toolkit-consistency) are plan-roadmap scaffolds whose scenarios are circular: `WHEN <change-id> is implemented THEN <acceptance outcome>`. Each SHALL technically has a WHEN/THEN, but none is verifiable, and all sit under the placeholder capability `multiplayer-collaboration`, for which no `openspec/specs/` directory exists. toolkit-consistency's own plan-findings graded this same pattern 'critical testability' and replaced it. Acceptable as scaffolds that /plan-feature or PLAN_ITERATE must refine, but they must not pass through to IMPLEMENT as-is.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 2,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "7962576af4bad488",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The scaffold generator truncates requirement headings mid-sentence with `...` and lowercases the first character of the outcome, producing `pRs created by` here (and `that given any`, `that /implement-feature` elsewhere). `### Requirement:` headings are the identity used by opsx:sync and by the planned requirement-level collision scanner (ri-06), so truncated, near-identical headings undermine the very collision detection this roadmap introduces.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 3,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "2ac81f7e68e1309c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The rationale for `proposal_approval: auto` is that a recorded `roadmap_approval` already authorizes the plans inside a roadmap. But `proposal_approval` also fires for standalone changes started via /plan-feature or /autopilot with no parent roadmap, where no roadmap_approval exists. As written, the posture removes the only human intent gate for non-roadmap changes, which contradicts the epic's own P3 (intent is an owned artifact) and the fail-closed constraint.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 4,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "066e4de18cedbdf9",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The header comment says 'every failure/escalation path still wait[s] for a human', but `replan_required` (fires when a roadmap item enters `replan_required`, i.e. after a failed plan) is set to `auto`. The table further down is internally consistent (`proposal_approval, replan_required | auto`), so only the comment is wrong, but the comment is what an operator reads first.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 5,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "c60633ada9c8130d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Two operator approvals of `escalate_resume` cite a 'cloud single-vendor review policy (TRUST_POSTURE.md 479dcd9)' as their authority. The TRUST_POSTURE.md in this packet contains no review-quorum or single-vendor policy at all; it only defines gate dispositions. Either the policy lives in a commit not present here, or the authority citation is unverifiable from the repository, which defeats P9 traceability. Both approvals also carry `approval_id: null`, so the only record of the human decision is free text in `reason`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 6,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
+      "fingerprint": "f0b2b34a6fd5b2fa",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Canonical roadmap state disagrees with the change loop-state. `toolkit-consistency/loop-state.json` shows ri-20 ran GATEKEEPER and PLAN_ITERATE on 2026-10-05 and has been parked in PLAN_REVIEW twice, yet roadmap.yaml still lists ri-20 as `approved` (not `in_progress`), checkpoint.json has no dispatch_attempt for it, `current_item_id` is still ri-01, and roadmap `status` is `planning` after a recorded roadmap_approval proceed. Per docs/guides/work-queue-truth-projection.md roadmap.yaml/loop-state.json are the canonical state a rebuilt queue is projected from, so a reconciliation would re-dispatch ri-20 as fresh work.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "fingerprint": "dfb14b81449a0c03",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The dispatch handshake `launch_token` and lease `owner_nonce` are committed in a tracked file. They appear to be single-use and already consumed (lease state `released`, gate `entered`), so exposure is low, but committing live-looking tokens trains readers to treat them as harmless and will trip secret scanners.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 8,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "d285354c9819e3fc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The One-way consumption requirement says merged shared records 'SHALL participate in the existing deduplication', and design.md states that dedupe key is `(capability_gap, affected_skill, session_id)`. But the Exported learning privacy requirement drops `session_id` and allowlists only `event_type, summary, outcome, lessons, tags, created_at`, so neither `session_id` nor top-level `capability_gap`/`affected_skill` exist on an exported record. The exporter's own dedupe key `(capability_gap, affected_skill, summary)` likewise uses two fields that are not in the allowlist. The two requirements cannot both hold unless capability_gap/affected_skill are recovered from tags and the consumer dedupe key is changed.",
+      "resolution": "PLAN_FIX (conductor, inline): spec.md Exported learning privacy names capability_gap/affected_skill as retained tag values; One-way consumption dedupes shared records on (capability_gap, affected_skill, summary).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "d9f9d452b34ddbfe",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The privacy requirement drops the `agent_id` and `session_id` fields but exports `tags` verbatim. Per docs/guides/memory-conventions.md, memory entries are tagged with identifiers such as `agent:<id>`, `session:<id>`, `change:<id>` and vendor/model tags, so the identity the allowlist removes re-enters through tags. The secret sanitizer targets credential patterns, not identifiers, so it will not catch this. No scenario covers tag-encoded identity.",
+      "resolution": "PLAN_FIX (conductor, inline): spec.md tags filtered to D4 namespaces; identity/context tags dropped; scenario 'Identity-bearing tags are dropped' added.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "open",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "b59eefac243153a1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Because the stamp is the pin (D3) and every successful install overwrites it, a teammate who runs install.sh from an un-pinned toolkit checkout silently moves the team's pin instead of hitting drift. The drift check only runs under `--check`. No scenario covers 'install over an existing stamp whose hash differs from the new source', so the implementation is free to overwrite without even a notice; the only safeguard is a git diff on a hash string.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/plan-findings.md",
+      "fingerprint": "db13a5c821fee4ab",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "plan-findings.md and session-log.md both claim 25 scenarios; the spec delta contains 26 (Install stamp 4, Payload hash 4, Drift check 6, Shared learnings opt-in 3, Exported learning privacy 4, One-way consumption 3, State-artifact registration 2).",
+      "resolution": "PLAN_FIX (conductor, inline): plan-findings.md scenario count corrected (26, 27 after finding 9); Iteration 2 section added.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/supervise/supervisor-record.json",
+      "fingerprint": "5510faeb83272167",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The record's `written_at` (06:59:55.764) is 35 ms earlier than the `decided_at` of the decision it contains (06:59:55.799), so the file claims to have been written before the decision it records. Two different timestamp formats (`+00:00` vs `Z`) are also used in the same file.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
+      "fingerprint": "b527f16b12d90034",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Priority inversion: ri-13 (priority 2) depends on ri-12 (priority 3), so the priority-2 item cannot become ready until a priority-3 item completes. Under the autopilot-roadmap/queue ordering the priority field then misrepresents effective scheduling order.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 14,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "654c8abcbc6c8084",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Install stamp and Drift check requirements use `<target-root>` for the consumer repository while the Shared learnings and One-way consumption requirements use `<project-root>` for the same directory. Readers may infer two different roots (install target vs the project the exporter runs in).",
+      "resolution": "PLAN_FIX (conductor, inline): spec.md uses <target-root> consistently and defines it once.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "7de92e419448958d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "After the operator-approved resume, `escalation_reason` still holds the pre-resume reason, `previous_phase` equals `current_phase`, and `iteration` is 0 while `total_iterations` is 8. Readers of the loop-state cannot tell whether the loop is still escalated or running. Harmless for execution but reduces the state file's value as the canonical record.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 16,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/owner-routed-escalation/proposal.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a2592d0f7287ff5d2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "97d74d353d473c65",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Scaffold proposals list dependencies as roadmap item IDs (`ri-02`) rather than change IDs (`ownership-map`). A change proposal is meant to be readable on its own in a PR; a reader without the roadmap cannot resolve `ri-02`. This matters more given the epic's constraint that artifacts stay legible to teammates who do not use the skills.",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}

@@ -116,8 +116,10 @@ error for a stamp that is not valid JSON, not an object, or whose `schema_versio
 ### Requirement: Shared learnings opt-in
 
 Repository-scoped learning export SHALL be enabled only by a human-owned file,
-`<project-root>/.agentic-toolkit/config.json`, containing `{"schema_version": 1,
-"shared_learnings": {"enabled": true}}`. `install.sh` SHALL NOT create or modify this file.
+`<target-root>/.agentic-toolkit/config.json`, containing `{"schema_version": 1,
+"shared_learnings": {"enabled": true}}`. `<target-root>` is the same consumer repository
+root the Install stamp requirement names: the installer's target and the repository the
+exporter and `analyze_failures.py` run in. `install.sh` SHALL NOT create or modify this file.
 `export_shared_learnings.py` SHALL exit `2` and write nothing when the file is absent,
 unreadable, or has `shared_learnings.enabled` other than `true`.
 
@@ -141,11 +143,17 @@ unreadable, or has `shared_learnings.enabled` other than `true`.
 ### Requirement: Exported learning privacy
 
 Each exported record SHALL contain only `event_type`, `summary`, `outcome`, `lessons`,
-`tags` and `created_at`. The exporter SHALL drop `details`, `agent_id` and `session_id`,
-SHALL exclude every entry tagged `source:transcript-mined`, SHALL pass every exported string
-through the `session-log` sanitizer's `sanitize()`, and SHALL write records sorted by
-`created_at` then `summary`, deduplicated on `(capability_gap, affected_skill, summary)`.
-The exporter SHALL pass the Cross-Repo Portability gate.
+`tags` and `created_at`. The exporter SHALL drop `details`, `agent_id` and `session_id`.
+`tags` SHALL be filtered to the D4 gap namespaces `failure_type:`, `capability_gap:`,
+`affected_skill:`, `severity:` and `source:` (`docs/guides/memory-conventions.md`); every
+other tag, in particular identity- or context-bearing ones such as `agent:`, `session:`,
+`change:`, `vendor:` and `model:`, SHALL be dropped. The exporter SHALL exclude every entry
+tagged `source:transcript-mined`, SHALL pass every exported string through the `session-log`
+sanitizer's `sanitize()`, and SHALL write records sorted by `created_at` then `summary`,
+deduplicated on `(capability_gap, affected_skill, summary)`, where `capability_gap` and
+`affected_skill` are the values of the retained `capability_gap:` and `affected_skill:` tags
+(the same tags `analyze_failures.py` reads today). The exporter SHALL pass the Cross-Repo
+Portability gate.
 
 #### Scenario: Transcript-mined entries are excluded
 
@@ -156,6 +164,13 @@ The exporter SHALL pass the Cross-Repo Portability gate.
 
 - **WHEN** memory returns an entry with `details`, `agent_id` and `session_id`
 - **THEN** the exported record SHALL contain none of those keys
+
+#### Scenario: Identity-bearing tags are dropped
+
+- **WHEN** memory returns an entry tagged `agent:<id>`, `session:<id>`, `change:<id>` and
+  `capability_gap:<text>`
+- **THEN** the exported record's `tags` SHALL contain the `capability_gap:` tag and none of
+  the `agent:`, `session:` or `change:` tags
 
 #### Scenario: Secrets are redacted
 
@@ -171,10 +186,12 @@ The exporter SHALL pass the Cross-Repo Portability gate.
 ### Requirement: One-way consumption of shared learnings
 
 `analyze_failures.py` SHALL accept `--shared-learnings <path>` (default
-`<project-root>/.agentic-toolkit/learnings.jsonl`) and SHALL read it only when
-`.agentic-toolkit/config.json` enables sharing. Merged records SHALL carry the tag
-`origin:shared-repo`, SHALL participate in the existing deduplication, and SHALL NOT be
-written back into episodic memory.
+`<target-root>/.agentic-toolkit/learnings.jsonl`) and SHALL read it only when
+`<target-root>/.agentic-toolkit/config.json` enables sharing. Merged records SHALL carry the
+tag `origin:shared-repo`, SHALL be deduplicated against local and other shared findings on
+`(capability_gap, affected_skill, summary)` — the exporter's key, because exported records
+carry no `session_id` and the local `(capability_gap, affected_skill, session_id)` key cannot
+apply to them — and SHALL NOT be written back into episodic memory.
 
 #### Scenario: Shared records merged and attributed
 
