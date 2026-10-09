@@ -6,12 +6,18 @@
 > Harness root: `skills/tests/multiplayer-simulation/`. All paths below are relative to it
 > unless they start with `openspec/`, `skills/` or `.github/`.
 >
-> **Scenario IDs** (in the order they appear in `specs/multiplayer-simulation/spec.md`):
+> **Scenario IDs** (numbered in the order they were authored in
+> `specs/multiplayer-simulation/spec.md`; scenarios added during PLAN_FIX take the next free
+> number in their group so earlier references stay valid):
 > - `P.1`–`P.4`: Simulated Principals Have Separate Identities, Worktrees, And Agents
 > - `C.1`–`C.3`: Same-Requirement Collision Scenario Records Plan-Time Detection
-> - `S.1`–`S.4`: Plan-Time Detectors Attach Through A Probe Seam
-> - `B.1`–`B.4`: Memory-Store Scenario Reports Time Blocked On Dependency
-> - `O.1`–`O.3`: Scenarios Run Offline Without A Shared Coordinator
+> - `S.1`–`S.5`: Plan-Time Detectors Attach Through A Probe Seam (`S.5`: Registering a
+>   probe edits no scenario definition)
+> - `B.1`–`B.6`: Memory-Store Scenario Reports Time Blocked On Dependency (`B.5`: Status
+>   transitions reach only the integration ref; `B.6`: Status transitions are declared only
+>   in fixture data)
+> - `O.1`–`O.4`: Scenarios Run Offline Without A Shared Coordinator (`O.4`: The driver
+>   imports no coordinator or transport modules)
 > - `D.1`–`D.2`: Scenario Reports Are Deterministic
 > - `G.1`–`G.4`: Scenario Pack Runs Through gen-eval
 > - `A.1`–`A.3`: Scenario Tests Are Archive-Stable
@@ -87,6 +93,8 @@
 - [ ] 2.3 Write failing tests in `test_agents.py`:
   - `ScriptedAgent` writes the step's OpenSpec files under a `sim-` change id;
   - it commits as its principal and pushes to `refs/heads/sim/<principal>/<change>`;
+  - it returns the step's declared status transitions and never modifies `roadmap.yaml` or
+    pushes to `main` (operator decision A1);
   - `Clock` advances only when told to and never reads wall-clock time.
 
   [S]
@@ -131,11 +139,14 @@
     still completes (S.2);
   - a probe that sleeps past a reduced per-probe timeout is recorded as `error`, with the
     timeout named in the message (S.3);
-  - an unknown `--probe` id raises `UsageError` (S.4).
+  - an unknown `--probe` id raises `UsageError` (S.4);
+  - registering a stub probe and running every built-in scenario modifies no file under
+    `mpsim/scenarios/` or `evaluation/scenarios/` (compare content hashes before and after),
+    and the stub appears in both collision scenarios' `probes` (S.5).
 
   Use a fixture that saves and restores the registry, so the stubs never leak into other
   tests. [S]
-  **Spec scenarios**: S.1, S.2, S.3, S.4
+  **Spec scenarios**: S.1, S.2, S.3, S.4, S.5
   **Design decisions**: D4
   **Dependencies**: 2.6, 3.2
 - [ ] 4.2 Implement `mpsim/probes/__init__.py`: the `CollisionProbe` protocol, `ProbeResult`,
@@ -182,17 +193,27 @@
   - the control gives all zeros (B.2);
   - `--tick-budget 5` gives `unblocked.retrieval-owner: false` and `blocked_ticks` of 4
     (B.3);
-  - a `tmp_path` fixture whose dependency starts `completed` gives 0 (B.4).
+  - a `tmp_path` fixture whose dependency starts `completed` gives 0 (B.4);
+  - after the baseline run, no commit on a `sim/*` branch beyond the seed touches
+    `roadmap.yaml`, every post-seed commit on `main` is authored by `sim-supervisor`, and
+    `roadmap.yaml` at `main` shows both items `completed` (B.5);
+  - a static scan of `mpsim/` finds no status literal used as a `set_status` value, and a
+    `tmp_path` fixture whose implement step declares no `on_finish.set_status` leaves
+    `unblocked.retrieval-owner` false (B.6).
 
   [S]
-  **Spec scenarios**: B.1, B.2, B.3, B.4
-  **Design decisions**: D5
+  **Spec scenarios**: B.1, B.2, B.3, B.4, B.5, B.6
+  **Design decisions**: D5, D7
   **Dependencies**: 2.6
-- [ ] 5.2 Implement `mpsim/scenarios/blocked.py`, the tick scheduler:
-  - follow the intra-tick order from D5 exactly: finishing steps apply their `on_finish`
-    and push, in declaration order; then each waiting principal fetches, calls
-    `load_roadmap` with the real repo root for schema lookup, and calls
-    `Roadmap.ready_items()`; then admitted principals apply `on_start`;
+- [ ] 5.2 Implement `mpsim/applier.py` (the status applier, which commits declared
+  transitions to `roadmap.yaml` on `main` as `sim-supervisor` and pushes) and
+  `mpsim/scenarios/blocked.py`, the tick scheduler:
+  - follow the intra-tick order from D5 exactly: finishing steps push their work to their
+    change branches, in declaration order; the applier commits their `on_finish`
+    transitions to `main`; then each waiting principal fetches `main`, calls `load_roadmap`
+    on `roadmap.yaml` from `origin/main` with the real repo root for schema lookup, and
+    calls `Roadmap.ready_items()`; then the applier commits admitted principals'
+    `on_start`;
   - apply status transitions only from fixture data, never from code;
   - compute `blocked_ticks` and `unblocked` exactly as D5 defines them.
 
@@ -205,7 +226,7 @@
 
 - [ ] 6.1 Write failing tests in `test_cli.py`, running `bin/mpsim` by subprocess:
   - `list` prints the four scenario ids in sorted order;
-  - `run` with an unknown scenario, an unknown probe, a missing `--fixture-dir`,
+  - `run` with an unknown scenario, an unknown probe, a `--fixture-dir` that does not exist,
     `--tick-budget 0`, or a one-principal `--fixture-dir` exits 64 and names the problem on
     stderr (P.4, S.4);
   - two runs of `memory-store-blocked-dependency` with different `TMPDIR` values are
@@ -213,10 +234,14 @@
   - each scenario run with `COORDINATION_API_URL` unset and with it set to
     `http://127.0.0.1:9` gives byte-identical stdout (O.2);
   - every scenario's stdout validates against the schema and contains no temporary path and no
-    40-character hexadecimal string (D.2).
+    40-character hexadecimal string, and so does the exit-1 report from a fixture missing the
+    shared requirement (D.2);
+  - an `ast` scan of every module under `mpsim/` finds no import from `agent-coordinator`,
+    `coordination_bridge`, `httpx`, `requests`, `urllib.request`, `http.client` or an MCP
+    client package (O.4).
 
   [S]
-  **Spec scenarios**: P.4, S.4, D.1, D.2, O.2
+  **Spec scenarios**: P.4, S.4, D.1, D.2, O.2, O.4
   **Contracts**: openspec/contracts/multiplayer-simulation/cli/mpsim.yaml
   **Design decisions**: D8, D9
   **Dependencies**: 4.4, 5.2

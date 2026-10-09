@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json",
   "title": "mpsim scenario report",
-  "description": "One report per `mpsim run`. Ephemeral test output, not canonical state (design D8). Every property is always present; properties that do not apply to a scenario are null so gen-eval body assertions stay uniform across the pack. No absolute paths, temp directory names, commit SHAs, or wall-clock timestamps may appear (requirement: Scenario Reports Are Deterministic).",
+  "description": "One report per `mpsim run`. Ephemeral test output, not canonical state (design D8). Every property is always present; properties that do not apply to a scenario are null so gen-eval body assertions stay uniform across the pack. No absolute paths, temp directory names, commit SHAs, or wall-clock timestamps may appear (requirement: Scenario Reports Are Deterministic). An exit-1 error report (non-null `error`) may carry an empty `principals` array and a null `timeline`, because the failure can happen before the world exists; every other report must name at least two principals and carry a timeline.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -19,83 +19,216 @@
     "error"
   ],
   "properties": {
-    "schema_version": { "const": "1" },
-    "scenario_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "schema_version": {
+      "const": "1"
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
     "principals": {
       "type": "array",
-      "minItems": 2,
+      "minItems": 0,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "agent_id", "change_id"],
+        "required": [
+          "name",
+          "agent_id",
+          "change_id"
+        ],
         "properties": {
-          "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
-          "agent_id": { "type": "string", "minLength": 1 },
-          "change_id": { "type": "string", "pattern": "^sim-[a-z0-9-]+$" }
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "agent_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "change_id": {
+            "type": "string",
+            "pattern": "^sim-[a-z0-9-]+$"
+          }
         }
       }
     },
     "collision_present": {
-      "type": ["boolean", "null"],
+      "type": [
+        "boolean",
+        "null"
+      ],
       "description": "Ground-truth oracle over fixture contents (design D4). Null for scenarios with no collision question."
     },
     "collision_detected": {
-      "type": ["boolean", "null"],
+      "type": [
+        "boolean",
+        "null"
+      ],
       "description": "True only when a probe with status ok reported a requirement-level collision against the other principal's change. Null for scenarios with no collision question."
     },
     "probes": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["probe_id", "status", "collisions", "error"],
+        "required": [
+          "probe_id",
+          "status",
+          "collisions",
+          "error"
+        ],
         "properties": {
-          "probe_id": { "type": "string", "minLength": 1 },
-          "status": { "enum": ["ok", "error"] },
+          "probe_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "error"
+            ]
+          },
           "collisions": {
             "type": "array",
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["level", "other_change", "requirement"],
+              "required": [
+                "level",
+                "other_change",
+                "requirement"
+              ],
               "properties": {
-                "level": { "enum": ["intent", "requirement", "contract", "file"] },
-                "other_change": { "type": "string" },
-                "requirement": { "type": ["string", "null"] }
+                "level": {
+                  "enum": [
+                    "intent",
+                    "requirement",
+                    "contract",
+                    "file"
+                  ]
+                },
+                "other_change": {
+                  "type": "string"
+                },
+                "requirement": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
               }
             }
           },
-          "error": { "type": ["string", "null"] }
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     },
     "blocked_ticks": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "Per principal: first tick its implement step is admitted by Roadmap.ready_items minus the tick its own preceding steps finished (design D5).",
-      "additionalProperties": { "type": "integer", "minimum": 0 }
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
     },
     "unblocked": {
-      "type": ["object", "null"],
-      "additionalProperties": { "type": "boolean" }
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "boolean"
+      }
     },
-    "final_tick": { "type": ["integer", "null"], "minimum": 0 },
+    "final_tick": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
     "timeline": {
-      "type": "array",
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["tick", "principal", "step", "event"],
+        "required": [
+          "tick",
+          "principal",
+          "step",
+          "event"
+        ],
         "properties": {
-          "tick": { "type": "integer", "minimum": 0 },
-          "principal": { "type": "string" },
-          "step": { "enum": ["plan", "contract", "implement"] },
-          "event": { "enum": ["started", "finished", "blocked", "admitted", "pushed", "probed"] }
+          "tick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "principal": {
+            "type": "string"
+          },
+          "step": {
+            "enum": [
+              "plan",
+              "contract",
+              "implement"
+            ]
+          },
+          "event": {
+            "enum": [
+              "started",
+              "finished",
+              "blocked",
+              "admitted",
+              "pushed",
+              "probed",
+              "status_applied"
+            ]
+          }
         }
       }
     },
     "error": {
-      "type": ["string", "null"],
-      "description": "Non-null only when the process exits 1."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Non-null only when the process exits 1. When non-null, `principals` may be empty and `timeline` may be null."
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "error": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "principals": {
+            "minItems": 2
+          },
+          "timeline": {
+            "type": "array"
+          }
+        }
+      }
+    }
+  ]
 }

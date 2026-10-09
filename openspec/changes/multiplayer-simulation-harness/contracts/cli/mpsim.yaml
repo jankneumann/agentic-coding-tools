@@ -99,7 +99,7 @@ exit_codes:
     meaning: Argparse usage error, e.g. missing subcommand or --scenario.
   - code: 64
     meaning: >-
-      Semantic usage error: unknown scenario, unknown probe, missing
-      --fixture-dir, --tick-budget below 1, or a fixture with fewer than two
+      Semantic usage error: unknown scenario, unknown probe, a --fixture-dir
+      that does not exist, --tick-budget below 1, or a fixture with fewer than two
       principals.
     sysexits_name: EX_USAGE

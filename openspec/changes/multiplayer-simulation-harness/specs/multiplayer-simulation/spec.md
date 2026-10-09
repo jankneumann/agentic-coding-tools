@@ -113,6 +113,13 @@ the scenario SHALL still complete.
 - **THEN** the run completes, and that probe is recorded with `status: error` and an `error`
   that names the timeout
 
+#### Scenario: Registering a probe edits no scenario definition
+
+- **WHEN** a test registers a new stub probe through the registry
+- **AND** runs every built-in scenario
+- **THEN** no file under `mpsim/scenarios/` or `evaluation/scenarios/` was modified
+- **AND** the stub's `probe_id` appears in `probes` of both collision scenarios
+
 #### Scenario: Probe selection rejects unknown probe ids
 
 - **WHEN** `mpsim run --scenario same-requirement-collision --probe does-not-exist` is invoked
@@ -126,11 +133,14 @@ dependency half of the motivating memory-store incident. Principal `retrieval-ow
 roadmap item that depends on an item owned by principal `storage-owner`. The scenario SHALL
 advance a logical tick clock using step durations declared in the fixture. On each tick it
 SHALL decide whether the dependent item is ready by calling the roadmap-runtime admission
-rule (`Roadmap.ready_items`) on the `roadmap.yaml` currently visible on the shared remote.
-The harness SHALL NOT use readiness logic of its own. Every roadmap status change a simulated
-agent makes SHALL be declared as data in the fixture's step script, never in harness code.
-Within a tick, steps finishing at that tick SHALL push their status changes before any
-waiting principal evaluates readiness. For each principal, the report SHALL
+rule (`Roadmap.ready_items`) on the `roadmap.yaml` at the shared remote's `main`, the
+integration ref. The harness SHALL NOT use readiness logic of its own. Simulated principals
+SHALL NOT edit `roadmap.yaml` on their change branches and SHALL NOT push to `main`; every
+roadmap status change SHALL be committed to `main` by a simulated supervisor step (the status
+applier) authored as `sim-supervisor`. Every status change SHALL be declared as data in the
+fixture's step script, never in harness code. Within a tick, the status changes of steps
+finishing at that tick SHALL be committed to `main` before any waiting principal evaluates
+readiness. For each principal, the report SHALL
 include `blocked_ticks`, defined as the first tick at which its implement step is admitted
 minus the tick at which its own preceding steps finished, and `unblocked` (boolean). The
 scenario SHALL pin the baseline in force at the time of this change:
@@ -159,6 +169,22 @@ the fixture durations recorded in design D5. A companion control scenario
   `false`, and
   `blocked_ticks.retrieval-owner` equal to 4 (the budget minus its earliest start tick)
 
+#### Scenario: Status transitions reach only the integration ref
+
+- **WHEN** `mpsim run --scenario memory-store-blocked-dependency` completes
+- **THEN** no commit reachable from any `sim/*` branch but not from the seed commit modifies
+  `roadmap.yaml`
+- **AND** every commit on `main` after the seed is authored by `sim-supervisor`
+- **AND** `roadmap.yaml` at `main` shows both items with status `completed`
+
+#### Scenario: Status transitions are declared only in fixture data
+
+- **WHEN** the harness driver package `mpsim/` is scanned statically
+- **THEN** no module contains a roadmap status literal (`approved`, `in_progress`,
+  `completed`) used as a `set_status` value
+- **AND** running the scenario with a `--fixture-dir` copy whose implement step declares no
+  `on_finish.set_status` leaves `unblocked.retrieval-owner` equal to `false`
+
 #### Scenario: Readiness comes from the admission rule, not the harness
 
 - **WHEN** the scenario is run with `--fixture-dir` pointing at a copy of its fixture whose
@@ -179,6 +205,12 @@ harness test suite SHALL run in the skills CI sweep with no services started.
 - **WHEN** the harness test suite runs with `AF_INET` and `AF_INET6` socket connections
   patched to raise
 - **THEN** every scenario test passes
+
+#### Scenario: The driver imports no coordinator or transport modules
+
+- **WHEN** every module under `mpsim/` is parsed with `ast`
+- **THEN** none imports a module from `agent-coordinator`, `coordination_bridge`, an HTTP
+  client (`httpx`, `requests`, `urllib.request`, `http.client`) or an MCP client
 
 #### Scenario: Coordinator environment variables do not change the outcome
 
@@ -209,7 +241,8 @@ SHALL produce byte-identical output.
 
 #### Scenario: Reports leak no host-specific values
 
-- **WHEN** any scenario report is produced
+- **WHEN** any scenario report is produced, including an exit-1 report with a non-null
+  `error`
 - **THEN** it validates against `sim-report.schema.json`
 - **AND** it does not contain the temporary world directory path, nor any 40-character
   hexadecimal string

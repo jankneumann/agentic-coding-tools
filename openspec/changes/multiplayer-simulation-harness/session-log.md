@@ -138,3 +138,18 @@ Convergence pass. One medium consistency finding was fixed: the Memory-Store req
 ### Context
 converge() ran 1 round of plan review. Only one vendor was available (claude_code), so quorum was lowered to 1. The loop stopped with reason=adjudication_required. One high-severity judgment finding is unconfirmed: the roadmap.yaml ref model is ambiguous. No ledger item is blocking under D3, the fix callback was never invoked, and no plan files were edited. Outcome: max_iter.
 
+---
+
+## Phase: Plan Fix (PLAN_REVIEW round-1 ledger) (2026-10-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Readiness reads roadmap.yaml from origin/main via a status applier** `architectural: multiplayer-simulation` — Operator decision A1: mirrors the real supervisor/worker split; principals report transitions, sim-supervisor commits them to main.
+2. **Error reports relax principals/timeline via if/then** `architectural: multiplayer-simulation` — Ledger item 3: a git failure before the world exists must still yield a schema-valid exit-1 report.
+3. **New scenario IDs take the next free number** `architectural: skill-procedure-deviation` — Avoid renumbering existing task cross-references.
+4. **Degradation: single_vendor_review (PLAN_REVIEW, vendor claude_code)** `architectural: skill-procedure-deviation` — Codex CLI absent in cloud container; accepted by TRUST_POSTURE.md 'Review quorum in cloud containers (temporary)' (479dcd9 on openspec/roadmap-multiplayer-collaboration). converge() runs with min_quorum=1.
+
+### Context
+Applied operator decision A1 (gate-decision:14d02b8a-cff3-4010-a9fe-29c849777950) and ledger items 1-4, 7, 8. roadmap.yaml is authoritative only on the shared remote's main (integration ref); a simulated status applier (sim-supervisor) writes all status transitions there; principals never edit roadmap.yaml. Added spec scenarios S.5, B.5, B.6, O.4; schema now admits exit-1 error reports. Items 5, 6, 9 left open (low).
+

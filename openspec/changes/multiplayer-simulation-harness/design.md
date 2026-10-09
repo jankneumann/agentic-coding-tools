@@ -24,8 +24,8 @@ gen-eval (CLI transport) ──► bin/mpsim run --scenario <id> ──► JSON 
                        ▼                                    ▼
                 World builder                         Tick scheduler
     bare remote + N principals                    each tick: agents act, push;
-    (identity, clone/worktree, agent id)          readiness = Roadmap.ready_items()
-                       │                          over the remote's roadmap/checkpoint
+    (identity, clone/worktree, agent id)          applier writes statuses to main;
+                       │                          ready_items() over remote main
                        ▼
           plan step ──► CollisionProbe registry ──► probes[] + collision_detected
                     └─► fixture oracle          ──► collision_present
@@ -145,28 +145,45 @@ time?" today has one honest answer: nothing ran.
 - **Clock**: a logical tick counter starting at 0. The fixture declares a duration in ticks
   for each step: `plan`, `contract`, `implement`. Nothing reads wall-clock time, which is
   what makes `blocked_ticks` reproducible enough to pin.
-- **Readiness**: on every tick, the scheduler fetches the shared remote into the dependent
-  principal's clone. It then loads the fixture world's `roadmap.yaml` through
-  roadmap-runtime's `load_roadmap`. That call validates the file against the *real*
+- **Integration ref (operator decision A1, 2026-10-05).** `roadmap.yaml` has exactly one
+  authoritative copy: the one on the shared remote's `main`, the integration ref. Principals'
+  change branches never edit `roadmap.yaml`. Status transitions are written to `main` only by
+  a simulated supervisor step, the *status applier* (`mpsim/applier.py`), which commits as
+  `sim-supervisor <sim-supervisor@sim.invalid>`. This mirrors the real split, where workers
+  report results and only the supervisor writes roadmap state.
+- **Readiness**: on every tick, the scheduler fetches the shared remote's `main` into the
+  dependent principal's clone. It then loads `roadmap.yaml` from that fetched `main`
+  (`origin/main`), never from a principal's change branch, through roadmap-runtime's
+  `load_roadmap`. That call validates the file against the *real*
   repository's roadmap schema, located from the real repo root and not the temporary world,
   so a schema extension in `ri-11` is exercised too. Finally, the scheduler asks
   `Roadmap.ready_items()` whether the dependent's item is admitted. `ready_items()` decides
-  from item statuses alone: a dependency counts as satisfied when its item `status` is
-  `completed`, and only items whose status is `approved` are admitted.
+  from roadmap data alone: a dependency counts as satisfied when its item `status` is
+  `completed`, only items whose status is `approved` are admitted, and items with a
+  `superseded_by` edge or an unmet `external_depends_on` are withheld. It reads no checkpoint
+  state. This was verified against `skills/roadmap-runtime/scripts/models.py`
+  (`Roadmap.ready_items`) during PLAN_FIX, and the fixture uses neither `superseded_by` nor
+  `external_depends_on`.
 - **Status transitions are fixture data, not harness code.** Each step in a principal's
   fixture script may declare `on_start.set_status` and `on_finish.set_status` for that
-  principal's own roadmap item. The agent applies the change to `roadmap.yaml`, commits and
-  pushes it. In the baseline fixture:
+  principal's own roadmap item. The agent does not apply them. It reports them as step
+  results, and the status applier commits each one to `roadmap.yaml` on `main` and pushes.
+  The applier holds no transition logic of its own: it writes exactly the status the fixture
+  declared, for the item of the principal that reported it. In the baseline fixture:
   - `plan` and `contract` change no status, so the item stays `approved` and remains
     admissible;
-  - `contract` pushes the contract files to the owner's branch but sets no status, because
+  - `contract` pushes the contract files to the owner's change branch but declares no
+    status, because
     today's roadmap schema has no contract-complete state. That absence is the baseline gap;
   - `implement` sets `in_progress` when it starts and `completed` when it finishes.
 - **Intra-tick order.** The pinned value depends on it, so it is fixed. Within tick *t*:
-  1. Every step that finishes at *t* applies its `on_finish` transition, commits and pushes,
-     taking principals in fixture declaration order.
-  2. Each waiting principal fetches and evaluates `ready_items()`.
-  3. An admitted principal applies its implement step's `on_start` at the same tick *t*.
+  1. Every step that finishes at *t* pushes its work to its change branch, taking
+     principals in fixture declaration order.
+  2. The status applier commits every `on_finish` transition reported at *t* to `main`, in
+     the same order, and pushes once.
+  3. Each waiting principal fetches `main` and evaluates `ready_items()`.
+  4. For each admitted principal, the applier commits its implement step's `on_start`
+     transition to `main` at the same tick *t*.
 
   A dependency completed at tick 11 therefore admits its dependent at tick 11, not tick 12.
 - **Metric**: for each principal,
@@ -237,7 +254,11 @@ time?" today has one honest answer: nothing ran.
 - `ScriptedAgent` replays the fixture's step script deterministically:
   - write the OpenSpec change files under a synthetic change id;
   - commit;
-  - push to `refs/heads/sim/<principal>/<change>`, which models an open PR branch.
+  - push to `refs/heads/sim/<principal>/<change>`, which models an open PR branch;
+  - return the step's declared status transitions to the scheduler.
+- Agents never write `roadmap.yaml` and never push to `main`. A test asserts that no commit
+  on any `sim/*` branch touches `roadmap.yaml`, and that every commit on `main` after the
+  seed is authored by `sim-supervisor` (D5, operator decision A1).
 - **Rejected**: live vendor agents. They are non-deterministic and need network access, so
   they are a non-goal here. The protocol leaves room for a later `ExecutorAgent` that adapts
   `packages/agent-scenarios`' `ScenarioExecutor`.
@@ -272,7 +293,8 @@ requirements in `traceability:` blocks.
 |---|---|
 | 0 | The scenario ran to completion and a report was emitted. This holds whatever was or was not detected, and whatever the blocked time was. |
 | 1 | The harness could not establish the scenario, for example when the oracle finds that the fixture's required collision is missing, or a git operation failed. A report with an `error` field is still printed when possible. |
-| 64 | Usage error: an unknown scenario, an unknown probe, a missing `--fixture-dir`, a `--tick-budget` below 1, or a fixture declaring fewer than 2 principals (`EX_USAGE`). |
+| 2 | Argparse usage error, such as a missing subcommand or a missing `--scenario`. |
+| 64 | Usage error: an unknown scenario, an unknown probe, a `--fixture-dir` that does not exist, a `--tick-budget` below 1, or a fixture declaring fewer than 2 principals (`EX_USAGE`). |
 
 Pinned expectations live in the gen-eval scenario YAML, not in the driver. The driver
 measures and the scenario decides what is expected.
@@ -286,9 +308,9 @@ measures and the scenario decides what is expected.
   accidental network call into an immediate test failure instead of a CI-only hang.
 - Subprocesses such as `git` and `bin/mpsim` do not inherit that patch. For them:
   - the shared remote is a `file://` path, so git never opens a socket;
-  - the gen-eval pack test sets `COORDINATION_API_URL=http://127.0.0.1:9`, a discard port
-    that would fail fast, and asserts the reports are byte-identical to a run without that
-    variable.
+  - the CLI test (task 6.1) runs `mpsim run` with `COORDINATION_API_URL=http://127.0.0.1:9`,
+    a discard port that would fail fast, and asserts stdout is byte-identical to a run
+    without that variable.
 - **Rejected**: relying on the CI runner having no coordinator. The runner does have network
   access, so the absence of a coordinator proves nothing about the harness.
 
@@ -308,8 +330,8 @@ measures and the scenario decides what is expected.
 | Risk | Mitigation |
 |---|---|
 | Adding `gen-eval` to the skills venv conflicts with existing pins | D3 fallback, plus task 1.3 runs `uv lock` first and stops if it fails |
-| Git-heavy scenarios make the skills sweep slower | Four scenarios, each creating only a handful of commits. Budget is under 30 s for the whole harness directory, checked in task 6.2. |
-| `Roadmap.ready_items` signature changes under `ri-11` | That is the intended coupling: the harness should move with the rule. Task 4.2 documents the call site in the README as the place `ri-11` must look. |
+| Git-heavy scenarios make the skills sweep slower | Four scenarios, each creating only a handful of commits. Budget is under 30 s for the whole harness directory, recorded in task 9.1. |
+| `Roadmap.ready_items` signature changes under `ri-11` | That is the intended coupling: the harness should move with the rule. The call site is in `scenarios/blocked.py` (task 5.2); the README (task 8.2) names it as the place `ri-11` must look. |
 | Pinned baselines read as asserting that the bug should exist | Each pinned value carries a YAML comment naming the roadmap item that flips it. The README states that baselines are characterisations. |
 | The oracle and a future probe diverge in what they call a "collision" | The oracle is deliberately narrow: same capability and same requirement heading. `ri-06` may detect more levels. The flip assertion is only `collision_detected`, not equality with the oracle. |
 
