@@ -50,7 +50,7 @@
   fails, stop and take the D3 fallback as a recorded design amendment, never silently. [XS]
   **Design decisions**: D3
   **Dependencies**: None
-- [ ] 1.4 Scaffold the harness directory:
+- [x] 1.4 Scaffold the harness directory:
   - `conftest.py`, which puts the harness root and `skills/roadmap-runtime/scripts` on
     `sys.path` using the pattern in `skills/tests/roadmap-runtime/conftest.py`, and adds an
     autouse fixture that makes `AF_INET`/`AF_INET6` `socket.connect` and `connect_ex` raise
