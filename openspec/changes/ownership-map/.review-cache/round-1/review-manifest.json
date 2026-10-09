@@ -2,7 +2,7 @@
   "schema_version": 1,
   "change_id": "ownership-map",
   "review_type": "implementation",
-  "created_at": "2026-10-09T12:58:11Z",
+  "created_at": "2026-10-09T13:29:02Z",
   "target": "ownership-map",
   "dispatches": [
     {
@@ -12,7 +12,7 @@
       "models_attempted": [
         "fable"
       ],
-      "elapsed_seconds": 249.61819924600013,
+      "elapsed_seconds": 169.32970919499985,
       "error": null,
       "error_class": null
     },
@@ -33,7 +33,7 @@
       "name": "claude_code",
       "findings_path": "findings-claude_code-implementation.json",
       "finding_count": 9,
-      "unanchored_findings": 0,
+      "unanchored_findings": 3,
       "fact_check": "ran",
       "fact_check_removed": 0,
       "fact_check_tokens": 0

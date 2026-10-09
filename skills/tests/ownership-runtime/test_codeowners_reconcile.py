@@ -299,3 +299,29 @@ class TestCheckIntegration:
         report = check(repo, codeowners=True)
         assert "codeowners_disagreement" in finding_codes(report)
         assert exit_code(report, strict=False) == 1
+
+
+class TestUnreadableCodeowners:
+    """A CODEOWNERS that cannot be decoded is a finding, never a traceback (--json contract)."""
+
+    def test_undecodable_file_is_an_error_finding(self, make_repo: MakeRepo) -> None:
+        repo = make_repo(humans=TWO, owners=doc())
+        emit_write(repo)
+        path = repo / ".github" / "CODEOWNERS"
+        path.write_bytes(b"\xff\xfe* @someone\n")
+        report = reconcile(repo)
+        assert finding_codes(report) == ["codeowners_unreadable"]
+        unreadable = report["findings"][0]
+        assert unreadable["severity"] == "error"
+        assert unreadable["subject"] == ".github/CODEOWNERS"
+        assert "utf-8" in unreadable["message"].lower()
+        assert report["exit_code"] == 1
+        assert report["disagreements"] == 0 and report["stale"] is False
+
+    def test_check_reports_it_too(self, make_repo: MakeRepo) -> None:
+        repo = make_repo(humans=TWO, owners=doc())
+        emit_write(repo)
+        (repo / ".github" / "CODEOWNERS").write_bytes(b"\xff\xfe* @someone\n")
+        report = check(repo, codeowners=True)
+        assert finding_codes(report) == ["codeowners_unreadable"]
+        assert exit_code(report, strict=False) == 1

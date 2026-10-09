@@ -7,11 +7,14 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import owners as owners_module
 import pytest
+from check_owners import check as check_owners_check
 from owners import (
     OwnershipConfigError,
     OwnershipContext,
     OwnerSet,
+    collect_problems,
     load_ownership,
     pattern_matches,
 )
@@ -55,6 +58,22 @@ class TestLoading:
         with pytest.raises(OwnershipConfigError) as excinfo:
             load_ownership(repo)
         assert excinfo.value.code == "invalid_map"
+
+    def test_missing_schema_is_reported_not_raised(
+        self, make_repo: MakeRepo, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """collect_problems() keeps its contract when owners.schema.json is not installed."""
+        repo = make_repo(humans={"jan": JAN}, owners=owners_doc())
+        monkeypatch.setattr(owners_module, "OWNERS_SCHEMA_NAME", "not-installed.schema.json")
+        ctx, problems = collect_problems(repo)
+        assert ctx is None
+        assert [(p.code, p.subject) for p in problems] == [
+            ("invalid_map", "not-installed.schema.json")
+        ]
+        assert "not installed" in problems[0].message
+        report = check_owners_check(repo)
+        assert [f["code"] for f in report["findings"]] == ["invalid_map"]
+        assert report["mode"] is None
 
     def test_unknown_assignment_key_names_the_path(self, make_repo: MakeRepo) -> None:
         repo = make_repo(

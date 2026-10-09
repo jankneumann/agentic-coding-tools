@@ -244,7 +244,13 @@ def _load_schema(repo_root: Path) -> dict[str, Any]:
 
 
 def _schema_problems(raw: Any, repo_root: Path) -> list[Problem]:
-    validator = Draft202012Validator(_load_schema(repo_root))
+    try:
+        schema = _load_schema(repo_root)
+    except OwnershipConfigError as exc:
+        # collect_problems() promises to report, not raise; a missing schema
+        # is a configuration problem of the installation, not a crash.
+        return [Problem(exc.code, exc.subject or OWNERS_SCHEMA_NAME, exc.message)]
+    validator = Draft202012Validator(schema)
     problems: list[Problem] = []
     for error in sorted(validator.iter_errors(raw), key=lambda e: [str(p) for p in e.absolute_path]):
         where = "/".join(str(p) for p in error.absolute_path) or "<root>"

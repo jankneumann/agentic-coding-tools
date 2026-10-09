@@ -3,7 +3,7 @@
   "change_id": "ownership-map",
   "round": 1,
   "body_path": "review-packet.md",
-  "sha256": "189b911aebd72b3dd985bf3e6e5a44d0423c2c696a8f9de2edf48a9cb943acdd",
+  "sha256": "cb59c9293970acc662b781a95bb7be5b85437d3e94a80770307a2082d067434f",
   "char_length": 320000,
   "budget_chars": 320000,
   "tools_overflow": true,
@@ -38,7 +38,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2165
+        "est_tokens": 2391
       },
       {
         "path": "agent-coordinator/tests/test_registry_projection.py",
@@ -73,7 +73,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1778
+        "est_tokens": 4284
       },
       {
         "path": "openspec/changes/ownership-map/contracts/README.md",
@@ -101,14 +101,14 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 7266
+        "est_tokens": 7382
       },
       {
         "path": "openspec/changes/ownership-map/loop-state.json",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2005
+        "est_tokens": 2084
       },
       {
         "path": "openspec/changes/ownership-map/plan-findings.md",
@@ -150,7 +150,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 8087
+        "est_tokens": 10597
       },
       {
         "path": "openspec/changes/ownership-map/specs/agent-identity/spec.md",
@@ -171,7 +171,14 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 4105
+        "est_tokens": 4148
+      },
+      {
+        "path": "openspec/changes/ownership-map/validation-report.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2317
       },
       {
         "path": "openspec/changes/ownership-map/work-packages.yaml",
@@ -213,7 +220,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1619
+        "est_tokens": 1677
       },
       {
         "path": "skills/ownership-runtime/install_assets/openspec/schemas/human-principals.schema.json",
@@ -248,7 +255,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 3628
+        "est_tokens": 3677
       },
       {
         "path": "skills/ownership-runtime/scripts/owners.py",
@@ -262,7 +269,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2137
+        "est_tokens": 2419
       },
       {
         "path": "skills/pyproject.toml",
@@ -514,7 +521,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2741
+        "est_tokens": 2777
       },
       {
         "path": "skills/tests/ownership-runtime/test_codeowners_emit.py",
@@ -528,7 +535,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 3165
+        "est_tokens": 3362
       },
       {
         "path": "skills/tests/ownership-runtime/test_coordinator_independence.py",
@@ -549,7 +556,7 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2234
+        "est_tokens": 2485
       },
       {
         "path": "skills/tests/ownership-runtime/test_repository_invariant.py",
@@ -579,7 +586,14 @@
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 227
+        "est_tokens": 277
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2073
       },
       {
         "path": "openspec/changes/ownership-map/.review-cache/round-1/findings-claude_code-plan.json",
@@ -587,6 +601,27 @@
         "reason": "generated_path",
         "gate": "generated_path",
         "est_tokens": 1744
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 199
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-claude_code-implementation.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 164
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1800
       },
       {
         "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-claude_code-plan.meta.json",
@@ -610,6 +645,20 @@
         "est_tokens": 1440
       },
       {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-codex-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 175
+      },
+      {
+        "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-codex-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 56
+      },
+      {
         "path": "openspec/changes/ownership-map/.review-cache/round-1/raw-codex-plan.meta.json",
         "status": "added",
         "reason": "generated_path",
@@ -628,14 +677,14 @@
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 338
+        "est_tokens": 344
       },
       {
         "path": "openspec/changes/ownership-map/.review-cache/round-1/review-packet.meta.json",
         "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 6866
+        "est_tokens": 7266
       },
       {
         "path": "openspec/changes/ownership-map/specs/multiplayer-collaboration/spec.md",
@@ -646,6 +695,23 @@
       }
     ],
     "truncated": [
+      "skills/ownership-runtime/scripts/owners.py",
+      "skills/ownership-runtime/scripts/principals.py",
+      "skills/pyproject.toml",
+      "skills/tests/ownership-runtime/__init__.py",
+      "skills/tests/ownership-runtime/conftest.py",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_day.json",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_email.json",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_github_handle.json",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/bad_hours.json",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/duplicate_domains.json",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/empty_display_name.json",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/missing_display_name.json",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/unknown_availability_field.json",
+      "skills/tests/ownership-runtime/fixtures/humans/invalid/unknown_field.json",
+      "skills/tests/ownership-runtime/fixtures/humans/valid/full.json",
+      "skills/tests/ownership-runtime/fixtures/humans/valid/minimal.json",
+      "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_capability_key.json",
       "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_principal_id.json",
       "skills/tests/ownership-runtime/fixtures/owners/invalid/bad_roadmap_key.json",
       "skills/tests/ownership-runtime/fixtures/owners/invalid/duplicate_owners.json",
@@ -700,6 +766,7 @@
         "openspec/changes/ownership-map/reviews/findings-claude_code-plan.json",
         "openspec/changes/ownership-map/session-log.md",
         "openspec/changes/ownership-map/tasks.md",
+        "openspec/changes/ownership-map/validation-report.md",
         "openspec/changes/ownership-map/work-packages.yaml",
         "openspec/owners.yaml",
         "skills/install-manifest.json",

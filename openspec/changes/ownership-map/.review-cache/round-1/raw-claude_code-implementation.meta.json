@@ -3,9 +3,9 @@
   "vendor": "claude_code",
   "review_type": "implementation",
   "stdout_path": "raw-claude_code-implementation.txt",
-  "byte_length": 6844,
+  "byte_length": 8214,
   "truncated": false,
-  "sha256": "5e9d7b33a454d5b79307ea412681b74cb7f9408b9684fd65dcffa1a1bf88b5dd",
+  "sha256": "c4ccd4773011b0c275958424101a3f2f7252be5850e592f0e8bbb79e6ef96e8a",
   "repair_attempted": false,
   "coercions": [],
   "stderr_path": "raw-claude_code-implementation.stderr.txt"

@@ -288,6 +288,7 @@ test proves it on the real tree.
 | `missing_github_handle` | human in an emitted owner set lacks `github` (with `--codeowners`) | error | D8 |
 | `codeowners_disagreement` | `CODEOWNERS` disagreement (with `--codeowners`) | error | outcome 4 |
 | `not_a_git_checkout` | `--codeowners` requested outside a git checkout | error | D8; reconcile cannot build its probe set |
+| `codeowners_unreadable` | `.github/CODEOWNERS` exists but cannot be read or decoded as UTF-8 (with `--codeowners`, and on `emit --write`) | error | D8; the projection cannot be compared or spliced, and `--json` consumers must get a finding, not a traceback |
 | `unowned_capability` | capability under `openspec/specs/` with no explicit assignment (resolves to default) | warning, **team mode only** | outcome 2's "no owner" — advisory, because the default owner *does* own it; suppressed in solo mode (D14) |
 | `unowned_roadmap_item` | item in any active `openspec/roadmaps/<id>/roadmap.yaml` (never `archive/`) with no explicit assignment | warning, **team mode only** | same |
 | `unknown_capability` | `capabilities` key with no `openspec/specs/<key>/` directory | warning | a typo here silently un-assigns the real capability; the key set is closed, so it is checkable |

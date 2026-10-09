@@ -186,6 +186,19 @@ the stable identifiers enumerated in design D9.
 - **THEN** the report SHALL contain a warning with code `unknown_capability` and subject
   `agent-identiy`
 
+#### Scenario: Unowned roadmap item reported
+- **GIVEN** a registry declaring humans `jan` and `kim` (team mode)
+- **AND** the active roadmap `r1` declares items `i1` and `i2` and the map assigns only `r1/i1`
+- **WHEN** the check runs
+- **THEN** the report SHALL contain a warning with code `unowned_roadmap_item` and subject
+  `r1/i2` and no such warning for `r1/i1`
+
+#### Scenario: Sentinel principal reported
+- **GIVEN** no `openspec/owners.yaml`, no registry humans and no git identity
+- **WHEN** the check runs
+- **THEN** the report SHALL contain a warning with code `sentinel_principal`
+- **AND** the exit code SHALL be `0` without `--strict` and `1` with `--strict`
+
 #### Scenario: Clean repository passes
 - **GIVEN** every owner is a registered human, every assignment key names an existing subject,
   `CODEOWNERS` reconciles, and either the repository is in solo mode or every capability and
@@ -200,7 +213,8 @@ the resolver SHALL operate in solo mode: `OwnershipContext.mode` SHALL be `solo`
 `resolve_*` call SHALL return an `OwnerSet` whose `owners`, `decision_rights` and
 `acceptance_rights` all equal the sole repository principal with `source: solo`. The sole
 principal SHALL be derived in this order: the single declared human; else a synthetic
-principal with id `git:<email>` derived from `git config user.email`; else the sentinel
+principal with id `git:<email>` derived from `git config user.email`, or `git:<name>` from
+`git config user.name` when only the name is configured (design D5); else the sentinel
 principal `repository-default`.
 Solo mode SHALL add no prompts, gates or checks to any existing skill, and the existing
 `skills/tests` and `agent-coordinator/tests` suites SHALL pass unchanged with the map absent.

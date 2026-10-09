@@ -81,8 +81,8 @@ python3 "<skill-base-dir>/scripts/codeowners.py" reconcile [--json]
   `agent_as_owner`, `team_registry_without_map` or registry-location error is then present).
   Codes: `invalid_map`, `invalid_registry`,
   `registry_not_found`, `unknown_owner`, `agent_as_owner`, `team_registry_without_map`,
-  `registry_outside_repo`, `missing_github_handle`, `codeowners_disagreement`, `not_a_git_checkout`
-  (errors); `unowned_capability`, `unowned_roadmap_item` (warnings, team mode only),
+  `registry_outside_repo`, `missing_github_handle`, `codeowners_disagreement`, `not_a_git_checkout`,
+  `codeowners_unreadable` (errors); `unowned_capability`, `unowned_roadmap_item` (warnings, team mode only),
   `unknown_capability`, `unknown_roadmap_item`, `sentinel_principal`, `codeowners_stale`,
   `codeowners_missing`, `orphan_managed_block` (warnings); `no_ownership_map` (info).
 - `codeowners.py emit` renders the managed block between `# BEGIN ownership-map` and

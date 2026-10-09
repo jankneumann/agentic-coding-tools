@@ -212,3 +212,17 @@ class TestUnterminatedBlock:
         first = codeowners(repo).read_text(encoding="utf-8")
         assert emit(repo, "--write") == 0
         assert codeowners(repo).read_text(encoding="utf-8") == first
+
+
+class TestUnreadableCodeowners:
+    def test_write_over_undecodable_file_fails_without_modifying_it(
+        self, make_repo: MakeRepo, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        repo = make_repo(humans=TWO, owners=doc())
+        codeowners(repo).parent.mkdir(parents=True, exist_ok=True)
+        original = b"\xff\xfe* @someone\n"
+        codeowners(repo).write_bytes(original)
+        assert emit(repo, "--write", "--json") == 1
+        out = json.loads(capsys.readouterr().out)
+        assert out["ok"] is False and out["code"] == "codeowners_unreadable"
+        assert codeowners(repo).read_bytes() == original

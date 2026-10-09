@@ -36,6 +36,7 @@ CODES: dict[str, str] = {
     "missing_github_handle": "error",
     "codeowners_disagreement": "error",
     "not_a_git_checkout": "error",
+    "codeowners_unreadable": "error",
     "unowned_capability": "warning",
     "unowned_roadmap_item": "warning",
     "unknown_capability": "warning",

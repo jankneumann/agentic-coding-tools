@@ -107,10 +107,18 @@ def splice_block(existing: str, block: str) -> str:
 
 
 def read_codeowners(repo_root: Path) -> str | None:
+    """The CODEOWNERS text, ``None`` when absent; ``codeowners_unreadable`` when it cannot be decoded."""
     path = repo_root / CODEOWNERS_RELPATH
     if not path.is_file():
         return None
-    return path.read_bytes().decode("utf-8")
+    try:
+        return path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise OwnershipConfigError(
+            "codeowners_unreadable",
+            f"{CODEOWNERS_RELPATH} cannot be read as UTF-8: {exc}",
+            CODEOWNERS_RELPATH,
+        ) from exc
 
 
 def _fail(code: str, message: str, as_json: bool) -> int:
@@ -140,7 +148,10 @@ def run_emit(repo_root: Path, *, write: bool, as_json: bool) -> int:
         return _fail(exc.code, exc.message, as_json)
     path = repo_root / CODEOWNERS_RELPATH
     if write:
-        existing = read_codeowners(repo_root) or ""
+        try:
+            existing = read_codeowners(repo_root) or ""
+        except OwnershipConfigError as exc:
+            return _fail(exc.code, exc.message, as_json)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(splice_block(existing, block).encode("utf-8"))
     if as_json:
@@ -265,7 +276,11 @@ def reconcile(repo_root: Path) -> dict[str, Any]:
         findings.extend(make_finding(p.code, p.subject, p.message) for p in problems)
         return done()
     assert ctx is not None
-    text = read_codeowners(repo_root)
+    try:
+        text = read_codeowners(repo_root)
+    except OwnershipConfigError as exc:
+        findings.append(make_finding(exc.code, exc.subject or CODEOWNERS_RELPATH, exc.message))
+        return done()
     span = find_block(text) if text is not None else None
 
     if not ctx.has_map:
