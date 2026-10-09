@@ -153,7 +153,10 @@ def compile_pattern(pattern: str) -> re.Pattern[str]:
             out += sep + _segment_regex(segment)
     if dir_only:
         out += "/.+"
-    elif segments[-1] != "**":
+    elif segments[-1] != "**" and not any(ch in segments[-1] for ch in "*?"):
+        # A literal final segment may name a directory and covers its contents. A
+        # wildcard final segment matches at that depth only: GitHub documents
+        # `docs/*` as matching `docs/a.md` but not `docs/build/a.md`.
         out += "(?:/.+)?"
     return re.compile(out, re.DOTALL)
 

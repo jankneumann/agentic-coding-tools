@@ -222,3 +222,10 @@ PLAN_REVIEW ran as converge() (skills/autopilot/scripts/convergence_loop.py) wit
 ### Residuals (design-level, not changed)
 - **R1 (medium, needs operator decision):** D3 pins `a/*` as matching `a/b/c` (gitignore semantics, asserted in `test_owners.py` MATCH_TABLE). GitHub's CODEOWNERS documents `docs/*` as matching only files directly in `docs/`, not nested. Where a map uses a trailing-`*` path key the resolver and GitHub can disagree for nested files; reconcile probes only literal prefixes and tracked-file matches of the rule itself. The repository's own map uses only `**` and `/` forms, so the invariant is unaffected. Options: reject a final-segment `*`/`?`-only wildcard in the loader, or change the matcher and D3 table.
 - Last-match-wins vs specificity for equal-text patterns differing only by leading `/` is harmless (same semantics).
+
+## Phase: Implementation Iteration — orchestrator fix (2026-10-09)
+
+**Agent**: autopilot orchestrator | **Session**: N/A
+
+### Decisions
+1. **R1 resolved: wildcard final segment matches at its own depth only** — `a/*` no longer matches `a/b/c`. GitHub's CODEOWNERS documentation states `docs/*` matches `docs/getting-started.md` but not `docs/build-app/troubleshooting.md`; gitignore differs here, and GitHub is the reference consumer of the emitted file (same principle as the Plan Fix `dir/` decision). Literal final segments still cover directory contents. D3 table updated; matcher table test now pins both GitHub examples. (Docs page could not be fetched from this container — egress blocked — so this rests on the documented example as known.)

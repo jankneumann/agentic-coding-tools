@@ -101,7 +101,7 @@ rejects any `paths` key the schema admits but the table does not cover:
 | a `/` at the start or in the middle (`openspec/specs/x/`, `docs/*.md`, `/README.md`) | anchored at the repository root | a leading `/` is accepted and equivalent |
 | a single segment whose only `/` is trailing (`schemas/`, `build/`) | a directory of that name **at any depth**, and every file under it | unanchored directory rule — gitignore/`CODEOWNERS` semantics; write `/schemas/` to anchor it at the root |
 | trailing `/` (`openspec/specs/agent-identity/`) | every file under that directory, recursively | directory rule; anchoring follows the two rows above |
-| `*`, `?` | within one path segment only; never match `/` | |
+| `*`, `?` | within one path segment only; never match `/` | a wildcard **final** segment matches at that depth only (`docs/*` matches `docs/a.md`, not `docs/b/a.md` — GitHub `CODEOWNERS` semantics, which differ from gitignore here); a literal final segment (`docs/guide`) also covers a directory's contents |
 | `**` as a whole segment (`**/foo`, `a/**/b`, `a/**`) | zero or more whole segments | `a/**` matches everything under `a/` |
 | `**` embedded in a segment (`a/b**c`) | **rejected by the loader** with `OwnershipConfigError` | GitHub treats it as `*`; excluding it removes the one place the two matchers could legitimately differ |
 
