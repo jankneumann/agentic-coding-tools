@@ -110,14 +110,16 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       `matched_rule is None`; most-specific path rule wins; equal-specificity tie by rule order;
       implied capability rules for `openspec/specs/<cap>/` and `openspec/contracts/<cap>/` with
       `matched_rule == "capability:<cap>"`, and an explicit rule beating an implied rule of equal
-      specificity; the D3 matching table (unanchored basename, anchored, trailing `/`, `**`
+      specificity; the D3 matching table (unanchored basename, anchored, unanchored single-segment `dir/`
+      vs anchored `/dir/`, trailing `/`, `**`
       whole-segment, embedded `**` rejected); roadmap item explicit and fallback; solo mode with
       map absent; one-principal repository with a map stays `solo`; team registry without a map
       raises; performance budget (200-rule map, 1,000 resolutions — the design budget is 250 ms,
       the test asserts a 4× margin of 1 s so CI variance cannot flake it) (M)
       **Spec scenarios**: ownership-map / "Minimal valid map loads", "Missing default owner
       rejected", "Unregistered owner fails closed", "Agent named as owner rejected", "Embedded
-      double-star rejected", "Explicit capability assignment", "Unassigned capability falls back
+      double-star rejected", "Explicit capability assignment", "Single-segment directory rule matches at any depth",
+      "Unassigned capability falls back
       to the default owner", "Most specific path rule wins", "Equal specificity resolved by file
       order", "Capability assignment governs its spec and contract paths", "Explicit path rule
       overrides an implied capability rule", "Roadmap item resolution", "One-principal
@@ -226,7 +228,8 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
       **Dependencies**: 3.6, 4.4
 - [ ] 5.7 Solo-mode regression — with `openspec/owners.yaml` moved aside, run the full
       `skills/tests` and `agent-coordinator/tests` unit suites and record in the checkpoint that
-      no pre-existing test file was modified by this change (S)
+      no pre-existing test assertion was modified or removed — the only edits to pre-existing test
+      files are the additive extensions of tasks 2.5 and 5.4, listed by name in the checkpoint (S)
       **Spec scenarios**: ownership-map / "Existing suites unchanged with the map absent"
       **Design decisions**: D6
       **Dependencies**: 5.3

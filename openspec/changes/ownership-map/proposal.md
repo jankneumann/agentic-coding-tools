@@ -161,14 +161,14 @@ and it leaves `agents.yaml` as the single place a human declares *any* principal
 `ri-03`'s on-behalf-of chains will need. The two-file consistency cost is paid once by the
 check (unknown owner = error) and the schema-mirror test, both of which run in CI. Approaches
 2–4 are recorded above as rejected; design.md records the finer-grained decisions
-(D1–D13).
+(D1–D14).
 
 ## Non-Functional Requirements
 
 | Attribute | Metric | Target | Verifying phase |
 |---|---|---|---|
 | Operability (coordinator independence) | Resolver and check run with `COORDINATION_API_URL` unset and no network | 100% of resolver tests pass in that configuration | implement (test), validate |
-| Compatibility (solo mode) | Existing `skills/tests` and `agent-coordinator/tests` suites | Pass with no test edits when `owners.yaml` is absent | implement (checkpoint), validate |
+| Compatibility (solo mode) | Existing `skills/tests` and `agent-coordinator/tests` suites | Pass with no pre-existing assertion modified or removed when `owners.yaml` is absent (additive test extensions only: tasks 2.5, 5.4) | implement (checkpoint), validate |
 | Performance | Cold `load_ownership()` + 1,000 `resolve_*` calls on a 200-rule map | < 250 ms design budget; the test asserts a 4× margin (1 s) so CI variance cannot flake it | implement (test with budget) |
 | Portability | `skills/install.sh --check` payload validation | `ownership-runtime` installs standalone; no `agent-coordinator` import or path | implement, CI `test-infra-skills` |
 | Correctness (projection) | Reconcile check over every tracked path under `openspec/specs`, `openspec/contracts`, every explicit rule and a default probe | 0 disagreements between `CODEOWNERS` and resolver | implement (test), CI `test-skills` |

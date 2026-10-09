@@ -103,6 +103,13 @@ default to `git rev-parse --show-toplevel`, else the current directory.
 - **THEN** `owners` SHALL be `(kim,)` and `matched_rule` SHALL be
   `openspec/contracts/agent-coordinator/**`
 
+#### Scenario: Single-segment directory rule matches at any depth
+- **GIVEN** a `paths` rule `schemas/` and no other matching rule
+- **WHEN** `resolve_path("openspec/schemas/owners.schema.json")` is called
+- **THEN** the rule SHALL match, as GitHub `CODEOWNERS` and gitignore would
+- **AND** a rule `/schemas/` SHALL NOT match that path, because a leading `/` anchors it at the
+  repository root
+
 #### Scenario: Equal specificity resolved by file order
 - **GIVEN** two `paths` rules with identical literal-prefix length and pattern length that both
   match a path, the second listing `kim`
@@ -229,8 +236,9 @@ the map, so a one-principal repository that authors `owners.yaml` remains in sol
 #### Scenario: Existing suites unchanged with the map absent
 - **GIVEN** the repository checkout with `openspec/owners.yaml` temporarily absent
 - **WHEN** the pre-existing `skills/tests` and `agent-coordinator/tests` suites run
-- **THEN** they SHALL pass with no test file modified by this change other than the additions it
-  introduces
+- **THEN** they SHALL pass with no pre-existing test assertion modified or removed by this change;
+  the only edits to pre-existing test files SHALL be additive (new rules, new test functions or
+  new assertions)
 
 ### Requirement: Coordinator Independence
 

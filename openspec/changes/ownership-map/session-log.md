@@ -184,3 +184,13 @@ Iteration 2 was a cold re-read of the refined artifacts for regressions introduc
 ### Context
 PLAN_REVIEW ran as converge() (skills/autopilot/scripts/convergence_loop.py) with the real ReviewOrchestrator from agent-coordinator/agents.yaml, min_quorum=1 per the operator's cloud-container review-quorum policy (TRUST_POSTURE.md 479dcd9; gate-decision:f24d569f-0e1f-4378-89d5-4617d7e4bcf5). The claude_code lane dispatched as a CLI (claude-local, review mode, model 'fable', 161 s); the codex lane failed to dispatch (SDK tier, 'No API key available for SDK dispatch', error_class auth_required). Round 1: 6 findings, all low/judgment, 0 blocking, 0 disagreements, fact-check kept 6/6; converged in round 1. PLAN_FIX sub-step was not entered (no blocking ledger items), so no plan artifact was edited. Four of the six findings cite files outside this change (the packet diffs main...HEAD over the whole roadmap branch) and were parked out_of_scope by the conductor; the two in-scope lows (proposal 'D1-D13' range, PathPattern regex two-layer validation) stay open as advisories.
 
+
+## Phase: Plan Fix (2026-10-09)
+
+**Agent**: autopilot orchestrator | **Session**: N/A
+
+### Decisions
+1. **D3 anchoring aligned with gitignore/CODEOWNERS** — a single segment whose only `/` is trailing (`schemas/`) is an unanchored directory rule matching at any depth; `/schemas/` anchors it. GitHub is the reference consumer of the emitted `CODEOWNERS`, so the resolver adopts its semantics instead of rejecting the shape (resolves PLAN_REVIEW open question (a); new spec scenario "Single-segment directory rule matches at any depth").
+2. **D8 wording corrected** — CODEOWNERS line order is D4's precedence written lowest-first, not its inverse.
+3. **Test-edit invariant made consistent** — task 5.7, the proposal NFR and the spec scenario now say "no pre-existing assertion modified or removed; only additive extensions (tasks 2.5, 5.4)" (resolves open question (b)).
+4. **proposal.md** Selected Approach now cites D1–D14 (ledger advisory #2).

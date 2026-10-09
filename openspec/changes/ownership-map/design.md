@@ -98,8 +98,9 @@ rejects any `paths` key the schema admits but the table does not cover:
 | Pattern shape | Matches | Note |
 |---|---|---|
 | no `/` anywhere (`*.md`, `README.md`) | the basename at any depth | unanchored |
-| a `/` anywhere (`openspec/specs/x/`, `docs/*.md`) | anchored at the repository root | a leading `/` is accepted and equivalent |
-| trailing `/` (`openspec/specs/agent-identity/`) | every file under that directory, recursively | directory rule |
+| a `/` at the start or in the middle (`openspec/specs/x/`, `docs/*.md`, `/README.md`) | anchored at the repository root | a leading `/` is accepted and equivalent |
+| a single segment whose only `/` is trailing (`schemas/`, `build/`) | a directory of that name **at any depth**, and every file under it | unanchored directory rule — gitignore/`CODEOWNERS` semantics; write `/schemas/` to anchor it at the root |
+| trailing `/` (`openspec/specs/agent-identity/`) | every file under that directory, recursively | directory rule; anchoring follows the two rows above |
 | `*`, `?` | within one path segment only; never match `/` | |
 | `**` as a whole segment (`**/foo`, `a/**/b`, `a/**`) | zero or more whole segments | `a/**` matches everything under `a/` |
 | `**` embedded in a segment (`a/b**c`) | **rejected by the loader** with `OwnershipConfigError` | GitHub treats it as `*`; excluding it removes the one place the two matchers could legitimately differ |
@@ -147,7 +148,7 @@ Principal(id, kind="human", display_name, github, email, source)
   (in capability key order), then the explicit `paths` rules in file order. An explicit rule
   therefore always beats an implied rule of equal specificity, which is the only way an author
   can override a capability's ownership of one of its own directories. This ranking is what
-  D8's emitter inverts into `CODEOWNERS` line order. ("File order" relies on PyYAML preserving
+  D8's emitter writes out, lowest precedence first, as `CODEOWNERS` line order. ("File order" relies on PyYAML preserving
   mapping order on load, which it does.)
 - Any subject with no matching rule resolves to `default_owner` with `source="default_owner"`.
   There is no "unowned" result from the resolver; "unowned" is a *check* finding (D9).
@@ -246,7 +247,7 @@ openspec/contracts/agent-coordinator/**        @jankneumann
 - Owners map to `@<github>`. A human in any emitted owner set without a `github` handle is an
   emit error (fail closed; the alternative is silently dropping a reviewer).
 - Text outside the markers is preserved verbatim and reported by `reconcile` as *unmanaged*.
-- Line order is the inverse of D4's rule order: ascending specificity, and at equal
+- Line order is D4's precedence restated for last-match-wins (same ranking, lowest first): ascending specificity, and at equal
   specificity implied capability lines before explicit `paths` lines, so GitHub's last match is
   the rule the resolver picks.
 - With no `openspec/owners.yaml` there is nothing to project. `emit` exits `1` with
