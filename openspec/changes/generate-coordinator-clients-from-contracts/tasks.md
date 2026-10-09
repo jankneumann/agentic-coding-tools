@@ -13,7 +13,7 @@ Test tasks precede the implementation they verify. Scenario references use
 
 ## 1. Contracts (wp-contracts)
 
-- [ ] 1.1 Validate the typed contract and generated stub — run `openapi-spec-validator` on `contracts/openapi/v1.yaml` and import `contracts/generated/models.py` under `python3 -I`
+- [x] 1.1 Validate the typed contract and generated stub — run `openapi-spec-validator` on `contracts/openapi/v1.yaml` and import `contracts/generated/models.py` under `python3 -I`
   **Spec scenarios**: coordination-bridge.bindings (Bindings stay standard-library only)
   **Contracts**: contracts/openapi/v1.yaml, contracts/generated/models.py
   **Design decisions**: D2
@@ -22,20 +22,20 @@ Test tasks precede the implementation they verify. Scenario references use
 
 ## 2. Promote the contract (wp-contracts)
 
-- [ ] 2.1 Promote `contracts/openapi/v1.yaml` over `openspec/contracts/agent-coordinator/openapi/features.yaml`, keeping its header provenance and every `x-traceability` block
+- [x] 2.1 Promote `contracts/openapi/v1.yaml` over `openspec/contracts/agent-coordinator/openapi/features.yaml`, keeping its header provenance and every `x-traceability` block
   **Spec scenarios**: agent-coordinator.fr-http (List active features via HTTP, Unauthorized single-feature access)
   **Contracts**: contracts/openapi/v1.yaml
   **Design decisions**: D1
   **Dependencies**: 1.1
   **Size**: S
 
-- [ ] 2.2 Write `contracts/accepted-breaking-changes.yaml` acknowledging each oasdiff breaking finding produced by 2.1 (bare array → envelope on `listActiveFeatures`, new security on `getFeature`, tightened request bodies), one entry per `(document, operation, rule_id)` with rationale
+- [x] 2.2 Write `contracts/accepted-breaking-changes.yaml` acknowledging each oasdiff breaking finding produced by 2.1 (bare array → envelope on `listActiveFeatures`, new security on `getFeature`, tightened request bodies), one entry per `(document, operation, rule_id)` with rationale
   **Spec scenarios**: agent-coordinator.gate (Acknowledged breaking change passes the gate)
   **Design decisions**: D4
   **Dependencies**: 2.1
   **Size**: S
 
-- [ ] 2.3 Run the requirement-traceability sweep (`packages/gen-eval/scripts/check_traceability.py`) over the promoted document and confirm 5/5 operations still cite requirements
+- [x] 2.3 Run the requirement-traceability sweep (`packages/gen-eval/scripts/check_traceability.py`) over the promoted document and confirm 5/5 operations still cite requirements
   **Dependencies**: 2.1
   **Size**: XS
 
