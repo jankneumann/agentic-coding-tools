@@ -448,7 +448,10 @@ Recorded during IMPLEMENT (sequential tier):
   v1 continuation stays valid; writers always emit both.
 - `redact_command` redacts HTTP auth-scheme and auth-header values before
   `sanitize_session_log.sanitize()`: the sanitizer alone leaves
-  `Authorization: Bearer <short token>` intact.
+  `Authorization: Bearer <short token>` intact. IMPL_ITERATE added URL-userinfo
+  passwords, `-u/--user user:pass`, and credential-named flags/keys
+  (`--password x`, `--token=x`, `*_secret_access_key x`), which the sanitizer also
+  passes when the value is short.
 - SDK/API review lanes have no authenticated no-op in their adapters yet; they are
   reported unverified (`probe_unsupported`) rather than counted on importability.
 - `apply` accepts evidence whose commit is an ancestor of the worktree HEAD, because

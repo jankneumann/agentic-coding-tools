@@ -595,6 +595,18 @@ _AUTH_SCHEME = re.compile(r"(?i)\b(bearer|basic|token|digest)(\s+)[^\s\"'`]+")
 _AUTH_HEADER = re.compile(
     r"(?i)\b(authorization|proxy-authorization|x-api-key|api-key|cookie)(\s*:\s*)(?!\[REDACTED:)[^\"'`\r\n]+"
 )
+#: ``scheme://user:password@host`` — the password half of URL userinfo.
+_URL_USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://[^/\s:@\"'`]+:)(?!\[REDACTED:)[^/\s@\"'`]+@")
+#: ``-u user:password`` / ``--user`` / ``--proxy-user`` (curl basic auth).
+_USER_FLAG = re.compile(
+    r"(?i)((?:^|\s)(?:-u|--user|--proxy-user|-U)(?:\s+|=)[\"']?[^\s:\"']+:)(?!\[REDACTED:)[^\s\"']+"
+)
+#: A credential-named flag or key followed by its value: ``--password x``,
+#: ``--token=x``, ``aws_secret_access_key x``, ``client_secret: x``.
+_KEYED_SECRET = re.compile(
+    r"(?i)(\b[\w.-]*(?:password|passwd|passphrase|secret|token|api[_-]?key|access[_-]?key|"
+    r"private[_-]?key|credentials?)[\w.-]*)(\s*[=:]\s*|\s+)(?!\[REDACTED:)([^\s\"'`&;|]+)"
+)
 
 
 def redact_command(command: Optional[str]) -> Optional[str]:
@@ -609,6 +621,9 @@ def redact_command(command: Optional[str]) -> Optional[str]:
         return None
     text = _AUTH_SCHEME.sub(lambda m: f"{m.group(1)}{m.group(2)}[REDACTED:auth-scheme]", str(command))
     text = _AUTH_HEADER.sub(lambda m: f"{m.group(1)}{m.group(2)}[REDACTED:auth-header]", text)
+    text = _URL_USERINFO.sub(lambda m: f"{m.group(1)}[REDACTED:url-credential]@", text)
+    text = _USER_FLAG.sub(lambda m: f"{m.group(1)}[REDACTED:user-credential]", text)
+    text = _KEYED_SECRET.sub(lambda m: f"{m.group(1)}{m.group(2)}[REDACTED:keyed-secret]", text)
     redacted = _sanitizer()(text)[0]
     return redacted[:MAX_REDACTED_COMMAND]
 

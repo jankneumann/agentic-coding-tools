@@ -306,6 +306,36 @@ def test_redacted_command_drops_the_bearer_value() -> None:
     assert len(dc.redact_command("x" * 1000)) <= 256
 
 
+@pytest.mark.parametrize(
+    ("command", "secret"),
+    [
+        ("curl -u admin:hunter2pass https://example.invalid", "hunter2pass"),
+        ("curl --user admin:hunter2pass https://example.invalid", "hunter2pass"),
+        ("curl https://bob:s3cr3tpw@example.invalid/a", "s3cr3tpw"),
+        ("git clone https://x-access:ghs_shortval@example.invalid/r.git", "ghs_shortval"),
+        ("tool --password hunter2 run", "hunter2"),
+        ("tool --token=abcd1234 run", "abcd1234"),
+        ("tool --api-key abcd1234 run", "abcd1234"),
+        ("aws configure set aws_secret_access_key wJalrXUtnFEMI", "wJalrXUtnFEMI"),
+        ("deploy client_secret: abc123 now", "abc123"),
+    ],
+)
+def test_redacted_command_drops_short_credentials_the_sanitizer_misses(
+    command: str, secret: str
+) -> None:
+    """Short credentials below the sanitizer's entropy threshold: URL userinfo,
+    ``-u user:pass``, credential-named flags and keyed values (D9)."""
+    redacted = dc.redact_command(command)
+    assert secret not in redacted
+    assert "[REDACTED:" in redacted
+
+
+def test_redaction_keeps_the_non_secret_shape_of_the_command() -> None:
+    redacted = dc.redact_command("curl -u admin:hunter2pass https://example.invalid/path")
+    assert redacted.startswith("curl -u admin:")
+    assert "https://example.invalid/path" in redacted
+
+
 # --------------------------------------------------------------------------- #
 # Launch marker reader (D10a)
 # --------------------------------------------------------------------------- #
