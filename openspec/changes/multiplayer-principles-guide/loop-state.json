@@ -232,8 +232,39 @@
       "phase": "ESCALATE",
       "recorded_at": "2026-10-09T12:16:46.493945+00:00",
       "note": "User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block."
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-09T12:17:28.246464+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "multiplayer-principles-guide",
+    "gate": "merge",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-10-09T12:17:28.247738+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/666",
+      "branch": "openspec/multiplayer-principles-guide",
+      "change_id": "multiplayer-principles-guide"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true
+    }
+  },
   "goal_gate": null
 }
