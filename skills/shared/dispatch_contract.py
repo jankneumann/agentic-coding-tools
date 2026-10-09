@@ -711,15 +711,23 @@ def _resolve_local(schema: Mapping[str, Any], node: Mapping[str, Any]) -> Mappin
     return node
 
 
-def _enum_values(schema: Mapping[str, Any], node: Any) -> list[Any]:
-    node = _resolve_local(schema, node) if isinstance(node, Mapping) else node
-    if not isinstance(node, Mapping):
+def _enum_values(schema: Mapping[str, Any], node: Any, *, where: str) -> list[Any]:
+    """The finite values a ``kind`` / ``gate`` node permits.
+
+    An absent node means ``null``. Anything that is not a ``const`` or an
+    ``enum`` (a free string, ``anyOf``, ``true``) cannot be enumerated and is
+    refused, so the closure check never mistakes it for ``null`` alone.
+    """
+    if node is None:
         return [None]
-    if "const" in node:
+    node = _resolve_local(schema, node) if isinstance(node, Mapping) else node
+    if isinstance(node, Mapping) and "const" in node:
         return [node["const"]]
-    if "enum" in node:
+    if isinstance(node, Mapping) and "enum" in node:
         return list(node["enum"])
-    return [None]
+    raise DispatchContractError(
+        f"closure cannot enumerate {where}: it must be a const or an enum, got {node!r}"
+    )
 
 
 def permitted_result_combinations(
@@ -745,7 +753,8 @@ def permitted_result_combinations(
         for branch in parked_node["oneOf"]:
             resolved = _resolve_local(document, branch)
             properties = resolved.get("properties", {})
-            for kind in _enum_values(document, properties.get("kind")):
-                for gate in _enum_values(document, properties.get("gate")):
+            name = str(branch.get("$ref", "<inline parked branch>"))
+            for kind in _enum_values(document, properties.get("kind"), where=f"{name} kind"):
+                for gate in _enum_values(document, properties.get("gate"), where=f"{name} gate"):
                     combos.add(("parked", kind, gate))
     return combos

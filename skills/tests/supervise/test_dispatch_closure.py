@@ -67,6 +67,21 @@ def test_adding_a_kind_without_a_path_fails_naming_it() -> None:
     assert missing == [("parked", "example_kind", None)]
 
 
+@pytest.mark.parametrize(
+    "gate_node",
+    [{"type": ["string", "null"]}, {"anyOf": [{"$ref": "#/$defs/ChildGate"}, {"type": "null"}]}, True],
+    ids=["free-string", "anyOf", "true-schema"],
+)
+def test_a_gate_the_enumeration_cannot_list_fails_loudly(gate_node: Any) -> None:
+    """A parked branch whose gate is not a const/enum would otherwise be
+    enumerated as null alone, hiding every gate it really permits."""
+    schema = copy.deepcopy(dispatch_contract.load_schema(dispatch_contract.RESULT_V2))
+    schema["$defs"]["ParkedPermissionBlocked"]["properties"]["gate"] = gate_node
+
+    with pytest.raises(dispatch_contract.DispatchContractError, match="ParkedPermissionBlocked|gate"):
+        dispatch_contract.permitted_result_combinations(schema)
+
+
 def test_a_path_for_a_forbidden_combination_fails() -> None:
     paths = dict(gate_router.ANSWER_PATHS)
     paths[("parked", "pending_gate", "roadmap_approval")] = "never: a child does not evaluate it"
