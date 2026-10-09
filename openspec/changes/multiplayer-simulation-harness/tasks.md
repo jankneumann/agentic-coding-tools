@@ -24,7 +24,7 @@
 
 ## 1. Contracts and scaffolding
 
-- [ ] 1.1 Write failing contract tests in `test_contracts.py`. Read everything through
+- [x] 1.1 Write failing contract tests in `test_contracts.py`. Read everything through
   `repo_root_from(__file__, 3)`. Four cases:
   - `openspec/contracts/multiplayer-simulation/cli/mpsim.yaml` validates against
     `openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json`.
