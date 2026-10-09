@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T08:07:45.991550+00:00",
+  "updated_at": "2026-10-09T08:09:51.641070+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -441,6 +441,30 @@
       "item_id": "ri-02",
       "lease_generation": 2,
       "note": "Operator approved directly in worker session_011LTtuyAcYi2oaHLoJtpwwM at 2026-10-09T08:06:26Z: re-root sub-agent worktrees with protected 'git switch -c' instead of 'git reset --hard'; proceed. Child loop resumed at 46dcc9a."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator approved in supervisor session_01J39bSygVy2r68wyPyHN5VA 2026-10-09: resume ri-20 using the protected re-root (git switch -c, as approved for ri-02) instead of git reset --hard; no forced worktree removal; cloud single-vendor review policy (TRUST_POSTURE.md 479dcd9).",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T08:09:50.835476+00:00",
+      "decision_id": "b8af977d-fcec-445a-bbb8-741078975828",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 2,
+      "note": "Operator approved in supervisor session_01J39bSygVy2r68wyPyHN5VA 2026-10-09: resume ri-20 using the protected re-root (git switch -c, as approved for ri-02) instead of git reset --hard; no forced worktree removal; cloud single-vendor review policy (TRUST_POSTURE.md 479dcd9)."
     }
   ],
   "dispatch_attempts": [
@@ -910,11 +934,11 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_token": "rBNx1ZzYdKtO2DdXLxIKJXfl1OOO-bVt",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
-      "lease_generation": 2,
+      "lease_generation": 3,
       "launch_history": [
         {
           "generation": 1,
@@ -977,6 +1001,37 @@
           "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
           "observed_at": "2026-10-09T07:50:20.967885+00:00",
           "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "323d8d5abeca3c64d3c3ec3f9123d16d",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-09T08:09:51.619835+00:00"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "323d8d5abeca3c64d3c3ec3f9123d16d",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-09T08:09:51.629034+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "323d8d5abeca3c64d3c3ec3f9123d16d",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-09T08:09:51.629034+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "323d8d5abeca3c64d3c3ec3f9123d16d",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-09T08:09:51.640963+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3"
         }
       ],
       "scope": {
@@ -990,66 +1045,30 @@
         "branch": "openspec/toolkit-consistency"
       },
       "context": {},
+      "continuation": {
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:b8af977d-fcec-445a-bbb8-741078975828"
+      },
       "lease": {
-        "generation": 2,
-        "owner_nonce": "2cd19aa90f08f118a037c27ad93272ca",
-        "state": "released",
-        "acquired_at": "2026-10-09T07:50:20.950195+00:00",
-        "heartbeat_at": "2026-10-09T07:50:20.950195+00:00",
-        "expires_at": "2026-10-09T08:05:20.950195+00:00"
+        "generation": 3,
+        "owner_nonce": "323d8d5abeca3c64d3c3ec3f9123d16d",
+        "state": "active",
+        "acquired_at": "2026-10-09T08:09:51.619835+00:00",
+        "heartbeat_at": "2026-10-09T08:09:51.619835+00:00",
+        "expires_at": "2026-10-09T08:24:51.619835+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 2,
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2",
-        "observed_at": "2026-10-09T07:50:20.958544+00:00"
+        "generation": 3,
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3",
+        "observed_at": "2026-10-09T08:09:51.629034+00:00"
       },
       "launch_gate": {
-        "generation": 2,
+        "generation": 3,
         "state": "entered",
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2",
-        "go_released_at": "2026-10-09T07:50:20.958544+00:00",
-        "entered_at": "2026-10-09T07:50:20.967885+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/toolkit-consistency",
-          "change_id": "toolkit-consistency",
-          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
-          "evidence": {
-            "commit": "18c3432227b1540eb5e1fcdecf34b1dd0f223e4d",
-            "loop_state_digest": "87f1f42de3ce6f83771844de59fb94744615672de1c11fd17d1c9318bf354242",
-            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
-          },
-          "handoff_id": "ae54d0bb-3d83-4adb-a15e-d5ce86f016d6",
-          "lease_generation": 2,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "policy_pause",
-            "reason": "permission_denied: classifier denied a bundled commit/push + git worktree remove --force of the stale PLAN_REVIEW harness worktree right after escalate_resume was approved; PLAN_REVIEW not dispatched.",
-            "resume_hint": "After the isolation fix is on the worker branch, answer escalate_resume; loop returns to PLAN_REVIEW."
-          },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/toolkit-consistency"
-        },
-        "result_digest": "f5c2852d203738d2819acbfabe8dc7ffce8587f2ddbc4a9733df984a30465b91",
-        "bound_at": "2026-10-09T08:03:33.315085+00:00",
-        "callback_started_at": "2026-10-09T08:03:33.327219+00:00",
-        "callback_acknowledged_at": "2026-10-09T08:03:33.340244+00:00",
-        "terminal_persisted_at": "2026-10-09T08:03:33.348178+00:00",
-        "effects_applied_at": "2026-10-09T08:03:33.411215+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-09T08:03:33.348090+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "policy_pause",
-        "reason": "permission_denied: classifier denied a bundled commit/push + git worktree remove --force of the stale PLAN_REVIEW harness worktree right after escalate_resume was approved; PLAN_REVIEW not dispatched.",
-        "resume_hint": "After the isolation fix is on the worker branch, answer escalate_resume; loop returns to PLAN_REVIEW."
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3",
+        "go_released_at": "2026-10-09T08:09:51.629034+00:00",
+        "entered_at": "2026-10-09T08:09:51.640963+00:00"
       }
     },
     {
