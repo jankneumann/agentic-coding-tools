@@ -45,7 +45,9 @@ on. Tasks with no shared files and no `Depends on` can run in parallel worktrees
   `skills/improve-harness/scripts/export_shared_learnings.py`: read
   `.agentic-toolkit/config.json`, refuse with exit `2` when absent/disabled, query episodic
   memory through the existing `analyze_failures.query_memory()` path, apply the D8 allowlist,
-  drop `details`/`agent_id`/`session_id`, exclude `source:transcript-mined`, sanitize via
+  drop `details`/`agent_id`/`session_id`, keep only `tags` in the D4 namespaces
+  (`failure_type:`, `capability_gap:`, `affected_skill:`, `severity:`, `source:`), exclude
+  `source:transcript-mined`, sanitize via
   `<skill-base-dir>/../session-log/scripts/sanitize_session_log.py`, write deterministic
   `.agentic-toolkit/learnings.jsonl`. Tests use a stubbed memory response.
   Requirements: Shared learnings opt-in; Exported learning privacy. Design: D8, D9.
@@ -53,9 +55,10 @@ on. Tasks with no shared files and no `Depends on` can run in parallel worktrees
   Depends on: none.
 
 - [ ] **T5. Shared-learnings consumption** — Add `--shared-learnings <path>` to
-  `analyze_failures.py` (default `<project-root>/.agentic-toolkit/learnings.jsonl`, read only
-  when the config enables sharing), merge records with the existing dedupe, tag them
-  `origin:shared-repo`, and assert no write-back to memory. Document export and consumption
+  `analyze_failures.py` (default `<target-root>/.agentic-toolkit/learnings.jsonl`, read only
+  when the config enables sharing), dedupe merged records against local and other shared
+  findings on `(capability_gap, affected_skill, summary)` (exported records carry no
+  `session_id`), tag them `origin:shared-repo`, and assert no write-back to memory. Document export and consumption
   in `skills/improve-harness/SKILL.md`.
   Requirements: One-way consumption of shared learnings. Design: D8.
   Files: `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/SKILL.md`, `skills/tests/improve-harness/test_shared_learnings_merge.py`.

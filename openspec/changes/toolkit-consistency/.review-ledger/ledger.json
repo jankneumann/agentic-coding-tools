@@ -271,7 +271,6 @@
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "openspec/changes/owner-routed-escalation/proposal.md",
-      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a2592d0f7287ff5d2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
       "fingerprint": "97d74d353d473c65",
       "first_seen_round": 1,
       "last_seen_round": 1,
@@ -279,6 +278,333 @@
         "claude_code"
       ],
       "description": "Scaffold proposals list dependencies as roadmap item IDs (`ri-02`) rather than change IDs (`ownership-map`). A change proposal is meant to be readable on its own in a PR; a reader without the roadmap cannot resolve `ri-02`. This matters more given the epic's constraint that artifacts stay legible to teammates who do not use the skills.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/tasks.md",
+      "fingerprint": "f2dd2eabb115659b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Review fixes 9 (tag-namespace filtering) and 14 (`<project-root>` \u2192 `<target-root>`) were applied to spec.md only. The planning artifacts implementers actually follow still describe the pre-fix behaviour: tasks.md T5 defaults `--shared-learnings` to `<project-root>/.agentic-toolkit/learnings.jsonl`; tasks.md T4 and design.md D8 say records carry `tags` with no mention of filtering to the `failure_type:`/`capability_gap:`/`affected_skill:`/`severity:`/`source:` namespaces; proposal.md 'What Changes' \u00a74 likewise lists `tags` verbatim in the allowlist. An implementer working from tasks.md would ship the identity leak the spec now forbids and would reintroduce the two-roots ambiguity.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): tasks.md T4/T5, design.md D8 and proposal.md item 4 now carry the tag-namespace filter, the (capability_gap, affected_skill, summary) dedupe key and <target-root>.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "db285b0057b8970a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Exported learning privacy requirement ends with 'The exporter SHALL pass the Cross-Repo Portability gate' but has no scenario for it; the only portability scenario in the delta is under Payload hash and covers `payload_hash.py`, not `export_shared_learnings.py`. plan-findings.md row 8 claims 'portability scenarios under Payload hash and Exported learning privacy', so the ledger over-reports coverage. Either add a scenario (e.g. WHEN `validate_install_manifest.py` and the consumer-portability test run after the exporter is added THEN they pass and the exporter is listed in `smoke_entrypoints`) or move the SHALL into Payload hash's scenario.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): scenario 'Exporter passes the portability gate' added under Exported learning privacy.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "baaf91dc66cc768b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "One-way consumption has three SHALLs without a scenario: accepting `--shared-learnings <path>` (no scenario with a non-default path), deduplicating merged records on `(capability_gap, affected_skill, summary)` against local and other shared findings (no scenario where a shared record duplicates a local one and appears once), and the behaviour when an exported record lacks a `capability_gap:` or `affected_skill:` tag, which leaves the dedupe key partially undefined for both exporter and consumer.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): scenario 'Duplicate shared record appears once' (explicit path + dedupe); missing gap tags map to 'unknown' as in analyze_failures.py.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/.review-ledger/ledger.json",
+      "fingerprint": "c7f4483cf82a24ed",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger item 16 (file_path `openspec/changes/owner-routed-escalation/proposal.md`) carries a `spec_file` that is (a) an absolute path into this agent's private worktree (`/home/user/agentic-coding-tools/.claude/worktrees/agent-a2592d0f7287ff5d2/...`) and (b) points at toolkit-consistency's spec, which the finding is not about. Every other item uses repo-relative paths. A committed machine-local path breaks the ledger for any other checkout and the mis-association would mislead a spec-level fingerprint match in later rounds.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): item 16 spec_file cleared (absolute worktree path pointing at the wrong spec).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "open",
+      "axis": "security",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "f6e27c48d52ea219",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The summary table asserts that `pr_creation` 'Fails closed if the notification is undelivered', but the Dispositions section, which is the normative description of `notify_with_timeout`, defines only 'file approval, notify, poll until timeout, apply default_action' and says nothing about undelivered notifications. With `default_action: proceed` the documented semantics would proceed after an hour regardless of delivery. Either document the undelivered-notification rule under Dispositions or drop the claim from the table so the contract does not promise behaviour it does not specify.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 22,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/plan-findings.md",
+      "fingerprint": "95560ee661432983",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Iteration 2 cites `.review-cache/round-1/review-manifest.json` as dispatch evidence for the single-vendor degradation, but that file is not part of the committed packet (only `.review-ledger/ledger.json` is). The vendor-availability evidence for the min_quorum=1 decision is therefore not reproducible from git, which is the same P9 traceability gap ledger item 5 raises for the policy citation. Either commit the manifest or summarise its contents in plan-findings.md.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): plan-findings.md cites .review-cache/round-1-initial/; manifest, findings, fact-check and raw meta committed for both runs.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 23,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "spec_file": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "08ecbe39b854f4a1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 1: still open. All 19 scaffold deltas retain `WHEN <change-id> is implemented THEN <outcome>` scenarios under the non-existent `multiplayer-collaboration` capability.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 1, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 24,
+      "status": "retired",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "efc0ee1e1786284c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 2: still open (`pRs created by`, `that /implement-feature provides`, `that given any audit entry` headings truncated with `...`).",
+      "resolution": "Retired: verification-round re-verification echo of ledger 2, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "retired",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "e32278654441e0e2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 3: still open. `proposal_approval: auto` is unconditional in the front matter; nothing scopes it to changes with a recorded roadmap_approval.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 3, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "retired",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "adbd003ddec30107",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 4: still open. Header comment says every failure/escalation path waits for a human while `replan_required: auto`.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 4, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 27,
+      "status": "retired",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "2d547879c7cb5f85",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 5: still open. The TRUST_POSTURE.md in this packet has no 'Review quorum in cloud containers' section, yet plan-findings.md Iteration 2 and both `escalate_resume` approvals cite it (commit 479dcd9). The packet is internally inconsistent until 479dcd9 is on the branch.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 5, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 28,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
+      "fingerprint": "a7c6506844313717",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 6: still open. roadmap.yaml lists ri-20 `approved`, `status: planning`, checkpoint `current_item_id: ri-01` with no ri-20 dispatch_attempt, while toolkit-consistency/loop-state.json records GATEKEEPER, PLAN_ITERATE and two PLAN_REVIEW parks.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 6, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 29,
+      "status": "retired",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "fingerprint": "465b27fee73ef085",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 7: still open. `launch_token` and `owner_nonce` remain committed in checkpoint.json.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 7, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 30,
+      "status": "retired",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "4d15cc48bb9c0e70",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 10: still open. No scenario covers an install whose new payload hash differs from an existing stamp; plan-findings defers it as an open question.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 10, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 31,
+      "status": "retired",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/supervise/supervisor-record.json",
+      "fingerprint": "8f9f3d8c16c23b6f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 12: still open. `written_at` 06:59:55.764Z precedes `decided_at` 06:59:55.799+00:00 and the two timestamp formats are mixed.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 12, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 32,
+      "status": "retired",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
+      "fingerprint": "179dbac39cceb2f5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 13: still open. ri-13 (priority 2) depends on ri-12 (priority 3).",
+      "resolution": "Retired: verification-round re-verification echo of ledger 13, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 33,
+      "status": "retired",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "17a1e885a432daf1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 15: still open. `escalation_reason` retains the pre-resume text, `previous_phase == current_phase == PLAN_REVIEW`, `iteration: 0` with `total_iterations: 8`, and phase_history has no PLAN_REVIEW completion despite plan-findings reporting convergence at 08:21Z.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 15, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 34,
+      "status": "retired",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/owner-routed-escalation/proposal.md",
+      "fingerprint": "498a458878e15b98",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 16: still open. Scaffold proposals list dependencies as `ri-NN` rather than change IDs.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 16, which stays open; merge did not match because the description changed.",
       "consensus_status": "unconfirmed"
     }
   ]
