@@ -42,18 +42,6 @@
     {
       "finding_id": "9",
       "verdict": "kept"
-    },
-    {
-      "finding_id": "10",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "11",
-      "verdict": "kept"
-    },
-    {
-      "finding_id": "12",
-      "verdict": "kept"
     }
   ]
 }

@@ -206,6 +206,160 @@
       ],
       "description": "checkpoint.json commits a dispatch launch_token and lease owner_nonce to git. If these values are ever used to authenticate a marker or lease claim (rather than merely to disambiguate), committing them defeats that purpose; if they are not secrets, a comment or schema note should say so.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/.review-ledger/ledger.json",
+      "fingerprint": "0f98e5c9f70d50d9",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item 4: FIXED in the artifacts. docs/guides/multiplayer-collaboration.md P10 Planned line and design.md D3 table P10 row now both include `attention-budgets-digests`, so the split-capability inheritance rule is applied consistently. However .review-ledger/ledger.json still records item 4 with status \"open\" and last_seen_round 1; the ledger was not updated when the IMPLEMENT phase applied the carry-forward fix (session-log 'Carry-forward fixes in design.md'). Mark item 4 resolved so the review record matches the tree.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 14,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md",
+      "spec_file": "openspec/changes/multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "0075f2d8f43dbf8e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item 5: PARTIALLY addressed. design.md D5 now states that the `## Modes` solo/team definition has no test scenario and is checked in review, but the spec requirement 'Solo and team mode vocabulary' (the normative text) still asserts the definition with MUST and provides no scenario for it, nor the 'checked in review' clause that the per-skill requirement carries. Add one sentence to the requirement ('Whether the definition is correct is checked in review; the guard test checks only the terms and the guarantee sentence') so spec and design agree.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/proposal.md",
+      "fingerprint": "ef910f08273c1dd7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger items 1, 2 and 3: all STILL OPEN and unchanged in this round. (1) The branch still carries the whole roadmap bootstrap (19 scaffolds, roadmap.yaml, checkpoint.json, roadmap proposal, TRUST_POSTURE.md, supervisor-record.json) while proposal.md Non-Goals says no edits to roadmap.yaml or sibling artifacts. (2) reviews/consensus-plan.json (quorum_received=1, quorum_met=false, advisory_count=0 with three advisory findings, claude_code success) still contradicts reviews/review-manifest.json (quorum_received=0, vendors=[], change_id=null, codex auth_required). (3) TRUST_POSTURE.md still contains no 'Review quorum in cloud containers (temporary)' section, yet loop-state.json gate note and session-log.md cite it at 479dcd9 as the authority for single-vendor review. Items 1 and 3 require an operator decision (land the bootstrap separately or amend the proposal scope; commit the quorum policy section or re-point the citation); item 2 is a stale-file cleanup.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 16,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "c09009d889dba732",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger items 6, 7, 8, 9, 10, 11, 12: all STILL OPEN and unchanged. checkpoint.json still shows ri-01 parked on proposal_approval (6); loop-state.json findings_trend is still empty despite max_iter and total_iterations now 11 (7); scaffold specs unchanged including the 'pRs created by' casing bug (8); replan_required still auto (9, recorded operator decision); TRUST_POSTURE.md still says 'roadmap item ri-05' for the approval gate service (10); supervisor-record.json written_at still precedes decided_at (11); launch_token/owner_nonce still committed without a non-secret note (12). Items 10 and 11 are one-line fixes.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/session-log.md",
+      "fingerprint": "1805caed579bab58",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "session-log.md 'Plan Iteration 1' Context paragraph is corrupted by sanitization: the text reads '...restoring the lost prior attempt[REDACTED:high-entropy]Resume with single reviewer acceptable\". This matches the committed cloud policy...' and is followed by an orphaned '2. **Review diff base**' list item with no item 1. The redaction swallowed the sentence boundary and the start of the numbered decision list, so the record of the user's acceptance of single-vendor review (which the later 'Plan Review' entry cites as 'the user-accepted decision above') is only partially present in the committed log. Reconstruct the paragraph from the handoff/gate-decision e49a71df and fix the sanitizer's token boundary handling as a toolkit follow-up.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/loop-state.json",
+      "fingerprint": "29287bb3f892b91d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "loop-state.json carries stale phase metadata: current_phase is IMPL_REVIEW (after IMPLEMENT and IMPL_ITERATE completed on 2026-10-09) but previous_phase is still 'PLAN_REVIEW' and escalation_reason still reads \"PLAN_REVIEW transitioned to ESCALATE via outcome 'max_iter'\" although that escalation was resolved at 08:03 and PLAN_REVIEW later converged. phase_archetype is 'implementer' for a review phase. A rehydrating session reading these fields would misread the loop as freshly escalated out of plan review.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/proposal.md",
+      "fingerprint": "c3a21821b0d603ef",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "proposal.md 'What Changes' describes each principle as having 'an *Implemented by* line', while design.md D3, the spec requirement 'Principles are stated with implementers', the guard test and the guide all use two lines, `**Existing:**` and `**Planned:**`. The proposal is the artifact reviewers approve; align its wording with the spec so the approved scope names the mechanism actually built.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/multiplayer-collaboration.md",
+      "fingerprint": "9df055db7c878225",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Per-skill table content check (design D5 says cell accuracy is a review check): the Solo mode cell for `implement-feature` attributes commit trailers to `attribution-trailers`, but that change stamps On-Behalf-Of / Correlation-Id trailers on all skill-authored commits and PR bodies. `autopilot` and `cleanup-feature` also author commits and PRs, yet their Solo mode cells list only the PR ledger section and their Delivered by cells omit `attribution-trailers`. Either add the trailer output (and change-id) to those rows or state that the trailer behavior is listed once under implement-feature.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "open",
+      "axis": "readability",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "deec2f2494b36c25",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "TRUST_POSTURE.md summary table says pr_creation 'Fails closed if the notification is undelivered', but the Dispositions section defines notify_with_timeout solely in terms of timeout_seconds expiry and default_action; no undelivered-notification behavior is described, and with default_action: proceed a reader cannot tell whether an undelivered notification parks the loop or proceeds after an hour. Document the undelivered path in the Dispositions table (or drop the claim) so the active contract describes the behavior the gate service actually implements.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }
