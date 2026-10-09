@@ -4,38 +4,7 @@
     "last_digest_at": null,
     "last_fingerprint": null
   },
-  "pending_gates": [
-    {
-      "approval_id": null,
-      "change_id": "multiplayer-principles-guide",
-      "deadline": "2026-10-13T09:47:58.884158+00:00",
-      "decision_id": "df918905-9bea-4878-af28-0e6e8d3ae805",
-      "disposition": "block",
-      "gate": "escalate_resume",
-      "requested_at": "2026-10-06T09:47:58.884158+00:00",
-      "source": "supervise"
-    },
-    {
-      "approval_id": null,
-      "change_id": "toolkit-consistency",
-      "deadline": "2026-10-13T11:10:09.506508+00:00",
-      "decision_id": "681bb72a-9e2c-496d-887d-77d99bdc729b",
-      "disposition": "block",
-      "gate": "escalate_resume",
-      "requested_at": "2026-10-06T11:10:09.506508+00:00",
-      "source": "supervise"
-    },
-    {
-      "approval_id": null,
-      "change_id": "dispatch-contract",
-      "deadline": "2026-10-13T11:10:12.296408+00:00",
-      "decision_id": "8294b51e-1332-422c-9684-e91af74291e1",
-      "disposition": "block",
-      "gate": "escalate_resume",
-      "requested_at": "2026-10-06T11:10:12.296408+00:00",
-      "source": "supervise"
-    }
-  ],
+  "pending_gates": [],
   "schema_version": 1,
   "standing_decisions": [
     {
@@ -67,5 +36,5 @@
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-06T11:10:09.656600Z"
+  "written_at": "2026-10-09T07:49:42.302702Z"
 }

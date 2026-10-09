@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-06T11:10:58.071193+00:00",
+  "updated_at": "2026-10-09T07:50:20.992882+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -205,6 +205,172 @@
       "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
       "item_id": "ri-21",
       "lease_generation": 1
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T07:49:15.524451+00:00",
+      "decision_id": "2b79add8-eb90-4eef-b3cc-3dc308281796",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 1
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T07:49:18.082436+00:00",
+      "decision_id": "ec2cbab4-92f5-49f0-a7d4-e36890f0582c",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-simulation-harness",
+      "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
+      "item_id": "ri-05",
+      "lease_generation": 1
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T07:49:40.457870+00:00",
+      "decision_id": "e49a71df-6e23-4937-816e-4e4f39d3eaff",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-principles-guide",
+      "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+      "item_id": "ri-01",
+      "lease_generation": 4,
+      "note": "Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T07:49:40.923523+00:00",
+      "decision_id": "f24d569f-0e1f-4378-89d5-4617d7e4bcf5",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 1,
+      "note": "Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T07:49:41.512272+00:00",
+      "decision_id": "14d02b8a-cff3-4010-a9fe-29c849777950",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-simulation-harness",
+      "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
+      "item_id": "ri-05",
+      "lease_generation": 1,
+      "note": "Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T07:49:41.938951+00:00",
+      "decision_id": "c0aeac2a-5f9c-4e72-8e01-505ff9f752e2",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 1,
+      "note": "Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T07:49:42.380651+00:00",
+      "decision_id": "b8ed62ec-6530-48bf-9228-4db0dd9889dc",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "dispatch-contract",
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "item_id": "ri-21",
+      "lease_generation": 1,
+      "note": "Operator 2026-10-09: accept single-vendor review in cloud containers until OpenRouter API review or the GX10 review lane exists (TRUST_POSTURE.md, commit 479dcd9). Resume PLAN_REVIEW with min_quorum=1 and record single_vendor_review."
     }
   ],
   "dispatch_attempts": [
@@ -214,11 +380,11 @@
       "change_id": "multiplayer-principles-guide",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:01:35.452722+00:00",
       "launch_token": "M9MMyQ-nh5sn3_tvN0qA6TtJ_P-FvRzP",
       "launch_marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
-      "lease_generation": 4,
+      "lease_generation": 5,
       "launch_history": [
         {
           "generation": 1,
@@ -343,6 +509,37 @@
           "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
           "observed_at": "2026-10-06T09:33:21.943874+00:00",
           "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "9d6fc1dd17cbe8802c07608c3d0f0dd8",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.860831+00:00"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "9d6fc1dd17cbe8802c07608c3d0f0dd8",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.877732+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g5"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "9d6fc1dd17cbe8802c07608c3d0f0dd8",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.877732+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g5"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "9d6fc1dd17cbe8802c07608c3d0f0dd8",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.889003+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g5"
         }
       ],
       "scope": {
@@ -356,66 +553,30 @@
         "branch": "openspec/multiplayer-principles-guide"
       },
       "context": {},
+      "continuation": {
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff"
+      },
       "lease": {
-        "generation": 4,
-        "owner_nonce": "ri01g4-ucglr-JndRpuqZypJ4Ng3K_O",
-        "state": "released",
-        "acquired_at": "2026-10-06T09:33:21.458888+00:00",
-        "heartbeat_at": "2026-10-06T09:33:21.458888+00:00",
-        "expires_at": "2026-10-06T10:33:21.458888+00:00"
+        "generation": 5,
+        "owner_nonce": "9d6fc1dd17cbe8802c07608c3d0f0dd8",
+        "state": "active",
+        "acquired_at": "2026-10-09T07:50:20.860831+00:00",
+        "heartbeat_at": "2026-10-09T07:50:20.860831+00:00",
+        "expires_at": "2026-10-09T08:05:20.860831+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 4,
-        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4",
-        "observed_at": "2026-10-06T09:33:21.696590+00:00"
+        "generation": 5,
+        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g5",
+        "observed_at": "2026-10-09T07:50:20.877732+00:00"
       },
       "launch_gate": {
-        "generation": 4,
+        "generation": 5,
         "state": "entered",
-        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g4",
-        "go_released_at": "2026-10-06T09:33:21.696590+00:00",
-        "entered_at": "2026-10-06T09:33:21.943874+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/multiplayer-principles-guide",
-          "change_id": "multiplayer-principles-guide",
-          "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
-          "evidence": {
-            "commit": "bdfb75b46ec7567ceed4bc4f10864b461eb382f9",
-            "loop_state_digest": "f7d5369ef503defc72321022269e4c296195cb7e91d4c87596c5b7d9de15051e",
-            "loop_state_path": "openspec/changes/multiplayer-principles-guide/loop-state.json"
-          },
-          "handoff_id": "2a44bdc8-051f-4c39-ab9d-c1c299adbc2c",
-          "lease_generation": 4,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "policy_pause",
-            "reason": "PLAN_REVIEW quorum_lost (1/2): codex SDK lane has no credential and no CLI although --check-vendors reports 2/2; lowering quorum to 1 was denied by the harness classifier (Auto-Mode Bypass).",
-            "resume_hint": "Provide a second review lane (GX10 queue or codex credential) or an operator-recorded single-vendor authorization, then answer escalate_resume."
-          },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-principles-guide"
-        },
-        "result_digest": "112293e35c25fd9b3ec1f1a6d0129b7fea3bcd45508ffcc10644fc916100d50c",
-        "bound_at": "2026-10-06T09:47:56.187911+00:00",
-        "callback_started_at": "2026-10-06T09:47:56.193684+00:00",
-        "callback_acknowledged_at": "2026-10-06T09:47:56.196570+00:00",
-        "terminal_persisted_at": "2026-10-06T09:47:56.198677+00:00",
-        "effects_applied_at": "2026-10-06T09:47:56.231117+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-06T09:47:56.198652+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "policy_pause",
-        "reason": "PLAN_REVIEW quorum_lost (1/2): codex SDK lane has no credential and no CLI although --check-vendors reports 2/2; lowering quorum to 1 was denied by the harness classifier (Auto-Mode Bypass).",
-        "resume_hint": "Provide a second review lane (GX10 queue or codex credential) or an operator-recorded single-vendor authorization, then answer escalate_resume."
+        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g5",
+        "go_released_at": "2026-10-09T07:50:20.877732+00:00",
+        "entered_at": "2026-10-09T07:50:20.889003+00:00"
       }
     },
     {
@@ -424,11 +585,11 @@
       "change_id": "ownership-map",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_token": "KQrZDLksm--dBjDWB7rzaGhHy-fSa7TB",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
-      "lease_generation": 1,
+      "lease_generation": 2,
       "launch_history": [
         {
           "generation": 1,
@@ -460,6 +621,37 @@
           "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
           "observed_at": "2026-10-05T07:10:30.547171+00:00",
           "handle": "session_011LTtuyAcYi2oaHLoJtpwwM"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "e266bc6d4d1c4f7c630691667fc0c2a1",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.894934+00:00"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "e266bc6d4d1c4f7c630691667fc0c2a1",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.904192+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "e266bc6d4d1c4f7c630691667fc0c2a1",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.904192+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "e266bc6d4d1c4f7c630691667fc0c2a1",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.915730+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2"
         }
       ],
       "scope": {
@@ -473,66 +665,30 @@
         "branch": "openspec/ownership-map"
       },
       "context": {},
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:f24d569f-0e1f-4378-89d5-4617d7e4bcf5"
+      },
       "lease": {
-        "generation": 1,
-        "owner_nonce": "ri02-e0saEYfAGD5FzMb7Yd7KCmWC",
-        "state": "released",
-        "acquired_at": "2026-10-05T07:10:21.990818+00:00",
-        "heartbeat_at": "2026-10-05T07:10:21.990818+00:00",
-        "expires_at": "2026-10-05T08:10:21.990818+00:00"
+        "generation": 2,
+        "owner_nonce": "e266bc6d4d1c4f7c630691667fc0c2a1",
+        "state": "active",
+        "acquired_at": "2026-10-09T07:50:20.894934+00:00",
+        "heartbeat_at": "2026-10-09T07:50:20.894934+00:00",
+        "expires_at": "2026-10-09T08:05:20.894934+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 1,
-        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM",
-        "observed_at": "2026-10-05T07:10:30.250662+00:00"
+        "generation": 2,
+        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2",
+        "observed_at": "2026-10-09T07:50:20.904192+00:00"
       },
       "launch_gate": {
-        "generation": 1,
+        "generation": 2,
         "state": "entered",
-        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM",
-        "go_released_at": "2026-10-05T07:10:30.250662+00:00",
-        "entered_at": "2026-10-05T07:10:30.547171+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/ownership-map",
-          "change_id": "ownership-map",
-          "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
-          "evidence": {
-            "commit": "bfcdd6db4f6bfed1aedac71c9fa85b6c923288b8",
-            "loop_state_digest": "391084e1d0a4dc83e9be0088c46c392f8f935186a94867b8aeabc98550b61bce",
-            "loop_state_path": "openspec/changes/ownership-map/loop-state.json"
-          },
-          "handoff_id": "12c9ef5b-5534-4e24-9a2f-870ce12d1e26",
-          "lease_generation": 1,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "pending_gate",
-            "reason": "capability_unavailable: PLAN_REVIEW multi-vendor quorum (min_quorum 2) unattainable - codex lane has no CLI and no usable key in the cloud container; review_dispatcher --check-vendors falsely reports 2/2.",
-            "resume_hint": "Answer escalate_resume once a second review lane exists; loop returns to PLAN_REVIEW."
-          },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/ownership-map"
-        },
-        "result_digest": "18f11b41e411c9f64e5457546cfc6f93836c006c3087e4a7291c949963865cf3",
-        "bound_at": "2026-10-06T11:10:58.039253+00:00",
-        "callback_started_at": "2026-10-06T11:10:58.042099+00:00",
-        "callback_acknowledged_at": "2026-10-06T11:10:58.043905+00:00",
-        "terminal_persisted_at": "2026-10-06T11:10:58.046255+00:00",
-        "effects_applied_at": "2026-10-06T11:10:58.071081+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-06T11:10:58.046231+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "pending_gate",
-        "reason": "capability_unavailable: PLAN_REVIEW multi-vendor quorum (min_quorum 2) unattainable - codex lane has no CLI and no usable key in the cloud container; review_dispatcher --check-vendors falsely reports 2/2.",
-        "resume_hint": "Answer escalate_resume once a second review lane exists; loop returns to PLAN_REVIEW."
+        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g2",
+        "go_released_at": "2026-10-09T07:50:20.904192+00:00",
+        "entered_at": "2026-10-09T07:50:20.915730+00:00"
       }
     },
     {
@@ -541,11 +697,11 @@
       "change_id": "multiplayer-simulation-harness",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:10:51.250636+00:00",
       "launch_token": "Mp2SzX-7Y7Losd0LyuH5PzlKFsrcvIng",
       "launch_marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
-      "lease_generation": 1,
+      "lease_generation": 2,
       "launch_history": [
         {
           "generation": 1,
@@ -577,6 +733,37 @@
           "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
           "observed_at": "2026-10-05T07:11:15.691349+00:00",
           "handle": "session_01GTShWgrUnZ1sK8G98uXsda"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "9d71e9b993d904b68021a86173c4aaa5",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.923575+00:00"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "9d71e9b993d904b68021a86173c4aaa5",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.933406+00:00",
+          "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "9d71e9b993d904b68021a86173c4aaa5",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.933406+00:00",
+          "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "9d71e9b993d904b68021a86173c4aaa5",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.944468+00:00",
+          "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g2"
         }
       ],
       "scope": {
@@ -590,66 +777,30 @@
         "branch": "openspec/multiplayer-simulation-harness"
       },
       "context": {},
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:14d02b8a-cff3-4010-a9fe-29c849777950"
+      },
       "lease": {
-        "generation": 1,
-        "owner_nonce": "ri05-5ws-OF13-l6gfw3p9hCmUwF6",
-        "state": "released",
-        "acquired_at": "2026-10-05T07:11:02.399656+00:00",
-        "heartbeat_at": "2026-10-05T07:11:02.399656+00:00",
-        "expires_at": "2026-10-05T08:11:02.399656+00:00"
+        "generation": 2,
+        "owner_nonce": "9d71e9b993d904b68021a86173c4aaa5",
+        "state": "active",
+        "acquired_at": "2026-10-09T07:50:20.923575+00:00",
+        "heartbeat_at": "2026-10-09T07:50:20.923575+00:00",
+        "expires_at": "2026-10-09T08:05:20.923575+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 1,
-        "handle": "session_01GTShWgrUnZ1sK8G98uXsda",
-        "observed_at": "2026-10-05T07:11:15.444231+00:00"
+        "generation": 2,
+        "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g2",
+        "observed_at": "2026-10-09T07:50:20.933406+00:00"
       },
       "launch_gate": {
-        "generation": 1,
+        "generation": 2,
         "state": "entered",
-        "handle": "session_01GTShWgrUnZ1sK8G98uXsda",
-        "go_released_at": "2026-10-05T07:11:15.444231+00:00",
-        "entered_at": "2026-10-05T07:11:15.691349+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/multiplayer-simulation-harness",
-          "change_id": "multiplayer-simulation-harness",
-          "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
-          "evidence": {
-            "commit": "83aa2fd103bb68e06a96a737bb200d5f0b63ea87",
-            "loop_state_digest": "9cfe8d3b75bf5aae04365eef682493f346507506d4bb21079b18a9990bf9c8f3",
-            "loop_state_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json"
-          },
-          "handoff_id": "44759acd-c2f6-4d02-8dfd-278037b64a61",
-          "lease_generation": 1,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "pending_gate",
-            "reason": "PLAN_REVIEW max_iter (single vendor, adjudication_required) -> ESCALATE. Open high finding: design.md does not fix which git ref Roadmap.ready_items() reads roadmap.yaml from, given per-principal sim branches (D5/D7).",
-            "resume_hint": "Operator decides the ref question; PLAN_FIX ledger items 1-3; gate-answer escalate_resume; re-run autopilot (resumes at PLAN_REVIEW)."
-          },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness"
-        },
-        "result_digest": "716d7615b8595b5522522d19a97fb50da3057217553167e5c38ae79b9a8ff9cd",
-        "bound_at": "2026-10-05T09:01:19.968377+00:00",
-        "callback_started_at": "2026-10-05T09:01:19.972992+00:00",
-        "callback_acknowledged_at": "2026-10-05T09:01:19.975955+00:00",
-        "terminal_persisted_at": "2026-10-05T09:01:19.979906+00:00",
-        "effects_applied_at": "2026-10-05T09:01:20.003996+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-05T09:01:19.979873+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "pending_gate",
-        "reason": "PLAN_REVIEW max_iter (single vendor, adjudication_required) -> ESCALATE. Open high finding: design.md does not fix which git ref Roadmap.ready_items() reads roadmap.yaml from, given per-principal sim branches (D5/D7).",
-        "resume_hint": "Operator decides the ref question; PLAN_FIX ledger items 1-3; gate-answer escalate_resume; re-run autopilot (resumes at PLAN_REVIEW)."
+        "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g2",
+        "go_released_at": "2026-10-09T07:50:20.933406+00:00",
+        "entered_at": "2026-10-09T07:50:20.944468+00:00"
       }
     },
     {
@@ -658,11 +809,11 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_token": "rBNx1ZzYdKtO2DdXLxIKJXfl1OOO-bVt",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
-      "lease_generation": 1,
+      "lease_generation": 2,
       "launch_history": [
         {
           "generation": 1,
@@ -694,6 +845,37 @@
           "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
           "observed_at": "2026-10-05T07:11:16.195044+00:00",
           "handle": "session_01SFH32A8gaJCyUn6j7uBLgb"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "2cd19aa90f08f118a037c27ad93272ca",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.950195+00:00"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "2cd19aa90f08f118a037c27ad93272ca",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.958544+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "2cd19aa90f08f118a037c27ad93272ca",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.958544+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "2cd19aa90f08f118a037c27ad93272ca",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.967885+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2"
         }
       ],
       "scope": {
@@ -707,66 +889,30 @@
         "branch": "openspec/toolkit-consistency"
       },
       "context": {},
+      "continuation": {
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:c0aeac2a-5f9c-4e72-8e01-505ff9f752e2"
+      },
       "lease": {
-        "generation": 1,
-        "owner_nonce": "ri20-viW00Mzx8NZAZ-4MGJD62UOG",
-        "state": "released",
-        "acquired_at": "2026-10-05T07:11:02.680340+00:00",
-        "heartbeat_at": "2026-10-05T07:11:02.680340+00:00",
-        "expires_at": "2026-10-05T08:11:02.680340+00:00"
+        "generation": 2,
+        "owner_nonce": "2cd19aa90f08f118a037c27ad93272ca",
+        "state": "active",
+        "acquired_at": "2026-10-09T07:50:20.950195+00:00",
+        "heartbeat_at": "2026-10-09T07:50:20.950195+00:00",
+        "expires_at": "2026-10-09T08:05:20.950195+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 1,
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb",
-        "observed_at": "2026-10-05T07:11:15.926635+00:00"
+        "generation": 2,
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2",
+        "observed_at": "2026-10-09T07:50:20.958544+00:00"
       },
       "launch_gate": {
-        "generation": 1,
+        "generation": 2,
         "state": "entered",
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb",
-        "go_released_at": "2026-10-05T07:11:15.926635+00:00",
-        "entered_at": "2026-10-05T07:11:16.195044+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/toolkit-consistency",
-          "change_id": "toolkit-consistency",
-          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
-          "evidence": {
-            "commit": "509d9cbd62b7b253e7fcb276d0be11bad023190c",
-            "loop_state_digest": "91c5c15e9af442a3ba3f308d5bad47ac9543c32568346a5035e5e3c09a9b2460",
-            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
-          },
-          "handoff_id": "ae54d0bb-3d83-4adb-a15e-d5ce86f016d6",
-          "lease_generation": 1,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "policy_pause",
-            "reason": "capability_unavailable: PLAN_REVIEW min_quorum=2 unattainable - codex review lane has no CLI or credential in this cloud container (review_dispatcher --check-vendors reported 2/2 falsely)",
-            "resume_hint": "After the operator provides a second review lane (GX10 / policy / credential): answer escalate_resume; loop resumes at previous_phase=PLAN_REVIEW."
-          },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/toolkit-consistency"
-        },
-        "result_digest": "2ca19f5d261820acab44459000e1d45e7ba86725953b3354bc25a509b97bc818",
-        "bound_at": "2026-10-06T11:10:06.076237+00:00",
-        "callback_started_at": "2026-10-06T11:10:06.080233+00:00",
-        "callback_acknowledged_at": "2026-10-06T11:10:06.082471+00:00",
-        "terminal_persisted_at": "2026-10-06T11:10:06.084530+00:00",
-        "effects_applied_at": "2026-10-06T11:10:06.111287+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-06T11:10:06.084508+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "policy_pause",
-        "reason": "capability_unavailable: PLAN_REVIEW min_quorum=2 unattainable - codex review lane has no CLI or credential in this cloud container (review_dispatcher --check-vendors reported 2/2 falsely)",
-        "resume_hint": "After the operator provides a second review lane (GX10 / policy / credential): answer escalate_resume; loop resumes at previous_phase=PLAN_REVIEW."
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g2",
+        "go_released_at": "2026-10-09T07:50:20.958544+00:00",
+        "entered_at": "2026-10-09T07:50:20.967885+00:00"
       }
     },
     {
@@ -775,11 +921,11 @@
       "change_id": "dispatch-contract",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
       "launch_token": "p4ZVttf27O_h5wk8PTy32Smp1hf9FJw-",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
-      "lease_generation": 1,
+      "lease_generation": 2,
       "launch_history": [
         {
           "generation": 1,
@@ -811,6 +957,37 @@
           "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
           "observed_at": "2026-10-06T09:08:13.188463+00:00",
           "handle": "session_016nxtswoDxS5hqr8EiY7RzW"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "834a2a0f17023e79ed2079399e87505e",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.974709+00:00"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "834a2a0f17023e79ed2079399e87505e",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.982798+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "834a2a0f17023e79ed2079399e87505e",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.982798+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "834a2a0f17023e79ed2079399e87505e",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-09T07:50:20.992790+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2"
         }
       ],
       "scope": {
@@ -824,66 +1001,30 @@
         "branch": "openspec/dispatch-contract"
       },
       "context": {},
+      "continuation": {
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:b8ed62ec-6530-48bf-9228-4db0dd9889dc"
+      },
       "lease": {
-        "generation": 1,
-        "owner_nonce": "ri21-odJtVU3Uvo0ycY-W6cbW-DyE",
-        "state": "released",
-        "acquired_at": "2026-10-06T09:08:00.008712+00:00",
-        "heartbeat_at": "2026-10-06T09:08:00.008712+00:00",
-        "expires_at": "2026-10-06T10:08:00.008712+00:00"
+        "generation": 2,
+        "owner_nonce": "834a2a0f17023e79ed2079399e87505e",
+        "state": "active",
+        "acquired_at": "2026-10-09T07:50:20.974709+00:00",
+        "heartbeat_at": "2026-10-09T07:50:20.974709+00:00",
+        "expires_at": "2026-10-09T08:05:20.974709+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 1,
-        "handle": "session_016nxtswoDxS5hqr8EiY7RzW",
-        "observed_at": "2026-10-06T09:08:12.934187+00:00"
+        "generation": 2,
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2",
+        "observed_at": "2026-10-09T07:50:20.982798+00:00"
       },
       "launch_gate": {
-        "generation": 1,
+        "generation": 2,
         "state": "entered",
-        "handle": "session_016nxtswoDxS5hqr8EiY7RzW",
-        "go_released_at": "2026-10-06T09:08:12.934187+00:00",
-        "entered_at": "2026-10-06T09:08:13.188463+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/dispatch-contract",
-          "change_id": "dispatch-contract",
-          "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
-          "evidence": {
-            "commit": "e68276d54cd33324dd9fa3a864e60e6764955b62",
-            "loop_state_digest": "4f152781639fbb7835a7083b869acaf9262d86115aac31b414a500a11a594344",
-            "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
-          },
-          "handoff_id": "9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
-          "lease_generation": 1,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "policy_pause",
-            "reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable. codex is listed by --check-vendors but has no CLI on PATH and no credential. Quorum was not lowered and TRUST_POSTURE.md was not edited.",
-            "resume_hint": "Pick the cloud review lane (GX10 queue, a policy change, or a codex credential), then answer escalate_resume. The loop resumes at previous_phase=PLAN_REVIEW."
-          },
-          "schema_version": 1,
-          "worktree_path": "/home/user/agentic-coding-tools/.git-worktrees/dispatch-contract"
-        },
-        "result_digest": "df1ebc732e5b13bb3baf6de5a4c07691f500088a776e713c8782c821c04ffbcf",
-        "bound_at": "2026-10-06T11:10:09.619931+00:00",
-        "callback_started_at": "2026-10-06T11:10:09.622843+00:00",
-        "callback_acknowledged_at": "2026-10-06T11:10:09.625108+00:00",
-        "terminal_persisted_at": "2026-10-06T11:10:09.627381+00:00",
-        "effects_applied_at": "2026-10-06T11:10:09.653689+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-06T11:10:09.627355+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "policy_pause",
-        "reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable. codex is listed by --check-vendors but has no CLI on PATH and no credential. Quorum was not lowered and TRUST_POSTURE.md was not edited.",
-        "resume_hint": "Pick the cloud review lane (GX10 queue, a policy change, or a codex credential), then answer escalate_resume. The loop resumes at previous_phase=PLAN_REVIEW."
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2",
+        "go_released_at": "2026-10-09T07:50:20.982798+00:00",
+        "entered_at": "2026-10-09T07:50:20.992790+00:00"
       }
     }
   ]
