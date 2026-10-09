@@ -107,3 +107,46 @@ Replaced the roadmap scaffold (circular scenarios, placeholder tasks, placeholde
 ### Context
 Autopilot PLAN_REVIEW ran converge(review_type=plan, min_quorum=1) twice: the review round and a verification round over the committed PLAN_FIX. Both converged with 0 blocking ledger items. Ledger: {"open": 13, "addressed": 9, "retired": 12}; blocking now 0.
 
+
+---
+
+## Phase: Implementation 1 (2026-10-09)
+
+**Agent**: claude_code (autopilot IMPLEMENT, implementer archetype) | **Session**: N/A
+
+### Decisions
+1. **Re-rooted with the protected form instead of worktree.py setup, and hand the commits over for cherry-pick** `architectural: skill-procedure-deviation` — The orchestrator addendum (gate-decision b8af977d) required `git fetch origin openspec/toolkit-consistency` then `git switch -c openspec/toolkit-consistency--implement origin/openspec/toolkit-consistency`, with no `worktree.py setup`, no merge of origin/main, no push. The orchestrator integrates the commits by cherry-pick from openspec/toolkit-consistency--implement.
+2. **Stamp is written last, after every other install step** — spec says "after every mirror, shared-library, manifest and OpenSpec-asset step"; `write_install_stamp` runs after the Python-tools step too, so a failure anywhere (for example `--openspec-cli required` with the CLI missing) leaves the prior stamp untouched. The aborted-install test uses that failure.
+3. **Stamp written via temp file plus mv** — a crash mid-write cannot leave a truncated stamp that `--check` would then reject as invalid.
+4. **`toolkit_version` is `unknown` when `<skills-dir>/../VERSION` is absent** (spec silent; fixture installers copy only skills/). `source_commit` is `null` outside a git checkout, per spec.
+5. **`is_self_install()` moved above `check_install_payload()`** (T3) — `--check` exits before the original definition was reached; moving the function was the smallest change.
+6. **Runtime drift hashes each mirror with the source manifest's skill and library names** — a mirror missing a skill therefore reports runtime drift as well as the existing parity message.
+7. **Pinned-match message appears only when the stamp comparison is clean**, in addition to (not instead of) the existing "Installed skill mirrors match canonical payload" line, so existing output is unchanged.
+8. **Exporter exits 3 and leaves learnings.jsonl unchanged when memory returns no entries** (spec silent). `query_memory()` swallows an unreachable coordinator and returns `[]`; writing an empty projection would have silently wiped the tracked file.
+9. **Exporter sanitizes every string in the record, including tags and list items**, and sorts tags for determinism. Dedupe keeps the first record after the `(created_at, summary)` sort.
+10. **Shared-record merge marks a matching local entry `origin:shared-repo` rather than adding a second entry**, and `rank_findings` now surfaces `origin:` tags as `origin:<value>` in `sources`, which is how the duplicate scenario lists the origin among its sources. `analyze_failures` lazily imports `sharing_enabled` from the sibling exporter so the opt-in rule has one definition.
+11. **Two fixture installers outside T2's declared Files were updated** (`test_openspec_assets.py`, `test_related_validation.py`): they build a fake skills tree and now also copy `shared/payload_hash.py`, which `install.sh` requires. No assertion was weakened.
+12. **`generate_report.py` is unchanged** (outside T5's Files): it runs its own `query_memory` + `rank_findings` pipeline and does not yet merge shared learnings; only `analyze_failures.py` does.
+
+### Alternatives Considered
+- Fall back to `unknown`/skip when payload_hash.py is missing from the source tree: rejected, a stamp without a hash would defeat the pin.
+- Put the sharing-config reader in `analyze_failures.py`: rejected, the exporter already imports analyze_failures, so the reverse direction would be a cycle.
+
+### Trade-offs
+- `--check` now runs three hash walks (source plus one per agent) in Python; accepted per design.md risks.
+
+### Open Questions
+- [ ] generate_report.py does not merge shared learnings (see decision 12); needs a follow-up if reports should include them.
+
+### Completed Work
+- T1 payload_hash.py + tests (9 pass, 1 skipped: rsync not installed)
+- T2 stamp writing + tests; T3 stamp drift check + tests
+- T4 export_shared_learnings.py + tests; T5 analyze_failures merge + SKILL.md + tests
+- T6 state-artifacts rows, skills.md, guard test
+- T7 partially done: install-manifest.json edited (two smoke_entrypoints, session-log dependency); validate_install_manifest.py passes and test_consumer_portability.py / test_install_manifest.py pass. The scratch-consumer `install.sh` run was denied by the permission system, so T7 is not ticked.
+
+### Next Steps
+- Re-run the T7 scratch-consumer install and `--check` (copy mode, target outside the repository), then tick T7.
+
+### Context
+Pytest, skills/.venv: install_sh + improve-harness + shared: 149 passed, 16 skipped (rsync-only cases); new files: test_payload_hash 9 passed 1 skipped, test_install_stamp 5 passed, test_install_check_drift 11 passed, test_export_shared_learnings 12 passed, test_shared_learnings_merge 9 passed, test_state_artifacts_registration 5 passed. ruff clean on the new scripts.
