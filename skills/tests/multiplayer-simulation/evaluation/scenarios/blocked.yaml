@@ -1,0 +1,89 @@
+# Memory-store blocked-dependency scenarios (design D5).
+#
+# These pin the BASELINE in force when the harness landed. Today a bare
+# `depends_on` blocks the dependent until the dependency's implement step has
+# completed, so retrieval-owner waits 10 ticks. They are characterisations of the
+# present admission rule (Roadmap.ready_items), not targets.
+
+- id: memory-store-blocked-dependency
+  name: The dependent principal is blocked until the dependency is implemented
+  description: >
+    storage-owner (plan 1, contract 2, implement 8) finishes implementing at tick
+    11. retrieval-owner (plan 1, implement 4) can start at tick 1 but is not
+    admitted by Roadmap.ready_items until ri-storage is completed on main.
+  category: blocked-time
+  priority: 1
+  interfaces: ["cli:run", "cli:--scenario"]
+  tags: [blocked-time, baseline, multiplayer-simulation]
+  steps:
+    - id: run
+      transport: cli
+      command: run
+      args: ["--scenario", "memory-store-blocked-dependency"]
+      expect:
+        exit_code: 0
+        body:
+          # BASELINE, flipped by ri-11 (contract-level dependencies): once a
+          # dependent may start on the contract rather than on completion, this
+          # drops to 2 under the baseline durations.
+          blocked_ticks:
+            retrieval-owner: 10
+            storage-owner: 0
+          unblocked:
+            retrieval-owner: true
+            storage-owner: true
+      timeout_seconds: 60
+
+- id: independent-principals-control
+  name: Independent principals are never blocked
+  description: >
+    The control for memory-store-blocked-dependency. With no dependency edge the
+    admission rule admits both principals as soon as their own preceding steps
+    finish.
+  category: blocked-time
+  priority: 1
+  interfaces: ["cli:run", "cli:--scenario"]
+  tags: [blocked-time, control, multiplayer-simulation]
+  steps:
+    - id: run
+      transport: cli
+      command: run
+      args: ["--scenario", "independent-principals-control"]
+      expect:
+        exit_code: 0
+        body:
+          # Control for ri-11: must stay all zeros after contract-level
+          # dependencies land.
+          blocked_ticks:
+            retrieval-owner: 0
+            storage-owner: 0
+      timeout_seconds: 60
+
+- id: tick-budget-bounds-a-blocked-run
+  name: --tick-budget stops a run whose dependency has not completed
+  description: >
+    A budget of 5 is lower than the dependency's completion tick (11), so the run
+    stops at tick 5 with retrieval-owner still blocked. Without the flag the same
+    scenario runs to tick 15, so final_tick discriminates the flag.
+  category: blocked-time
+  priority: 2
+  interfaces: ["cli:--tick-budget"]
+  tags: [flags, blocked-time, multiplayer-simulation]
+  steps:
+    - id: run-with-budget
+      transport: cli
+      command: run
+      args: ["--scenario", "memory-store-blocked-dependency", "--tick-budget", "5"]
+      expect:
+        exit_code: 0
+        body:
+          final_tick: 5
+          # BASELINE, flipped by ri-11: retrieval-owner would no longer be
+          # blocked at tick 5 once it can start on contract completion.
+          blocked_ticks:
+            retrieval-owner: 4
+            storage-owner: 0
+          unblocked:
+            retrieval-owner: false
+            storage-owner: true
+      timeout_seconds: 60

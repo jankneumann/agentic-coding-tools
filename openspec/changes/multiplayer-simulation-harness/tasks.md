@@ -260,7 +260,7 @@
   **Spec scenarios**: G.4
   **Design decisions**: D3, D8
   **Dependencies**: 1.2, 1.3
-- [ ] 7.2 Author `evaluation/scenarios/*.yaml` as gen-eval CLI-transport scenarios:
+- [x] 7.2 Author `evaluation/scenarios/*.yaml` as gen-eval CLI-transport scenarios:
   - one for each of the four named scenarios. Each pins its baseline in `expect.body` and
     carries a comment naming `ri-06` (collision) or `ri-11` (blocked ticks) as the item that
     flips it;
