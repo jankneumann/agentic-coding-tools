@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "change_id": "ownership-map",
+  "review_type": "plan",
+  "created_at": "2026-10-09T08:21:31Z",
+  "target": "ownership-map",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 160.736808559,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [],
+      "elapsed_seconds": 0.0,
+      "error": "No API key available for SDK dispatch",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 6,
+      "unanchored_findings": 0,
+      "fact_check": "ran",
+      "fact_check_removed": 0,
+      "fact_check_tokens": 0
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "change_id": "ownership-map",
+  "items": [
+    {
+      "id": 1,
+      "status": "parked",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "698918932a2591f1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Scaffold generator lower-cased the first letter of the acceptance outcome, producing 'The system SHALL ensure that pRs created by /autopilot ...' (the 'PRs' acronym became 'pRs'). The requirement text is still readable but is wrong as written and will propagate into the merged capability spec on sync.",
+      "resolution": "conductor adjudication (PLAN_REVIEW 2026-10-09): cites openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md, outside change ownership-map; the packet diff is main...HEAD over the whole roadmap branch. Advisory for the branch owner.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 2,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/proposal.md",
+      "fingerprint": "a724325a2e6c1835",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The proposal's Selected Approach section says design.md records decisions '(D1\u2013D13)', but design.md now has D14 (solo-mode suppression of unowned_* findings) added in plan iteration 1, and the proposal itself cites D14 elsewhere. The readiness checklist in plan-findings.md correctly says D1\u2013D14.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 3,
+      "status": "parked",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "ac7be6ca7baa62de",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The YAML front-matter comment states 'merges and every failure/escalation path still wait for a human', but `replan_required` (which fires when a roadmap item enters replan_required, a failure-adjacent path) is set to `auto`. The prose table below does explain that replan_required is covered by roadmap approval, so the posture is internally justified, but the header comment, which is what an operator reads first when editing the gates, overstates what blocks.",
+      "resolution": "conductor adjudication (PLAN_REVIEW 2026-10-09): cites TRUST_POSTURE.md, outside change ownership-map; the packet diff is main...HEAD over the whole roadmap branch. Advisory for the branch owner.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 4,
+      "status": "parked",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "spec_file": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "dd7da908019e0e54",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "All 19 scaffolded spec deltas satisfy the WHEN/THEN rule only mechanically: every scenario is 'WHEN `<change>` is implemented THEN <restated requirement>', which is tautological and untestable, and all of them target the placeholder capability directory `multiplayer-collaboration`. The files are clearly marked as plan-roadmap scaffolds to be refined by /plan-feature, and the ownership-map change shows what the refined form looks like, so this is expected at this stage, but syncing any of these scaffolds as-is would add vacuous requirements to a placeholder capability.",
+      "resolution": "conductor adjudication (PLAN_REVIEW 2026-10-09): cites openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md, outside change ownership-map; the packet diff is main...HEAD over the whole roadmap branch. Advisory for the branch owner.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 5,
+      "status": "parked",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "fingerprint": "b11da12f5a97e6a7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "checkpoint.json commits a dispatch `launch_token` and lease `owner_nonce` into the tracked repository. These are one-shot launch-gate markers for an already-resolved attempt (lease state 'released', outcome 'parked'), and the same pattern is already tracked for the dispatch-governance and principal-credential-architecture roadmaps, so there is no live credential exposure; flagged only so the convention is a conscious one.",
+      "resolution": "conductor adjudication (PLAN_REVIEW 2026-10-09): cites openspec/roadmaps/multiplayer-collaboration/checkpoint.json, outside change ownership-map; the packet diff is main...HEAD over the whole roadmap branch. Advisory for the branch owner.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 6,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/contracts/schemas/owners.schema.json",
+      "fingerprint": "8adac3d66645a79e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The `PathPattern` schema regex admits an embedded `**` (e.g. `openspec/spec**s/`) and also sequences like `***`, relying on the loader to reject them per design D3. The split is documented in both the schema description and D3, and the spec has a scenario for the loader half, so this is a deliberate two-layer validation rather than a gap; noting it because schema-only validators (e.g. an editor plugin) will accept a value the resolver refuses.",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}
