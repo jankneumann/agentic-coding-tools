@@ -272,7 +272,7 @@
   **Spec scenarios**: G.1, C.1, C.2, B.1, B.2
   **Design decisions**: D8
   **Dependencies**: 6.2, 7.1
-- [ ] 7.3 Write `test_gen_eval_pack.py`:
+- [x] 7.3 Write `test_gen_eval_pack.py`:
   - run the `gen-eval` console script on `evaluation/descriptor.yaml` with
     `--fail-threshold 1.0`, with `bin/` prepended to `PATH` and the harness root as the
     working directory, and expect exit 0 (G.1);
