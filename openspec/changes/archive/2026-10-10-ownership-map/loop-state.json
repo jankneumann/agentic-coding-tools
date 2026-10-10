@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "ownership-map",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 18,
+  "total_iterations": 21,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -84,9 +84,9 @@
   ],
   "last_handoff_id": "val-review-ownership-map-b71f042",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-10T02:59:09.052414+00:00",
+  "phase_started_at": "2026-10-10T13:07:56.679677+00:00",
   "previous_phase": "SUBMIT_PR",
-  "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+  "escalation_reason": "goal gate refused: validate record predates report",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
@@ -294,17 +294,98 @@
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-10-10T10:46:02.519319+00:00",
       "note": "operator (user) approved merge and archive of PR #668 in worker session 2026-10-10"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T13:07:50.484083+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 operator approved resume in supervisor session (\"Resume ri02\"); goal-gate content-timing fix 00ca6198 merged",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:02f15fb8-1876-4e00-892a-f180078c3649"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T13:07:50.672384+00:00",
+      "note": "operator approved resume in supervisor session (\"Resume ri02\"); goal-gate content-timing fix 00ca6198 merged"
     }
   ],
   "pending_gate": null,
   "goal_gate": {
-    "verdict": "pending",
-    "reason": "merge authorized; DONE evidence not yet checked",
+    "verdict": "passed",
+    "reason": "all required evidence present",
     "evidence": {
       "merge_authorized": true,
-      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/668"
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/668",
+      "report_path": "openspec/changes/archive/2026-10-10-ownership-map/validation-report.md",
+      "checked_at": "2026-10-10T13:07:55.819012+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-10-09T13:17:11.683632+00:00",
+      "report_time": "2026-10-09T13:38:35+00:00",
+      "report_time_source": "commit",
+      "bound_by": "VAL_REVIEW",
+      "val_review_at": "2026-10-09T13:39:44.110215+00:00",
+      "required_sections": [
+        "Spec Compliance",
+        "Validation Review"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass",
+        "Validation Review": "pass"
+      }
     }
   },
   "park": null,
-  "degradations": []
+  "degradations": [
+    {
+      "code": "single_vendor_review",
+      "phase": "PLAN_REVIEW",
+      "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "IMPL_REVIEW",
+      "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "VAL_REVIEW",
+      "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "phase": "INIT",
+      "detail": "coordinator project-state/approvals 403 for this worker key"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "PLAN",
+      "detail": "audit sink reported failure on every gate-check decision from proposal_approval onward"
+    }
+  ]
 }
