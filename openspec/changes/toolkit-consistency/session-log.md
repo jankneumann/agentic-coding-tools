@@ -180,3 +180,10 @@ Pytest, skills/.venv: install_sh + improve-harness + shared: 149 passed, 16 skip
 - Installed `shared/payload_hash.py --root .claude/skills` = stamp payload_hash (sha256:0d66d3b9...c9ed8c); installed `export_shared_learnings.py --help` exit 0.
 - `validate_install_manifest.py --skills-root skills`: exit 0.
 - pytest test_consumer_portability.py: 5 passed, 6 skipped (rsync). pytest skills/tests/install_sh/: 48 passed, 15 skipped (rsync), exit 0.
+
+## Phase: Review Ledger Dispositions (2026-10-10)
+
+### Decisions
+1. **Ledger 3 closed (implemented elsewhere)** — `proposal_approval: auto` now applies only with a recorded roadmap approval: ri-21 dispatch-contract (#667, landed on main via #662, 731557b) made `proposal_approval` and `replan_required` scoped gates whose `auto` requires a `roadmap_approval_ref` on the launch marker, falling back to `block`. Source: roadmap supervisor, 2026-10-10.
+2. **Ledger 6 closed (owned by supervisor)** — The stale `current_item_id: ri-01` in `roadmap.yaml`/checkpoint is corrected by the roadmap supervisor in its bookkeeping pass; this change does not edit roadmap state.
+3. **Ledger 7 closed (accepted)** — Operator confirmed the checkpoint tokens are safe; the checkpoint has been digest-only since 4955e24.
