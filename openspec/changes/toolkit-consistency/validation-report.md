@@ -117,9 +117,13 @@ Fresh `mktemp -d` git repo under the session scratchpad (`consumer.W04v`); real 
   `skills/install.sh`, the install_sh/improve-harness/shared/_shared test trees, `docs`, and
   `openspec/changes/toolkit-consistency` for `AKIA[0-9A-Z]{16}`, `ghp_`, `gho_`,
   `github_pat_`, `xox?-`, `sk-`, private-key headers, and quoted
-  `key|secret|token|password` literals. One hit only: the synthetic AWS key fixture at
-  `skills/tests/improve-harness/test_export_shared_learnings.py:266`, used by
-  `test_secrets_are_redacted`. This status rests on that substitute, not on gitleaks.
+  `key|secret|token|password` literals. One token-shaped hit only: the synthetic AWS key
+  fixture at `skills/tests/improve-harness/test_export_shared_learnings.py:266`, used by
+  `test_secrets_are_redacted`. The literal substring `github_pat_` also matches twice in prose
+  in `docs/kanban-viz/README.md` (error-code names `github_pat_denied`, `github_pat_missing`;
+  pre-existing, outside this change, not tokens). This status rests on that substitute, not on
+  gitleaks. (The sentence on the prose matches was added by VAL_REVIEW, VAL_FIX 9; the status
+  is unchanged.)
 
 ## E2E Tests
 
@@ -144,16 +148,18 @@ Pytest (`skills/.venv`, created by `uv sync --all-extras --directory skills`;
 `skills/tests/install_sh`, `improve-harness`, `_shared`, `shared`):
 **255 passed, 1 skipped, 0 failed** (344.5s). The one skip is
 `skills/tests/shared/test_validate_install_manifest_excludes.py:101` "node_modules not present
-in this checkout"; rsync is installed here, so the 15 rsync-gated tests (which the pre-merge
-VALIDATE run of 2026-10-10 had skipped) all executed. No test was skipped or weakened by the
-validator.
+in this checkout"; rsync is installed here, so the 15 rsync-gated tests all executed. (Two
+pre-merge runs are referred to below: the first pre-merge VALIDATE run, with rsync absent,
+skipped those 15; the pre-merge VAL_REVIEW run on 80747aa, with rsync installed by VAL_FIX 1,
+executed them.) No test was skipped or weakened by the validator.
 
 Baseline for the count (256 collected): this change's six test files (`test_payload_hash`,
 `test_install_stamp`, `test_install_check_drift`, `test_state_artifacts_registration`,
 `test_export_shared_learnings`, `test_shared_learnings_merge`) hold 67 tests, unchanged since
 the PR tip 80747aa because `skills/` is unchanged; the other 189 are pre-existing suites. The
-pre-merge report counted 189 passed + 1 skipped because those pre-existing suites then held
-123 tests: `skills/tests/shared/` gained 66 from other changes merged into the roadmap branch
+pre-merge VAL_REVIEW run on 80747aa (rsync installed, so the same 15 tests executed; the only
+skip was the same `node_modules` one) counted 189 passed + 1 skipped = 190 collected because
+those pre-existing suites then held 123 tests: `skills/tests/shared/` gained 66 from other changes merged into the roadmap branch
 between the PR base and the rebase merge (`test_dispatch_contract.py` 44,
 `test_trust_posture_scope.py` 12, `test_approval_gate_provenance.py` 5,
 `test_environment_profile_host_id.py` 5; `git diff --stat 80747aa HEAD -- skills/tests`).
@@ -172,8 +178,10 @@ outcomes and the 29 scenarios?
   phase with a real VAL_FIX applicator wired (claude_code write-capable mode, scoped to this
   change directory). Packet: `git diff origin/openspec/roadmap-multiplayer-collaboration...HEAD`
   (5 files: this report, two `dispatch-results/` records, and `skills/autopilot/scripts/goal_gate.py`
-  plus its test, which the three-dot diff shows only because the roadmap tip already carries
-  that commit; `loop-state.json`, `.review-ledger/**` and `.review-cache/**` excluded) plus a
+  plus its test: the merge base predates the goal-gate author-date fix and both branches carry
+  it as separate commits (94bf202 here, d1f65b25 on the roadmap tip), so the three-dot diff
+  shows it although the tips are identical; `loop-state.json`, `.review-ledger/**` and
+  `.review-cache/**` excluded) plus a
   45,181-char addendum: review focus, code-identity facts, the four acceptance outcomes, this
   report, the pre-merge Validation Review section from git history, proposal.md and the full
   spec. 103,051 of 320,000 chars, nothing truncated. Dispatch: claude_code CLI (`claude-local`,
@@ -242,13 +250,19 @@ flows behind 'Consumer install writes the stamp', 'Pinned payload matches', 'Run
 44f6960.
 
 Findings (ledger id, criticality) and dispositions. Nothing blocked under D3, so the wired
-applicator never fired; VAL_FIX 8 is a conductor sub-step (this commit), report text only:
+applicator never fired; VAL_FIX 8 is a conductor sub-step (commit 0b945f5), report text only:
 
 - 76 high, judgment (adjudication): the rewrite dropped the acceptance-outcome -> evidence
   mapping and its pre-merge evidence (bdfeefe/b7f8168/80747aa) could not be relied on from git
   history for a report that claims re-run evidence -> VAL_FIX 8: the table above, built from
   this run's evidence at 44f6960; trackedness caveat (75) and D8 limit carried over; the
-  pre-merge 59-file loose grep re-run (61 files, same classification).
+  pre-merge 59-file loose grep re-run: 61 files. 56 of them are byte-identical to the
+  pre-merge payload; the five that changed between the PR tip 80747aa and the merge
+  (`autopilot/SKILL.md`, `supervise/SKILL.md`, `parallel-infrastructure/scripts/review_dispatcher.py`,
+  `supervise/scripts/cycle_state.py`, `supervise/scripts/execution.py`, all pre-existing files
+  edited by other merged changes) match only in documentation strings, comments and repo-root
+  path markers (`agent-coordinator/agents.yaml`, `archetypes.yaml`, `routing.yaml`), so the
+  +2 lies among them and none is a source import.
 - 77 medium: `**Status**: not applicable` might not be a parser token and the Phase Summary
   has a row without a section -> evidence, not a fix: `gate_logic.check_phase_status()`
   recognises `pass|fail|skipped`, `degraded` and `not applicable` (`not_applicable`); Deploy
@@ -269,10 +283,35 @@ applicator never fired; VAL_FIX 8 is a conductor sub-step (this commit), report 
   `--reset-author-date`/`--ignore-date` rebases and squash merges): parked `out_of_scope`;
   orchestrator infrastructure, not this change's code, and no code is edited in this phase.
   Forwarded to the autopilot owners in the ledger resolution.
-- No code defect was found; the 18 pre-merge open advisory items (all low) are unchanged.
+- No code defect was found; of the 18 pre-merge open advisory items (all low), 17 remain
+  open and 75 closes below.
+
+Verification round: a second `converge()` run over the VAL_FIX 8 diff only (packet base
+44f6960, 1 file, 89,125 chars, same addendum plus a verification note) converged in round 1:
+claude_code (fable, 103 s), 6 findings (1 medium, 5 low), fact-check kept all 6, 0 blocking,
+no adjudication. Evidence `.review-cache/round-1-val-postmerge-verify/`; ledger 82-87.
+Dispositions (VAL_FIX 9, conductor, record-only, this commit; no third round, the same
+two-round pattern as IMPL_REVIEW and the pre-merge VAL_REVIEW, with `check_phase_status` and
+the test counts as the check on record-only edits):
+
+- 82 medium: the test-count baseline conflated two pre-merge runs -> E2E Tests names them
+  (first VALIDATE run, rsync absent, skipped 15; VAL_REVIEW run on 80747aa, rsync installed,
+  189 + 1 = 190).
+- 83 low: the Security section's "one hit" stood beside a pattern list that matches prose ->
+  the Security section itself now states one token-shaped hit plus the two prose matches.
+  Text only; its `**Status**` is unchanged (stated explicitly per the phase policy).
+- 84 low: the 59 -> 61 loose-grep delta unexplained -> named under 76 above.
+- 85 low: no verification round recorded and VAL_FIX 8 unnamed -> this paragraph; VAL_FIX 8 is
+  commit 0b945f5.
+- 86 low: the goal_gate packet explanation read as a contradiction -> reworded above (merge
+  base predates the fix; both branches carry it as separate commits).
+- 87 low (re-verification of 75): the outcome-1 row satisfies ledger 75's first remedy -> 75
+  and 87 closed as addressed by report text; the `git check-ignore` warning alternative
+  remains a code change outside this phase.
 
 ## Result
 
 PASS: spec, smoke, security and e2e pass on the merged code (e4d0b25 = 44f6960 for `skills/`
 and `docs/`); the Validation Review round re-ran the live flows at 44f6960, found no code
-defect, and closed its report findings with VAL_FIX 8.
+defect, closed its report findings with VAL_FIX 8 (0b945f5), and its verification round
+converged (VAL_FIX 9, record-only).

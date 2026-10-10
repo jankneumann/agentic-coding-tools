@@ -1354,7 +1354,7 @@
     },
     {
       "id": 75,
-      "status": "open",
+      "status": "addressed",
       "axis": "resilience",
       "type": "spec_gap",
       "criticality": "low",
@@ -1368,7 +1368,7 @@
         "claude_code"
       ],
       "description": "Outcome 1 requires the stamp to be recorded in a *tracked* file. The evidence (test_install_stamp, live installs) proves the file is written and registered in state-artifacts.md; nothing proves or checks that it is tracked. A consumer whose `.gitignore` covers `.agentic-toolkit/` would have an unpinned team with a locally present stamp and `--check` would still say 'Pinned toolkit matches'. Either note in the report that trackedness is a human step the toolkit does not verify, or have `install.sh` warn when `git check-ignore` matches the stamp path.",
-      "resolution": "VAL_REVIEW 2026-10-10: left open (advisory). The installer writes the stamp but cannot commit it; the proposal and docs/guides/skills.md make committing it the consumer's declaration of the pin. Noted in the report's outcome-1 row.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): closed as addressed by report text (outcome-1 row, re-verified as ledger 87); the alternative remedy (install.sh warning on `git check-ignore`) is a code change outside this phase and is not pursued here.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -1481,6 +1481,116 @@
       "resolution": "VAL_REVIEW post-merge 2026-10-10: parked out_of_scope: skills/autopilot/scripts/goal_gate.py is orchestrator infrastructure (94bf202 / d1f65b25), not this change's code, and code is not edited in this phase. Forwarded to autopilot owners: note `--reset-author-date` / `--ignore-date` rebases and GitHub squash merges beside the amend caveat.",
       "parked_reason": "out_of_scope",
       "consensus_status": "disagreement"
+    },
+    {
+      "id": 82,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "8677cf064c4b4d3d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The VAL_FIX 8 baseline paragraph for ledger 79 does not reconcile with the sentence two lines above it. It states the pre-merge run counted 189 passed + 1 skipped and derives this as 67 (this change) + 123 (pre-existing) = 190 collected. The same E2E section says the pre-merge VALIDATE run of 2026-10-10 'had skipped' the 15 rsync-gated tests. Both cannot hold for one run: 15 rsync skips plus the node_modules skip would give 16 skipped, so either the pre-merge total was 174 passed + 16 skipped (and 123 is wrong), or the 15 rsync tests were not skipped in the run whose count is 189 + 1, or the two sentences describe different pre-merge runs. Ledger 79 asked precisely for the 189 -> 255 delta to be explained; the explanation as written is internally contradictory. Fix: name which pre-merge run each number comes from, and give the pass/skip split that includes the rsync skips.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): E2E Tests names the two pre-merge runs (first VALIDATE run, rsync absent, skipped 15 rsync-gated tests; VAL_REVIEW run on 80747aa, rsync installed, 189 passed + 1 skipped = 190 collected = 67 this change + 123 pre-existing).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 83,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "a6564baf2e7a9b4a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Security section still says 'One hit only' for a grep whose pattern list includes the literal `github_pat_` over `docs`, while the new Validation Review section admits that pattern hits twice in `docs/kanban-viz/README.md`. The reconciling gloss (the count is of token-shaped matches) lives only in the Validation Review section; a reader of the Security section, which is the section whose `**Status**` the goal gate parses, sees a claim that the Security section's own pattern list contradicts. Fix: amend the Security section itself to state one token-shaped hit plus two prose matches on `github_pat_` that are not tokens and are outside this change.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): the Security section itself now states one token-shaped hit plus two prose `github_pat_` matches in docs/kanban-viz/README.md (not tokens, outside this change); its **Status** line is unchanged and the edit is declared in the report.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 84,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a298c4df1fa7e53d5/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "9d788976c7b199ca",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Outcome 4 evidence relies on a loose grep that now matches 61 files where the pre-merge round matched 59 ('the pre-merge 59-file loose grep re-run (61 files, same classification)'). The two additional files are not named, so 'same classification' is asserted rather than shown; the payload hash being byte-identical to e4d0b25 does not help because the pre-merge grep ran on an earlier commit (bdfeefe) before other changes were merged into the roadmap branch. Name the two new matches and their category (documentation string, repo-root marker, opt-in integration) so the outcome-4 claim does not rest on an unexplained delta.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): the 76 bullet names the five loose-grep hit files that changed between 80747aa and the merge (autopilot/SKILL.md, supervise/SKILL.md, review_dispatcher.py, cycle_state.py, execution.py; doc strings, comments, repo-root path markers) and states the other 56 are byte-identical to the pre-merge payload; no source import.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 85,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "2e7eefbf078d5d3d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Validation Review section sets its own `**Status**: pass` in the same VAL_FIX 8 commit that answers the round's findings, and records no verification round over that fix; it also calls VAL_FIX 8 'this commit' without naming the SHA (the header names e4d0b25 and 44f6960 only). After this verification round completes, the section should record its outcome and the VAL_FIX 8 commit SHA so the pass status is traceable to a round that reviewed the fixed text rather than only to the round whose findings it fixed.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): the Validation Review section records the verification round (103 s, 6 findings, 0 blocking, converged) and names VAL_FIX 8 as commit 0b945f5.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 86,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "dd520833a07a946b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The explanation for why `goal_gate.py` and its test appear in the packet ('which the three-dot diff shows only because the roadmap tip already carries that commit') reads as a contradiction: if the roadmap tip carried the commit and this branch descended from it, the merge base would include it and the three-dot diff would not show it. The report elsewhere states `git diff origin/openspec/roadmap-multiplayer-collaboration 44f6960 -- skills docs` is empty, which is consistent only if the fix was cherry-picked onto this branch from a merge base that predates it (the addendum's two SHAs, 94bf202 / d1f65b25, confirm this). Reword to say the merge base predates the goal-gate fix and both branches carry it as separate commits.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): packet explanation reworded: the merge base predates the goal-gate author-date fix and both branches carry it as separate commits (94bf202 / d1f65b25).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 87,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a298c4df1fa7e53d5/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "ebe1597c60c318ff",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger 75: the outcome-1 row now states that trackedness is the consumer's act, that the installer writes the file and cannot commit it, and that proposal.md and docs/guides/skills.md make committing the stamp the declaration of the pin. This satisfies the first of the two remedies ledger 75 offered ('note in the report that trackedness is a human step the toolkit does not verify'). The item can be closed as addressed by report text; the alternative remedy (an `install.sh` warning on `git check-ignore`) remains a code change outside this phase.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): re-verification of 75; the outcome-1 row satisfies 75's first remedy (report states trackedness is the consumer's act the toolkit does not verify); 75 closed with it.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }
