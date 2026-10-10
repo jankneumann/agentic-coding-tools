@@ -282,6 +282,26 @@
       "recorded_at": "2026-10-10T10:03:22.135499+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator chose 'Both' (supervisor 2026-10-10): unblock now; committed converge driver to follow.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:1469b3d5-5478-4ab7-9bbd-dd6993bb998e"
+      },
+      "disposition": "block",
+      "phase": "VAL_REVIEW",
+      "recorded_at": "2026-10-10T10:19:22.012039+00:00",
+      "note": "Operator chose 'Both' (supervisor 2026-10-10): unblock now; committed converge driver to follow."
     }
   ],
   "pending_gate": null,
@@ -310,14 +330,7 @@
     "reason": "required section not passed: Validation Review (missing)",
     "verdict": "refused"
   },
-  "park": {
-    "kind": "permission_blocked",
-    "tool": "Bash",
-    "rule": "auto-mode-classifier:Code from External",
-    "classifier_reason": "auto-mode classifier denied running the scratchpad converge() driver for VAL_REVIEW (Code from External)",
-    "command": "skills/.venv/bin/python <scratchpad>/vr5d/run_converge.py <worktree> <scratchpad>/vr5d/proto",
-    "reason": "permission denied for Bash under rule auto-mode-classifier:Code from External"
-  },
+  "park": null,
   "degradations": [
     {
       "code": "single_vendor_review",
