@@ -44,6 +44,7 @@ def _run_hook(
     env.pop("ANTHROPIC_API_KEY", None)
     env.pop("CLAUDE_COMPACT_THRESHOLD_PCT", None)
     env.pop("CLAUDE_CONTEXT_LIMIT", None)
+    env.pop("CLAUDE_COMPACT_SYNC_PCT", None)
     if env_extra:
         env.update(env_extra)
     return subprocess.run(
@@ -176,29 +177,121 @@ def test_above_threshold_blocks(isolated: tuple[Path, Path]) -> None:
     assert "Context window" in decision["reason"]
 
 
-def test_phase_boundary_blocks_when_below_threshold(
-    isolated: tuple[Path, Path],
-) -> None:
-    home, cwd = isolated
-    transcript = cwd / "session.jsonl"
-    # well below threshold; this session worked in cwd on test-change
-    _write_transcript(transcript, 1000, cwd=cwd, mention="/autopilot test-change")
+_SMALL_LIMIT = {"CLAUDE_CONTEXT_LIMIT": "1000", "CLAUDE_COMPACT_THRESHOLD_PCT": "90",
+                "CLAUDE_COMPACT_SYNC_PCT": "50"}
+
+
+def _applied_boundary(cwd: Path) -> None:
     _write_handoff(cwd, "test-change", "implementation")
     _write_loop_state(
         cwd, "test-change",
         "openspec/changes/test-change/handoffs/implementation-1.json",
     )
+
+
+def test_phase_boundary_near_the_limit_blocks_with_state_capture(
+    isolated: tuple[Path, Path],
+) -> None:
+    home, cwd = isolated
+    transcript = cwd / "session.jsonl"
+    # ~600 tokens of 1000: past the sync threshold, below the hard limit
+    _write_transcript(transcript, 2400, cwd=cwd, mention="/autopilot test-change")
+    _applied_boundary(cwd)
     result = _run_hook(
         hook_input={"session_id": "sess-1", "cwd": str(cwd),
                     "transcript_path": str(transcript)},
-        home=home,
-        cwd=cwd,
+        home=home, cwd=cwd, env_extra=_SMALL_LIMIT,
     )
-    assert result.returncode == 0
     decision = json.loads(result.stdout)
     assert decision["decision"] == "block"
-    assert "implementation" in decision["reason"]
-    assert "decomposition" in decision["reason"].lower()
+    assert "implementation handoff applied" in decision["reason"]
+    assert "capture state now" in decision["reason"].lower()
+    assert "/compact" in decision["reason"]
+
+
+def test_phase_boundary_far_from_the_limit_does_not_block(
+    isolated: tuple[Path, Path],
+) -> None:
+    home, cwd = isolated
+    transcript = cwd / "session.jsonl"
+    _write_transcript(transcript, 1000, cwd=cwd, mention="/autopilot test-change")
+    _applied_boundary(cwd)
+    result = _run_hook(
+        hook_input={"session_id": "sess-1", "cwd": str(cwd),
+                    "transcript_path": str(transcript)},
+        home=home, cwd=cwd, env_extra=_SMALL_LIMIT,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == ""
+
+
+def _turn(tool: str, tool_input: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {"message": {"role": "user", "content": "x" * 2400}},
+        {"message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": "t1", "name": tool, "input": tool_input}]}},
+        {"message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "t1", "content": "ok"}]}},
+        {"message": {"role": "assistant", "content": [{"type": "text", "text": "done"}]}},
+    ]
+
+
+@pytest.mark.parametrize(
+    ("tool", "tool_input", "label"),
+    [
+        ("Bash", {"command": "git push -u origin feature"}, "git push"),
+        ("mcp__github__merge_pull_request", {"pullNumber": 1}, "pull request merge"),
+    ],
+)
+def test_a_turn_that_pushed_or_merged_is_a_sync_point(
+    isolated: tuple[Path, Path], tool: str, tool_input: dict[str, Any], label: str,
+) -> None:
+    home, cwd = isolated
+    transcript = cwd / "session.jsonl"
+    transcript.write_text("".join(json.dumps(r) + "\n" for r in _turn(tool, tool_input)))
+    result = _run_hook(
+        hook_input={"session_id": "sess-1", "cwd": str(cwd),
+                    "transcript_path": str(transcript)},
+        home=home, cwd=cwd, env_extra=_SMALL_LIMIT,
+    )
+    decision = json.loads(result.stdout)
+    assert decision["decision"] == "block"
+    assert f"({label})" in decision["reason"]
+
+
+def test_a_turn_without_a_sync_action_waits_for_the_hard_limit(
+    isolated: tuple[Path, Path],
+) -> None:
+    home, cwd = isolated
+    transcript = cwd / "session.jsonl"
+    rows = _turn("Bash", {"command": "git status"})
+    transcript.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    result = _run_hook(
+        hook_input={"session_id": "sess-1", "cwd": str(cwd),
+                    "transcript_path": str(transcript)},
+        home=home, cwd=cwd, env_extra=_SMALL_LIMIT,
+    )
+    assert result.stdout.strip() == ""
+
+
+def test_only_the_window_after_the_last_compaction_is_measured(
+    isolated: tuple[Path, Path],
+) -> None:
+    home, cwd = isolated
+    transcript = cwd / "session.jsonl"
+    rows = [
+        {"message": {"role": "user", "content": "x" * 40_000}},  # pre-compaction
+        {"type": "system", "subtype": "compact_boundary", "content": "Conversation compacted"},
+        {"message": {"role": "user", "content": "summary " + "y" * 400}, "isCompactSummary": True},
+    ]
+    transcript.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    result = _run_hook(
+        hook_input={"session_id": "sess-1", "cwd": str(cwd),
+                    "transcript_path": str(transcript)},
+        home=home, cwd=cwd,
+        env_extra={"CLAUDE_CONTEXT_LIMIT": "1000", "CLAUDE_COMPACT_THRESHOLD_PCT": "70"},
+    )
+    assert result.stdout.strip() == ""
 
 
 def test_old_phase_boundary_does_not_block(isolated: tuple[Path, Path]) -> None:

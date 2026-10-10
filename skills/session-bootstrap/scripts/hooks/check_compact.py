@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
-"""Stop hook: request /compact at context thresholds or phase boundaries.
+"""Stop hook: request state capture + /compact at sync points or a hard limit.
 
-Fires after every assistant turn (Stop lifecycle). Two trigger paths:
+Fires after every assistant turn (Stop lifecycle). The context measured is
+the live window: only transcript rows after the last ``compact_boundary``
+count, because the transcript file keeps every pre-compaction message. Two
+trigger paths, both relative to CLAUDE_CONTEXT_LIMIT (default 1_000_000):
 
-  1. **Threshold trip** — estimated context >= CLAUDE_COMPACT_THRESHOLD_PCT
-     of CLAUDE_CONTEXT_LIMIT (default 40% of 1_000_000 tokens, i.e. ~400k).
-     Modern Claude models (Opus 4.7, Sonnet 4.6) support 1M-token contexts;
-     prompting /compact at 400k still leaves substantial headroom for the
-     rest of the session while keeping per-turn latency and cost in check.
-  2. **Phase boundary** — a PhaseRecord handoff JSON was just written under
-     openspec/changes/<id>/handoffs/ in the last PHASE_BOUNDARY_WINDOW_SEC
-     seconds, applied by the orchestrator, and owned by THIS session (see
-     session_scope.py). This is the "natural decomposition point" path.
+  1. **Sync point, near the limit** — context >= CLAUDE_COMPACT_SYNC_PCT
+     (default 15%, ~150k) AND this turn reached a natural sync point, where
+     the work is already persisted so compaction loses least:
+       * a PhaseRecord handoff written under openspec/changes/<id>/handoffs/
+         in the last PHASE_BOUNDARY_WINDOW_SEC seconds, applied by the
+         orchestrator, and owned by THIS session (see session_scope.py); or
+       * the turn pushed (``git push``), merged or opened a pull request.
+  2. **Hard limit, anywhere** — context >= CLAUDE_COMPACT_THRESHOLD_PCT
+     (default 20%, ~200k), a backstop that keeps every turn below the
+     long-context price step even when no sync point comes.
 
 When either trips, the hook emits ``{"decision": "block", "reason": "..."}``
 to stdout. Claude Code interprets this as "do not yield to the user; re-prompt
-the model with this reason" — which causes the agent to issue ``/compact`` on
-its next turn.
+the model with this reason", so the agent captures state on its next turn.
+A hook cannot start the compaction itself: Claude Code compacts at the
+``autoCompactWindow`` set in .claude/settings.json (200k), or on a typed
+/compact. The sync threshold sits below that window so state is captured at
+a natural point before the automatic compaction lands mid-task.
 
 Token estimation strategy (see phase_token_meter.py for prior art, decision D9):
 
@@ -50,7 +57,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import session_scope  # noqa: E402
 
 PREFIX = "[check_compact]"
-DEFAULT_THRESHOLD_PCT = 40
+DEFAULT_THRESHOLD_PCT = 20
+DEFAULT_SYNC_PCT = 15
 DEFAULT_CONTEXT_LIMIT = 1_000_000
 PHASE_BOUNDARY_WINDOW_SEC = 300
 CHAR_PER_TOKEN = 4
@@ -72,7 +80,11 @@ def _env_int(name: str, default: int) -> int:
 def _transcript_messages(transcript_path: Path) -> list[dict[str, Any]]:
     """Reconstruct an Anthropic-API-shaped messages list from a Claude Code
     transcript JSONL. Each row's ``message`` field is already in the right
-    shape (role + content); we just collect them in order."""
+    shape (role + content); we just collect them in order.
+
+    The transcript keeps every message from before a compaction; a
+    ``compact_boundary`` system row marks where the live window restarts, so
+    collection restarts there too."""
     messages: list[dict[str, Any]] = []
     if not transcript_path or not transcript_path.exists():
         return messages
@@ -81,6 +93,11 @@ def _transcript_messages(transcript_path: Path) -> list[dict[str, Any]]:
             try:
                 row = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict):
+                continue
+            if row.get("subtype") == "compact_boundary":
+                messages = []
                 continue
             msg = row.get("message")
             if isinstance(msg, dict) and "role" in msg and "content" in msg:
@@ -316,6 +333,53 @@ def _recent_phase_boundary(payload: dict) -> str | None:
     return newest_phase
 
 
+def _is_prompt(msg: dict[str, Any]) -> bool:
+    """A user message that starts a turn (not a tool result)."""
+    if msg.get("role") != "user":
+        return False
+    content = msg.get("content")
+    if isinstance(content, str):
+        return True
+    return isinstance(content, list) and not any(
+        isinstance(b, dict) and b.get("type") == "tool_result" for b in content
+    )
+
+
+def _turn_sync_action(messages: list[dict[str, Any]]) -> str | None:
+    """The sync action the current turn performed, or None: the work left
+    this session (pushed, merged, or a PR opened), so a compaction after it
+    loses the least."""
+    start = max((i for i, m in enumerate(messages) if _is_prompt(m)), default=-1)
+    found: str | None = None
+    for msg in messages[start + 1:]:
+        if msg.get("role") != "assistant" or not isinstance(msg.get("content"), list):
+            continue
+        for block in msg["content"]:
+            if not isinstance(block, dict) or block.get("type") != "tool_use":
+                continue
+            name = str(block.get("name", ""))
+            command = (block.get("input") or {}).get("command", "")
+            if name == "Bash" and isinstance(command, str) and "git push" in command:
+                found = "git push"
+            elif name.endswith("merge_pull_request"):
+                found = "pull request merge"
+            elif name.endswith("create_pull_request"):
+                found = "pull request opened"
+    return found
+
+
+# Neither the model nor a hook can start a compaction: Claude Code compacts on
+# its own at the configured auto-compact window (``autoCompactWindow`` in
+# .claude/settings.json), or when a person types /compact. What this hook can
+# do is make sure the state is captured at a sync point before that happens.
+_CAPTURE = (
+    "Capture state now: commit and push anything a fresh context needs "
+    "(checkpoint/loop state, roadmap learnings, open decisions and next steps). "
+    "Auto-compaction at the configured window follows; if a person is present, "
+    "say they can run /compact now."
+)
+
+
 def _block(reason: str) -> None:
     json.dump({"decision": "block", "reason": reason}, sys.stdout)
     sys.exit(0)
@@ -329,29 +393,34 @@ def main() -> int:
 
     transcript = Path(payload.get("transcript_path", ""))
 
-    boundary = _recent_phase_boundary(payload)
-    if boundary:
-        flag.parent.mkdir(parents=True, exist_ok=True)
-        flag.touch()
-        _block(
-            f"Natural decomposition point reached: {boundary} handoff just "
-            f"written. Run /compact now to consolidate context before the "
-            f"next phase."
-        )
-
     tokens = _measure_tokens(transcript)
     limit = _env_int("CLAUDE_CONTEXT_LIMIT", DEFAULT_CONTEXT_LIMIT)
     threshold = _env_int("CLAUDE_COMPACT_THRESHOLD_PCT", DEFAULT_THRESHOLD_PCT)
+    sync_pct = _env_int("CLAUDE_COMPACT_SYNC_PCT", DEFAULT_SYNC_PCT)
     pct = (tokens * 100) // max(limit, 1)
+    where = f"~{pct}% of {limit:,} tokens since the last compaction"
 
     if pct >= threshold:
         flag.parent.mkdir(parents=True, exist_ok=True)
         flag.touch()
         _block(
-            f"Context window at ~{pct}% of {limit:,} tokens "
-            f"(threshold {threshold}%, session={session_scope.session_key(payload)}). "
-            f"Run /compact now. Phase handoffs are persisted, so context "
-            f"will be rehydrated by SessionStart after compaction."
+            f"Context window at {where} (hard limit {threshold}%, "
+            f"session={session_scope.session_key(payload)}). {_CAPTURE} Phase "
+            f"handoffs are persisted, so SessionStart rehydrates context."
+        )
+
+    if pct < sync_pct:
+        return 0
+    sync = _recent_phase_boundary(payload)
+    sync = f"{sync} handoff applied" if sync else _turn_sync_action(
+        _transcript_messages(transcript)
+    )
+    if sync:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+        _block(
+            f"Natural sync point reached ({sync}) with the context window at "
+            f"{where} (sync threshold {sync_pct}%). {_CAPTURE}"
         )
 
     return 0
