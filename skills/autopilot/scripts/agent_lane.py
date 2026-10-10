@@ -78,6 +78,19 @@ class Handshake:
         self._sleep = sleep
         self._clock = clock
 
+    #: The per-run handshake files. A new run starts with none of them, so a
+    #: reused protocol directory cannot answer this run's rounds with a previous
+    #: run's findings or fix acknowledgements.
+    ROUND_FILES = ("awaiting-review-*", "findings-round-*", "fix-request-round-*", "fix-done-round-*", "result.json")
+
+    def clear_rounds(self) -> list[str]:
+        removed = sorted(
+            path.name for pattern in self.ROUND_FILES for path in self.dir.glob(pattern) if path.is_file()
+        )
+        for name in removed:
+            (self.dir / name).unlink()
+        return removed
+
     def event(self, kind: str, **data: Any) -> None:
         with (self.dir / "events.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(json.dumps({"at": _now(), "event": kind, **data}, default=str) + "\n")
@@ -226,6 +239,9 @@ def run_converge(
     worktree = Path(worktree).resolve()
     change_dir = worktree / "openspec" / "changes" / change_id
     handshake = Handshake(proto_dir, timeout_seconds=timeout_seconds, poll_seconds=poll_seconds)
+    stale = handshake.clear_rounds()
+    if stale:
+        handshake.event("stale_round_files_removed", files=stale)
     logging.basicConfig(
         filename=str(handshake.dir / "converge.log"), level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",

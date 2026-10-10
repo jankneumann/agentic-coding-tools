@@ -54,12 +54,18 @@ def repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _commit(root: Path, checkpoint: dict[str, Any], roadmap: str = "rm") -> Path:
+def _commit(
+    root: Path, checkpoint: dict[str, Any], roadmap: str = "rm", *, supervisor: bool = True
+) -> Path:
+    """Commit the checkpoint; ``supervisor`` also points the fetched roadmap
+    branch (origin/openspec/roadmap-<roadmap>) at it, as the supervisor's push does."""
     path = root / "openspec" / "roadmaps" / roadmap / "checkpoint.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(checkpoint))
     _git(root, "add", "-A")
     _git(root, "commit", "-q", "-m", "checkpoint")
+    if supervisor:
+        _git(root, "update-ref", f"refs/remotes/origin/openspec/roadmap-{roadmap.split('/')[-1]}", "HEAD")
     return path
 
 
@@ -68,7 +74,8 @@ def test_a_committed_attempt_with_a_human_approval_yields_its_scope(repo: Path) 
 
     scope = dispatch_contract.read_committed_dispatch_scope("demo", repo_root=repo)
 
-    assert scope == {
+    assert scope is not None
+    assert {k: v for k, v in scope.items() if k != "checkpoint_commit"} == {
         "dispatch_id": _DISPATCH,
         "generation": 2,
         "roadmap_approval_ref": _REF,
@@ -114,6 +121,30 @@ def test_archived_roadmaps_and_other_changes_do_not_count(repo: Path) -> None:
 
     assert dispatch_contract.read_committed_dispatch_scope("demo", repo_root=repo) is None
     assert dispatch_contract.read_committed_dispatch_scope("other", repo_root=repo) is None
+
+
+def test_an_approval_forged_on_the_workers_own_branch_grants_nothing(repo: Path) -> None:
+    """The worker can commit to its branch; only the supervisor's checkpoint counts."""
+    _commit(repo, _checkpoint(resolution="posture_block", outcome="blocked"))
+    _commit(repo, _checkpoint(), supervisor=False)
+
+    assert dispatch_contract.read_committed_dispatch_scope("demo", repo_root=repo) is None
+
+
+def test_the_supervisors_checkpoint_at_the_cut_point_is_read(repo: Path) -> None:
+    _commit(repo, _checkpoint())
+    # Later worker commits on its branch (here: an unrelated edit) do not matter.
+    (repo / "notes.md").write_text("worker progress\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "worker")
+
+    assert dispatch_contract.read_committed_dispatch_scope("demo", repo_root=repo) is not None
+
+
+def test_without_the_fetched_roadmap_branch_there_is_no_scope(repo: Path) -> None:
+    _commit(repo, _checkpoint(), supervisor=False)
+
+    assert dispatch_contract.read_committed_dispatch_scope("demo", repo_root=repo) is None
 
 
 def test_outside_a_git_repository_there_is_no_scope(tmp_path: Path) -> None:

@@ -176,7 +176,11 @@ def read_registry(
         )
     agents_raw = raw.get("agents")
     agent_names = {str(k) for k in agents_raw} if isinstance(agents_raw, dict) else set()
-    humans_raw = raw.get("humans") or {}
+    # An absent key or a bare ``humans:`` (YAML null) means no humans; any other
+    # non-mapping, falsy ones included ([], false, 0, ""), fails closed.
+    humans_raw = raw.get("humans")
+    if humans_raw is None:
+        humans_raw = {}
     if not isinstance(humans_raw, dict):
         raise OwnershipConfigError(
             "invalid_registry", f"'humans' in {path} must be a mapping", "humans"

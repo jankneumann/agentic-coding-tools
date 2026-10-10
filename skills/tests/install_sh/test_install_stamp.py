@@ -141,3 +141,31 @@ def test_aborted_install_leaves_previous_stamp_intact(tmp_path: Path) -> None:
     )
     assert second.returncode != 0
     assert stamp_path.read_bytes() == prior
+
+
+def test_a_symlink_install_that_skipped_a_conflict_writes_no_stamp(tmp_path: Path) -> None:
+    """A destination skipped for a conflict never received the payload, so no
+    stamp may pin the source hash to it."""
+    blocker = tmp_path / ".claude" / "skills" / "autopilot"
+    blocker.mkdir(parents=True)
+    (blocker / "SKILL.md").write_text("stale local copy\n")
+
+    result = _run(["--target", str(tmp_path), "--mode", "symlink", "--agents", "claude", *QUIET])
+
+    assert result.returncode == 0, result.stderr
+    assert "skip  autopilot" in result.stdout
+    assert "Install stamp: not written" in result.stdout
+    assert not (tmp_path / ".agentic-toolkit" / "stamp.json").exists()
+
+
+def test_force_replaces_the_conflict_and_stamps(tmp_path: Path) -> None:
+    blocker = tmp_path / ".claude" / "skills" / "autopilot"
+    blocker.mkdir(parents=True)
+    (blocker / "SKILL.md").write_text("stale local copy\n")
+
+    result = _run(
+        ["--target", str(tmp_path), "--mode", "symlink", "--agents", "claude", "--force", *QUIET]
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads((tmp_path / ".agentic-toolkit" / "stamp.json").read_text())["mode"] == "symlink"

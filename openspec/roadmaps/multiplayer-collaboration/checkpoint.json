@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T11:32:14.174410+00:00",
+  "updated_at": "2026-10-10T13:07:07.663752+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -1588,6 +1588,61 @@
       "roadmap_id": "multiplayer-collaboration",
       "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
       "note": "Operator in the supervisor session: \"Proceed with 673 and 668\" (merge #668 once CI green). #668 merged as f0dc5803 after the operator re-ran test-openbao-live (green)."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T11:43:04.114879+00:00",
+      "decision_id": "dfe4de44-1206-47cc-8a82-ae64d6f8497c",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 7
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator in the supervisor session at 2026-10-10 ~13:05Z: \"Resume ri02\". The goal-gate refusal (archive rename read as a report edit) is fixed in 00ca6198; resume SUBMIT_PR -> DONE.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T13:07:06.119994+00:00",
+      "decision_id": "02f15fb8-1876-4e00-892a-f180078c3649",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 7,
+      "note": "Operator in the supervisor session at 2026-10-10 ~13:05Z: \"Resume ri02\". The goal-gate refusal (archive rename read as a report edit) is fixed in 00ca6198; resume SUBMIT_PR -> DONE."
     }
   ],
   "dispatch_attempts": [
@@ -1865,7 +1920,7 @@
       "status": "launched",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
-      "lease_generation": 7,
+      "lease_generation": 8,
       "launch_history": [
         {
           "generation": 1,
@@ -2083,6 +2138,37 @@
           "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
           "observed_at": "2026-10-10T11:32:14.171132+00:00",
           "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g7"
+        },
+        {
+          "generation": 8,
+          "owner_nonce": "owner-nonce-1791637626802",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-10T13:07:06.982650+00:00"
+        },
+        {
+          "generation": 8,
+          "owner_nonce": "owner-nonce-1791637626802",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-10T13:07:07.334146+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g8"
+        },
+        {
+          "generation": 8,
+          "owner_nonce": "owner-nonce-1791637626802",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-10T13:07:07.334146+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g8"
+        },
+        {
+          "generation": 8,
+          "owner_nonce": "owner-nonce-1791637626802",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-10T13:07:07.659655+00:00",
+          "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g8"
         }
       ],
       "scope": {
@@ -2097,32 +2183,58 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
-      "launch_digest": "sha256:3c681ce6699a9c4663af73f574b1d1419ab17e0f596bc7fefc654b335d9b3032",
-      "degradations": [],
+      "launch_digest": "sha256:5c34d6b66b67cf61fa740fa7c44058a33eef9769c94d4257a1ced49e960d06ce",
+      "degradations": [
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+          "phase": "VAL_REVIEW"
+        },
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "coordinator project-state/approvals 403 for this worker key",
+          "phase": "INIT"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure on every gate-check decision from proposal_approval onward",
+          "phase": "PLAN"
+        }
+      ],
       "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:3ebc2a1f-08d0-4857-ae2f-626e50762d1e"
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:02f15fb8-1876-4e00-892a-f180078c3649"
       },
       "lease": {
-        "generation": 7,
-        "owner_nonce": "owner-nonce-1791631933702",
+        "generation": 8,
+        "owner_nonce": "owner-nonce-1791637626802",
         "state": "active",
-        "acquired_at": "2026-10-10T11:32:13.363574+00:00",
-        "heartbeat_at": "2026-10-10T11:32:13.363574+00:00",
-        "expires_at": "2026-10-10T11:47:13.363574+00:00"
+        "acquired_at": "2026-10-10T13:07:06.982650+00:00",
+        "heartbeat_at": "2026-10-10T13:07:06.982650+00:00",
+        "expires_at": "2026-10-10T13:22:06.982650+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 7,
-        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g7",
-        "observed_at": "2026-10-10T11:32:13.868875+00:00"
+        "generation": 8,
+        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g8",
+        "observed_at": "2026-10-10T13:07:07.334146+00:00"
       },
       "launch_gate": {
-        "generation": 7,
+        "generation": 8,
         "state": "entered",
-        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g7",
-        "go_released_at": "2026-10-10T11:32:13.868875+00:00",
-        "entered_at": "2026-10-10T11:32:14.171132+00:00"
+        "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g8",
+        "go_released_at": "2026-10-10T13:07:07.334146+00:00",
+        "entered_at": "2026-10-10T13:07:07.659655+00:00"
       }
     },
     {

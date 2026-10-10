@@ -207,6 +207,27 @@ def test_a_findings_file_caught_mid_write_is_re_read(tmp_path: Path) -> None:
     assert hs.read_json("findings-round-1.json") == {"findings": []}
 
 
+def test_a_reused_proto_dir_does_not_answer_with_a_previous_runs_findings(tmp_path: Path) -> None:
+    worktree, proto = tmp_path / "wt", tmp_path / "proto"
+    _change_dir(worktree)
+    proto.mkdir()
+    (proto / "findings-round-1.json").write_text(json.dumps({"findings": []}))
+    (proto / "fix-done-round-1").touch()
+    converge, _ = _fake_converge(review_rounds=1)
+
+    out = agent_lane.run_converge(
+        change_id="demo", phase="VAL_REVIEW", worktree=worktree, proto_dir=proto, base_ref=None,
+        model="m", timeout_seconds=0.2, poll_seconds=0.01, converge_fn=converge, policy_fn=_policy,
+    )
+
+    # No agent answers this run, so round 1 times out instead of converging on old files.
+    assert out["converged"] is False and out["error"].startswith("TimeoutError")
+    assert "report_section_written" not in out
+    events = [json.loads(line) for line in (proto / "events.jsonl").read_text().splitlines()]
+    assert events[0]["event"] == "stale_round_files_removed"
+    assert events[0]["files"] == ["findings-round-1.json", "fix-done-round-1"]
+
+
 def test_cli_rejects_an_unknown_phase() -> None:
     with pytest.raises(SystemExit):
         agent_lane.main(["converge", "--change-id", "d", "--phase", "VALIDATE", "--proto-dir", "p", "--model", "m"])
