@@ -91,12 +91,15 @@ The phase 1 changes are prerequisites and independently correct:
   smoke phase from the caller's provider (that is what the smoke exercises), and reports both:
   the JSON body and the text line keep `provider` (the caller's) and add `resolved_provider`.
 - The autopilot SKILL.md adapter contract names `provider` in the 8-phase protocol block and in
-  each of the seven per-phase "Capture `prompt`, `model`, `isolation`" dispatch blocks, with
-  the rule: a harness whose only adapter is `Agent(...)` MUST route a non-`claude_code`
-  provider through the provider adapter or escalate; it never calls `Agent(...)` with another
-  vendor's model. A prose-guard test, `skills/tests/autopilot/test_skill_dispatch_provider_prose.py`
-  (modelled on `test_prose_free_gates.py`), asserts every capture line after a
-  `build-dispatch` call names `provider` and that the count of such blocks is seven.
+  every per-phase dispatch block that follows a `runner.py build-dispatch` call: the
+  GATEKEEPER block (today "call the dispatch adapter with `prompt`/`model`") and the seven
+  "Capture `prompt`, `model`, `isolation`" blocks, eight in all. The rule: a harness whose
+  only adapter is `Agent(...)` MUST route a non-`claude_code` provider through the provider
+  adapter or escalate; it never calls `Agent(...)` with another vendor's model. A prose-guard
+  test, `skills/tests/autopilot/test_skill_dispatch_provider_prose.py` (modelled on
+  `test_prose_free_gates.py`), locates every `runner.py build-dispatch` invocation in the
+  SKILL.md, asserts the adapter-call sentence that follows each names `provider`, and asserts
+  the count is eight.
 - `build_phase_dispatch_kwargs` already honors `_resolved_provider`; it gains a regression
   test and no behavior change.
 
@@ -225,13 +228,18 @@ client follows it to the new provider through the dispatch path D1 fixes.
 - `RetentionDecision` gains `fallback: RetentionFallback | None`, and `_retain_incumbent`
   copies it into the persisted `retention` payload. The record is
   `retention.fallback = {incumbent_exclusion_reasons, order_applied}`:
-  `incumbent_exclusion_reasons` is the sorted, unique set of the incumbent's excluded-row
-  reasons (all transient by D3; one lane may be `lane:unavailable` while another is
-  `quota:exhausted`); `order_applied` is a **verbatim copy** of `policy.document.fallback`:
-  all four lists, each non-empty and duplicate-free.
-- Both schemas enforce presence and shape: `retention.fallback` is required when `reason` is
-  the configured fallback and forbidden otherwise, and that reason implies `selected` is an
-  object (a configured fallback is never a null selection).
+  `incumbent_exclusion_reasons` is the unique set of the incumbent's excluded-row reasons
+  (all transient by D3; one lane may be `lane:unavailable` while another is
+  `quota:exhausted`), which the router emits **sorted**: uniqueness is validated by all three
+  contracts, sortedness is a producer invariant asserted by the service-level test (3.5),
+  since JSON Schema cannot express it. `order_applied` is a **verbatim copy** of
+  `policy.document.fallback`: all four lists, each non-empty and duplicate-free.
+- All three contracts enforce presence and shape: `retention.fallback` is required when
+  `reason` is the configured fallback and forbidden otherwise (the generated model treats an
+  explicit `fallback: null` as present and rejects it, matching the wire schemas, and
+  enforces `retained`/`reason` parity); that reason implies `selected` is an object and the
+  top-level `fallback` flag is `false` (a configured fallback is a coordinator decision, never
+  a null selection and never the offline local-static route).
 - The response's top-level `fallback: bool` keeps its existing meaning (offline local-static
   route) and stays `false` for a configured fallback.
 - Exploration cannot disturb the pick: the trigger requires that no feasible challenger is
@@ -271,17 +279,28 @@ whether `local` is ever a fallback target through `vendor_order` (D4).
 ### D8: wp-router is held until v1.3 merges
 
 The operator approved this change on 2026-10-10 with the condition that only `wp-dispatch`
-runs now and `wp-router` waits for `split-no-evidence-retention-reason` (v1.3) to merge. The
-hold is recorded in `work-packages.yaml` (`inputs.hold`, `inputs.external_prerequisites` on
-`wp-router`; `metadata` is closed by the schema, `inputs` is the open extension point), in the
-package description, in tasks.md, and as task 2.0, which is the package's first step and the
-dependency of both the 2.x and the 3.x chains. Task 2.0 proves the merge rather than a file's
-presence: it resolves the v1.3 change with `change_dir()` (active or archived), requires the
-feature branch to contain `origin/main`, compares the **blob hashes** of the three v1.3
-contract files with the ones pinned in the contracts README (a squash merge keeps blob hashes
-but not commit SHAs), and asserts the v1.3 code is present (`"no-evidenced-challenger"` in
-`api.RetentionReason`). A dispatcher that reads only `depends_on` MUST NOT be used to start
-wp-router; the orchestrator checks the hold before dispatch.
+runs now and `wp-router` waits for `split-no-evidence-retention-reason` (v1.3) to merge.
+
+The DAG scheduler computes readiness from `depends_on` alone and the schema has no hold
+field, so the hold is enforced by **not listing** `wp-router` in the executable manifest:
+`work-packages.yaml` carries `wp-dispatch` only, and `wp-router` lives in
+`work-packages.held.yaml` (same schema, validated by `validate_work_packages.py`, loaded by no
+scheduler, `depends_on: []` because `wp-dispatch` will already be merged when it is
+promoted). The hold is also stated in that package's `inputs.hold` and
+`inputs.external_prerequisites`, in tasks.md, and in the proposal's Sequencing.
+
+Task 2.0 is `wp-router`'s first step and the dependency of both its chains. It proves the
+prerequisites from the **`origin/main` tree**, never from the working tree (a branch that
+cherry-picks v1.3 must not pass): after `git fetch origin`, it resolves the v1.3 change
+directory on `origin/main` (active or archived) with `git ls-tree`, compares
+`git rev-parse origin/main:<path>` of the three v1.3 contract files with the blob ids pinned
+in the contracts README (a squash merge keeps blob hashes but not commit SHAs), asserts the
+v1.3 code is on `origin/main` (`git grep -q no-evidenced-challenger origin/main --
+agent-coordinator/src/model_routing/api.py`), asserts `wp-dispatch` is on `origin/main`
+(`git grep -q UnservableProviderError origin/main -- skills/autopilot/scripts/phase_agent.py`),
+and only then promotes the held package into `work-packages.yaml`. Reading from the git
+object store sidesteps the package's `openspec/changes/archive/**` deny, which governs the
+working tree.
 
 ## Risks / Trade-offs
 

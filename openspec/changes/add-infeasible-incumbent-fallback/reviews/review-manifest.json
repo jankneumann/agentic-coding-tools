@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-10-10T21:37:48Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 500.1234585279599,
+      "error": "Timeout after 500s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 358.7556756744161,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 14.202167118899524,
+      "error": "Error: Internal error: {\n  \"message\": \"API error (status 426 Upgrade Required): Your Grok CLI version (1.0.5) is outdated. Please update to version 1.0.13 or later via `grok update` or the installation documentation.\",\n  \"http_status\": 426\n}\n",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 101.85394003149122,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a127b8-8b92-72fe-9350-8e6f165ec654\",\"timestamp\":\"2026-10-10T21:29:28.211Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.claude/worktrees/agent-a80ba92a4f1e67e78\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Review the OpenSpec plan artifacts in openspec/changes/add-infeasible-incumbent-fallback/.\\nRead proposal.md, design.md (D1-D8), tasks.md, work-packages.yaml, pla",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-plan.json",
+      "finding_count": 10,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    }
+  ]
+}

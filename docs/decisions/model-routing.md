@@ -7,6 +7,17 @@
 
 ## 2026-10-10 — add-infeasible-incumbent-fallback
 
+### Phase: Plan Iteration 3
+
+**wp-router lives in work-packages.held.yaml until promoted by task 2.0 (D8)** — The DAG scheduler computes readiness from depends_on only and the schema has no hold field, so the only enforceable hold is absence from the executable manifest. The held file stays schema-valid and is loaded by no scheduler.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D1)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
 ### Phase: Plan Iteration 1
 
 **fallback.vendor_order is an allowlist; every order list is an allowlist (D4)** — A preference order with unlisted vendors sorting last let a typo or a narrow list pick grok, pi or local via location_order. Excluding non-enumerated values matches the client's existing rule and makes the owner's choice binding.
@@ -29,6 +40,17 @@
 
 ## 2026-10-10 — add-infeasible-incumbent-fallback
 
+### Phase: Plan Iteration 3
+
+**Task 2.0 proves prerequisites from the origin/main tree, never the working tree (D8)** — A branch that cherry-picks v1.3 would pass a working-tree check; git rev-parse origin/main:<path> and git grep on origin/main cannot be fooled that way and sidestep the archive deny.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D2)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
 ### Phase: Plan Iteration 2
 
 **order_applied is a verbatim copy of the fallback block: all four lists required and unique (D6)** — Optional lists let two implementations validate; the record must be reproducible.
@@ -40,9 +62,31 @@
 
 ## 2026-10-10 — add-infeasible-incumbent-fallback
 
+### Phase: Plan Iteration 3
+
+**Sortedness of incumbent_exclusion_reasons is a producer invariant; contracts validate uniqueness only (D6)** — JSON Schema cannot express ordering; three contracts must accept the same representations.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D3)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
 ### Phase: Plan Iteration 1
 
 **Shipped routing.yaml keeps vendor_order absent; absent disables (D5)** — Both parsers reject unknown or empty keys, so an absent key is loadable by stale skill copies and older coordinators; the owner populates it at implementation review.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D4)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 3
+
+**Single-vendor codex finding #2 rejected: the record schema already carries the reason-implies-selected conditional** — Adjudicated against the file; the conditional was added in iteration 2.
 
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D4)

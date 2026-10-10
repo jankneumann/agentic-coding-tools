@@ -1,0 +1,149 @@
+# HELD work-packages manifest (design D8). Not loaded by any scheduler: the executable
+# manifest is work-packages.yaml, which carries wp-dispatch only for the current run.
+# Task 2.0 promotes this package into work-packages.yaml once v1.3 and wp-dispatch are on
+# origin/main. Keep this file schema-valid so validate_work_packages.py can check it.
+schema_version: 1
+
+feature:
+  id: add-infeasible-incumbent-fallback
+  title: "Configured fallback for an unavailable incumbent"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-10-05T00:00:00Z"
+  deployable: true
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-infeasible-incumbent-fallback/contracts/openapi/v1.4.yaml"
+    files:
+      - "openspec/changes/add-infeasible-incumbent-fallback/contracts/openapi/v1.4.yaml"
+      - "openspec/changes/add-infeasible-incumbent-fallback/contracts/events/routing-decision-record.schema.json"
+      - "openspec/changes/add-infeasible-incumbent-fallback/contracts/generated/models.py"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 180
+  timeout_minutes: 150
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-router
+    title: "Configured fallback for a transiently unavailable incumbent (v1.4)"
+    task_type: implementation
+    description: >-
+      HELD MANIFEST (design D8, operator decision 2026-10-10): this package is deliberately
+      NOT in work-packages.yaml, which no scheduler can hold. Promote it (replace the
+      packages list of work-packages.yaml with this one) only after
+      split-no-evidence-retention-reason (v1.3) and wp-dispatch are both on origin/main;
+      task 2.0 proves both from the origin/main tree and fails fast otherwise. Phase 2 (design
+      D3-D7). Threads exclusion reasons into retention, adds the FallbackOrder.vendor_order
+      allowlist, implements the deterministic configured pick, persists retention.fallback,
+      applies the local trust boundary to routed selections, and teaches the client-side
+      routing_fallback.py to validate the new key.
+    role: implementation
+    priority: 2
+    depends_on: []   # wp-dispatch is merged to main before this file is promoted (D8)
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/src/model_routing/routing_policy.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/vendor_registry.py"
+        - "agent-coordinator/routing.yaml"
+        - "skills/coordination-bridge/scripts/routing_fallback.py"
+      keys:
+        - "api:POST /routing/select_model"
+      ttl_minutes: 180
+      reason: "New retention reason and configured fallback in select_model"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/model_routing/**"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/vendor_registry.py"
+        - "agent-coordinator/routing.yaml"
+        - "agent-coordinator/tests/model_routing/**"
+        - "agent-coordinator/tests/test_phase_archetype_resolution.py"
+        - "agent-coordinator/tests/test_vendor_registry.py"
+        - "agent-coordinator/CLAUDE.md"
+        - "skills/coordination-bridge/scripts/routing_fallback.py"
+        - "skills/tests/coordination-bridge/**"
+        - "openspec/changes/add-infeasible-incumbent-fallback/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/autopilot/**"
+        - "openspec/specs/**"
+        - "openspec/changes/archive/**"
+        - "agent-coordinator/database/migrations/**"
+    context_impact:
+      surfaces:
+        - "apis"               # contracts/openapi/v1.4.yaml
+        - "capabilities"       # specs/model-routing, specs/agent-archetypes
+        - "semantic_code"      # resolver, api, routing_policy, routing_fallback
+        - "documentation"      # agent-coordinator/CLAUDE.md reason list
+    worktree:
+      name: wp-router
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Model-routing suite"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest tests/model_routing -q"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/model_routing"
+            result_keys: ["routing_suite_pass"]
+        - name: "Coordinator unit suite"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest -m 'not e2e and not integration' -q"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests"
+            result_keys: ["coordinator_suite_pass"]
+        - name: "Strict typing"
+          kind: command
+          command: "cd agent-coordinator && uv run mypy --strict src/"
+          evidence:
+            artifacts:
+              - "agent-coordinator/src/model_routing"
+            result_keys: ["mypy_clean"]
+        - name: "Coordination-bridge skill tests (client fallback loader)"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/coordination-bridge -q"
+          evidence:
+            artifacts:
+              - "skills/tests/coordination-bridge"
+            result_keys: ["bridge_tests_pass"]
+        - name: "Lint"
+          kind: command
+          command: "cd agent-coordinator && uv run ruff check src/ tests/"
+          evidence:
+            artifacts:
+              - "agent-coordinator/src/model_routing"
+            result_keys: ["ruff_clean"]
+        - name: "Trust-boundary and registry tests"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest tests/test_phase_archetype_resolution.py tests/test_vendor_registry.py -q"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/test_phase_archetype_resolution.py"
+              - "agent-coordinator/tests/test_vendor_registry.py"
+            result_keys: ["trust_boundary_tests_pass"]
+    inputs:
+      hold: "Do not dispatch until split-no-evidence-retention-reason (v1.3) has merged to main (operator decision 2026-10-10, design D8)"
+      external_prerequisites:
+        - "openspec change split-no-evidence-retention-reason merged to main (provides contracts/openapi/v1.3.yaml)"
+        - "wp-dispatch merged to main"
+    outputs:
+      result_keys: ["routing_suite_pass", "coordinator_suite_pass", "mypy_clean", "ruff_clean", "bridge_tests_pass", "trust_boundary_tests_pass"]
+    metadata:
+      loc_estimate: 500
+      package_kind: algorithm

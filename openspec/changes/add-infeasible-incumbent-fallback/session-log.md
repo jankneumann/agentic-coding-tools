@@ -130,3 +130,42 @@ Three parallel dimension analysts plus the architect's code read produced 18 fin
 ### Context
 Two fresh analysts re-reviewed the iteration-1 result and found 12 residual items (3 high, 7 medium, 2 low); all were fixed. The local trust boundary now lives in the router first (lane projection) with the resolution guard as defense in depth; task 2.0 proves the v1.3 merge by blob hash and gates both wp-router chains; the provider-less model change (tier alias to concrete alias) is stated; every test task names its module.
 
+---
+
+## Phase: Plan Iteration 3 (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **wp-router lives in work-packages.held.yaml until promoted by task 2.0 (D8)** `architectural: model-routing` — The DAG scheduler computes readiness from depends_on only and the schema has no hold field, so the only enforceable hold is absence from the executable manifest. The held file stays schema-valid and is loaded by no scheduler.
+2. **Task 2.0 proves prerequisites from the origin/main tree, never the working tree (D8)** `architectural: model-routing` — A branch that cherry-picks v1.3 would pass a working-tree check; git rev-parse origin/main:<path> and git grep on origin/main cannot be fooled that way and sidestep the archive deny.
+3. **Sortedness of incumbent_exclusion_reasons is a producer invariant; contracts validate uniqueness only (D6)** `architectural: model-routing` — JSON Schema cannot express ordering; three contracts must accept the same representations.
+4. **Single-vendor codex finding #2 rejected: the record schema already carries the reason-implies-selected conditional** `architectural: model-routing` — Adjudicated against the file; the conditional was added in iteration 2.
+5. **pi's misplaced review_findings.json at the repo root was removed before being fully read** `architectural: skill-procedure-deviation` — It was treated as a stray artifact; only its first finding (cost-policy precedence, already covered) was seen. Recorded so the loss is visible; the dispatcher had already classified pi as failed.
+
+### Alternatives Considered
+- A synthetic gate package in the DAG that fails until v1.3 merges: rejected because A deliberately failing package reads as a broken run and triggers retries/escalation.
+- Validate sortedness in the generated model only: rejected because The generated model would reject payloads the wire schemas accept.
+
+### Trade-offs
+- Accepted Two manifest files until promotion over One manifest with a prose-only hold because Operator's hold must be enforceable by the scheduler that actually runs.
+
+### Open Questions
+- [ ] grok CLI 1.0.5 must be updated to 1.0.13+ before grok can review again.
+- [ ] pi writes review_findings.json to cwd instead of the dispatcher output dir; its adapter needs an output-path fix.
+
+### Completed Work
+- [critical] GATEKEEPER included in the provider contract; prose test counts eight build-dispatch blocks
+- [critical] wp-router removed from the executable manifest into work-packages.held.yaml; task 2.0 promotes it
+- [critical] task 2.0 reads blob ids and markers from origin/main (v1.3 and wp-dispatch)
+- [high] generated Retention model: retained/reason parity; explicit fallback null rejected
+- [high] OpenAPI configured-fallback conditional pins top-level fallback: false
+- [high] archive deny made moot by reading from the git object store (documented in D8)
+- [medium] ruff step added to wp-router verification; 4.2 restated as feature-level gate
+- [medium] sortedness as producer invariant across D6, README, spec, models.py
+- [medium] resolver-unavailable scenario qualified for provider-less callers; 1.1 covers it
+- [rejected] codex #2 (event schema conditional already present)
+
+### Context
+Vendor-review remediation cycle. Only codex returned (antigravity timed out, grok's CLI is outdated, pi wrote its findings to the repo root); its 10 single-vendor findings were adjudicated one by one: 9 valid and fixed, 1 rejected with evidence. The wp-router hold is now enforced structurally (held manifest), task 2.0 proves prerequisites from the origin/main tree, and all three v1.4 contracts agree on the fallback invariants.
+

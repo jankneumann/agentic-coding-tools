@@ -199,9 +199,9 @@ Approaches 2 and 3 were not taken, for the reasons under Recommended.
 - **Architecture layers:** Coordination (router) and Execution (dispatch).
 - **Sequencing**
   - **Operator hold (2026-10-10, design D8):** only `wp-dispatch` runs in the current autopilot
-    run. `wp-router` starts after `split-no-evidence-retention-reason` (v1.3) merges to `main`
-    and after `wp-dispatch` merges; `work-packages.yaml` records the hold and task 2.0 enforces
-    it.
+    run, so `work-packages.yaml` lists it alone. `wp-router` is defined in
+    `work-packages.held.yaml`, which no scheduler loads, and is promoted by task 2.0 after
+    `split-no-evidence-retention-reason` (v1.3) and `wp-dispatch` are both on `origin/main`.
   - v1.3 itself waits for `implement-the-task-router-vendor-x-location-x-model` to close out.
   - Phase 1 touches only skills, so it can be implemented and merged independently, ahead of
     that chain.

@@ -1,0 +1,171 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: Task 1.6 leaves GATEKEEPER as a provider-less dispatch path. The current GATEKEEPER protocol invokes the adapter with only `prompt` and `model`, while task 1.6 updates exactly seven per-phase capture blocks and its regression test asserts that count. A routed GATEKEEPER model can therefore still be paired with the caller's runner, contradicting the requirement that every dispatch honor the routed provider.",
+      "resolution": "Explicitly include GATEKEEPER in task 1.6 and make the prose test enumerate all eight `build-dispatch` blocks, requiring every adapter invocation to pass `provider`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/tasks.md",
+      "line_range": {
+        "start": 71,
+        "end": 78
+      },
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The v1.4 persistence schema permits `selected: null` when `retention.reason` is `incumbent-infeasible-configured-fallback`. Unlike the OpenAPI response schema, the event schema has no top-level conditional connecting that reason to a non-null selected object. This contradicts design D6, the model-routing delta, and the README's statement that the event contract includes the same configured-fallback invariant.",
+      "resolution": "Add a top-level event-schema conditional requiring `selected` to be an object when `retention.reason` is `incumbent-infeasible-configured-fallback`, with a negative contract test for `selected: null`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/contracts/events/routing-decision-record.schema.json",
+      "line_range": {
+        "start": 29,
+        "end": 34
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The generated v1.4 `Retention` model does not enforce the configured-fallback reason's `retained: false` invariant and accepts an explicitly supplied `fallback: null` for other reasons. The OpenAPI and event schemas reject those representations, so generated-model validation is not equivalent to either wire contract.",
+      "resolution": "Enforce retained/reason parity in the generated model and distinguish an omitted fallback from explicit null using `model_fields_set` or a before-validator. Add generated-model negative tests alongside task 2.1.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/contracts/generated/models.py",
+      "line_range": {
+        "start": 74,
+        "end": 90
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The OpenAPI configured-fallback conditional constrains only `selected`; top-level `fallback` remains an unconstrained boolean. The schema therefore accepts a configured-fallback response with `fallback: true` and local-static provenance, contradicting the specification, design D6, and contracts README, which reserve that flag for offline local-static routing and require it to remain false here.",
+      "resolution": "Extend the configured-fallback response conditional to require `fallback: false` and coordinator provenance, and add a task 2.1 negative test for `fallback: true`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/contracts/openapi/v1.4.yaml",
+      "line_range": {
+        "start": 504,
+        "end": 534
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "critical",
+      "description": "Critical: The D8 wp-router hold is not enforced by the work-package graph. `wp-router` depends only on `wp-dispatch`, while its external prerequisite is stored in free-form `inputs`; the scheduler determines readiness solely from completed `depends_on` packages. Consequently wp-router becomes ready in the same run immediately after wp-dispatch, despite the operator's explicit prohibition on dispatching it.",
+      "resolution": "Remove wp-router from the currently executable manifest until both prerequisites merge, or introduce a schema-defined prerequisite/hold that validation and scheduler readiness enforce before submission.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/work-packages.yaml",
+      "line_range": {
+        "start": 88,
+        "end": 190
+      },
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Task 2.0 does not prove either prerequisite merged to `origin/main`. `git merge-base --is-ancestor origin/main HEAD` only proves HEAD contains main; the blob and `RetentionReason` checks then inspect the working tree, so a branch containing or cherry-picking unmerged v1.3 work can pass. The task also does not verify that wp-dispatch is present on main.",
+      "resolution": "Inspect and hash the prerequisite artifacts directly from the `origin/main` tree or a detached worktree at origin/main, and add an origin/main assertion for the wp-dispatch behavior before wp-router proceeds.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/tasks.md",
+      "line_range": {
+        "start": 84,
+        "end": 93
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: wp-router's declared scope forbids evidence required by its first task. Task 2.0 resolves the v1.3 change from either its active or archived directory, but the package denies `openspec/changes/archive/**`. Once v1.3 is merged and archived\u2014the intended execution state\u2014the worker cannot perform the gate within its declared scope.",
+      "resolution": "Remove or narrowly exempt the archived v1.3 contract paths from the deny list, or provide the pinned prerequisite artifacts at an allowed immutable path.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/work-packages.yaml",
+      "line_range": {
+        "start": 131,
+        "end": 137
+      },
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: wp-router's declared verification can succeed without completing task 4.2. It omits ruff, the skill installation copy/check, and the autopilot, phase-record-compaction, and vendor-neutral-autopilot suites; no integration package owns the feature-worktree-only gate.",
+      "resolution": "Add a post-merge integration package or explicit feature-level verification gate with commands and result keys covering every task 4.2 check.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/work-packages.yaml",
+      "line_range": {
+        "start": 147,
+        "end": 192
+      },
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: Both wire schemas describe `incumbent_exclusion_reasons` as sorted and unique but enforce only non-empty and unique, while the generated Pydantic model rejects unsorted arrays. The OpenAPI schema, persistence schema, generated model, README, design D6, and specification therefore accept different representations.",
+      "resolution": "Define sorting consistently as either a producer-only invariant or a validation invariant. Align all three contracts and add explicit tests for unsorted input.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/contracts/openapi/v1.4.yaml",
+      "line_range": {
+        "start": 606,
+        "end": 617
+      },
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The resolver-unavailable scenario promises pre-change static resolution without qualifying provider-less callers. D2 and the flag-off scenario state that applying the default provider first changes those callers from a raw tier alias such as `standard` to the provider's concrete alias such as `sonnet`, including static fallback behavior.",
+      "resolution": "Qualify the resolver-unavailable scenario like the flag-off scenario: provider-ful callers preserve the pre-change static result, while provider-less callers preserve the provider but return its concrete alias. Add this branch to task 1.1.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/specs/agent-archetypes/spec.md",
+      "line_range": {
+        "start": 25,
+        "end": 28
+      },
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}
