@@ -963,6 +963,7 @@ def answer(
     IS the human answer."""
     gate_enum = gate if isinstance(gate, Gate) else Gate(gate)
     ctx = dict(context or {})
+    resume_at = ctx.get("resume_at")
     workspace = Path(workspace)
     repo_root = Path(repo_root)
     moment = now or datetime.now(timezone.utc)
@@ -1029,6 +1030,10 @@ def answer(
     extra = _correlation_extra(gate_enum, ctx, roadmap=roadmap, fingerprint=fingerprint, verb=verb)
     if note is not None:
         extra["note"] = note
+    if resume_at is not None:
+        if gate_enum is not Gate.ESCALATE_RESUME or not approved or resume_at != "VALIDATE":
+            raise GateRefusalError("resume_at=VALIDATE applies only to an approved escalate_resume")
+        extra["resume_at"] = resume_at
     record = build_gate_decision_record(decision, phase=_PHASE, extra=extra)
     # Project before persisting -- a `GateRefusalError` (e.g. a blocked answer
     # naming no `change_id`) must never follow a partial write.
