@@ -14,6 +14,16 @@
       "gate": "escalate_resume",
       "requested_at": "2026-10-10T03:12:34.501960+00:00",
       "source": "supervise"
+    },
+    {
+      "approval_id": null,
+      "change_id": "toolkit-consistency",
+      "deadline": "2026-10-17T04:08:32.482107+00:00",
+      "decision_id": "b8bbe04f-1ae8-4ec6-9e94-dea9a0282f91",
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "requested_at": "2026-10-10T04:08:32.482107+00:00",
+      "source": "supervise"
     }
   ],
   "schema_version": 1,
@@ -47,5 +57,5 @@
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-10T03:12:31.261018Z"
+  "written_at": "2026-10-10T04:08:29.447974Z"
 }
