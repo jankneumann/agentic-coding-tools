@@ -99,7 +99,7 @@ The single failure is the documented environment-only
    parks each routed to the operator as a single escalation: pass.
    End to end: `autopilot-roadmap/test_dispatch_contract_e2e.py::test_profile_and_degradations_travel_the_whole_chain`
    (request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
-   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child` (capability_unavailable).
+   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child` (parametrized over both kinds: permission_blocked and capability_unavailable).
    Units: `autopilot/test_emit_result.py::test_degradations_travel_into_the_result`,
    `supervise/test_execution.py` (`test_a_marker_carries_the_supervisor_view_but_no_token`, `test_apply_persists_degradations_on_the_attempt`,
    `test_three_workers_blocked_on_one_rule_produce_one_escalation` (permission_blocked: one escalation per rule),
