@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:18:31.186032+00:00",
+  "updated_at": "2026-10-10T10:18:58.394379+00:00",
   "completed_items": [
     "ri-01"
   ],
@@ -2074,7 +2074,7 @@
       "change_id": "dispatch-contract",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "prepared",
+      "status": "launched",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
       "lease_generation": 6,
@@ -2233,6 +2233,37 @@
           "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
           "observed_at": "2026-10-10T10:02:44.549900+00:00",
           "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g5"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791627537621",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T10:18:57.881160+00:00"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791627537621",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T10:18:58.132285+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g6"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791627537621",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T10:18:58.132285+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g6"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791627537621",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T10:18:58.390032+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g6"
         }
       ],
       "scope": {
@@ -2278,6 +2309,27 @@
       "continuation": {
         "kind": "permission_blocked",
         "approval_ref": "gate-decision:1469b3d5-5478-4ab7-9bbd-dd6993bb998e"
+      },
+      "lease": {
+        "generation": 6,
+        "owner_nonce": "owner-nonce-1791627537621",
+        "state": "active",
+        "acquired_at": "2026-10-10T10:18:57.881160+00:00",
+        "heartbeat_at": "2026-10-10T10:18:57.881160+00:00",
+        "expires_at": "2026-10-10T10:33:57.881160+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 6,
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g6",
+        "observed_at": "2026-10-10T10:18:58.132285+00:00"
+      },
+      "launch_gate": {
+        "generation": 6,
+        "state": "entered",
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g6",
+        "go_released_at": "2026-10-10T10:18:58.132285+00:00",
+        "entered_at": "2026-10-10T10:18:58.390032+00:00"
       }
     }
   ]
