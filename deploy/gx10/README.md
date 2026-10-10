@@ -9,10 +9,14 @@ Six services from `agent-coordinator/docker-compose.yml` are deliberately
 `langfuse-clickhouse`, `langfuse-redis`, `langfuse-minio`. The laptop compose
 runs its own copies; here they belong to the analyzer.
 
-Read [`CASE_STUDIES.md` → GX-10 Production Bring-Up][cs] in the analyzer repo
-before changing anything in this directory. It is a list of the specific ways
-this host punishes assumptions, and every file here is shaped by it.
+Read these two in the analyzer repo before changing anything here:
 
+- [`docs/GX10_HANDOFF.md`][ho] — host state, the install prerequisites that
+  need credentials, and every open task. Start here.
+- [`docs/CASE_STUDIES.md` → GX-10 Production Bring-Up][cs] — the specific ways
+  this host punishes assumptions. Every file in this directory is shaped by it.
+
+[ho]: https://github.com/jankneumann/agentic-content-analyzer/blob/main/docs/GX10_HANDOFF.md
 [cs]: https://github.com/jankneumann/agentic-content-analyzer/blob/main/docs/CASE_STUDIES.md
 
 ## What the deployment assumes
