@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-10-09 — dispatch-contract
+## 2026-10-09 — 2026-10-10-dispatch-contract
 
 ### Phase: Plan Review
 
 **Quorum park happens in the worker protocol, not convergence_loop** — below quorum the SKILL.md probe skips review entirely, so convergence_loop never runs; `runner.py park` stays the only writer.
 
 - Status: `active`
-- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D4)
 
 ---
 
