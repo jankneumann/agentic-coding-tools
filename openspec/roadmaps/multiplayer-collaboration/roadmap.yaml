@@ -99,7 +99,7 @@ items:
     one is gated by its non-auto fallback.
 - item_id: ri-22
   title: OpenRouter review lane for cloud workers
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on:
