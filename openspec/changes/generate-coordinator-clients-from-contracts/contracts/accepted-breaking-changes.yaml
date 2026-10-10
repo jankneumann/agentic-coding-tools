@@ -1,0 +1,18 @@
+# Breaking changes this change makes to promoted contracts, acknowledged for the
+# contract breaking-change gate (scripts/contract_gate/check_breaking.py, design D4).
+#
+# Each entry suppresses exactly one (document, operation, rule_id) finding.
+# rule_id values are oasdiff check identifiers; the gate prints the exact id of
+# any unacknowledged finding, and warns about entries here that match nothing.
+#
+# The first CI run (oasdiff v1.33.0) reported only new-required-request-property
+# (twice, one per newly required property). Adding security to getFeature is not
+# an ERR-level finding, so its planned entry was removed as stale.
+accepted:
+  - document: openspec/contracts/agent-coordinator/openapi/features.yaml
+    operation: POST /features/conflicts
+    rule_id: new-required-request-property
+    rationale: >-
+      Contract-only correction. The old contract typed the body as a bare object;
+      the app has always required candidate_feature_id and candidate_claims
+      (FeatureConflictsRequest) and answered 422 without them.

@@ -1,0 +1,6 @@
+{
+  "review_type": "implementation",
+  "target": "dispatch-contract",
+  "reviewer_vendor": "claude_code",
+  "findings": []
+}

@@ -34,6 +34,7 @@ for _scripts_dir in (_PLAN_SCRIPTS, _RUNTIME_SCRIPTS):
         sys.path.insert(0, str(_scripts_dir))
 
 from decomposer import (  # type: ignore[import-untyped]
+    _CEDED_STATUSES,
     scan_archive_state,
     validate_cross_roadmap,
     validate_roadmap,
@@ -71,6 +72,9 @@ class RefinementPreview:
     dependency_edges_added: list[tuple[str, str]]
     dependency_edges_removed: list[tuple[str, str]]
     priority_changes: list[list[Any]] = dataclass_field(default_factory=list)
+    #: Existing active changes that new items take ownership of instead of
+    #: scaffolding (``add`` with ``adopt_existing: true``).
+    adopted_change_ids: list[str] = dataclass_field(default_factory=list)
     #: Non-fatal effects an operator must see before approving. Empty today:
     #: its only producer warned that a tiered reorder moved sequential dispatch
     #: order but not coordinated, which stopped being true once both paths
@@ -86,6 +90,7 @@ class RefinementPreview:
             "operations": self.operation_summaries,
             "new_item_ids": self.new_item_ids,
             "scaffold_change_ids": self.scaffold_change_ids,
+            "adopted_change_ids": self.adopted_change_ids,
             "schedule_before": self.schedule_before,
             "schedule_after": self.schedule_after,
             "dependency_edges_added": [list(edge) for edge in self.dependency_edges_added],
@@ -267,15 +272,30 @@ def _replace_local_dependency(
 
 
 def _apply_add(
-    candidate: dict[str, Any], operation: dict[str, Any], new_ids: list[str]
+    candidate: dict[str, Any],
+    operation: dict[str, Any],
+    new_ids: list[str],
+    adopted_ids: list[str],
 ) -> str:
+    adopt = operation.get("adopt_existing", False)
+    if not isinstance(adopt, bool):
+        raise RefinementValidationError("add adopt_existing must be true or false.")
     item = _normalize_new_item(operation.get("item"), candidate)
     if item["item_id"] in _item_map(candidate):
         raise RefinementValidationError(f"item_id {item['item_id']!r} already exists.")
+    if adopt and not item.get("change_id"):
+        # Adoption targets one specific in-flight change; a derived id would
+        # silently point the item at whatever directory happens to match.
+        raise RefinementValidationError(
+            f"New item {item['item_id']!r} sets adopt_existing but has no explicit change_id."
+        )
     index = _insertion_index(candidate["items"], operation)
     candidate["items"].insert(index, item)
-    _assign_change_id(item, candidate)
+    change_id = _assign_change_id(item, candidate)
     new_ids.append(item["item_id"])
+    if adopt:
+        adopted_ids.append(change_id)
+        return f"adopt:{item['item_id']}"
     return f"add:{item['item_id']}"
 
 
@@ -428,7 +448,7 @@ def _apply_supersede(
 
 def _apply_operations(
     original: dict[str, Any], request: dict[str, Any], workspace: Path
-) -> tuple[dict[str, Any], list[str], list[str]]:
+) -> tuple[dict[str, Any], list[str], list[str], list[str]]:
     if not isinstance(request, dict):
         raise RefinementValidationError("Refinement request must be a mapping.")
     for field in ("rationale", "actor", "source"):
@@ -441,12 +461,13 @@ def _apply_operations(
     candidate = copy.deepcopy(original)
     summaries: list[str] = []
     new_ids: list[str] = []
+    adopted_ids: list[str] = []
     for operation in operations:
         if not isinstance(operation, dict):
             raise RefinementValidationError("Each refinement operation must be a mapping.")
         op = operation.get("op")
         if op == "add":
-            summaries.append(_apply_add(candidate, operation, new_ids))
+            summaries.append(_apply_add(candidate, operation, new_ids, adopted_ids))
         elif op == "edit":
             summaries.append(_apply_edit(candidate, operation))
         elif op == "split":
@@ -459,7 +480,29 @@ def _apply_operations(
             raise RefinementValidationError(
                 f"Unknown refinement operation {op!r}; expected add, edit, split, reorder, or supersede."
             )
-    return candidate, summaries, new_ids
+    return candidate, summaries, new_ids, adopted_ids
+
+
+def _change_owners(repo_root: Path, exclude_roadmap_id: str) -> dict[str, str]:
+    """Map change_id -> owning ``<roadmap-id>:<item-id>`` across other active roadmaps.
+
+    Items in a ceded status (skipped, superseded) have handed their change off,
+    matching ``validate_cross_roadmap``, so they are not owners.
+    """
+    ceded = {status.value for status in _CEDED_STATUSES}
+    owners: dict[str, str] = {}
+    roadmaps_dir = repo_root / "openspec" / "roadmaps"
+    for path in sorted(roadmaps_dir.glob("*/roadmap.yaml")) if roadmaps_dir.is_dir() else []:
+        try:
+            data = yaml.safe_load(path.read_text())
+            if data["roadmap_id"] == exclude_roadmap_id:
+                continue
+            for item in data.get("items", []):
+                if item.get("change_id") and item.get("status") not in ceded:
+                    owners.setdefault(item["change_id"], f"{data['roadmap_id']}:{item['item_id']}")
+        except (OSError, TypeError, KeyError, yaml.YAMLError):
+            continue
+    return owners
 
 
 def _dependency_edges(data: dict[str, Any]) -> set[tuple[str, str]]:
@@ -557,6 +600,7 @@ def preview_refinement(
     candidate = copy.deepcopy(original)
     summaries: list[str] = []
     new_ids: list[str] = []
+    adopted_ids: list[str] = []
     try:
         relative = roadmap_path.resolve().relative_to(repo_root.resolve())
         if relative.parts[:3] == ("openspec", "roadmaps", "archive"):
@@ -569,7 +613,9 @@ def preview_refinement(
 
     if not errors:
         try:
-            candidate, summaries, new_ids = _apply_operations(original, request, roadmap_path.parent)
+            candidate, summaries, new_ids, adopted_ids = _apply_operations(
+                original, request, roadmap_path.parent
+            )
         except (RefinementValidationError, KeyError, TypeError, ValueError) as exc:
             errors.append(str(exc))
 
@@ -579,11 +625,27 @@ def preview_refinement(
 
     state = scan_archive_state(repo_root)
     candidate_items = _item_map(candidate)
+    owners = _change_owners(repo_root, candidate.get("roadmap_id", "")) if adopted_ids else {}
     scaffold_ids: list[str] = []
     for item_id in new_ids:
         change_id = candidate_items[item_id].get("change_id")
         if not change_id:
             errors.append(f"New item {item_id!r} has no change_id after derivation.")
+            continue
+        if change_id in adopted_ids:
+            if change_id not in state:
+                errors.append(
+                    f"New item {item_id!r} adopts change_id {change_id!r}, but that change does not exist."
+                )
+            elif state[change_id] == "completed":
+                errors.append(
+                    f"New item {item_id!r} adopts change_id {change_id!r}, but that change is archived."
+                )
+            if change_id in owners:
+                errors.append(
+                    f"New item {item_id!r} adopts change_id {change_id!r}, "
+                    f"but {owners[change_id]} already owns it."
+                )
             continue
         scaffold_ids.append(change_id)
         if change_id in state:
@@ -601,6 +663,7 @@ def preview_refinement(
         operation_summaries=summaries,
         new_item_ids=new_ids,
         scaffold_change_ids=scaffold_ids,
+        adopted_change_ids=adopted_ids,
         schedule_before=_schedule_waves(original, repo_root),
         schedule_after=_schedule_waves(candidate, repo_root),
         dependency_edges_added=sorted(after_edges - before_edges),
@@ -722,6 +785,10 @@ def apply_refinement(
             item = roadmap.get_item(item_id)
             if item is None or not item.change_id:
                 raise RefinementValidationError(f"New item {item_id!r} cannot be scaffolded.")
+            if item.change_id in preview.adopted_change_ids:
+                # Adopted changes already exist and may hold refined plans; they
+                # are never rewritten and never registered for rollback removal.
+                continue
             destination = repo_root / "openspec" / "changes" / item.change_id
             if destination.exists():
                 raise RefinementValidationError(

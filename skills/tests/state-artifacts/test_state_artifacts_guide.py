@@ -110,3 +110,43 @@ def test_changed_skill_mirrors_are_byte_identical(skill_name: str):
         pytest.skip("runtime mirrors are installed artifacts, not tracked checkout inputs")
     assert agents.read_bytes() == canonical
     assert claude.read_bytes() == canonical
+
+
+def _ownership_row() -> str:
+    rows = [
+        line
+        for line in GUIDE.read_text().splitlines()
+        if line.startswith("|") and "`openspec/owners.yaml`" in line
+    ]
+    assert len(rows) == 1, "inventory must carry exactly one openspec/owners.yaml row"
+    return rows[0]
+
+
+def test_inventory_row_for_ownership_map_covers_every_cell():
+    row = _ownership_row()
+    cells = [c.strip() for c in row.strip().strip("|").split("|")]
+    header = [
+        c.strip()
+        for c in next(
+            line for line in GUIDE.read_text().splitlines() if line.startswith("| Artifact class")
+        )
+        .strip()
+        .strip("|")
+        .split("|")
+    ]
+    assert len(cells) == len(header)
+    assert all(cells), "no empty cell in the ownership-map row"
+    assert "Ownership map" in cells[0]
+    # writer: humans by reviewed PR, no skill writes it
+    assert "reviewed PR" in cells[2] and "No skill writes it" in cells[2]
+    # authority names the fail-closed default owner
+    assert "default owner" in cells[3].lower()
+    # missing/stale cell: absence is solo mode, invalid fails closed
+    assert "solo mode" in cells[5].lower()
+    assert "fails closed" in cells[5].lower()
+
+
+def test_ownership_row_names_codeowners_as_derived_projection():
+    row = _ownership_row()
+    assert "CODEOWNERS" in row
+    assert "derived projection" in row

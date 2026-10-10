@@ -356,3 +356,91 @@ def test_a_posture_derived_resume_does_not_end_a_human_rejection(workspace: Path
     # Parked where only an operator resume clears it, not silently stuck.
     assert state["current_phase"] == "ESCALATE"
     assert state["previous_phase"] == "SUBMIT_PR"
+
+
+# --------------------------------------------------------------------------- #
+# Cloud worker (no launch marker; roadmap scope committed at HEAD)
+# --------------------------------------------------------------------------- #
+
+_ROADMAP_APPROVAL = "40776beb-63e5-4a06-b7b9-b349f3a918df"
+
+
+def _git(root: Path, *args: str) -> None:
+    import subprocess
+
+    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+
+
+def _commit_scope(root: Path, *, resolution: str = "console_approved") -> None:
+    checkpoint = {
+        "gate_decisions": [
+            {
+                "decision_id": _ROADMAP_APPROVAL,
+                "gate": "roadmap_approval",
+                "outcome": "proceed" if resolution == "console_approved" else "blocked",
+                "resolution": resolution,
+            }
+        ],
+        "dispatch_attempts": [
+            {
+                "dispatch_id": "batch-0123456789abcdef01234567:ri-01:attempt-1",
+                "change_id": "demo",
+                "attempt": 1,
+                "lease_generation": 2,
+                "roadmap_approval_ref": f"gate-decision:{_ROADMAP_APPROVAL}",
+            }
+        ],
+    }
+    path = root / "openspec" / "roadmaps" / "rm" / "checkpoint.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(checkpoint))
+    if not (root / ".git").exists():
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+    _git(root, "add", "openspec/roadmaps")
+    _git(root, "commit", "-q", "-m", "checkpoint")
+    _git(root, "update-ref", "refs/remotes/origin/openspec/roadmap-rm", "HEAD")
+
+
+def _unscoped_park(workspace: Path) -> Path:
+    digest = _posture(workspace, proposal_approval="auto")
+    unscoped = {
+        "gate": "proposal_approval",
+        "outcome": "blocked",
+        "resolution": "posture_block",
+        "disposition": "block",
+        "reason": "unscoped fallback",
+        "posture_present": True,
+        "recorded_at": "2026-10-01T00:00:00+00:00",
+        "provenance": {"source": "posture", "posture_digest": digest},
+        "scope": "unscoped",
+    }
+    pending = _pending("proposal_approval", digest, edge={"outcome": "created", "target": "PLAN_ITERATE"})
+    return _seed(workspace, pending=pending, gate_decisions=[unscoped])
+
+
+def test_a_cloud_worker_re_evaluates_once_its_roadmap_scope_is_committed(workspace: Path) -> None:
+    path = _unscoped_park(workspace)
+    _commit_scope(workspace)
+
+    rc = runner.main(["gate-check", "demo"])
+
+    assert rc == runner.EXIT_NO_PENDING_GATE
+    state = _read(path)
+    assert state["pending_gate"] is None
+    assert state["gate_decisions"][-1]["resolution"] == "auto"
+    assert state["gate_decisions"][-1]["scope"] == "roadmap_approval"
+    assert state["current_phase"] == "PLAN_ITERATE"
+
+
+def test_a_cloud_worker_without_an_approved_scope_stays_parked(
+    workspace: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = _unscoped_park(workspace)
+    _commit_scope(workspace, resolution="posture_block")
+    before = _read(path)
+
+    assert runner.main(["gate-check", "demo"]) == 0
+    assert json.loads(capsys.readouterr().out) == before["pending_gate"]
+    assert _read(path) == before

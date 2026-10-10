@@ -112,17 +112,45 @@ def _git(change_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _content_commit_date(cwd: Path, name: str) -> str:
+    """Author date of the last commit that changed the report's content.
+
+    Follows renames and skips any commit whose blob is unchanged, so moving the
+    change into ``openspec/changes/archive/`` (a pure rename) does not read as
+    editing the report after its review. ``--raw --no-abbrev`` gives each
+    commit's old and new blob for the file, newest first."""
+    out = _git(
+        cwd, "log", "--follow", "--raw", "--no-abbrev", "--format=%x00%aI", "--", name
+    ).stdout
+    for entry in out.split("\0")[1:]:
+        lines = entry.strip().splitlines()
+        if not lines:
+            continue
+        raw = next((line for line in lines[1:] if line.startswith(":")), None)
+        if raw is None:
+            continue  # a merge: no diff of its own
+        fields = raw.split()
+        # ":<old mode> <new mode> <old blob> <new blob> <status>\t<path>"
+        if len(fields) < 4 or fields[2] != fields[3]:
+            return lines[0]
+    return ""
+
+
 def _report_time(report_path: Path) -> tuple[datetime, str]:
-    """``(time, source)``: the last commit touching the report when the working
-    copy matches it, else the file's mtime."""
+    """``(time, source)``: the author date of the last commit that changed the
+    report's content when the working copy matches it, else the file's mtime."""
     name = report_path.name
     cwd = report_path.parent
     try:
         tracked = _git(cwd, "ls-files", "--error-unmatch", "--", name).returncode == 0
         clean = tracked and _git(cwd, "diff", "--quiet", "HEAD", "--", name).returncode == 0
         if clean:
-            stamp = _git(cwd, "log", "-1", "--format=%cI", "--", name).stdout.strip()
-            parsed = _parse_timestamp(stamp)
+            # Author date, not committer date: a rebase merge or cherry-pick
+            # rewrites the committer date to the moment it ran, which made every
+            # rebase-merged change read as edited after its review. (Caveat: an
+            # amend keeps the author date; amending a validated report is out of
+            # protocol, since phases commit the report and never rewrite it.)
+            parsed = _parse_timestamp(_content_commit_date(cwd, name))
             if parsed is not None:
                 return parsed, "commit"
     except (OSError, subprocess.SubprocessError):
