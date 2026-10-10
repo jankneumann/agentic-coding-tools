@@ -146,6 +146,7 @@ testpaths = [
     "tests/codebase-atlas",
     "tests/skill-audit",
     "tests/state-artifacts",
+    "tests/ownership-runtime",
     # multiplayer-principles-guide: structural guard for docs/guides/multiplayer-collaboration.md.
     "tests/multiplayer-collaboration",
     "expedite/scripts/tests",

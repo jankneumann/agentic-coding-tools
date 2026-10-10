@@ -323,6 +323,9 @@
     "obsidian-markdown": {
       "distribution": "portable"
     },
+    "ownership-runtime": {
+      "distribution": "portable"
+    },
     "parallel-infrastructure": {
       "distribution": "portable"
     },
