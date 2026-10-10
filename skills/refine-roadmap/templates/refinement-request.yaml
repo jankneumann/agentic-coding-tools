@@ -17,6 +17,9 @@ operations:
         - <measurable outcome>
 
   # Other supported operation shapes:
+  # - op: add                     # adopt an existing active change; no scaffold
+  #   adopt_existing: true
+  #   item: {item_id: ri-03, title: <title>, change_id: <existing-change-id>, effort: M, acceptance_outcomes: [<outcome>]}
   # - op: edit
   #   item_id: ri-02
   #   set: {description: <clarified description>, effort: M}
