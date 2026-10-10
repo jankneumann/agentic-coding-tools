@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-09T18:40:29.956620+00:00",
+  "updated_at": "2026-10-10T03:08:52.849127+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -629,6 +629,108 @@
       "item_id": "ri-02",
       "lease_generation": 4,
       "note": "Posture-derived block, re-evaluated under the current operator posture: TRUST_POSTURE.md on the roadmap branch has pr_creation: auto (operator decision 2026-10-05, 7fea1cd). The worker branch carries the pre-7fea1cd notify_with_timeout disposition, which failed closed on a coordinator 403. Resume to SUBMIT_PR and open the PR against openspec/roadmap-multiplayer-collaboration; merge stays block."
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T03:08:15.862652+00:00",
+      "decision_id": "ef3f3e2c-c3b1-4cc1-ab4a-5a81e5f1a12e",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-principles-guide",
+      "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+      "item_id": "ri-01"
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T03:08:18.749018+00:00",
+      "decision_id": "111eec77-c7b3-4ac3-804f-df4b4c3e3e5c",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "dispatch-contract",
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "item_id": "ri-21"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator approved in supervisor session session_01J39bSygVy2r68wyPyHN5VA on 2026-10-09 (\"merge both 662, 667, 666\"); PR #666 merged into openspec/roadmap-multiplayer-collaboration as f5557f4.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T03:08:25.387960+00:00",
+      "decision_id": "23a757ff-357a-4111-bac9-120d8d301ff3",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "multiplayer-collaboration",
+      "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+      "note": "Operator approved in supervisor session session_01J39bSygVy2r68wyPyHN5VA on 2026-10-09 (\"merge both 662, 667, 666\"); PR #666 merged into openspec/roadmap-multiplayer-collaboration as f5557f4."
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator approved in supervisor session session_01J39bSygVy2r68wyPyHN5VA on 2026-10-09 (\"merge both 662, 667, 666\"); PR #667 merged into openspec/roadmap-multiplayer-collaboration as 0d078ff.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T03:08:25.878504+00:00",
+      "decision_id": "d2c8df05-dcfb-4133-a9d4-239e812c5620",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "multiplayer-collaboration",
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "note": "Operator approved in supervisor session session_01J39bSygVy2r68wyPyHN5VA on 2026-10-09 (\"merge both 662, 667, 666\"); PR #667 merged into openspec/roadmap-multiplayer-collaboration as 0d078ff."
     }
   ],
   "dispatch_attempts": [
@@ -638,10 +740,10 @@
       "change_id": "multiplayer-principles-guide",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:01:35.452722+00:00",
       "launch_marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
-      "lease_generation": 5,
+      "lease_generation": 6,
       "launch_history": [
         {
           "generation": 1,
@@ -797,6 +899,37 @@
           "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
           "observed_at": "2026-10-09T07:50:20.889003+00:00",
           "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g5"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791601730601",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-10T03:08:51.124839+00:00"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791601730601",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-10T03:08:51.462392+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g6"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791601730601",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-10T03:08:51.462392+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g6"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791601730601",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-10T03:08:51.816763+00:00",
+          "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g6"
         }
       ],
       "scope": {
@@ -811,70 +944,32 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
+      "launch_digest": "sha256:4a5c3c939aa599de4fc826d6595dbb0903f109cf33ff9f13f786b6244107ed7c",
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:23a757ff-357a-4111-bac9-120d8d301ff3"
+      },
       "lease": {
-        "generation": 5,
-        "owner_nonce": "9d6fc1dd17cbe8802c07608c3d0f0dd8",
-        "state": "released",
-        "acquired_at": "2026-10-09T07:50:20.860831+00:00",
-        "heartbeat_at": "2026-10-09T07:50:20.860831+00:00",
-        "expires_at": "2026-10-09T08:05:20.860831+00:00"
+        "generation": 6,
+        "owner_nonce": "owner-nonce-1791601730601",
+        "state": "active",
+        "acquired_at": "2026-10-10T03:08:51.124839+00:00",
+        "heartbeat_at": "2026-10-10T03:08:51.124839+00:00",
+        "expires_at": "2026-10-10T03:23:51.124839+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 5,
-        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g5",
-        "observed_at": "2026-10-09T07:50:20.877732+00:00"
+        "generation": 6,
+        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g6",
+        "observed_at": "2026-10-10T03:08:51.462392+00:00"
       },
       "launch_gate": {
-        "generation": 5,
+        "generation": 6,
         "state": "entered",
-        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g5",
-        "go_released_at": "2026-10-09T07:50:20.877732+00:00",
-        "entered_at": "2026-10-09T07:50:20.889003+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/multiplayer-principles-guide",
-          "change_id": "multiplayer-principles-guide",
-          "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
-          "evidence": {
-            "commit": "973d8b1f1bb18098f914aae9847630ce7a300fc2",
-            "loop_state_digest": "46463cdfaf63c3431f50ec044fd807ac5aab5e948d45a05853f1baa27073745d",
-            "loop_state_path": "openspec/changes/multiplayer-principles-guide/loop-state.json"
-          },
-          "handoff_id": "b78e5326-fe14-4111-80f9-ac7c4466123a",
-          "lease_generation": 5,
-          "outcome": "parked",
-          "parked": {
-            "gate": "merge",
-            "kind": "pending_gate",
-            "reason": "PR #666 open against openspec/roadmap-multiplayer-collaboration (VALIDATE passed; PLAN_REVIEW and IMPL_REVIEW converged round 1, single_vendor_review). Loop at SUBMIT_PR awaiting the merge gate (block). Worker reported 'success'; normalized to the merge-gate park its loop-state backs.",
-            "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/666; /cleanup-feature merges."
-          },
-          "schema_version": 2,
-          "degradations": [],
-          "worktree_ref": "multiplayer-principles-guide",
-          "host_id": "machine-dc39bf1e25efdf45"
-        },
-        "result_digest": "376121d6bb8fbb5a165d7e46ca709ea1090b63e2814efdfb28fe5474840eec7b",
-        "bound_at": "2026-10-09T12:18:06.626672+00:00",
-        "callback_started_at": "2026-10-09T12:18:06.631199+00:00",
-        "callback_acknowledged_at": "2026-10-09T12:18:06.634500+00:00",
-        "terminal_persisted_at": "2026-10-09T12:18:06.638403+00:00",
-        "effects_applied_at": "2026-10-09T12:18:06.662387+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-09T12:18:06.638367+00:00",
-      "parked": {
-        "gate": "merge",
-        "kind": "pending_gate",
-        "reason": "PR #666 open against openspec/roadmap-multiplayer-collaboration (VALIDATE passed; PLAN_REVIEW and IMPL_REVIEW converged round 1, single_vendor_review). Loop at SUBMIT_PR awaiting the merge gate (block). Worker reported 'success'; normalized to the merge-gate park its loop-state backs.",
-        "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/666; /cleanup-feature merges."
-      },
-      "launch_digest": "sha256:5703c01606f8dc59648f5e12a5671035b8e42e1473605c1de0e488b8e7609c98"
+        "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g6",
+        "go_released_at": "2026-10-10T03:08:51.462392+00:00",
+        "entered_at": "2026-10-10T03:08:51.816763+00:00"
+      }
     },
     {
       "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
@@ -1490,10 +1585,10 @@
       "change_id": "dispatch-contract",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
-      "lease_generation": 2,
+      "lease_generation": 3,
       "launch_history": [
         {
           "generation": 1,
@@ -1556,6 +1651,37 @@
           "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
           "observed_at": "2026-10-09T07:50:20.992790+00:00",
           "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "owner-nonce-1791601731321",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T03:08:52.227368+00:00"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "owner-nonce-1791601731321",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T03:08:52.537529+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "owner-nonce-1791601731321",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T03:08:52.537529+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "owner-nonce-1791601731321",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T03:08:52.846609+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g3"
         }
       ],
       "scope": {
@@ -1570,70 +1696,32 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
+      "launch_digest": "sha256:b49638717af32df05977885133fd555ca706a2236e7ec59a75decadfd7198cae",
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:d2c8df05-dcfb-4133-a9d4-239e812c5620"
+      },
       "lease": {
-        "generation": 2,
-        "owner_nonce": "834a2a0f17023e79ed2079399e87505e",
-        "state": "released",
-        "acquired_at": "2026-10-09T07:50:20.974709+00:00",
-        "heartbeat_at": "2026-10-09T07:50:20.974709+00:00",
-        "expires_at": "2026-10-09T08:05:20.974709+00:00"
+        "generation": 3,
+        "owner_nonce": "owner-nonce-1791601731321",
+        "state": "active",
+        "acquired_at": "2026-10-10T03:08:52.227368+00:00",
+        "heartbeat_at": "2026-10-10T03:08:52.227368+00:00",
+        "expires_at": "2026-10-10T03:23:52.227368+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 2,
-        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2",
-        "observed_at": "2026-10-09T07:50:20.982798+00:00"
+        "generation": 3,
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g3",
+        "observed_at": "2026-10-10T03:08:52.537529+00:00"
       },
       "launch_gate": {
-        "generation": 2,
+        "generation": 3,
         "state": "entered",
-        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g2",
-        "go_released_at": "2026-10-09T07:50:20.982798+00:00",
-        "entered_at": "2026-10-09T07:50:20.992790+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/dispatch-contract",
-          "change_id": "dispatch-contract",
-          "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
-          "evidence": {
-            "commit": "b66144b122452c48ddcdf21121c206c6cf265f2a",
-            "loop_state_digest": "ccdcdedc0b4ef529458a42ac64128c0b077f71c0baa1c5a9bba1f777f2b71e7e",
-            "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
-          },
-          "handoff_id": "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
-          "lease_generation": 2,
-          "outcome": "parked",
-          "parked": {
-            "gate": "merge",
-            "kind": "pending_gate",
-            "reason": "PR #667 open against openspec/roadmap-multiplayer-collaboration; all phases passed (single_vendor_review x3). Awaiting the merge gate. Worker emitted a schema v2 result (dispatch-results/...-g2.json at e768b60); recorded here in the v1 shape the current supervisor validates.",
-            "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/667."
-          },
-          "schema_version": 2,
-          "degradations": [],
-          "worktree_ref": "dispatch-contract",
-          "host_id": "machine-dc39bf1e25efdf45"
-        },
-        "result_digest": "98a2da6b762e90b33d80ce59041d98321eed03578cdbebd98b26847561412d03",
-        "bound_at": "2026-10-09T14:11:47.488313+00:00",
-        "callback_started_at": "2026-10-09T14:11:47.495184+00:00",
-        "callback_acknowledged_at": "2026-10-09T14:11:47.499697+00:00",
-        "terminal_persisted_at": "2026-10-09T14:11:47.502859+00:00",
-        "effects_applied_at": "2026-10-09T14:11:47.528732+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-09T14:11:47.502831+00:00",
-      "parked": {
-        "gate": "merge",
-        "kind": "pending_gate",
-        "reason": "PR #667 open against openspec/roadmap-multiplayer-collaboration; all phases passed (single_vendor_review x3). Awaiting the merge gate. Worker emitted a schema v2 result (dispatch-results/...-g2.json at e768b60); recorded here in the v1 shape the current supervisor validates.",
-        "resume_hint": "Operator authorizes merge of https://github.com/jankneumann/agentic-coding-tools/pull/667."
-      },
-      "launch_digest": "sha256:352e1c1919795af20038a9c63811b8e632d6b53a8a5695226a3934e07f835417"
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g3",
+        "go_released_at": "2026-10-10T03:08:52.537529+00:00",
+        "entered_at": "2026-10-10T03:08:52.846609+00:00"
+      }
     }
   ]
 }
