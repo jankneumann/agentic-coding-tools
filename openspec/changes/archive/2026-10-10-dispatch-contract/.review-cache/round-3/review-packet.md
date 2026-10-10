@@ -18,25 +18,132 @@ Output ONLY a JSON object with a top-level `findings` array.
 
 ### Diff
 ```diff
-diff --git a/openspec/changes/dispatch-contract/design.md b/openspec/changes/dispatch-contract/design.md
-index 8090b62..5fb8fe9 100644
---- a/openspec/changes/dispatch-contract/design.md
-+++ b/openspec/changes/dispatch-contract/design.md
-@@ -86,8 +86,12 @@ shape:
-   files are mirrored under `skills/roadmap-runtime/install_assets/openspec/` at the
-   same relative paths, and the locator's install_assets fallback covers both
-   directories.
--- The four tests above validate through `dispatch_contract` instead of building their
--  own validators.
-+- `test_execution_contract.py` is repointed in `wp-dispatch-schemas` (task 2.3a), which
-+  lands before `dispatch_contract` exists, so it keeps building its own
-+  `referencing.Registry`, now over both schema directories. `test_execution.py`,
-+  `test_dispatch_scheduler.py` and `test_supervised_dispatch_e2e.py` move to
-+  `dispatch_contract` in their own later packages (`wp-supervisor`,
-+  `wp-runtime-ledger`).
- 
- - *Alternative:* generate Python validators from the schema at build time. Rejected:
-   adds a build step that installed copies in consumer repos would not run.
+diff --git a/openspec/changes/dispatch-contract/.review-ledger/ledger.json b/openspec/changes/dispatch-contract/.review-ledger/ledger.json
+index 78021c2a..a3a5802f 100644
+--- a/openspec/changes/dispatch-contract/.review-ledger/ledger.json
++++ b/openspec/changes/dispatch-contract/.review-ledger/ledger.json
+@@ -521,7 +521,7 @@
+     },
+     {
+       "id": 30,
+-      "status": "open",
++      "status": "addressed",
+       "axis": "correctness",
+       "type": "spec_gap",
+       "criticality": "low",
+@@ -539,7 +539,7 @@
+     },
+     {
+       "id": 31,
+-      "status": "open",
++      "status": "addressed",
+       "axis": "readability",
+       "type": "spec_gap",
+       "criticality": "low",
+@@ -557,7 +557,7 @@
+     },
+     {
+       "id": 32,
+-      "status": "open",
++      "status": "addressed",
+       "axis": "readability",
+       "type": "spec_gap",
+       "criticality": "low",
+@@ -575,38 +575,72 @@
+     },
+     {
+       "id": 33,
+-      "status": "open",
++      "status": "addressed",
+       "axis": "readability",
+       "type": "spec_gap",
+       "criticality": "low",
+       "evidence_class": "deterministic",
+       "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+-      "fingerprint": "0f802205815899da",
++      "fingerprint": "af5843e6f87a76c3",
+       "first_seen_round": 2,
+-      "last_seen_round": 2,
++      "last_seen_round": 1,
+       "vendor_hits": [
+         "claude_code"
+       ],
+-      "description": "The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies.",
++      "description": "The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR #662 head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies. The Security section (line 182) repeats 37976320517 without a head.",
+       "consensus_status": "unconfirmed"
+     },
+     {
+       "id": 34,
+-      "status": "open",
++      "status": "addressed",
+       "axis": "readability",
+       "type": "spec_gap",
+       "criticality": "low",
+-      "evidence_class": "judgment",
++      "evidence_class": "deterministic",
+       "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+-      "fingerprint": "a477c41a2d7bb1b2",
++      "fingerprint": "3116d20da831bddf",
++      "first_seen_round": 2,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The 'Tests added after IMPL review' block (added in 794b4281) is indented inside item 6 (the secret-scan outcome), yet its bullets cite tests for outcomes 4, 5, 7, 1 and the goal gate, none for outcome 6. A reader of the numbered outcome list attributes those tests to outcome 6.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 35,
++      "status": "addressed",
++      "axis": "readability",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "e306b2324a21e1bc",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Proposal outcome 5 requires both permission_blocked and capability_unavailable parks to be routed to the operator as single escalations. The report's outcome 5 says only 'capability parks'. The cited tests do cover permission_blocked (supervise/test_execution.py::test_three_workers_blocked_on_one_rule_produce_one_escalation uses _BLOCKED, kind permission_blocked, line 2247; test_concurrent_resolvers_on_one_fingerprint_are_single_flight likewise), and capability_unavailable (test_different_missing_lanes_are_separate_escalations, the e2e capability-park test), but the report never says which test proves which kind, so the permission_blocked half of the outcome is not visibly proved.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 36,
++      "status": "open",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "1ac9e5ef7f170064",
+       "first_seen_round": 2,
+       "last_seen_round": 2,
+       "vendor_hits": [
+         "claude_code"
+       ],
+-      "description": "The new 'Tests added after IMPL review' block is indented as a continuation of list item 6 (the secret-scan outcome). Its bullets cite evidence for outcomes 4, 5, 7 and 1, so in the rendered list they appear under outcome 6. Each bullet names its outcome, so nothing is wrong, but a reader scanning outcome 4 or 7 will not find those tests there.",
++      "description": "The kind label added in 0466eab9 under-reports the end-to-end capability-park test. autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child is parametrized over `park` with ids [\"permission_blocked\", \"capability_unavailable\"] (lines 519-528), so it is the end-to-end proof for both kinds. Labelling it '(capability_unavailable)' only leaves permission_blocked with unit-level citations alone. A reader would conclude it has no end-to-end coverage, but it does.",
+       "consensus_status": "unconfirmed"
+     }
+   ],
+-  "compacted_at": "2026-10-10T10:26:17Z"
++  "compacted_at": "2026-10-10T10:38:23Z"
+ }
+diff --git a/openspec/changes/dispatch-contract/validation-report.md b/openspec/changes/dispatch-contract/validation-report.md
+index 45c2e1eb..586ec5bf 100644
+--- a/openspec/changes/dispatch-contract/validation-report.md
++++ b/openspec/changes/dispatch-contract/validation-report.md
+@@ -99,7 +99,7 @@ The single failure is the documented environment-only
+    parks each routed to the operator as a single escalation: pass.
+    End to end: `autopilot-roadmap/test_dispatch_contract_e2e.py::test_profile_and_degradations_travel_the_whole_chain`
+    (request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
+-   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child` (capability_unavailable).
++   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child` (parametrized over both kinds: permission_blocked and capability_unavailable).
+    Units: `autopilot/test_emit_result.py::test_degradations_travel_into_the_result`,
+    `supervise/test_execution.py` (`test_a_marker_carries_the_supervisor_view_but_no_token`, `test_apply_persists_degradations_on_the_attempt`,
+    `test_three_workers_blocked_on_one_rule_produce_one_escalation` (permission_blocked: one escalation per rule),
 
 ```
 
@@ -44,7 +151,8 @@ index 8090b62..5fb8fe9 100644
 
 #### Group 1 (default: `(default)`)
 Applies to:
-- openspec/changes/dispatch-contract/design.md
+- openspec/changes/dispatch-contract/.review-ledger/ledger.json
+- openspec/changes/dispatch-contract/validation-report.md
 
 Review for correctness, security, and adherence to this repository's conventions.
 
@@ -128,7 +236,7 @@ The roadmap checkpoint SHALL store, for each delegated attempt, `launch_digest` 
 
 ### Requirement: Host-Portable Attempt Isolation
 
-Each delegated attempt SHALL record isolation as `{mode, worktree_ref, branch, host_id}`, where `worktree_ref` is the worktree path relative to the managed worktree root (`managed_worktree`) or to the repo root (`harness_provided` inside the repo), or `null` otherwise, and `host_id` is the non-secret identifier from `skills/shared/environment_profile.py`. Absolute worktree paths SHALL exist only in memory and SHALL NOT be persisted in the checkpoint, the request, or the result. When reconciling an attempt whose `host_id` differs from the current host, the adapter SHALL rebind it when a worktree for its branch exists under the current managed root whose `HEAD` contains the last recorded evidence commit and whose `loop-state.json` digest matches; otherwise it SHALL reinitialize it (create a managed worktree for the branch, increment the generation, mint a new token) when the attempt is `prepared`, `parked`, or pre-go; otherwise it SHALL leave the attempt subject to the existing quarantine rules. Legacy absolute `worktree_path` values SHALL be converted to `worktree_ref` on load when they lie inside the managed root or repo root, and SHALL otherwise mark the attempt `needs_rebind`.
+Each delegated attempt SHALL record isolation as `{mode, worktree_ref, branch, host_id}`, where `worktree_ref` is the worktree path relative to the managed worktree root (`managed_worktree`) or to the repo root (`harness_provided` inside the repo), or `null` otherwise, and `host_id` is the non-secret identifier from `skills/shared/environment_profile.py`. Absolute worktree paths SHALL exist only in memory and SHALL NOT be persisted in the checkpoint, the request, or the result. When reconciling an attempt whose `host_id` differs from the current host, the adapter SHALL rebind it when a worktree for its branch exists under the current managed root whose `HEAD` contains the last recorded evidence commit and whose `loop-state.json` digest matches; otherwise it SHALL reinitialize it (create a managed worktree for the branch, increment the generation, mint a new token) when the attempt is `prepared`, `parked`, or a pre-go claim whose lease has expired (an unexpired claim is not taken over); otherwise it SHALL leave the attempt subject to the existing quarantine rules. Legacy absolute `worktree_path` values SHALL be converted to `worktree_ref` on load when they lie inside the managed root or repo root, and SHALL otherwise mark the attempt `needs_rebind`.
 
 #### Scenario: Persisted isolation has no absolute path
 - **WHEN** a batch is prepared and the checkpoint is read back
@@ -174,8 +282,7 @@ The roadmap orchestrator SHALL persist only structured dispatch outcomes and han
 - **AND** dependents are not failure-blocked while the parked snapshot's bounded metadata (`kind`, `reason`, and the nullable `gate`, `deadline`, `resume_hint`, plus the kind's typed payload the result contract permits — never an `approval_id`, which lives only in the supervise gate router's own ledger) remains available to that router, which is the only consumer permitted to resume it
 
 #### Scenario: Refuse an unroutable parked result at apply time
-- **WHEN** `apply` receives a parked result whose `(kind, gate)` pair has no entry in the supervisor's answer-path table
-- **THEN** apply SHALL rej
+- **WHEN** `apply` receives a parked result whose `(kind, gate)` pair has no
 
 [spec excerpt truncated]
 
@@ -225,7 +332,7 @@ The roadmap orchestrator SHALL persist only structured dispatch outcomes and han
 
 ### Requirement: Gate Authority and Re-Evaluation on Resume
 
-Gate authority SHALL depend on whether the child is dispatched (a launch marker is returned by `dispatch_contract.read_launch_marker`). In a dispatched child the supervisor SHALL be authoritative: the child SHALL apply a gate decision only from the marker's `gate_answer` through `runner.py gate-answer --approval-ref`, SHALL NOT re-evaluate an existing `pending_gate` itself, and, when its worktree posture digest differs from the marker's `posture_digest`, SHALL NOT take an `auto` disposition for any gate but SHALL park `pending_gate` with `posture`-provenance instead. In a standalone run, `runner.py gate-check` SHALL, when a `pending_gate` has a `posture.posture_digest` different from the worktree's current posture digest, re-evaluate that gate before printing it: a `proceed` SHALL clear `pending_gate`, record a `posture`-provenance decision, apply the pending edge, and exit 3; a block SHALL replace `pending_gate` with one carrying the new digest; a gate whose last decision has `human` provenance SHALL NOT be re-evaluated. `gate-answer` SHALL record `--approval-ref gate-decision:<id>` in the decision's `provenance` and SHALL refuse (exit 2, nothing recorded) a dispatched child's reference that differs from the marker's `gate_answer.approval_ref`.
+Gate authority SHALL depend on whether the child is dispatched (a launch marker is returned by `dispatch_contract.read_launch_marker`). In a dispatched child the supervisor SHALL be authoritative: the child SHALL apply a gate decision only from the marker's `gate_answer` through `runner.py gate-answer --approval-ref`, SHALL NOT re-evaluate an existing `pending_gate` itself, and, when its worktree posture digest differs from the marker's `posture_digest`, SHALL NOT take an `auto` disposition for any gate but SHALL park `pending_gate` with `posture`-provenance instead. In a standalone run, `runner.py gate-check` SHALL, when a `pending_gate` has a `posture.posture_digest` different from the worktree's current posture digest, re-evaluate that gate before printing it: a `proceed` SHALL clear `pending_gate`, record a `posture`-provenance decision, apply the pending edge, and exit 3; a block SHALL replace `pending_gate` with one carrying the new digest; a gate whose last decision has `human` provenance SHALL NOT be re-evaluated. A human rejection of a gate SHALL stay in force until a later `human`-provenance `proceed` on `escalate_resume` (the operator resuming the run); while it is in force, `gate-check --gate` for that gate SHALL record nothing, SHALL enter `ESCALATE` if the loop is not already there, and SHALL exit 4, and a `posture`-provenance resume SHALL NOT end it. `gate-answer` SHALL record `--approval-ref gate-decision:<id>` in the decision's `provenance` and SHALL refuse (exit 2, nothing recorded) a dispatched child's reference that differs from the marker's `gate_answer.approval_ref`.
 
 #### Scenario: A dispatched child applies the supervisor's answer
 - **GIVEN** a dispatched child parked at `pending_gate/proposal_approval` and a resumed marker whose `gate_answer` is `{gate: proposal_approval, decision: approved, approval_ref: gate-decision:Y}`
@@ -249,6 +356,11 @@ Gate authority SHALL depend on whether the child is dispatched (a launch marker 
 - **WHEN** the last decision for the gate has `provenance.source: human` and outcome `blocked`, and the posture changes to `auto`
 - **THEN** `gate-check` SHALL NOT record a new decision and the loop SHALL remain in `ESCALATE`
 
+#### Scenario: An operator resume ends a human rejection
+- **GIVEN** a human rejection of `merge` followed by a `human`-provenance `escalate_resume` `proceed`
+- **WHEN** the resumed phase runs `gate-check --gate merge`
+- **THEN** the gate SHALL be evaluated again under the current posture
+
 #### Scenario: A mismatched approval reference is refused
 - **WHEN** a dispatched child runs `gate-answer --approval-ref gate-decision:X` and the marker's `gate_answer.approval_ref` is `gate-decision:Y`
 - **THEN** it SHALL exit 2 and loop state SHALL be byte-identical
@@ -261,6 +373,15 @@ When the launch marker of a dispatched child carries `review_requirements`, a re
 - **WHEN** `review_requirements.min_quorum.PLAN_REVIEW` is 2 and only `claude_code` is verified
 - **THEN** the loop SHALL have `park.kind == capability_unavailable` with `missing_lanes` naming the counting lanes not verified, no review dispatch SHALL have run, and `emit-result` SHALL return `parked/capability_unavailable`
 
+#### Scenario: A single-lane review under a quorum-1 policy is recorded
+- **WHEN** a dispatched child's `review_requirements.min_quorum.PLAN_REVIEW` is 1 by policy data and exactly one review lane dispatches, the others having failed to dispatch
+- **THEN** the review SHALL run and `degradations` SHALL contain a `single_vendor_review` entry for `PLAN_REVIEW` whose detail names the vendor
+- **AND** the child SHALL NOT have read environment variables or credentials to decide that only one lane exists
+
+#### Scenario: GATEKEEPER review scheduling on the host-driven path
+- **WHEN** `runner.py transition --outcome proceed_with_review` is applied in `GATEKEEPER`
+- **THEN** `val_review_enabled` SHALL be True and `gate_verdict` SHALL be `proceed_with_review`
+
 #### Scenario: Standalone run below quorum records a degradation
 - **WHEN** no launch marker exists and `--check-vendors` reports one vendor
 - **THEN** `cli_review_enabled` SHALL be False and `degradations` SHALL contain one `review_skipped` entry for `PLAN_REVIEW`
@@ -271,7 +392,11 @@ When the launch marker of a dispatched child carries `review_requirements`, a re
 
 ### Requirement: Dispatch Result Closure
 
-For every `(outcome class, parked.kind, parked.gate)` combination that `dispatch-result.schema.json` permits, the supervisor SHALL have exactly one answer or resume path, declared in a single table `gate_router.ANSWER_PATHS`. A contract test SHALL derive the permitted combinations from the schema itself (not from a hand-written list) and SHALL fail when any combination lacks an entry or an entry names a combination the schema forbids. The table SHALL include the `pending_gate` / `escalate_resume` path merged from `openspec/supervise-pending-escalate-answer`.
+For every `(outcome class, parked.kind, parked.gate)` combination that `dispatch-result.schema.json` permits, the supervisor SHALL have exactly one answer or resume path, declared in a single table `gate_router.ANSWER_PATHS`. A contract test SHALL derive the permitted combinations from the schema itself (not from a hand-written list) and SHALL fail when any combination lacks an entry or an entry names a combination the schema forbids. A parked branch whose `kind` or `gate` is not a `const` or `enum` SHALL fail the enumeration rather than be read as `null`. The table SHALL include the `pending_gate` / `escalate_resume` path merged from `openspec/supervise-pending-escalate-answer`. Before applying a version-2 `success` or `parked` result, `ExecutionAdapter.apply` SHALL re-derive the result from its evidenced loop state through `dispatch_contract.result_from_loop_state` and SHALL refuse the batch when the outcome, the success `handoff_id`, the parked `kind`, a `pending_gate`'s `gate`, or a capability park's dedupe fingerprint differs.
+
+#### Scenario: A result the loop state does not map to is refused
+- **WHEN** a version-2 result claims `success` but its evidenced loop state is `DONE` with `goal_gate.verdict: abandoned`
+- **THEN** `apply` SHALL raise naming the expected outcome, and the attempt SHALL be unchanged
 
 #### Scenario: Every permitted combination has a path
 - **WHEN** the closure test enumerates the schema's `parked` `oneOf` branches and their `kind` / `gate` enums, plus the `success`, `failed:*`, and `vendor_limit:*` outcome classes
@@ -323,6 +448,11 @@ Before launching a batch, the supervisor SHALL resolve an `execution_profile` (v
 #### Scenario: Below-quorum availability still launches with an honest profile
 - **WHEN** `--check-vendors --json` exits 2 (below quorum) with valid JSON and no `error` field
 - **THEN** `prepare` SHALL succeed, and each request's `execution_profile.lanes.review` SHALL list only the verified lanes, so the child parks `capability_unavailable` at its first review phase
+
+#### Scenario: The per-environment quorum is resolved from data
+- **WHEN** the quorum policy data declares an active `cloud_container` entry with `min_quorum` 1 that applies below 2 verified review lanes, and `prepare` runs in a cloud container where one review lane verifies
+- **THEN** every request's `review_requirements.min_quorum` SHALL be 1 for each review phase and `review_requirements.quorum_policy` SHALL name the environment, the policy entry, and its sunset condition
+- **AND** on a host, or in a container where two or more review lanes verify, `min_quorum` SHALL stay 2
 
 #### Scenario: Degradations reach the checkpoint
 - **WHEN** a success result carries `degradations: [{code: single_vendor_review, phase: PLAN_REVIEW, detail: "codex not dispatchable"}]`
@@ -401,6 +531,20 @@ The trust posture SHALL let the `proposal_approval` and `replan_required` gate c
 - [13] D7 reinitializes a parked attempt on another host by incrementing its generation, which invalidates any already-recorded escalate_resume approval bound to the old lease_generation; the operator would need to answer again.
 - [14] Round-1 fix introduced an ordering contradiction: D2's last bullet says all four existing contract tests (including skills/tests/supervise/test_execution_contract.py) validate through dispatch_contract, but task 2.3a assigns test_execution_contract.py to wp-dispatch-schemas, a root package that lands before wp-contract-lib creates skills/shared/dispatch_contract.py. Followed literally, wp-dispatch-schemas cannot pass its own edit.
 - [15] Task 5.2 makes roadmap-runtime/scripts/models.py depend on skills/shared/dispatch_contract.schema_registry; models.py has no skills/shared import today. Building the referencing.Registry locally from the schema directories inside models.py would avoid a new cross-skill dependency from the runtime foundation.
+- [16] In a dispatched child, gate-answer compares only --approval-ref with the launch marker's gate_answer.approval_ref. It never checks --gate or --decision against gate_answer.gate/decision, so a child whose marker says {gate: proposal_approval, decision: rejected, approval_ref: R} can run gate-answer --decision approved --approval-ref R (or answer a different pending gate, or clear a park with a pending_gate answer) and record a human-provenance approval the supervisor never made. The spec requires the child to apply a gate decision only from the marker's gate_answer (skill-workflow 'Gate Authority and Re-Evaluation on Resume', design D5).
+- [17] The dispatched-child gate-answer tests cover only a mismatched approval_ref. No test pins that a matching approval_ref with a different --decision or --gate is refused, which is how finding 1 went unnoticed.
+- [18] apply_delegated_batch persists a permission_blocked result's parked.command verbatim: _terminal_attempt copies result['parked'] into the checkpoint attempt, and the application journal stores the whole result. Only the router's gate-decision record (parked_commands) is re-sanitized. checkpoint.json is a tracked file on a shared ref, and a result that did not come through runner.py park (hand-written, or from an older worker) can carry an unredacted credential; the apply-time re-derivation compares only the fingerprint (tool, rule, classifier_reason), not the command. Design D9 says the command is 're-sanitized by the router', and the supervise scenario requires the persisted command not to contain the secret. test_a_secret_in_the_blocked_command_is_redacted seeds the checkpoint attempt with the raw 'Bearer abc123...' value and checks only the record.
+- [19] No test applies a permission_blocked result carrying a secret-bearing command and asserts that the persisted checkpoint (the attempt's parked payload and its application journal) contains no raw secret.
+- [20] redact_command is not idempotent for auth headers: backtracking in \s* defeats the (?!\[REDACTED:) lookahead, so re-redacting 'Authorization: [REDACTED:auth-header]' rewrites it to 'Authorization:[REDACTED:auth-header]'. Harmless for secrecy, but the router's second pass changes already-redacted text.
+- [21] Carried from IMPL_ITERATE: in a dispatched child whose posture digest drifted, a notify_with_timeout gate can still take its posture-derived timeout default; the spec forbids only auto there.
+- [22] Carried from IMPL_ITERATE: emit-result does not cross-check --dispatch-id/--generation against the launch marker; the supervisor's identity check still rejects a mismatch at apply.
+- [23] Carried from IMPL_ITERATE: rebind accepts a post-go attempt with no recorded evidence when only a worktree for its branch exists on this host (the evidence conditions hold vacuously).
+- [24] _resolve_capability_park's proceed path falls back to records[0] when the attempt is not among the fingerprint's parked members (its checkpoint copy moved on); with no members that raises IndexError instead of a GateRefusalError.
+- [25] Outcome 6 evidence is overstated. The report says 'The CI gitleaks job remains the real-binary check', but .github/workflows/security.yml runs gitleaks only on push to main and on pull_request/merge_group targeting main. This change's PR targets openspec/roadmap-multiplayer-collaboration, so no real gitleaks run covers it until the roadmap PR (#662) to main runs Security. Locally only one default rule (generic-api-key) is ported to Python; the full default ruleset was never applied. The Result line ('All eight acceptance outcomes are covered by passing tests') does not qualify outcome 6.
+- [26] Outcome 4 on the capability-fingerprint path is only half-proved. The human side is covered (rejection survives membership change, approval ends the subject), but no test parks a capability fingerprint under escalate_resume=block, flips the posture to auto with no human answer, and shows resolve_parked proceeds with posture provenance and resumes the child. _resolve_capability_park reaches that path only via _apply_prior_record + the dispatch_ids==listed check, which nothing exercises. test_an_operator_approval_ends_a_human_rejected_escalation reaches posture-auto only after a human approval.
+- [27] Outcome 7 evidence cannot detect the defect the outcome targets. Host A and host B share the same repo root and workspace directory, so an absolute host-A path leaking into checkpoint.json (or into any record reconcile reads) would still resolve on 'host B'. Nothing asserts that a reconciled checkpoint holds no absolute path, and nothing reconciles a checkpoint copied to a different repository root (the 'committed on one host, checked out on another' case).
+- [28] Outcome 5 says execution_profile, review_requirements and degradations[] are 'carried end to end', which the proposal defines as request -> launch marker -> child loop-state.json -> emit-result file -> apply -> checkpoint attempt and apply return value. The report's only end-to-end citation is the capability-park routing test; degradations are proven only piecewise (test_emit_result::test_degradations_travel_into_the_result, and test_execution::test_apply_persists_degradations_on_the_attempt with a hand-composed result), and the marker's profile only in a unit test.
+- [29] Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.
 
 Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 

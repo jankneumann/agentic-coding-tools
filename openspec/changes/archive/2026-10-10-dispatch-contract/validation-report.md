@@ -1,8 +1,17 @@
 # Validation Report: dispatch-contract
 
-**Date**: 2026-10-09
-**Commit**: 7cc9180c3ea49a0a9b08618d376bf0c2793bdccc (VALIDATE); counts and evidence refreshed in VAL_REVIEW at df3b98e
-**Branch**: openspec/dispatch-contract
+**Date**: 2026-10-10
+**Commit**: c83cf40 (branch head on origin; re-validation, operator gate-decision 724eaee2, lease generation 5)
+**Branch**: openspec/dispatch-contract (merged via PR #667 as 0d078ff)
+
+This report was regenerated against the current head. It supersedes the 2026-10-09 report (VALIDATE at 7cc9180,
+VAL_REVIEW at df3b98e). Code under test now includes the PR #667 review fixes (765f9d8 resume only the recorded
+escalation subject's dispatches; b35e544 keep a repo-root harness isolation as the portable ref "."; 43a9b11
+single-flight capability/permission park resolution; 6a0a096 records them), the post-merge fixes 4955e24
+(digest-only launch tokens in the live checkpoint), c04a1a8 (accept an already-migrated live checkpoint),
+789705a (verified isolation mode in the attempt profile), and the cherry-picked goal-gate fix f44bbd6 (goal gate binds
+to the report's last writer and commit time, so VAL_REVIEW binds after VALIDATE) and resume-at-VALIDATE commits
+(3a29785, c83cf40).
 
 Scope: skills scripts, shared libraries, and JSON schemas only. There is no deployable
 service (no docker-compose, agent-coordinator/, packages/ or apps/ path changed; the only
@@ -19,9 +28,9 @@ phases are therefore not applicable, not skipped.
 - Architecture: not run (advisory; no service/graph consumer touched)
 - Task drift: pass (0 unchecked boxes in tasks.md)
 - OpenSpec: pass (`openspec validate dispatch-contract --strict`: valid)
-- Lint: pass (`ruff check` on every changed Python file/dir: all checks passed)
-- Test suites: pass except the known environment-only failure (see Spec Compliance)
-- CI/CD: DEGRADED (not checked; GitHub MCP lists zero workflow runs for branch openspec/dispatch-contract and no PR exists yet)
+- Lint: pass (`ruff check` on all 51 Python files changed since base bdb0048: all checks passed)
+- Test suites: pass except the known environment-only failure (see Spec Compliance); worktree, cleanup-feature and validate-feature suites not run (not touched; environment-only failures identical at base)
+- CI/CD: DEGRADED (not applicable to this head: GitHub lists exactly one run for branch openspec/dispatch-contract, CI #2056 on 2e45ea7, the pre-merge PR head, conclusion success; no run exists for c83cf40)
 - Choices: no ledger
 
 ## Spec Compliance
@@ -32,18 +41,21 @@ Per-directory results (each `skills/tests/<dir>` run in its own process, base-in
 
 | Suite | Result |
 |---|---|
-| skills/tests/autopilot | 533 passed, 6 skipped |
-| skills/tests/autopilot-roadmap | 146 passed |
+| skills/tests/autopilot | 544 passed, 6 skipped |
+| skills/tests/autopilot-roadmap | 147 passed |
 | skills/tests/install_sh | 18 passed, 14 skipped |
 | skills/tests/parallel-infrastructure | 292 passed, 2 skipped |
 | skills/tests/roadmap-runtime | 182 passed, 1 skipped |
-| skills/tests/shared | 134 passed, 1 skipped |
-| skills/tests/supervise | 459 passed, 1 failed (known) |
-| skills/autopilot/scripts/tests/test_autopilot.py | 48 passed |
+| skills/tests/shared | 136 passed, 1 skipped |
+| skills/tests/supervise | 469 passed, 1 failed (known) |
+| skills/autopilot/scripts/tests | 227 passed |
+
+Totals: 1,747 passed, 24 skipped, 1 failed (known environment-only). The two project-context-refresh
+shared-checkout tests are outside the touched suites and were not run. `openspec validate dispatch-contract --strict`: valid.
 
 The single failure is the documented environment-only
 `test_workflow_contract.py::test_contract_inspects_the_canonical_source_contribution`
-(fails identically at base bdb0048 when run under a `.claude/` path). No other failures.
+(fails identically at base bdb0048 when run under a `.claude/` path; this run is under `.claude/worktrees/`). No other failures.
 
 ### Acceptance outcome to test mapping (proposal.md, ri-21)
 
@@ -82,18 +94,20 @@ The single failure is the documented environment-only
    - Capability fingerprint (escalate_resume): `autopilot-roadmap/test_dispatch_contract_e2e.py`
      (`test_a_posture_derived_capability_block_clears_after_a_posture_flip`, added in VAL_REVIEW;
      `test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes`,
-     `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection`).
-5. execution_profile, review_requirements, degradations[] carried end to end; capability parks routed as single escalations: pass.
+     `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected`, renamed in 765f9d8: an approval given before re-projection resumes nothing).
+5. execution_profile, review_requirements, degradations[] carried end to end; permission_blocked and capability_unavailable
+   parks each routed to the operator as a single escalation: pass.
    End to end: `autopilot-roadmap/test_dispatch_contract_e2e.py::test_profile_and_degradations_travel_the_whole_chain`
-   (added in VAL_REVIEW: request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
-   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child`.
+   (request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
+   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child` (parametrized over both kinds: permission_blocked and capability_unavailable).
    Units: `autopilot/test_emit_result.py::test_degradations_travel_into_the_result`,
    `supervise/test_execution.py` (`test_a_marker_carries_the_supervisor_view_but_no_token`, `test_apply_persists_degradations_on_the_attempt`,
-   `test_three_workers_blocked_on_one_rule_produce_one_escalation`, `test_different_missing_lanes_are_separate_escalations`),
+   `test_three_workers_blocked_on_one_rule_produce_one_escalation` (permission_blocked: one escalation per rule),
+   `test_different_missing_lanes_are_separate_escalations` (capability_unavailable: one escalation per missing-lane set)),
    `autopilot/test_quorum_park.py`, `autopilot/test_convergence_loop.py`,
    `parallel-infrastructure/test_check_vendors_dispatchable.py`, `parallel-infrastructure/test_review_packet.py`.
-6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass locally by a
-   one-rule proxy; the real default-ruleset scan has not run.
+6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass, confirmed by
+   the real default-ruleset gitleaks scan in CI (see the CI confirmation below), plus the local one-rule proxy.
    `roadmap-runtime/test_landable_checkpoint.py`: `test_the_fixture_has_live_attempts_and_no_raw_token`,
    `test_the_default_generic_api_key_rule_finds_nothing` (Python port of the default gitleaks
    generic-api-key rule: keyword prefilter, regex, entropy > 3.5, applied to the committed-shape
@@ -107,11 +121,16 @@ The single failure is the documented environment-only
    Limits of this evidence: only gitleaks' `generic-api-key` rule is ported (the rule that flagged the raw
    tokens on PR #662); the other default rules were not applied locally.
    NOT RUN: `test_gitleaks_scan_of_the_fixture_directory_is_clean` (skipped: gitleaks binary not
-   installed; binaries must not be downloaded). No CI run covers it yet either: `.github/workflows/security.yml`
+   installed; binaries must not be downloaded). This change's own PR did not run it: `.github/workflows/security.yml`
    runs gitleaks only on pushes to `main` and on pull requests / merge groups targeting `main`. This change's PR
    targets `openspec/roadmap-multiplayer-collaboration`, so it does not trigger that job. The first real
-   default-ruleset scan of these commits is the Security workflow on PR #662 (roadmap branch to `main`). Treat
-   outcome 6 as confirmed only once that job passes.
+   default-ruleset scan of these commits is the Security workflow on PR #662 (roadmap branch to `main`).
+   CI confirmation (verified in VAL_REVIEW, generation 6): the Security workflow's `secret-scan` job (full default
+   gitleaks ruleset) passed on PR #662: at head 4955e24, where the live checkpoint was migrated to digest-only with live
+   attempts (run 37974967529, success), and at the final PR head 789705a (run 37976320517, success); and again on the push to `main` after PR #662 merged as
+   731557b (run 38019470729). `.gitleaks.toml` exempts only the three historical raw-token commits by SHA
+   (ddd2c4a, c6424d7, 3c06430); it has no entry for 4955e24, the digest-only checkpoint or the fixture, so the pass
+   needed no allowlist help.
 7. Checkpoint with live attempts committed on one host reconciles on another: pass.
    `roadmap-runtime/test_cross_host_reconcile.py` (8 tests: rebind of matching worktree, refusal on diverged worktree / digest mismatch,
    reinitialize of prepared attempt, unexpired vs expired pre-go claim, post-go unknown liveness quarantined, and
@@ -122,6 +141,40 @@ The single failure is the documented environment-only
    `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_dispatched_child_with_a_marker_ref_takes_scoped_auto`,
    `::test_a_standalone_run_blocks_with_scope_unscoped`.
 
+**Tests added after IMPL review** (PR #667 review fixes and post-merge commits; counted in the suite totals above, listed by the outcome they prove):
+
+- Outcome 4, late members never ride an earlier answer (765f9d8): `supervise/test_execution.py`
+  (`test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer`,
+  `test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved`,
+  `test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked`).
+- Outcome 5, one escalation per fingerprint under concurrency (43a9b11):
+  `supervise/test_execution.py::test_concurrent_resolvers_on_one_fingerprint_are_single_flight` (permission_blocked fingerprint, block and auto postures).
+- Outcome 7, repo-root harness isolation stays portable as `"."` (b35e544):
+  `shared/test_dispatch_contract.py` (`test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot`,
+  `test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref`),
+  `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_cloud_worker_at_the_repo_root_prepares_and_starts`.
+- Outcome 1, operator-approved resume at VALIDATE (3a29785): `supervise/test_execution_contract.py`
+  (`test_gate_answer_may_name_validate_as_the_resume_target`, `test_the_continuation_answer_carries_the_recorded_resume_target`),
+  `supervise/test_gate_router.py` (`test_escalate_resume_answer_records_resume_at_validate`,
+  `test_resume_at_is_refused_unless_an_approved_validate_resume`), `autopilot/test_console_interviewer.py`
+  (`test_resume_at_validate_reruns_validation_instead_of_the_parked_phase`, `test_without_resume_at_the_parked_phase_resumes`,
+  `test_resume_at_is_refused_outside_an_approved_escalate_resume`).
+- Goal gate bound to the report's last writer and commit time (f44bbd6): `autopilot/test_goal_gate.py`
+  (`test_converged_val_review_binds_a_report_it_appended_to`, `test_unconverged_val_review_does_not_bind`,
+  `test_val_review_before_the_latest_validate_does_not_bind`, `test_val_review_does_not_bind_when_disabled`,
+  `test_a_committed_unmodified_report_is_timed_by_its_commit`, `test_a_report_committed_after_validation_is_stale`,
+  `test_an_uncommitted_edit_falls_back_to_mtime`).
+
+## Deploy
+
+**Status**: N/A
+Reason: work-packages.yaml `feature.deployable: false`; no service to deploy.
+
+## CI/CD
+
+**Status**: DEGRADED
+Reason: no CI run exists for branch head c83cf40. The only run for the branch is CI #2056 on 2e45ea7 (success, pre-merge PR head). Local suites above are the evidence.
+
 ## Smoke Tests
 
 **Status**: not applicable
@@ -130,7 +183,7 @@ Reason: skills/schemas-only change, no running service to smoke test.
 ## Security
 
 **Status**: not applicable
-Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally, and the Security workflow runs only for `main` (push or PR), so the first real scan is PR #662's Security job.
+Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally; the Security workflow (which runs only for `main`, push or PR) has since passed its `secret-scan` job on PR #662 (run 37974967529 at head 4955e24, run 37976320517 at head 789705a) and on the push to `main` at 731557b (run 38019470729).
 
 ## E2E Tests
 
@@ -141,8 +194,19 @@ Reason: no browser or service surface.
 
 - single_vendor_review: PLAN_REVIEW, IMPL_REVIEW and VAL_REVIEW ran claude_code only (cloud-container policy, min_quorum=1).
 - coordinator_projection_forbidden: coordinator queue projection returned forbidden (expected in this environment).
+- audit_sink_failed: audit sink failed for the proposal_approval, escalate_resume, pr_creation and merge gate decisions (SUBMIT_PR).
 - GATEKEEPER ran via a real judge (no degradation).
+- Re-validation: no new reviewer was dispatched in this VALIDATE run; VAL_REVIEW runs next and appends its own section.
 
 ## Result
 
-**PASS** — All eight acceptance outcomes are covered by passing tests. Outcome 6's secret-scan claim rests on a one-rule port locally; the real default-ruleset gitleaks scan first runs in PR #662's Security job and must pass there before the claim is confirmed. Other not-run items are recorded above (CI status, live-service phases). Ready for `/cleanup-feature dispatch-contract`.
+**PASS** (re-validation at c83cf40) — All eight acceptance outcomes are covered by passing tests. Outcome 6 is confirmed by the real default-ruleset gitleaks `secret-scan` job, which passed on PR #662 and on `main` with no allowlist entry for the digest-only checkpoint; locally it rests on a one-rule port. Other not-run items are recorded above (CI status, live-service phases). The change is already merged (PR #667, 0d078ff); this report exists so the goal gate can bind VAL_REVIEW after VALIDATE.
+
+## Validation Review
+
+**Status**: pass
+
+- Result: converged in 3 round(s) via `agent_lane.py converge`.
+- Lanes: `claude_code` only (min_quorum=1).
+- Degradation: `single_vendor_review` under quorum policy `cloud-container-single-vendor-2026-10-09`.
+- Summary: {'total_unique_findings': 0, 'confirmed_count': 0, 'unconfirmed_count': 0, 'disagreement_count': 0, 'blocking_count': 0, 'advisory_count': 0}

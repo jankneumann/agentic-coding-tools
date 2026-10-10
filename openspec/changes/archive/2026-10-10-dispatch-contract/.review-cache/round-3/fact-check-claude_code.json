@@ -3,7 +3,7 @@
   "vendor": "claude_code",
   "round": 3,
   "status": "skipped",
-  "skip_reason": "no_caller_available",
+  "skip_reason": "no_findings",
   "model": null,
   "tokens": 0,
   "decisions": []
