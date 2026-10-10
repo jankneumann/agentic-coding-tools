@@ -80,8 +80,9 @@ The phase 1 changes are prerequisites and independently correct:
 - The runner contract becomes: a `SubagentRunner` MUST dispatch to `options["provider"]`
   through the provider-neutral adapter (`provider_dispatch`). A runner that cannot serve that
   provider MUST raise `phase_agent.UnservableProviderError(provider, supported)` rather than
-  run the model under its own vendor; the raise takes the existing failure path (`phase_agent`
-  D8: retry budget, then `PhaseEscalationError`). The mismatched pair is never produced.
+  run the model under its own vendor; the raise takes the failure path `run_phase_subagent`
+  already implements (retry budget, then `PhaseEscalationError`; not this document's D8). The
+  mismatched pair is never produced.
   `phase_agent.py` ships a reference adapter, `claude_agent_runner(agent_fn, supported=
   {"claude_code"})`, that wraps the harness `Agent(...)` callable and raises on any other
   `options["provider"]`; it is the runner the SKILL.md Claude blocks describe, and the one
@@ -132,6 +133,14 @@ What changes for provider-less callers:
   another default must set `AGENT_TYPE`, as today.
 
 ### D3: The fallback fires only on transient availability exclusions
+
+Precondition: the incumbent is **infeasible** — it has no row in `ranked` (no feasible row) and
+at least one of its rows is in the excluded set. This is the existing `apply_incumbent_retention`
+branch (`matches` empty and the key in `excluded_identities`) that today yields
+`incumbent-infeasible-no-evidenced-alternative`; the fallback is a refinement of that branch
+only. An incumbent with any feasible row takes the retention path above it and is never
+displaced without evidence, whatever its other rows' exclusion reasons. With no excluded row
+the "every excluded row" rule below is vacuous and the fallback does not apply.
 
 Transient set (the trigger): `lane:unavailable`, `unavailable`, `quota:exhausted`,
 `lane:model-rate-limited`.
@@ -242,6 +251,13 @@ client follows it to the new provider through the dispatch path D1 fixes.
   a null selection and never the offline local-static route).
 - The response's top-level `fallback: bool` keeps its existing meaning (offline local-static
   route) and stays `false` for a configured fallback.
+- The record schema requires `retention` whenever `request.incumbent` is an object. v1.3
+  required it only when `selected` is null, so a routed selection made with an incumbent — the
+  configured fallback included — could be persisted without its audit record and still
+  validate. The response schema cannot express this (`SelectModelResponse` carries no
+  request), so at the response level it stays the service invariant `api.py` already
+  implements (`retention` is attached to every response made with an incumbent), asserted by
+  the 3.5 test. Listed in the contracts README as a v1.4 difference.
 - Exploration cannot disturb the pick: the trigger requires that no feasible challenger is
   evidenced, so `choose_evidenced` sees fewer than two evidenced candidates and returns the
   fallback unchanged. This invariant is asserted by a test rather than assumed.
@@ -289,18 +305,25 @@ scheduler, `depends_on: []` because `wp-dispatch` will already be merged when it
 promoted). The hold is also stated in that package's `inputs.hold` and
 `inputs.external_prerequisites`, in tasks.md, and in the proposal's Sequencing.
 
-Task 2.0 is `wp-router`'s first step and the dependency of both its chains. It proves the
-prerequisites from the **`origin/main` tree**, never from the working tree (a branch that
-cherry-picks v1.3 must not pass): after `git fetch origin`, it resolves the v1.3 change
-directory on `origin/main` (active or archived) with `git ls-tree`, compares
-`git rev-parse origin/main:<path>` of the three v1.3 contract files with the blob ids pinned
-in the contracts README (a squash merge keeps blob hashes but not commit SHAs), asserts the
-v1.3 code is on `origin/main` (`git grep -q no-evidenced-challenger origin/main --
-agent-coordinator/src/model_routing/api.py`), asserts `wp-dispatch` is on `origin/main`
-(`git grep -q UnservableProviderError origin/main -- skills/autopilot/scripts/phase_agent.py`),
-and only then promotes the held package into `work-packages.yaml`. Reading from the git
-object store sidesteps the package's `openspec/changes/archive/**` deny, which governs the
-working tree.
+A task inside the held package cannot promote the package: no scheduler loads the held file,
+so no worker is ever dispatched to run it (the circular bootstrap a reviewer flagged). The
+promotion is therefore **step P0 of tasks.md**, an operator/orchestrator action run from the
+feature worktree, outside any package scope, after `wp-dispatch` has merged and before the
+autopilot run that dispatches `wp-router`. P0 proves the prerequisites from the
+**`origin/main` tree**, never from the working tree (a branch that cherry-picks v1.3 must not
+pass): after `git fetch origin`, it resolves the v1.3 change directory on `origin/main` (active
+or archived) with `git ls-tree`, compares `git rev-parse origin/main:<path>` of the three v1.3
+contract files with the blob ids pinned in the contracts README (a squash merge keeps blob
+hashes but not commit SHAs), asserts the v1.3 code is on `origin/main` (`git grep -q
+no-evidenced-challenger origin/main -- agent-coordinator/src/model_routing/api.py`), asserts
+`wp-dispatch` is on `origin/main` (`git grep -q UnservableProviderError origin/main --
+skills/autopilot/scripts/phase_agent.py`), re-pins the README blob ids if it had to regenerate,
+and only then copies the held package entry into `work-packages.yaml` in place of
+`wp-dispatch` (whose completion is recorded by the merged PR and `loop-state.json`, not by the
+manifest) and deletes the held file. Task 2.0, `wp-router`'s first step and the dependency of
+both its chains, re-runs the same `origin/main` checks as a fail-fast assertion and never
+promotes. Reading from the git object store sidesteps the package's
+`openspec/changes/archive/**` deny, which governs the working tree.
 
 ## Risks / Trade-offs
 

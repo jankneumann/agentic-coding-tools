@@ -110,8 +110,9 @@ returns that candidate with reason `incumbent-infeasible-configured-fallback`.
 
 - **Pros**
   - One decision point: the persisted decision records what was chosen and why.
-  - It reuses the `fallback:` semantics the offline client path already uses, so online and
-    offline fallback agree.
+  - It reuses the `fallback:` block and the client path's allowlist rule (a lane must be
+    enumerated in every list). The offline client path itself stays same-provider and never
+    moves across vendors (design Non-goals); only the online router does.
   - Every client benefits: HTTP, MCP and autopilot.
 - **Cons**
   - Router and contract change: a new reason, a v1.4 overlay, and reasons threaded through
@@ -149,8 +150,10 @@ No cross-vendor move.
 ### Recommended
 
 **Approach 1.** It keeps the decision and its reason in the one persisted record, so
-attribution (#636 item 4) stays correct without client bookkeeping. It also makes online and
-offline fallback use the same configured order. Approach 2 would reopen the attribution gap.
+attribution (#636 item 4) stays correct without client bookkeeping. It also keeps the online
+pick and the offline client path on one configured block, read with the same allowlist rule,
+even though only the online router moves across vendors. Approach 2 would reopen the
+attribution gap.
 Approach 3 doesn't cover a vendor outage.
 
 ### Selected Approach
@@ -191,7 +194,9 @@ Approaches 2 and 3 were not taken, for the reasons under Recommended.
   - `skills/autopilot/scripts/smoke_provider_dispatch.py`.
   - `skills/autopilot/SKILL.md`: the adapter contract, every per-phase block.
   - `skills/coordination-bridge/scripts/routing_fallback.py`: parses and validates
-    `vendor_order` (no behavior change).
+    `vendor_order`. The offline pick is unchanged; the one new behavior is that a populated key
+    naming an unknown agent type makes `load_routing_policy_document` raise `ValueError`
+    (design D5), which the shipped, key-absent file never triggers.
 - **Contracts**
   - `contracts/openapi/v1.4.yaml`;
   - `contracts/events/routing-decision-record.schema.json`;
@@ -200,8 +205,11 @@ Approaches 2 and 3 were not taken, for the reasons under Recommended.
 - **Sequencing**
   - **Operator hold (2026-10-10, design D8):** only `wp-dispatch` runs in the current autopilot
     run, so `work-packages.yaml` lists it alone. `wp-router` is defined in
-    `work-packages.held.yaml`, which no scheduler loads, and is promoted by task 2.0 after
-    `split-no-evidence-retention-reason` (v1.3) and `wp-dispatch` are both on `origin/main`.
+    `work-packages.held.yaml`, which no scheduler loads, and is promoted by tasks.md step P0 —
+    an operator/orchestrator action from the feature worktree, since no scheduler can run a
+    task of a package it does not load — after `split-no-evidence-retention-reason` (v1.3) and
+    `wp-dispatch` are both on `origin/main`; task 2.0 re-checks the same facts inside the
+    package and fails fast.
   - v1.3 itself waits for `implement-the-task-router-vendor-x-location-x-model` to close out.
   - Phase 1 touches only skills, so it can be implemented and merged independently, ahead of
     that chain.

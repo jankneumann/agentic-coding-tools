@@ -1,7 +1,10 @@
 # HELD work-packages manifest (design D8). Not loaded by any scheduler: the executable
 # manifest is work-packages.yaml, which carries wp-dispatch only for the current run.
-# Task 2.0 promotes this package into work-packages.yaml once v1.3 and wp-dispatch are on
-# origin/main. Keep this file schema-valid so validate_work_packages.py can check it.
+# tasks.md step P0 (an operator/orchestrator action from the feature worktree, not a task of
+# this package: nothing can dispatch a task of a package no scheduler loads) promotes it into
+# work-packages.yaml once v1.3 and wp-dispatch are on origin/main; task 2.0 then re-checks the
+# same facts inside the package. Keep this file schema-valid so validate_work_packages.py can
+# check it.
 schema_version: 1
 
 feature:
@@ -35,10 +38,13 @@ packages:
     task_type: implementation
     description: >-
       HELD MANIFEST (design D8, operator decision 2026-10-10): this package is deliberately
-      NOT in work-packages.yaml, which no scheduler can hold. Promote it (replace the
-      packages list of work-packages.yaml with this one) only after
-      split-no-evidence-retention-reason (v1.3) and wp-dispatch are both on origin/main;
-      task 2.0 proves both from the origin/main tree and fails fast otherwise. Phase 2 (design
+      NOT in work-packages.yaml, which no scheduler can hold. It is promoted by tasks.md step
+      P0, an operator/orchestrator action run from the feature worktree outside any package
+      (a task of this package cannot promote it: no scheduler loads this file), only after
+      split-no-evidence-retention-reason (v1.3) and wp-dispatch are both on origin/main; P0
+      copies this entry into the packages list of work-packages.yaml in place of wp-dispatch.
+      Task 2.0, this package's first step, re-checks the same facts from the origin/main tree
+      and fails fast otherwise; it never promotes. Phase 2 (design
       D3-D7). Threads exclusion reasons into retention, adds the FallbackOrder.vendor_order
       allowlist, implements the deterministic configured pick, persists retention.fallback,
       applies the local trust boundary to routed selections, and teaches the client-side
@@ -138,7 +144,7 @@ packages:
               - "agent-coordinator/tests/test_vendor_registry.py"
             result_keys: ["trust_boundary_tests_pass"]
     inputs:
-      hold: "Do not dispatch until split-no-evidence-retention-reason (v1.3) has merged to main (operator decision 2026-10-10, design D8)"
+      hold: "Do not dispatch until split-no-evidence-retention-reason (v1.3) has merged to main (operator decision 2026-10-10, design D8); promotion is tasks.md step P0, run by the operator/orchestrator from the feature worktree, never by a task of this package"
       external_prerequisites:
         - "openspec change split-no-evidence-retention-reason merged to main (provides contracts/openapi/v1.3.yaml)"
         - "wp-dispatch merged to main"

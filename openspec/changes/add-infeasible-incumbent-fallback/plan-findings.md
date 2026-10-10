@@ -101,3 +101,31 @@ against the documents and code rather than dropped or auto-escalated:
 
 Remediation cycle: one iterate pass (no re-dispatch), committed as `refine(plan): vendor-review
 remediation`. Residual findings at or above medium after remediation: 0.
+
+## PLAN_REVIEW convergence, pass 1 (2026-10-10T22:03Z, reviewer archetype, `converge()`)
+
+Engine: `convergence_loop.converge()` (plan, quorum 2, max 3 rounds, fact-check on). Panel:
+`claude-local` (fable, 169 s, 10 findings) and `codex-local` (gpt-5.6-sol, 76 s, 5 findings);
+antigravity (500 s print timeout), grok (CLI 1.0.5, HTTP 426) and pi (writes findings to cwd) were
+left out of the panel on the evidence of the earlier dispatch. Two dispatcher defects had to be
+worked around in the driver: the 230 KB review packet exceeds the 128 KB single-argv limit
+(codex now takes the prompt on stdin), and codex echoes the prompt to stderr, where a literal
+`401` in the packet made `classify_error` label a valid findings payload `auth_required`.
+Fact-check removed nothing. Consensus: 15 unconfirmed, 0 blocking (every finding judgment-class,
+single-vendor); `converge()` returned `adjudication_required` for the four single-vendor
+high/critical items, adjudicated here against the documents and the code (#550 rule):
+
+| Ledger # | Vendor | Criticality | Verdict | Action |
+|---|---|---|---|---|
+| 11 (= claude #1) | codex | critical | Valid: a task of the held package cannot promote the package, since no scheduler loads the held file | Promotion is tasks.md step P0 (operator/orchestrator, feature worktree, after wp-dispatch merges); 2.0 is the in-package fail-fast re-check; D8, held manifest, proposal Sequencing, README aligned |
+| 12 | codex | high | Valid for the record schema (`persistedRequest.incumbent` exists; v1.3 required `retention` only for a null `selected`); not expressible in `SelectModelResponse`, which carries no request | Record schema gains `request.incumbent object ⇒ retention required` (README difference 4, D6 bullet, 2.1 test case); the response-level rule stays the `api.py` invariant asserted by 3.5 |
+| 13 | codex | high | Valid: `apply_incumbent_retention` reaches the infeasible branch only with `matches` empty and the key in `excluded_identities`; scenario .8 never said so | .8 WHEN states "infeasible: no feasible row, at least one excluded row" plus an AND clause; D3 precondition paragraph; 3.3 test bullet |
+| 15 (= claude #6) | codex | high | **Rejected**: the module is `agent-coordinator/tests/model_routing/test_resolver.py`, inside `agent-coordinator/tests/model_routing/**` and run by the "Model-routing suite" step | 3.8 spells the full path so the next reviewer does not guess |
+
+Also fixed in the same pass, on the cited files only: requirement/scenario disagreement on
+provider-less callers (codex #14, claude #9); README gate paragraph still describing a
+working-tree check (claude #3); proposal claims of online/offline agreement and "no behavior
+change" for `routing_fallback.py` (claude #4, #5); D1 citing a foreign "D8" (claude #10); "replace
+the packages list" losing the wp-dispatch record (claude #1). Left open as advisory: the
+decision-timeline index (claude #2, generated artifact), the historical review JSON (claude #7),
+and the retry-budget consumption on `UnservableProviderError` (claude #8, pre-existing path).

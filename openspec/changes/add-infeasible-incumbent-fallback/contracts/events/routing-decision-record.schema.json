@@ -517,6 +517,27 @@
     },
     {
       "if": {
+        "properties": {
+          "request": {
+            "required": [
+              "incumbent"
+            ],
+            "properties": {
+              "incumbent": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "retention"
+        ]
+      }
+    },
+    {
+      "if": {
         "required": [
           "selected"
         ],
