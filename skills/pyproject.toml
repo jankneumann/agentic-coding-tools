@@ -30,6 +30,9 @@ test = [
     "fastapi>=0.115",
     "httpx>=0.27",
     "PyJWT[crypto]>=2.14.0",
+    # Multiplayer-simulation harness (tests/multiplayer-simulation) runs its
+    # scenario pack through the gen-eval console script, in-process from pytest.
+    "gen-eval",
     # Lint tooling lives here so CI can run `uv run ruff` from this directory.
     # Pinned to the same floor as agent-coordinator so both trees are linted by
     # one ruff version and cannot disagree about what is an error.
@@ -39,6 +42,7 @@ test = [
 [tool.uv.sources]
 system-one-decisions = { path = "../packages/system-one-decisions" }
 openbao-credentials = { path = "../packages/openbao-credentials" }
+gen-eval = { path = "../packages/gen-eval" }
 
 [tool.uv]
 override-dependencies = [
@@ -138,6 +142,8 @@ testpaths = [
     "tests/skill-audit",
     "tests/state-artifacts",
     "tests/ownership-runtime",
+    # multiplayer-principles-guide: structural guard for docs/guides/multiplayer-collaboration.md.
+    "tests/multiplayer-collaboration",
     "expedite/scripts/tests",
     # The CI-coverage guard itself. It used to sit loose in skills/tests, which
     # no testpaths entry names, so the test that asserts "every test directory

@@ -1,0 +1,143 @@
+{
+  "review_type": "plan",
+  "target": "multiplayer-simulation-harness",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "existing_code": "- At each principal's plan step, the driver calls every registered probe. It records\n  `probes` (one entry per probe that ran) and sets `collision_detected` to true when any probe",
+      "description": "The probe invocation point is stated two different ways. D4 says the driver calls every registered probe \"at each principal's plan step\" (which would include Alice's plan step and the plan steps of both memory-store principals), while the Same-Requirement requirement says probes are run and recorded \"at the second principal's plan step\". The difference is observable: under D4's wording a single stub probe would produce two `probes` entries in `same-requirement-collision` (one per principal's plan step), contradicting S.1's pin of \"one entry with the stub's probe_id\", and the blocked scenarios would carry non-null `probes`/`collision_detected`, contradicting D8's \"fields that do not apply are null\" and S.5's \"appears in probes of both collision scenarios\" (implying not in the other two). State in D4 and task 4.4 that probes run only at the planning (second) principal's plan step in the collision scenarios, and that the blocked scenarios report `probes: null`.",
+      "line_range": {
+        "start": 118,
+        "end": 119
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "existing_code": "  - A principal with no dependency is ready at `earliest_start_tick`, so its value is 0.",
+      "description": "D5 does not say whether the implement step of a principal with no dependency is also admitted through `Roadmap.ready_items()` or by harness logic. The sentence \"A principal with no dependency is ready at earliest_start_tick\" reads as a harness-local rule, which the Memory-Store requirement forbids (\"SHALL NOT use readiness logic of its own\"). The choice matters for B.4: that fixture seeds the dependency item (`ri-storage`) as `completed` at tick 0, and D5 states `ready_items()` admits only items whose status is `approved`. If every principal's implement step goes through `ready_items()`, storage-owner is never admitted in B.4 (its item is `completed`, not `approved`), so it finishes with `unblocked: false` and `blocked_ticks: 47` at the default budget, and the applier would also write `in_progress` over a `completed` item if it were admitted. B.4 and task 5.1 pin only retrieval-owner's value, so the storage-owner side of that report is unspecified and a reviewer of the pinned gen-eval YAML cannot tell which outcome is intended. Decide (recommended: every principal's implement admission goes through `ready_items()`, no exception) and pin storage-owner's expected `unblocked`/`blocked_ticks` in B.4, or make the B.4 fixture remove storage-owner's implement step.",
+      "line_range": {
+        "start": 194,
+        "end": 194
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "existing_code": "- `Agent.act(view: PrincipalView, step: Step) -> None` performs one step's file edits and\n  git operations.",
+      "description": "D7 declares the `Agent.act` protocol as returning `None`, but three lines later `ScriptedAgent` must \"return the step's declared status transitions to the scheduler\", and task 2.3 tests that it \"returns the step's declared status transitions\". Under operator decision A1 the return value is the only channel from agent to applier, so the protocol signature should return the transitions (for example a `StepResult` with `set_status: str | None`), not `None`.",
+      "line_range": {
+        "start": 252,
+        "end": 253
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "existing_code": "  - `mpsim/`, the driver package: `world.py`, `agents.py`, `clock.py`, `oracle.py`,\n    `report.py`, `errors.py`, `__main__.py`, plus two subpackages:",
+      "description": "After the A1 fix, D5 introduces `mpsim/applier.py` (the status applier) and task 5.2 implements it, but D2's package inventory was not updated and still omits it. D6 also gives clones only to principals; nothing says where the applier's checkout of `main` lives (its own clone under `<world>/supervisor/`, or a worktree of the remote), nor that its commits use the same tick-derived fixed dates and `GIT_CONFIG_GLOBAL=/dev/null` rules as principal commits, which D.1 byte-identity depends on. Add `applier.py` to D2 and state the applier's working copy and determinism rules in D5 or D6.",
+      "line_range": {
+        "start": 62,
+        "end": 63
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "existing_code": "  flip is three fixture edits plus one expectation edit, and the harness code itself does not\n  change. The fixture edits:",
+      "description": "D5 says the ri-11 flip is \"three fixture edits plus one expectation edit\" and then lists three numbered items, of which only two are fixture edits and the third is the expectation edit. plan-findings iteration 2 describes it as \"three fixture edits plus a rule change\". Make the count match the list (two fixture edits, one expectation edit, plus ri-11's own rule and schema change).",
+      "line_range": {
+        "start": 206,
+        "end": 207
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
+      "existing_code": "SHALL be serialized with sorted keys. Fields that do not apply to a scenario SHALL be present\nwith value `null`. Reports SHALL NOT contain absolute paths, temporary directory names,",
+      "description": "Group 2 check on the Deterministic requirement: the SHALL clauses \"serialized with sorted keys\" and \"fields that do not apply SHALL be present with value null\" have no WHEN/THEN scenario. D.1 (byte-identical reruns) does not prove key ordering, and D.2 (schema validation) does not prove null-presence because the schema's `required` list would be satisfied by either null or a value. Task 2.5 does test both, so the gap is in the spec only; add a scenario (for example: WHEN any scenario report is parsed THEN its top-level keys are in sorted order AND every schema property is present, with null for inapplicable fields) and trace it to task 2.5. Every other SHALL in the delta has at least one scenario; no MODIFIED requirements exist, so nothing was dropped.",
+      "line_range": {
+        "start": 231,
+        "end": 232
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/contracts/cli/mpsim.yaml",
+      "existing_code": "# Validates against ../../../../contracts/gen-eval-framework/schemas/cli-contract.schema.json\n# (path relative to this file's change-local location).",
+      "description": "Re-verification of open ledger item 5: still present. The change-local header keeps the in-flight provenance note and a relative schema path that resolves correctly only from `openspec/changes/<id>/contracts/cli/`; from the promoted location `openspec/contracts/multiplayer-simulation/cli/` four `..` segments leave the repository. Task 1.1 still requires the promoted copy to be byte-identical, so the stale comment ships in the canonical file. Replace the relative path with a repo-root-relative one (`openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json`) and reword the provenance note so it is true at both locations.",
+      "line_range": {
+        "start": 10,
+        "end": 11
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
+      "existing_code": "  - `bin/mpsim`, an executable launcher that runs `python -m mpsim` with the harness root on\n    `sys.path`.",
+      "description": "Re-verification of open ledger item 6: still unaddressed. Task 1.4's `bin/mpsim` runs a bare `python`, and task 7.3 invokes the `gen-eval` console script by name with only `bin/` prepended to PATH, so both depend on the skills venv already being first on PATH. Cheapest fix: have `bin/mpsim` use `#!/usr/bin/env python3` and have the subprocess tests (6.1, 7.3) pass `sys.executable` explicitly (`[sys.executable, '-m', 'mpsim', ...]` and `[sys.executable, '-m', 'gen_eval', ...]` if gen-eval exposes a module entry point), with `bin/` on PATH only for gen-eval's own invocation of `mpsim`. Record the choice in D3 and the README task 8.2.",
+      "line_range": {
+        "start": 58,
+        "end": 59
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

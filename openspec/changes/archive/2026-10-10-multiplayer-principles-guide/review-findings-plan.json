@@ -1,0 +1,40 @@
+{
+  "review_type": "plan",
+  "target": "multiplayer-principles-guide",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "No sibling roadmap item declares depends_on: [ri-01], so the DAG does not guarantee the solo/team vocabulary lands before ownership-map (ri-02) branches on it.",
+      "resolution": "Recorded in design.md Open Questions; a /refine-roadmap edit is the remedy and is out of scope for this change.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/multiplayer-principles-guide/design.md",
+      "axis": "architecture",
+      "severity": "optional"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "install.sh does not ship docs/, so consumer repositories do not receive the guide; installed skill text must cite principle IDs without depending on the file.",
+      "resolution": "Stated as a non-goal; follow-up candidate for toolkit-consistency (ri-20).",
+      "disposition": "accept",
+      "file_path": "openspec/changes/multiplayer-principles-guide/proposal.md",
+      "axis": "compatibility",
+      "severity": "fyi"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The guard test fails on main when a sibling change directory is deleted or renamed without archival (e.g. superseded via /refine-roadmap), even in a PR that does not touch the guide.",
+      "resolution": "Accepted as the intended drift signal (design Risks); the failure message names the stale change-id.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/multiplayer-principles-guide/design.md",
+      "axis": "resilience",
+      "severity": "fyi"
+    }
+  ]
+}

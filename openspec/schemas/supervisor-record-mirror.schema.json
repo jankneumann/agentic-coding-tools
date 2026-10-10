@@ -46,7 +46,9 @@
         "disposition": {"type": ["string", "null"], "enum": ["auto", "notify_with_timeout", "block", null]},
         "approval_id": {"type": ["string", "null"]},
         "source": {"type": "string", "enum": ["autopilot", "supervise", "escalation"], "default": "supervise"},
-        "decision_id": {"type": ["string", "null"], "description": "The router's gate-decision record id this pending entry projects, so a rehydrated session can resolve `gate-decision:<decision_id>` back to its record."}
+        "decision_id": {"type": ["string", "null"], "description": "The router's gate-decision record id this pending entry projects, so a rehydrated session can resolve `gate-decision:<decision_id>` back to its record."},
+        "dedupe_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Shared escalation subject of a permission_blocked / capability_unavailable park (dispatch-contract D9)."},
+        "dispatch_ids": {"type": "array", "maxItems": 64, "description": "Every parked dispatch one escalation answer resumes, each with the lease_generation it had at projection (D9).", "items": {"type": "object", "additionalProperties": false, "required": ["dispatch_id", "lease_generation"], "properties": {"dispatch_id": {"type": "string", "minLength": 1, "maxLength": 256}, "lease_generation": {"type": "integer", "minimum": 1}}}}
       }
     },
     "standingDecision": {

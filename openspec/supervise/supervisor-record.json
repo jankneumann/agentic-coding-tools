@@ -29,12 +29,12 @@
       "scope": "roadmap-jev-system-one-integration-assessment"
     },
     {
-      "decided_at": "2026-10-05T06:59:55.799843+00:00",
+      "decided_at": "2026-10-06T08:41:07.116408+00:00",
       "decision": "roadmap_approval:proceed",
-      "id": "5092f59a-c46b-48db-8f71-a75041363d53",
-      "rationale": "operator approved whole roadmap in conversation (supervise execute)",
+      "id": "e0526599-2740-4d45-bf08-e1f5d355bc6b",
+      "rationale": "operator re-approved after dispatch-contract refinement (2026-10-06)",
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-05T06:59:55.764282Z"
+  "written_at": "2026-10-10T10:18:30.992379Z"
 }

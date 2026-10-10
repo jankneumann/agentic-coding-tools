@@ -451,6 +451,13 @@ def compact(ledger: dict[str, Any], repo_root: Path) -> dict[str, Any]:
             )
             continue
         if status == "addressed" and present is True:
+            if not has_snippet and item.get("fix_touched_file"):
+                # Description tokens survive an additive fix (a doc or report
+                # correction keeps the words it corrects), so the token
+                # heuristic cannot tell a fixed file from an unfixed one once
+                # the fix commit touched it. A re-raise by the next review
+                # round (merge_findings) is then the only reopen signal.
+                continue
             item["status"] = "open"
             item["resolution"] = (
                 "compact: snippet still present" if has_snippet
@@ -530,11 +537,23 @@ def adjudication_items(ledger: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def mark_addressed(ledger: dict[str, Any], item_ids: list[int]) -> None:
+def mark_addressed(
+    ledger: dict[str, Any],
+    item_ids: list[int],
+    *,
+    touched_paths: list[str] | None = None,
+) -> None:
+    """Mark items addressed. ``touched_paths`` (repo-relative paths the fix
+    changed) records per item whether the fix touched its cited file, which
+    ``compact`` uses to stop re-opening token-matched items on additive fixes."""
     id_set = set(item_ids)
+    touched = {Path(p).as_posix().removeprefix("./") for p in touched_paths or []}
     for item in ledger.get("items", []):
         if item.get("id") in id_set and item.get("status") == "open":
             item["status"] = "addressed"
+            if touched_paths is not None:
+                cited = Path(str(item.get("file_path") or "")).as_posix().removeprefix("./")
+                item["fix_touched_file"] = bool(cited) and cited in touched
 
 
 def park_item(

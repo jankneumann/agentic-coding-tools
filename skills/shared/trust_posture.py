@@ -47,6 +47,8 @@ CLI (skills shell out from markdown)::
 from __future__ import annotations
 
 import enum
+import hashlib
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -118,6 +120,21 @@ class GateDisposition:
     disposition: Disposition
     timeout_seconds: Optional[int] = None
     default_action: Optional[DefaultAction] = None
+    # dispatch-contract D8: the fallback applied to an `auto` proposal_approval /
+    # replan_required gate when no launch marker carries a roadmap_approval_ref.
+    # Only those two gates may declare it; `None` means the default (block).
+    unscoped: Optional["GateDisposition"] = None
+
+    def to_canonical(self) -> dict:
+        """The parsed config as a JSON-ready mapping (no defaults invented)."""
+        data: dict = {"disposition": self.disposition.value}
+        if self.timeout_seconds is not None:
+            data["timeout_seconds"] = self.timeout_seconds
+        if self.default_action is not None:
+            data["default_action"] = self.default_action.value
+        if self.unscoped is not None:
+            data["unscoped"] = self.unscoped.to_canonical()
+        return data
 
     @property
     def is_block(self) -> bool:
@@ -132,6 +149,10 @@ class GateDisposition:
 # any individual gate the file does not configure. This single constant is the
 # structural anchor of the backward-compatibility guarantee.
 BLOCK = GateDisposition(disposition=Disposition.BLOCK)
+
+#: Gates whose `auto` disposition is scoped to a roadmap approval (D8). Only
+#: these may declare an `unscoped` fallback.
+SCOPED_GATES = frozenset({Gate.PROPOSAL_APPROVAL, Gate.REPLAN_REQUIRED})
 
 
 @dataclass(frozen=True)
@@ -151,6 +172,14 @@ class TrustPosture:
         the absent-file case both return :data:`BLOCK`.
         """
         return self.gates.get(_coerce_gate(gate), BLOCK)
+
+    def unscoped_for(self, gate: Union[Gate, str]) -> GateDisposition:
+        """The fallback for a scoped gate evaluated without a roadmap approval.
+
+        Absent ``unscoped`` (and every non-scoped gate) resolves to :data:`BLOCK`.
+        """
+        configured = self.disposition_for(gate).unscoped
+        return configured if configured is not None else BLOCK
 
     def is_present(self) -> bool:
         return self.present
@@ -209,8 +238,15 @@ def _parse_front_matter(text: str) -> dict:
     )
 
 
-def _build_gate_disposition(name: str, cfg: dict) -> tuple[Optional[GateDisposition], list]:
+def _build_gate_disposition(
+    name: str, cfg: dict, *, allow_unscoped: bool = False
+) -> tuple[Optional[GateDisposition], list]:
     errors: list = []
+    unscoped: Optional[GateDisposition] = None
+    if "unscoped" in cfg:
+        unscoped, unscoped_errors = _build_unscoped(name, cfg["unscoped"], allow_unscoped)
+        if unscoped_errors:
+            return None, unscoped_errors
     disp_raw = cfg.get("disposition")
     if disp_raw is None:
         return None, [f"gate {name!r}: missing required 'disposition'"]
@@ -247,6 +283,7 @@ def _build_gate_disposition(name: str, cfg: dict) -> tuple[Optional[GateDisposit
             disposition=disposition,
             timeout_seconds=int(timeout),
             default_action=default_action,
+            unscoped=unscoped,
         ), errors
 
     # auto / block: timeout_seconds and default_action are not applicable. Reject
@@ -261,7 +298,25 @@ def _build_gate_disposition(name: str, cfg: dict) -> tuple[Optional[GateDisposit
         )
     if errors:
         return None, errors
-    return GateDisposition(disposition=disposition), errors
+    return GateDisposition(disposition=disposition, unscoped=unscoped), errors
+
+
+def _build_unscoped(
+    name: str, raw: object, allowed: bool
+) -> tuple[Optional[GateDisposition], list]:
+    """Parse a gate's ``unscoped`` fallback (D8): same shape as a gate config,
+    ``auto`` disallowed, and only on :data:`SCOPED_GATES`."""
+    if not allowed:
+        scoped = ", ".join(sorted(g.value for g in SCOPED_GATES))
+        return None, [f"gate {name!r}: 'unscoped' is only valid for {scoped}"]
+    if not isinstance(raw, dict):
+        return None, [f"gate {name!r}: 'unscoped' must be a mapping"]
+    if "unscoped" in raw:
+        return None, [f"gate {name!r}: 'unscoped.unscoped' is not allowed"]
+    if raw.get("disposition") == Disposition.AUTO.value:
+        return None, [f"gate {name!r}: 'unscoped.disposition' must not be auto"]
+    gd, errors = _build_gate_disposition(f"{name}.unscoped", raw)
+    return gd, errors
 
 
 def _build_posture(data: dict, source_path: Optional[Path]) -> TrustPosture:
@@ -294,7 +349,9 @@ def _build_posture(data: dict, source_path: Optional[Path]) -> TrustPosture:
         if not isinstance(cfg, dict):
             errors.append(f"gate {name!r}: config must be a mapping, got {type(cfg).__name__}")
             continue
-        gd, gate_errors = _build_gate_disposition(name, cfg)
+        gd, gate_errors = _build_gate_disposition(
+            name, cfg, allow_unscoped=gate in SCOPED_GATES
+        )
         errors.extend(gate_errors)
         if gd is not None:
             resolved[gate] = gd
@@ -329,6 +386,20 @@ def load_posture(
     text = contract_path.read_text(encoding="utf-8")
     data = _parse_front_matter(text)
     return _build_posture(data, source_path=contract_path)
+
+
+def posture_digest(posture: Optional[TrustPosture]) -> str:
+    """SHA-256 of the canonical JSON of the parsed ``gates`` map (D5).
+
+    Every gate is resolved through :meth:`TrustPosture.disposition_for`, so an
+    absent posture, an omitted gate and an explicit ``block`` all hash alike, and
+    edits to the Markdown body or to front-matter key order do not change the
+    digest. ``None`` means the absent-posture (all-block) default.
+    """
+    resolved = posture if posture is not None else TrustPosture(gates={})
+    canonical = {gate.value: resolved.disposition_for(gate).to_canonical() for gate in Gate}
+    payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def validate_posture_file(path: Union[str, Path]) -> list:
