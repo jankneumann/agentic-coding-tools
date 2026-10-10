@@ -4,10 +4,11 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:50:55.469255+00:00",
+  "updated_at": "2026-10-10T10:51:38.425801+00:00",
   "completed_items": [
     "ri-01",
-    "ri-21"
+    "ri-21",
+    "ri-05"
   ],
   "gate_decisions": [
     {
@@ -1969,7 +1970,7 @@
       "change_id": "multiplayer-simulation-harness",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "completed",
       "prepared_at": "2026-10-05T07:10:51.250636+00:00",
       "launch_marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
       "lease_generation": 5,
@@ -2144,14 +2145,10 @@
       "context": {},
       "launch_digest": "sha256:992bbe2db3834f29b57a94ced775324368e157ec382495fcb4da0f3ea0286e8f",
       "degradations": [],
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:ba667a32-e0e7-4034-bbd1-0fe249f597aa"
-      },
       "lease": {
         "generation": 5,
         "owner_nonce": "owner-nonce-1791628408505",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T10:33:28.545335+00:00",
         "heartbeat_at": "2026-10-10T10:33:28.545335+00:00",
         "expires_at": "2026-10-10T10:48:28.545335+00:00"
@@ -2168,7 +2165,38 @@
         "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g5",
         "go_released_at": "2026-10-10T10:33:28.825441+00:00",
         "entered_at": "2026-10-10T10:33:29.084759+00:00"
-      }
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/multiplayer-simulation-harness",
+          "change_id": "multiplayer-simulation-harness",
+          "degradations": [],
+          "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
+          "evidence": {
+            "commit": "3b6c2ce26bcda9a9e14f2e2eb5639f96858955e4",
+            "loop_state_digest": "f24cb17df8cf0f43ace6cca58c7dbd562a73d2845644a4659c79876df6123219",
+            "loop_state_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json"
+          },
+          "handoff_id": "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7",
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 5,
+          "outcome": "success",
+          "schema_version": 2,
+          "worktree_ref": "multiplayer-simulation-harness"
+        },
+        "result_digest": "a866310019aefac74fd99bc142780904f18b6821b7579187cec4f07164d75b93",
+        "bound_at": "2026-10-10T10:51:38.261695+00:00",
+        "callback_started_at": "2026-10-10T10:51:38.288014+00:00",
+        "callback_acknowledged_at": "2026-10-10T10:51:38.316299+00:00",
+        "terminal_persisted_at": "2026-10-10T10:51:38.343699+00:00",
+        "effects_applied_at": "2026-10-10T10:51:38.422052+00:00"
+      },
+      "outcome": "success",
+      "resolved_at": "2026-10-10T10:51:38.343662+00:00",
+      "handoff_id": "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7"
     },
     {
       "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
