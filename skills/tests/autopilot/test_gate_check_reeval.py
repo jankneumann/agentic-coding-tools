@@ -400,6 +400,7 @@ def _commit_scope(root: Path, *, resolution: str = "console_approved") -> None:
         _git(root, "config", "user.name", "t")
     _git(root, "add", "openspec/roadmaps")
     _git(root, "commit", "-q", "-m", "checkpoint")
+    _git(root, "update-ref", "refs/remotes/origin/openspec/roadmap-rm", "HEAD")
 
 
 def _unscoped_park(workspace: Path) -> Path:
