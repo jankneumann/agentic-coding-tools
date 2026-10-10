@@ -1370,6 +1370,117 @@
       "description": "Outcome 1 requires the stamp to be recorded in a *tracked* file. The evidence (test_install_stamp, live installs) proves the file is written and registered in state-artifacts.md; nothing proves or checks that it is tracked. A consumer whose `.gitignore` covers `.agentic-toolkit/` would have an unpinned team with a locally present stamp and `--check` would still say 'Pinned toolkit matches'. Either note in the report that trackedness is a human step the toolkit does not verify, or have `install.sh` warn when `git check-ignore` matches the stamp path.",
       "resolution": "VAL_REVIEW 2026-10-10: left open (advisory). The installer writes the stamp but cannot commit it; the proposal and docs/guides/skills.md make committing it the consumer's declaration of the pin. Noted in the report's outcome-1 row.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 76,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a298c4df1fa7e53d5/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "e4fafa7fcf3f04d6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The rewritten report no longer maps the four ri-20 acceptance outcomes to evidence. The previous outcome table (the VAL_FIX 2 remedy for ledger 54) lived in the Validation Review section, which is now a `pending` placeholder, and the header states that nothing except the scenario-to-test mapping was carried over. The outcome table cannot simply be relied on from git history: its evidence was produced on bdfeefe/b7f8168/80747aa (rsync-mode scratch install hash c3d2feb6..., live checkout-drift at bdfeefe, the 59-file loose grep over an installed mirror), i.e. pre-merge commits, and the report claims every piece of evidence was re-run on e4d0b25. As written, the report proves 29 scenarios but does not answer question (a) of this round. Most of the needed evidence already exists in the new Smoke/Security/E2E sections (outcome 1: live stamp with toolkit_version and payload_hash plus test_state_artifacts_registration; outcome 2: the live runtime-drift message naming 0.2.0 @ e4d0b25 plus the drift tests; outcome 3: the opt-in and privacy tests plus the live stubbed export; outcome 4: the authoritative portability gate on both live installs and test_manifest_entry_points_run_without_source_checkout). VAL_FIX should restate the four-row outcome table citing this run's evidence, carry over the trackedness caveat (ledger 75) for outcome 1 and the D8 known limit for outcome 3, and either re-run or explicitly drop the loose-grep statement for outcome 4.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: adjudicated by the conductor (single-vendor high judgment; no second lane under policy 479dcd9) as a genuine report-evidence gap and fixed by VAL_FIX 8 (VAL_FIX 8): the Validation Review section restates the four ri-20 outcome rows citing this run's evidence at HEAD (live stamp 44f6960 with the same payload hash as e4d0b25, runtime/invalid/unpinned flows re-run, exporter refusals re-run, portability gate on the live install, loose grep re-run: 61 hits, none in this change's files, no source-import form), carries the ledger-75 trackedness caveat (outcome 1) and the D8 known limit (outcome 3).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 77,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "0ea3f583647fea6e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The whole motivation for this re-validation was that `gate_logic.check_phase_status()` did not parse the previous report's `Result:` lines, and dispatch result g8 shows the gate still refusing with 'required section not passed: Spec Compliance (missing)' one lease generation later. The rewrite converts every section to `**Status**:` but introduces the value `not applicable` for Deploy, where the earlier report used `skip`. Nothing in the packet shows that `not applicable` is a recognised status token; if the parser recognises only pass/fail/skip (or similar), Deploy will read as missing or failed and the goal gate will refuse a third time for a purely textual reason. The report should use the documented vocabulary (or state, with the parser's accepted set quoted, that `not applicable` is accepted) and the Phase Summary row should use the same token as the section. The Phase Summary also carries a 'Test suites' row that has no corresponding section, which is harmless only if the parser ignores unknown rows.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: evidence, not a fix: gate_logic.check_phase_status() recognises `**Status**: not applicable` (_NOT_APPLICABLE_STATUS_RE -> 'not_applicable') beside pass|fail|skipped and degraded; Deploy is not one of the goal gate's five required sections; the Phase Summary table is not parsed (sections are). check_phase_status at HEAD before this fix: Spec Compliance/Smoke/Security/E2E = pass, Deploy = not_applicable, Validation Review = missing (the `pending` placeholder). Recorded in the report by VAL_FIX 8 (VAL_FIX 8); the g8 refusal cited by the finding predates the rewrite (be36e3a).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 78,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "ef2e7c9c234d409e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The header `**Overall**: PASS` and the trailing Result section declare PASS and 'no defect found' while the Validation Review phase is `pending` in both its section and the Phase Summary. This is the same shape as ledger 53 (closed by VAL_FIX 2): an overall verdict stated beside an incomplete section. A reader or gate that trusts `Overall` will not notice that one required phase has not run. The Result section should either be written after VAL_REVIEW fills its section or be scoped explicitly ('PASS on the VALIDATE phases; Validation Review pending').",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: VAL_FIX 8 (VAL_FIX 8): Validation Review `**Status**: pass` replaces `pending`; Phase Summary row and the Result section are written after VAL_REVIEW and name the review round.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 79,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "18ae4ec67dd7f46e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The same four test directories (install_sh, improve-harness, _shared, shared) produced 189 passed on 80747aa with rsync present in the previous report and 255 passed here, a jump of 66 tests on code the conductor verified byte-identical for skills/ and docs/ between e4d0b25 and the merged roadmap tip. The likely explanation is that the roadmap branch had absorbed other changes' tests between the pre-merge base and the rebase merge, but the report does not say so; a reader comparing the two reports cannot tell whether the suite ran against a different code state or whether tests were added. The sentence 'the 15 rsync-gated tests that skipped in the first run' also refers to the earlier report's run, which contradicts the header's statement that nothing from it was reused. State the baseline (e.g. test count on the roadmap tip without this change, or the merge-base commit) so the count is interpretable, and drop or reword the 'first run' reference.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: VAL_FIX 8 (VAL_FIX 8): the report states the baseline: this change's six test files hold 67 tests; the other 189 (+1 skip) are pre-existing suites in skills/tests/shared and _shared that the roadmap branch gained from other merged changes between the PR base and the rebase merge (files listed); the 'first run' sentence now names the earlier report explicitly as a comparison, not reuse.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 80,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a298c4df1fa7e53d5/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "0e34c9eb67cb90fc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Both portability scenarios have a two-part THEN: the gate passes AND the script is listed in `smoke_entrypoints`. The Helper row cites only the module name and the live gate pass, and neither row cites evidence for the `smoke_entrypoints` listing itself. `test_manifest_entry_points_run_without_source_checkout` implies the listing (it runs each manifest entry point from the installed closure), but the table should say so for `payload_hash.py` as it does for the exporter, or cite the manifest entry directly, so the second half of the THEN is visibly covered.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: VAL_FIX 8 (VAL_FIX 8): both portability rows cite the `smoke_entrypoints` entries in skills/install-manifest.json and test_manifest_entry_points_run_without_source_checkout, which iterates that list.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 81,
+      "status": "parked",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/goal_gate.py",
+      "fingerprint": "b9a6df85f0f3d8ba",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "out_of_change: switching `_report_time` to the author date (%aI) correctly fixes the rebase-merge false positive that parked g7 ('validate record predates report'), and the new test would fail under the old %cI code because it asserts `report_time == REPORT_MTIME` while the committer date is two hours later. The comment lists only `--amend` as a caveat; the author date is also reset by `git rebase --ignore-date`/`--reset-author-date` and by a GitHub squash merge, which this repo's conventions use for deps/automation PRs. Those paths would re-trigger the stale-report refusal. No code change needed for the rebase-for-agent-PRs policy, but the caveat is worth recording next to the amend note. The try/except around the git calls is unchanged, so no new unhandled exception path is introduced.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: parked out_of_scope: skills/autopilot/scripts/goal_gate.py is orchestrator infrastructure (94bf202 / d1f65b25), not this change's code, and code is not edited in this phase. Forwarded to autopilot owners: note `--reset-author-date` / `--ignore-date` rebases and GitHub squash merges beside the amend caveat.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
     }
   ]
 }

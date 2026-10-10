@@ -2,12 +2,18 @@
 
 **Date**: 2026-10-10
 **Commit**: e4d0b25da37427fb3851ac276115b7cbb9460615 (branch `openspec/toolkit-consistency-closeout--validate`)
+**Reviewed at**: 44f696041ab8b60c668c162561c34fc7232c38a5 (VAL_REVIEW post-merge, branch
+`openspec/toolkit-consistency-closeout--val-review`). `git diff e4d0b25 44f6960 -- skills docs`
+and `git diff origin/openspec/roadmap-multiplayer-collaboration 44f6960 -- skills docs` are both
+empty: every section below ran against the merged code byte for byte, and the review round
+re-ran the live flows at 44f6960 (see Validation Review).
 **Scope**: Re-validation of the MERGED toolkit-consistency code (PR #671, rebase-merged into
 `openspec/roadmap-multiplayer-collaboration`). All evidence below was re-run on this commit in
 this container; nothing was copied from the earlier report except the scenario-to-test mapping.
 The earlier report used `Result:` lines, which `gate_logic.check_phase_status()` does not parse;
 every section below uses the documented `**Status**:` form.
-**Overall**: PASS
+**Overall**: PASS (all five goal-gate sections; the Validation Review section was written after
+its round ran, not before)
 
 ## Phase Summary
 
@@ -19,7 +25,13 @@ every section below uses the documented `**Status**:` form.
 | Security | pass |
 | E2E Tests | pass |
 | Test suites | pass (255 passed, 1 skipped, 0 failed) |
-| Validation Review | pending (filled by VAL_REVIEW) |
+| Validation Review | pass (VAL_REVIEW post-merge, claude_code single vendor, 0 blocking; ledger 76-81) |
+
+This table summarises for readers. `gate_logic.check_phase_status()` parses each section's
+`**Status**:` line (`pass`, `fail`, `skipped`, `degraded`, `not applicable`), not this table, so
+the `Test suites` row, which has no section of its own, is informational. Deploy is not one of
+the goal gate's five required sections (Spec Compliance, Smoke Tests, Security, E2E Tests,
+Validation Review); its `not applicable` parses as `not_applicable`.
 
 ## Deploy
 
@@ -47,7 +59,7 @@ Scenario mapping. Tests are in `skills/tests/install_sh/` (I) and
 | Source and mirror hash identically | I test_payload_hash::test_source_and_mirror_hash_identically (copy and rsync; rsync present) |
 | Content change changes the hash | I test_content_change_changes_hash |
 | Excluded directories do not affect the hash | I test_excluded_directories_do_not_affect_hash |
-| Helper passes the portability gate | I test_consumer_portability (not skipped: rsync present); live gate pass |
+| Helper passes the portability gate | `skills/install-manifest.json` `smoke_entrypoints` lists `shared/payload_hash.py`; I test_consumer_portability::test_manifest_entry_points_run_without_source_checkout iterates that list and runs each entry from the installed closure (not skipped: rsync present); live gate pass on both installs |
 | Pinned payload matches | I test_pinned_payload_matches; live `--check` exit 0 "Pinned toolkit matches" |
 | Checkout drift | I test_checkout_drift (+ changed-skill-set variant) |
 | Runtime drift | I test_runtime_drift_names_the_agent; live edit -> exit 1 "Runtime drift" |
@@ -62,7 +74,7 @@ Scenario mapping. Tests are in `skills/tests/install_sh/` (I) and
 | Identity-bearing tags are dropped | H test_identity_bearing_tags_are_dropped; live |
 | Secrets are redacted | H test_secrets_are_redacted; live (GitHub token and AWS key redacted) |
 | Deterministic output | H test_output_is_deterministic_sorted_and_deduplicated; live second run byte-identical |
-| Exporter passes the portability gate | I test_consumer_portability::test_manifest_entry_points_run_without_source_checkout; installer "portability validation passed" |
+| Exporter passes the portability gate | `smoke_entrypoints` lists `improve-harness/scripts/export_shared_learnings.py`; I test_consumer_portability::test_manifest_entry_points_run_without_source_checkout runs it from the installed closure; installer "portability validation passed" |
 | Shared records merged and attributed | H test_shared_learnings_merge::test_shared_record_is_merged_and_attributed |
 | Duplicate shared record appears once | H test_duplicate_shared_record_appears_once_from_custom_path |
 | Disabled sharing ignores the file | H test_disabled_sharing_ignores_the_file |
@@ -132,17 +144,135 @@ Pytest (`skills/.venv`, created by `uv sync --all-extras --directory skills`;
 `skills/tests/install_sh`, `improve-harness`, `_shared`, `shared`):
 **255 passed, 1 skipped, 0 failed** (344.5s). The one skip is
 `skills/tests/shared/test_validate_install_manifest_excludes.py:101` "node_modules not present
-in this checkout"; with rsync installed, the 15 rsync-gated tests that skipped in the first
-run all executed. No test was skipped or weakened by the validator.
+in this checkout"; rsync is installed here, so the 15 rsync-gated tests (which the pre-merge
+VALIDATE run of 2026-10-10 had skipped) all executed. No test was skipped or weakened by the
+validator.
+
+Baseline for the count (256 collected): this change's six test files (`test_payload_hash`,
+`test_install_stamp`, `test_install_check_drift`, `test_state_artifacts_registration`,
+`test_export_shared_learnings`, `test_shared_learnings_merge`) hold 67 tests, unchanged since
+the PR tip 80747aa because `skills/` is unchanged; the other 189 are pre-existing suites. The
+pre-merge report counted 189 passed + 1 skipped because those pre-existing suites then held
+123 tests: `skills/tests/shared/` gained 66 from other changes merged into the roadmap branch
+between the PR base and the rebase merge (`test_dispatch_contract.py` 44,
+`test_trust_posture_scope.py` 12, `test_approval_gate_provenance.py` 5,
+`test_environment_profile_host_id.py` 5; `git diff --stat 80747aa HEAD -- skills/tests`).
 
 ## Validation Review
 
-**Status**: pending
+**Status**: pass
 
-Placeholder: VAL_REVIEW fills this section. The prior VAL_REVIEW round evidence (13 + 10
-findings, VAL_FIX 1-7, ledger 53-75) is recorded in the earlier revisions of this file in git
-history and in `.review-ledger/ledger.json`; it has not been re-run by this re-validation.
+Post-merge round (this container, branch `openspec/toolkit-consistency-closeout--val-review`,
+HEAD 44f6960, 2026-10-10). The code was reviewed and merged before this round (PR #671;
+IMPL_REVIEW and the pre-merge VAL_REVIEW rounds, ledger 1-75); this round critiques the
+validation evidence above: does it, re-run on the merged code, prove the four ri-20 acceptance
+outcomes and the 29 scenarios?
+
+- `converge(review_type=implementation, min_quorum=1, fix_mode=targeted)` ran as the whole
+  phase with a real VAL_FIX applicator wired (claude_code write-capable mode, scoped to this
+  change directory). Packet: `git diff origin/openspec/roadmap-multiplayer-collaboration...HEAD`
+  (5 files: this report, two `dispatch-results/` records, and `skills/autopilot/scripts/goal_gate.py`
+  plus its test, which the three-dot diff shows only because the roadmap tip already carries
+  that commit; `loop-state.json`, `.review-ledger/**` and `.review-cache/**` excluded) plus a
+  45,181-char addendum: review focus, code-identity facts, the four acceptance outcomes, this
+  report, the pre-merge Validation Review section from git history, proposal.md and the full
+  spec. 103,051 of 320,000 chars, nothing truncated. Dispatch: claude_code CLI (`claude-local`,
+  model fable, 120 s); 6 findings (1 high, 1 medium, 4 low), fact-check kept all 6; 0 blocking
+  under D3 (single vendor: every finding is `unconfirmed` judgment). Ledger 76 (high judgment)
+  made the loop return `adjudication_required`; the conductor adjudicated it (below).
+  Evidence: `.review-cache/round-1-val-postmerge-initial/`; ledger 76-81.
+- Degradation `single_vendor_review` (phase VAL_REVIEW post-merge, vendor claude_code, policy
+  TRUST_POSTURE.md 479dcd9): per the operator policy only the claude_code local CLI adapter
+  was dispatchable; no other lane or credential was probed (`report_degraded`: "only 1 of 2
+  required vendors dispatchable"). Compensating control, as in the earlier rounds: the
+  findings were read as conductor and the real ones fixed (VAL_FIX 8), and the live flows
+  below were re-run independently of the dispatched reviewer.
+- `secret_scan_substitute` (operator-accepted 2026-10-10): gitleaks is not installed and was
+  not downloaded. The regex scan re-ran at 44f6960 over the paths the Security section lists:
+  token-shaped patterns hit only the synthetic AWS key fixture at
+  `skills/tests/improve-harness/test_export_shared_learnings.py:266`; the literal substring
+  `github_pat_` also appears twice in prose in `docs/kanban-viz/README.md` (error-code names
+  `github_pat_denied`, `github_pat_missing`, pre-existing and outside this change), which the
+  Security section's "one hit" count, being a count of token-shaped matches, does not list.
+  The Security `**Status**` stands on that substitute, not on gitleaks.
+
+Evidence re-run at 44f6960 by the review round (in addition to the VALIDATE evidence above):
+
+- `openspec validate toolkit-consistency --strict` valid; `grep -c '^#### Scenario'` = 29; all
+  35 `test_*` names cited in the Spec Compliance table resolve to a test function or module
+  under `skills/tests/install_sh` or `skills/tests/improve-harness`; pytest collects 256 tests
+  in the four suites (= 255 passed + 1 skipped), and a fresh run with the goal-gate tests
+  added gave **285 passed, 1 skipped, 0 failed** (255 + 30; 347.8s).
+- Fresh scratch consumer, `install.sh --target <tmp> --mode copy --deps none
+  --openspec-assets none --openspec-cli none --python-tools none`: exit 0, portability gate
+  passed, 75 skill directories x 2 agents; stamp `schema_version 1`, `toolkit_version 0.2.0`,
+  `source_commit 44f6960...`, `payload_hash sha256:fcd299a0afd2...` (identical to the e4d0b25
+  smoke hash: the payload is byte-identical), `agents ["agents","claude"]`, `mode copy`.
+  `--check`: exit 0, "Pinned toolkit matches: 0.2.0 (sha256:fcd299a0afd2)".
+- Runtime drift (one line appended to the installed `shared/payload_hash.py`): exit 1,
+  "Runtime drift: installed claude copies are not the pinned payload (pinned 0.2.0 @
+  44f6960..., sha256:fcd299a0...; installed sha256:bd2404c1...)"; file restored, `--check`
+  exit 0 again. Invalid stamp (`{not json`): exit 1 "Invalid toolkit stamp: .../stamp.json",
+  file content unchanged afterwards. Stamp removed: exit 0 "Unpinned: no .../stamp.json",
+  `.agentic-toolkit/` still empty afterwards (nothing written by `--check`).
+- Exporter from the source checkout against an empty scratch repo: absent config -> exit 2
+  "refusing to export: .../config.json is absent"; `schema_version: 2` -> exit 2 "unsupported
+  schema_version 2 ... (expected 1)"; `.agentic-toolkit/` holds only the config afterwards.
+- Loose grep `agent-coordinator|coordination_mcp|coordination_api` over the installed
+  `.claude/skills` mirror: 61 files, none of them `shared/payload_hash.py`,
+  `improve-harness/scripts/export_shared_learnings.py`, `analyze_failures.py` or the
+  improve-harness SKILL.md; no `from|import src|agent_coordinator|coordination_*` statement
+  anywhere in the mirror. The authoritative gate (`validate_install_manifest.py`) passed on
+  the live install and in `test_consumer_portability`.
+
+Acceptance outcomes (roadmap `multiplayer-collaboration`, item ri-20) and the evidence at
+44f6960 that proves each:
+
+| # | Outcome | Evidence |
+|---|---------|----------|
+| 1 | A consumer repository records the installed toolkit version and payload hash in a tracked file registered in `docs/guides/state-artifacts.md` | Live stamp above (`toolkit_version`, `payload_hash`, `source_commit`); `test_install_stamp` (consumer writes, self-install does not, aborted install leaves the prior stamp, `--check` does not stamp); `test_state_artifacts_registration::test_artifact_row_names_writer_and_missing_behavior[.agentic-toolkit/stamp.json]`. "Tracked" is the consumer's act: the installer writes the file and cannot commit it; the proposal and `docs/guides/skills.md` make committing it the declaration of the pin (ledger 75, open advisory) |
+| 2 | `install.sh --check` reports drift between the pinned version and the local runtime copy | Live runtime-drift, invalid-stamp and unpinned flows above (messages name the pinned `0.2.0 @ 44f6960`); `test_runtime_drift_names_the_agent`, `test_checkout_drift`, `test_checkout_drift_with_changed_skill_set_is_not_runtime_drift`, `test_pinned_payload_matches`, `test_unpinned_repository_is_advisory`, `test_invalid_stamp_fails_loud_and_is_not_rewritten`, `test_self_install_skips_stamp_comparison`. Checkout drift is proven by test only in this round (the pre-merge round also saw it live at bdfeefe) |
+| 3 | Repository-scoped learnings are opt-in and never include private transcript content | Opt-in: live exporter refusals above; `test_export_refused_without_opt_in[absent, disabled, string-true, bad-json, not-object, wrong-schema]`, `test_cli_refuses_without_config`, `test_refusal_does_not_overwrite_existing_learnings`, `test_installer_never_touches_config`, `test_disabled_sharing_ignores_the_file[...]`. Transcript content: `test_transcript_mined_entries_are_excluded`, `test_transcript_mined_variants_fail_closed`, `test_producer_transcript_tag_is_excluded` (tag built with collect-transcripts' own `TranscriptFinding.to_memory_tags()`), `test_private_fields_are_dropped`, `test_identity_bearing_tags_are_dropped`, `test_secrets_are_redacted`; the VALIDATE live stubbed export (2 of 3 entries, redaction markers, byte-identical second run). Known limit (design D8): self-reported `summary`/`lessons` are exported after the sanitizer; only secret patterns are redacted |
+| 4 | Installed payloads contain no references to private coordinator source | Authoritative gate `skills/shared/validate_install_manifest.py` (rejects private coordinator `src` imports and `sys.path`/`parents[...]` injection of `agent-coordinator`): passed on the live install at 44f6960, on both VALIDATE live installs, and in `test_consumer_portability`, including `test_manifest_entry_points_run_without_source_checkout[.claude|.agents]`, which runs `shared/payload_hash.py --help` and `export_shared_learnings.py --help` from the installed closure (rsync present, not skipped). Loose grep re-run above: 61 pre-existing files (documentation strings, repo-root markers, opt-in integrations), none in this change, no source import |
+
+Scenario evidence (29): the Spec Compliance table stands; this round added the
+`smoke_entrypoints` citation to the two portability rows (ledger 80) and re-ran the live
+flows behind 'Consumer install writes the stamp', 'Pinned payload matches', 'Runtime drift',
+'Unpinned repository', 'Invalid stamp fails loud' and 'Export refused without opt-in' at
+44f6960.
+
+Findings (ledger id, criticality) and dispositions. Nothing blocked under D3, so the wired
+applicator never fired; VAL_FIX 8 is a conductor sub-step (this commit), report text only:
+
+- 76 high, judgment (adjudication): the rewrite dropped the acceptance-outcome -> evidence
+  mapping and its pre-merge evidence (bdfeefe/b7f8168/80747aa) could not be relied on from git
+  history for a report that claims re-run evidence -> VAL_FIX 8: the table above, built from
+  this run's evidence at 44f6960; trackedness caveat (75) and D8 limit carried over; the
+  pre-merge 59-file loose grep re-run (61 files, same classification).
+- 77 medium: `**Status**: not applicable` might not be a parser token and the Phase Summary
+  has a row without a section -> evidence, not a fix: `gate_logic.check_phase_status()`
+  recognises `pass|fail|skipped`, `degraded` and `not applicable` (`not_applicable`); Deploy
+  is not a required section; the table is not parsed. At 44f6960 before VAL_FIX 8:
+  Spec Compliance, Smoke Tests, Security, E2E Tests = `pass`, Deploy = `not_applicable`,
+  Validation Review = `missing` (the `pending` placeholder, which only this section could
+  close). The g8 refusal the finding cites predates the rewrite (be36e3a). Recorded in the
+  Phase Summary note.
+- 78 low: `Overall: PASS` and the Result section beside a `pending` section -> VAL_FIX 8:
+  this section's `**Status**: pass`, the Phase Summary row, the header note and the Result
+  section are written after the round.
+- 79 low: 189 -> 255 tests unexplained; "first run" wording -> VAL_FIX 8: baseline paragraph
+  in E2E Tests (67 tests from this change, 66 added to `skills/tests/shared/` by other merged
+  changes), wording names the pre-merge run as a comparison.
+- 80 low: portability rows silent on the `smoke_entrypoints` half of the THEN -> VAL_FIX 8:
+  both rows cite the manifest entries and the test that iterates them.
+- 81 low, `out_of_change` (`goal_gate.py` author-date caveat should also name
+  `--reset-author-date`/`--ignore-date` rebases and squash merges): parked `out_of_scope`;
+  orchestrator infrastructure, not this change's code, and no code is edited in this phase.
+  Forwarded to the autopilot owners in the ledger resolution.
+- No code defect was found; the 18 pre-merge open advisory items (all low) are unchanged.
 
 ## Result
 
-PASS: spec, smoke, security and e2e all pass on the merged code at e4d0b25; no defect found.
+PASS: spec, smoke, security and e2e pass on the merged code (e4d0b25 = 44f6960 for `skills/`
+and `docs/`); the Validation Review round re-ran the live flows at 44f6960, found no code
+defect, and closed its report findings with VAL_FIX 8.
