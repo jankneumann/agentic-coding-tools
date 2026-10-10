@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T13:30:53.673024+00:00",
+  "updated_at": "2026-10-10T13:31:44.947492+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -3266,7 +3266,7 @@
       "change_id": "openrouter-review-lane",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "prepared",
+      "status": "launched",
       "prepared_at": "2026-10-10T10:46:57.575028+00:00",
       "launch_digest": "sha256:c8ebb4e7f8a73f7f11e07b57538a840a9f7cd2509f8f664773959ed8f95eb68c",
       "launch_marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
@@ -3333,6 +3333,37 @@
           "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
           "observed_at": "2026-10-10T10:53:30.223617+00:00",
           "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g2"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "owner-nonce-1791639104322",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T13:31:44.369882+00:00"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "owner-nonce-1791639104322",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T13:31:44.650436+00:00",
+          "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "owner-nonce-1791639104322",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T13:31:44.650436+00:00",
+          "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g3"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "owner-nonce-1791639104322",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T13:31:44.944700+00:00",
+          "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g3"
         }
       ],
       "scope": {
@@ -3399,6 +3430,27 @@
       "continuation": {
         "kind": "permission_blocked",
         "approval_ref": "gate-decision:a0408bee-2afc-4b03-8a84-b6daaf11326d"
+      },
+      "lease": {
+        "generation": 3,
+        "owner_nonce": "owner-nonce-1791639104322",
+        "state": "active",
+        "acquired_at": "2026-10-10T13:31:44.369882+00:00",
+        "heartbeat_at": "2026-10-10T13:31:44.369882+00:00",
+        "expires_at": "2026-10-10T13:46:44.369882+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 3,
+        "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g3",
+        "observed_at": "2026-10-10T13:31:44.650436+00:00"
+      },
+      "launch_gate": {
+        "generation": 3,
+        "state": "entered",
+        "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g3",
+        "go_released_at": "2026-10-10T13:31:44.650436+00:00",
+        "entered_at": "2026-10-10T13:31:44.944700+00:00"
       }
     }
   ]
