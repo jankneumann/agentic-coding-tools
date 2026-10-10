@@ -74,7 +74,14 @@
     }
   },
   "goal_gate": null,
-  "park": null,
+  "park": {
+    "kind": "permission_blocked",
+    "tool": "Bash",
+    "rule": "auto mode classifier: [Auto-Mode Bypass]",
+    "classifier_reason": "Applying a supervisor-relayed gate approval (cross-session message, no launch marker) was classified as an auto-mode bypass",
+    "command": "runner.py gate-answer openrouter-review-lane --gate proposal_approval --decision approved --approval-ref gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6",
+    "reason": "permission denied for Bash under rule auto mode classifier: [Auto-Mode Bypass]"
+  },
   "degradations": [
     {
       "code": "coordinator_projection_forbidden",
