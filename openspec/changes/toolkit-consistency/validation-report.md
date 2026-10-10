@@ -2,7 +2,9 @@
 
 **Date**: 2026-10-10
 **Commit**: cce5f3662b1c0588290e2b4a56d191b41f817c9a (branch `openspec/toolkit-consistency--validate`)
-**VAL_FIX commit**: b7f8168 (branch `openspec/toolkit-consistency--val-review-2`, from bdfeefe).
+**VAL_REVIEW commits**: b7f8168 (VAL_FIX 3-6), a0d6d7e (VAL_FIX 2, report and ledger),
+80747aa (VAL_FIX 7), then this report/ledger/session-log commit (branch
+`openspec/toolkit-consistency--val-review-2`, from bdfeefe).
 `skills/` and `docs/` are byte-identical between cce5f36 and bdfeefe (`git diff --stat cce5f36
 bdfeefe -- skills/ docs/` is empty), so the Deploy, Spec Compliance, Smoke, Security and E2E
 sections below describe the code at bdfeefe unchanged; the post-VAL_FIX re-run is in the
@@ -155,7 +157,7 @@ proves each:
 
 | # | Outcome | Evidence |
 |---|---------|----------|
-| 1 | A consumer repository records the installed toolkit version and payload hash in a tracked file registered in `docs/guides/state-artifacts.md` | `test_install_stamp` (fields incl. `toolkit_version`, `payload_hash`, `source_commit`); live rsync-mode scratch install at bdfeefe wrote `stamp.json` (`0.2.0`, `sha256:c3d2feb6...`, identical to the copy-mode Smoke hash, so rsync and copy mirrors hash alike); `test_state_artifacts_registration::test_artifact_row_names_writer_and_missing_behavior[.agentic-toolkit/stamp.json]` |
+| 1 | A consumer repository records the installed toolkit version and payload hash in a tracked file registered in `docs/guides/state-artifacts.md` | `test_install_stamp` (fields incl. `toolkit_version`, `payload_hash`, `source_commit`); live rsync-mode scratch install at bdfeefe wrote `stamp.json` (`0.2.0`, `sha256:c3d2feb6...`, identical to the copy-mode Smoke hash, so rsync and copy mirrors hash alike); `test_state_artifacts_registration::test_artifact_row_names_writer_and_missing_behavior[.agentic-toolkit/stamp.json]`. "Tracked" is the consumer's act: the installer writes the file and the proposal and `docs/guides/skills.md` make committing it the declaration of the pin (ledger 75) |
 | 2 | `install.sh --check` reports drift between the pinned version and the local runtime copy | `test_runtime_drift_names_the_agent` (now also asserts the pinned version and commit), `test_checkout_drift`, `test_checkout_drift_with_changed_skill_set_is_not_runtime_drift`, `test_pinned_payload_matches`, `test_unpinned_*`, `test_invalid_stamp_fails_loud_and_is_not_rewritten[4]`; live: with the VAL_FIX edits in the checkout, the scratch consumer's `--check` reported `Checkout drift ... (pinned 0.2.0 @ bdfeefe..., sha256:c3d2feb6...; checkout sha256:f1b9e289...)` and exit 1; re-stamped from b7f8168 it reported `Pinned toolkit matches: 0.2.0 (sha256:f1b9e289f535)` and exit 0 |
 | 3 | Repository-scoped learnings are opt-in and never include private transcript content | Opt-in: `test_export_refused_without_opt_in[absent, disabled, string-true, bad-json, not-object, wrong-schema]`, `test_cli_refuses_without_config`, `test_refusal_does_not_overwrite_existing_learnings`, `test_installer_never_touches_config`, `test_disabled_sharing_ignores_the_file`. Transcript content: `test_transcript_mined_entries_are_excluded`, `test_transcript_mined_variants_fail_closed`, `test_producer_transcript_tag_is_excluded` (builds the tag with collect-transcripts' own `TranscriptFinding.to_memory_tags()`), `test_private_fields_are_dropped` (`details`, `agent_id`, `session_id`), `test_identity_bearing_tags_are_dropped`, `test_secrets_are_redacted`. Known limit (design D8): self-reported entries' `summary`/`lessons` are exported after the sanitizer; only secret patterns are redacted |
 | 4 | Installed payloads contain no references to private coordinator source | Authoritative gate `skills/shared/validate_install_manifest.py` (rejects private coordinator `src` imports and `sys.path`/`parents[...]` injection of `agent-coordinator`): "Skill install portability validation passed" on both live installs and in `test_consumer_portability`, incl. `test_manifest_entry_points_run_without_source_checkout[.claude|.agents]`, which runs `shared/payload_hash.py --help` and `improve-harness/scripts/export_shared_learnings.py --help` from the installed closure (rsync is present here, so not skipped). The loose grep `agent-coordinator|coordination_mcp|coordination_api` over the installed `.claude/skills` mirror hits 59 pre-existing files, none in this change's diff: documentation strings (SKILL.md files, `references/`), repo-root markers (`shared/archetype_roster.py`), session-bootstrap hooks that only run inside this repository, and lazily-imported opt-in integrations (`playwright-validator`, `coordination-bridge`). None is a source import, which is what the outcome and the gate forbid |
@@ -196,12 +198,40 @@ Findings (ledger id, criticality) and VAL_FIX sub-steps:
   tasks.md Files lines, `json-canvas` coupling in a test oracle); reasons recorded in the ledger.
 
 Tests after VAL_FIX (skills/.venv; `skills/tests/install_sh`, `improve-harness`, `_shared`,
-`shared`; rsync present): **188 passed, 1 skipped, 0 failed** (342.7s) on b7f8168; the
-five new tests and the new `[wrong-schema]` case all pass. Baseline on bdfeefe in this container:
+`shared`; rsync present): **188 passed, 1 skipped, 0 failed** (342.7s) on b7f8168: the
+four new test functions and the new `[wrong-schema]` parametrize case all pass (183 + 5 = 188).
+After VAL_FIX 7 (one more parametrize case): **189 passed, 1 skipped, 0 failed** (341.9s) on
+80747aa. Baseline on bdfeefe in this container:
 183 passed, 1 skipped (`node_modules not present`). ruff clean on the edited Python;
 `skills/install.sh` is unchanged this phase.
 
-Verification round: VERIFY_ROUND_PLACEHOLDER
+Verification round: a second `converge()` run over the fix diff only (packet base `bdfeefe`,
+10 files, 73,172 chars, same addendum) converged in round 1: claude_code (fable, 117 s), 10
+findings (1 medium, 9 low), fact-check kept all 10, 0 blocking. Evidence
+`.review-cache/round-1-val-verify/`; ledger 66-75. Dispositions (VAL_FIX 7, conductor; no
+third round, matching IMPL_REVIEW's two-round pattern, with the suite re-run as the check on
+the test-only edits):
+
+- 66 medium: the verification slot of this report was still a placeholder in the reviewed
+  commit -> filled by this paragraph.
+- 67 low: 'Export refused without opt-in' WHEN now names `schema_version` other than `1`.
+- 69 low: the projection-readers guard also scans for imports of `load_shared_learnings` /
+  `merge_shared_learnings`, not only the file name.
+- 70 low: the runtime-drift version/commit assertions are anchored to the `Runtime drift`
+  line(s) rather than the whole stderr.
+- 71 low: test-count prose corrected (four new test functions plus one parametrize case).
+- 72 low: the regex secret scan was re-run over the VAL_FIX diff `bdfeefe..HEAD` (`skills/`,
+  `docs/`): no hits.
+- 73 low: `test_disabled_sharing_ignores_the_file[wrong-schema]` covers the analysis side of
+  the `schema_version` rule.
+- 74 low: the SKILL.md pointer to the review ledger (unresolvable in a consumer repository)
+  replaced by a plain statement.
+- 68 low, left open advisory: a hand-written config lacking `schema_version` now refuses; the
+  exporter prints the reason (exit 2) and the config file is introduced by this change, so no
+  shipped consumer is affected. `analyze_failures.py` staying silent is open ledger 49.
+- 75 low, left open advisory: the installer writes the stamp but cannot commit it; the
+  proposal and `docs/guides/skills.md` make committing the stamp the consumer's declaration
+  of the pin, and `--check` compares the file that is present, not its git status.
 
 VAL_FIX 1 (first attempt, branch `openspec/toolkit-consistency--val-review` from 544fa99,
 parked after a permission denial before `converge()` could run):
