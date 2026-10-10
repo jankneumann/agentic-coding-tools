@@ -254,3 +254,15 @@ Pytest, skills/.venv: install_sh + improve-harness + shared: 149 passed, 16 skip
 
 ### Context
 IMPL_REVIEW ran on branch openspec/toolkit-consistency--impl-review from origin/openspec/toolkit-consistency b7b7939. Both converge runs converged with 0 blocking ledger items under the single-vendor policy; outcome converged.
+
+## Phase: Validation Review 1 (2026-10-10)
+
+**Agent**: claude_code | **Session**: session_01J39bSygVy2r68wyPyHN5VA
+
+### Decisions
+1. **Parked after permission denial** (phase VAL_REVIEW, policy addendum 9) — the download of a gitleaks release to replace the regex secret scan (`curl -sSI -o /dev/null -w '%{http_code} %{redirect_url}' https://github.com/gitleaks/gitleaks/releases/latest`, from a scratchpad mktemp dir) was denied by the permission system. Not worked around; work so far committed; outcome `max_iter` returned for the operator to resume. `gh release view --repo gitleaks/gitleaks` had already returned HTTP 403 (repository not enabled for this session) — not a permission-system denial, recorded for completeness.
+2. **Degradation `single_vendor_review` not yet incurred** — `converge(review_type=implementation, min_quorum=1, fix_mode=targeted)` was not reached before the park, so no claude_code-only dispatch is recorded for this phase yet; the resuming run must still record it (vendor claude_code, policy TRUST_POSTURE.md 479dcd9).
+3. **VAL_FIX 1 — rsync evidence** — rsync was installed in the container and the validation suite re-run with it present: 183 passed, 1 skipped (node_modules), 0 failed. This executes the 15 rsync-gated tests the VALIDATE run skipped, in particular `test_manifest_entry_points_run_without_source_checkout`, the consumer-portability test the two portability scenarios depend on, and the rsync-mode source/mirror hash parity test. Recorded in validation-report.md "Validation Review"; no result line of another section was changed.
+
+### Next Steps
+- Operator: resume VAL_REVIEW; the remaining work is the `converge()` critique round (packet base `origin/openspec/roadmap-multiplayer-collaboration`, round dir renamed `round-1-val-*`), the gitleaks question (either approve the download or accept the regex substitute explicitly), and the `Result: pass|fail` line.
