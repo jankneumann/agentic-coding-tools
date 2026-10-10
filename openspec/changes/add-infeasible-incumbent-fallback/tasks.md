@@ -16,9 +16,11 @@
 >
 > **HOLD (design D8, operator decision 2026-10-10): only `wp-dispatch` runs in this autopilot
 > run. `work-packages.yaml` therefore lists `wp-dispatch` only; `wp-router` is defined in
-> `work-packages.held.yaml`, which no scheduler loads. It is promoted into `work-packages.yaml`
-> by task 2.0 only after `split-no-evidence-retention-reason` (v1.3) and `wp-dispatch` are both
-> on `origin/main`. Task 2.0 is `wp-router`'s first step and both its task chains depend on it.**
+> `work-packages.held.yaml`, which no scheduler loads. Because no scheduler can run a task of a
+> package it does not load, the promotion is step P0 below: an operator/orchestrator action run
+> from the feature worktree, outside any package, only after `split-no-evidence-retention-reason`
+> (v1.3) and `wp-dispatch` are both on `origin/main`. Task 2.0 is `wp-router`'s first step and
+> both its task chains depend on it; it re-checks P0's facts and fails fast, it never promotes.**
 >
 > Each package rebases onto `main` before its first commit (the plan was written on a branch
 > behind `main`; the named router files are unchanged there, `phase_agent.py` and
@@ -84,8 +86,11 @@
 
 ## 2. Contracts (wp-router)
 
-- [ ] 2.0 Gate (first step of the package; both chains depend on it). All checks read the
-  `origin/main` tree after `git fetch origin`, never the working tree:
+- [ ] P0 Promotion gate. **Not a task of any package**: `work-packages.held.yaml` is loaded by
+  no scheduler, so no worker can be dispatched to a `wp-router` task before this step; it is run
+  by the operator or the orchestrator from the feature worktree, outside any package scope,
+  after `wp-dispatch` has merged and before the autopilot run that dispatches `wp-router`. All
+  checks read the `origin/main` tree after `git fetch origin`, never the working tree:
   - locate the v1.3 change directory on `origin/main` with `git ls-tree` under
     `openspec/changes/` or `openspec/changes/archive/*-split-no-evidence-retention-reason/`;
     stop if absent;
@@ -95,12 +100,22 @@
   - `git grep -q no-evidenced-challenger origin/main -- agent-coordinator/src/model_routing/api.py`
     (v1.3 code merged) and `git grep -q UnservableProviderError origin/main --
     skills/autopilot/scripts/phase_agent.py` (wp-dispatch merged);
-  - require `git merge-base --is-ancestor origin/main HEAD` (the package branch is rebased).
+  - require `git merge-base --is-ancestor origin/main HEAD` (the feature branch is rebased).
   If a blob differs, regenerate `v1.4.yaml`, the record schema and `generated/models.py` from
-  the merged v1.3 and confirm the diff is only the README's listed differences. Then promote
-  `wp-router` from `work-packages.held.yaml` into `work-packages.yaml` (replacing the packages
-  list) and delete the held file. [XS]
+  the merged v1.3, confirm the diff is only the README's listed differences, and re-pin the
+  three blob ids and the source commit in `contracts/README.md` in the same commit. Then promote
+  `wp-router`: copy its package entry from `work-packages.held.yaml` into the `packages` list of
+  `work-packages.yaml` in place of `wp-dispatch` (the completed `wp-dispatch` is on
+  `origin/main`; its record lives in the merged PR and in `loop-state.json`, not in the
+  manifest), delete the held file, and commit on the feature branch. [XS]
   **Design decisions**: D6, D8
+  **Dependencies**: `wp-dispatch` and v1.3 on `origin/main` (external; not a task id)
+- [ ] 2.0 Fail-fast re-check (first step of the package; both chains depend on it). Re-run P0's
+  `origin/main` checks exactly (the three blob comparisons, both `git grep` markers,
+  `merge-base --is-ancestor`) from the package worktree and stop the package if any fails. This
+  step never promotes or regenerates anything; it proves that P0 ran against the tree the worker
+  sees. [XS]
+  **Design decisions**: D8
   **Dependencies**: None
 - [ ] 2.1 Write failing contract tests in
   `agent-coordinator/tests/model_routing/test_incumbent_retention_contracts.py` against the
@@ -114,6 +129,9 @@
     tested in 3.5);
   - `order_applied` requires all four lists, each non-empty and duplicate-free;
   - a configured-fallback response with top-level `fallback: true` is rejected;
+  - the record schema requires `retention` whenever `request.incumbent` is an object: a record
+    with an incumbent and no `retention` is rejected, one with `incumbent: null` (or absent) and
+    no `retention` is accepted;
   - the generated `Retention` model rejects `retained` inconsistent with `reason` and an
     explicit `fallback: null` for any other reason;
   - `ExcludedAssignment.reason` accepts `cost-policy:unclassified`;
@@ -149,6 +167,9 @@
   `agent-coordinator/tests/model_routing/test_incumbent_retention.py` (parametrized over the
   full D3 transient and permanent lists) covering:
   - every transient reason triggers the fallback; every permanent reason does not;
+  - an incumbent with at least one feasible row is never displaced by the fallback, whatever
+    its other rows' exclusion reasons (the trigger requires no feasible row and at least one
+    excluded row, D3);
   - a mixed transient/permanent row set counts as permanent; two transient rows with different
     reasons fall back and record both reasons sorted;
   - a lane that is both unavailable and roadmap-excluded reports `lane:unavailable` and falls
@@ -187,7 +208,9 @@
   **Dependencies**: 3.4
 - [ ] 3.8 Write failing tests for D7, then implement both layers:
   - `agent-coordinator/tests/test_vendor_registry.py`: a lane whose agent `type` is `local`
-    advertises `archetypes ∩ LOCAL_TRUSTED_ARCHETYPES`; `test_resolver.py`: the router excludes
+    advertises `archetypes ∩ LOCAL_TRUSTED_ARCHETYPES`;
+    `agent-coordinator/tests/model_routing/test_resolver.py` (inside the package's
+    `tests/model_routing/**` scope, run by the "Model-routing suite" step): the router excludes
     it with `lane:archetype-ineligible` for an untrusted archetype;
   - `agent-coordinator/tests/test_phase_archetype_resolution.py`: a response naming `local`
     via `assignment.vendor_type`, and one via catalog-vendor mapping with no assignment, for an
