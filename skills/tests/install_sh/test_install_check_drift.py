@@ -82,6 +82,37 @@ def test_checkout_drift(tmp_path: Path) -> None:
     assert "Runtime drift" not in result.stderr
 
 
+def test_checkout_drift_with_changed_skill_set_is_not_runtime_drift(tmp_path: Path) -> None:
+    # Checkout A installs; checkout B then re-scopes a portable skill so B's
+    # manifest no longer names it. The mirrors are still byte-identical to the
+    # pinned payload (they hold the skill and A's manifest), so only checkout
+    # drift may be reported: each mirror must be hashed against its own synced
+    # manifest, not against checkout B's (ledger 35).
+    src = tmp_path / "skills"
+    shutil.copytree(
+        SKILLS_ROOT, src,
+        ignore=shutil.ignore_patterns(".venv", "tests", "__pycache__", "node_modules", ".pytest_cache"),
+    )
+    (tmp_path / "VERSION").write_text(VERSION + "\n")
+    target = tmp_path / "consumer"
+    target.mkdir()
+    _install(src / "install.sh", target)
+
+    manifest_path = src / "install-manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["skills"]["json-canvas"] == {"distribution": "portable"}
+    manifest["skills"]["json-canvas"] = {
+        "distribution": "repository-scoped",
+        "reason": "re-scoped in checkout B",
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    result = _check(src / "install.sh", target)
+    assert result.returncode == 1
+    assert "Checkout drift" in result.stderr
+    assert "Runtime drift" not in result.stderr
+
+
 def test_runtime_drift_names_the_agent(installed: Path) -> None:
     skill_md = next((installed / ".agents" / "skills").glob("*/SKILL.md"))
     skill_md.write_text(skill_md.read_text() + "\nlocal edit\n")
