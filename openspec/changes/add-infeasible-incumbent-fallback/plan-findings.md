@@ -71,3 +71,33 @@ Parallelizability (after fixes): `Independent: 4 (1.1, 1.3, 2.0, 3.1 after 2.0) 
 unserialized (phase_agent.py 1.2→1.4; api.py/resolver.py 3.4→3.6; test modules named per task).`
 
 Residual findings at or above medium after iteration 2: 0 (all 10 fixed; 2 low fixed as well).
+
+## Vendor Review (2026-10-10T21:37Z) and Remediation Cycle
+
+Dispatch: antigravity, codex, grok, pi (claude_code excluded as primary; quorum 4/2). Results:
+codex OK (gpt-5.6-sol, 359 s, 10 findings); antigravity timeout at 500 s; grok failed (CLI 1.0.5
+rejected with HTTP 426, needs 1.0.13); pi reported as failed by the dispatcher because it wrote
+`review_findings.json` to the repository root instead of the output directory — that file was
+removed as a stray artifact before its contents were fully read (its first finding, "scenario .8
+omits the cost-policy precedence", is already covered by the WHEN clause). The dispatcher marked
+the phase DEGRADED (1 of 2 required vendors). Consensus (`reviews/consensus-plan.json`) over the
+primary findings (4 low, accept) and codex: 14 findings, 0 confirmed, 14 unconfirmed, 0 blocking.
+
+Per the single-vendor-criticals rule, each codex finding was adjudicated by the orchestrator
+against the documents and code rather than dropped or auto-escalated:
+
+| Codex # | Criticality | Verdict | Action |
+|---|---|---|---|
+| 1 GATEKEEPER block left provider-less | critical | Valid: the GATEKEEPER block follows a `build-dispatch` call and says "prompt/model" only; the prose test counted seven blocks | D1 and task 1.6 cover all eight `build-dispatch` blocks; the test counts eight |
+| 2 Event schema lacks reason⇒selected conditional | high | **Rejected**: the record schema's top-level `allOf` already carries the conditional (added in iteration 2; third entry) | None; noted here as evidence |
+| 3 Generated model: no retained/reason parity; explicit `fallback: null` accepted | high | Valid | `Retention` gains a parity validator; presence validator uses `model_fields_set` so explicit null is rejected; 2.1 gains the negative cases |
+| 4 OpenAPI: configured fallback does not pin top-level `fallback: false` | high | Valid | Conditional extended; 2.1 negative test; record schema already has `fallback: const false` |
+| 5 Hold not enforced by the work-package graph | critical | Valid: the scheduler derives readiness from `depends_on` only and the schema has no hold field | `wp-router` moved out of `work-packages.yaml` into `work-packages.held.yaml` (schema-valid, loaded by nothing); task 2.0 promotes it; D8 rewritten |
+| 6 Task 2.0 checks the working tree, not `origin/main`; wp-dispatch merge unproven | critical | Valid | 2.0 reads blobs with `git rev-parse origin/main:<path>`, uses `git grep` on `origin/main` for the v1.3 and wp-dispatch markers |
+| 7 Scope denies `openspec/changes/archive/**` that 2.0 must read | high | Valid as written; moot once 2.0 reads the git object store | 2.0 reads from `origin/main` via git; D8 notes the deny governs the working tree |
+| 8 wp-router verification omits ruff and the feature-level checks | medium | Valid in part: ruff was missing; the skill suites and install check are feature-level by design | `ruff_clean` step added to the held manifest; 4.2 restated as the feature-level gate run by the validation phase |
+| 9 Sortedness enforced only by the generated model | medium | Valid | Sorting defined as a producer invariant (asserted in 3.5); all three contracts validate uniqueness only; D6, README, spec aligned |
+| 10 Resolver-unavailable scenario unqualified for provider-less callers | medium | Valid | agent-archetypes.2 qualified like .1; 1.1 covers it |
+
+Remediation cycle: one iterate pass (no re-dispatch), committed as `refine(plan): vendor-review
+remediation`. Residual findings at or above medium after remediation: 0.

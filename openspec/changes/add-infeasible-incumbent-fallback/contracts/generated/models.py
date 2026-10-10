@@ -60,15 +60,28 @@ class FallbackOrderApplied(BaseModel):
 class RetentionFallback(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # Sorted, unique reasons of the incumbent's excluded rows; all transient (design D3).
+    # Unique reasons of the incumbent's excluded rows; all transient (design D3). Sorting is
+    # a producer invariant (asserted by the service-level test), not a wire-validation rule:
+    # JSON Schema cannot express it, so the three contracts agree on uniqueness only.
     incumbent_exclusion_reasons: list[TransientExclusionReason] = Field(min_length=1)
     order_applied: FallbackOrderApplied
 
     @model_validator(mode="after")
-    def _reasons_sorted_unique(self) -> "RetentionFallback":
-        if self.incumbent_exclusion_reasons != sorted(set(self.incumbent_exclusion_reasons)):
-            raise ValueError("incumbent_exclusion_reasons must be sorted and unique")
+    def _reasons_unique(self) -> "RetentionFallback":
+        if len(self.incumbent_exclusion_reasons) != len(set(self.incumbent_exclusion_reasons)):
+            raise ValueError("incumbent_exclusion_reasons must be unique")
         return self
+
+
+KEPT_REASONS: frozenset[str] = frozenset(
+    {
+        "no-evidence",
+        "no-evidenced-challenger",
+        "below-margin",
+        "incumbent-unresolved",
+        "incumbent-infeasible-no-evidenced-alternative",
+    }
+)
 
 
 class Retention(BaseModel):
@@ -79,13 +92,21 @@ class Retention(BaseModel):
     margin: float = Field(ge=0)
     incumbent_score: float | None = None
     # Required when reason is incumbent-infeasible-configured-fallback, forbidden otherwise.
+    # Omit the key rather than sending null: the wire schemas type it as object.
     fallback: RetentionFallback | None = None
+
+    @model_validator(mode="after")
+    def _retained_matches_reason(self) -> "Retention":
+        expected = self.reason in KEPT_REASONS
+        if self.retained != expected:
+            raise ValueError(f"retained must be {expected} for reason {self.reason}")
+        return self
 
     @model_validator(mode="after")
     def _fallback_presence(self) -> "Retention":
         configured = self.reason == "incumbent-infeasible-configured-fallback"
         if configured and self.fallback is None:
             raise ValueError("retention.fallback is required for incumbent-infeasible-configured-fallback")
-        if not configured and self.fallback is not None:
+        if not configured and ("fallback" in self.model_fields_set):
             raise ValueError("retention.fallback is only allowed for incumbent-infeasible-configured-fallback")
         return self

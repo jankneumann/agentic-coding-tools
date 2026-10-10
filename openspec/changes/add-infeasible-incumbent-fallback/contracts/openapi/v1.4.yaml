@@ -513,6 +513,8 @@ components:
           properties:
             selected:
               type: object
+            fallback:
+              const: false
       properties:
         decision_id:
           type: string

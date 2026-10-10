@@ -25,7 +25,8 @@ boundary the static path applies.
 #### Scenario: Resolver unavailable preserves static behavior
 
 - **WHEN** `ROUTING_ADAPTIVE` is on and the resolver is unavailable, errors, or times out
-- **THEN** archetype/phase resolution SHALL equal the pre-change static tier resolution
+- **THEN** archetype/phase resolution SHALL equal the pre-change static tier resolution for a caller with a provider
+- **AND** for a provider-less caller it SHALL equal the static tier resolution under the default provider (`claude_code`): same provider as before, the tier's concrete alias as the model
 
 #### Scenario: Escalation signals become task signals
 

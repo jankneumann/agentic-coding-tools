@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-10T21:43:28.997160+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Vendor-review remediation cycle. Only codex returned (antigravity timed out, grok's CLI is outdated, pi wrote its findings to the repo root); its 10 single-vendor findings were adjudicated one by one: 9 valid and fixed, 1 rejected with evidence. The wp-router hold is now enforced structurally (held manifest), task 2.0 proves prerequisites from the origin/main tree, and all three v1.4 contracts agree on the fallback invariants.",
+    "completed_work": [
+      "[critical] GATEKEEPER included in the provider contract; prose test counts eight build-dispatch blocks",
+      "[critical] wp-router removed from the executable manifest into work-packages.held.yaml; task 2.0 promotes it",
+      "[critical] task 2.0 reads blob ids and markers from origin/main (v1.3 and wp-dispatch)",
+      "[high] generated Retention model: retained/reason parity; explicit fallback null rejected",
+      "[high] OpenAPI configured-fallback conditional pins top-level fallback: false",
+      "[high] archive deny made moot by reading from the git object store (documented in D8)",
+      "[medium] ruff step added to wp-router verification; 4.2 restated as feature-level gate",
+      "[medium] sortedness as producer invariant across D6, README, spec, models.py",
+      "[medium] resolver-unavailable scenario qualified for provider-less callers; 1.1 covers it",
+      "[rejected] codex #2 (event schema conditional already present)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "wp-router lives in work-packages.held.yaml until promoted by task 2.0 (D8)",
+        "rationale": "The DAG scheduler computes readiness from depends_on only and the schema has no hold field, so the only enforceable hold is absence from the executable manifest. The held file stays schema-valid and is loaded by no scheduler.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Task 2.0 proves prerequisites from the origin/main tree, never the working tree (D8)",
+        "rationale": "A branch that cherry-picks v1.3 would pass a working-tree check; git rev-parse origin/main:<path> and git grep on origin/main cannot be fooled that way and sidestep the archive deny.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Sortedness of incumbent_exclusion_reasons is a producer invariant; contracts validate uniqueness only (D6)",
+        "rationale": "JSON Schema cannot express ordering; three contracts must accept the same representations.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Single-vendor codex finding #2 rejected: the record schema already carries the reason-implies-selected conditional",
+        "rationale": "Adjudicated against the file; the conditional was added in iteration 2.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "pi's misplaced review_findings.json at the repo root was removed before being fully read",
+        "rationale": "It was treated as a stray artifact; only its first finding (cost-policy precedence, already covered) was seen. Recorded so the loss is visible; the dispatcher had already classified pi as failed.",
+        "capability": "skill-procedure-deviation",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

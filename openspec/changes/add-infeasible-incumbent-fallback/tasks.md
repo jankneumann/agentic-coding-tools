@@ -15,9 +15,10 @@
 >   changes no phase".
 >
 > **HOLD (design D8, operator decision 2026-10-10): only `wp-dispatch` runs in this autopilot
-> run. `wp-router` starts only after `split-no-evidence-retention-reason` (v1.3) has merged to
-> `main` and `wp-dispatch` has merged. Task 2.0 is `wp-router`'s first step and both its task
-> chains depend on it; a dispatcher reading only `depends_on` MUST NOT start `wp-router`.**
+> run. `work-packages.yaml` therefore lists `wp-dispatch` only; `wp-router` is defined in
+> `work-packages.held.yaml`, which no scheduler loads. It is promoted into `work-packages.yaml`
+> by task 2.0 only after `split-no-evidence-retention-reason` (v1.3) and `wp-dispatch` are both
+> on `origin/main`. Task 2.0 is `wp-router`'s first step and both its task chains depend on it.**
 >
 > Each package rebases onto `main` before its first commit (the plan was written on a branch
 > behind `main`; the named router files are unchanged there, `phase_agent.py` and
@@ -29,9 +30,9 @@
   with no arg and no `AUTOPILOT_PROVIDER`/`AGENT_TYPE`, or a whitespace-only value, it returns
   `claude_code`; `AGENT_TYPE` and the explicit arg still win; the resolved incumbent is then a
   concrete model (`standard` → `sonnet`), not a tier alias; with the flag off, and with a
-  retained incumbent, `build_phase_dispatch_payload` returns the pre-change provider and the
-  tier's concrete alias as the model. [S]
-  **Spec scenarios**: agent-archetypes.1, agent-archetypes.5
+  retained incumbent, and with the resolver unavailable, `build_phase_dispatch_payload`
+  returns the pre-change provider and the tier's concrete alias as the model. [S]
+  **Spec scenarios**: agent-archetypes.1, agent-archetypes.2, agent-archetypes.5
   **Design decisions**: D2
   **Dependencies**: None
 - [ ] 1.2 Apply the default provider in `_selected_provider()` before archetype resolution
@@ -68,27 +69,37 @@
   report `provider` (caller) plus `resolved_provider` in the JSON body and the text line. Keep
   `skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py` green. [S]
   **Dependencies**: 1.3
-- [ ] 1.6 Update the autopilot SKILL.md adapter contract: the 8-phase protocol block and each
-  of the seven per-phase "Capture `prompt`, `model`, `isolation`" blocks also capture and pass
-  `provider`, with the rule that a harness whose only adapter is `Agent(...)` routes a
-  non-`claude_code` provider through the provider adapter or escalates, never calling
-  `Agent(...)` with another vendor's model. Add
+- [ ] 1.6 Update the autopilot SKILL.md adapter contract: the 8-phase protocol block and every
+  per-phase dispatch block that follows a `runner.py build-dispatch` call — the GATEKEEPER
+  block ("call the dispatch adapter with `prompt`/`model`") and the seven "Capture `prompt`,
+  `model`, `isolation`" blocks, eight in all — capture and pass `provider`, with the rule that
+  a harness whose only adapter is `Agent(...)` routes a non-`claude_code` provider through the
+  provider adapter or escalates, never calling `Agent(...)` with another vendor's model. Add
   `skills/tests/autopilot/test_skill_dispatch_provider_prose.py` (modelled on
-  `test_prose_free_gates.py`) asserting every capture line after a `build-dispatch` call names
-  `provider` and that there are seven such blocks. [S]
+  `test_prose_free_gates.py`) that locates every `runner.py build-dispatch` invocation,
+  asserts the adapter-call sentence after each names `provider`, and asserts the count is
+  eight. [S]
   **Dependencies**: 1.4
 - [ ] Checkpoint: run tests, review diff, verify scope
 
 ## 2. Contracts (wp-router)
 
-- [ ] 2.0 Gate (first step of the package; both chains depend on it): resolve the v1.3 change
-  with `change_dir(repo_root, "split-no-evidence-retention-reason")` from `openspec_paths`
-  (active or archived); require `git merge-base --is-ancestor origin/main HEAD`; compare
-  `git hash-object` of its `contracts/openapi/v1.3.yaml`, `contracts/events/routing-decision-record.schema.json`
-  and `contracts/generated/models.py` with the blob hashes pinned in `contracts/README.md`;
-  assert `"no-evidenced-challenger"` is in `api.RetentionReason`. If a hash differs,
-  regenerate `v1.4.yaml`, the record schema and `generated/models.py` from the merged v1.3 and
-  confirm the diff is only the README's listed differences; if the change is absent, stop. [XS]
+- [ ] 2.0 Gate (first step of the package; both chains depend on it). All checks read the
+  `origin/main` tree after `git fetch origin`, never the working tree:
+  - locate the v1.3 change directory on `origin/main` with `git ls-tree` under
+    `openspec/changes/` or `openspec/changes/archive/*-split-no-evidence-retention-reason/`;
+    stop if absent;
+  - compare `git rev-parse origin/main:<dir>/contracts/openapi/v1.3.yaml`,
+    `…/contracts/events/routing-decision-record.schema.json` and
+    `…/contracts/generated/models.py` with the blob ids pinned in `contracts/README.md`;
+  - `git grep -q no-evidenced-challenger origin/main -- agent-coordinator/src/model_routing/api.py`
+    (v1.3 code merged) and `git grep -q UnservableProviderError origin/main --
+    skills/autopilot/scripts/phase_agent.py` (wp-dispatch merged);
+  - require `git merge-base --is-ancestor origin/main HEAD` (the package branch is rebased).
+  If a blob differs, regenerate `v1.4.yaml`, the record schema and `generated/models.py` from
+  the merged v1.3 and confirm the diff is only the README's listed differences. Then promote
+  `wp-router` from `work-packages.held.yaml` into `work-packages.yaml` (replacing the packages
+  list) and delete the held file. [XS]
   **Design decisions**: D6, D8
   **Dependencies**: None
 - [ ] 2.1 Write failing contract tests in
@@ -98,8 +109,13 @@
     null-selected set, and a response with that reason and `selected: null` is rejected;
   - `retention.fallback` is required when the reason is the configured fallback and rejected
     with any other reason (negative cases both ways);
-  - `incumbent_exclusion_reasons` accepts only transient values, `minItems: 1`, unique;
+  - `incumbent_exclusion_reasons` accepts only transient values, `minItems: 1`, unique
+    (unsorted input is accepted by all three contracts: sorting is a producer invariant,
+    tested in 3.5);
   - `order_applied` requires all four lists, each non-empty and duplicate-free;
+  - a configured-fallback response with top-level `fallback: true` is rejected;
+  - the generated `Retention` model rejects `retained` inconsistent with `reason` and an
+    explicit `fallback: null` for any other reason;
   - `ExcludedAssignment.reason` accepts `cost-policy:unclassified`;
   - the `RetentionReason` parity test from `split-no-evidence-retention-reason` (its task 1.2:
     the Literal equals the enum) covers the new value — this file owns parity. [S]
@@ -157,8 +173,9 @@
 - [ ] 3.5 Write a failing service-level test in
   `agent-coordinator/tests/model_routing/test_service_incumbent.py`: a transient fallback
   persists `retention.fallback` (`incumbent_exclusion_reasons`, `order_applied` equal to the
-  policy's `fallback:` block), `selected` is non-null, the payload validates against the v1.4
-  record schema, and the top-level `fallback` stays `false`. [S]
+  policy's `fallback:` block, `incumbent_exclusion_reasons` emitted sorted), `selected` is
+  non-null, the payload validates against the v1.4 record schema, and the top-level
+  `fallback` stays `false`. [S]
   **Spec scenarios**: model-routing.8
   **Contracts**: contracts/events/routing-decision-record.schema.json
   **Dependencies**: 3.4
@@ -192,9 +209,11 @@
   feasible, when no order is set, and when the incumbent's exclusion is permanent. [M]
   **Spec scenarios**: agent-archetypes.6, agent-archetypes.10
   **Dependencies**: 3.6, 3.8, 1.4
-- [ ] 4.2 From the feature worktree: run the coordinator suite, the autopilot,
+- [ ] 4.2 Feature-level gate, run from the feature worktree by the validation phase (it
+  cannot run inside an isolated package worktree): the coordinator suite, the autopilot,
   phase-record-compaction, vendor-neutral-autopilot and coordination-bridge skill tests;
   `cd skills && bash install.sh --mode copy --force --deps none --python-tools none && bash
-  install.sh --check`; confirm `mypy --strict` and `ruff` are clean. [XS]
+  install.sh --check`; `mypy --strict` and `ruff` clean. The per-package verification steps in
+  both manifests cover everything except the install check. [XS]
   **Dependencies**: 4.1
 - [ ] Checkpoint: run tests, review diff, verify scope

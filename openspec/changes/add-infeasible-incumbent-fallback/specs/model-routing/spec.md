@@ -59,7 +59,7 @@ behavior before this requirement.
 - **THEN** the eligible candidate that ranks first by `fallback.vendor_order`, then `location_order`, `isolation_order`, `dispatch_mode_order`, then `agent_id` SHALL be selected, independent of score and random draws
 - **AND** the router SHALL NOT select a candidate that has no assignment, whose agent type is absent from `fallback.vendor_order`, or whose location, isolation or dispatch mode is not enumerated in the corresponding list
 - **AND** `retention` SHALL be `{retained: false, reason: "incumbent-infeasible-configured-fallback"}` and `selected` SHALL NOT be null
-- **AND** `retention.fallback` SHALL record `incumbent_exclusion_reasons` (the sorted, unique reasons of the incumbent's excluded rows) and `order_applied` (a verbatim copy of the policy's `fallback:` block: all four lists)
+- **AND** `retention.fallback` SHALL record `incumbent_exclusion_reasons` (the unique reasons of the incumbent's excluded rows, which the router SHALL emit in sorted order) and `order_applied` (a verbatim copy of the policy's `fallback:` block: all four lists)
 - **AND** the response's top-level `fallback` SHALL remain `false`
 - **AND** the same inputs SHALL yield the same selection on every call, and enabling exploration SHALL NOT change the selection or the reason
 

@@ -1,0 +1,55 @@
+{
+  "review_type": "plan",
+  "target": "add-infeasible-incumbent-fallback",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "description": "Cost-tier filtering runs before retention (api.py select_model), so when the incumbent's lane was the only subscription-tier option the configured-fallback pool can sit in a metered tier. The plan states this precedence in D4 and the owner accepted the trade-off; the tier is derivable from the persisted selected.assignment.",
+      "resolution": "Accepted trade-off recorded in design D4 and the Risks section; no new contract field.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/design.md"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "deterministic",
+      "description": "A permanently excluded incumbent keeps retained:true with selected:null, and the client (agents_config.resolve_archetype_for_phase) then dispatches the static incumbent the policy excluded. This is pre-existing behavior and an explicit non-goal of the change (design Non-goals, D3 rationale).",
+      "resolution": "Out of scope; a follow-up change could surface the contradiction to the operator instead of dispatching statically.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/design.md"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "deterministic",
+      "description": "The feature branch (b666e218) is 429 commits behind origin/main. The router files the plan names are unchanged on main; phase_agent.py (+49/-6, environment detection) and agents_config.py (+144, human principals) gained unrelated code. Cited line anchors will shift.",
+      "resolution": "tasks.md header requires each package to rebase onto main before its first commit and re-anchor cited lines.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/tasks.md"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "description": "D2 defaults a provider-less dispatch to claude_code before resolution. For a non-Claude harness that does not set AGENT_TYPE this routes the incumbent to the wrong vendor's catalog. It is the same default build_phase_dispatch_payload already applied after resolution, so no new exposure, but the open question is recorded.",
+      "resolution": "Recorded as an open question in the session log; non-Claude harnesses set AGENT_TYPE as today.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-infeasible-incumbent-fallback/design.md"
+    }
+  ]
+}
