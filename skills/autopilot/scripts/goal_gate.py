@@ -14,6 +14,13 @@ the same change; the history entry alone is only the sub-agent's self-report wit
 no artifact behind it. Requiring the history entry to postdate the report is what
 binds the artifact to this run.
 
+The binding record is the report's last legitimate writer: the latest VALIDATE
+``passed`` entry, or, when VAL_REVIEW is enabled, a VAL_REVIEW ``converged`` entry
+after it (VAL_REVIEW appends its own required section to the same report). The
+report's time is its last commit when the committed copy is unmodified (a
+checkout resets mtime, so mtime would make every fresh clone look stale), and its
+mtime otherwise.
+
 The module deliberately imports nothing from ``autopilot.py``: ``state`` is used
 structurally (``.phase_history``, ``.val_review_enabled``) so that ``autopilot``
 can import this module without a cycle.
@@ -21,6 +28,7 @@ can import this module without a cycle.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -77,6 +85,52 @@ def _latest_validate_entry(history: Any) -> dict[str, Any] | None:
     return None
 
 
+def _binding_entry(history: Any, *, val_review_enabled: bool) -> dict[str, Any] | None:
+    """The record that must postdate the report: the latest VAL_REVIEW
+    ``converged`` entry after the latest VALIDATE when VAL_REVIEW is enabled,
+    else the latest VALIDATE entry. ``None`` when VAL_REVIEW is enabled but has
+    not converged since that VALIDATE (the VALIDATE entry then binds)."""
+    if not val_review_enabled or not isinstance(history, list):
+        return None
+    for entry in reversed(history):
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("phase") == "VALIDATE":
+            return None
+        if entry.get("phase") == "VAL_REVIEW" and entry.get("outcome") == "converged":
+            return entry
+    return None
+
+
+def _git(change_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(change_dir), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+
+
+def _report_time(report_path: Path) -> tuple[datetime, str]:
+    """``(time, source)``: the last commit touching the report when the working
+    copy matches it, else the file's mtime."""
+    name = report_path.name
+    cwd = report_path.parent
+    try:
+        tracked = _git(cwd, "ls-files", "--error-unmatch", "--", name).returncode == 0
+        clean = tracked and _git(cwd, "diff", "--quiet", "HEAD", "--", name).returncode == 0
+        if clean:
+            stamp = _git(cwd, "log", "-1", "--format=%cI", "--", name).stdout.strip()
+            parsed = _parse_timestamp(stamp)
+            if parsed is not None:
+                return parsed, "commit"
+    except (OSError, subprocess.SubprocessError):
+        pass
+    mtime = datetime.fromtimestamp(report_path.stat().st_mtime, tz=timezone.utc)
+    return mtime, "mtime"
+
+
 def _parse_timestamp(raw: Any) -> datetime | None:
     if not isinstance(raw, str):
         return None
@@ -108,8 +162,8 @@ def check_goal_gate(
     """Decide whether the loop has earned DONE.
 
     Returns ``passed`` only when every required report section reads ``pass``
-    AND the latest VALIDATE history entry is ``passed`` and not older than the
-    report file. Any other outcome is ``refused`` with a reason naming the one
+    AND the latest VALIDATE history entry is ``passed`` and its binding record
+    (that entry, or a later converged VAL_REVIEW) is not older than the report. Any other outcome is ``refused`` with a reason naming the one
     condition that failed. ``now`` is injectable so the recorded ``checked_at``
     is deterministic under test.
     """
@@ -139,13 +193,24 @@ def check_goal_gate(
     if not report_path.is_file():
         return GoalGateVerdict("refused", REASON_REPORT_MISSING, evidence)
 
-    # mtime, not a git timestamp: validate-feature writes the report inside an
-    # ephemeral worktree and copies it back, so mtime is the moment the report
-    # became visible to this loop — the comparison that proves the report is
-    # this run's, and one that does not require the report to be committed.
-    report_mtime = datetime.fromtimestamp(report_path.stat().st_mtime, tz=timezone.utc)
-    evidence["report_mtime"] = report_mtime.isoformat()
-    if validated_at < report_mtime:
+    # An uncommitted or untracked report (validate-feature writes it inside an
+    # ephemeral worktree and copies it back) is timed by mtime, the moment it
+    # became visible to this loop; a committed, unmodified one by its commit.
+    report_time, source = _report_time(report_path)
+    evidence["report_time"] = report_time.isoformat()
+    evidence["report_time_source"] = source
+    bound_at = validated_at
+    evidence["bound_by"] = "VALIDATE"
+    review = _binding_entry(
+        getattr(state, "phase_history", None),
+        val_review_enabled=getattr(state, "val_review_enabled", False),
+    )
+    reviewed_at = _parse_timestamp(review.get("at")) if review else None
+    if reviewed_at is not None and reviewed_at > bound_at:
+        bound_at = reviewed_at
+        evidence["bound_by"] = "VAL_REVIEW"
+        evidence["val_review_at"] = review.get("at") if review else None
+    if bound_at < report_time:
         return GoalGateVerdict("refused", REASON_STALE_REPORT, evidence)
 
     required = _required_sections(state, change_dir)
