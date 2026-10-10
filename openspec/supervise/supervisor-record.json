@@ -21,16 +21,6 @@
       "gate": "escalate_resume",
       "requested_at": "2026-10-10T10:56:12.778050+00:00",
       "source": "supervise"
-    },
-    {
-      "approval_id": null,
-      "change_id": "ownership-map",
-      "deadline": "2026-10-17T11:43:04.114879+00:00",
-      "decision_id": "dfe4de44-1206-47cc-8a82-ae64d6f8497c",
-      "disposition": "block",
-      "gate": "escalate_resume",
-      "requested_at": "2026-10-10T11:43:04.114879+00:00",
-      "source": "supervise"
     }
   ],
   "schema_version": 1,
@@ -64,5 +54,5 @@
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-10T11:43:01.681935Z"
+  "written_at": "2026-10-10T13:07:06.004110Z"
 }
