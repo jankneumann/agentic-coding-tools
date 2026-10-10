@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,12 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GUIDE = REPO_ROOT / "docs" / "guides" / "state-artifacts.md"
 SKILLS_GUIDE = REPO_ROOT / "docs" / "guides" / "skills.md"
+SKILLS_ROOT = REPO_ROOT / "skills"
+PRUNED_DIRS = {"tests", ".venv", "node_modules", "__pycache__", ".pytest_cache"}
+PROJECTION_READERS = {
+    "improve-harness/scripts/analyze_failures.py",
+    "improve-harness/scripts/export_shared_learnings.py",
+}
 
 ARTIFACTS = {
     ".agentic-toolkit/stamp.json": "install.sh",
@@ -40,6 +47,24 @@ def test_artifact_row_names_writer_and_missing_behavior(path: str, writer: str) 
 def test_learnings_projection_never_feeds_canonical_state() -> None:
     cells = _row_for(".agentic-toolkit/learnings.jsonl")
     assert "never derive loop state, checkpoint state or trust posture" in cells[5].lower()
+
+
+def test_learnings_projection_is_read_only_by_improve_harness() -> None:
+    """Only the exporter and the read-only analysis name the projection file.
+
+    No loop-state, checkpoint, trust-posture or installer code consumes it, so
+    the projection cannot feed canonical state.
+    """
+    readers: set[str] = set()
+    for dirpath, dirnames, filenames in os.walk(SKILLS_ROOT):
+        dirnames[:] = [d for d in dirnames if d not in PRUNED_DIRS]
+        for name in filenames:
+            if not name.endswith((".py", ".sh")):
+                continue
+            path = Path(dirpath) / name
+            if "learnings.jsonl" in path.read_text(encoding="utf-8", errors="replace"):
+                readers.add(path.relative_to(SKILLS_ROOT).as_posix())
+    assert readers == PROJECTION_READERS
 
 
 def test_skills_guide_documents_stamp_check_and_opt_in() -> None:

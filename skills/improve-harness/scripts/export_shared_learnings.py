@@ -63,6 +63,10 @@ def sharing_enabled(repo_root: Path | str) -> tuple[bool, str]:
         return False, f"{config} is unreadable: {exc}"
     if not isinstance(data, dict):
         return False, f"{config} is not a JSON object"
+    version = data.get("schema_version")
+    if isinstance(version, bool) or version != 1:
+        # Same rule as the stamp reader: an unknown schema is not an opt-in.
+        return False, f"unsupported schema_version {version!r} in {config} (expected 1)"
     section = data.get("shared_learnings")
     if not isinstance(section, dict) or section.get("enabled") is not True:
         return False, f"shared_learnings.enabled is not true in {config}"

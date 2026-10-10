@@ -80,6 +80,28 @@ def test_check_mode_does_not_stamp(tmp_path: Path) -> None:
     assert not (tmp_path / ".agentic-toolkit" / "stamp.json").exists()
 
 
+def test_installer_never_touches_config(tmp_path: Path) -> None:
+    # Absent: a consumer install must not create the human-owned opt-in config.
+    first = _run(["--target", str(tmp_path), "--mode", "copy", *QUIET])
+    assert first.returncode == 0, first.stderr
+    toolkit_dir = tmp_path / ".agentic-toolkit"
+    assert sorted(p.name for p in toolkit_dir.iterdir()) == ["stamp.json"]
+
+    # Present: a re-install with --force (the path that moves the pin) must leave
+    # the config and the learnings projection byte-identical.
+    config = toolkit_dir / "config.json"
+    learnings = toolkit_dir / "learnings.jsonl"
+    config.write_bytes(b'{"schema_version": 1, "shared_learnings": {"enabled": true}}\n')
+    learnings.write_bytes(b'{"summary": "teammate learning", "tags": []}\n')
+    before = (config.read_bytes(), learnings.read_bytes())
+    second = _run(["--target", str(tmp_path), "--mode", "copy", "--force", *QUIET])
+    assert second.returncode == 0, second.stderr
+    assert (config.read_bytes(), learnings.read_bytes()) == before
+    assert sorted(p.name for p in toolkit_dir.iterdir()) == [
+        "config.json", "learnings.jsonl", "stamp.json",
+    ]
+
+
 def test_aborted_install_leaves_previous_stamp_intact(tmp_path: Path) -> None:
     first = _run(["--target", str(tmp_path), "--mode", "copy", *QUIET])
     assert first.returncode == 0, first.stderr

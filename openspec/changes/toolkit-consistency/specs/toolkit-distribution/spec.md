@@ -75,7 +75,8 @@ exists and the run is not a self-install. It SHALL report *checkout drift* when 
 mirror hash differs from the stamp's `payload_hash`, each with a distinct message naming
 the pinned `toolkit_version` and `source_commit`, and SHALL exit `1` on either. It SHALL
 report an absent stamp as unpinned without changing the exit code, and SHALL exit `1` with an
-error for a stamp that is not valid JSON, not an object, or whose `schema_version` is not `1`.
+error for a stamp that is not valid JSON, not an object, whose `schema_version` is not `1`, or
+whose `payload_hash` is missing or not a `sha256:` string.
 
 #### Scenario: Pinned payload matches
 
@@ -95,6 +96,7 @@ error for a stamp that is not valid JSON, not an object, or whose `schema_versio
 - **WHEN** the stamp's `payload_hash` equals the source hash but an agent mirror was synced
   from a different payload
 - **THEN** `--check` SHALL print a runtime-drift message naming that agent and exit `1`
+- **AND** the message SHALL name the pinned `toolkit_version` and `source_commit`
 
 #### Scenario: Unpinned repository
 
@@ -104,7 +106,8 @@ error for a stamp that is not valid JSON, not an object, or whose `schema_versio
 
 #### Scenario: Invalid stamp fails loud
 
-- **WHEN** `.agentic-toolkit/stamp.json` is not valid JSON or has `schema_version` other than `1`
+- **WHEN** `.agentic-toolkit/stamp.json` is not valid JSON, has `schema_version` other than `1`,
+  or lacks a `sha256:` `payload_hash`
 - **THEN** `--check` SHALL print an error naming the file and exit `1`
 - **AND** SHALL NOT rewrite or delete the file
 
@@ -121,7 +124,8 @@ Repository-scoped learning export SHALL be enabled only by a human-owned file,
 root the Install stamp requirement names: the installer's target and the repository the
 exporter and `analyze_failures.py` run in. `install.sh` SHALL NOT create or modify this file.
 `export_shared_learnings.py` SHALL exit `2` and write nothing when the file is absent,
-unreadable, or has `shared_learnings.enabled` other than `true`.
+unreadable, has `schema_version` other than `1`, or has `shared_learnings.enabled` other than
+`true`.
 
 #### Scenario: Export refused without opt-in
 
