@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:45:10.791593+00:00",
+  "updated_at": "2026-10-10T10:46:01.052579+00:00",
   "completed_items": [
     "ri-01",
     "ri-21"
@@ -1263,6 +1263,57 @@
       "item_id": "ri-20",
       "lease_generation": 5,
       "note": "Operator in ri-20 worker session session_01SFH32A8gaJCyUn6j7uBLgb at 2026-10-10T10:38:13Z (\"1\": open the PR); verified from the transcript. PR #671 opened on that approval without a runner-evaluated pr_creation gate (branch posture predates 7fea1cd; applying it was correctly refused as self-modification)."
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:45:59.286024+00:00",
+      "decision_id": "a76efacc-9fff-4495-b740-9fba89f0a9a7",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator (jankneumann) merged PR #671 into openspec/roadmap-multiplayer-collaboration at 2026-10-10T10:44:31Z (rebase merge, tip cf55da8f); GitHub merged_by is the operator's own merge decision.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:45:59.737992+00:00",
+      "decision_id": "07644496-2da5-49dd-b158-6df7ebfbd3ce",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "multiplayer-collaboration",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "note": "Operator (jankneumann) merged PR #671 into openspec/roadmap-multiplayer-collaboration at 2026-10-10T10:44:31Z (rebase merge, tip cf55da8f); GitHub merged_by is the operator's own merge decision."
     }
   ],
   "dispatch_attempts": [
@@ -2021,10 +2072,10 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
-      "lease_generation": 6,
+      "lease_generation": 7,
       "launch_history": [
         {
           "generation": 1,
@@ -2211,6 +2262,37 @@
           "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
           "observed_at": "2026-10-10T10:41:12.690989+00:00",
           "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g6"
+        },
+        {
+          "generation": 7,
+          "owner_nonce": "owner-nonce-1791629160720",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:46:00.515979+00:00"
+        },
+        {
+          "generation": 7,
+          "owner_nonce": "owner-nonce-1791629160720",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:46:00.785994+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g7"
+        },
+        {
+          "generation": 7,
+          "owner_nonce": "owner-nonce-1791629160720",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:46:00.785994+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g7"
+        },
+        {
+          "generation": 7,
+          "owner_nonce": "owner-nonce-1791629160720",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:46:01.049413+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g7"
         }
       ],
       "scope": {
@@ -2225,71 +2307,32 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
-      "launch_digest": "sha256:b045fbab652a0fbd2d181ed92c763b8a1a86d86768094b0c1ae2f0adaa11cfbb",
+      "launch_digest": "sha256:258367319c53970036951befa4ede9dbb2e52ed5a1becd3d2ea3b23be2d51d95",
       "degradations": [],
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:07644496-2da5-49dd-b158-6df7ebfbd3ce"
+      },
       "lease": {
-        "generation": 6,
-        "owner_nonce": "owner-nonce-1791628871620",
-        "state": "released",
-        "acquired_at": "2026-10-10T10:41:12.135752+00:00",
-        "heartbeat_at": "2026-10-10T10:41:12.135752+00:00",
-        "expires_at": "2026-10-10T10:56:12.135752+00:00"
+        "generation": 7,
+        "owner_nonce": "owner-nonce-1791629160720",
+        "state": "active",
+        "acquired_at": "2026-10-10T10:46:00.515979+00:00",
+        "heartbeat_at": "2026-10-10T10:46:00.515979+00:00",
+        "expires_at": "2026-10-10T11:01:00.515979+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 6,
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g6",
-        "observed_at": "2026-10-10T10:41:12.409883+00:00"
+        "generation": 7,
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g7",
+        "observed_at": "2026-10-10T10:46:00.785994+00:00"
       },
       "launch_gate": {
-        "generation": 6,
+        "generation": 7,
         "state": "entered",
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g6",
-        "go_released_at": "2026-10-10T10:41:12.409883+00:00",
-        "entered_at": "2026-10-10T10:41:12.690989+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/toolkit-consistency",
-          "change_id": "toolkit-consistency",
-          "degradations": [],
-          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
-          "evidence": {
-            "commit": "128c78ede837935d81431d0a96b15034daa15099",
-            "loop_state_digest": "69fe69a70ffe8958e631125d79f582b485e1948d0d2b2549405d9939aa19ddff",
-            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
-          },
-          "host_id": "machine-dc39bf1e25efdf45",
-          "lease_generation": 6,
-          "outcome": "parked",
-          "parked": {
-            "deadline": null,
-            "gate": "merge",
-            "kind": "pending_gate",
-            "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-            "resume_hint": "answer gate merge through the resume request's gate_answer"
-          },
-          "schema_version": 2,
-          "worktree_ref": "toolkit-consistency"
-        },
-        "result_digest": "ec5bbe6f90e7a054ea702cb172170500a984901986ac45e3c6748486699f53eb",
-        "bound_at": "2026-10-10T10:41:22.742619+00:00",
-        "callback_started_at": "2026-10-10T10:41:22.767296+00:00",
-        "callback_acknowledged_at": "2026-10-10T10:41:22.799406+00:00",
-        "terminal_persisted_at": "2026-10-10T10:41:22.832012+00:00",
-        "effects_applied_at": "2026-10-10T10:41:22.880706+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-10T10:41:22.831968+00:00",
-      "parked": {
-        "deadline": null,
-        "gate": "merge",
-        "kind": "pending_gate",
-        "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-        "resume_hint": "answer gate merge through the resume request's gate_answer"
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g7",
+        "go_released_at": "2026-10-10T10:46:00.785994+00:00",
+        "entered_at": "2026-10-10T10:46:01.049413+00:00"
       }
     },
     {
