@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:47:27.068430+00:00",
+  "updated_at": "2026-10-10T10:50:55.469255+00:00",
   "completed_items": [
     "ri-01",
     "ri-21"
@@ -1363,6 +1363,61 @@
       "roadmap_id": "multiplayer-collaboration",
       "roadmap_fingerprint": "42d5ccf0282ed2412286e6d3f4b2f0b6bb211ba6a894a55286ffd609b522c13e",
       "note": "Operator re-approved the roadmap after the ri-22 refinement: supervisor session 2026-10-10 (\"5. Yes\", approve ri-22 openrouter-review-lane for dispatch). ri-22 added in aacac4c and approved in 0064137."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:50:40.864115+00:00",
+      "decision_id": "128a987b-cdd4-4e1a-9577-0caa94261005",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 7
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator merged PR #671 (2026-10-10T10:44:31Z); the DONE refusal was a goal-gate defect (committer date rewritten by the rebase merge), fixed in d1f65b25. Resume to SUBMIT_PR -> DONE under the fixed gate; no VALIDATE re-run needed.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:50:54.104079+00:00",
+      "decision_id": "5f8bf169-1e0c-4426-a189-9a26171571ba",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 7,
+      "note": "Operator merged PR #671 (2026-10-10T10:44:31Z); the DONE refusal was a goal-gate defect (committer date rewritten by the rebase merge), fixed in d1f65b25. Resume to SUBMIT_PR -> DONE under the fixed gate; no VALIDATE re-run needed."
     }
   ],
   "dispatch_attempts": [
@@ -2124,7 +2179,7 @@
       "status": "launched",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
-      "lease_generation": 7,
+      "lease_generation": 8,
       "launch_history": [
         {
           "generation": 1,
@@ -2342,6 +2397,37 @@
           "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
           "observed_at": "2026-10-10T10:46:01.049413+00:00",
           "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g7"
+        },
+        {
+          "generation": 8,
+          "owner_nonce": "owner-nonce-1791629454820",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:50:54.914888+00:00"
+        },
+        {
+          "generation": 8,
+          "owner_nonce": "owner-nonce-1791629454820",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:50:55.180400+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g8"
+        },
+        {
+          "generation": 8,
+          "owner_nonce": "owner-nonce-1791629454820",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:50:55.180400+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g8"
+        },
+        {
+          "generation": 8,
+          "owner_nonce": "owner-nonce-1791629454820",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:50:55.464481+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g8"
         }
       ],
       "scope": {
@@ -2356,32 +2442,32 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
-      "launch_digest": "sha256:258367319c53970036951befa4ede9dbb2e52ed5a1becd3d2ea3b23be2d51d95",
+      "launch_digest": "sha256:2e491b84f4d49c5e7544582627190c0bf7d043ba5ada064687722e9502925803",
       "degradations": [],
       "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:07644496-2da5-49dd-b158-6df7ebfbd3ce"
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:5f8bf169-1e0c-4426-a189-9a26171571ba"
       },
       "lease": {
-        "generation": 7,
-        "owner_nonce": "owner-nonce-1791629160720",
+        "generation": 8,
+        "owner_nonce": "owner-nonce-1791629454820",
         "state": "active",
-        "acquired_at": "2026-10-10T10:46:00.515979+00:00",
-        "heartbeat_at": "2026-10-10T10:46:00.515979+00:00",
-        "expires_at": "2026-10-10T11:01:00.515979+00:00"
+        "acquired_at": "2026-10-10T10:50:54.914888+00:00",
+        "heartbeat_at": "2026-10-10T10:50:54.914888+00:00",
+        "expires_at": "2026-10-10T11:05:54.914888+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 7,
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g7",
-        "observed_at": "2026-10-10T10:46:00.785994+00:00"
+        "generation": 8,
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g8",
+        "observed_at": "2026-10-10T10:50:55.180400+00:00"
       },
       "launch_gate": {
-        "generation": 7,
+        "generation": 8,
         "state": "entered",
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g7",
-        "go_released_at": "2026-10-10T10:46:00.785994+00:00",
-        "entered_at": "2026-10-10T10:46:01.049413+00:00"
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g8",
+        "go_released_at": "2026-10-10T10:50:55.180400+00:00",
+        "entered_at": "2026-10-10T10:50:55.464481+00:00"
       }
     },
     {
