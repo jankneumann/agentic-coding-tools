@@ -177,6 +177,19 @@ def test_transcript_mined_entries_are_excluded(
     assert "mined only" not in (tmp_path / ".agentic-toolkit" / "learnings.jsonl").read_text()
 
 
+@pytest.mark.parametrize(
+    "variant", ["Source:Transcript-Mined", " source:transcript-mined", "source:transcript-mined:v2"]
+)
+def test_transcript_mined_variants_fail_closed(
+    tmp_path: Path, exporter: types.ModuleType, monkeypatch: pytest.MonkeyPatch, variant: str
+) -> None:
+    mined = _entry(summary="mined variant", tags=["capability_gap:x", variant])
+    _stub_memory(monkeypatch, [mined, _entry()])
+    _enable(tmp_path)
+    exporter.export(tmp_path)
+    assert "mined variant" not in (tmp_path / ".agentic-toolkit" / "learnings.jsonl").read_text()
+
+
 def test_secrets_are_redacted(
     tmp_path: Path, exporter: types.ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
