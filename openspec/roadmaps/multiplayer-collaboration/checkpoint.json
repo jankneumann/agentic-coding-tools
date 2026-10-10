@@ -4,12 +4,13 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T13:07:07.663752+00:00",
+  "updated_at": "2026-10-10T13:09:35.839224+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
     "ri-05",
-    "ri-20"
+    "ri-20",
+    "ri-02"
   ],
   "gate_decisions": [
     {
@@ -1917,7 +1918,7 @@
       "change_id": "ownership-map",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "completed",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
       "lease_generation": 8,
@@ -2211,14 +2212,10 @@
           "phase": "PLAN"
         }
       ],
-      "continuation": {
-        "kind": "policy_pause",
-        "approval_ref": "gate-decision:02f15fb8-1876-4e00-892a-f180078c3649"
-      },
       "lease": {
         "generation": 8,
         "owner_nonce": "owner-nonce-1791637626802",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T13:07:06.982650+00:00",
         "heartbeat_at": "2026-10-10T13:07:06.982650+00:00",
         "expires_at": "2026-10-10T13:22:06.982650+00:00"
@@ -2235,7 +2232,64 @@
         "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g8",
         "go_released_at": "2026-10-10T13:07:07.334146+00:00",
         "entered_at": "2026-10-10T13:07:07.659655+00:00"
-      }
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/ownership-map",
+          "change_id": "ownership-map",
+          "degradations": [
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+              "phase": "VAL_REVIEW"
+            },
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "coordinator project-state/approvals 403 for this worker key",
+              "phase": "INIT"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure on every gate-check decision from proposal_approval onward",
+              "phase": "PLAN"
+            }
+          ],
+          "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+          "evidence": {
+            "commit": "40dff8e2937a15c00de30fb88e72c3acbf5b2413",
+            "loop_state_digest": "320eb23240f97de00c9faeaaa82b98b49db5c8bf1916e9451dec0b6e34b5d5ee",
+            "loop_state_path": "openspec/changes/archive/2026-10-10-ownership-map/loop-state.json"
+          },
+          "handoff_id": "val-review-ownership-map-b71f042",
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 8,
+          "outcome": "success",
+          "schema_version": 2,
+          "worktree_ref": "ownership-map"
+        },
+        "result_digest": "81777b2a012cc6e768de2ea4208da7a2d368df32a167891b4e45f09e31ab2ed9",
+        "bound_at": "2026-10-10T13:09:35.624037+00:00",
+        "callback_started_at": "2026-10-10T13:09:35.664284+00:00",
+        "callback_acknowledged_at": "2026-10-10T13:09:35.698359+00:00",
+        "terminal_persisted_at": "2026-10-10T13:09:35.744351+00:00",
+        "effects_applied_at": "2026-10-10T13:09:35.834601+00:00"
+      },
+      "outcome": "success",
+      "resolved_at": "2026-10-10T13:09:35.744303+00:00",
+      "handoff_id": "val-review-ownership-map-b71f042"
     },
     {
       "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
