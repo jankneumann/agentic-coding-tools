@@ -415,12 +415,19 @@ def _build_gate_evaluator(change_id: str, repo_root: Path) -> GateEvaluator:
 def launch_marker_reader(change_id: str, repo_root: Path) -> Callable[[dict[str, Any]], Any]:
     """The gate's marker seam for this run (D8, D10a): this worktree's launch
     marker for ``change_id``, read through ``dispatch_contract`` only. The
-    evaluation context plays no part, so no caller can assert a scope."""
+    evaluation context plays no part, so no caller can assert a scope.
+
+    A cloud worker never receives the host-local marker; it falls back to the
+    roadmap scope in the checkpoint committed at HEAD, which carries no
+    ``gate_answer`` or ``owner_nonce``."""
 
     def read(_context: dict[str, Any]) -> Any:
         from shared import dispatch_contract
 
-        return dispatch_contract.read_launch_marker(change_id, repo_root=repo_root)
+        marker = dispatch_contract.read_launch_marker(change_id, repo_root=repo_root)
+        if marker is not None:
+            return marker
+        return dispatch_contract.read_committed_dispatch_scope(change_id, repo_root=repo_root)
 
     return read
 

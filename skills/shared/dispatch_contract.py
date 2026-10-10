@@ -705,6 +705,87 @@ def read_launch_marker(
     return copy.deepcopy(best) if best is not None else None
 
 
+#: Where a roadmap's execution ledger is committed. Archived roadmaps are excluded.
+_CHECKPOINT_GLOB = re.compile(r"^openspec/roadmaps/(?!archive/)[^/]+/checkpoint\.json$")
+
+
+def _git_head(root: Path, *args: str) -> Optional[str]:
+    import subprocess
+
+    try:
+        done = subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True, check=False, timeout=30
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def read_committed_dispatch_scope(
+    change_id: str, *, repo_root: Optional[PathLike] = None
+) -> Optional[dict[str, Any]]:
+    """The roadmap-approval scope of a dispatched ``change_id``, read from the
+    roadmap checkpoint **committed at HEAD**, or ``None``.
+
+    A cloud worker runs in its own container and never receives the supervisor's
+    host-local launch marker. Its branch is cut from the roadmap tip after the
+    supervisor commits the prepared attempt, so the committed checkpoint already
+    carries the supervisor-written attempt and the roadmap approval it cites.
+    Only committed content counts (``git show HEAD:``), never the working tree,
+    and the approval must be a ``roadmap_approval`` decision that proceeded on a
+    human answer in that same checkpoint. The result is scope only: it carries
+    no ``owner_nonce`` or ``gate_answer``, so it never authorizes applying an
+    answer, only evaluating a scoped ``auto`` disposition.
+    """
+    if not isinstance(change_id, str) or not change_id or "/" in change_id:
+        return None
+    root = Path(repo_root) if repo_root is not None else Path.cwd()
+    listing = _git_head(root, "ls-tree", "-r", "--name-only", "HEAD", "--", "openspec/roadmaps")
+    if not listing:
+        return None
+    best: Optional[dict[str, Any]] = None
+    for path in sorted(p for p in listing.splitlines() if _CHECKPOINT_GLOB.match(p)):
+        raw = _git_head(root, "show", f"HEAD:{path}")
+        try:
+            checkpoint = json.loads(raw) if raw else None
+        except ValueError:
+            continue
+        if not isinstance(checkpoint, dict):
+            continue
+        approvals = {
+            record.get("decision_id")
+            for record in checkpoint.get("gate_decisions") or []
+            if isinstance(record, dict)
+            and record.get("gate") == "roadmap_approval"
+            and record.get("outcome") == "proceed"
+            and record.get("resolution") == "console_approved"
+        }
+        for attempt in checkpoint.get("dispatch_attempts") or []:
+            if not isinstance(attempt, dict) or attempt.get("change_id") != change_id:
+                continue
+            ref = attempt.get("roadmap_approval_ref")
+            if not isinstance(ref, str) or ref.removeprefix("gate-decision:") not in approvals:
+                continue
+            generation = attempt.get("lease_generation")
+            if not isinstance(generation, int) or isinstance(generation, bool):
+                continue
+            candidate = {
+                "dispatch_id": attempt.get("dispatch_id"),
+                "generation": generation,
+                "roadmap_approval_ref": ref,
+                "source": "committed_checkpoint",
+                "checkpoint_path": path,
+            }
+            if best is None or (attempt.get("attempt") or 0, generation) > (
+                best.get("_attempt", 0), best["generation"]
+            ):
+                best = {**candidate, "_attempt": attempt.get("attempt") or 0}
+    if best is None:
+        return None
+    best.pop("_attempt", None)
+    return best
+
+
 # --------------------------------------------------------------------------- #
 # Closure support (Dispatch Result Closure)
 # --------------------------------------------------------------------------- #
