@@ -823,6 +823,7 @@ sync_references_library() {
         rm -rf "$refs_dest"
       else
         echo "  skip  references (destination exists; use --force to replace)"
+        payload_conflicts=$((payload_conflicts + 1))
         return 0
       fi
     fi
@@ -844,6 +845,7 @@ sync_install_manifest() {
         rm -f "$manifest_dest"
       else
         echo "  skip  install-manifest.json (destination exists; use --force to replace)"
+        payload_conflicts=$((payload_conflicts + 1))
         return 0
       fi
     fi
@@ -918,6 +920,10 @@ write_install_stamp() {
     echo "Install stamp: skipped (self-install: source tree is the pin)"
     return 0
   fi
+  if [[ $payload_conflicts -gt 0 ]]; then
+    echo "Install stamp: not written ($payload_conflicts destination(s) skipped for a conflict; re-run with --force to install and pin)"
+    return 0
+  fi
 
   local stamp_dir="$TARGET_ROOT/.agentic-toolkit"
   local stamp_tmp payload_hash source_commit toolkit_version agents_csv
@@ -990,6 +996,9 @@ remove_deprecated_skills
 
 total_installed=0
 total_skipped=0
+# Destinations skipped for a conflict (not same-path self-install skips): the
+# payload was not installed there, so no stamp may claim it was.
+payload_conflicts=0
 
 if [[ "$MODE" == "rsync" || "$MODE" == "copy" ]]; then
   if ! command -v rsync >/dev/null 2>&1; then
@@ -1049,6 +1058,7 @@ for agent in "${agent_list[@]}"; do
           rm -rf "$dest_path"
         else
           echo "  skip  $skill_name (destination exists; use --force to replace)"
+          payload_conflicts=$((payload_conflicts + 1))
           total_skipped=$((total_skipped + 1))
           continue
         fi
@@ -1058,6 +1068,7 @@ for agent in "${agent_list[@]}"; do
             rm -rf "$dest_path"
           else
             echo "  skip  $skill_name (destination is a symlink; use --force to replace with a directory)"
+            payload_conflicts=$((payload_conflicts + 1))
             total_skipped=$((total_skipped + 1))
             continue
           fi
@@ -1066,6 +1077,7 @@ for agent in "${agent_list[@]}"; do
             rm -rf "$dest_path"
           else
             echo "  skip  $skill_name (destination exists and is not a directory; use --force to replace)"
+            payload_conflicts=$((payload_conflicts + 1))
             total_skipped=$((total_skipped + 1))
             continue
           fi
@@ -1111,6 +1123,7 @@ for agent in "${agent_list[@]}"; do
           rm -rf "$lib_dest"
         else
           echo "  skip  $lib_name (destination exists; use --force to replace)"
+          payload_conflicts=$((payload_conflicts + 1))
           total_skipped=$((total_skipped + 1))
           continue
         fi
@@ -1119,6 +1132,7 @@ for agent in "${agent_list[@]}"; do
           rm -rf "$lib_dest"
         else
           echo "  skip  $lib_name (destination conflicts; use --force to replace)"
+          payload_conflicts=$((payload_conflicts + 1))
           total_skipped=$((total_skipped + 1))
           continue
         fi

@@ -4,7 +4,35 @@
     "last_digest_at": null,
     "last_fingerprint": null
   },
-  "pending_gates": [],
+  "pending_gates": [
+    {
+      "approval_id": null,
+      "change_id": "openrouter-review-lane",
+      "deadline": "2026-10-17T10:56:12.778050+00:00",
+      "decision_id": "4a0f1bf4-1f54-4ede-a24b-9b2c4565875c",
+      "dedupe_fingerprint": "f62c543cfeb35dd4231fe00d26e6887cbfd8fe6f3d9e0b0283b9441096e4e81a",
+      "dispatch_ids": [
+        {
+          "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+          "lease_generation": 2
+        }
+      ],
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "requested_at": "2026-10-10T10:56:12.778050+00:00",
+      "source": "supervise"
+    },
+    {
+      "approval_id": null,
+      "change_id": "ownership-map",
+      "deadline": "2026-10-17T11:43:04.114879+00:00",
+      "decision_id": "dfe4de44-1206-47cc-8a82-ae64d6f8497c",
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "requested_at": "2026-10-10T11:43:04.114879+00:00",
+      "source": "supervise"
+    }
+  ],
   "schema_version": 1,
   "standing_decisions": [
     {
@@ -29,12 +57,12 @@
       "scope": "roadmap-jev-system-one-integration-assessment"
     },
     {
-      "decided_at": "2026-10-06T08:41:07.116408+00:00",
+      "decided_at": "2026-10-10T10:46:47.164929+00:00",
       "decision": "roadmap_approval:proceed",
-      "id": "e0526599-2740-4d45-bf08-e1f5d355bc6b",
-      "rationale": "operator re-approved after dispatch-contract refinement (2026-10-06)",
+      "id": "40776beb-63e5-4a06-b7b9-b349f3a918df",
+      "rationale": "Operator re-approved the roadmap after the ri-22 refinement: supervisor session 2026-10-10 (\"5. Yes\", approve ri-22 openrouter-review-lane for dispatch). ri-22 added in aacac4c and approved in 0064137.",
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-10T10:45:59.633974Z"
+  "written_at": "2026-10-10T11:43:01.681935Z"
 }

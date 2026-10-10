@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "change_id": "dispatch-contract",
+  "round": 3,
+  "body_path": "review-packet.md",
+  "sha256": "aa1fe7a6ab891e5ea33c16a4f20533a9181d0dd8e6545acd44fa0beb26e4d5f3",
+  "char_length": 58650,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "last_fix",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1460
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/validation-report.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 326
+      }
+    ],
+    "excluded": [
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/findings-claude_code-implementation.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2214
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-manifest.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 215
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.md",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 19268
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.meta.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2451
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/findings-claude_code-implementation.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2126
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/review-manifest.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 283
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/review-packet.md",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 8200
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/review-packet.meta.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 565
+      }
+    ],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
+        "openspec/changes/dispatch-contract/validation-report.md"
+      ]
+    }
+  ]
+}

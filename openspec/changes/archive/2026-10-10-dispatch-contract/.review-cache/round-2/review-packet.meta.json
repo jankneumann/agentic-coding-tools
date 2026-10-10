@@ -1,0 +1,73 @@
+{
+  "schema_version": 2,
+  "change_id": "dispatch-contract",
+  "round": 2,
+  "body_path": "review-packet.md",
+  "sha256": "a6e00cb68b4e98b754fde609e6d24df71d2ddd4ce215b96f6c86d1bc8e7a86af",
+  "char_length": 65762,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "last_fix",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 996
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/validation-report.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2568
+      }
+    ],
+    "excluded": [
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/findings-claude_code-implementation.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2214
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-manifest.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 215
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.md",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 19268
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.meta.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2451
+      }
+    ],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
+        "openspec/changes/dispatch-contract/validation-report.md"
+      ]
+    }
+  ]
+}
