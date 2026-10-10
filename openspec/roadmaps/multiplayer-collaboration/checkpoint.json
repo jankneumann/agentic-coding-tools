@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:33:54.161436+00:00",
+  "updated_at": "2026-10-10T10:37:08.146003+00:00",
   "completed_items": [
     "ri-01"
   ],
@@ -1207,6 +1207,33 @@
       "item_id": "ri-21",
       "lease_generation": 6,
       "note": "Operator decisions in supervisor session 2026-10-10 (\"1. Rerun\", \"Both\"): finish ri-21. The gen-6 VAL_REVIEW stall was a review-ledger defect (compact() re-opened additive fixes), fixed in 53d94ef; re-run VAL_REVIEW with the committed agent_lane driver (ebc08d6)."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:37:08.106890+00:00",
+      "decision_id": "ca05a54c-fbf6-42f0-9ad7-64944a197594",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 5
     }
   ],
   "dispatch_attempts": [
@@ -1965,7 +1992,7 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
       "lease_generation": 5,
@@ -2140,14 +2167,10 @@
       "context": {},
       "launch_digest": "sha256:72c0a816dbb2f20d656d185e09429d647755cbfb6d9aa56d8cfa9a5508323483",
       "degradations": [],
-      "continuation": {
-        "kind": "policy_pause",
-        "approval_ref": "gate-decision:e32b840c-1473-4124-847f-185077ab3dcb"
-      },
       "lease": {
         "generation": 5,
         "owner_nonce": "owner-nonce-1791625381520",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T09:43:01.219779+00:00",
         "heartbeat_at": "2026-10-10T09:43:01.219779+00:00",
         "expires_at": "2026-10-10T09:58:01.219779+00:00"
@@ -2164,6 +2187,49 @@
         "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5",
         "go_released_at": "2026-10-10T09:43:01.506442+00:00",
         "entered_at": "2026-10-10T09:43:02.093670+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/toolkit-consistency",
+          "change_id": "toolkit-consistency",
+          "degradations": [],
+          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+          "evidence": {
+            "commit": "1b6904956bde4563ff4f6555ef82c3cd463811e2",
+            "loop_state_digest": "4c932efdde01199eb7fde2094d91359b29427aaf994515062eaa8bd492e535c7",
+            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+          },
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 5,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": null,
+            "kind": "policy_pause",
+            "reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+            "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+          },
+          "schema_version": 2,
+          "worktree_ref": "toolkit-consistency"
+        },
+        "result_digest": "fbca35b1d07b6ce5fd4f9434eb6452d7c90dd0b2850cf54dd0bfec2a39c959e0",
+        "bound_at": "2026-10-10T10:37:05.381332+00:00",
+        "callback_started_at": "2026-10-10T10:37:05.406216+00:00",
+        "callback_acknowledged_at": "2026-10-10T10:37:05.428951+00:00",
+        "terminal_persisted_at": "2026-10-10T10:37:05.451786+00:00",
+        "effects_applied_at": "2026-10-10T10:37:05.505319+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-10T10:37:05.451751+00:00",
+      "parked": {
+        "deadline": null,
+        "gate": null,
+        "kind": "policy_pause",
+        "reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+        "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
       }
     },
     {
