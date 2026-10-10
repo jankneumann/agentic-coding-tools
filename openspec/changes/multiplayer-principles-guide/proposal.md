@@ -1,3 +1,7 @@
+---
+deployable: false
+---
+
 # Publish the multiplayer collaboration principles guide
 
 > Parent roadmap: `multiplayer-collaboration` (item `ri-01`)
