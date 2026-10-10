@@ -245,9 +245,11 @@ client follows it to the new provider through the dispatch path D1 fixes.
   `quota:exhausted`), which the router emits **sorted**: uniqueness is validated by all three
   contracts, sortedness is a producer invariant asserted by the service-level test (3.5),
   since JSON Schema cannot express it. `order_applied` is a **verbatim copy** of
-  `policy.document.fallback`: all four lists, each non-empty and duplicate-free, every entry a
-  non-empty string (`minLength: 1` per item in both wire schemas and the generated model, so a
-  record can only carry values a valid `FallbackOrder` could hold).
+  `policy.document.fallback`: all four lists, each non-empty and duplicate-free; `vendor_order`
+  entries are non-empty strings (`minLength: 1`, the D5 rule) and the three lane-attribute lists
+  carry the `Location` / `Isolation` / `DispatchMode` enums (OpenAPI `$ref`, inline enums in the
+  record schema, Literals in the generated model), so a record can only carry values a valid
+  `FallbackOrder` could hold.
 - All three contracts enforce presence and shape: `retention.fallback` is required when
   `reason` is the configured fallback and forbidden otherwise (the generated model treats an
   explicit `fallback: null` as present and rejects it, matching the wire schemas, and
@@ -256,13 +258,16 @@ client follows it to the new provider through the dispatch path D1 fixes.
   a null selection and never the offline local-static route).
 - The response's top-level `fallback: bool` keeps its existing meaning (offline local-static
   route) and stays `false` for a configured fallback.
-- The record schema requires `retention` whenever `request.incumbent` is an object. v1.3
-  required it only when `selected` is null, so a routed selection made with an incumbent — the
-  configured fallback included — could be persisted without its audit record and still
-  validate. The response schema cannot express this (`SelectModelResponse` carries no
-  request), so at the response level it stays the service invariant `api.py` already
-  implements (`retention` is attached to every response made with an incumbent), asserted by
-  the 3.5 test. Listed in the contracts README as a v1.4 difference.
+- The record schema requires `retention` whenever `request.incumbent` is an object, and
+  requires `request.incumbent` to be an object whenever `retention.reason` is the configured
+  fallback. v1.3 required `retention` only when `selected` is null, so a routed selection made
+  with an incumbent — the configured fallback included — could be persisted without its audit
+  record and still validate; without the reverse rule a configured-fallback record could lack
+  the incumbent whose exclusions it audits. The response schema cannot express either
+  (`SelectModelResponse` carries no request), so at the response level they stay the service
+  invariants `api.py` already implements (`retention` is attached to every response made with
+  an incumbent, and the fallback is only reachable with one), asserted by the 3.5 test. Listed
+  in the contracts README as a v1.4 difference.
 - Exploration cannot disturb the pick: the trigger requires that no feasible challenger is
   evidenced, so `choose_evidenced` sees fewer than two evidenced candidates and returns the
   fallback unchanged. This invariant is asserted by a test rather than assumed.
@@ -314,6 +319,21 @@ change-id after P0 has promoted `wp-router`. Nothing in this change relies on
 `change_dir()` for scheduling; the scheduler loads `work-packages.yaml` from the active
 directory, which is why archival is the one thing the hold forbids.
 
+Two mechanisms make the hold fail closed rather than prose-only:
+- **Open tasks block cleanup.** `cleanup-feature` step 5 scans `tasks.md` for unchecked items
+  and, finding any, stops to ask for a migration target; it never archives a change with open
+  tasks silently. Tasks 2.x–4.x stay unchecked until the second run, so a cleanup attempted
+  after the `wp-dispatch` PR cannot archive this change without an operator choosing to
+  migrate them — and the tasks header tells that operator not to. The run-1 manifest's header
+  says the same.
+- **A finished loop-state is terminal.** `runner.py init` leaves an existing `loop-state.json`
+  alone and `apply-outcome` is a no-op at `DONE`, so the second run cannot resume the first
+  run's state. Step P0 moves `loop-state.json` to `loop-state.run-1.json` (kept as the
+  `wp-dispatch` completion record) before promoting; the second run then starts at `INIT`,
+  its PLAN phase returns `exists` against the converged artifacts, and IMPLEMENT dispatches the
+  promoted manifest. P0 refuses to promote while a `loop-state.json` whose `current_phase` is
+  not `DONE` exists (the first run is still in flight).
+
 The DAG scheduler computes readiness from `depends_on` alone and the schema has no hold
 field, so the hold is enforced by **not listing** `wp-router` in the executable manifest:
 `work-packages.yaml` carries `wp-dispatch` only, and `wp-router` lives in
@@ -336,16 +356,20 @@ no-evidenced-challenger origin/main -- agent-coordinator/src/model_routing/api.p
 every `wp-dispatch` surface is on `origin/main` — one marker per task that changes a dispatch
 surface: `UnservableProviderError` in `phase_agent.py` (1.4), `resolved_provider` in
 `smoke_provider_dispatch.py` (1.5), and the prose-guard module
-`skills/tests/autopilot/test_skill_dispatch_provider_prose.py` present and passing against the
-`origin/main` SKILL.md (1.6), so a partial or look-alike implementation cannot satisfy the
-gate — validates both manifests with `validate_work_packages.py` (the held file before the
-copy, `work-packages.yaml` after it), re-pins the README blob ids if it had to regenerate,
-and only then copies the held package entry into `work-packages.yaml` in place of
-`wp-dispatch` (whose completion is recorded by the merged PR and `loop-state.json`, not by the
-manifest) and deletes the held file. Task 2.0, `wp-router`'s first step and the dependency of
-both its chains, re-runs the same `origin/main` checks as a fail-fast assertion and never
-promotes. Reading from the git object store sidesteps the package's
-`openspec/changes/archive/**` deny, which governs the working tree.
+`skills/tests/autopilot/test_skill_dispatch_provider_prose.py` present on `origin/main` and
+passing when P0 runs it from the feature worktree (1.6), so a partial or look-alike
+implementation cannot satisfy the gate — validates both manifests with
+`validate_work_packages.py` (the held file before the copy, `work-packages.yaml` after it),
+re-pins the README blob ids if it had to regenerate, and only then copies the held package
+entry into `work-packages.yaml` in place of `wp-dispatch` (whose completion is recorded by the
+merged PR and `loop-state.run-1.json`, not by the manifest) and deletes the held file. Task
+2.0, `wp-router`'s first step and the dependency of both its chains, re-runs the
+**object-store** checks only (blob ids, `git grep` markers, `git cat-file -e` for the
+prose-guard module) as a fail-fast assertion; it does not execute the prose-guard test, because
+the package worktree denies `skills/autopilot/**` and cannot create a second checkout. P0's
+execution of that test is attested by the promotion commit, whose message records the command
+and result. 2.0 never promotes. Reading from the git object store sidesteps the package's
+`openspec/changes/archive/**` and `skills/autopilot/**` denies, which govern the working tree.
 
 ## Risks / Trade-offs
 

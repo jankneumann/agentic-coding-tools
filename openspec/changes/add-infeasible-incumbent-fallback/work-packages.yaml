@@ -1,3 +1,7 @@
+# RUN-1 MANIFEST (design D8, operator hold 2026-10-10): wp-dispatch only. Completing this
+# manifest does NOT complete the change: tasks 2.x-4.x stay open, wp-router waits in
+# work-packages.held.yaml, and cleanup-feature must not archive this change until tasks.md
+# step P0 has promoted wp-router and the second run has merged it.
 schema_version: 1
 
 feature:
