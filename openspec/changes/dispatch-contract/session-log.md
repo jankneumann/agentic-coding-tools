@@ -299,3 +299,27 @@ VALIDATE passed: spec compliance pass, 0 open tasks, openspec strict valid, ruff
 ### Context
 converge() ran VAL_REVIEW (review_type=implementation, fix_mode=targeted, min_quorum=1 from resolve_quorum_policy, base_ref=origin/openspec/roadmap-multiplayer-collaboration) and converged in round 2 with blocking trend [5, 0]. The critique checked whether validation-report.md proves each ri-21 outcome. Four medium gaps: outcome 6 overstated CI coverage (security.yml runs gitleaks only for main, so this change's PR never triggers it); outcome 4 had no test clearing a posture-derived capability-fingerprint block after a posture flip; outcome 7's cross-host tests shared one repo root; outcome 5 was proven only piecewise. VAL_FIX (inline, claude_code) added three tests and corrected the report. No production code changed. The closure test (outcome 3) was confirmed to enumerate every schema-permitted kind/gate from the schema, independently of ANSWER_PATHS, which is built from the Gate enum.
 
+---
+
+## Phase: Validate (re-validation) (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Report regenerated, no Validation Review section** `architectural: validation` — VAL_REVIEW writes it next; goal gate binds after VALIDATE
+
+### Completed Work
+- Ran 8 suites in separate processes
+- ruff on 51 changed files
+- openspec validate --strict
+- regenerated validation-report.md
+
+### Next Steps
+- VAL_REVIEW appends ## Validation Review
+
+### Relevant Files
+- `openspec/changes/dispatch-contract/validation-report.md` — regenerated report
+
+### Context
+Re-validation at c83cf40 (gate-decision 724eaee2, gen 5): passed. Spec Compliance pass; 1,747 passed/24 skipped/1 known env-only failure; ruff clean; openspec strict valid; gate_logic action=continue. Outcome 6 caveat stands: only a Python port of gitleaks generic-api-key ran; first real full-ruleset scan is PR #662 Security job. CI DEGRADED (no run for head).
+

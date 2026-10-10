@@ -1,8 +1,17 @@
 # Validation Report: dispatch-contract
 
-**Date**: 2026-10-09
-**Commit**: 7cc9180c3ea49a0a9b08618d376bf0c2793bdccc (VALIDATE); counts and evidence refreshed in VAL_REVIEW at df3b98e
-**Branch**: openspec/dispatch-contract
+**Date**: 2026-10-10
+**Commit**: c83cf40 (branch head on origin; re-validation, operator gate-decision 724eaee2, lease generation 5)
+**Branch**: openspec/dispatch-contract (merged via PR #667 as 0d078ff)
+
+This report was regenerated against the current head. It supersedes the 2026-10-09 report (VALIDATE at 7cc9180,
+VAL_REVIEW at df3b98e). Code under test now includes the PR #667 review fixes (765f9d8 resume only the recorded
+escalation subject's dispatches; b35e544 keep a repo-root harness isolation as the portable ref "."; 43a9b11
+single-flight capability/permission park resolution; 6a0a096 records them), the post-merge fixes 4955e24
+(digest-only launch tokens in the live checkpoint), c04a1a8 (accept an already-migrated live checkpoint),
+789705a (verified isolation mode in the attempt profile), and the cherry-picked goal-gate fix f44bbd6 (goal gate binds
+to the report's last writer and commit time, so VAL_REVIEW binds after VALIDATE) and resume-at-VALIDATE commits
+(3a29785, c83cf40).
 
 Scope: skills scripts, shared libraries, and JSON schemas only. There is no deployable
 service (no docker-compose, agent-coordinator/, packages/ or apps/ path changed; the only
@@ -19,9 +28,9 @@ phases are therefore not applicable, not skipped.
 - Architecture: not run (advisory; no service/graph consumer touched)
 - Task drift: pass (0 unchecked boxes in tasks.md)
 - OpenSpec: pass (`openspec validate dispatch-contract --strict`: valid)
-- Lint: pass (`ruff check` on every changed Python file/dir: all checks passed)
-- Test suites: pass except the known environment-only failure (see Spec Compliance)
-- CI/CD: DEGRADED (not checked; GitHub MCP lists zero workflow runs for branch openspec/dispatch-contract and no PR exists yet)
+- Lint: pass (`ruff check` on all 51 Python files changed since base bdb0048: all checks passed)
+- Test suites: pass except the known environment-only failure (see Spec Compliance); worktree, cleanup-feature and validate-feature suites not run (not touched; environment-only failures identical at base)
+- CI/CD: DEGRADED (not applicable to this head: GitHub lists exactly one run for branch openspec/dispatch-contract, CI #2056 on 2e45ea7, the pre-merge PR head, conclusion success; no run exists for c83cf40)
 - Choices: no ledger
 
 ## Spec Compliance
@@ -32,18 +41,21 @@ Per-directory results (each `skills/tests/<dir>` run in its own process, base-in
 
 | Suite | Result |
 |---|---|
-| skills/tests/autopilot | 533 passed, 6 skipped |
-| skills/tests/autopilot-roadmap | 146 passed |
+| skills/tests/autopilot | 544 passed, 6 skipped |
+| skills/tests/autopilot-roadmap | 147 passed |
 | skills/tests/install_sh | 18 passed, 14 skipped |
 | skills/tests/parallel-infrastructure | 292 passed, 2 skipped |
 | skills/tests/roadmap-runtime | 182 passed, 1 skipped |
-| skills/tests/shared | 134 passed, 1 skipped |
-| skills/tests/supervise | 459 passed, 1 failed (known) |
-| skills/autopilot/scripts/tests/test_autopilot.py | 48 passed |
+| skills/tests/shared | 136 passed, 1 skipped |
+| skills/tests/supervise | 469 passed, 1 failed (known) |
+| skills/autopilot/scripts/tests | 227 passed |
+
+Totals: 1,747 passed, 24 skipped, 1 failed (known environment-only). The two project-context-refresh
+shared-checkout tests are outside the touched suites and were not run. `openspec validate dispatch-contract --strict`: valid.
 
 The single failure is the documented environment-only
 `test_workflow_contract.py::test_contract_inspects_the_canonical_source_contribution`
-(fails identically at base bdb0048 when run under a `.claude/` path). No other failures.
+(fails identically at base bdb0048 when run under a `.claude/` path; this run is under `.claude/worktrees/`). No other failures.
 
 ### Acceptance outcome to test mapping (proposal.md, ri-21)
 
@@ -85,7 +97,7 @@ The single failure is the documented environment-only
      `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection`).
 5. execution_profile, review_requirements, degradations[] carried end to end; capability parks routed as single escalations: pass.
    End to end: `autopilot-roadmap/test_dispatch_contract_e2e.py::test_profile_and_degradations_travel_the_whole_chain`
-   (added in VAL_REVIEW: request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
+   (request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
    apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child`.
    Units: `autopilot/test_emit_result.py::test_degradations_travel_into_the_result`,
    `supervise/test_execution.py` (`test_a_marker_carries_the_supervisor_view_but_no_token`, `test_apply_persists_degradations_on_the_attempt`,
@@ -122,6 +134,16 @@ The single failure is the documented environment-only
    `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_dispatched_child_with_a_marker_ref_takes_scoped_auto`,
    `::test_a_standalone_run_blocks_with_scope_unscoped`.
 
+## Deploy
+
+**Status**: N/A
+Reason: work-packages.yaml `feature.deployable: false`; no service to deploy.
+
+## CI/CD
+
+**Status**: DEGRADED
+Reason: no CI run exists for branch head c83cf40. The only run for the branch is CI #2056 on 2e45ea7 (success, pre-merge PR head). Local suites above are the evidence.
+
 ## Smoke Tests
 
 **Status**: not applicable
@@ -141,8 +163,10 @@ Reason: no browser or service surface.
 
 - single_vendor_review: PLAN_REVIEW, IMPL_REVIEW and VAL_REVIEW ran claude_code only (cloud-container policy, min_quorum=1).
 - coordinator_projection_forbidden: coordinator queue projection returned forbidden (expected in this environment).
+- audit_sink_failed: audit sink failed for the proposal_approval, escalate_resume, pr_creation and merge gate decisions (SUBMIT_PR).
 - GATEKEEPER ran via a real judge (no degradation).
+- Re-validation: no new reviewer was dispatched in this VALIDATE run; VAL_REVIEW runs next and appends its own section.
 
 ## Result
 
-**PASS** — All eight acceptance outcomes are covered by passing tests. Outcome 6's secret-scan claim rests on a one-rule port locally; the real default-ruleset gitleaks scan first runs in PR #662's Security job and must pass there before the claim is confirmed. Other not-run items are recorded above (CI status, live-service phases). Ready for `/cleanup-feature dispatch-contract`.
+**PASS** (re-validation at c83cf40) — All eight acceptance outcomes are covered by passing tests. Outcome 6's secret-scan claim rests on a one-rule port locally; the real default-ruleset gitleaks scan first runs in PR #662's Security job and must pass there before the claim is confirmed. Other not-run items are recorded above (CI status, live-service phases). The change is already merged (PR #667, 0d078ff); this report exists so the goal gate can bind VAL_REVIEW after VALIDATE.
