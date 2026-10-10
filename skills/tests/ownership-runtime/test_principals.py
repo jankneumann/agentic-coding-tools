@@ -133,6 +133,20 @@ class TestLoadHumanPrincipals:
     def test_no_registry_means_no_humans(self, make_repo: MakeRepo) -> None:
         assert load_human_principals(make_repo()) == []
 
+    @pytest.mark.parametrize("value", ["[]", "false", "0", "''"])
+    def test_falsy_non_mapping_humans_fails_closed(
+        self, make_repo: MakeRepo, value: str
+    ) -> None:
+        repo = make_repo()
+        (repo / "agents.yaml").write_text(f"humans: {value}\n", encoding="utf-8")
+        with pytest.raises(OwnershipConfigError, match="must be a mapping"):
+            load_human_principals(repo)
+
+    def test_bare_humans_key_means_no_humans(self, make_repo: MakeRepo) -> None:
+        repo = make_repo()
+        (repo / "agents.yaml").write_text("humans:\n", encoding="utf-8")
+        assert load_human_principals(repo) == []
+
     def test_unparseable_registry_raises(self, make_repo: MakeRepo) -> None:
         repo = make_repo()
         (repo / "agents.yaml").write_text("humans: [unclosed\n", encoding="utf-8")
