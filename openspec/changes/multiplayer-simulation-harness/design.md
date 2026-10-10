@@ -328,6 +328,12 @@ measures and the scenario decides what is expected.
 - Any test that reads this change's own artifacts goes through
   `change_dir(repo_root_from(__file__, 3), ...)`. The CLI contract is read from its promoted
   path under `openspec/contracts/multiplayer-simulation/`, never from the change directory.
+- Requirement headings that contract citations resolve against come from the canonical
+  `openspec/specs/multiplayer-simulation/spec.md` once this change is archived, and from the
+  change's own delta only while it is in flight. The promoted-vs-change-local identity check
+  likewise applies only in flight; after archive it instead asserts the canonical spec exists.
+  The traceability gate follows the same rule: it accepts a capability spec ADDED by the
+  resolving change's delta until archive, then reads the archived spec.
 
 ## Risks and Trade-offs
 

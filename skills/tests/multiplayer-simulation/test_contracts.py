@@ -3,6 +3,9 @@
 Everything is read through ``repo_root_from`` and ``change_dir`` so the tests
 survive archival of this change (design D10). The contract and schema are read
 from their promoted paths under ``openspec/contracts/multiplayer-simulation/``.
+Requirement headings come from the canonical ``openspec/specs/`` spec once the
+change is archived, and from the change's delta only while it is in flight; the
+promoted-vs-change-local identity check likewise applies only while in flight.
 """
 
 from __future__ import annotations
@@ -38,16 +41,35 @@ def _local_registry() -> Registry:
     return registry
 
 
+ARCHIVED_SPEC = REPO / "openspec" / "specs" / CAPABILITY / "spec.md"
+
+
 def _change_local(rel: str) -> Path:
     return change_dir(REPO, CHANGE_ID) / "contracts" / rel
+
+
+def _change_is_archived() -> bool:
+    return change_dir(REPO, CHANGE_ID).parent.name == "archive"
 
 
 def _slug(heading: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")
 
 
+def _authoritative_spec() -> Path:
+    """The capability spec citations resolve against, mirroring the traceability gate.
+
+    Once this change is archived the canonical ``openspec/specs/`` spec is the
+    authority (later changes may modify it); until then it does not exist yet and
+    the change's own delta is the only place the requirements live.
+    """
+    if ARCHIVED_SPEC.is_file():
+        return ARCHIVED_SPEC
+    return change_dir(REPO, CHANGE_ID) / "specs" / CAPABILITY / "spec.md"
+
+
 def _spec_requirement_slugs() -> set[str]:
-    spec = change_dir(REPO, CHANGE_ID) / "specs" / CAPABILITY / "spec.md"
+    spec = _authoritative_spec()
     headings = re.findall(r"^### Requirement:\s*(.+?)\s*$", spec.read_text(), re.MULTILINE)
     assert headings, f"no requirement headings found in {spec}"
     return {f"{CAPABILITY}.{_slug(h)}" for h in headings}
@@ -98,4 +120,11 @@ def test_every_traceability_citation_resolves_to_a_requirement_heading():
     ],
 )
 def test_promoted_copy_is_byte_identical_to_the_change_local_copy(promoted: Path, local: str):
+    if _change_is_archived():
+        # After archive the promoted copy is canonical and later changes may
+        # evolve it; the archived change-local copy is history. What must hold
+        # instead is that archival synced the capability spec it cites.
+        assert promoted.is_file()
+        assert ARCHIVED_SPEC.is_file(), f"archived change but no canonical spec at {ARCHIVED_SPEC}"
+        return
     assert promoted.read_bytes() == _change_local(local).read_bytes()
