@@ -13,8 +13,8 @@ XL; the `CODEOWNERS` work is L-adjacent and is split into emit (4.1 / 4.2) and r
 - [x] Planning
 - [x] Implementation
 - [x] Testing
-- [ ] Review
-- [ ] Done
+- [x] Review
+- [x] Done
 
 ## Phase 1 — Contracts: schemas promoted to their stable homes
 
