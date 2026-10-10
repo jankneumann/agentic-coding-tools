@@ -16,6 +16,8 @@ PROJECTION_READERS = {
     "improve-harness/scripts/analyze_failures.py",
     "improve-harness/scripts/export_shared_learnings.py",
 }
+# Naming the file, or importing the functions that read or merge it, both count as reading.
+PROJECTION_MARKERS = ("learnings.jsonl", "load_shared_learnings", "merge_shared_learnings")
 
 ARTIFACTS = {
     ".agentic-toolkit/stamp.json": "install.sh",
@@ -50,10 +52,10 @@ def test_learnings_projection_never_feeds_canonical_state() -> None:
 
 
 def test_learnings_projection_is_read_only_by_improve_harness() -> None:
-    """Only the exporter and the read-only analysis name the projection file.
+    """Only the exporter and the read-only analysis read the projection.
 
-    No loop-state, checkpoint, trust-posture or installer code consumes it, so
-    the projection cannot feed canonical state.
+    No loop-state, checkpoint, trust-posture or installer code names the file
+    or imports its loader/merger, so the projection cannot feed canonical state.
     """
     readers: set[str] = set()
     for dirpath, dirnames, filenames in os.walk(SKILLS_ROOT):
@@ -62,7 +64,8 @@ def test_learnings_projection_is_read_only_by_improve_harness() -> None:
             if not name.endswith((".py", ".sh")):
                 continue
             path = Path(dirpath) / name
-            if "learnings.jsonl" in path.read_text(encoding="utf-8", errors="replace"):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if any(marker in text for marker in PROJECTION_MARKERS):
                 readers.add(path.relative_to(SKILLS_ROOT).as_posix())
     assert readers == PROJECTION_READERS
 

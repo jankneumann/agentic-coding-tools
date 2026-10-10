@@ -126,10 +126,12 @@ def test_runtime_drift_names_the_agent(installed: Path) -> None:
     assert "installed agents copies" in result.stderr
     assert "installed claude copies" not in result.stderr
     assert "Checkout drift" not in result.stderr
-    # Like checkout drift, the runtime-drift message names the pin: version and commit.
+    # Like checkout drift, the runtime-drift message itself names the pin: version and commit.
     stamp = json.loads(_stamp_path(installed).read_text())
-    assert VERSION in result.stderr
-    assert (stamp["source_commit"] or "unknown") in result.stderr
+    pinned_commit = stamp["source_commit"] or "unknown"
+    drift_lines = [line for line in result.stderr.splitlines() if "Runtime drift" in line]
+    assert drift_lines
+    assert all(VERSION in line and pinned_commit in line for line in drift_lines)
 
 
 def test_unpinned_repository_is_advisory(installed: Path) -> None:

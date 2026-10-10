@@ -45,12 +45,12 @@ def _shared(gap: str, summary: str) -> dict[str, Any]:
 
 
 def _write(root: Path, records: list[dict[str, Any]], *, enabled: object = True,
-           config: bool = True, name: str = "learnings.jsonl") -> Path:
+           config: bool = True, name: str = "learnings.jsonl", schema: int = 1) -> Path:
     cfg = root / ".agentic-toolkit"
     cfg.mkdir(parents=True, exist_ok=True)
     if config:
         (cfg / "config.json").write_text(
-            json.dumps({"schema_version": 1, "shared_learnings": {"enabled": enabled}})
+            json.dumps({"schema_version": schema, "shared_learnings": {"enabled": enabled}})
         )
     path = cfg / name
     path.write_text("".join(json.dumps(r) + "\n" for r in records))
@@ -92,11 +92,18 @@ def test_duplicates_among_shared_records_collapse(af: types.ModuleType) -> None:
     assert all("origin:shared-repo" in e["tags"] for e in merged)
 
 
-@pytest.mark.parametrize("state", ["no-config", "disabled"])
+@pytest.mark.parametrize("state", ["no-config", "disabled", "wrong-schema"])
 def test_disabled_sharing_ignores_the_file(
     af: types.ModuleType, tmp_path: Path, state: str
 ) -> None:
-    _write(tmp_path, [_shared("gap-b", "x")], enabled=False, config=(state == "disabled"))
+    # wrong-schema: enabled is true but schema_version is not 1, so sharing is off
+    # on the analysis side too (same sharing_enabled() as the exporter).
+    _write(
+        tmp_path, [_shared("gap-b", "x")],
+        enabled=(state == "wrong-schema"),
+        config=(state != "no-config"),
+        schema=2 if state == "wrong-schema" else 1,
+    )
     assert af.load_shared_learnings(tmp_path) == []
     merged = af.merge_shared_learnings([_local("gap-a", "mine")], af.load_shared_learnings(tmp_path))
     assert all(

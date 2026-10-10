@@ -129,8 +129,8 @@ unreadable, has `schema_version` other than `1`, or has `shared_learnings.enable
 
 #### Scenario: Export refused without opt-in
 
-- **WHEN** `export_shared_learnings.py` runs and `.agentic-toolkit/config.json` is absent or
-  `enabled` is `false`
+- **WHEN** `export_shared_learnings.py` runs and `.agentic-toolkit/config.json` is absent, has
+  `schema_version` other than `1`, or has `enabled` other than `true`
 - **THEN** it SHALL exit `2`, print why, and `.agentic-toolkit/learnings.jsonl` SHALL NOT be
   created or modified
 
