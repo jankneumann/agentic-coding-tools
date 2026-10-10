@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "change_id": null,
+  "change_id": "add-infeasible-incumbent-fallback",
   "review_type": "plan",
   "created_at": "2026-10-10T21:37:48Z",
-  "target": "cli-dispatch",
+  "target": "add-infeasible-incumbent-fallback",
   "dispatches": [
     {
       "vendor": "antigravity",
@@ -62,5 +62,7 @@
       "coverage_eligibility": "full",
       "coverage": "unreported"
     }
-  ]
+  ],
+  "degraded": true,
+  "provenance_note": "Normalized 2026-10-10 during PLAN_REVIEW: the dispatch ran without --change-id, so change_id/target were null/'cli-dispatch'. Dispatcher quorum was 1 of 4 (codex only); the phase was DEGRADED. See plan-findings.md, 'Vendor Review (2026-10-10T21:37Z)'."
 }

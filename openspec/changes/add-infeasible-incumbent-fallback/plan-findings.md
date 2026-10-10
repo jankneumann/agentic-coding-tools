@@ -147,3 +147,26 @@ all plan-iteration and plan-review handoffs were written as local fallback files
 coordinator handoff RPC failed (`rpc_failed: unspecified coordinator error`); recorded here so
 the audit trail shows why `handoffs/*.json` exist. Still open, advisory: the generated decision
 timelines (#6 = ledger #2) and the historical review JSON (#7 = ledger #7).
+
+## PLAN_REVIEW convergence, pass 3 (2026-10-10T22:21Z)
+
+Delta round on `02816cb2` with the JSON-aware classifier: claude-local 7 findings (213 s),
+codex-local 5 findings (146 s), fact-check removed nothing, 12 unconfirmed, 0 blocking, four
+single-vendor high items → `adjudication_required`, adjudicated here:
+
+| Ledger # | Vendor | Criticality | Verdict | Action |
+|---|---|---|---|---|
+| 16 | claude | high | Valid: nothing said the change must stay un-archived between the two runs; `cleanup-feature` step 5 migrates open tasks and `openspec archive` would move the held manifest and P0 | D8 "the change stays active across the two runs"; P0 checks the directory is still active; tasks header, proposal Sequencing, held header say `cleanup-feature` is withheld until `wp-router` merges |
+| 23 (= ledger 7) | codex | high | Valid in part: the committed JSON did identify no change and could be read as converged | Identity fields corrected (`change_id`/`target`), `degraded: true` and provenance/quorum notes added to the three files; findings untouched |
+| 24 | codex | high | Valid: "phase 2 changes nothing" and the Compatibility NFR ignored D2 (concrete alias) and D7 (`local` excluded for untrusted archetypes) | Proposal names both deliberate differences; NFR row scopes the zero-difference claim to retention outcomes and pins D2 to 1.1 and D7 to 3.8 |
+| 25 | codex | high | Valid: one `git grep` marker proved only task 1.4 | P0 and 2.0 check one marker per dispatch surface (1.4 `UnservableProviderError`, 1.5 `resolved_provider`, 1.6 the prose-guard module present and passing on `origin/main`); D8 updated |
+
+Also fixed: 2.1 retargets any v1.3 Literal-parity assertion to v1.4 in place (#17); P0 and 2.0
+run `validate_work_packages.py` on the held file and the promoted manifest (#18); every
+`order_applied` entry is `minLength: 1` in both wire schemas and the generated model, README and
+2.1 updated (#26); wp-dispatch gains a ruff step and the whole change directory in `write_allow`
+(#19, #20). Parked as out of scope (tooling, not this plan): the decision timelines mark
+superseded entries `active` because `archive_index.py --emit-decisions` does not read the
+`supersedes:` tag `phase_record.py` writes (#2, #21, #22) — this phase's session-log entry
+carries `supersedes:` tags anyway, so the index can pick them up once the generator does;
+candidate follow-up: teach `archive_index.py` the tag and order same-date entries by phase.

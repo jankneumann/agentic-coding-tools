@@ -20,7 +20,10 @@
 > package it does not load, the promotion is step P0 below: an operator/orchestrator action run
 > from the feature worktree, outside any package, only after `split-no-evidence-retention-reason`
 > (v1.3) and `wp-dispatch` are both on `origin/main`. Task 2.0 is `wp-router`'s first step and
-> both its task chains depend on it; it re-checks P0's facts and fails fast, it never promotes.**
+> both its task chains depend on it; it re-checks P0's facts and fails fast, it never promotes.
+> The change directory stays active between the two runs: `cleanup-feature` (task migration and
+> `openspec archive`) is withheld after the `wp-dispatch` PR merges and runs only after
+> `wp-router` merges (design D8).**
 >
 > Each package rebases onto `main` before its first commit (the plan was written on a branch
 > behind `main`; the named router files are unchanged there, `phase_agent.py` and
@@ -102,26 +105,39 @@
     `…/contracts/events/routing-decision-record.schema.json` and
     `…/contracts/generated/models.py` with the blob ids pinned in `contracts/README.md`;
   - `git grep -q no-evidenced-challenger origin/main -- agent-coordinator/src/model_routing/api.py`
-    (v1.3 code merged) and `git grep -q UnservableProviderError origin/main --
-    skills/autopilot/scripts/phase_agent.py` (wp-dispatch merged);
-  - require `git merge-base --is-ancestor origin/main HEAD` (the feature branch is rebased).
+    (v1.3 code merged);
+  - one marker per `wp-dispatch` dispatch surface, all on `origin/main`:
+    `git grep -q UnservableProviderError origin/main -- skills/autopilot/scripts/phase_agent.py`
+    (1.4), `git grep -q resolved_provider origin/main -- skills/autopilot/scripts/smoke_provider_dispatch.py`
+    (1.5), and `git cat-file -e origin/main:skills/tests/autopilot/test_skill_dispatch_provider_prose.py`
+    followed by running that prose-guard test from a clean `origin/main` checkout (1.6: the
+    eight SKILL.md blocks); a partial implementation fails one of the three;
+  - require `git merge-base --is-ancestor origin/main HEAD` (the feature branch is rebased);
+  - require that the change directory is still active: `openspec/changes/<id>/` exists on
+    `origin/main` and not under `openspec/changes/archive/` (design D8: `cleanup-feature` is
+    withheld for this change until `wp-router` merges; if it was archived, stop and restore
+    before promoting).
   If a blob differs, regenerate `v1.4.yaml`, the record schema and `generated/models.py` from
   the merged v1.3, confirm the diff is only the README's listed differences, and re-pin the
   three blob ids and the source commit in `contracts/README.md` in the same commit. Then promote
-  `wp-router`: copy its package entry from `work-packages.held.yaml` into the `packages` list of
-  `work-packages.yaml` in place of `wp-dispatch` (the completed `wp-dispatch` is on
-  `origin/main`; its record lives in the merged PR and in `loop-state.json`, not in the
-  manifest), delete the held file, and commit on the feature branch. [XS]
+  `wp-router`: run `skills/validate-packages/scripts/validate_work_packages.py
+  work-packages.held.yaml` (must be VALID), copy its package entry from
+  `work-packages.held.yaml` into the `packages` list of `work-packages.yaml` in place of
+  `wp-dispatch` (the completed `wp-dispatch` is on `origin/main`; its record lives in the merged
+  PR and in `loop-state.json`, not in the manifest), delete the held file, run
+  `validate_work_packages.py work-packages.yaml` again (must be VALID), and commit on the
+  feature branch. [XS]
   **Design decisions**: D6, D8
   **Dependencies**: `wp-dispatch` and v1.3 on `origin/main` (external; not a task id)
 
 ## 2. Contracts (wp-router)
 
 - [ ] 2.0 Fail-fast re-check (first step of the package; both chains depend on it). Re-run P0's
-  `origin/main` checks exactly (the three blob comparisons, both `git grep` markers,
-  `merge-base --is-ancestor`) from the package worktree and stop the package if any fails. This
-  step never promotes or regenerates anything; it proves that P0 ran against the tree the worker
-  sees. [XS]
+  `origin/main` checks exactly (the three blob comparisons, the v1.3 marker, the three
+  `wp-dispatch` markers, `merge-base --is-ancestor`) from the package worktree, and run
+  `skills/validate-packages/scripts/validate_work_packages.py work-packages.yaml` on the promoted
+  manifest; stop the package if any fails. This step never promotes or regenerates anything; it
+  proves that P0 ran against the tree the worker sees. [XS]
   **Design decisions**: D8
   **Dependencies**: None
 - [ ] 2.1 Write failing contract tests in
@@ -134,7 +150,8 @@
   - `incumbent_exclusion_reasons` accepts only transient values, `minItems: 1`, unique
     (unsorted input is accepted by all three contracts: sorting is a producer invariant,
     tested in 3.5);
-  - `order_applied` requires all four lists, each non-empty and duplicate-free;
+  - `order_applied` requires all four lists, each non-empty and duplicate-free, and rejects an
+    empty-string entry in any list (all three contracts);
   - a configured-fallback response with top-level `fallback: true` is rejected;
   - the record schema requires `retention` whenever `request.incumbent` is an object: a record
     with an incumbent and no `retention` is rejected, one with `incumbent: null` (or absent) and
@@ -142,9 +159,12 @@
   - the generated `Retention` model rejects `retained` inconsistent with `reason` and an
     explicit `fallback: null` for any other reason;
   - `ExcludedAssignment.reason` accepts `cost-policy:unclassified`;
-  - the `RetentionReason` parity test from `split-no-evidence-retention-reason` (its task 1.2:
-    the Literal equals the enum) covers the new value — this file owns parity. That one case
-    is expected to stay red after 2.2 (the code Literal gains the value only in 3.4); mark it
+  - parity: this file owns the single `RetentionReason` parity assertion (the code Literal
+    equals the v1.4 enum). If the merged v1.3 ships its own Literal-equals-v1.3-enum assertion
+    (its task 1.2; none exists on `main` today), 2.1 **retargets that assertion to the v1.4
+    overlay in place** rather than adding a second one, so no v1.3-anchored parity test is left
+    in the suite to go red when 3.4 adds the value. The retargeted case is expected to stay red
+    after 2.2 (the Literal gains the value only in 3.4); mark it
     `xfail(strict=True, reason="until task 3.4")` so the 2.x checkpoint is green and 3.4 flips
     it by removing the marker. [S]
   **Spec scenarios**: model-routing.8, model-routing.9

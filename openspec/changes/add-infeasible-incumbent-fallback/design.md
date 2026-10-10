@@ -245,7 +245,9 @@ client follows it to the new provider through the dispatch path D1 fixes.
   `quota:exhausted`), which the router emits **sorted**: uniqueness is validated by all three
   contracts, sortedness is a producer invariant asserted by the service-level test (3.5),
   since JSON Schema cannot express it. `order_applied` is a **verbatim copy** of
-  `policy.document.fallback`: all four lists, each non-empty and duplicate-free.
+  `policy.document.fallback`: all four lists, each non-empty and duplicate-free, every entry a
+  non-empty string (`minLength: 1` per item in both wire schemas and the generated model, so a
+  record can only carry values a valid `FallbackOrder` could hold).
 - All three contracts enforce presence and shape: `retention.fallback` is required when
   `reason` is the configured fallback and forbidden otherwise (the generated model treats an
   explicit `fallback: null` as present and rejects it, matching the wire schemas, and
@@ -300,6 +302,18 @@ whether `local` is ever a fallback target through `vendor_order` (D4).
 The operator approved this change on 2026-10-10 with the condition that only `wp-dispatch`
 runs now and `wp-router` waits for `split-no-evidence-retention-reason` (v1.3) to merge.
 
+**The change stays active across the two runs.** The first run ends when the `wp-dispatch`
+PR merges to `main`; the change directory, with tasks 2.x–4.x still open, must **not** be
+archived at that point. `cleanup-feature` is withheld for this change until `wp-router` has
+merged (its step 5 would otherwise migrate the open tasks and `openspec archive` would move
+the directory, the held manifest and step P0 to `openspec/changes/archive/`, out from under
+the second run). The sync point merges the PR and stops; the feature branch
+`openspec/add-infeasible-incumbent-fallback` is kept, rebased onto `main` by step P0, and the
+second run re-enters with `/autopilot add-infeasible-incumbent-fallback` on the same
+change-id after P0 has promoted `wp-router`. Nothing in this change relies on
+`change_dir()` for scheduling; the scheduler loads `work-packages.yaml` from the active
+directory, which is why archival is the one thing the hold forbids.
+
 The DAG scheduler computes readiness from `depends_on` alone and the schema has no hold
 field, so the hold is enforced by **not listing** `wp-router` in the executable manifest:
 `work-packages.yaml` carries `wp-dispatch` only, and `wp-router` lives in
@@ -319,8 +333,13 @@ or archived) with `git ls-tree`, compares `git rev-parse origin/main:<path>` of 
 contract files with the blob ids pinned in the contracts README (a squash merge keeps blob
 hashes but not commit SHAs), asserts the v1.3 code is on `origin/main` (`git grep -q
 no-evidenced-challenger origin/main -- agent-coordinator/src/model_routing/api.py`), asserts
-`wp-dispatch` is on `origin/main` (`git grep -q UnservableProviderError origin/main --
-skills/autopilot/scripts/phase_agent.py`), re-pins the README blob ids if it had to regenerate,
+every `wp-dispatch` surface is on `origin/main` — one marker per task that changes a dispatch
+surface: `UnservableProviderError` in `phase_agent.py` (1.4), `resolved_provider` in
+`smoke_provider_dispatch.py` (1.5), and the prose-guard module
+`skills/tests/autopilot/test_skill_dispatch_provider_prose.py` present and passing against the
+`origin/main` SKILL.md (1.6), so a partial or look-alike implementation cannot satisfy the
+gate — validates both manifests with `validate_work_packages.py` (the held file before the
+copy, `work-packages.yaml` after it), re-pins the README blob ids if it had to regenerate,
 and only then copies the held package entry into `work-packages.yaml` in place of
 `wp-dispatch` (whose completion is recorded by the merged PR and `loop-state.json`, not by the
 manifest) and deletes the held file. Task 2.0, `wp-router`'s first step and the dependency of
