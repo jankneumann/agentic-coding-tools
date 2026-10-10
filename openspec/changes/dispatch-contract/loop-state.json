@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "dispatch-contract",
-  "current_phase": "ESCALATE",
+  "current_phase": "VALIDATE",
   "iteration": 0,
-  "total_iterations": 15,
+  "total_iterations": 16,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -84,7 +84,7 @@
   ],
   "last_handoff_id": "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
   "started_at": "2026-10-06T09:08:58.470413+00:00",
-  "phase_started_at": "2026-10-10T09:53:00.404737+00:00",
+  "phase_started_at": "2026-10-10T10:03:22.135575+00:00",
   "previous_phase": "SUBMIT_PR",
   "escalation_reason": "goal gate refused: required section not passed: Validation Review (missing)",
   "val_review_enabled": true,
@@ -237,6 +237,45 @@
       "phase": "ESCALATE",
       "recorded_at": "2026-10-10T09:52:57.428960+00:00",
       "note": "Operator resumed merged item ri-21 in supervisor session 2026-10-10 (decision fb5a1364, a4948ea); goal gate fixed in 1d79737 (VAL_REVIEW binds after VALIDATE)."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T10:03:19.475199+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator re-validate decision 724eaee2 (supervisor, 2026-10-10): resume at VALIDATE so VALIDATE + VAL_REVIEW regenerate the report and its Validation Review section.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:724eaee2-ea65-4edc-a891-f9ece3964707"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T10:03:22.135499+00:00",
+      "note": "Operator re-validate decision 724eaee2 (supervisor, 2026-10-10): resume at VALIDATE so VALIDATE + VAL_REVIEW regenerate the report and its Validation Review section."
     }
   ],
   "pending_gate": null,
