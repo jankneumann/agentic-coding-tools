@@ -4,11 +4,12 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:56:12.892001+00:00",
+  "updated_at": "2026-10-10T11:31:04.938268+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
-    "ri-05"
+    "ri-05",
+    "ri-20"
   ],
   "gate_decisions": [
     {
@@ -2321,7 +2322,7 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "completed",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
       "lease_generation": 9,
@@ -2620,14 +2621,10 @@
       "context": {},
       "launch_digest": "sha256:f2d9e84d2060a5136d3bff32081f0554719572fd90b77729f6abc9f3c402bec2",
       "degradations": [],
-      "continuation": {
-        "kind": "policy_pause",
-        "approval_ref": "gate-decision:15398e4f-53c3-4fbd-ab16-649056c512bb"
-      },
       "lease": {
         "generation": 9,
         "owner_nonce": "owner-nonce-1791629747920",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T10:55:47.611652+00:00",
         "heartbeat_at": "2026-10-10T10:55:47.611652+00:00",
         "expires_at": "2026-10-10T11:10:47.611652+00:00"
@@ -2644,7 +2641,38 @@
         "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g9",
         "go_released_at": "2026-10-10T10:55:47.896268+00:00",
         "entered_at": "2026-10-10T10:55:48.193596+00:00"
-      }
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/toolkit-consistency",
+          "change_id": "toolkit-consistency",
+          "degradations": [],
+          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+          "evidence": {
+            "commit": "8ab8eeef51b3f9a1c56ab89f86e970277d92a71c",
+            "loop_state_digest": "48334dcb78121cf14855cf5ec1f9a78445623537d3777cd4538404139ae1c113",
+            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+          },
+          "handoff_id": "val-review-3-toolkit-consistency-36cfa8c",
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 9,
+          "outcome": "success",
+          "schema_version": 2,
+          "worktree_ref": "toolkit-consistency"
+        },
+        "result_digest": "5180f0d10dd8d49f511ab3dc94379e8af03a8ad9d0f73ddcc9ac08abca2455d7",
+        "bound_at": "2026-10-10T11:31:04.735408+00:00",
+        "callback_started_at": "2026-10-10T11:31:04.776227+00:00",
+        "callback_acknowledged_at": "2026-10-10T11:31:04.809007+00:00",
+        "terminal_persisted_at": "2026-10-10T11:31:04.838952+00:00",
+        "effects_applied_at": "2026-10-10T11:31:04.933842+00:00"
+      },
+      "outcome": "success",
+      "resolved_at": "2026-10-10T11:31:04.838916+00:00",
+      "handoff_id": "val-review-3-toolkit-consistency-36cfa8c"
     },
     {
       "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
