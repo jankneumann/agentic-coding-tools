@@ -3,3 +3,4 @@
 | Item | Status | Summary |
 |------|--------|--------|
 | ri-01 | implementation | Item executed successfully through all phases |
+| ri-21 | implementation | Item executed successfully through all phases |
