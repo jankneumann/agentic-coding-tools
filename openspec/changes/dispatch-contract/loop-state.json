@@ -1,0 +1,224 @@
+{
+  "schema_version": 6,
+  "change_id": "dispatch-contract",
+  "current_phase": "SUBMIT_PR",
+  "iteration": 0,
+  "total_iterations": 12,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "6166f2e8-de8e-4375-8750-316e09fd34f6",
+    "63b11a2c-616f-4b7a-91a1-c6d1278bde31",
+    "9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
+    "eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5",
+    "8b3b7d01-452a-498f-9e34-46fdd6ca5e94",
+    "8d309935-3b68-44db-be5c-d6b327ec8c61",
+    "13e77665-feba-4ef3-b28a-a9b61d278135",
+    "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9",
+    "c832cb1d-c7ab-48cb-9285-4f4b037d029a"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-06T09:10:51.641130+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-10-06T09:30:38.405916+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-10-06T11:08:14.058241+00:00",
+      "outcome": "max_iter",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-06T11:08:14.233483+00:00",
+      "note": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable (codex listed by --check-vendors but no codex CLI/credential). Quorum not lowered; awaiting operator decision on cloud review lane (GX10/policy/credential). handoff 9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
+      "outcome": "host_escalate",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-09T07:24:26.295968+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-09T12:52:59.405442+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-10-09T13:26:34.431681+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-10-09T13:47:51.835672+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-10-09T13:55:05.532741+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-10-09T14:08:06.250432+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
+    }
+  ],
+  "last_handoff_id": "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
+  "started_at": "2026-10-06T09:08:58.470413+00:00",
+  "phase_started_at": "2026-10-09T14:08:09.206576+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable (codex listed by --check-vendors but no codex CLI/credential). Quorum not lowered; awaiting operator decision on cloud review lane (GX10/policy/credential). handoff 9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
+  "force": false,
+  "gate_signals": {},
+  "gate_verdict": "proceed_with_review",
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "auto",
+      "default_action": null,
+      "disposition": "auto",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": true,
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "recorded_at": "2026-10-06T09:11:03.554035+00:00",
+      "resolution": "auto",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-09T07:09:02.414788+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "Operator (in-session, 2026-10-09): allowlist launch-nonce commits by SHA, then continue. Review proceeds single-vendor (claude_code) under the dispatch's accepted single_vendor_review degradation.",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator (in-session, 2026-10-09): allowlist launch-nonce commits by SHA, then continue. Review proceeds single-vendor (claude_code) under the dispatch's accepted single_vendor_review degradation.",
+      "recorded_at": "2026-10-09T07:09:10.123228+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'pr_creation' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "auto",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-09T14:08:17.017603+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-09T14:09:04.031160+00:00"
+    }
+  ],
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "dispatch-contract",
+    "gate": "merge",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-10-09T14:09:04.032176+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/667",
+      "branch": "openspec/dispatch-contract",
+      "change_id": "dispatch-contract"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true,
+      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+    }
+  },
+  "goal_gate": null,
+  "park": null,
+  "degradations": [
+    {
+      "code": "single_vendor_review",
+      "phase": "PLAN_REVIEW",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "IMPL_REVIEW",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "VAL_REVIEW",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "phase": "SUBMIT_PR",
+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "SUBMIT_PR",
+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions"
+    }
+  ]
+}

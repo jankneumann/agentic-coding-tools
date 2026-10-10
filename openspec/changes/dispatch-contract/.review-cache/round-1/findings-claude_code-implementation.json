@@ -1,0 +1,67 @@
+{
+  "review_type": "implementation",
+  "target": "dispatch-contract",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "description": "Outcome 6 evidence is overstated. The report says 'The CI gitleaks job remains the real-binary check', but .github/workflows/security.yml runs gitleaks only on push to main and on pull_request/merge_group targeting main. This change's PR targets openspec/roadmap-multiplayer-collaboration, so no real gitleaks run covers it until the roadmap PR (#662) to main runs Security. Locally only one default rule (generic-api-key) is ported to Python; the full default ruleset was never applied. The Result line ('All eight acceptance outcomes are covered by passing tests') does not qualify outcome 6.",
+      "resolution": "State outcome 6 as pass by the generic-api-key rule-port proxy, with the real default-ruleset scan deferred to the Security workflow on PR #662 (roadmap branch to main), name that this change's own PR does not trigger it, and qualify the Result line accordingly."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
+      "description": "Outcome 4 on the capability-fingerprint path is only half-proved. The human side is covered (rejection survives membership change, approval ends the subject), but no test parks a capability fingerprint under escalate_resume=block, flips the posture to auto with no human answer, and shows resolve_parked proceeds with posture provenance and resumes the child. _resolve_capability_park reaches that path only via _apply_prior_record + the dispatch_ids==listed check, which nothing exercises. test_an_operator_approval_ends_a_human_rejected_escalation reaches posture-auto only after a human approval.",
+      "resolution": "Add an end-to-end test: capability park, resolve_parked blocked with posture provenance (digest A), posture flip to auto, resolve_parked proceeds with posture provenance (digest B) and the attempt is resumed."
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "compatibility",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "skills/tests/roadmap-runtime/test_cross_host_reconcile.py",
+      "description": "Outcome 7 evidence cannot detect the defect the outcome targets. Host A and host B share the same repo root and workspace directory, so an absolute host-A path leaking into checkpoint.json (or into any record reconcile reads) would still resolve on 'host B'. Nothing asserts that a reconciled checkpoint holds no absolute path, and nothing reconciles a checkpoint copied to a different repository root (the 'committed on one host, checked out on another' case).",
+      "resolution": "Add a test that copies host A's repository (checkpoint, schemas, roadmap) to a different root, asserts the committed checkpoint text contains no host-A absolute path, and reconciles from host B rooted there (rebind of a matching worktree), with the original tree removed so no absolute path can resolve."
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
+      "description": "Outcome 5 says execution_profile, review_requirements and degradations[] are 'carried end to end', which the proposal defines as request -> launch marker -> child loop-state.json -> emit-result file -> apply -> checkpoint attempt and apply return value. The report's only end-to-end citation is the capability-park routing test; degradations are proven only piecewise (test_emit_result::test_degradations_travel_into_the_result, and test_execution::test_apply_persists_degradations_on_the_attempt with a hand-composed result), and the marker's profile only in a unit test.",
+      "resolution": "Add one e2e test through the real chain: prepare, launch, assert the child's marker carries the request's execution_profile and review_requirements, record a degradation with runner.py record-degradation, emit-result, apply, and assert the attempt record and apply return value carry it."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "readability",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "description": "Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.",
+      "resolution": "Correct the citations; refresh counts and the commit header after VAL_FIX."
+    }
+  ]
+}

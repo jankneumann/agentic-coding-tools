@@ -5,6 +5,72 @@
 
 ---
 
+## 2026-10-09 — dispatch-contract
+
+### Phase: Plan Review
+
+**Existing v1 contract schemas are given one role each instead of being duplicated** — `openspec/contracts/roadmap-orchestration/schemas/` already published request/result/attempt/context schemas; request/result are frozen as v1 reader schemas, the attempt schema becomes the single attempt definition `$ref`'d by `checkpoint.schema.json`, and the context schema is `$ref`'d by the v2 request.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
+
+---
+
+## 2026-10-09 — dispatch-contract
+
+### Phase: Implementation
+
+**Commit order keeps every commit green rather than following package boundaries literally** — The checkpoint/attempt schema $ref switch, models, orchestrator and execution must change together; schemas 2.3-2.4 landed in the ledger commit.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
+
+---
+
+## 2026-10-09 — dispatch-contract
+
+### Phase: Implementation
+
+**Cross-host reinitialize keeps a parked attempt's generation** — Its escalate_resume approval is bound to the generation (advisory finding 13).
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)
+
+---
+
+## 2026-10-06 — dispatch-contract
+
+### Phase: Plan Iteration 1
+
+**Spec deltas target existing capabilities, not the placeholder** — multiplayer-collaboration is a roadmap, not a capability; the touched behaviour is owned by roadmap-orchestration, supervise, skill-workflow, trust-posture and parallel-infrastructure.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
+
+---
+
+## 2026-10-06 — dispatch-contract
+
+### Phase: Plan Iteration 3
+
+**Attempts persist the verified roadmap_approval_ref** — It is a non-secret gate-decision reference; persisting it lets child_start write it into every generation's marker and lets the supervisor apply the same scope rule from the same fact.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
+
+---
+
+## 2026-10-06 — dispatch-contract
+
+### Phase: Plan Iteration 1
+
+**Launch tokens are minted per generation and stored only as sha256 digests** — A digest-only checkpoint cannot re-emit the same token on resume, so the Durable Delegated Attempt Ledger requirement is MODIFIED; reissue is limited to states where takeover is already safe.
+
+- Status: `active`
+- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D2)
+
+---
+
 ## 2026-09-14 — 2026-09-26-route-parked-escalations-through-the-escalate-resume-gate
 
 ### Phase: Plan Iteration 2

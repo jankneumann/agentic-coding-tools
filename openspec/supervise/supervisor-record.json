@@ -4,7 +4,18 @@
     "last_digest_at": null,
     "last_fingerprint": null
   },
-  "pending_gates": [],
+  "pending_gates": [
+    {
+      "approval_id": null,
+      "change_id": "toolkit-consistency",
+      "deadline": "2026-10-16T12:34:19.232869+00:00",
+      "decision_id": "809f20ac-6bab-4f80-9054-f2b6d8ca3a5e",
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "requested_at": "2026-10-09T12:34:19.232869+00:00",
+      "source": "supervise"
+    }
+  ],
   "schema_version": 1,
   "standing_decisions": [
     {
@@ -27,7 +38,14 @@
       "id": "fa4278cf-0e86-4d2b-ba0f-0640e2c0e740",
       "rationale": "direct invocation: user asked to approve items and start autopilot-roadmap on ri-01, continuing through the roadmap",
       "scope": "roadmap-jev-system-one-integration-assessment"
+    },
+    {
+      "decided_at": "2026-10-06T08:41:07.116408+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "e0526599-2740-4d45-bf08-e1f5d355bc6b",
+      "rationale": "operator re-approved after dispatch-contract refinement (2026-10-06)",
+      "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-09-18T11:31:45.951577Z"
+  "written_at": "2026-10-09T13:42:08.358396Z"
 }

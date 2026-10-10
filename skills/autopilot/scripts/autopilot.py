@@ -77,7 +77,7 @@ from shared.approval_gate import (  # noqa: E402
 )
 from shared.trust_posture import Gate  # noqa: E402
 
-LOOP_STATE_SCHEMA_VERSION = 5
+LOOP_STATE_SCHEMA_VERSION = 6
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +99,7 @@ class LoopState:
         5 — adds gate_decisions, pending_gate, goal_gate (trust-posture gates
             and the DONE evidence check; OpenSpec
             encode-autopilot-gates-and-goal-gate-in-code, design D7)
+        6 — adds park and degradations (OpenSpec dispatch-contract, D11)
     """
 
     schema_version: int = LOOP_STATE_SCHEMA_VERSION
@@ -157,6 +158,13 @@ class LoopState:
     gate_decisions: list[dict[str, Any]] = field(default_factory=list)
     pending_gate: dict[str, Any] | None = None
     goal_gate: dict[str, Any] | None = None
+    # NEW (v6, dispatch-contract D11): why a run stopped before reaching a gate
+    # (`permission_blocked` / `capability_unavailable`), and the closed-code
+    # degradations the dispatch result reports. `runner.py park` and
+    # `runner.py record-degradation` are the only writers; `_apply_transition`
+    # refuses while `park` is set.
+    park: dict[str, Any] | None = None
+    degradations: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -175,9 +183,10 @@ def load_state(path: str | Path) -> LoopState:
     """Deserialize a LoopState from the JSON file at *path*.
 
     Migrates older snapshots forward (D7): a v4 file loads with
-    ``gate_decisions = []``, ``pending_gate = None`` and ``goal_gate = None``
-    while every field it did carry (``phase_history`` included) is preserved;
-    the migration is persisted on the next ``save_state`` call.
+    ``gate_decisions = []``, ``pending_gate = None`` and ``goal_gate = None``,
+    and a v5 file with ``park = None`` and ``degradations = []``, while every
+    field it did carry (``phase_history`` included) is preserved; the
+    migration is persisted on the next ``save_state`` call.
     """
     data = json.loads(Path(path).read_text())
     state = LoopState(**{k: v for k, v in data.items() if k in LoopState.__dataclass_fields__})
@@ -330,6 +339,19 @@ class GatePending(RuntimeError):
         super().__init__(f"gate {gate!r} is pending; the loop cannot transition")
 
 
+class ParkActive(RuntimeError):
+    """Raised by ``_apply_transition`` while ``state.park`` is set (D11).
+
+    Same enforcement point as :class:`GatePending`: a parked child stopped
+    before reaching a gate and no phase may move until the supervisor's
+    ``escalate_resume`` answer clears the park.
+    """
+
+    def __init__(self, kind: str) -> None:
+        self.kind = kind
+        super().__init__(f"run is parked ({kind!r}); the loop cannot transition")
+
+
 class GoalGateRefused(RuntimeError):
     """Raised by ``_apply_transition`` when the DONE evidence check refuses."""
 
@@ -383,7 +405,21 @@ def _build_gate_evaluator(change_id: str, repo_root: Path) -> GateEvaluator:
     return build_default_gate(
         agent_id=f"autopilot:{change_id}" if change_id else "autopilot",
         repo_root=str(repo_root),
+        marker_reader=launch_marker_reader(change_id, repo_root),
     )
+
+
+def launch_marker_reader(change_id: str, repo_root: Path) -> Callable[[dict[str, Any]], Any]:
+    """The gate's marker seam for this run (D8, D10a): this worktree's launch
+    marker for ``change_id``, read through ``dispatch_contract`` only. The
+    evaluation context plays no part, so no caller can assert a scope."""
+
+    def read(_context: dict[str, Any]) -> Any:
+        from shared import dispatch_contract
+
+        return dispatch_contract.read_launch_marker(change_id, repo_root=repo_root)
+
+    return read
 
 
 def _scalar_context(context: dict[str, Any]) -> dict[str, Any]:
@@ -424,6 +460,10 @@ def build_gate_request(
             "posture_present": decision.posture_present,
         },
     }
+    provenance = decision.provenance or {}
+    if provenance.get("source") == "posture" and provenance.get("posture_digest"):
+        # D5: a standalone gate-check re-evaluates when the posture moved.
+        request["posture"]["posture_digest"] = provenance["posture_digest"]
     if edge is not None:
         request["edge"] = dict(edge)
     return request
@@ -684,6 +724,8 @@ def apply_outcome_or_escalate(
         raw.setdefault("gate_decisions", [])
         raw.setdefault("pending_gate", None)
         raw.setdefault("goal_gate", None)
+        raw.setdefault("park", None)
+        raw.setdefault("degradations", [])
         raw["schema_version"] = LOOP_STATE_SCHEMA_VERSION
         # Retry-safe: an apply-outcome retry while already parked must publish
         # the same generation and retain its original resume target. This
@@ -844,9 +886,18 @@ def _apply_transition(
     """
     if state.pending_gate:
         raise GatePending(str(state.pending_gate.get("gate", "unknown")))
+    if state.park:
+        raise ParkActive(str(state.park.get("kind", "unknown")))
 
     old_phase = state.current_phase
     next_phase = transition(state, outcome)
+    if old_phase == "GATEKEEPER" and outcome in _GATEKEEPER_OUTCOMES:
+        # The host-driven path (`runner.py transition`) applies the judge's
+        # verdict here, so its review scheduling must be applied here too —
+        # not only in run_loop's GATEKEEPER handler.
+        state.gate_verdict = outcome
+        if outcome == "proceed_with_review":
+            state.val_review_enabled = True
 
     if next_phase == "DONE":
         _check_done_evidence(state, old_phase, outcome, change_dir)

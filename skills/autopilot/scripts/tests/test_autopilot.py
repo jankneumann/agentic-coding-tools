@@ -152,7 +152,7 @@ def test_state_save_load_roundtrip(tmp_path: Path) -> None:
 def test_initial_state_defaults() -> None:
     """A fresh LoopState has the expected default values."""
     state = LoopState()
-    assert state.schema_version == 5  # bumped 4->5 by the trust-posture gate fields
+    assert state.schema_version == 6  # bumped 5->6 by park and degradations (dispatch-contract)
     assert state.change_id == ""
     assert state.current_phase == "INIT"
     assert state.iteration == 0

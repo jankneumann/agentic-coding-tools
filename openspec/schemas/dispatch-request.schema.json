@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/dispatch-request.schema.json",
+  "title": "Dispatch Request (v2)",
+  "description": "The only definition of the request the supervisor hands a host to launch one delegated child Autopilot generation (dispatch-contract D1, D6, D7, D8, D10). The raw launch_token exists only here; the checkpoint stores its launch_digest. Version-1 requests are validated against openspec/contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json and upgraded in memory.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dispatch_id",
+    "roadmap_id",
+    "item_id",
+    "change_id",
+    "phase",
+    "attempt",
+    "launch_token",
+    "lease_generation",
+    "launch_marker_path",
+    "scope",
+    "isolation",
+    "context",
+    "execution_profile",
+    "review_requirements",
+    "roadmap_approval_ref"
+  ],
+  "properties": {
+    "schema_version": {"const": 2},
+    "dispatch_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "roadmap_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "item_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "change_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "maxLength": 160
+    },
+    "phase": {"const": "autopilot"},
+    "attempt": {"type": "integer", "minimum": 1},
+    "launch_token": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 256,
+      "description": "Raw per-generation launch nonce. Never persisted; child_start compares sha256(token) with the checkpoint's launch_digest."
+    },
+    "lease_generation": {"type": "integer", "minimum": 1},
+    "launch_marker_path": {
+      "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/RelativePath"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof", "write_allow", "lock_keys"],
+      "properties": {
+        "proof": {"enum": ["proven_disjoint", "serial_indeterminate"]},
+        "write_allow": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "lock_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "isolation": {"$ref": "#/$defs/Isolation"},
+    "context": {
+      "$ref": "https://agentic-coding-tools.dev/contracts/bounded-dispatch-context.schema.json",
+      "description": "Shared recursively bounded secret-free context; runtime also enforces canonical JSON at most 16 KiB."
+    },
+    "execution_profile": {"$ref": "#/$defs/ExecutionProfile"},
+    "review_requirements": {"$ref": "#/$defs/ReviewRequirements"},
+    "roadmap_approval_ref": {
+      "oneOf": [
+        {"$ref": "#/$defs/ApprovalRef"},
+        {"type": "null"}
+      ],
+      "description": "The roadmap_approval decision prepare verified; null only for an upgraded version-1 request."
+    },
+    "continuation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "approval_ref"],
+      "properties": {
+        "approval_ref": {"$ref": "#/$defs/ApprovalRef"},
+        "kind": {
+          "enum": ["pending_gate", "policy_pause", "permission_blocked", "capability_unavailable"]
+        }
+      }
+    },
+    "gate_answer": {"$ref": "#/$defs/GateAnswer"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"scope": {"properties": {"proof": {"const": "proven_disjoint"}}, "required": ["proof"]}},
+        "required": ["scope"]
+      },
+      "then": {"properties": {"scope": {"properties": {"write_allow": {"minItems": 1}}}}}
+    },
+    {
+      "if": {"required": ["continuation"]},
+      "then": {"properties": {"lease_generation": {"minimum": 2}}}
+    },
+    {
+      "if": {"required": ["gate_answer"]},
+      "then": {"required": ["continuation"]}
+    }
+  ],
+  "$defs": {
+    "ApprovalRef": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^gate-decision:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "worktree_ref", "branch", "host_id"],
+      "properties": {
+        "mode": {"enum": ["managed_worktree", "harness_provided"]},
+        "worktree_ref": {
+          "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/WorktreeRef"
+        },
+        "branch": {"type": "string", "minLength": 1, "maxLength": 256},
+        "host_id": {
+          "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/HostId"
+        }
+      }
+    },
+    "Lanes": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 128}
+    },
+    "ExecutionProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Supervisor-resolved capabilities (D10). Empty only for an upgraded version-1 request.",
+      "properties": {
+        "lanes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "review": {"$ref": "#/$defs/Lanes"},
+            "alternative": {"$ref": "#/$defs/Lanes"},
+            "quick": {"$ref": "#/$defs/Lanes"}
+          }
+        },
+        "location": {"type": "string", "minLength": 1, "maxLength": 64},
+        "isolation": {"enum": ["managed_worktree", "harness_provided"]},
+        "probe_command": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "The only probe a worker may re-run."
+        }
+      }
+    },
+    "ReviewRequirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_quorum": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "PLAN_REVIEW": {"type": "integer", "minimum": 1},
+            "IMPL_REVIEW": {"type": "integer", "minimum": 1},
+            "VAL_REVIEW": {"type": "integer", "minimum": 1}
+          }
+        },
+        "counting_lanes": {"$ref": "#/$defs/Lanes"},
+        "quorum_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The per-environment quorum policy min_quorum was resolved from, as data (D10): which environment, which policy entry (null for the default quorum) and its sunset condition.",
+          "required": ["environment", "policy_id", "sunset"],
+          "properties": {
+            "environment": {"enum": ["cloud_container", "host"]},
+            "policy_id": {"type": ["string", "null"], "maxLength": 128},
+            "sunset": {"type": ["string", "null"], "maxLength": 512}
+          }
+        }
+      }
+    },
+    "GateAnswer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "decision", "approval_ref"],
+      "properties": {
+        "gate": {
+          "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/ChildGate"
+        },
+        "decision": {"enum": ["approved", "rejected"]},
+        "approval_ref": {"$ref": "#/$defs/ApprovalRef"},
+        "provenance": {"$ref": "#/$defs/Provenance"}
+      }
+    },
+    "Provenance": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "posture_digest"],
+          "properties": {
+            "source": {"const": "posture"},
+            "posture_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "approval_ref"],
+          "properties": {
+            "source": {"const": "human"},
+            "approval_ref": {
+              "oneOf": [{"$ref": "#/$defs/ApprovalRef"}, {"type": "null"}]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -142,6 +142,8 @@ testpaths = [
     "tests/codebase-atlas",
     "tests/skill-audit",
     "tests/state-artifacts",
+    # multiplayer-principles-guide: structural guard for docs/guides/multiplayer-collaboration.md.
+    "tests/multiplayer-collaboration",
     "expedite/scripts/tests",
     # The CI-coverage guard itself. It used to sit loose in skills/tests, which
     # no testpaths entry names, so the test that asserts "every test directory

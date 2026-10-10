@@ -44,6 +44,27 @@ from shared.trust_posture import Disposition, Gate, GateDisposition, TrustPostur
 # --------------------------------------------------------------------------- #
 
 
+
+def _profile_probe(_repo_root: Path) -> tuple[int, str]:
+    """The supervisor's capability probe, faked (dispatch-contract D10): two
+    verified review lanes and the default quorum."""
+    return 0, json.dumps(
+        {
+            "modes": {
+                "review": {"verified": ["claude_code", "codex"], "unverified": []},
+                "alternative": {"verified": ["claude_code"], "unverified": []},
+                "quick": {"verified": ["claude_code"], "unverified": []},
+            },
+            "probe_command": "review_dispatcher.py --check-vendors --json",
+            "quorum_policy": {
+                "environment": "host",
+                "min_quorum": {"PLAN_REVIEW": 2, "IMPL_REVIEW": 2, "VAL_REVIEW": 2},
+                "policy_id": None,
+                "sunset": None,
+            },
+        }
+    )
+
 def _install_schemas(repo: Path) -> None:
     target = repo / "openspec" / "schemas"
     target.mkdir(parents=True, exist_ok=True)
@@ -851,7 +872,8 @@ def _parked_policy_pause_attempt(*, generation: int = 3) -> dict:
         "attempt": 1,
         "status": "parked",
         "prepared_at": "2026-09-01T00:00:00+00:00",
-        "launch_token": "launch-token-0001",
+        # dispatch-contract D6/D7: only a digest and portable isolation persist.
+        "launch_digest": "sha256:" + "1" * 64,
         "launch_marker_path": ".supervised-dispatch/demo-change/d-1.marker",
         "lease_generation": generation,
         "launch_history": [
@@ -871,8 +893,9 @@ def _parked_policy_pause_attempt(*, generation: int = 3) -> dict:
         },
         "isolation": {
             "mode": "managed_worktree",
-            "worktree_path": "/tmp/d-1",
+            "worktree_ref": "d-1",
             "branch": "openspec/demo-change",
+            "host_id": "test-host",
         },
         "context": {},
         "lease": {
@@ -1000,6 +1023,7 @@ def test_rehydrate_restores_blocked_escalation_after_mirror_projection_failure(
 
 def _execution_adapter(repo: Path) -> execution.ExecutionAdapter:
     return execution.ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=repo / ".git-worktrees",
         branch_resolver=lambda _path: "openspec/demo-change",
         commit_resolver=lambda _path: "a" * 40,
@@ -1076,7 +1100,7 @@ def test_concurrent_blocked_subjects_preserve_both_mirror_entries(
     first = _parked_policy_pause_attempt(generation=3)
     second = json.loads(json.dumps(first))
     second["dispatch_id"] = "d-2"
-    second["launch_token"] = "launch-token-0002"
+    second["launch_digest"] = "sha256:" + "2" * 64
     second["launch_marker_path"] = ".supervised-dispatch/demo-change/d-2.marker"
     second["launch_history"][0]["marker_path"] = second["launch_marker_path"]
     checkpoint.dispatch_attempts.extend([first, second])
@@ -1326,3 +1350,188 @@ def test_escalate_resume_answer_rejects_a_noncurrent_parked_attempt(
             context={"dispatch_id": "d-1"},
         )
     assert len(read_checkpoint_json(workspace)["gate_decisions"]) == 1
+
+
+# --------------------------------------------------------------------------- #
+# escalate_resume answers for a child-parked `pending_gate` (gate=escalate_resume)
+# --------------------------------------------------------------------------- #
+
+
+def _parked_pending_escalate_attempt(*, generation: int = 3, gate: str = "escalate_resume") -> dict:
+    attempt = _parked_policy_pause_attempt(generation=generation)
+    attempt["parked"] = {"kind": "pending_gate", "gate": gate, "reason": "autopilot escalated"}
+    return attempt
+
+
+def _save_pending_escalate_checkpoint(
+    repo: Path, workspace: Path, *, generation: int = 3, gate: str = "escalate_resume"
+) -> None:
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.create(gate_router.load_roadmap(workspace / "roadmap.yaml", repo))
+    checkpoint.dispatch_attempts.append(
+        _parked_pending_escalate_attempt(generation=generation, gate=gate)
+    )
+    manager.save(checkpoint)
+
+
+def _block_escalate_service() -> ApprovalGate:
+    return make_service(posture_with(Gate.ESCALATE_RESUME, GateDisposition(Disposition.BLOCK)))
+
+
+def _resolve_current(repo: Path, workspace: Path, adapter) -> "gate_router.ParkedResolution":
+    attempt = gate_router.CheckpointManager(workspace, repo).load().dispatch_attempts[0]
+    return gate_router.resolve_parked(
+        attempt, workspace=workspace, repo_root=repo, adapter=adapter,
+        evaluator=_block_escalate_service(),
+    )
+
+
+def test_pending_escalate_resume_block_is_recorded_for_the_current_generation(
+    repo: Path, workspace: Path
+) -> None:
+    _save_pending_escalate_checkpoint(repo, workspace)
+    adapter = _execution_adapter(repo)
+
+    blocked = _resolve_current(repo, workspace, adapter)
+
+    assert blocked.outcome == "blocked"
+    assert blocked.routed.record["gate"] == "escalate_resume"
+    assert blocked.routed.record["lease_generation"] == 3
+    assert blocked.pending_gate_entry["gate"] == "escalate_resume"
+
+
+def test_pending_escalate_resume_answer_then_resolve_proceeds_and_increments_generation(
+    repo: Path, workspace: Path
+) -> None:
+    _save_pending_escalate_checkpoint(repo, workspace)
+    adapter = _execution_adapter(repo)
+    assert _resolve_current(repo, workspace, adapter).outcome == "blocked"
+
+    answered = gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+        context={"dispatch_id": "d-1", "lease_generation": 3},
+    )
+    assert answered.record["outcome"] == "proceed"
+    assert answered.record["resolution"] == "console_approved"
+    assert answered.record["lease_generation"] == 3
+    assert answered.record["dispatch_id"] == "d-1"
+
+    resolution = _resolve_current(repo, workspace, adapter)
+
+    assert resolution.outcome == "proceed"
+    assert resolution.routed.reused is True
+    assert resolution.routed.record["decision_id"] == answered.record["decision_id"]
+    checkpoint = gate_router.CheckpointManager(workspace, repo).load()
+    attempt = checkpoint.dispatch_attempts[0]
+    assert attempt["status"] == "prepared"
+    assert attempt["lease_generation"] == 4
+    assert attempt["continuation"] == {
+        "kind": "pending_gate",
+        "approval_ref": f"gate-decision:{answered.record['decision_id']}",
+    }
+
+
+def test_pending_escalate_resume_answer_without_generation_binds_the_current_one(
+    repo: Path, workspace: Path
+) -> None:
+    _save_pending_escalate_checkpoint(repo, workspace)
+    adapter = _execution_adapter(repo)
+    _resolve_current(repo, workspace, adapter)
+
+    answered = gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+        context={"dispatch_id": "d-1"},
+    )
+
+    assert answered.record["lease_generation"] == 3
+    assert _resolve_current(repo, workspace, adapter).outcome == "proceed"
+
+
+def test_pending_escalate_resume_answer_refuses_a_generation_mismatch(
+    repo: Path, workspace: Path
+) -> None:
+    _save_pending_escalate_checkpoint(repo, workspace)
+    _resolve_current(repo, workspace, _execution_adapter(repo))
+    before = len(read_checkpoint_json(workspace)["gate_decisions"])
+
+    with pytest.raises(gate_router.GateRefusalError, match="current parked generation"):
+        gate_router.answer(
+            Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+            context={"dispatch_id": "d-1", "lease_generation": 2},
+        )
+
+    assert len(read_checkpoint_json(workspace)["gate_decisions"]) == before
+
+
+def test_pending_escalate_resume_answer_refuses_without_a_parked_attempt(
+    repo: Path, workspace: Path
+) -> None:
+    _save_escalation_checkpoint(repo, workspace, include_attempt=False)
+
+    with pytest.raises(gate_router.GateRefusalError, match="current parked"):
+        gate_router.answer(
+            Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+            context={"dispatch_id": "d-1", "lease_generation": 3},
+        )
+
+    assert len(read_checkpoint_json(workspace)["gate_decisions"]) == 1
+
+
+def test_escalate_resume_answer_refuses_a_pending_gate_parked_on_another_gate(
+    repo: Path, workspace: Path
+) -> None:
+    _save_pending_escalate_checkpoint(repo, workspace, gate="pr_creation")
+    manager = gate_router.CheckpointManager(workspace, repo)
+    checkpoint = manager.load()
+    checkpoint.gate_decisions.append(_blocked_escalation_record(generation=3))
+    manager.save(checkpoint)
+
+    with pytest.raises(gate_router.GateRefusalError, match="current parked"):
+        gate_router.answer(
+            Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+            context={"dispatch_id": "d-1", "lease_generation": 3},
+        )
+
+    assert len(read_checkpoint_json(workspace)["gate_decisions"]) == 1
+
+
+def test_pending_escalate_resume_rejected_answer_stays_blocked(
+    repo: Path, workspace: Path
+) -> None:
+    _save_pending_escalate_checkpoint(repo, workspace)
+    adapter = _execution_adapter(repo)
+    _resolve_current(repo, workspace, adapter)
+
+    rejected = gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=False,
+        context={"dispatch_id": "d-1", "lease_generation": 3},
+    )
+    assert rejected.record["outcome"] == "blocked"
+
+    resolution = _resolve_current(repo, workspace, adapter)
+
+    assert resolution.outcome == "blocked"
+    assert resolution.routed.record["decision_id"] == rejected.record["decision_id"]
+    attempt = gate_router.CheckpointManager(workspace, repo).load().dispatch_attempts[0]
+    assert attempt["status"] == "parked"
+    assert attempt["lease_generation"] == 3
+
+
+def test_cycle_state_gate_answer_covers_a_pending_escalate_resume_park(
+    repo: Path, workspace: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _save_pending_escalate_checkpoint(repo, workspace)
+    adapter = _execution_adapter(repo)
+    _resolve_current(repo, workspace, adapter)
+
+    rc = cycle_state.main([
+        "--repo-root", str(repo), "gate-answer", "--roadmap", "alpha",
+        "--gate", "escalate_resume", "--decision", "approved",
+        "--dispatch-id", "d-1", "--lease-generation", "3",
+    ])
+
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["outcome"] == "proceed"
+    assert payload["lease_generation"] == 3
+    assert _resolve_current(repo, workspace, adapter).outcome == "proceed"
