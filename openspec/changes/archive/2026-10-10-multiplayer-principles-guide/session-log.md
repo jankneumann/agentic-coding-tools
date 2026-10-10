@@ -215,3 +215,28 @@ VALIDATE PASS (docs-only): spec valid strict, 1706 tests pass, security clean; d
 ### Context
 VALIDATE PASS (docs-only, deployable false): report rewritten in validate-feature section format; Spec Compliance pass; required phases resolve to Spec Compliance only; openspec strict valid; 1722 tests pass; diff secret scan clean. DEGRADED: GATEKEEPER signal-only, PLAN_REVIEW and IMPL_REVIEW single_vendor_review (claude_code).
 
+---
+
+## Phase: Cleanup (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Post-merge mode; no merge executed** — The operator merged PR #666 on 2026-10-09 and approved the merge gate; autopilot and cleanup never merge.
+2. **No task migration** — tasks.md has 6/6 tasks checked; no open tasks to move to issues or a follow-up proposal.
+3. **Staged rollout and pre-launch checklist not applicable** — Docs-only change (proposal declares deployable: false): a guide, a guard test, two links, and a testpaths entry. There is no service, feature flag, or traffic to stage. CI was green on head 9dcc24f (24/24 checks).
+4. **Branch restarted from roadmap base for the follow-up** — The merged branch was restarted from openspec/roadmap-multiplayer-collaboration (a fast-forward of the merged head) to fix the validation-report format that the DONE goal gate refused; loop reached DONE at c0d2750.
+
+### Completed Work
+- task-migration (none needed)
+- archive
+- spec-sync
+- decision-index
+
+### Next Steps
+- Operator merges the archive PR into openspec/roadmap-multiplayer-collaboration
+- ri-02 ownership-map confirms or amends the solo-mode definition (design D2)
+
+### Context
+Post-merge cleanup: PR #666 was merged into openspec/roadmap-multiplayer-collaboration as f5557f4 by the operator, so no merge ran here. All 6 tasks were complete, so nothing was migrated. The change is archived with its spec delta merged, and the decision index regenerated in the same commit.
+
