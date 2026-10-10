@@ -88,7 +88,7 @@ def test_val_review_converges_and_writes_the_section_the_goal_gate_reads(tmp_pat
 
     out = agent_lane.run_converge(
         change_id="demo", phase="VAL_REVIEW", worktree=worktree, proto_dir=proto,
-        base_ref="origin/base", model="model-x", timeout_seconds=10,
+        base_ref="origin/base", model="model-x", timeout_seconds=10, poll_seconds=0.01,
         converge_fn=converge, policy_fn=_policy,
     )
     server.join(timeout=5)
@@ -127,7 +127,8 @@ def test_an_unconverged_val_review_leaves_the_report_untouched(tmp_path: Path) -
 
     out = agent_lane.run_converge(
         change_id="demo", phase="VAL_REVIEW", worktree=worktree, proto_dir=proto,
-        base_ref=None, model="m", timeout_seconds=10, converge_fn=converge, policy_fn=_policy,
+        base_ref=None, model="m", timeout_seconds=10, poll_seconds=0.01,
+        converge_fn=converge, policy_fn=_policy,
     )
     server.join(timeout=5)
 
@@ -147,7 +148,7 @@ def test_other_phases_map_review_type_and_do_not_touch_the_report(
 
     agent_lane.run_converge(
         change_id="demo", phase=phase, worktree=worktree, proto_dir=proto, base_ref=None,
-        model="m", timeout_seconds=10, converge_fn=converge, policy_fn=_policy,
+        model="m", timeout_seconds=10, poll_seconds=0.01, converge_fn=converge, policy_fn=_policy,
     )
     server.join(timeout=5)
 
@@ -191,6 +192,19 @@ def test_an_error_inside_converge_is_recorded_not_raised(tmp_path: Path) -> None
 
     assert out == {"phase": "IMPL_REVIEW", "converged": False, "error": "RuntimeError: lane failed"}
     assert json.loads((proto / "result.json").read_text())["error"] == "RuntimeError: lane failed"
+
+
+def test_a_findings_file_caught_mid_write_is_re_read(tmp_path: Path) -> None:
+    (tmp_path / "findings-round-1.json").write_text('{"findings": [')
+    reads = iter(range(100))
+
+    def finish_write(_s: float) -> None:
+        if next(reads) == 1:
+            (tmp_path / "findings-round-1.json").write_text('{"findings": []}')
+
+    hs = agent_lane.Handshake(tmp_path, timeout_seconds=10, sleep=finish_write)
+
+    assert hs.read_json("findings-round-1.json") == {"findings": []}
 
 
 def test_cli_rejects_an_unknown_phase() -> None:

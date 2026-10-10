@@ -91,6 +91,19 @@ class Handshake:
             self._sleep(self.poll_seconds)
         return target
 
+    def read_json(self, name: str) -> Any:
+        """Wait for ``name`` and return it parsed, re-reading while it is still
+        being written (present but not yet valid JSON)."""
+        target = self.wait_for(name)
+        deadline = self._clock() + self.timeout_seconds
+        while True:
+            try:
+                return json.loads(target.read_text(encoding="utf-8"))
+            except ValueError:
+                if self._clock() > deadline:
+                    raise
+                self._sleep(self.poll_seconds)
+
 
 class AgentLaneOrchestrator:
     """A single review lane served by the running agent through ``Handshake``.
@@ -122,7 +135,7 @@ class AgentLaneOrchestrator:
         hs.event("review_requested", round=n, packet_path=str(packet_path or ""))
         (hs.dir / f"awaiting-review-{n}").write_text(str(packet_path or ""), encoding="utf-8")
         start = time.monotonic()
-        findings = json.loads(hs.wait_for(f"findings-round-{n}.json").read_text(encoding="utf-8"))
+        findings = hs.read_json(f"findings-round-{n}.json")
         result = ReviewResult(
             vendor=LANE,
             success=True,
@@ -194,6 +207,7 @@ def run_converge(
     max_rounds: int = 3,
     fix_mode: str = "targeted",
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    poll_seconds: float = POLL_SECONDS,
     converge_fn: Callable[..., Any] | None = None,
     policy_fn: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -211,7 +225,7 @@ def run_converge(
 
     worktree = Path(worktree).resolve()
     change_dir = worktree / "openspec" / "changes" / change_id
-    handshake = Handshake(proto_dir, timeout_seconds=timeout_seconds)
+    handshake = Handshake(proto_dir, timeout_seconds=timeout_seconds, poll_seconds=poll_seconds)
     logging.basicConfig(
         filename=str(handshake.dir / "converge.log"), level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
