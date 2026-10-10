@@ -1,9 +1,9 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "change_id": "multiplayer-principles-guide",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 15,
+  "total_iterations": 18,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -20,7 +20,8 @@
     "0d93042b-2da5-42ce-99ec-50e7880ce78d",
     "ff647b09-6f37-4515-beaf-edee4599dcba",
     "323b6f25-0e3d-48b8-b5aa-919b8fa7957c",
-    "b78e5326-fe14-4111-80f9-ac7c4466123a"
+    "b78e5326-fe14-4111-80f9-ac7c4466123a",
+    "0b4dc20a-e3d6-468b-8d9f-d3c3f9752725"
   ],
   "phase_history": [
     {
@@ -68,17 +69,22 @@
       "at": "2026-10-09T08:30:21.741688+00:00",
       "outcome": "passed",
       "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-10-10T09:58:22.377550+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "b78e5326-fe14-4111-80f9-ac7c4466123a",
+  "last_handoff_id": "0b4dc20a-e3d6-468b-8d9f-d3c3f9752725",
   "started_at": "2026-10-05T07:03:40.733622+00:00",
-  "phase_started_at": "2026-10-09T12:16:46.494024+00:00",
+  "phase_started_at": "2026-10-10T09:58:22.637839+00:00",
   "previous_phase": "SUBMIT_PR",
-  "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+  "escalation_reason": "goal gate refused: required section not passed: Spec Compliance (missing)",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "runner",
+  "phase_archetype": "validator",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -188,83 +194,145 @@
       "timeout_seconds": null
     },
     {
-      "gate": "pr_creation",
-      "outcome": "blocked",
-      "resolution": "coordinator_unreachable",
+      "approval_id": null,
       "authorizing_disposition": "notify_with_timeout",
-      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
-      "approval_id": null,
       "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "notify_with_timeout",
+      "gate": "pr_creation",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "SUBMIT_PR",
-      "recorded_at": "2026-10-09T12:16:18.411838+00:00"
+      "posture_present": true,
+      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+      "recorded_at": "2026-10-09T12:16:18.411838+00:00",
+      "resolution": "coordinator_unreachable",
+      "timeout_seconds": null
     },
     {
-      "gate": "escalate_resume",
-      "outcome": "blocked",
-      "resolution": "posture_block",
+      "approval_id": null,
       "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "ESCALATE",
+      "posture_present": true,
       "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "ESCALATE",
-      "recorded_at": "2026-10-09T12:16:46.292366+00:00"
-    },
-    {
-      "gate": "escalate_resume",
-      "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block.",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "ESCALATE",
-      "recorded_at": "2026-10-09T12:16:46.493945+00:00",
-      "note": "User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block."
-    },
-    {
-      "gate": "merge",
-      "outcome": "blocked",
+      "recorded_at": "2026-10-09T12:16:46.292366+00:00",
       "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "timeout_seconds": null
+    },
+    {
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block.",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block.",
+      "recorded_at": "2026-10-09T12:16:46.493945+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "merge",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "SUBMIT_PR",
-      "recorded_at": "2026-10-09T12:17:28.246464+00:00"
+      "posture_present": true,
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-09T12:17:28.246464+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "merge",
+      "note": "User (session owner) 2026-10-10: 'Approving merge'. PR #666 was already merged by jankneumann at 2026-10-09T18:39:50Z (head 9dcc24f, 24/24 checks green).",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "SUBMIT_PR",
+      "posture_present": true,
+      "reason": "gate 'merge' approved by the operator \u2014 User (session owner) 2026-10-10: 'Approving merge'. PR #666 was already merged by jankneumann at 2026-10-09T18:39:50Z (head 9dcc24f, 24/24 checks green).",
+      "recorded_at": "2026-10-10T03:07:07.019853+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-10T09:52:19.441066+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "User (session owner) 2026-10-10 chose 'Follow up': regenerate validation-report.md in validate-feature section format, declare deployable: false (docs-only), record a fresh VALIDATE, then DONE + archive. Branch restarted from openspec/roadmap-multiplayer-collaboration (PR #666 merged as f5557f4).",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "approval_ref": null,
+        "source": "human"
+      },
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-10 chose 'Follow up': regenerate validation-report.md in validate-feature section format, declare deployable: false (docs-only), record a fresh VALIDATE, then DONE + archive. Branch restarted from openspec/roadmap-multiplayer-collaboration (PR #666 merged as f5557f4).",
+      "recorded_at": "2026-10-10T09:52:19.684134+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "multiplayer-principles-guide",
-    "gate": "merge",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-10-09T12:17:28.247738+00:00",
-    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-    "context": {
+  "pending_gate": null,
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "checked_at": "2026-10-10T09:58:22.612560+00:00",
+      "merge_authorized": true,
+      "phase_statuses": {
+        "Spec Compliance": "pass"
+      },
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/666",
-      "branch": "openspec/multiplayer-principles-guide",
-      "change_id": "multiplayer-principles-guide"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true
+      "report_mtime": "2026-10-09T08:30:13.420114+00:00",
+      "report_path": "openspec/changes/multiplayer-principles-guide/validation-report.md",
+      "required_sections": [
+        "Spec Compliance"
+      ],
+      "validate_at": "2026-10-10T09:58:22.377550+00:00",
+      "validate_outcome": "passed",
+      "report_time": "2026-10-10T09:58:07+00:00",
+      "report_time_source": "commit",
+      "bound_by": "VALIDATE"
     }
   },
-  "goal_gate": null
+  "park": null,
+  "degradations": []
 }
