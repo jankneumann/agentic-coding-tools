@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "toolkit-consistency",
-  "current_phase": "VAL_REVIEW",
+  "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 17,
+  "total_iterations": 19,
   "max_phase_iterations": 3,
   "findings_trend": [
     16,
@@ -26,7 +26,8 @@
     "impl-iterate-1-toolkit-consistency-011c99b",
     "impl-review-1-toolkit-consistency-1f94c0c",
     "validate-1-toolkit-consistency-7ea7a46",
-    "val-review-1-toolkit-consistency-d2f661b"
+    "val-review-1-toolkit-consistency-d2f661b",
+    "val-review-2-toolkit-consistency-ff7d385"
   ],
   "phase_history": [
     {
@@ -144,17 +145,61 @@
       "at": "2026-10-10T04:05:51.193868+00:00",
       "outcome": "max_iter",
       "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-10-10T10:31:33.112993+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-10-10T10:30:00+00:00",
+      "commit": "012eca0",
+      "note": "VAL_FIX 3-6: missing test evidence (ledger 55-57), spec/test alignment (58,60), real low defect ledger 59 (config schema_version check), records (64,65)",
+      "outcome": "fix_callback",
+      "phase": "VAL_FIX",
+      "sub_step": true
+    },
+    {
+      "at": "2026-10-10T10:30:00+00:00",
+      "commit": "6408732",
+      "note": "VAL_FIX 2: report evidence mapping (ledger 53,54)",
+      "outcome": "fix_callback",
+      "phase": "VAL_FIX",
+      "sub_step": true
+    },
+    {
+      "at": "2026-10-10T10:30:00+00:00",
+      "commit": "1790861",
+      "note": "VAL_FIX 7: verification-round hardening (ledger 66-74)",
+      "outcome": "fix_callback",
+      "phase": "VAL_FIX",
+      "sub_step": true
+    },
+    {
+      "at": "2026-10-10T10:30:00+00:00",
+      "degradation": "single_vendor_review",
+      "outcome": "degraded",
+      "phase": "VAL_REVIEW",
+      "policy": "TRUST_POSTURE.md 479dcd9",
+      "vendor": "claude_code"
+    },
+    {
+      "at": "2026-10-10T10:30:00+00:00",
+      "degradation": "secret_scan_substitute",
+      "note": "gitleaks unavailable; regex scan accepted by operator 2026-10-10; no hits besides synthetic fixture",
+      "outcome": "degraded",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "val-review-1-toolkit-consistency-d2f661b",
+  "last_handoff_id": "val-review-2-toolkit-consistency-ff7d385",
   "started_at": "2026-10-05T07:11:57.548342+00:00",
-  "phase_started_at": "2026-10-10T09:42:03.509245+00:00",
-  "previous_phase": "VAL_REVIEW",
-  "escalation_reason": "policy_pause/permission_denied: VAL_REVIEW sub-agent's gitleaks download was denied (curl -sSI https://github.com/gitleaks/gitleaks/releases/latest; gh release view returned 403 repo-not-enabled). VAL_FIX 1 integrated: rsync installed in container, suite re-run 183 passed / 1 skipped. converge() critique round not run; Validation Review section reads 'Result: incomplete'. Needs operator: approve gitleaks fetch or accept the regex secret-scan substitute.",
+  "phase_started_at": "2026-10-10T10:31:47.407175+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "reviewer",
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -279,35 +324,50 @@
       "timeout_seconds": null
     },
     {
-      "gate": "escalate_resume",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "ESCALATE",
-      "recorded_at": "2026-10-10T09:42:03.333594+00:00"
+      "posture_present": true,
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-10T09:42:03.333594+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
     },
     {
-      "gate": "escalate_resume",
-      "outcome": "proceed",
-      "resolution": "console_approved",
+      "approval_id": null,
       "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "operator in-session 2026-10-10: accept regex secret-scan substitute for gitleaks and resume VAL_REVIEW",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
       "reason": "gate 'escalate_resume' approved by the operator \u2014 operator in-session 2026-10-10: accept regex secret-scan substitute for gitleaks and resume VAL_REVIEW",
+      "recorded_at": "2026-10-10T09:42:03.509217+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "coordinator_unreachable",
+      "authorizing_disposition": "notify_with_timeout",
+      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
       "approval_id": null,
       "default_action": null,
       "posture_present": true,
       "notified": null,
       "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "ESCALATE",
-      "recorded_at": "2026-10-10T09:42:03.509217+00:00",
-      "note": "operator in-session 2026-10-10: accept regex secret-scan substitute for gitleaks and resume VAL_REVIEW"
+      "disposition": "notify_with_timeout",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-10T10:31:47.405985+00:00"
     }
   ],
   "pending_gate": null,
