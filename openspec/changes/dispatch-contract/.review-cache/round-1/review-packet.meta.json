@@ -3,8 +3,8 @@
   "change_id": "dispatch-contract",
   "round": 1,
   "body_path": "review-packet.md",
-  "sha256": "c933c06c28f33f5f9ceef7a736b00419e064ac5c761ff305fae5b4d365b07d03",
-  "char_length": 107260,
+  "sha256": "8476e8db4b63bb12730182883fea48200e180f88bcbc5b7e9edc1f5e8eff804f",
+  "char_length": 160391,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -12,6 +12,13 @@
   "selection": {
     "per_file_token_ceiling": 64000,
     "selected": [
+      {
+        "path": "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2074
+      },
       {
         "path": "openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json",
         "status": "added",
@@ -31,35 +38,49 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 627
+        "est_tokens": 628
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 555
       },
       {
         "path": "openspec/changes/dispatch-contract/loop-state.json",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 3214
+        "est_tokens": 3579
       },
       {
         "path": "openspec/changes/dispatch-contract/session-log.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 560
+        "est_tokens": 863
       },
       {
         "path": "openspec/changes/dispatch-contract/validation-report.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1866
+        "est_tokens": 3422
       },
       {
         "path": "openspec/schemas/dispatch-request.schema.json",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 182
+        "est_tokens": 183
+      },
+      {
+        "path": "skills/autopilot/scripts/agent_lane.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3131
       },
       {
         "path": "skills/autopilot/scripts/autopilot.py",
@@ -69,11 +90,25 @@
         "est_tokens": 216
       },
       {
+        "path": "skills/autopilot/scripts/convergence_loop.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 187
+      },
+      {
         "path": "skills/autopilot/scripts/goal_gate.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
         "est_tokens": 1443
+      },
+      {
+        "path": "skills/autopilot/scripts/phase_agent.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 627
       },
       {
         "path": "skills/autopilot/scripts/runner.py",
@@ -83,25 +118,32 @@
         "est_tokens": 551
       },
       {
+        "path": "skills/parallel-infrastructure/scripts/review_ledger.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 537
+      },
+      {
         "path": "skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-request.schema.json",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 220
+        "est_tokens": 221
       },
       {
         "path": "skills/supervise/scripts/cycle_state.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 308
+        "est_tokens": 309
       },
       {
         "path": "skills/supervise/scripts/execution.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 161
+        "est_tokens": 162
       },
       {
         "path": "skills/supervise/scripts/gate_router.py",
@@ -111,18 +153,32 @@
         "est_tokens": 302
       },
       {
+        "path": "skills/tests/autopilot/test_agent_lane.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2097
+      },
+      {
         "path": "skills/tests/autopilot/test_console_interviewer.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 652
+        "est_tokens": 653
       },
       {
         "path": "skills/tests/autopilot/test_goal_gate.py",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1216
+        "est_tokens": 1217
+      },
+      {
+        "path": "skills/tests/parallel-infrastructure/test_review_ledger.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 695
       },
       {
         "path": "skills/tests/supervise/test_execution_contract.py",
@@ -139,7 +195,64 @@
         "est_tokens": 405
       }
     ],
-    "excluded": [],
+    "excluded": [
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/findings-claude_code-implementation.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2826
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-manifest.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 283
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.md",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 102774
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.meta.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 9691
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/findings-claude_code-implementation.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3278
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/review-manifest.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 214
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/review-packet.md",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 11043
+      },
+      {
+        "path": "openspec/changes/dispatch-contract/.review-cache/round-2/review-packet.meta.json",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 784
+      }
+    ],
     "truncated": []
   },
   "rule_groups": [
@@ -148,9 +261,11 @@
       "source": "default",
       "pattern": "(default)",
       "files": [
+        "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
         "openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json",
         "openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json",
         "openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json",
+        "openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json",
         "openspec/changes/dispatch-contract/loop-state.json",
         "openspec/changes/dispatch-contract/session-log.md",
         "openspec/changes/dispatch-contract/validation-report.md",
@@ -170,9 +285,13 @@
       "source": "default",
       "pattern": "skills/*/scripts/*.py",
       "files": [
+        "skills/autopilot/scripts/agent_lane.py",
         "skills/autopilot/scripts/autopilot.py",
+        "skills/autopilot/scripts/convergence_loop.py",
         "skills/autopilot/scripts/goal_gate.py",
+        "skills/autopilot/scripts/phase_agent.py",
         "skills/autopilot/scripts/runner.py",
+        "skills/parallel-infrastructure/scripts/review_ledger.py",
         "skills/supervise/scripts/cycle_state.py",
         "skills/supervise/scripts/execution.py",
         "skills/supervise/scripts/gate_router.py"
@@ -183,8 +302,10 @@
       "source": "default",
       "pattern": "skills/tests/**",
       "files": [
+        "skills/tests/autopilot/test_agent_lane.py",
         "skills/tests/autopilot/test_console_interviewer.py",
         "skills/tests/autopilot/test_goal_gate.py",
+        "skills/tests/parallel-infrastructure/test_review_ledger.py",
         "skills/tests/supervise/test_execution_contract.py",
         "skills/tests/supervise/test_gate_router.py"
       ]

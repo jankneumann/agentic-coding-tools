@@ -521,7 +521,7 @@
     },
     {
       "id": 30,
-      "status": "open",
+      "status": "addressed",
       "axis": "correctness",
       "type": "spec_gap",
       "criticality": "low",
@@ -539,7 +539,7 @@
     },
     {
       "id": 31,
-      "status": "open",
+      "status": "addressed",
       "axis": "readability",
       "type": "spec_gap",
       "criticality": "low",
@@ -557,7 +557,7 @@
     },
     {
       "id": 32,
-      "status": "open",
+      "status": "addressed",
       "axis": "readability",
       "type": "spec_gap",
       "criticality": "low",
@@ -575,38 +575,72 @@
     },
     {
       "id": 33,
-      "status": "open",
+      "status": "addressed",
       "axis": "readability",
       "type": "spec_gap",
       "criticality": "low",
       "evidence_class": "deterministic",
       "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-      "fingerprint": "0f802205815899da",
+      "fingerprint": "af5843e6f87a76c3",
       "first_seen_round": 2,
-      "last_seen_round": 2,
+      "last_seen_round": 1,
       "vendor_hits": [
         "claude_code"
       ],
-      "description": "The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies.",
+      "description": "The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR #662 head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies. The Security section (line 182) repeats 37976320517 without a head.",
       "consensus_status": "unconfirmed"
     },
     {
       "id": 34,
-      "status": "open",
+      "status": "addressed",
       "axis": "readability",
       "type": "spec_gap",
       "criticality": "low",
-      "evidence_class": "judgment",
+      "evidence_class": "deterministic",
       "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-      "fingerprint": "a477c41a2d7bb1b2",
+      "fingerprint": "3116d20da831bddf",
+      "first_seen_round": 2,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The 'Tests added after IMPL review' block (added in 794b4281) is indented inside item 6 (the secret-scan outcome), yet its bullets cite tests for outcomes 4, 5, 7, 1 and the goal gate, none for outcome 6. A reader of the numbered outcome list attributes those tests to outcome 6.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 35,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "fingerprint": "e306b2324a21e1bc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Proposal outcome 5 requires both permission_blocked and capability_unavailable parks to be routed to the operator as single escalations. The report's outcome 5 says only 'capability parks'. The cited tests do cover permission_blocked (supervise/test_execution.py::test_three_workers_blocked_on_one_rule_produce_one_escalation uses _BLOCKED, kind permission_blocked, line 2247; test_concurrent_resolvers_on_one_fingerprint_are_single_flight likewise), and capability_unavailable (test_different_missing_lanes_are_separate_escalations, the e2e capability-park test), but the report never says which test proves which kind, so the permission_blocked half of the outcome is not visibly proved.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 36,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "fingerprint": "1ac9e5ef7f170064",
       "first_seen_round": 2,
       "last_seen_round": 2,
       "vendor_hits": [
         "claude_code"
       ],
-      "description": "The new 'Tests added after IMPL review' block is indented as a continuation of list item 6 (the secret-scan outcome). Its bullets cite evidence for outcomes 4, 5, 7 and 1, so in the rendered list they appear under outcome 6. Each bullet names its outcome, so nothing is wrong, but a reader scanning outcome 4 or 7 will not find those tests there.",
+      "description": "The kind label added in 0466eab9 under-reports the end-to-end capability-park test. autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child is parametrized over `park` with ids [\"permission_blocked\", \"capability_unavailable\"] (lines 519-528), so it is the end-to-end proof for both kinds. Labelling it '(capability_unavailable)' only leaves permission_blocked with unit-level citations alone. A reader would conclude it has no end-to-end coverage, but it does.",
       "consensus_status": "unconfirmed"
     }
   ],
-  "compacted_at": "2026-10-10T10:26:17Z"
+  "compacted_at": "2026-10-10T10:39:43Z"
 }

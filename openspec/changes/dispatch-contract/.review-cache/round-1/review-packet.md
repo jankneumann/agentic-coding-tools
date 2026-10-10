@@ -18,9 +18,110 @@ Output ONLY a JSON object with a top-level `findings` array.
 
 ### Diff
 ```diff
+diff --git a/openspec/changes/dispatch-contract/.review-ledger/ledger.json b/openspec/changes/dispatch-contract/.review-ledger/ledger.json
+index d6b19d53..78021c2a 100644
+--- a/openspec/changes/dispatch-contract/.review-ledger/ledger.json
++++ b/openspec/changes/dispatch-contract/.review-ledger/ledger.json
+@@ -518,7 +518,95 @@
+       "description": "Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.",
+       "resolution": "compact: claimed fix did not take",
+       "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 30,
++      "status": "open",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "722edcc42b23fd2a",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Outcome 6 describes as future a scan that had already passed when the report was regenerated. PR #662 (roadmap branch to main) merged at 2026-10-10T03:07:43Z as 731557bc (gh api repos/.../pulls/662). The Security workflow's secret-scan job (gitleaks/gitleaks-action@v3, default ruleset via .gitleaks.toml useDefault=true) concluded success on PR #662 heads 0d078ff (the PR #667 merge), 4955e24 (the live multiplayer-collaboration checkpoint migrated to digest-only launch tokens with live attempts), c04a1a8 and 789705a, and on the push to main 731557bc (run 38019470729: secret-scan success). The report was written at 1560d08 (2026-10-10T10:06Z), seven hours later. The .gitleaks.toml commit allowlist exempts only the three raw-token-introducing commits (ddd2c4a8, c6424d74, 3c06430a), not 4955e24, so these runs are real default-ruleset evidence that a committed checkpoint with live attempts passes with no allowlist entry. The same stale statement appears in the Security section (line 155) and the Result line (line 172: 'first runs in PR #662's Security job and must pass there'). The report understates outcome 6 and leaves a confirmation condition open that is already met. \u2014 re-verified resolved in 794b4281",
++      "resolution": "compact: claimed fix did not take",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 31,
++      "status": "open",
++      "axis": "readability",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "3918054b5bd61d53",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Outcome 4 (capability-fingerprint path) cites a test that no longer exists. 765f9d8 renamed it to test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected (skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py:376) and changed what it asserts: an approval given before re-projection resumes nothing ('early[\"resumed\"] == []'). The report's header says 765f9d8 is in the code under test, but this citation uses the pre-fix name and so describes the pre-fix semantics. The renamed test passes. \u2014 re-verified resolved in 794b4281",
++      "resolution": "compact: claimed fix did not take",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 32,
++      "status": "open",
++      "axis": "readability",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "36f8fd22e4a93864",
++      "first_seen_round": 1,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The header names the PR #667 review fixes and the post-merge commits as code under test, but the outcome-to-test mapping cites none of the tests they added. Each one bears on a claimed outcome. (a) Outcome 4: 765f9d8's supervise/test_execution.py tests test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer, test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved and test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked show that a human rejection survives a member joining. (b) Outcome 5: 43a9b11's test_concurrent_resolvers_on_one_fingerprint_are_single_flight (block/auto) shows racing resolvers still yield a single escalation. (c) Outcome 7: b35e544's test_a_cloud_worker_at_the_repo_root_prepares_and_starts, shared/test_dispatch_contract.py::test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot and ::test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref cover the portable repo-root isolation ref. (d) Outcome 1 and the gate-answer path: 3a29785 changed dispatch-request.schema.json and the escalate_resume answer, with tests in supervise/test_execution_contract.py, supervise/test_gate_router.py (test_escalate_resume_answer_records_resume_at_validate, test_resume_at_is_refused_unless_an_approved_validate_resume) and autopilot/test_console_interviewer.py. (e) f44bbd6's autopilot/test_goal_gate.py tests are not mentioned. These tests ran inside the whole-suite totals, so the evidence exists, but a reader cannot see from the mapping that the review fixes are proven. \u2014 re-verified resolved in 794b4281",
++      "resolution": "compact: claimed fix did not take",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 33,
++      "status": "open",
++      "axis": "readability",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "0f802205815899da",
++      "first_seen_round": 2,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 34,
++      "status": "open",
++      "axis": "readability",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
++      "fingerprint": "a477c41a2d7bb1b2",
++      "first_seen_round": 2,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The new 'Tests added after IMPL review' block is indented as a continuation of list item 6 (the secret-scan outcome). Its bullets cite evidence for outcomes 4, 5, 7 and 1, so in the rendered list they appear under outcome 6. Each bullet names its outcome, so nothing is wrong, but a reader scanning outcome 4 or 7 will not find those tests there.",
++      "consensus_status": "unconfirmed"
+     }
+   ],
+-  "compacted_at": "2026-10-09T14:06:08Z"
++  "compacted_at": "2026-10-10T10:26:17Z"
+ }
 diff --git a/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json b/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json
 new file mode 100644
-index 0000000..b11c55f
+index 00000000..b11c55f7
 --- /dev/null
 +++ b/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json
 @@ -0,0 +1,50 @@
@@ -76,7 +177,7 @@ index 0000000..b11c55f
 +}
 diff --git a/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json b/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json
 new file mode 100644
-index 0000000..292e7ff
+index 00000000..292e7ff3
 --- /dev/null
 +++ b/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json
 @@ -0,0 +1,50 @@
@@ -132,7 +233,7 @@ index 0000000..292e7ff
 +}
 diff --git a/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json b/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json
 new file mode 100644
-index 0000000..2b3f4ab
+index 00000000..2b3f4abe
 --- /dev/null
 +++ b/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json
 @@ -0,0 +1,54 @@
@@ -190,8 +291,64 @@ index 0000000..2b3f4ab
 +  "schema_version": 2,
 +  "worktree_ref": "dispatch-contract"
 +}
+diff --git a/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json b/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json
+new file mode 100644
+index 00000000..5451b0f3
+--- /dev/null
++++ b/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json
+@@ -0,0 +1,50 @@
++{
++  "attempt": 1,
++  "branch": "openspec/dispatch-contract",
++  "change_id": "dispatch-contract",
++  "degradations": [
++    {
++      "code": "single_vendor_review",
++      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
++      "phase": "PLAN_REVIEW"
++    },
++    {
++      "code": "single_vendor_review",
++      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
++      "phase": "IMPL_REVIEW"
++    },
++    {
++      "code": "single_vendor_review",
++      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
++      "phase": "VAL_REVIEW"
++    },
++    {
++      "code": "coordinator_projection_forbidden",
++      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
++      "phase": "SUBMIT_PR"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
++      "phase": "SUBMIT_PR"
++    }
++  ],
++  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
++  "evidence": {
++    "commit": "38ca63a77d3fa487c6ba00fe84bc4e9a4d23c643",
++    "loop_state_digest": "593d819fa63b21657409442357232f8ee183f931c297bb18ba864a913facff66",
++    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
++  },
++  "host_id": "machine-dc39bf1e25efdf45",
++  "lease_generation": 6,
++  "outcome": "parked",
++  "parked": {
++    "deadline": null,
++    "gate": null,
++    "kind": "policy_pause",
++    "reason": "VAL_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
++    "resume_hint": "previous_phase=VAL_REVIEW; answer escalate_resume to resume"
++  },
++  "schema_version": 2,
++  "worktree_ref": "dispatch-contract"
++}
 diff --git a/openspec/changes/dispatch-contract/loop-state.json b/openspec/changes/dispatch-contract/loop-state.json
-index b606892..73f69fc 100644
+index b6068924..827d0cb8 100644
 --- a/openspec/changes/dispatch-contract/loop-state.json
 +++ b/openspec/changes/dispatch-contract/loop-state.json
 @@ -1,9 +1,9 @@
@@ -202,21 +359,22 @@ index b606892..73f69fc 100644
 +  "current_phase": "VAL_REVIEW",
    "iteration": 0,
 -  "total_iterations": 12,
-+  "total_iterations": 17,
++  "total_iterations": 19,
    "max_phase_iterations": 3,
    "findings_trend": [],
    "blocking_findings": [],
-@@ -21,7 +21,8 @@
+@@ -21,7 +21,9 @@
      "8d309935-3b68-44db-be5c-d6b327ec8c61",
      "13e77665-feba-4ef3-b28a-a9b61d278135",
      "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9",
 -    "c832cb1d-c7ab-48cb-9285-4f4b037d029a"
 +    "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
-+    "c44fffaa-5096-400f-826a-c499391bb89e"
++    "c44fffaa-5096-400f-826a-c499391bb89e",
++    "b10c5945-2520-4d5f-8de2-8f76c41ed290"
    ],
    "phase_history": [
      {
-@@ -74,17 +75,28 @@
+@@ -74,17 +76,33 @@
        "at": "2026-10-09T14:08:06.250432+00:00",
        "outcome": "converged",
        "phase": "VAL_REVIEW"
@@ -231,26 +389,31 @@ index b606892..73f69fc 100644
 +      "at": "2026-10-10T10:06:25.827106+00:00",
 +      "outcome": "passed",
 +      "phase": "VALIDATE"
++    },
++    {
++      "at": "2026-10-10T10:28:53.285299+00:00",
++      "outcome": "max_iter",
++      "phase": "VAL_REVIEW"
      }
    ],
 -  "last_handoff_id": "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
-+  "last_handoff_id": "c44fffaa-5096-400f-826a-c499391bb89e",
++  "last_handoff_id": "b10c5945-2520-4d5f-8de2-8f76c41ed290",
    "started_at": "2026-10-06T09:08:58.470413+00:00",
 -  "phase_started_at": "2026-10-09T14:08:09.206576+00:00",
 -  "previous_phase": "PLAN_REVIEW",
 -  "escalation_reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable (codex listed by --check-vendors but no codex CLI/credential). Quorum not lowered; awaiting operator decision on cloud review lane (GX10/policy/credential). handoff 9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
-+  "phase_started_at": "2026-10-10T10:06:28.528280+00:00",
-+  "previous_phase": "SUBMIT_PR",
-+  "escalation_reason": "goal gate refused: required section not passed: Validation Review (missing)",
++  "phase_started_at": "2026-10-10T10:35:37.210976+00:00",
++  "previous_phase": "VAL_REVIEW",
++  "escalation_reason": "VAL_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
    "val_review_enabled": true,
    "cli_review_enabled": true,
    "error": null,
 -  "phase_archetype": "runner",
-+  "phase_archetype": "validator",
++  "phase_archetype": "reviewer",
    "force": false,
    "gate_signals": {},
    "gate_verdict": "proceed_with_review",
-@@ -136,89 +148,214 @@
+@@ -136,30 +154,167 @@
        "timeout_seconds": null
      },
      {
@@ -286,14 +449,11 @@ index b606892..73f69fc 100644
 +      "timeout_seconds": null
      },
      {
--      "gate": "merge",
--      "outcome": "blocked",
--      "resolution": "posture_block",
 +      "approval_id": null,
-       "authorizing_disposition": "block",
++      "authorizing_disposition": "block",
 +      "default_action": null,
 +      "disposition": "block",
-+      "gate": "merge",
+       "gate": "merge",
 +      "notified": null,
 +      "outcome": "blocked",
 +      "phase": "SUBMIT_PR",
@@ -302,7 +462,7 @@ index b606892..73f69fc 100644
 +        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
 +        "source": "posture"
 +      },
-       "reason": "gate 'merge' parked: trust posture disposition is block",
++      "reason": "gate 'merge' parked: trust posture disposition is block",
 +      "recorded_at": "2026-10-09T14:09:04.031160+00:00",
 +      "resolution": "posture_block",
 +      "timeout_seconds": null
@@ -406,29 +566,63 @@ index b606892..73f69fc 100644
 +      "timeout_seconds": null
 +    },
 +    {
-+      "gate": "escalate_resume",
-+      "outcome": "proceed",
-+      "resolution": "console_approved",
++      "approval_id": null,
 +      "authorizing_disposition": "block",
++      "default_action": null,
++      "disposition": "block",
++      "gate": "escalate_resume",
++      "note": "Operator chose 'Both' (supervisor 2026-10-10): unblock now; committed converge driver to follow.",
++      "notified": null,
++      "outcome": "proceed",
++      "phase": "VAL_REVIEW",
++      "posture_present": false,
++      "provenance": {
++        "approval_ref": "gate-decision:1469b3d5-5478-4ab7-9bbd-dd6993bb998e",
++        "source": "human"
++      },
 +      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator chose 'Both' (supervisor 2026-10-10): unblock now; committed converge driver to follow.",
++      "recorded_at": "2026-10-10T10:19:22.012039+00:00",
++      "resolution": "console_approved",
++      "timeout_seconds": null
++    },
++    {
++      "gate": "escalate_resume",
+       "outcome": "blocked",
+       "resolution": "posture_block",
+       "authorizing_disposition": "block",
+-      "reason": "gate 'merge' parked: trust posture disposition is block",
++      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
        "approval_id": null,
        "default_action": null,
--      "posture_present": true,
-+      "posture_present": false,
-       "notified": null,
-       "timeout_seconds": null,
-       "provenance": {
--        "source": "posture",
--        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-+        "source": "human",
-+        "approval_ref": "gate-decision:1469b3d5-5478-4ab7-9bbd-dd6993bb998e"
+       "posture_present": true,
+@@ -170,55 +325,82 @@
+         "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
        },
        "disposition": "block",
 -      "phase": "SUBMIT_PR",
 -      "recorded_at": "2026-10-09T14:09:04.031160+00:00"
-+      "phase": "VAL_REVIEW",
-+      "recorded_at": "2026-10-10T10:19:22.012039+00:00",
-+      "note": "Operator chose 'Both' (supervisor 2026-10-10): unblock now; committed converge driver to follow."
++      "phase": "ESCALATE",
++      "recorded_at": "2026-10-10T10:35:34.289707+00:00"
++    },
++    {
++      "gate": "escalate_resume",
++      "outcome": "proceed",
++      "resolution": "console_approved",
++      "authorizing_disposition": "block",
++      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator resume after ledger fix 53d94ef (supervisor 2026-10-10, gen 7): re-run VAL_REVIEW with committed agent_lane.py.",
++      "approval_id": null,
++      "default_action": null,
++      "posture_present": true,
++      "notified": null,
++      "timeout_seconds": null,
++      "provenance": {
++        "source": "human",
++        "approval_ref": "gate-decision:8afdd0a6-e757-4c12-b9b4-997951ce6463"
++      },
++      "disposition": "block",
++      "phase": "ESCALATE",
++      "recorded_at": "2026-10-10T10:35:37.210927+00:00",
++      "note": "Operator resume after ledger fix 53d94ef (supervisor 2026-10-10, gen 7): re-run VAL_REVIEW with committed agent_lane.py."
      }
    ],
 -  "pending_gate": {
@@ -513,10 +707,10 @@ index b606892..73f69fc 100644
    ]
  }
 diff --git a/openspec/changes/dispatch-contract/session-log.md b/openspec/changes/dispatch-contract/session-log.md
-index c14fcc1..d876b27 100644
+index c14fcc12..5ba926cf 100644
 --- a/openspec/changes/dispatch-contract/session-log.md
 +++ b/openspec/changes/dispatch-contract/session-log.md
-@@ -299,3 +299,27 @@ VALIDATE passed: spec compliance pass, 0 open tasks, openspec strict valid, ruff
+@@ -299,3 +299,41 @@ VALIDATE passed: spec compliance pass, 0 open tasks, openspec strict valid, ruff
  ### Context
  converge() ran VAL_REVIEW (review_type=implementation, fix_mode=targeted, min_quorum=1 from resolve_quorum_policy, base_ref=origin/openspec/roadmap-multiplayer-collaboration) and converged in round 2 with blocking trend [5, 0]. The critique checked whether validation-report.md proves each ri-21 outcome. Four medium gaps: outcome 6 overstated CI coverage (security.yml runs gitleaks only for main, so this change's PR never triggers it); outcome 4 had no test clearing a posture-derived capability-fingerprint block after a posture flip; outcome 7's cross-host tests shared one repo root; outcome 5 was proven only piecewise. VAL_FIX (inline, claude_code) added three tests and corrected the report. No production code changed. The closure test (outcome 3) was confirmed to enumerate every schema-permitted kind/gate from the schema, independently of ANSWER_PATHS, which is built from the Gate enum.
  
@@ -544,8 +738,22 @@ index c14fcc1..d876b27 100644
 +### Context
 +Re-validation at c83cf40 (gate-decision 724eaee2, gen 5): passed. Spec Compliance pass; 1,747 passed/24 skipped/1 known env-only failure; ruff clean; openspec strict valid; gate_logic action=continue. Outcome 6 caveat stands: only a Python port of gitleaks generic-api-key ran; first real full-ruleset scan is PR #662 Security job. CI DEGRADED (no run for head).
 +
++---
++
++## Phase: Validation Review (gen 6) (2026-10-10)
++
++**Agent**: claude_code | **Session**: N/A
++
++### Next Steps
++- Fix review_ledger.compact false-reopen for additive (doc) fixes or let re-verified accept supersede it
++- Fix the two low readability findings
++- Operator decides resume (re-run VAL_REVIEW with committed agent_lane.py after the ledger fix)
++
++### Context
++VAL_REVIEW (operator-approved scratch driver, single_vendor_review) did not converge: stalled after 2 rounds, findings trend [3,4]. Round 1 raised 3 report-only findings (30 medium: outcome 6 now confirmed by real CI secret-scan on PR #662 runs 37976320517/37974967529 and main run 38019470729; 31/32 low citation gaps); all fixed in 794b4281 and re-verified by the reviewer in round 2. Round 2 added 2 low readability findings (run-id attribution next to 4955e24; added-tests block nested under outcome 6). Stall cause: review_ledger.compact() reopens an addressed item whose description tokens are still present in the cited file ('compact: claimed fix did not take'); additive documentation fixes always keep those tokens, so deterministic doc findings can never close. No Validation Review section written; outcome max_iter.
++
 diff --git a/openspec/changes/dispatch-contract/validation-report.md b/openspec/changes/dispatch-contract/validation-report.md
-index 8e6e543..b0bbe81 100644
+index 8e6e5433..cc04c060 100644
 --- a/openspec/changes/dispatch-contract/validation-report.md
 +++ b/openspec/changes/dispatch-contract/validation-report.md
 @@ -1,8 +1,17 @@
@@ -610,8 +818,12 @@ index 8e6e543..b0bbe81 100644
  
  ### Acceptance outcome to test mapping (proposal.md, ri-21)
  
-@@ -85,7 +97,7 @@ The single failure is the documented environment-only
-      `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection`).
+@@ -82,18 +94,18 @@ The single failure is the documented environment-only
+    - Capability fingerprint (escalate_resume): `autopilot-roadmap/test_dispatch_contract_e2e.py`
+      (`test_a_posture_derived_capability_block_clears_after_a_posture_flip`, added in VAL_REVIEW;
+      `test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes`,
+-     `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection`).
++     `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected`, renamed in 765f9d8: an approval given before re-projection resumes nothing).
  5. execution_profile, review_requirements, degradations[] carried end to end; capability parks routed as single escalations: pass.
     End to end: `autopilot-roadmap/test_dispatch_contract_e2e.py::test_profile_and_degradations_travel_the_whole_chain`
 -   (added in VAL_REVIEW: request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
@@ -619,7 +831,55 @@ index 8e6e543..b0bbe81 100644
     apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child`.
     Units: `autopilot/test_emit_result.py::test_degradations_travel_into_the_result`,
     `supervise/test_execution.py` (`test_a_marker_carries_the_supervisor_view_but_no_token`, `test_apply_persists_degradations_on_the_attempt`,
-@@ -122,6 +134,16 @@ The single failure is the documented environment-only
+    `test_three_workers_blocked_on_one_rule_produce_one_escalation`, `test_different_missing_lanes_are_separate_escalations`),
+    `autopilot/test_quorum_park.py`, `autopilot/test_convergence_loop.py`,
+    `parallel-infrastructure/test_check_vendors_dispatchable.py`, `parallel-infrastructure/test_review_packet.py`.
+-6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass locally by a
+-   one-rule proxy; the real default-ruleset scan has not run.
++6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass, confirmed by
++   the real default-ruleset gitleaks scan in CI (see the CI confirmation below), plus the local one-rule proxy.
+    `roadmap-runtime/test_landable_checkpoint.py`: `test_the_fixture_has_live_attempts_and_no_raw_token`,
+    `test_the_default_generic_api_key_rule_finds_nothing` (Python port of the default gitleaks
+    generic-api-key rule: keyword prefilter, regex, entropy > 3.5, applied to the committed-shape
+@@ -110,8 +122,35 @@ The single failure is the documented environment-only
+    installed; binaries must not be downloaded). No CI run covers it yet either: `.github/workflows/security.yml`
+    runs gitleaks only on pushes to `main` and on pull requests / merge groups targeting `main`. This change's PR
+    targets `openspec/roadmap-multiplayer-collaboration`, so it does not trigger that job. The first real
+-   default-ruleset scan of these commits is the Security workflow on PR #662 (roadmap branch to `main`). Treat
+-   outcome 6 as confirmed only once that job passes.
++   default-ruleset scan of these commits is the Security workflow on PR #662 (roadmap branch to `main`).
++   CI confirmation (verified in VAL_REVIEW, generation 6): the Security workflow's `secret-scan` job (full default
++   gitleaks ruleset) passed on PR #662, including head 4955e24, where the live checkpoint was migrated to digest-only
++   with live attempts (latest run 37976320517, success), and again on the push to `main` after PR #662 merged as
++   731557b (run 38019470729). `.gitleaks.toml` exempts only the three historical raw-token commits by SHA
++   (ddd2c4a, c6424d7, 3c06430); it has no entry for 4955e24, the digest-only checkpoint or the fixture, so the pass
++   needed no allowlist help.
++   Tests added after IMPL review (PR #667 review fixes and post-merge commits), counted in the suite totals above:
++   - Outcome 4, late members never ride an earlier answer (765f9d8): `supervise/test_execution.py`
++     (`test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer`,
++     `test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved`,
++     `test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked`).
++   - Outcome 5, one escalation per fingerprint under concurrency (43a9b11):
++     `supervise/test_execution.py::test_concurrent_resolvers_on_one_fingerprint_are_single_flight`.
++   - Outcome 7, repo-root harness isolation stays portable as `"."` (b35e544):
++     `shared/test_dispatch_contract.py` (`test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot`,
++     `test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref`),
++     `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_cloud_worker_at_the_repo_root_prepares_and_starts`.
++   - Outcome 1, operator-approved resume at VALIDATE (3a29785): `supervise/test_execution_contract.py`
++     (`test_gate_answer_may_name_validate_as_the_resume_target`, `test_the_continuation_answer_carries_the_recorded_resume_target`),
++     `supervise/test_gate_router.py` (`test_escalate_resume_answer_records_resume_at_validate`,
++     `test_resume_at_is_refused_unless_an_approved_validate_resume`), `autopilot/test_console_interviewer.py`
++     (`test_resume_at_validate_reruns_validation_instead_of_the_parked_phase`, `test_without_resume_at_the_parked_phase_resumes`,
++     `test_resume_at_is_refused_outside_an_approved_escalate_resume`).
++   - Goal gate bound to the report's last writer and commit time (f44bbd6): `autopilot/test_goal_gate.py`
++     (`test_converged_val_review_binds_a_report_it_appended_to`, `test_unconverged_val_review_does_not_bind`,
++     `test_val_review_before_the_latest_validate_does_not_bind`, `test_val_review_does_not_bind_when_disabled`,
++     `test_a_committed_unmodified_report_is_timed_by_its_commit`, `test_a_report_committed_after_validation_is_stale`,
++     `test_an_uncommitted_edit_falls_back_to_mtime`).
+ 7. Checkpoint with live attempts committed on one host reconciles on another: pass.
+    `roadmap-runtime/test_cross_host_reconcile.py` (8 tests: rebind of matching worktree, refusal on diverged worktree / digest mismatch,
+    reinitialize of prepared attempt, unexpired vs expired pre-go claim, post-go unknown liveness quarantined, and
+@@ -122,6 +161,16 @@ The single failure is the documented environment-only
     `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_dispatched_child_with_a_marker_ref_takes_scoped_auto`,
     `::test_a_standalone_run_blocks_with_scope_unscoped`.
  
@@ -636,7 +896,16 @@ index 8e6e543..b0bbe81 100644
  ## Smoke Tests
  
  **Status**: not applicable
-@@ -141,8 +163,10 @@ Reason: no browser or service surface.
+@@ -130,7 +179,7 @@ Reason: skills/schemas-only change, no running service to smoke test.
+ ## Security
+ 
+ **Status**: not applicable
+-Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally, and the Security workflow runs only for `main` (push or PR), so the first real scan is PR #662's Security job.
++Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally; the Security workflow (which runs only for `main`, push or PR) has since passed its `secret-scan` job on PR #662 and on the push to `main` (runs 37976320517 and 38019470729).
+ 
+ ## E2E Tests
+ 
+@@ -141,8 +190,10 @@ Reason: no browser or service surface.
  
  - single_vendor_review: PLAN_REVIEW, IMPL_REVIEW and VAL_REVIEW ran claude_code only (cloud-container policy, min_quorum=1).
  - coordinator_projection_forbidden: coordinator queue projection returned forbidden (expected in this environment).
@@ -647,9 +916,9 @@ index 8e6e543..b0bbe81 100644
  ## Result
  
 -**PASS** — All eight acceptance outcomes are covered by passing tests. Outcome 6's secret-scan claim rests on a one-rule port locally; the real default-ruleset gitleaks scan first runs in PR #662's Security job and must pass there before the claim is confirmed. Other not-run items are recorded above (CI status, live-service phases). Ready for `/cleanup-feature dispatch-contract`.
-+**PASS** (re-validation at c83cf40) — All eight acceptance outcomes are covered by passing tests. Outcome 6's secret-scan claim rests on a one-rule port locally; the real default-ruleset gitleaks scan first runs in PR #662's Security job and must pass there before the claim is confirmed. Other not-run items are recorded above (CI status, live-service phases). The change is already merged (PR #667, 0d078ff); this report exists so the goal gate can bind VAL_REVIEW after VALIDATE.
++**PASS** (re-validation at c83cf40) — All eight acceptance outcomes are covered by passing tests. Outcome 6 is confirmed by the real default-ruleset gitleaks `secret-scan` job, which passed on PR #662 and on `main` with no allowlist entry for the digest-only checkpoint; locally it rests on a one-rule port. Other not-run items are recorded above (CI status, live-service phases). The change is already merged (PR #667, 0d078ff); this report exists so the goal gate can bind VAL_REVIEW after VALIDATE.
 diff --git a/openspec/schemas/dispatch-request.schema.json b/openspec/schemas/dispatch-request.schema.json
-index 6267f2a..0645d57 100644
+index 6267f2a6..0645d578 100644
 --- a/openspec/schemas/dispatch-request.schema.json
 +++ b/openspec/schemas/dispatch-request.schema.json
 @@ -195,7 +195,11 @@
@@ -665,8 +934,319 @@ index 6267f2a..0645d57 100644
        }
      },
      "Provenance": {
+diff --git a/skills/autopilot/scripts/agent_lane.py b/skills/autopilot/scripts/agent_lane.py
+new file mode 100644
+index 00000000..7a1cec1a
+--- /dev/null
++++ b/skills/autopilot/scripts/agent_lane.py
+@@ -0,0 +1,305 @@
++"""Drive ``convergence_loop.converge()`` with the running agent as a review lane.
++
++In a cloud container the only dispatchable review vendor is often the agent
++that is driving the loop. ``converge()`` still needs an orchestrator and a
++fix callback, so this module serves both through a file handshake in a
++protocol directory the agent watches:
++
++- review round N: writes ``awaiting-review-N`` (the packet path), then waits
++  for the agent to write ``findings-round-N.json`` (review-findings schema);
++- fix round N: writes ``fix-request-round-N.json`` (the scoped payloads),
++  then waits for the agent to apply and commit the edits and touch
++  ``fix-done-round-N``.
++
++Every step is appended to ``events.jsonl`` and the outcome to ``result.json``.
++On a converged VAL_REVIEW the ``## Validation Review`` section of
++``validation-report.md`` is written with a ``**Status**`` line, which the goal
++gate requires when VAL_REVIEW is enabled.
++
++This is a committed replacement for per-session driver scripts::
++
++    python3 skills/autopilot/scripts/agent_lane.py converge \\
++        --change-id <id> --phase VAL_REVIEW --proto-dir <dir> \\
++        --base-ref origin/<pr-base> --model <model id>
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import logging
++import re
++import sys
++import time
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any, Callable
++
++_SCRIPTS = Path(__file__).resolve().parent
++_PARALLEL_INFRA = _SCRIPTS.parent.parent / "parallel-infrastructure" / "scripts"
++for _path in (_SCRIPTS, _PARALLEL_INFRA):
++    if str(_path) not in sys.path:
++        sys.path.insert(0, str(_path))
++
++LANE = "claude_code"
++DEFAULT_TIMEOUT_SECONDS = 5400.0
++POLL_SECONDS = 2.0
++
++#: review phase -> (converge review_type, fix sub-step name)
++PHASES: dict[str, tuple[str, str]] = {
++    "PLAN_REVIEW": ("plan", "PLAN_FIX"),
++    "IMPL_REVIEW": ("implementation", "IMPL_FIX"),
++    "VAL_REVIEW": ("implementation", "VAL_FIX"),
++}
++
++VAL_REVIEW_HEADING = "Validation Review"
++
++
++def _now() -> str:
++    return datetime.now(timezone.utc).isoformat()
++
++
++class Handshake:
++    """The protocol directory shared with the agent serving the lane."""
++
++    def __init__(
++        self,
++        proto_dir: Path,
++        *,
++        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
++        poll_seconds: float = POLL_SECONDS,
++        sleep: Callable[[float], None] = time.sleep,
++        clock: Callable[[], float] = time.monotonic,
++    ) -> None:
++        self.dir = Path(proto_dir)
++        self.dir.mkdir(parents=True, exist_ok=True)
++        self.timeout_seconds = timeout_seconds
++        self.poll_seconds = poll_seconds
++        self._sleep = sleep
++        self._clock = clock
++
++    def event(self, kind: str, **data: Any) -> None:
++        with (self.dir / "events.jsonl").open("a", encoding="utf-8") as fh:
++            fh.write(json.dumps({"at": _now(), "event": kind, **data}, default=str) + "\n")
++
++    def wait_for(self, name: str) -> Path:
++        target = self.dir / name
++        deadline = self._clock() + self.timeout_seconds
++        while not target.exists():
++            if self._clock() > deadline:
++                raise TimeoutError(f"timed out waiting for {target}")
++            self._sleep(self.poll_seconds)
++        return target
++
++
++class AgentLaneOrchestrator:
++    """A single review lane served by the running agent through ``Handshake``.
++
++    Implements the part of ``ReviewOrchestrator`` that ``converge()`` calls.
++    """
++
++    def __init__(self, handshake: Handshake, *, model: str) -> None:
++        self.handshake = handshake
++        self.model = model
++        self.round = 0
++        self.adapters: dict[str, Any] = {}
++
++    def dispatch_and_wait(
++        self,
++        review_type: str,
++        dispatch_mode: str,
++        prompt: str,
++        cwd: Path,
++        timeout_seconds: float | None = None,
++        packet_path: Path | None = None,
++        result_callback: Callable[[Any, int], None] | None = None,
++    ) -> list[Any]:
++        from review_dispatcher import ReviewResult
++
++        self.round += 1
++        n = self.round
++        hs = self.handshake
++        hs.event("review_requested", round=n, packet_path=str(packet_path or ""))
++        (hs.dir / f"awaiting-review-{n}").write_text(str(packet_path or ""), encoding="utf-8")
++        start = time.monotonic()
++        findings = json.loads(hs.wait_for(f"findings-round-{n}.json").read_text(encoding="utf-8"))
++        result = ReviewResult(
++            vendor=LANE,
++            success=True,
++            findings=findings,
++            model_used=self.model,
++            models_attempted=[self.model],
++            elapsed_seconds=time.monotonic() - start,
++            agent_id=LANE,
++        )
++        if result_callback is not None:
++            result_callback(result, 1)
++        hs.event("review_received", round=n, findings=len(findings.get("findings", [])))
++        return [result]
++
++
++def make_fix_callback(
++    handshake: Handshake, orchestrator: AgentLaneOrchestrator, *, fix_phase: str
++) -> Callable[[list[dict[str, Any]], Path], None]:
++    def fix_callback(payloads: list[dict[str, Any]], worktree_path: Path) -> None:
++        n = orchestrator.round
++        handshake.event(
++            "phase_history_substep", phase=fix_phase, status="started", round=n,
++            item_ids=[p.get("id") for p in payloads],
++        )
++        (handshake.dir / f"fix-request-round-{n}.json").write_text(
++            json.dumps(payloads, indent=2, default=str), encoding="utf-8"
++        )
++        handshake.wait_for(f"fix-done-round-{n}")
++        handshake.event("phase_history_substep", phase=fix_phase, status="completed", round=n)
++
++    return fix_callback
++
++
++def write_validation_review_section(report_path: Path, *, status: str, body: str) -> None:
++    """Replace (or append) the report's ``## Validation Review`` section."""
++    text = report_path.read_text(encoding="utf-8") if report_path.exists() else "# Validation Report\n"
++    section = f"## {VAL_REVIEW_HEADING}\n\n**Status**: {status}\n\n{body.strip()}\n"
++    pattern = re.compile(rf"^## {re.escape(VAL_REVIEW_HEADING)}\s*\n.*?(?=^## |\Z)", re.DOTALL | re.MULTILINE)
++    if pattern.search(text):
++        text = pattern.sub(lambda _m: section + "\n", text, count=1).rstrip() + "\n"
++    else:
++        text = text.rstrip() + "\n\n" + section
++    report_path.write_text(text, encoding="utf-8")
++
++
++def _review_body(result: dict[str, Any], *, min_quorum: int, policy: dict[str, Any]) -> str:
++    lines = [
++        f"- Result: converged in {result['rounds']} round(s) via `agent_lane.py converge`.",
++        f"- Lanes: `{LANE}` only (min_quorum={min_quorum}).",
++    ]
++    if policy.get("policy_id"):
++        lines.append(
++            f"- Degradation: `single_vendor_review` under quorum policy `{policy['policy_id']}`."
++        )
++    if result.get("summary"):
++        lines.append(f"- Summary: {result['summary']}")
++    return "\n".join(lines)
++
++
++def run_converge(
++    *,
++    change_id: str,
++    phase: str,
++    worktree: Path,
++    proto_dir: Path,
++    base_ref: str | None,
++    model: str,
++    environment: str = "cloud_container",
++    max_rounds: int = 3,
++    fix_mode: str = "targeted",
++    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
++    converge_fn: Callable[..., Any] | None = None,
++    policy_fn: Callable[..., dict[str, Any]] | None = None,
++) -> dict[str, Any]:
++    if phase not in PHASES:
++        raise ValueError(f"phase must be one of {sorted(PHASES)}")
++    review_type, fix_phase = PHASES[phase]
++    if converge_fn is None:
++        import convergence_loop
++
++        converge_fn = convergence_loop.converge
++    if policy_fn is None:
++        from review_dispatcher import resolve_quorum_policy
++
++        policy_fn = resolve_quorum_policy
++
++    worktree = Path(worktree).resolve()
++    change_dir = worktree / "openspec" / "changes" / change_id
++    handshake = Handshake(proto_dir, timeout_seconds=timeout_seconds)
++    logging.basicConfig(
++        filename=str(handshake.dir / "converge.log"), level=logging.INFO,
++        format="%(asctime)s %(name)s %(levelname)s %(message)s",
++    )
++    policy = policy_fn(environment=environment, verified_review_lanes=1)
++    min_quorum = int(policy["min_quorum"][phase])
++    orchestrator = AgentLaneOrchestrator(handshake, model=model)
++    handshake.event("converge_started", phase=phase, min_quorum=min_quorum, policy=policy)
++    try:
++        res = converge_fn(
++            change_id=change_id,
++            review_type=review_type,
++            artifacts_dir=change_dir,
++            worktree_path=worktree,
++            max_rounds=max_rounds,
++            min_quorum=min_quorum,
++            fix_mode=fix_mode,
++            verified_lanes=[LANE],
++            counting_lanes=[LANE],
++            base_ref=base_ref,
++            fix_callback=make_fix_callback(handshake, orchestrator, fix_phase=fix_phase),
++            memory_callback=lambda text: handshake.event("memory", text=text),
++            orchestrator=orchestrator,
++            escalation_callback=lambda summary: handshake.event("escalation", summary=summary),
++        )
++        out: dict[str, Any] = {
++            "phase": phase,
++            "policy": policy,
++            "min_quorum": min_quorum,
++            "converged": bool(res.converged),
++            "rounds": res.rounds,
++            "reason": res.reason,
++            "escalate_findings": res.escalate_findings,
++            "validation_errors": res.validation_errors,
++            "checkpoint_dir": str(res.checkpoint_dir) if res.checkpoint_dir else None,
++            "summary": (res.consensus or {}).get("summary"),
++        }
++    except Exception as exc:  # noqa: BLE001 - recorded for the agent, not swallowed silently
++        out = {"phase": phase, "converged": False, "error": f"{type(exc).__name__}: {exc}"}
++
++    if phase == "VAL_REVIEW" and out.get("converged"):
++        write_validation_review_section(
++            change_dir / "validation-report.md",
++            status="pass",
++            body=_review_body(out, min_quorum=min_quorum, policy=policy),
++        )
++        out["report_section_written"] = VAL_REVIEW_HEADING
++    (handshake.dir / "result.json").write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
++    handshake.event(
++        "converge_finished", **{k: out.get(k) for k in ("converged", "rounds", "reason", "error")}
++    )
++    return out
++
++
++def _build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
++    sub = parser.add_subparsers(dest="command", required=True)
++    cv = sub.add_parser("converge", help="Run converge() with the agent as the review lane.")
++    cv.add_argument("--change-id", required=True)
++    cv.add_argument("--phase", required=True, choices=sorted(PHASES))
++    cv.add_argument("--proto-dir", required=True, type=Path)
++    cv.add_argument("--worktree", type=Path, default=Path.cwd())
++    cv.add_argument("--base-ref", default=None, help="Ref the review packet diffs against (the PR base).")
++    cv.add_argument("--model", required=True, help="Model id serving the lane, recorded on each review.")
++    cv.add_argument("--environment", default="cloud_container", choices=["cloud_container", "host"])
++    cv.add_argument("--max-rounds", type=int, default=3)
++    cv.add_argument("--fix-mode", default="targeted", choices=["inline", "targeted"])
++    cv.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
++    return parser
++
++
++def main(argv: list[str] | None = None) -> int:
++    args = _build_parser().parse_args(argv)
++    out = run_converge(
++        change_id=args.change_id,
++        phase=args.phase,
++        worktree=args.worktree,
++        proto_dir=args.proto_dir,
++        base_ref=args.base_ref,
++        model=args.model,
++        environment=args.environment,
++        max_rounds=args.max_rounds,
++        fix_mode=args.fix_mode,
++        timeout_seconds=args.timeout_seconds,
++    )
++    print(json.dumps({k: out.get(k) for k in ("phase", "converged", "rounds", "reason", "error")}))
++    return 0 if out.get("converged") else 1
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
 diff --git a/skills/autopilot/scripts/autopilot.py b/skills/autopilot/scripts/autopilot.py
-index 23dbaa3..bd7d8e7 100644
+index 23dbaa3d..bd7d8e77 100644
 --- a/skills/autopilot/scripts/autopilot.py
 +++ b/skills/autopilot/scripts/autopilot.py
 @@ -272,7 +272,10 @@ TRANSITIONS: dict[str, dict[str, str]] = {
@@ -681,8 +1261,23 @@ index 23dbaa3..bd7d8e7 100644
  }
  
  
+diff --git a/skills/autopilot/scripts/convergence_loop.py b/skills/autopilot/scripts/convergence_loop.py
+index d8c1a192..a04ed3fc 100644
+--- a/skills/autopilot/scripts/convergence_loop.py
++++ b/skills/autopilot/scripts/convergence_loop.py
+@@ -1262,7 +1262,9 @@ def converge(
+             if changed:
+                 reject_out_of_scope_fix(changed, allowed)
+             last_fix_diff = _last_fix_diff(worktree_path, pre_rev)
+-            mark_addressed(ledger, [int(item["id"]) for item in dispatch_items])
++            mark_addressed(
++                ledger, [int(item["id"]) for item in dispatch_items], touched_paths=changed,
++            )
+             save_ledger(ledger, artifacts_dir)
+ 
+             # 2l. Post-fix validation (optional)
 diff --git a/skills/autopilot/scripts/goal_gate.py b/skills/autopilot/scripts/goal_gate.py
-index e0ede0c..6f44b2d 100644
+index e0ede0c6..6f44b2db 100644
 --- a/skills/autopilot/scripts/goal_gate.py
 +++ b/skills/autopilot/scripts/goal_gate.py
 @@ -14,6 +14,13 @@ the same change; the history entry alone is only the sub-agent's self-report wit
@@ -803,8 +1398,54 @@ index e0ede0c..6f44b2d 100644
          return GoalGateVerdict("refused", REASON_STALE_REPORT, evidence)
  
      required = _required_sections(state, change_dir)
+diff --git a/skills/autopilot/scripts/phase_agent.py b/skills/autopilot/scripts/phase_agent.py
+index f13c2638..ee172ecf 100644
+--- a/skills/autopilot/scripts/phase_agent.py
++++ b/skills/autopilot/scripts/phase_agent.py
+@@ -556,7 +556,12 @@ _PHASE_TASKS: dict[str, str | None] = {
+         "around that operation. Return 'converged' if no blocking ledger\n"
+         "items remain, 'max_iter' if the inner loop stalled or exhausted\n"
+         "rounds. Do not return 'not_converged' to bounce the outer machine\n"
+-        "into PLAN_FIX."
++        "into PLAN_FIX.\n"
++        "When the only review lane is this agent (cloud single-vendor),\n"
++        "drive converge() with the committed\n"
++        "`skills/autopilot/scripts/agent_lane.py converge --phase PLAN_REVIEW`\n"
++        "and serve the lane through its protocol directory; never write an\n"
++        "ad-hoc driver script."
+     ),
+     "PLAN_FIX": (
+         "PLAN_FIX is the inner fix_callback of converge(), not an outer\n"
+@@ -590,7 +595,12 @@ _PHASE_TASKS: dict[str, str | None] = {
+         "package_authors, scoped to cited file_paths) and record IMPL_FIX\n"
+         "as a phase_history sub-step. Return 'converged' if no blocking\n"
+         "ledger items remain, 'max_iter' if the inner loop stalled or\n"
+-        "exhausted rounds."
++        "exhausted rounds.\n"
++        "When the only review lane is this agent (cloud single-vendor),\n"
++        "drive converge() with the committed\n"
++        "`skills/autopilot/scripts/agent_lane.py converge --phase IMPL_REVIEW`\n"
++        "and serve the lane through its protocol directory; never write an\n"
++        "ad-hoc driver script."
+     ),
+     "IMPL_FIX": (
+         "IMPL_FIX is the inner fix_callback of converge(), not an outer\n"
+@@ -610,7 +620,12 @@ _PHASE_TASKS: dict[str, str | None] = {
+         "cold validation review. Pass a real VAL_FIX applicator as\n"
+         "fix_callback and record VAL_FIX as a phase_history sub-step.\n"
+         "Return 'converged' if validation passes critique, 'max_iter'\n"
+-        "otherwise."
++        "otherwise.\n"
++        "When the only review lane is this agent (cloud single-vendor),\n"
++        "drive converge() with the committed\n"
++        "`skills/autopilot/scripts/agent_lane.py converge --phase VAL_REVIEW`\n"
++        "and serve the lane through its protocol directory; never write an\n"
++        "ad-hoc driver script."
+     ),
+     "VAL_FIX": (
+         "VAL_FIX is the inner fix_callback of converge(), not an outer\n"
 diff --git a/skills/autopilot/scripts/runner.py b/skills/autopilot/scripts/runner.py
-index 4803f23..51202ec 100644
+index 4803f232..51202ec9 100644
 --- a/skills/autopilot/scripts/runner.py
 +++ b/skills/autopilot/scripts/runner.py
 @@ -431,6 +431,22 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
@@ -856,8 +1497,51 @@ index 4803f23..51202ec 100644
      ga.set_defaults(func=_cmd_gate_answer)
  
      pk = sub.add_parser(
+diff --git a/skills/parallel-infrastructure/scripts/review_ledger.py b/skills/parallel-infrastructure/scripts/review_ledger.py
+index a4a2b795..e0316e97 100644
+--- a/skills/parallel-infrastructure/scripts/review_ledger.py
++++ b/skills/parallel-infrastructure/scripts/review_ledger.py
+@@ -451,6 +451,13 @@ def compact(ledger: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+             )
+             continue
+         if status == "addressed" and present is True:
++            if not has_snippet and item.get("fix_touched_file"):
++                # Description tokens survive an additive fix (a doc or report
++                # correction keeps the words it corrects), so the token
++                # heuristic cannot tell a fixed file from an unfixed one once
++                # the fix commit touched it. A re-raise by the next review
++                # round (merge_findings) is then the only reopen signal.
++                continue
+             item["status"] = "open"
+             item["resolution"] = (
+                 "compact: snippet still present" if has_snippet
+@@ -530,11 +537,23 @@ def adjudication_items(ledger: dict[str, Any]) -> list[dict[str, Any]]:
+     return out
+ 
+ 
+-def mark_addressed(ledger: dict[str, Any], item_ids: list[int]) -> None:
++def mark_addressed(
++    ledger: dict[str, Any],
++    item_ids: list[int],
++    *,
++    touched_paths: list[str] | None = None,
++) -> None:
++    """Mark items addressed. ``touched_paths`` (repo-relative paths the fix
++    changed) records per item whether the fix touched its cited file, which
++    ``compact`` uses to stop re-opening token-matched items on additive fixes."""
+     id_set = set(item_ids)
++    touched = {Path(p).as_posix().removeprefix("./") for p in touched_paths or []}
+     for item in ledger.get("items", []):
+         if item.get("id") in id_set and item.get("status") == "open":
+             item["status"] = "addressed"
++            if touched_paths is not None:
++                cited = Path(str(item.get("file_path") or "")).as_posix().removeprefix("./")
++                item["fix_touched_file"] = bool(cited) and cited in touched
+ 
+ 
+ def park_item(
 diff --git a/skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-request.schema.json b/skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-request.schema.json
-index 6267f2a..0645d57 100644
+index 6267f2a6..0645d578 100644
 --- a/skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-request.schema.json
 +++ b/skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-request.schema.json
 @@ -195,7 +195,11 @@
@@ -874,7 +1558,7 @@ index 6267f2a..0645d57 100644
      },
      "Provenance": {
 diff --git a/skills/supervise/scripts/cycle_state.py b/skills/supervise/scripts/cycle_state.py
-index 2e67e70..91782f4 100644
+index 2e67e703..91782f47 100644
 --- a/skills/supervise/scripts/cycle_state.py
 +++ b/skills/supervise/scripts/cycle_state.py
 @@ -1287,6 +1287,8 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
@@ -898,7 +1582,7 @@ index 2e67e70..91782f4 100644
      p_gate_log = sub.add_parser("gate-log", help="Print the sidecar + child gate_decisions for a roadmap (D6).")
      p_gate_log.add_argument("--roadmap", required=True)
 diff --git a/skills/supervise/scripts/execution.py b/skills/supervise/scripts/execution.py
-index 221fbea..406a1ff 100644
+index 221fbea0..406a1ffa 100644
 --- a/skills/supervise/scripts/execution.py
 +++ b/skills/supervise/scripts/execution.py
 @@ -328,6 +328,8 @@ def _gate_answer(checkpoint: Any, attempt: Mapping[str, Any]) -> dict[str, Any]
@@ -911,7 +1595,7 @@ index 221fbea..406a1ff 100644
  
  
 diff --git a/skills/supervise/scripts/gate_router.py b/skills/supervise/scripts/gate_router.py
-index a3e43f8..8b5800f 100644
+index a3e43f8c..8b5800f7 100644
 --- a/skills/supervise/scripts/gate_router.py
 +++ b/skills/supervise/scripts/gate_router.py
 @@ -963,6 +963,7 @@ def answer(
@@ -933,8 +1617,212 @@ index a3e43f8..8b5800f 100644
      record = build_gate_decision_record(decision, phase=_PHASE, extra=extra)
      # Project before persisting -- a `GateRefusalError` (e.g. a blocked answer
      # naming no `change_id`) must never follow a partial write.
+diff --git a/skills/tests/autopilot/test_agent_lane.py b/skills/tests/autopilot/test_agent_lane.py
+new file mode 100644
+index 00000000..55703d5a
+--- /dev/null
++++ b/skills/tests/autopilot/test_agent_lane.py
+@@ -0,0 +1,198 @@
++"""The committed agent-lane converge driver (``agent_lane.py``).
++
++Replaces per-session scratch drivers, which the auto-mode classifier refuses to
++run as external code. The agent serving the lane is simulated by a thread that
++answers the file handshake.
++"""
++
++from __future__ import annotations
++
++import json
++import sys
++import threading
++from pathlib import Path
++from types import SimpleNamespace
++from typing import Any
++
++import pytest
++
++import agent_lane
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "validate-feature" / "scripts"))
++import gate_logic  # noqa: E402
++
++POLICY = {
++    "min_quorum": {"PLAN_REVIEW": 1, "IMPL_REVIEW": 1, "VAL_REVIEW": 1},
++    "environment": "cloud_container",
++    "policy_id": "cloud-single-vendor",
++    "sunset": None,
++}
++
++
++def _policy(**_: Any) -> dict[str, Any]:
++    return POLICY
++
++
++def _serve(proto: Path, *, rounds: int, fix_rounds: tuple[int, ...] = ()) -> threading.Thread:
++    """Answer each review request with an empty findings file and each fix request."""
++
++    def run() -> None:
++        hs = agent_lane.Handshake(proto, timeout_seconds=10, poll_seconds=0.01)
++        for n in range(1, rounds + 1):
++            hs.wait_for(f"awaiting-review-{n}")
++            (proto / f"findings-round-{n}.json").write_text(json.dumps({"findings": []}))
++            if n in fix_rounds:
++                hs.wait_for(f"fix-request-round-{n}.json")
++                (proto / f"fix-done-round-{n}").touch()
++
++    thread = threading.Thread(target=run, daemon=True)
++    thread.start()
++    return thread
++
++
++def _change_dir(worktree: Path, change_id: str = "demo") -> Path:
++    change_dir = worktree / "openspec" / "changes" / change_id
++    change_dir.mkdir(parents=True)
++    (change_dir / "validation-report.md").write_text(
++        "# Validation Report\n\n## Spec Compliance\n\n**Status**: pass\n"
++    )
++    return change_dir
++
++
++def _fake_converge(*, review_rounds: int, fix_round: int | None = None, converged: bool = True):
++    calls: dict[str, Any] = {}
++
++    def converge(**kwargs: Any) -> SimpleNamespace:
++        calls.update(kwargs)
++        orch = kwargs["orchestrator"]
++        for n in range(1, review_rounds + 1):
++            orch.dispatch_and_wait(
++                kwargs["review_type"], "review", "prompt", kwargs["worktree_path"],
++                packet_path=Path(f"/packets/round-{n}.md"),
++            )
++            if fix_round == n:
++                kwargs["fix_callback"]([{"id": "F1"}], kwargs["worktree_path"])
++        return SimpleNamespace(
++            converged=converged, rounds=review_rounds, reason=None, consensus={"summary": "0 blocking"},
++            escalate_findings=[], validation_errors=[], checkpoint_dir=None,
++        )
++
++    return converge, calls
++
++
++def test_val_review_converges_and_writes_the_section_the_goal_gate_reads(tmp_path: Path) -> None:
++    worktree, proto = tmp_path / "wt", tmp_path / "proto"
++    change_dir = _change_dir(worktree)
++    server = _serve(proto, rounds=2, fix_rounds=(1,))
++    converge, calls = _fake_converge(review_rounds=2, fix_round=1)
++
++    out = agent_lane.run_converge(
++        change_id="demo", phase="VAL_REVIEW", worktree=worktree, proto_dir=proto,
++        base_ref="origin/base", model="model-x", timeout_seconds=10,
++        converge_fn=converge, policy_fn=_policy,
++    )
++    server.join(timeout=5)
++
++    assert out["converged"] is True and out["report_section_written"] == "Validation Review"
++    report = str(change_dir / "validation-report.md")
++    assert gate_logic.check_phase_status(report, "Validation Review") == "pass"
++    assert gate_logic.check_phase_status(report, "Spec Compliance") == "pass"
++    assert calls["review_type"] == "implementation"
++    assert calls["min_quorum"] == 1
++    assert calls["base_ref"] == "origin/base"
++    assert calls["verified_lanes"] == calls["counting_lanes"] == ["claude_code"]
++    events = [json.loads(line)["event"] for line in (proto / "events.jsonl").read_text().splitlines()]
++    assert events.count("review_received") == 2
++    assert "phase_history_substep" in events
++    assert json.loads((proto / "result.json").read_text())["converged"] is True
++
++
++def test_a_review_result_records_the_given_model(tmp_path: Path) -> None:
++    proto = tmp_path / "proto"
++    server = _serve(proto, rounds=1)
++    orch = agent_lane.AgentLaneOrchestrator(agent_lane.Handshake(proto, timeout_seconds=10, poll_seconds=0.01), model="model-x")
++
++    [result] = orch.dispatch_and_wait("plan", "review", "p", tmp_path)
++    server.join(timeout=5)
++
++    assert (result.vendor, result.model_used, result.success) == ("claude_code", "model-x", True)
++
++
++def test_an_unconverged_val_review_leaves_the_report_untouched(tmp_path: Path) -> None:
++    worktree, proto = tmp_path / "wt", tmp_path / "proto"
++    change_dir = _change_dir(worktree)
++    before = (change_dir / "validation-report.md").read_text()
++    server = _serve(proto, rounds=1)
++    converge, _ = _fake_converge(review_rounds=1, converged=False)
++
++    out = agent_lane.run_converge(
++        change_id="demo", phase="VAL_REVIEW", worktree=worktree, proto_dir=proto,
++        base_ref=None, model="m", timeout_seconds=10, converge_fn=converge, policy_fn=_policy,
++    )
++    server.join(timeout=5)
++
++    assert out["converged"] is False
++    assert (change_dir / "validation-report.md").read_text() == before
++
++
++@pytest.mark.parametrize("phase, review_type", [("PLAN_REVIEW", "plan"), ("IMPL_REVIEW", "implementation")])
++def test_other_phases_map_review_type_and_do_not_touch_the_report(
++    tmp_path: Path, phase: str, review_type: str
++) -> None:
++    worktree, proto = tmp_path / "wt", tmp_path / "proto"
++    change_dir = _change_dir(worktree)
++    before = (change_dir / "validation-report.md").read_text()
++    server = _serve(proto, rounds=1)
++    converge, calls = _fake_converge(review_rounds=1)
++
++    agent_lane.run_converge(
++        change_id="demo", phase=phase, worktree=worktree, proto_dir=proto, base_ref=None,
++        model="m", timeout_seconds=10, converge_fn=converge, policy_fn=_policy,
++    )
++    server.join(timeout=5)
++
++    assert calls["review_type"] == review_type
++    assert (change_dir / "validation-report.md").read_text() == before
++
++
++def test_writing_the_section_twice_replaces_it(tmp_path: Path) -> None:
++    report = tmp_path / "validation-report.md"
++    report.write_text("# R\n\n## Validation Review\n\n**Status**: fail\n\nold\n\n## Later\n\n**Status**: pass\n")
++
++    agent_lane.write_validation_review_section(report, status="pass", body="- new")
++    agent_lane.write_validation_review_section(report, status="pass", body="- newer")
++
++    text = report.read_text()
++    assert text.count("## Validation Review") == 1
++    assert "old" not in text and "- newer" in text and "## Later" in text
++    assert gate_logic.check_phase_status(str(report), "Validation Review") == "pass"
++    assert gate_logic.check_phase_status(str(report), "Later") == "pass"
++
++
++def test_a_lane_that_never_answers_times_out(tmp_path: Path) -> None:
++    ticks = iter(range(100))
++    hs = agent_lane.Handshake(tmp_path, timeout_seconds=3, sleep=lambda _s: None, clock=lambda: next(ticks))
++
++    with pytest.raises(TimeoutError):
++        hs.wait_for("findings-round-1.json")
++
++
++def test_an_error_inside_converge_is_recorded_not_raised(tmp_path: Path) -> None:
++    worktree, proto = tmp_path / "wt", tmp_path / "proto"
++    _change_dir(worktree)
++
++    def boom(**_: Any) -> None:
++        raise RuntimeError("lane failed")
++
++    out = agent_lane.run_converge(
++        change_id="demo", phase="IMPL_REVIEW", worktree=worktree, proto_dir=proto, base_ref=None,
++        model="m", converge_fn=boom, policy_fn=_policy,
++    )
++
++    assert out == {"phase": "IMPL_REVIEW", "converged": False, "error": "RuntimeError: lane failed"}
++    assert json.loads((proto / "result.json").read_text())["error"] == "RuntimeError: lane failed"
++
++
++def test_cli_rejects_an_unknown_phase() -> None:
++    with pytest.raises(SystemExit):
++        agent_lane.main(["converge", "--change-id", "d", "--phase", "VALIDATE", "--proto-dir", "p", "--model", "m"])
 diff --git a/skills/tests/autopilot/test_console_interviewer.py b/skills/tests/autopilot/test_console_interviewer.py
-index 11cdfe4..81b6298 100644
+index 11cdfe49..81b62980 100644
 --- a/skills/tests/autopilot/test_console_interviewer.py
 +++ b/skills/tests/autopilot/test_console_interviewer.py
 @@ -326,3 +326,67 @@ def test_apply_outcome_still_works_when_no_gate_is_pending(workspace: Path) -> N
@@ -1006,7 +1894,7 @@ index 11cdfe4..81b6298 100644
 +    assert runner.main(["gate-answer", "demo", *argv]) == 2
 +    assert state_path.read_bytes() == before
 diff --git a/skills/tests/autopilot/test_goal_gate.py b/skills/tests/autopilot/test_goal_gate.py
-index 6166402..a1d332a 100644
+index 61664029..a1d332ac 100644
 --- a/skills/tests/autopilot/test_goal_gate.py
 +++ b/skills/tests/autopilot/test_goal_gate.py
 @@ -328,3 +328,110 @@ def test_verdict_is_frozen(tmp_path: Path) -> None:
@@ -1120,8 +2008,76 @@ index 6166402..a1d332a 100644
 +
 +    assert verdict.reason == goal_gate.REASON_STALE_REPORT
 +    assert verdict.evidence["report_time_source"] == "mtime"
+diff --git a/skills/tests/parallel-infrastructure/test_review_ledger.py b/skills/tests/parallel-infrastructure/test_review_ledger.py
+index 9408f8c0..71903be9 100644
+--- a/skills/tests/parallel-infrastructure/test_review_ledger.py
++++ b/skills/tests/parallel-infrastructure/test_review_ledger.py
+@@ -400,3 +400,63 @@ def test_parked_path_location(tmp_path: Path) -> None:
+     assert parked_path(tmp_path / "change") == (
+         tmp_path / "change" / "reviews" / "parked-disagreements.json"
+     )
++
++
++def _addressed_doc_finding(tmp_path: Path, *, touched: list[str] | None) -> dict:
++    """A report finding fixed additively: the corrected words stay in the file."""
++    doc = tmp_path / "docs" / "report.md"
++    doc.parent.mkdir(parents=True, exist_ok=True)
++    doc.write_text("Outcome six run id 4955e24 is confirmed by the gitleaks secret scan.\n")
++    artifacts = tmp_path / "change"
++    artifacts.mkdir(exist_ok=True)
++    ledger = load_or_create(artifacts, "demo")
++    merge_findings(
++        ledger,
++        [_cf(description="Outcome six run id 4955e24 not confirmed by secret scan", file_path="docs/report.md")],
++        round_num=1,
++    )
++    from review_ledger import mark_addressed
++
++    mark_addressed(ledger, [ledger["items"][0]["id"]], touched_paths=touched)
++    return ledger
++
++
++def test_compact_keeps_an_additive_fix_addressed_when_the_fix_touched_the_file(tmp_path: Path) -> None:
++    ledger = _addressed_doc_finding(tmp_path, touched=["docs/report.md"])
++    assert ledger["items"][0]["fix_touched_file"] is True
++
++    compact(ledger, tmp_path)
++
++    assert ledger["items"][0]["status"] == "addressed"
++
++
++def test_compact_reopens_when_the_fix_did_not_touch_the_cited_file(tmp_path: Path) -> None:
++    ledger = _addressed_doc_finding(tmp_path, touched=["src/other.py"])
++    assert ledger["items"][0]["fix_touched_file"] is False
++
++    compact(ledger, tmp_path)
++
++    assert ledger["items"][0]["status"] == "open"
++    assert ledger["items"][0]["resolution"] == "compact: claimed fix did not take"
++
++
++def test_a_re_raised_finding_reopens_even_after_a_touching_fix(tmp_path: Path) -> None:
++    ledger = _addressed_doc_finding(tmp_path, touched=["docs/report.md"])
++    compact(ledger, tmp_path)
++
++    merge_findings(
++        ledger,
++        [_cf(description="Outcome six run id 4955e24 not confirmed by secret scan", file_path="docs/report.md")],
++        round_num=2,
++    )
++
++    assert ledger["items"][0]["status"] == "open"
++
++
++def test_mark_addressed_without_touched_paths_keeps_the_old_behavior(tmp_path: Path) -> None:
++    ledger = _addressed_doc_finding(tmp_path, touched=None)
++    assert "fix_touched_file" not in ledger["items"][0]
++
++    compact(ledger, tmp_path)
++
++    assert ledger["items"][0]["status"] == "open"
 diff --git a/skills/tests/supervise/test_execution_contract.py b/skills/tests/supervise/test_execution_contract.py
-index 179a7f5..70fe5aa 100644
+index 179a7f53..70fe5aa7 100644
 --- a/skills/tests/supervise/test_execution_contract.py
 +++ b/skills/tests/supervise/test_execution_contract.py
 @@ -349,3 +349,43 @@ def test_checkpoint_attempts_and_results_are_single_definitions() -> None:
@@ -1169,7 +2125,7 @@ index 179a7f5..70fe5aa 100644
 +    record.pop("resume_at")
 +    assert "resume_at" not in execution._gate_answer(checkpoint, attempt)
 diff --git a/skills/tests/supervise/test_gate_router.py b/skills/tests/supervise/test_gate_router.py
-index 2f13400..f1409b4 100644
+index 2f134005..f1409b44 100644
 --- a/skills/tests/supervise/test_gate_router.py
 +++ b/skills/tests/supervise/test_gate_router.py
 @@ -1535,3 +1535,30 @@ def test_cycle_state_gate_answer_covers_a_pending_escalate_resume_park(
@@ -1210,9 +2166,11 @@ index 2f13400..f1409b4 100644
 
 #### Group 1 (default: `(default)`)
 Applies to:
+- openspec/changes/dispatch-contract/.review-ledger/ledger.json
 - openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json
 - openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json
 - openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json
+- openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json
 - openspec/changes/dispatch-contract/loop-state.json
 - openspec/changes/dispatch-contract/session-log.md
 - openspec/changes/dispatch-contract/validation-report.md
@@ -1228,9 +2186,13 @@ Verify the schema is valid Draft 2020-12, that required fields were not silently
 
 #### Group 3 (default: `skills/*/scripts/*.py`)
 Applies to:
+- skills/autopilot/scripts/agent_lane.py
 - skills/autopilot/scripts/autopilot.py
+- skills/autopilot/scripts/convergence_loop.py
 - skills/autopilot/scripts/goal_gate.py
+- skills/autopilot/scripts/phase_agent.py
 - skills/autopilot/scripts/runner.py
+- skills/parallel-infrastructure/scripts/review_ledger.py
 - skills/supervise/scripts/cycle_state.py
 - skills/supervise/scripts/execution.py
 - skills/supervise/scripts/gate_router.py
@@ -1239,8 +2201,10 @@ Check for unhandled exceptions on the failure paths this module is meant to guar
 
 #### Group 4 (default: `skills/tests/**`)
 Applies to:
+- skills/tests/autopilot/test_agent_lane.py
 - skills/tests/autopilot/test_console_interviewer.py
 - skills/tests/autopilot/test_goal_gate.py
+- skills/tests/parallel-infrastructure/test_review_ledger.py
 - skills/tests/supervise/test_execution_contract.py
 - skills/tests/supervise/test_gate_router.py
 
@@ -1635,6 +2599,11 @@ The trust posture SHALL let the `proposal_approval` and `replan_required` gate c
 - [27] Outcome 7 evidence cannot detect the defect the outcome targets. Host A and host B share the same repo root and workspace directory, so an absolute host-A path leaking into checkpoint.json (or into any record reconcile reads) would still resolve on 'host B'. Nothing asserts that a reconciled checkpoint holds no absolute path, and nothing reconciles a checkpoint copied to a different repository root (the 'committed on one host, checked out on another' case).
 - [28] Outcome 5 says execution_profile, review_requirements and degradations[] are 'carried end to end', which the proposal defines as request -> launch marker -> child loop-state.json -> emit-result file -> apply -> checkpoint attempt and apply return value. The report's only end-to-end citation is the capability-park routing test; degradations are proven only piecewise (test_emit_result::test_degradations_travel_into_the_result, and test_execution::test_apply_persists_degradations_on_the_attempt with a hand-composed result), and the marker's profile only in a unit test.
 - [29] Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.
+- [30] Outcome 6 describes as future a scan that had already passed when the report was regenerated. PR #662 (roadmap branch to main) merged at 2026-10-10T03:07:43Z as 731557bc (gh api repos/.../pulls/662). The Security workflow's secret-scan job (gitleaks/gitleaks-action@v3, default ruleset via .gitleaks.toml useDefault=true) concluded success on PR #662 heads 0d078ff (the PR #667 merge), 4955e24 (the live multiplayer-collaboration checkpoint migrated to digest-only launch tokens with live attempts), c04a1a8 and 789705a, and on the push to main 731557bc (run 38019470729: secret-scan success). The report was written at 1560d08 (2026-10-10T10:06Z), seven hours later. The .gitleaks.toml commit allowlist exempts only the three raw-token-introducing commits (ddd2c4a8, c6424d74, 3c06430a), not 4955e24, so these runs are real default-ruleset evidence that a committed checkpoint with live attempts passes with no allowlist entry. The same stale statement appears in the Security section (line 155) and the Result line (line 172: 'first runs in PR #662's Security job and must pass there'). The report understates outcome 6 and leaves a confirmation condition open that is already met. — re-verified resolved in 794b4281
+- [31] Outcome 4 (capability-fingerprint path) cites a test that no longer exists. 765f9d8 renamed it to test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected (skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py:376) and changed what it asserts: an approval given before re-projection resumes nothing ('early["resumed"] == []'). The report's header says 765f9d8 is in the code under test, but this citation uses the pre-fix name and so describes the pre-fix semantics. The renamed test passes. — re-verified resolved in 794b4281
+- [32] The header names the PR #667 review fixes and the post-merge commits as code under test, but the outcome-to-test mapping cites none of the tests they added. Each one bears on a claimed outcome. (a) Outcome 4: 765f9d8's supervise/test_execution.py tests test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer, test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved and test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked show that a human rejection survives a member joining. (b) Outcome 5: 43a9b11's test_concurrent_resolvers_on_one_fingerprint_are_single_flight (block/auto) shows racing resolvers still yield a single escalation. (c) Outcome 7: b35e544's test_a_cloud_worker_at_the_repo_root_prepares_and_starts, shared/test_dispatch_contract.py::test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot and ::test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref cover the portable repo-root isolation ref. (d) Outcome 1 and the gate-answer path: 3a29785 changed dispatch-request.schema.json and the escalate_resume answer, with tests in supervise/test_execution_contract.py, supervise/test_gate_router.py (test_escalate_resume_answer_records_resume_at_validate, test_resume_at_is_refused_unless_an_approved_validate_resume) and autopilot/test_console_interviewer.py. (e) f44bbd6's autopilot/test_goal_gate.py tests are not mentioned. These tests ran inside the whole-suite totals, so the evidence exists, but a reader cannot see from the mapping that the review fixes are proven. — re-verified resolved in 794b4281
+- [33] The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies.
+- [34] The new 'Tests added after IMPL review' block is indented as a continuation of list item 6 (the secret-scan outcome). Its bullets cite evidence for outcomes 4, 5, 7 and 1, so in the rendered list they appear under outcome 6. Each bullet names its outcome, so nothing is wrong, but a reader scanning outcome 4 or 7 will not find those tests there.
 
 Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 

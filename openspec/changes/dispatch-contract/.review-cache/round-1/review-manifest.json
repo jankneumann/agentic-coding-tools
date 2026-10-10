@@ -2,7 +2,7 @@
   "schema_version": 1,
   "change_id": "dispatch-contract",
   "review_type": "implementation",
-  "created_at": "2026-10-10T10:25:09Z",
+  "created_at": "2026-10-10T10:37:43Z",
   "target": "dispatch-contract",
   "dispatches": [
     {
@@ -12,7 +12,7 @@
       "models_attempted": [
         "claude-opus-5-5"
       ],
-      "elapsed_seconds": 288.03609401999995,
+      "elapsed_seconds": 116.04324441599988,
       "error": null,
       "error_class": null
     }
