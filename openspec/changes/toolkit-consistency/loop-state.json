@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "toolkit-consistency",
-  "current_phase": "VALIDATE",
+  "current_phase": "VAL_REVIEW",
   "iteration": 0,
-  "total_iterations": 28,
+  "total_iterations": 29,
   "max_phase_iterations": 3,
   "findings_trend": [
     16,
@@ -27,7 +27,8 @@
     "impl-review-1-toolkit-consistency-1f94c0c",
     "validate-1-toolkit-consistency-7ea7a46",
     "val-review-1-toolkit-consistency-d2f661b",
-    "val-review-2-toolkit-consistency-ff7d385"
+    "val-review-2-toolkit-consistency-ff7d385",
+    "validate-2-toolkit-consistency-a8e98a3"
   ],
   "phase_history": [
     {
@@ -196,17 +197,22 @@
       "note": "policy_pause/permission_denied: classifier denied 'git cherry-pick 7fea1cd' (TRUST_POSTURE.md pr_creation auto) as Self-Modification after operator approved PR creation; branch posture still notify_with_timeout so pr_creation gate would fail closed (coordinator 403). Needs operator to apply 7fea1cd (or allow it), or supervisor to land it on this branch.",
       "outcome": "host_escalate",
       "phase": "SUBMIT_PR"
+    },
+    {
+      "at": "2026-10-10T11:02:37.394012+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "val-review-2-toolkit-consistency-ff7d385",
+  "last_handoff_id": "validate-2-toolkit-consistency-a8e98a3",
   "started_at": "2026-10-05T07:11:57.548342+00:00",
-  "phase_started_at": "2026-10-10T10:55:03.086253+00:00",
+  "phase_started_at": "2026-10-10T11:02:40.963024+00:00",
   "previous_phase": "SUBMIT_PR",
   "escalation_reason": "goal gate refused: required section not passed: Spec Compliance (missing)",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "runner",
+  "phase_archetype": "validator",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -454,158 +460,160 @@
       "timeout_seconds": null
     },
     {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
       "gate": "merge",
+      "note": "operator merged PR #671 (2026-10-10T10:44:31Z, rebase into roadmap branch) and confirmed 'Merged' in-session",
+      "notified": null,
       "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "approval_ref": "gate-decision:07644496-2da5-49dd-b158-6df7ebfbd3ce",
+        "source": "human"
+      },
       "reason": "gate 'merge' approved by the operator \u2014 operator merged PR #671 (2026-10-10T10:44:31Z, rebase into roadmap branch) and confirmed 'Merged' in-session",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "human",
-        "approval_ref": "gate-decision:07644496-2da5-49dd-b158-6df7ebfbd3ce"
-      },
-      "disposition": "block",
-      "phase": "ESCALATE",
       "recorded_at": "2026-10-10T10:46:33.408670+00:00",
-      "note": "operator merged PR #671 (2026-10-10T10:44:31Z, rebase into roadmap branch) and confirmed 'Merged' in-session"
-    },
-    {
-      "gate": "escalate_resume",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "posture",
-        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-      },
-      "disposition": "block",
-      "phase": "ESCALATE",
-      "recorded_at": "2026-10-10T10:46:46.918907+00:00"
-    },
-    {
-      "gate": "escalate_resume",
-      "outcome": "proceed",
       "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
       "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-10T10:46:46.918907+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "operator merged PR #671 and confirmed 'Merged' in-session; resume to attempt SUBMIT_PR -> DONE under the fixed goal gate",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "approval_ref": "gate-decision:07644496-2da5-49dd-b158-6df7ebfbd3ce",
+        "source": "human"
+      },
       "reason": "gate 'escalate_resume' approved by the operator \u2014 operator merged PR #671 and confirmed 'Merged' in-session; resume to attempt SUBMIT_PR -> DONE under the fixed goal gate",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "human",
-        "approval_ref": "gate-decision:07644496-2da5-49dd-b158-6df7ebfbd3ce"
-      },
-      "disposition": "block",
-      "phase": "ESCALATE",
       "recorded_at": "2026-10-10T10:46:47.093106+00:00",
-      "note": "operator merged PR #671 and confirmed 'Merged' in-session; resume to attempt SUBMIT_PR -> DONE under the fixed goal gate"
-    },
-    {
-      "gate": "escalate_resume",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "posture",
-        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-      },
-      "disposition": "block",
-      "phase": "ESCALATE",
-      "recorded_at": "2026-10-10T10:51:21.267736+00:00"
-    },
-    {
-      "gate": "escalate_resume",
-      "outcome": "proceed",
       "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
       "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-10T10:51:21.267736+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "goal-gate author-date fix d1f65b25 applied; resume SUBMIT_PR -> DONE",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "approval_ref": "gate-decision:5f8bf169-1e0c-4426-a189-9a26171571ba",
+        "source": "human"
+      },
       "reason": "gate 'escalate_resume' approved by the operator \u2014 goal-gate author-date fix d1f65b25 applied; resume SUBMIT_PR -> DONE",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "human",
-        "approval_ref": "gate-decision:5f8bf169-1e0c-4426-a189-9a26171571ba"
-      },
-      "disposition": "block",
-      "phase": "ESCALATE",
       "recorded_at": "2026-10-10T10:51:21.438083+00:00",
-      "note": "goal-gate author-date fix d1f65b25 applied; resume SUBMIT_PR -> DONE"
-    },
-    {
-      "gate": "escalate_resume",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "posture",
-        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-      },
-      "disposition": "block",
-      "phase": "ESCALATE",
-      "recorded_at": "2026-10-10T10:55:02.919516+00:00"
-    },
-    {
-      "gate": "escalate_resume",
-      "outcome": "proceed",
       "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' approved by the operator \u2014 operator in-session 2026-10-10 'Approved' option (a): resume_at=VALIDATE, re-run VALIDATE with documented **Status** lines, then VAL_REVIEW, then DONE",
+      "timeout_seconds": null
+    },
+    {
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "human",
-        "approval_ref": null
-      },
       "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-10-10T10:55:02.919516+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "operator in-session 2026-10-10 'Approved' option (a): resume_at=VALIDATE, re-run VALIDATE with documented **Status** lines, then VAL_REVIEW, then DONE",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": true,
+      "provenance": {
+        "approval_ref": null,
+        "source": "human"
+      },
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 operator in-session 2026-10-10 'Approved' option (a): resume_at=VALIDATE, re-run VALIDATE with documented **Status** lines, then VAL_REVIEW, then DONE",
       "recorded_at": "2026-10-10T10:55:03.086223+00:00",
-      "note": "operator in-session 2026-10-10 'Approved' option (a): resume_at=VALIDATE, re-run VALIDATE with documented **Status** lines, then VAL_REVIEW, then DONE"
+      "resolution": "console_approved",
+      "timeout_seconds": null
     }
   ],
   "pending_gate": null,
   "goal_gate": {
-    "verdict": "refused",
-    "reason": "required section not passed: Spec Compliance (missing)",
     "evidence": {
+      "bound_by": "VAL_REVIEW",
+      "checked_at": "2026-10-10T10:51:21.623331+00:00",
       "merge_authorized": true,
+      "phase_statuses": {
+        "E2E Tests": "missing",
+        "Security": "missing",
+        "Smoke Tests": "missing",
+        "Spec Compliance": "missing",
+        "Validation Review": "missing"
+      },
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/671",
       "report_path": "openspec/changes/toolkit-consistency/validation-report.md",
-      "checked_at": "2026-10-10T10:51:21.623331+00:00",
-      "validate_outcome": "passed",
-      "validate_at": "2026-10-10T03:55:27.609153+00:00",
       "report_time": "2026-10-10T10:26:51+00:00",
       "report_time_source": "commit",
-      "bound_by": "VAL_REVIEW",
-      "val_review_at": "2026-10-10T10:31:33.112993+00:00",
       "required_sections": [
         "Spec Compliance",
         "Smoke Tests",
@@ -613,14 +621,12 @@
         "E2E Tests",
         "Validation Review"
       ],
-      "phase_statuses": {
-        "Spec Compliance": "missing",
-        "Smoke Tests": "missing",
-        "Security": "missing",
-        "E2E Tests": "missing",
-        "Validation Review": "missing"
-      }
-    }
+      "val_review_at": "2026-10-10T10:31:33.112993+00:00",
+      "validate_at": "2026-10-10T03:55:27.609153+00:00",
+      "validate_outcome": "passed"
+    },
+    "reason": "required section not passed: Spec Compliance (missing)",
+    "verdict": "refused"
   },
   "park": null,
   "degradations": []
