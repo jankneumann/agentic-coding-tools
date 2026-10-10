@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:46:01.052579+00:00",
+  "updated_at": "2026-10-10T10:46:57.576675+00:00",
   "completed_items": [
     "ri-01",
     "ri-21"
@@ -1314,6 +1314,55 @@
       "roadmap_id": "multiplayer-collaboration",
       "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
       "note": "Operator (jankneumann) merged PR #671 into openspec/roadmap-multiplayer-collaboration at 2026-10-10T10:44:31Z (rebase merge, tip cf55da8f); GitHub merged_by is the operator's own merge decision."
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:46:38.415075+00:00",
+      "decision_id": "331746f4-2907-48d5-adda-02d41b0d9dd2",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "multiplayer-collaboration",
+      "roadmap_fingerprint": "42d5ccf0282ed2412286e6d3f4b2f0b6bb211ba6a894a55286ffd609b522c13e"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 Operator re-approved the roadmap after the ri-22 refinement: supervisor session 2026-10-10 (\"5. Yes\", approve ri-22 openrouter-review-lane for dispatch). ri-22 added in aacac4c and approved in 0064137.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:46:47.164929+00:00",
+      "decision_id": "40776beb-63e5-4a06-b7b9-b349f3a918df",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "multiplayer-collaboration",
+      "roadmap_fingerprint": "42d5ccf0282ed2412286e6d3f4b2f0b6bb211ba6a894a55286ffd609b522c13e",
+      "note": "Operator re-approved the roadmap after the ri-22 refinement: supervisor session 2026-10-10 (\"5. Yes\", approve ri-22 openrouter-review-lane for dispatch). ri-22 added in aacac4c and approved in 0064137."
     }
   ],
   "dispatch_attempts": [
@@ -2682,6 +2731,68 @@
       "outcome": "success",
       "resolved_at": "2026-10-10T10:45:10.704825+00:00",
       "handoff_id": "3913b110-b178-4694-922e-3986082c81aa"
+    },
+    {
+      "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+      "item_id": "ri-22",
+      "change_id": "openrouter-review-lane",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "prepared",
+      "prepared_at": "2026-10-10T10:46:57.575028+00:00",
+      "launch_digest": "sha256:d100b55631b1f868bc77a93fea74c16f2515375fb4d76f15bdd1262a9c01dc35",
+      "launch_marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [],
+        "lock_keys": []
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_ref": "openrouter-review-lane",
+        "branch": "openspec/openrouter-review-lane",
+        "host_id": "machine-dc39bf1e25efdf45"
+      },
+      "context": {},
+      "execution_profile": {
+        "lanes": {
+          "review": [
+            "claude_code"
+          ],
+          "alternative": [
+            "claude_code"
+          ],
+          "quick": [
+            "claude_code"
+          ]
+        },
+        "location": "cloud",
+        "isolation": "managed_worktree",
+        "probe_command": "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py --check-vendors --json"
+      },
+      "review_requirements": {
+        "min_quorum": {
+          "PLAN_REVIEW": 1,
+          "IMPL_REVIEW": 1,
+          "VAL_REVIEW": 1
+        },
+        "counting_lanes": [
+          "claude_code",
+          "antigravity",
+          "grok",
+          "ocr",
+          "pi",
+          "codex"
+        ],
+        "quorum_policy": {
+          "environment": "cloud_container",
+          "policy_id": "cloud-container-single-vendor-2026-10-09",
+          "sunset": "Delete this entry, restoring quorum 2 everywhere, once API-based multi-vendor review (an OpenRouter integration) or the GX10 review lane is available to cloud workers."
+        }
+      },
+      "roadmap_approval_ref": "gate-decision:40776beb-63e5-4a06-b7b9-b349f3a918df"
     }
   ]
 }

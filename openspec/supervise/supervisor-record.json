@@ -29,12 +29,12 @@
       "scope": "roadmap-jev-system-one-integration-assessment"
     },
     {
-      "decided_at": "2026-10-06T08:41:07.116408+00:00",
+      "decided_at": "2026-10-10T10:46:47.164929+00:00",
       "decision": "roadmap_approval:proceed",
-      "id": "e0526599-2740-4d45-bf08-e1f5d355bc6b",
-      "rationale": "operator re-approved after dispatch-contract refinement (2026-10-06)",
+      "id": "40776beb-63e5-4a06-b7b9-b349f3a918df",
+      "rationale": "Operator re-approved the roadmap after the ri-22 refinement: supervisor session 2026-10-10 (\"5. Yes\", approve ri-22 openrouter-review-lane for dispatch). ri-22 added in aacac4c and approved in 0064137.",
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-10T10:45:59.633974Z"
+  "written_at": "2026-10-10T10:46:47.076763Z"
 }
