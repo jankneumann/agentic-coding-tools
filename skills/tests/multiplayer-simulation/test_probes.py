@@ -68,7 +68,11 @@ def test_no_probe_is_registered_at_import_time():
     try:
         assert fresh.REGISTRY == {}
     finally:
+        # Restore both handles: the re-import also rebinds the package attribute,
+        # and a scenario module imported later would otherwise bind the fresh copy
+        # (a different ProbeResult class) through `from mpsim import probes`.
         sys.modules["mpsim.probes"] = probes
+        sys.modules["mpsim"].probes = probes
 
 
 def test_requirement_level_collision_sets_collision_detected():
@@ -104,6 +108,56 @@ def test_raising_probe_is_recorded_as_error_and_run_completes():
     assert entry["probe_id"] == "raiser"
     assert entry["status"] == "error"
     assert entry["error"] and "boom" in entry["error"]
+    assert result.report["collision_detected"] is False
+
+
+class PathLeakingProbe:
+    probe_id = "path-leaker"
+
+    def detect(self, view, change_id):
+        raise FileNotFoundError(f"missing {view.worktree / 'openspec' / 'nope.md'}")
+
+
+class ShaLeakingProbe:
+    probe_id = "sha-leaker"
+
+    def detect(self, view, change_id):
+        raise RuntimeError("bad object " + "a1b2c3d4e5" * 4)
+
+
+class MutatingProbe:
+    probe_id = "mutator"
+
+    def detect(self, view, change_id):
+        (view.worktree / "scribble.txt").write_text("a probe should never write here\n")
+        return ProbeResult(self.probe_id, "ok", [], None)
+
+
+def test_probe_error_naming_the_world_path_is_scrubbed_and_run_completes():
+    probes.register(PathLeakingProbe())
+    result = run("same-requirement-collision")
+    assert result.exit_code == 0
+    entry = result.report["probes"][0]
+    assert entry["status"] == "error"
+    assert "<world>" in entry["error"]
+
+
+def test_probe_error_carrying_a_commit_id_is_scrubbed_and_run_completes():
+    probes.register(ShaLeakingProbe())
+    result = run("same-requirement-collision")
+    assert result.exit_code == 0
+    entry = result.report["probes"][0]
+    assert entry["status"] == "error"
+    assert "<sha>" in entry["error"]
+
+
+def test_probe_that_mutates_the_worktree_is_recorded_as_error():
+    probes.register(MutatingProbe())
+    result = run("same-requirement-collision")
+    assert result.exit_code == 0
+    entry = result.report["probes"][0]
+    assert entry["status"] == "error"
+    assert "mutated" in entry["error"]
     assert result.report["collision_detected"] is False
 
 

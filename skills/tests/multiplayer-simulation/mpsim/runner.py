@@ -15,7 +15,7 @@ from mpsim.errors import ScenarioError, UsageError
 from mpsim.fixture import load_fixture
 from mpsim.model import RunContext
 from mpsim.paths import FIXTURES_ROOT
-from mpsim.report import new_report, render
+from mpsim.report import HEX40, new_report, render
 from mpsim.scenarios import discover
 
 DEFAULT_TICK_BUDGET = 50
@@ -58,6 +58,7 @@ def run(
         ctx = RunContext(scenario_id, fixture, selected, tick_budget, work_root)
         try:
             report = scenario.run(ctx)
+            _scrub_probe_errors(report, scrub)
             exit_code = 0
         except ScenarioError as exc:
             report = new_report(scenario_id, error=_scrub(str(exc), scrub))
@@ -80,4 +81,16 @@ def _scrub_values(work_root: Path, fixture_dir: Path) -> list[tuple[str, str]]:
 def _scrub(message: str, scrub: list[tuple[str, str]]) -> str:
     for value, label in scrub:
         message = message.replace(value, label)
-    return message
+    return HEX40.sub("<sha>", message)
+
+
+def _scrub_probe_errors(report: dict[str, Any], scrub: list[tuple[str, str]]) -> None:
+    """Probe errors are free text from third-party code; keep them renderable.
+
+    A probe that fails with its view's worktree path or a commit id in the message
+    must still be recorded as ``status: error`` (design D4, fail open) rather than
+    making the deterministic renderer refuse the whole report.
+    """
+    for entry in report.get("probes") or []:
+        if entry.get("error"):
+            entry["error"] = _scrub(entry["error"], scrub)

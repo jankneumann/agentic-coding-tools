@@ -15,7 +15,7 @@ from typing import Any
 from mpsim.errors import ScenarioError
 
 SCHEMA_VERSION = "1"
-_HEX40 = re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{40}(?![0-9a-fA-F])")
+HEX40 = re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{40}(?![0-9a-fA-F])")
 
 
 class ReportError(ScenarioError):
@@ -56,6 +56,6 @@ def render(report: dict[str, Any], *, forbidden_paths: Sequence[str] = ()) -> st
     for path in forbidden_paths:
         if path and path in text:
             raise ReportError("report contains the world's temporary root")
-    if _HEX40.search(text):
+    if HEX40.search(text):
         raise ReportError("report contains a 40-character hex string (commit id)")
     return text

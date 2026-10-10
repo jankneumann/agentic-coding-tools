@@ -12,8 +12,11 @@ advisory signals fail open.
 
 from __future__ import annotations
 
+import os
+import subprocess
 import threading
 from collections.abc import Sequence
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
@@ -90,10 +93,42 @@ def run_probe(probe: CollisionProbe, view: PrincipalView, change_id: str) -> Pro
     return ProbeResult(probe.probe_id, outcome.status, list(outcome.collisions), outcome.error)
 
 
+def _git(worktree: Path, *args: str) -> str:
+    # Same isolation as the world (design D6): no global or system git config.
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+    return subprocess.run(
+        ["git", "-C", str(worktree), *args], env=env, check=True, capture_output=True, text=True
+    ).stdout
+
+
+def _worktree_state(worktree: Path) -> tuple[str, str]:
+    return (
+        _git(worktree, "rev-parse", "HEAD").strip(),
+        _git(worktree, "status", "--porcelain", "--untracked-files=all"),
+    )
+
+
 def run_probes(
     probes: Sequence[CollisionProbe], view: PrincipalView, change_id: str
 ) -> list[ProbeResult]:
-    return [run_probe(p, view, change_id) for p in probes]
+    """Run each probe, enforcing the read-only promise of :class:`PrincipalView`.
+
+    The view hands probes a real path, so nothing stops a probe from writing. A probe
+    that changes the worktree's HEAD or files is recorded as ``status: error`` and,
+    when the worktree was clean before it ran, the worktree is restored so the rest of
+    the scenario measures the world the fixture built.
+    """
+    results = []
+    for probe in probes:
+        before = _worktree_state(view.worktree)
+        result = run_probe(probe, view, change_id)
+        if _worktree_state(view.worktree) != before:
+            result = ProbeResult(probe.probe_id, "error", [], "probe mutated the worktree")
+            if not before[1]:
+                _git(view.worktree, "reset", "-q", "--hard", before[0])
+                _git(view.worktree, "clean", "-q", "-f", "-d", "-x")
+        results.append(result)
+    return results
 
 
 def detected(results: Sequence[ProbeResult], other_change: str) -> bool:

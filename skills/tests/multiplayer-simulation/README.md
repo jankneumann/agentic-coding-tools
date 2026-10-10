@@ -79,7 +79,7 @@ from its own clone) writes every status change a fixture declares.
 cd skills
 uv run pytest tests/multiplayer-simulation          # the whole suite
 uv run ruff check tests/multiplayer-simulation
-PATH=tests/multiplayer-simulation/bin:$PATH uv run python -m mpsim list   # from the harness dir
+uv run tests/multiplayer-simulation/bin/mpsim list   # the launcher puts the harness on sys.path
 ```
 
 Regenerate the descriptor after editing the CLI contract:
