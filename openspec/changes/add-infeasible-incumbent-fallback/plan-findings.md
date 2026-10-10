@@ -41,3 +41,33 @@ Parallelizability (after fixes): `Independent: 4 (1.1, 1.3, 2.1, 3.1) | Sequenti
 Max parallel width: 2 within wp-dispatch (1.1‖1.3), 2 within wp-router (2.x‖3.1–3.3); wp-router runs
 strictly after wp-dispatch and only after the v1.3 merge.` File-overlap: every pair touching
 `phase_agent.py`, `api.py`, `resolver.py` is now explicitly serialized.
+
+## Iteration 2 (2026-10-10T22:10Z, architect archetype, coordinated tier)
+
+Re-review of the iteration-1 result by two fresh analysts (consistency; feasibility/testability).
+`openspec validate --strict` and `validate_work_packages.py` passed before and after.
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 1 | testability | high | agent-archetypes.5 claimed provider-less dispatch keeps "provider and model" with the flag off, but `resolve_provider_model_spec` passes the raw tier through when `provider` is falsy (`agents_config.py:2321`), so applying `claude_code` first maps `standard` → `sonnet`. Scenario .1 was also over-broad for provider-less callers. | D2 and both scenarios state the model change explicitly; 1.1 asserts `standard` → `sonnet` and the provider-unchanged invariant. |
+| 2 | feasibility | high | Task 2.0 checked a literal `openspec/changes/split-…` path (moves to `archive/` on cleanup) and "SHA matches" a branch commit that a squash merge never preserves. | 2.0 resolves the change with `change_dir()`, requires `origin/main` as ancestor, compares `git hash-object` blob ids pinned in the README, and asserts the v1.3 code (`no-evidenced-challenger`) is present. 3.1 now depends on 2.0 so both chains are gated. |
+| 3 | feasibility | high | `install.sh --check` diffs `skills/` against gitignored mirrors absent in an isolated package worktree, so the per-package step fails as written. | Removed from both packages' verification; task 4.2 runs it from the feature worktree after `install.sh --mode copy --force --deps none --python-tools none`; recorded in design Risks. |
+| 4 | consistency | medium | D7's resolution-time guard persisted a routed `local` decision while dispatching static: the attribution gap used to reject Approach 2. | D7 now enforces in the router first (`vendor_registry._lane` advertises `archetypes ∩ LOCAL_TRUSTED_ARCHETYPES` for `local` agents, so the lane is `lane:archetype-ineligible`), keeping the guard as defense in depth applied to `_routed_provider(selected)`, with the exact refusal reason string and equality (not identity) semantics. `vendor_registry.py` joins wp-router scope. |
+| 5 | consistency | medium | `order_applied` left three lists optional and `vendor_order` without `uniqueItems`, so two different implementations validated. | All four lists required, non-empty, unique in v1.4 OpenAPI, record schema and `models.py`; D6 says "verbatim copy of `policy.document.fallback`". |
+| 6 | completeness | medium | Task 1.4 "call `_build_options` with the selected provider" was implementable two ways (env-only vs new kwarg). | D1/1.4: `provider: str \| None = None` on `run_phase_subagent` and `make_phase_callback`; 1.3 tests explicit and env paths. |
+| 7 | testability | medium | agent-archetypes.7 named no exception type and no runner exists to test. | `UnservableProviderError` and the reference adapter `claude_agent_runner(agent_fn, supported={"claude_code"})` are defined in D1; 1.3 tests the adapter and escalation. |
+| 8 | ambiguity | medium | "Every considered candidate must have an assignment" (D3) vs "at least one … has an assignment" (spec). | A candidate without an assignment is ineligible (skipped); the fallback is disabled only when assignments are disabled. D3, 3.3 and model-routing.8 aligned. |
+| 9 | feasibility | medium | D5 said "the client loader" rejects unknown vendor types but did not name the function or error, and `load_routing_policy_document` does not read `agents.yaml`. | D5/3.1/3.2 name `load_routing_policy_document`, the `_agents_yaml_path` read (only when the key is present) and the `ValueError` text; the fixture builder gains a populated-key case. |
+| 10 | testability | medium | wp-dispatch verification ran only `skills/tests/autopilot`, while 1.4/1.5 are covered by `phase-record-compaction/test_phase_agent.py` and `vendor-neutral-autopilot/test_smoke_provider_dispatch.py`; smoke output keys were unnamed. | Both directories added to verification and `write_allow`; smoke keeps `provider` (caller) and adds `resolved_provider`. |
+| 11 | completeness | low | Contracts did not enforce that the configured-fallback reason implies a non-null `selected`. | Conditional added to `SelectModelResponse` and the record schema; negative test in 2.1. |
+| 12 | consistency | low | model-routing.9's allowlist clause was vacuous (selected already null); 1.6's prose guard named no file or block-identification rule; test files for 2.1/3.1/3.3/3.5/4.1 unnamed; parity assertion claimed by both 2.1 and 3.4. | Clause moved to .8; `test_skill_dispatch_provider_prose.py` modelled on `test_prose_free_gates.py` with an expected count of seven blocks; every test task names its module; 2.1 owns parity. |
+
+Deferred (unchanged from iteration 1): metered-tier drift; static dispatch of a permanently excluded
+incumbent.
+
+Parallelizability (after fixes): `Independent: 4 (1.1, 1.3, 2.0, 3.1 after 2.0) | Sequential chains: 3
+(1.1→1.2→1.4→1.6 with 1.3→1.4 and 1.3→1.5; 2.0→2.1→2.2→3.4; 2.0→3.1→3.2→3.3→3.4→{3.5→3.6, 3.7, 3.8}→4.1→4.2)
+| Max parallel width: 3 (3.5 ‖ 3.7 ‖ 3.8 after 3.4; 2 in wp-dispatch) | File-overlap conflicts: none
+unserialized (phase_agent.py 1.2→1.4; api.py/resolver.py 3.4→3.6; test modules named per task).`
+
+Residual findings at or above medium after iteration 2: 0 (all 10 fixed; 2 low fixed as well).

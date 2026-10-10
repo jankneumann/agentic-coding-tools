@@ -48,7 +48,9 @@ then stays a tier alias (`standard`), which is sent as the incumbent
 - Provider-less dispatch resolves its default provider (`claude_code`, the same default applied
   today after resolution) **before** archetype resolution. The incumbent is then a concrete
   `(vendor, model)`, not a tier alias (#636 item 6), so every routing outcome that needs a
-  concrete incumbent becomes reachable (design D2).
+  concrete incumbent becomes reachable; the dispatched model for such callers becomes the
+  provider's concrete alias of the tier (`standard` → `sonnet`) instead of the raw tier name
+  (design D2).
 
 **Phase 2: configured fallback for a transiently unavailable incumbent**
 - `routing.yaml`'s existing `fallback:` block gains an optional `vendor_order`: an
@@ -73,8 +75,9 @@ then stays a tier alias (`standard`), which is sent as the incumbent
   contradict each other, and the router surfaces that rather than guessing. The authoritative
   list is design D3 (for example `lane:archetype-ineligible`, `lane:location-mismatch`,
   `roadmap:*`, `registry:no-catalog-projection`).
-- A routed selection onto the `local` provider is subject to the same `LOCAL_TRUSTED_ARCHETYPES`
-  boundary the static path applies (design D7); today only the caller's provider is checked.
+- A `local` lane advertises only `LOCAL_TRUSTED_ARCHETYPES`, so the router never selects it for
+  an untrusted archetype, and resolution guards the routed provider with the same boundary
+  the static path applies (design D7); today only the caller's provider is checked.
 - Exclusion reasons are now carried through to retention. Today `api.py` collapses them to bare
   `(vendor, model)`.
 - A **v1.4 contract overlay**, built on `split-no-evidence-retention-reason`'s v1.3, adds the
@@ -178,7 +181,8 @@ Approaches 2 and 3 were not taken, for the reasons under Recommended.
   - `src/model_routing/api.py`: exclusion reasons threaded into retention, `retention.fallback`
     persisted, plus the new `RetentionReason`.
   - `src/model_routing/routing_policy.py`: `FallbackOrder.vendor_order`.
-  - `src/agents_config.py`: the `local` trust boundary applied to routed selections (D7).
+  - `src/vendor_registry.py`: `local` lanes advertise only trusted archetypes (D7).
+  - `src/agents_config.py`: the `local` trust-boundary guard on routed selections (D7).
   - `routing.yaml` (commented example; key absent).
   - `CLAUDE.md`: the retention reason list.
 - **Skills**

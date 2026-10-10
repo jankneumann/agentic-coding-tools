@@ -51,6 +51,8 @@ packages:
       write_allow:
         - "skills/autopilot/**"
         - "skills/tests/autopilot/**"
+        - "skills/tests/phase-record-compaction/**"
+        - "skills/tests/vendor-neutral-autopilot/**"
         - "openspec/changes/add-infeasible-incumbent-fallback/tasks.md"
       read_allow:
         - "**"
@@ -68,24 +70,19 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "Autopilot skill tests"
+        - name: "Autopilot, phase-agent and smoke-dispatch skill tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot skills/tests/phase-record-compaction skills/tests/vendor-neutral-autopilot -q"
           evidence:
             artifacts:
               - "skills/tests/autopilot"
+              - "skills/tests/phase-record-compaction"
+              - "skills/tests/vendor-neutral-autopilot"
             result_keys: ["autopilot_tests_pass"]
-        - name: "Skill install payload"
-          kind: command
-          command: "cd skills && bash install.sh --check"
-          evidence:
-            artifacts:
-              - "skills/autopilot"
-            result_keys: ["install_check_pass"]
     outputs:
-      result_keys: ["autopilot_tests_pass", "install_check_pass"]
+      result_keys: ["autopilot_tests_pass"]
     metadata:
-      loc_estimate: 150
+      loc_estimate: 200
       package_kind: integration
 
   - package_id: wp-router
@@ -111,6 +108,7 @@ packages:
         - "agent-coordinator/src/model_routing/api.py"
         - "agent-coordinator/src/model_routing/routing_policy.py"
         - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/vendor_registry.py"
         - "agent-coordinator/routing.yaml"
         - "skills/coordination-bridge/scripts/routing_fallback.py"
       keys:
@@ -121,9 +119,11 @@ packages:
       write_allow:
         - "agent-coordinator/src/model_routing/**"
         - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/vendor_registry.py"
         - "agent-coordinator/routing.yaml"
         - "agent-coordinator/tests/model_routing/**"
         - "agent-coordinator/tests/test_phase_archetype_resolution.py"
+        - "agent-coordinator/tests/test_vendor_registry.py"
         - "agent-coordinator/CLAUDE.md"
         - "skills/coordination-bridge/scripts/routing_fallback.py"
         - "skills/tests/coordination-bridge/**"
@@ -175,20 +175,21 @@ packages:
             artifacts:
               - "skills/tests/coordination-bridge"
             result_keys: ["bridge_tests_pass"]
-        - name: "Skill install payload"
+        - name: "Trust-boundary and registry tests"
           kind: command
-          command: "cd skills && bash install.sh --check"
+          command: "cd agent-coordinator && uv run pytest tests/test_phase_archetype_resolution.py tests/test_vendor_registry.py -q"
           evidence:
             artifacts:
-              - "skills/coordination-bridge"
-            result_keys: ["install_check_pass"]
+              - "agent-coordinator/tests/test_phase_archetype_resolution.py"
+              - "agent-coordinator/tests/test_vendor_registry.py"
+            result_keys: ["trust_boundary_tests_pass"]
     inputs:
       hold: "Do not dispatch until split-no-evidence-retention-reason (v1.3) has merged to main (operator decision 2026-10-10, design D8)"
       external_prerequisites:
         - "openspec change split-no-evidence-retention-reason merged to main (provides contracts/openapi/v1.3.yaml)"
         - "wp-dispatch merged to main"
     outputs:
-      result_keys: ["routing_suite_pass", "coordinator_suite_pass", "mypy_clean", "bridge_tests_pass", "install_check_pass"]
+      result_keys: ["routing_suite_pass", "coordinator_suite_pass", "mypy_clean", "bridge_tests_pass", "trust_boundary_tests_pass"]
     metadata:
-      loc_estimate: 450
+      loc_estimate: 500
       package_kind: algorithm
