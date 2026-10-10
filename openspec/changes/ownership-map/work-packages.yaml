@@ -91,7 +91,7 @@ packages:
       complexity: low
       package_kind: config
     context_impact:
-      surfaces: [capabilities]
+      surfaces: [apis, capabilities, documentation, semantic_code]
     inputs: {}
     outputs:
       result_keys: ["contracts_valid"]
@@ -165,7 +165,7 @@ packages:
       complexity: medium
       package_kind: data_model
     context_impact:
-      surfaces: [capabilities]
+      surfaces: [capabilities, semantic_code]
     inputs: {}
     outputs:
       result_keys: ["registry_green", "registry_static_green"]
@@ -243,7 +243,7 @@ packages:
       complexity: medium
       package_kind: algorithm
     context_impact:
-      surfaces: [capabilities]
+      surfaces: [capabilities, semantic_code]
     inputs: {}
     outputs:
       result_keys: ["resolver_green", "resolver_lint_green"]
@@ -305,7 +305,7 @@ packages:
       complexity: medium
       package_kind: algorithm
     context_impact:
-      surfaces: []
+      surfaces: [semantic_code]
     inputs: {}
     outputs:
       result_keys: ["codeowners_green"]
@@ -386,7 +386,7 @@ packages:
       complexity: low
       package_kind: config
     context_impact:
-      surfaces: [documentation]
+      surfaces: [documentation, semantic_code]
     inputs: {}
     outputs:
       result_keys: ["dogfood_green", "install_check_green"]
@@ -439,6 +439,8 @@ packages:
         - "openspec/**"
         - "docs/**"
         - ".github/**"
+    context_impact:
+      surfaces: [apis, capabilities, documentation, semantic_code]
     worktree:
       name: ownership-map-wp-integration
       mode: shared
