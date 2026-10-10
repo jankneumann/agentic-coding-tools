@@ -304,3 +304,29 @@ Ran IMPL_REVIEW as a plain converge() call through its public signature: review_
 ### Context
 Validated the offline harness. 93 harness tests, 1743 ci_coverage/openspec_paths/convergence tests, ruff and openspec strict all pass; baselines match (blocked_ticks 10/0, collision present/not detected). Deploy/smoke/security/e2e not applicable (no deployable surface). No PR yet, so CI is unchecked.
 
+---
+
+## Phase: Cleanup (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Close-out lands on the roadmap branch via PR, not main** — This change is stacked on openspec/roadmap-multiplayer-collaboration; the supervisor directed an archive close-out PR against that branch, never merged by autopilot.
+2. **No staged rollout** — Offline test harness under skills/tests/ plus a CI gate fix; no service, traffic, or feature flag exists to promote.
+3. **architecture-refresh skipped** — Informational courtesy step; the next consumer skill regenerates on demand. Not a gate.
+
+### Completed Work
+- merge-verified
+- task-migration-check (none open)
+- archive
+- spec-sync
+- decision-index
+
+### Next Steps
+- Operator reviews and merges the close-out PR
+- ri-06 plan-time-collision-detection registers a CollisionProbe
+- ri-11 contract-dependencies lowers blocked_ticks
+
+### Context
+Post-merge close-out: PR #669 was merged by the operator into openspec/roadmap-multiplayer-collaboration as a953b92 (merge gate-decision:ba667a32-e0e7-4034-bbd1-0fe249f597aa); autopilot reached DONE and emitted the generation-5 result. All tasks were already checked, so no task migration was needed; the change is archived and its spec synced into openspec/specs/multiplayer-simulation/.
+

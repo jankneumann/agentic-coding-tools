@@ -1,3 +1,8 @@
+---
+# Offline test harness under skills/tests/ plus a gen-eval gate fix; no service surface.
+deployable: false
+---
+
 # Change: multiplayer-simulation-harness
 
 > Parent roadmap: `multiplayer-collaboration` (item `ri-05`, Phase 1)
