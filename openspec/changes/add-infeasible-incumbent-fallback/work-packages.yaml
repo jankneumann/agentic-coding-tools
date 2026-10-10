@@ -92,10 +92,13 @@ packages:
     title: "Configured fallback for a transiently unavailable incumbent (v1.4)"
     task_type: implementation
     description: >-
-      Phase 2 (design D3-D6). Starts only after split-no-evidence-retention-reason (v1.3)
-      has merged, and after wp-dispatch. Threads exclusion reasons into retention, adds
-      FallbackOrder.vendor_order, implements the deterministic configured pick, persists
-      retention.fallback, and teaches the client-side routing_fallback.py the same key.
+      HOLD (design D8, operator decision 2026-10-10): do NOT dispatch in the run that lands
+      wp-dispatch. Starts only after split-no-evidence-retention-reason (v1.3) has merged to
+      main and after wp-dispatch has merged; task 2.0 fails fast otherwise. Phase 2 (design
+      D3-D7). Threads exclusion reasons into retention, adds the FallbackOrder.vendor_order
+      allowlist, implements the deterministic configured pick, persists retention.fallback,
+      applies the local trust boundary to routed selections, and teaches the client-side
+      routing_fallback.py to validate the new key.
     role: implementation
     priority: 2
     depends_on: ["wp-dispatch"]
@@ -107,6 +110,7 @@ packages:
         - "agent-coordinator/src/model_routing/resolver.py"
         - "agent-coordinator/src/model_routing/api.py"
         - "agent-coordinator/src/model_routing/routing_policy.py"
+        - "agent-coordinator/src/agents_config.py"
         - "agent-coordinator/routing.yaml"
         - "skills/coordination-bridge/scripts/routing_fallback.py"
       keys:
@@ -116,9 +120,10 @@ packages:
     scope:
       write_allow:
         - "agent-coordinator/src/model_routing/**"
+        - "agent-coordinator/src/agents_config.py"
         - "agent-coordinator/routing.yaml"
         - "agent-coordinator/tests/model_routing/**"
-        - "agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py"
+        - "agent-coordinator/tests/test_phase_archetype_resolution.py"
         - "agent-coordinator/CLAUDE.md"
         - "skills/coordination-bridge/scripts/routing_fallback.py"
         - "skills/tests/coordination-bridge/**"
@@ -163,8 +168,27 @@ packages:
             artifacts:
               - "agent-coordinator/src/model_routing"
             result_keys: ["mypy_clean"]
+        - name: "Coordination-bridge skill tests (client fallback loader)"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/coordination-bridge -q"
+          evidence:
+            artifacts:
+              - "skills/tests/coordination-bridge"
+            result_keys: ["bridge_tests_pass"]
+        - name: "Skill install payload"
+          kind: command
+          command: "cd skills && bash install.sh --check"
+          evidence:
+            artifacts:
+              - "skills/coordination-bridge"
+            result_keys: ["install_check_pass"]
+    inputs:
+      hold: "Do not dispatch until split-no-evidence-retention-reason (v1.3) has merged to main (operator decision 2026-10-10, design D8)"
+      external_prerequisites:
+        - "openspec change split-no-evidence-retention-reason merged to main (provides contracts/openapi/v1.3.yaml)"
+        - "wp-dispatch merged to main"
     outputs:
-      result_keys: ["routing_suite_pass", "coordinator_suite_pass", "mypy_clean"]
+      result_keys: ["routing_suite_pass", "coordinator_suite_pass", "mypy_clean", "bridge_tests_pass", "install_check_pass"]
     metadata:
-      loc_estimate: 400
+      loc_estimate: 450
       package_kind: algorithm

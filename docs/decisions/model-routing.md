@@ -5,6 +5,61 @@
 
 ---
 
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 1
+
+**fallback.vendor_order is an allowlist; every order list is an allowlist (D4)** — A preference order with unlisted vendors sorting last let a typo or a narrow list pick grok, pi or local via location_order. Excluding non-enumerated values matches the client's existing rule and makes the owner's choice binding.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D2)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 1
+
+**Shipped routing.yaml keeps vendor_order absent; absent disables (D5)** — Both parsers reject unknown or empty keys, so an absent key is loadable by stale skill copies and older coordinators; the owner populates it at implementation review.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D4)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 1
+
+**retention.fallback records incumbent_exclusion_reasons as a sorted unique array (D6)** — An incumbent can have several transient rows with different reasons; a single field would have to pick one arbitrarily. The array keeps the machine-readable fact.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D5)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 1
+
+**Masked reasons classify by the reported reason; mixed sets are permanent (D3)** — _lane_exclusion_reason reports availability first, so a down-and-policy-excluded lane reads transient. Safe because every fallback candidate passed the full policy filter; a second reason pass adds a code path for no safety gain.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D6)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 1
+
+**wp-router hold recorded in work-packages.yaml inputs and task 2.0 (D8)** — The operator approved wp-dispatch only for this run; depends_on alone would let a DAG dispatcher start wp-router. metadata is schema-closed, inputs is the open field.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D7)
+
+---
+
 ## 2026-10-05 — add-infeasible-incumbent-fallback
 
 ### Phase: Plan

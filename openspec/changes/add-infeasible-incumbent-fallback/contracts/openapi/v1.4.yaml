@@ -433,7 +433,7 @@ components:
         reason:
           type: string
           maxLength: 128
-          pattern: ^(unavailable|quota:exhausted|(lane|policy|catalog|roadmap|registry|cedar):[a-z0-9-]+)$
+          pattern: ^(unavailable|quota:exhausted|(lane|policy|catalog|roadmap|registry|cedar|cost-policy):[a-z0-9-]+)$
     SelectModelResponse:
       type: object
       required:
@@ -584,20 +584,25 @@ components:
           - number
           - 'null'
         fallback:
-          description: Present only when reason is incumbent-infeasible-configured-fallback.
+          description: Required when reason is incumbent-infeasible-configured-fallback and forbidden otherwise (enforced by allOf below).
           type: object
           additionalProperties: false
           required:
-          - incumbent_exclusion_reason
+          - incumbent_exclusion_reasons
           - order_applied
           properties:
-            incumbent_exclusion_reason:
-              type: string
-              enum:
-              - lane:unavailable
-              - unavailable
-              - quota:exhausted
-              - lane:model-rate-limited
+            incumbent_exclusion_reasons:
+              description: Sorted, unique reasons of the incumbent's excluded rows; all transient (design D3).
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items:
+                type: string
+                enum:
+                - lane:unavailable
+                - unavailable
+                - quota:exhausted
+                - lane:model-rate-limited
             order_applied:
               type: object
               additionalProperties: false
@@ -639,6 +644,17 @@ components:
           properties:
             retained:
               const: false
+      - if:
+          properties:
+            reason:
+              const: incumbent-infeasible-configured-fallback
+        then:
+          required:
+          - fallback
+        else:
+          not:
+            required:
+            - fallback
       example:
         retained: true
         reason: no-evidence

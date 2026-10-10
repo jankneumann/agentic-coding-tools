@@ -36,3 +36,57 @@
 ### Context
 Planned #636 items 7 and 6: a configured, deterministic fallback when the incumbent is transiently unavailable and no alternative is evidenced, preceded by making dispatch honor the routed provider and resolving the default provider before resolution. Gate 1 selected the server-side approach (new reason incumbent-infeasible-configured-fallback, v1.4 overlay).
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Runner contract carries options['provider'] and must raise when it cannot serve it (D1)** `architectural: agent-archetypes` — SubagentRunner is (prompt, options); passing the provider under the same key build_phase_dispatch_kwargs emits keeps one shape, and a loud failure takes the existing D8 retry/escalation path instead of producing a mismatched pair.
+2. **fallback.vendor_order is an allowlist; every order list is an allowlist (D4)** `architectural: model-routing` — A preference order with unlisted vendors sorting last let a typo or a narrow list pick grok, pi or local via location_order. Excluding non-enumerated values matches the client's existing rule and makes the owner's choice binding.
+3. **Routed selections onto local are subject to LOCAL_TRUSTED_ARCHETYPES (D7)** `architectural: agent-archetypes` — The coordinator checks the trust boundary only on the caller's provider; the fallback makes a local landing reachable during a vendor outage. agents_config.py joins wp-router scope for the check.
+4. **Shipped routing.yaml keeps vendor_order absent; absent disables (D5)** `architectural: model-routing` — Both parsers reject unknown or empty keys, so an absent key is loadable by stale skill copies and older coordinators; the owner populates it at implementation review.
+5. **retention.fallback records incumbent_exclusion_reasons as a sorted unique array (D6)** `architectural: model-routing` — An incumbent can have several transient rows with different reasons; a single field would have to pick one arbitrarily. The array keeps the machine-readable fact.
+6. **Masked reasons classify by the reported reason; mixed sets are permanent (D3)** `architectural: model-routing` — _lane_exclusion_reason reports availability first, so a down-and-policy-excluded lane reads transient. Safe because every fallback candidate passed the full policy filter; a second reason pass adds a code path for no safety gain.
+7. **wp-router hold recorded in work-packages.yaml inputs and task 2.0 (D8)** `architectural: model-routing` — The operator approved wp-dispatch only for this run; depends_on alone would let a DAG dispatcher start wp-router. metadata is schema-closed, inputs is the open field.
+8. **Iteration ran in the isolated agent worktree on a --plan-iterate branch, not the canonical .git-worktrees checkout** `architectural: skill-procedure-deviation` — The harness refuses git operations outside this agent's worktree, so the skill's worktree.py setup/cd step could not be followed. Work was done on openspec/add-infeasible-incumbent-fallback--plan-iterate cut from the feature branch tip (b666e218) and is pushed to origin/openspec/add-infeasible-incumbent-fallback; the canonical worktree must fast-forward before the next phase.
+
+### Alternatives Considered
+- Keep vendor_order as a preference order with unlisted vendors sorting last: rejected because Silent on typos and lets location_order (local first) pick an unlisted vendor.
+- Second reason pass over the incumbent's lanes to unmask policy exclusions: rejected because Fallback candidates are already policy-filtered; the extra pass adds code for no safety gain.
+- Integration test on the migrated DB for retention.fallback persistence: rejected because No migration exists and the column is unchecked JSONB; the schema-validated service-level test (3.5) proves the same fact.
+- Defer the local trust-boundary check to a follow-up change: rejected because The fallback is what makes the gap reachable in production; a few lines in agents_config.py close it.
+
+### Trade-offs
+- Accepted Allowlist strictness: an unlisted vendor is never a fallback target even when it is the only feasible one over Best-effort fallback to any feasible vendor because The owner asked for a human-chosen fallback (#636 item 7, option B).
+- Accepted A fallback pool can sit in a worse cost tier than the incumbent's lane over Tier-capped fallback with a new persisted cost_tier field because Owner trade-off; tier is derivable from the persisted selected.assignment.
+- Accepted agents_config.py enters wp-router scope (D7) over Keeping wp-router confined to model_routing because Security-high gap made reachable by this change.
+
+### Open Questions
+- [ ] Owner to populate fallback.vendor_order in routing.yaml at implementation review (ships absent; fallback stays off until then).
+- [ ] Whether the default claude_code provider for provider-less dispatch is right for non-Claude harnesses lacking AGENT_TYPE (pre-existing default; D2 keeps it).
+
+### Completed Work
+- [critical] feasibility: runner contract and unservable-provider failure (D1, agent-archetypes.7, tasks 1.3/1.4/1.6)
+- [critical] consistency: D4 no longer claims client/server sort identity; client stays same-provider
+- [critical] security: vendor_order allowlist with validation (D4/D5, 3.1/3.3)
+- [high] security: local trust boundary on routed selections (D7, agent-archetypes.9, task 3.8, scope)
+- [high] feasibility: assignment-disabled and policy-less cases fall back to today's behavior (D3, 3.3)
+- [high] consistency: vendor_order optional, shipped absent; install-skew hazard removed (D5, 3.2, wp-router verification)
+- [high] consistency: incumbent_exclusion_reasons array in v1.4 OpenAPI, record schema, models.py, README
+- [high] completeness: every-row-transient rule, cost-tier precedence and masked-reason rule in D3 and model-routing.8/.9
+- [high] assumptions: D3 rationale rewritten; static dispatch of a permanently excluded incumbent is an explicit non-goal
+- [high] scope: wp-router hold in work-packages inputs, description, tasks header, proposal Sequencing, task 2.0, D8
+- [medium] consistency: fallback presence conditional, v1.4 titles, cost-policy pattern, top-level fallback stays false
+- [medium] completeness: CLAUDE.md reason-list task 3.7; NFR observability re-pointed to 3.5; migration test path dropped
+- [medium] feasibility: smoke_provider_dispatch resized and re-checks against the resolved provider
+- [medium] assumptions: D2 lists newly reachable routing outcomes and the _selected_provider return-type audit
+- [medium] completeness: RetentionDecision.fallback threaded (3.4/3.6); exploration invariant asserted (3.3)
+- [medium] testability: task 2.0 gate pins v1.3 SHA e832cff5 and names the parity test
+- [medium] parallelizability: 1.4 depends on 1.2; 1.3 gets its own test module; 3.4 asserts enum parity
+- [low] consistency: agent-archetypes.10 WHEN reworded; 4.1 covers the permanent case
+
+### Context
+Three parallel dimension analysts plus the architect's code read produced 18 findings (3 critical, 8 high, 6 medium, 1 low); all at or above medium were fixed. The runner contract now carries options['provider'] and fails loudly on an unservable provider; vendor_order became an allowlist with the three sibling lists as allowlists too; the local trust boundary is applied to routed selections (D7); the wp-router hold is machine-visible (D8); the v1.4 contracts gained a presence conditional, a reasons array and the cost-policy pattern fix.
+
