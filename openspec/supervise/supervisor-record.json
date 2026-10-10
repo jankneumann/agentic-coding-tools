@@ -4,18 +4,7 @@
     "last_digest_at": null,
     "last_fingerprint": null
   },
-  "pending_gates": [
-    {
-      "approval_id": null,
-      "change_id": "toolkit-consistency",
-      "deadline": "2026-10-16T12:34:19.232869+00:00",
-      "decision_id": "809f20ac-6bab-4f80-9054-f2b6d8ca3a5e",
-      "disposition": "block",
-      "gate": "escalate_resume",
-      "requested_at": "2026-10-09T12:34:19.232869+00:00",
-      "source": "supervise"
-    }
-  ],
+  "pending_gates": [],
   "schema_version": 1,
   "standing_decisions": [
     {
@@ -47,5 +36,5 @@
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-10T03:08:25.757636Z"
+  "written_at": "2026-10-10T03:10:47.581975Z"
 }

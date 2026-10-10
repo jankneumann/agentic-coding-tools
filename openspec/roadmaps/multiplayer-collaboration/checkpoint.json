@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T03:08:52.849127+00:00",
+  "updated_at": "2026-10-10T03:10:59.842304+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -731,6 +731,34 @@
       "roadmap_id": "multiplayer-collaboration",
       "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
       "note": "Operator approved in supervisor session session_01J39bSygVy2r68wyPyHN5VA on 2026-10-09 (\"merge both 662, 667, 666\"); PR #667 merged into openspec/roadmap-multiplayer-collaboration as 0d078ff."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator resumed ri-20 in worker session session_01SFH32A8gaJCyUn6j7uBLgb at 2026-10-10T03:08:03Z (\"Resume\"); verified from that session's transcript. T7 verification runs as separate commands without rm -rf.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T03:10:47.665198+00:00",
+      "decision_id": "1187a055-e62a-4da3-af79-2b9ceeb0bef6",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 3,
+      "note": "Operator resumed ri-20 in worker session session_01SFH32A8gaJCyUn6j7uBLgb at 2026-10-10T03:08:03Z (\"Resume\"); verified from that session's transcript. T7 verification runs as separate commands without rm -rf."
     }
   ],
   "dispatch_attempts": [
@@ -1403,10 +1431,10 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
-      "lease_generation": 3,
+      "lease_generation": 4,
       "launch_history": [
         {
           "generation": 1,
@@ -1500,6 +1528,37 @@
           "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
           "observed_at": "2026-10-09T08:09:51.640963+00:00",
           "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "owner-nonce-1791601858420",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T03:10:59.233125+00:00"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "owner-nonce-1791601858420",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T03:10:59.537971+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g4"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "owner-nonce-1791601858420",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T03:10:59.537971+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g4"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "owner-nonce-1791601858420",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T03:10:59.839327+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g4"
         }
       ],
       "scope": {
@@ -1514,70 +1573,32 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
+      "launch_digest": "sha256:d843e14df4fc77198e36fc7a4db81e8bcb6b0a8c78f81b25f0c7af98be7f1a37",
+      "continuation": {
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:1187a055-e62a-4da3-af79-2b9ceeb0bef6"
+      },
       "lease": {
-        "generation": 3,
-        "owner_nonce": "323d8d5abeca3c64d3c3ec3f9123d16d",
-        "state": "released",
-        "acquired_at": "2026-10-09T08:09:51.619835+00:00",
-        "heartbeat_at": "2026-10-09T08:09:51.619835+00:00",
-        "expires_at": "2026-10-09T08:24:51.619835+00:00"
+        "generation": 4,
+        "owner_nonce": "owner-nonce-1791601858420",
+        "state": "active",
+        "acquired_at": "2026-10-10T03:10:59.233125+00:00",
+        "heartbeat_at": "2026-10-10T03:10:59.233125+00:00",
+        "expires_at": "2026-10-10T03:25:59.233125+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 3,
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3",
-        "observed_at": "2026-10-09T08:09:51.629034+00:00"
+        "generation": 4,
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g4",
+        "observed_at": "2026-10-10T03:10:59.537971+00:00"
       },
       "launch_gate": {
-        "generation": 3,
+        "generation": 4,
         "state": "entered",
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g3",
-        "go_released_at": "2026-10-09T08:09:51.629034+00:00",
-        "entered_at": "2026-10-09T08:09:51.640963+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/toolkit-consistency",
-          "change_id": "toolkit-consistency",
-          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
-          "evidence": {
-            "commit": "b0d5f7c262193e0e6f7fa1c92c4f4bfdc7950d51",
-            "loop_state_digest": "3b0cfe1fb1aefb0f7ace2f48bdfb3b69501ebb05e345fb0d7bc2105a7b09c64b",
-            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
-          },
-          "handoff_id": "378b1d98-54f5-419d-87e4-f62745b14c3d",
-          "lease_generation": 3,
-          "outcome": "parked",
-          "parked": {
-            "gate": "escalate_resume",
-            "kind": "policy_pause",
-            "reason": "PLAN_REVIEW converged (single_vendor_review); IMPLEMENT T1-T6 done (149 tests). T7 verification denied: compound command with rm -rf of a scratch dir. Safer form proposed: separate commands, fresh mktemp dir, no rm -rf.",
-            "resume_hint": "Resume IMPLEMENT: run T7 verification as plain separate commands in a fresh mktemp dir, tick T7, then IMPL_ITERATE."
-          },
-          "schema_version": 2,
-          "degradations": [],
-          "worktree_ref": "toolkit-consistency",
-          "host_id": "machine-dc39bf1e25efdf45"
-        },
-        "result_digest": "8d22a284410df45fabd0c0b9248d940debe5030cb8699a18d63916a4972a9ff9",
-        "bound_at": "2026-10-09T12:34:16.230959+00:00",
-        "callback_started_at": "2026-10-09T12:34:16.236792+00:00",
-        "callback_acknowledged_at": "2026-10-09T12:34:16.240084+00:00",
-        "terminal_persisted_at": "2026-10-09T12:34:16.242859+00:00",
-        "effects_applied_at": "2026-10-09T12:34:16.268858+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-09T12:34:16.242832+00:00",
-      "parked": {
-        "gate": "escalate_resume",
-        "kind": "policy_pause",
-        "reason": "PLAN_REVIEW converged (single_vendor_review); IMPLEMENT T1-T6 done (149 tests). T7 verification denied: compound command with rm -rf of a scratch dir. Safer form proposed: separate commands, fresh mktemp dir, no rm -rf.",
-        "resume_hint": "Resume IMPLEMENT: run T7 verification as plain separate commands in a fresh mktemp dir, tick T7, then IMPL_ITERATE."
-      },
-      "launch_digest": "sha256:639d4110d8c3dc46a9da8a08384aecdbb9370a632a8ae834ab6b0701b4abc892"
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g4",
+        "go_released_at": "2026-10-10T03:10:59.537971+00:00",
+        "entered_at": "2026-10-10T03:10:59.839327+00:00"
+      }
     },
     {
       "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
