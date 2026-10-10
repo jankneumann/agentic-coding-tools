@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:09:54.606570+00:00",
+  "updated_at": "2026-10-10T10:18:31.186032+00:00",
   "completed_items": [
     "ri-01"
   ],
@@ -1072,6 +1072,35 @@
       "parked_commands": [
         "skills/.venv/bin/python <scratchpad>/vr5d/run_converge.py <worktree> <scratchpad>/vr5d/proto"
       ]
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator in supervisor session 2026-10-10 (\"Both\"): unblock ri-21 VAL_REVIEW; the converge driver run still needs the operator's own allowance in the worker session, and a committed driver follows.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:18:31.072839+00:00",
+      "decision_id": "1469b3d5-5478-4ab7-9bbd-dd6993bb998e",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "change_id": "dispatch-contract",
+      "item_id": "ri-21",
+      "lease_generation": 5,
+      "dedupe_fingerprint": "b1ab732bc6fe8d32fb61cf68aeb1e642a7d6196c7e9f1338bcb2ed3ff1d8e701",
+      "note": "Operator in supervisor session 2026-10-10 (\"Both\"): unblock ri-21 VAL_REVIEW; the converge driver run still needs the operator's own allowance in the worker session, and a committed driver follows."
     }
   ],
   "dispatch_attempts": [
@@ -2045,10 +2074,10 @@
       "change_id": "dispatch-contract",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "prepared",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
-      "lease_generation": 5,
+      "lease_generation": 6,
       "launch_history": [
         {
           "generation": 1,
@@ -2218,7 +2247,7 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
-      "launch_digest": "sha256:f0f6fcc028a6eb450da374bb33f3b4a1294d01027f8f431ed4bf1dfa30e074d3",
+      "launch_digest": "sha256:7719cbfa49acacbc9bdd561f73472b5c5363719c75076dabd932734674e3f004",
       "degradations": [
         {
           "code": "single_vendor_review",
@@ -2246,103 +2275,9 @@
           "phase": "SUBMIT_PR"
         }
       ],
-      "lease": {
-        "generation": 5,
-        "owner_nonce": "owner-nonce-1791626563521",
-        "state": "released",
-        "acquired_at": "2026-10-10T10:02:44.008675+00:00",
-        "heartbeat_at": "2026-10-10T10:02:44.008675+00:00",
-        "expires_at": "2026-10-10T10:17:44.008675+00:00"
-      },
-      "launch_evidence": {
-        "kind": "host_ack",
-        "generation": 5,
-        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g5",
-        "observed_at": "2026-10-10T10:02:44.290024+00:00"
-      },
-      "launch_gate": {
-        "generation": 5,
-        "state": "entered",
-        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g5",
-        "go_released_at": "2026-10-10T10:02:44.290024+00:00",
-        "entered_at": "2026-10-10T10:02:44.549900+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/dispatch-contract",
-          "change_id": "dispatch-contract",
-          "degradations": [
-            {
-              "code": "single_vendor_review",
-              "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-              "phase": "PLAN_REVIEW"
-            },
-            {
-              "code": "single_vendor_review",
-              "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-              "phase": "IMPL_REVIEW"
-            },
-            {
-              "code": "single_vendor_review",
-              "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-              "phase": "VAL_REVIEW"
-            },
-            {
-              "code": "coordinator_projection_forbidden",
-              "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
-              "phase": "SUBMIT_PR"
-            },
-            {
-              "code": "audit_sink_failed",
-              "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
-              "phase": "SUBMIT_PR"
-            }
-          ],
-          "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
-          "evidence": {
-            "commit": "ce23762b97c16ef4c1a6847584853e3794af2630",
-            "loop_state_digest": "bbede1b04fad897db34a3e1c77ade71745a334c50e83cf499ba60e86c6310b12",
-            "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
-          },
-          "host_id": "machine-dc39bf1e25efdf45",
-          "lease_generation": 5,
-          "outcome": "parked",
-          "parked": {
-            "classifier_reason": "auto-mode classifier denied running the scratchpad converge() driver for VAL_REVIEW (Code from External)",
-            "command": "skills/.venv/bin/python <scratchpad>/vr5d/run_converge.py <worktree> <scratchpad>/vr5d/proto",
-            "deadline": null,
-            "gate": null,
-            "kind": "permission_blocked",
-            "reason": "permission denied for Bash under rule auto-mode-classifier:Code from External",
-            "resume_hint": null,
-            "rule": "auto-mode-classifier:Code from External",
-            "tool": "Bash"
-          },
-          "schema_version": 2,
-          "worktree_ref": "dispatch-contract"
-        },
-        "result_digest": "0f14726bb999148a76f385f8337d66064025ee5b13afb598a140ee26dd9e2ec6",
-        "bound_at": "2026-10-10T10:09:51.732925+00:00",
-        "callback_started_at": "2026-10-10T10:09:51.776058+00:00",
-        "callback_acknowledged_at": "2026-10-10T10:09:51.802918+00:00",
-        "terminal_persisted_at": "2026-10-10T10:09:51.829174+00:00",
-        "effects_applied_at": "2026-10-10T10:09:51.877064+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-10T10:09:51.829109+00:00",
-      "parked": {
-        "classifier_reason": "auto-mode classifier denied running the scratchpad converge() driver for VAL_REVIEW (Code from External)",
-        "command": "skills/.venv/bin/python <scratchpad>/vr5d/run_converge.py <worktree> <scratchpad>/vr5d/proto",
-        "deadline": null,
-        "gate": null,
+      "continuation": {
         "kind": "permission_blocked",
-        "reason": "permission denied for Bash under rule auto-mode-classifier:Code from External",
-        "resume_hint": null,
-        "rule": "auto-mode-classifier:Code from External",
-        "tool": "Bash"
+        "approval_ref": "gate-decision:1469b3d5-5478-4ab7-9bbd-dd6993bb998e"
       }
     }
   ]
