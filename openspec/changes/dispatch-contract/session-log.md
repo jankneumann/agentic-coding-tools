@@ -323,3 +323,17 @@ converge() ran VAL_REVIEW (review_type=implementation, fix_mode=targeted, min_qu
 ### Context
 Re-validation at c83cf40 (gate-decision 724eaee2, gen 5): passed. Spec Compliance pass; 1,747 passed/24 skipped/1 known env-only failure; ruff clean; openspec strict valid; gate_logic action=continue. Outcome 6 caveat stands: only a Python port of gitleaks generic-api-key ran; first real full-ruleset scan is PR #662 Security job. CI DEGRADED (no run for head).
 
+---
+
+## Phase: Validation Review (gen 6) (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Next Steps
+- Fix review_ledger.compact false-reopen for additive (doc) fixes or let re-verified accept supersede it
+- Fix the two low readability findings
+- Operator decides resume (re-run VAL_REVIEW with committed agent_lane.py after the ledger fix)
+
+### Context
+VAL_REVIEW (operator-approved scratch driver, single_vendor_review) did not converge: stalled after 2 rounds, findings trend [3,4]. Round 1 raised 3 report-only findings (30 medium: outcome 6 now confirmed by real CI secret-scan on PR #662 runs 37976320517/37974967529 and main run 38019470729; 31/32 low citation gaps); all fixed in 794b4281 and re-verified by the reviewer in round 2. Round 2 added 2 low readability findings (run-id attribution next to 4955e24; added-tests block nested under outcome 6). Stall cause: review_ledger.compact() reopens an addressed item whose description tokens are still present in the cited file ('compact: claimed fix did not take'); additive documentation fixes always keep those tokens, so deterministic doc findings can never close. No Validation Review section written; outcome max_iter.
+
