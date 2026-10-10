@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "ownership-map",
-  "current_phase": "ESCALATE",
+  "current_phase": "SUBMIT_PR",
   "iteration": 0,
-  "total_iterations": 17,
+  "total_iterations": 18,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -84,7 +84,7 @@
   ],
   "last_handoff_id": "val-review-ownership-map-b71f042",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-09T13:39:58.453066+00:00",
+  "phase_started_at": "2026-10-10T02:59:09.052414+00:00",
   "previous_phase": "SUBMIT_PR",
   "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
   "val_review_enabled": true,
@@ -243,27 +243,24 @@
       "disposition": "block",
       "phase": "ESCALATE",
       "recorded_at": "2026-10-09T13:40:43.166017+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 operator (user) approved in worker session 2026-10-10; gate-decision:1604a5da-ad48-4166-a84e-721b323ffc61; current posture pr_creation: auto (7fea1cd)",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T02:59:09.052339+00:00",
+      "note": "operator (user) approved in worker session 2026-10-10; gate-decision:1604a5da-ad48-4166-a84e-721b323ffc61; current posture pr_creation: auto (7fea1cd)"
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "ownership-map",
-    "gate": "escalate_resume",
-    "phase": "ESCALATE",
-    "requested_at": "2026-10-09T13:40:43.167546+00:00",
-    "prompt": "Has this escalation been resolved? Resume the loop?",
-    "context": {
-      "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
-      "previous_phase": "SUBMIT_PR"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true
-    },
-    "edge": {
-      "outcome": "resolved",
-      "target": "SUBMIT_PR"
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
