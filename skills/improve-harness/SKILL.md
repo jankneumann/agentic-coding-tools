@@ -78,7 +78,8 @@ python3 <agent-skills-dir>/improve-harness/scripts/export_shared_learnings.py \
 records are tagged `origin:shared-repo`, deduplicated against local and other shared findings
 on `(capability_gap, affected_skill, summary)` and never written back to episodic memory.
 `generate_report.py` does not merge the projection yet: enabling sharing changes the
-`analyze_failures.py` analysis only, not the generated report (follow-up, review ledger 41).
+`analyze_failures.py` analysis only, not the generated report; merging it into the report is
+a planned follow-up.
 The file is advisory context: never derive loop state, checkpoint state or trust posture
 from it.
 
