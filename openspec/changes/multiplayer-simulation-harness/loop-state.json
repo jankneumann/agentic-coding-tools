@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "multiplayer-simulation-harness",
-  "current_phase": "VALIDATE",
+  "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 14,
+  "total_iterations": 16,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -20,7 +20,8 @@
     "ab3b1133-8595-4fe0-92b6-909f7872b6f3",
     "fa6e1d35-520b-42bd-932c-644b008829cf",
     "cc44baf6-dd8c-4ae4-931c-2203d6928c33",
-    "164aa1f5-f41a-4f7f-bb02-dc3be93baeda"
+    "164aa1f5-f41a-4f7f-bb02-dc3be93baeda",
+    "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7"
   ],
   "phase_history": [
     {
@@ -68,17 +69,22 @@
       "at": "2026-10-10T03:14:50.052251+00:00",
       "outcome": "converged",
       "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-10-10T03:18:09.228272+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "164aa1f5-f41a-4f7f-bb02-dc3be93baeda",
+  "last_handoff_id": "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7",
   "started_at": "2026-10-05T07:12:02.399401+00:00",
-  "phase_started_at": "2026-10-10T03:14:50.224448+00:00",
-  "previous_phase": "IMPL_REVIEW",
-  "escalation_reason": "IMPL_REVIEW blocked before any review ran: the auto-mode classifier denied the converge() driver run as [CI Bypass] (driver shims base_ref=d22417e, excludes .review-ledger/.review-cache from the post-fix scope check, and drops to min_quorum=1). Needs an operator decision on how implementation review may run in cloud containers.",
+  "phase_started_at": "2026-10-10T03:18:25.701590+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "reviewer",
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -201,6 +207,21 @@
       "recorded_at": "2026-10-10T03:04:37.519036+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "coordinator_unreachable",
+      "authorizing_disposition": "notify_with_timeout",
+      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "notify_with_timeout",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-10T03:18:25.700615+00:00"
     }
   ],
   "pending_gate": null,
