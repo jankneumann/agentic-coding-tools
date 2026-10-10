@@ -119,7 +119,25 @@ def _human_rejection_in_force(state: "autopilot.LoopState", gate: str) -> dict |
 
 
 def _change_dir(change_id: str) -> Path:
-    return Path("openspec") / "changes" / change_id
+    """The change directory, active or archived.
+
+    A change archived before its loop reached DONE (archived inside its own
+    PR) must still be drivable to DONE and emit its result. The rule follows
+    the tests' ``openspec_paths.change_dir``: the active directory, else the
+    latest ``archive/<YYYY-MM-DD>-<id>`` (the date matched exactly so a
+    ``followup-<id>`` never shadows its parent). One difference: an active
+    directory without a loop state (``emit-result`` recreates one holding only
+    its fixed-path ``dispatch-results/``) does not hide an archived loop.
+    """
+    changes = Path("openspec") / "changes"
+    active = changes / change_id
+    if (active / "loop-state.json").exists():
+        return active
+    archived = [
+        d for d in sorted(changes.glob(f"archive/????-??-??-{change_id}"))
+        if (d / "loop-state.json").exists()
+    ]
+    return archived[-1] if archived else active
 
 
 def _state_path(change_id: str) -> Path:
