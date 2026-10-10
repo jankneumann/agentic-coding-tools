@@ -1,0 +1,56 @@
+# Plan-time requirement-collision scenarios (design D4).
+#
+# These pin the BASELINE in force when the harness landed: a collision exists in
+# the fixture (the oracle says so) but nothing detects it at plan time, because no
+# collision probe is registered. They are characterisations, not targets.
+
+- id: same-requirement-collision
+  name: Two principals modify the same requirement and nothing detects it
+  description: >
+    Alice pushes a plan that modifies requirement "Note Titles" of the seeded
+    sim-notes capability. Bob fetches, then plans a change that modifies the same
+    requirement. collision_present comes from the ground-truth oracle over the
+    fixture files; collision_detected is true only when a registered probe reported
+    a requirement-level collision. No probe is registered today.
+  category: collision
+  priority: 1
+  interfaces: ["cli:run", "cli:--scenario"]
+  tags: [collision, baseline, multiplayer-simulation]
+  steps:
+    - id: run
+      transport: cli
+      command: run
+      args: ["--scenario", "same-requirement-collision"]
+      expect:
+        exit_code: 0
+        body:
+          scenario_id: same-requirement-collision
+          collision_present: true
+          # BASELINE, flipped by ri-06 (plan-time collision detection): registering
+          # its probe makes this true. Changing it is a reviewed edit, not a harness
+          # change.
+          collision_detected: false
+          probes: []
+      timeout_seconds: 60
+
+- id: different-requirement-control
+  name: Two principals modify different requirements, so nothing collides
+  description: >
+    The control for same-requirement-collision. Bob modifies "Note Bodies", so the
+    oracle reports no collision and a future detector must report none either.
+  category: collision
+  priority: 1
+  interfaces: ["cli:run", "cli:--scenario"]
+  tags: [collision, control, multiplayer-simulation]
+  steps:
+    - id: run
+      transport: cli
+      command: run
+      args: ["--scenario", "different-requirement-control"]
+      expect:
+        exit_code: 0
+        body:
+          collision_present: false
+          # Control for ri-06: must stay false after the detector lands.
+          collision_detected: false
+      timeout_seconds: 60

@@ -1,0 +1,226 @@
+{
+  "review_type": "implementation",
+  "target": "toolkit-consistency",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "existing_code": "mirror_hash=\"$(python3 \"$SCRIPT_DIR/shared/payload_hash.py\" --root \"$TARGET_ROOT/$rel_dir\" --manifest \"$INSTALL_MANIFEST\")\" || {",
+      "description": "Runtime drift hashes each installed mirror with the *source checkout's* manifest (`$INSTALL_MANIFEST`), not the mirror's own `install-manifest.json`. The pinned `payload_hash` was computed over the pinned manifest's skill set. Whenever the checkout's portable skill set differs from the pinned one (a skill removed, renamed, or flipped portable\u2192non-portable between commit A and commit B), a mirror that is byte-identical to the pinned payload hashes differently and `--check` prints 'Runtime drift ... Re-run install.sh from the pinned toolkit commit' in addition to checkout drift. The spec's Checkout drift scenario expects only the checkout-drift message, and the runtime-drift remediation text is wrong in that case (re-running from the pinned commit changes nothing). Session-log decision 6 chose this to also catch a missing skill, but mirror parity already reports that. Fix: hash the mirror with its own manifest (omit `--manifest` or pass `$TARGET_ROOT/$rel_dir/install-manifest.json`); `test_checkout_drift` should add a skill removal in checkout B to pin the behaviour.",
+      "line_range": {
+        "start": 401,
+        "end": 401
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "existing_code": "mkdir -p \"$stamp_dir\"\n  stamp_tmp=\"$(mktemp \"$stamp_dir/.stamp.XXXXXX\")\"",
+      "description": "Re-verified ledger 10: still open. `write_install_stamp` never reads the existing stamp, so an install from any checkout silently replaces the pin with no notice when the new `payload_hash` differs from the committed one; the only signal remains the git diff of a hash string. No scenario or test covers 'install over an existing stamp with a different hash'. Remains deferred per plan-findings; a one-line 'Pin moved: <old prefix> -> <new prefix>' notice would close it cheaply.",
+      "line_range": {
+        "start": 941,
+        "end": 942
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "resilience",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "existing_code": "text = source.read_text(encoding=\"utf-8\")\n    except FileNotFoundError:\n        return []\n    except OSError as exc:",
+      "description": "`load_shared_learnings` documents that unreadable files are skipped with a warning because the projection is advisory, but it only catches `OSError`. A `learnings.jsonl` with invalid UTF-8 raises `UnicodeDecodeError` (a `ValueError`) and aborts the whole analysis. Likewise `sharing_enabled()` imports the sibling exporter unconditionally, so a mirror missing `export_shared_learnings.py` raises `ImportError` for every user, including those who never opted in. Catch `ValueError` on the read and guard the import so an optional feature cannot fail the core pipeline.",
+      "line_range": {
+        "start": 407,
+        "end": 410
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "correctness",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "description": "After `merge_shared_learnings`, the merged list goes through `rank_findings`, whose grouping key is `(capability_gap, affected_skill, session_id)`. Exported records carry no `session_id`, so every shared record for the same gap+skill (different summaries, from many teammate sessions) collapses into one occurrence while the same signals locally would count once per session. Shared learnings therefore systematically undercount frequency relative to local ones. Acceptable for an advisory projection, but worth a sentence in SKILL.md or a synthetic per-record key for shared entries."
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "compatibility",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "existing_code": "origin = _extract_tag(tags, \"origin\")\n            if origin:\n                sources.add(f\"origin:{origin}\")",
+      "description": "`rank_findings` now emits `origin:<value>` strings into `sources` for any entry carrying an `origin:` tag, not only shared records. `sources` previously held bare `source:` values (e.g. `self-reported`); consumers such as `generate_report.py` that render or map source labels will see a new value shape. Silent change to an existing public return shape; document it or namespace it in a separate field.",
+      "line_range": {
+        "start": 168,
+        "end": 170
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "description": "The stamp records `agents` but `check_install_stamp` never reads it: runtime drift iterates the CLI `agent_list` (default `claude,agents`). A consumer that installed with `--agents claude` and later runs a bare `--check` gets failures for a mirror that was never meant to exist, and the stamp's `agents` field has no consumer at all. Either drive the runtime-drift loop from the stamp's `agents`, or document that `--check` must be invoked with the same `--agents` as the install."
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "architecture",
+      "disposition": "escalate",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "description": "The new 'Shared Learnings' section says consumption happens in `analyze_failures.py`, but session-log Implementation 1 decision 12 records that `generate_report.py` runs its own `query_memory` + `rank_findings` pipeline and does not merge the shared file. If the skill's report workflow goes through `generate_report.py`, enabling sharing changes nothing a user sees, and SKILL.md does not state this fallback. Either state the limitation under Consumption or route `generate_report.py` through `load_shared_learnings`/`merge_shared_learnings` (follow-up change)."
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/tasks.md",
+      "existing_code": "- `bash skills/install.sh --mode copy --force --deps none --openspec-assets none --openspec-cli none --python-tools none && bash skills/install.sh --check` (source-contribution-only commands run from this repository)",
+      "description": "The Verification command runs `install.sh` against this repository, which is a self-install: by design it writes no stamp and `--check` skips the stamp comparison, so this line cannot verify T2/T3 at all. T7 was actually verified against a scratch consumer (session-log Implementation 2). Replace with the scratch-consumer form (`--target <scratch>`) or note that the self-install run only covers mirror parity.",
+      "line_range": {
+        "start": 105,
+        "end": 105
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 9,
+      "type": "performance",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "performance",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/payload_hash.py",
+      "existing_code": "for path in directory.rglob(\"*\"):\n        rel = path.relative_to(directory)\n        if EXCLUDED_COMPONENTS.intersection(rel.parts):\n            continue",
+      "description": "Exclusion is applied after `rglob` has already descended into the excluded tree, so a skill containing `node_modules/` or large `tests/` fixtures is fully stat-walked three times per `--check` (source plus two mirrors). `os.walk` with in-place pruning of `dirnames` skips those subtrees entirely and keeps the same ordering guarantee after sorting.",
+      "line_range": {
+        "start": 39,
+        "end": 42
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/payload_hash.py",
+      "description": "The docstring claims symlinks are followed, but `Path.rglob` does not descend into symlinked *subdirectories* (pathlib skips `entry.is_symlink()` directories during `**` recursion in every supported Python version). Top-level skill-dir symlinks work (the start directory is opened directly), which is why `test_symlinked_tree_hashes_identically` passes, but a symlinked directory nested inside a skill is silently omitted from the hash. Also `payload_names` only catches `(OSError, ValueError, KeyError)`; a manifest whose top level is a list or whose `skills` values are not objects raises `TypeError`/`AttributeError` as a traceback instead of the documented exit 2. Narrow the docstring claim (or use `os.walk(followlinks=True)`) and widen the except."
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "description": "Two SHALL clauses lack a verifying scenario: Payload hash's 'following symlinks' (a `--mode symlink` mirror hashing identically; the test exists but the spec has no scenario), and the 'Projection never feeds canonical state' scenario under State-artifact registration is a restated constraint with no observable WHEN/THEN (what fails if a skill does derive state from it?). Add a symlink-mode scenario under Payload hash and either drop the second scenario or tie it to a concrete check (e.g. the guard test asserting the state-artifacts row text, which is what the implementation actually verifies)."
+    },
+    {
+      "id": 12,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "observability",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "description": "`phase_history` is not chronological: PLAN_REVIEW `converged` is stamped 2026-10-09T12:19:10Z, followed by two PLAN_FIX sub-steps at 08:25 and 08:31 and a `degraded` PLAN_REVIEW entry at 12:20. plan-findings.md dates the same convergence 08:21Z/08:30Z. The cherry-picked sub-step records carry the sub-agent's clock while the orchestrator entries carry its own, so a reader reconstructing the phase timeline from the canonical file gets contradictory ordering. Orchestrator-owned; distinct from ledger 15 (stale escalation fields)."
+    },
+    {
+      "id": 13,
+      "type": "security",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "security",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/export_shared_learnings.py",
+      "existing_code": "entries = analyze_failures.query_memory(time_window_days=time_window_days, limit=limit)",
+      "description": "The exporter applies no gap filter of its own: whatever `query_memory` returns is projected, and an entry without `capability_gap:`/`failure_type:` tags is exported with dedupe key `(unknown, unknown, summary)`. The privacy posture therefore depends on `query_memory`'s server-side tag filter staying narrow; if that query is ever widened (e.g. to decisions or handoff summaries), non-gap episodic text lands in a tracked, shared file. A defensive `if not any(t.startswith(('capability_gap:', 'failure_type:')) ...): continue` keeps the exporter's contract independent of upstream. Relatedly, `load_sanitizer()` raises an uncaught `FileNotFoundError` traceback when `session-log` is not co-installed instead of a documented refusal.",
+      "line_range": {
+        "start": 181,
+        "end": 181
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_stamp.py",
+      "existing_code": "assert second.returncode != 0\n    assert stamp_path.read_bytes() == prior",
+      "description": "`test_aborted_install_leaves_previous_stamp_intact` compares bytes, but the only field that would differ on an erroneous rewrite is `installed_at` at one-second resolution (same payload, agents and mode). If the stamp were wrongly written before `check_openspec_cli` and both writes fell in the same UTC second, the test passes against the broken ordering. Mutate the prior stamp first (e.g. add a `\"marker\": 1` key or change `installed_at`) so any rewrite is detected deterministically.",
+      "line_range": {
+        "start": 114,
+        "end": 115
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 15,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "observability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "existing_code": "if not sharing_enabled(root):\n        return []",
+      "description": "When the user passes `--shared-learnings <path>` explicitly but `config.json` does not enable sharing, the file is ignored with no message. The behaviour is correct per spec, but an explicit flag silently doing nothing is hard to diagnose; a one-line stderr notice ('shared learnings ignored: sharing not enabled in <config>') would make the opt-in rule discoverable.",
+      "line_range": {
+        "start": 403,
+        "end": 404
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

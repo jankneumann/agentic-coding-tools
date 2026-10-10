@@ -380,6 +380,66 @@ class TestMalformedInputAndDiscovery:
         assert "no spec" in message or "spec.md" in message
         assert "not in the effective requirement set" not in message
 
+    def test_capability_added_by_the_resolving_change_counts_as_specced(
+        self, tmp_path: Path
+    ) -> None:
+        # A change that introduces a new capability and its traced contract
+        # together: no archived spec yet, but the change's own delta ADDs it.
+        write_delta(tmp_path / "changes", "add-widget", "widget", added=["Alpha"])
+        write_openapi_doc(
+            tmp_path / "contracts",
+            "widget",
+            "svc.yaml",
+            [op("op0", "/w0", x_traceability={"requirements": ["widget.alpha"]})],
+        )
+        result = _run(tmp_path, change_id="add-widget")
+        assert not any("no spec" in e for e in result.errors), result.errors
+        assert result.exit_code == 0, result.errors
+
+    def test_new_capability_citation_must_still_resolve_against_the_delta(
+        self, tmp_path: Path
+    ) -> None:
+        write_delta(tmp_path / "changes", "add-widget", "widget", added=["Alpha"])
+        write_openapi_doc(
+            tmp_path / "contracts",
+            "widget",
+            "svc.yaml",
+            [op("op0", "/w0", x_traceability={"requirements": ["widget.beta"]})],
+        )
+        result = _run(tmp_path, change_id="add-widget")
+        assert result.exit_code == 1
+        assert not any("no spec" in e for e in result.errors)
+
+    def test_another_changes_delta_does_not_spec_the_capability_in_shadow_mode(
+        self, tmp_path: Path
+    ) -> None:
+        # Single-change mode resolves against exactly one delta, so a delta
+        # in some *other* change must not satisfy the spec requirement.
+        write_delta(tmp_path / "changes", "other-change", "widget", added=["Alpha"])
+        (tmp_path / "changes" / "add-widget").mkdir(parents=True)
+        write_openapi_doc(
+            tmp_path / "contracts",
+            "widget",
+            "svc.yaml",
+            [op("op0", "/w0", x_traceability={"requirements": ["widget.alpha"]})],
+        )
+        result = _run(tmp_path, change_id="add-widget")
+        assert result.exit_code == 1
+        assert any("no spec" in e for e in result.errors)
+
+    def test_union_mode_accepts_a_capability_added_by_any_on_branch_delta(
+        self, tmp_path: Path
+    ) -> None:
+        write_delta(tmp_path / "changes", "add-widget", "widget", added=["Alpha"])
+        write_openapi_doc(
+            tmp_path / "contracts",
+            "widget",
+            "svc.yaml",
+            [op("op0", "/w0", x_traceability={"requirements": ["widget.alpha"]})],
+        )
+        result = _run(tmp_path)
+        assert not any("no spec" in e for e in result.errors), result.errors
+
     def test_specless_untraced_capability_is_reported_not_failed(self, tmp_path: Path) -> None:
         write_openapi_doc(tmp_path / "contracts", "widget", "svc.yaml", [op("op0", "/w0")])
         result = _run(tmp_path)

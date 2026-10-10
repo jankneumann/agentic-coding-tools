@@ -8,11 +8,11 @@
     {
       "approval_id": null,
       "change_id": "toolkit-consistency",
-      "deadline": "2026-10-16T12:34:19.232869+00:00",
-      "decision_id": "809f20ac-6bab-4f80-9054-f2b6d8ca3a5e",
+      "deadline": "2026-10-17T10:52:24.641847+00:00",
+      "decision_id": "b1f1380d-07e0-4dee-a802-13bf4f2b5557",
       "disposition": "block",
       "gate": "escalate_resume",
-      "requested_at": "2026-10-09T12:34:19.232869+00:00",
+      "requested_at": "2026-10-10T10:52:24.641847+00:00",
       "source": "supervise"
     }
   ],
@@ -40,12 +40,12 @@
       "scope": "roadmap-jev-system-one-integration-assessment"
     },
     {
-      "decided_at": "2026-10-06T08:41:07.116408+00:00",
+      "decided_at": "2026-10-10T10:46:47.164929+00:00",
       "decision": "roadmap_approval:proceed",
-      "id": "e0526599-2740-4d45-bf08-e1f5d355bc6b",
-      "rationale": "operator re-approved after dispatch-contract refinement (2026-10-06)",
+      "id": "40776beb-63e5-4a06-b7b9-b349f3a918df",
+      "rationale": "Operator re-approved the roadmap after the ri-22 refinement: supervisor session 2026-10-10 (\"5. Yes\", approve ri-22 openrouter-review-lane for dispatch). ri-22 added in aacac4c and approved in 0064137.",
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-10T03:08:25.757636Z"
+  "written_at": "2026-10-10T10:52:21.951437Z"
 }
