@@ -665,3 +665,25 @@ def test_sdk_cache_invalidates_on_transcript_change(
     cache.write_text(json.dumps(cache_data))
     assert hook_module._measure_tokens(transcript) == 200
     assert call_count["n"] == 2
+
+
+def test_sdk_cache_is_not_reused_across_a_compaction(
+    hook_module: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Within the TTL a changed transcript may reuse the cached count, but not
+    once a compaction happened: the window that count measured is gone."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text(json.dumps({"message": {"role": "user", "content": "x" * 400}}) + "\n")
+    counts = iter([900_000, 5_000])
+    monkeypatch.setattr(hook_module, "_sdk_estimate", lambda _m, _model: next(counts))
+
+    assert hook_module._measure_tokens(transcript) == 900_000
+    with transcript.open("a") as f:
+        f.write(json.dumps({"type": "system", "subtype": "compact_boundary"}) + "\n")
+        f.write(json.dumps({"message": {"role": "user", "content": "summary"}}) + "\n")
+    stamp = transcript.stat().st_mtime + 5
+    os.utime(transcript, (stamp, stamp))  # changed, yet inside the 30s TTL
+
+    assert hook_module._measure_tokens(transcript) == 5_000

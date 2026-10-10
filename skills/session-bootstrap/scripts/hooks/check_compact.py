@@ -184,11 +184,21 @@ def _sdk_cache_path(transcript_path: Path) -> Path:
     return Path.home() / ".claude" / f"compact-token-cache-{key}.json"
 
 
+def _boundary_count(transcript_path: Path) -> int:
+    """How many compactions the transcript records (``compact_boundary`` rows)."""
+    try:
+        with transcript_path.open() as f:
+            return sum(1 for line in f if '"compact_boundary"' in line)
+    except OSError:
+        return 0
+
+
 def _sdk_cache_lookup(transcript_path: Path) -> int | None:
     """Return cached token count when:
       - the transcript hasn't changed since last measurement (exact hit), OR
       - the cache is fresh within SDK_CACHE_TTL_SEC (rate-limit hit).
-    Otherwise return None and force a fresh SDK call."""
+    Otherwise return None and force a fresh SDK call. A compaction since the
+    count was taken always invalidates it: the live window it measured is gone."""
     cache_path = _sdk_cache_path(transcript_path)
     try:
         cache = json.loads(cache_path.read_text())
@@ -196,6 +206,8 @@ def _sdk_cache_lookup(transcript_path: Path) -> int | None:
         return None
     cached_tokens = cache.get("tokens")
     if not isinstance(cached_tokens, int):
+        return None
+    if cache.get("boundaries") != _boundary_count(transcript_path):
         return None
     try:
         current_mtime = transcript_path.stat().st_mtime
@@ -220,6 +232,7 @@ def _sdk_cache_store(transcript_path: Path, tokens: int) -> None:
             "tokens": tokens,
             "computed_at": time.time(),
             "transcript_mtime": mtime,
+            "boundaries": _boundary_count(transcript_path),
         }))
     except OSError as exc:
         print(f"{PREFIX} cache write failed: {exc}", file=sys.stderr)
