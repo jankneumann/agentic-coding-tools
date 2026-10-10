@@ -1,0 +1,39 @@
+{
+  "attempt": 1,
+  "branch": "openspec/openrouter-review-lane",
+  "change_id": "openrouter-review-lane",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
+      "phase": "PLAN"
+    }
+  ],
+  "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+  "evidence": {
+    "commit": "d6c49b1eaace9ff5f232c0c477f516a3966cbcaa",
+    "loop_state_digest": "4e58211e36b7abf52f53a5ff200d4cfa55a75af35570fcf137f83a3558bfe458",
+    "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
+  },
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 2,
+  "outcome": "parked",
+  "parked": {
+    "classifier_reason": "Applying a supervisor-relayed gate approval (cross-session message, no launch marker) was classified as an auto-mode bypass",
+    "command": "runner.py gate-answer openrouter-review-lane --gate proposal_approval --decision approved --approval-ref gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6",
+    "deadline": null,
+    "gate": null,
+    "kind": "permission_blocked",
+    "reason": "permission denied for Bash under rule auto mode classifier: [Auto-Mode Bypass]",
+    "resume_hint": null,
+    "rule": "auto mode classifier: [Auto-Mode Bypass]",
+    "tool": "Bash"
+  },
+  "schema_version": 2,
+  "worktree_ref": "openrouter-review-lane"
+}
