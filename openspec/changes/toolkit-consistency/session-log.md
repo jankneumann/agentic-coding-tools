@@ -204,3 +204,53 @@ Pytest, skills/.venv: install_sh + improve-harness + shared: 149 passed, 16 skip
 - Payload hash includes untracked cache directories inside skill dirs (for example `.pytest_cache`) because `install.sh` mirrors them too; excluding them would diverge from mirror parity and the spec's fixed exclusion list. Preference, not a bug.
 - Read side does not re-filter `source:transcript-mined` in `learnings.jsonl`; the file is a human-reviewed tracked projection and the spec places the filter on export.
 - An interrupted install (SIGKILL) can still leave a `.stamp.*` temp file; a trap was judged out of scope.
+
+## Phase: Implementation Review 1 (2026-10-10)
+
+**Agent**: claude_code | **Session**: session_01J39bSygVy2r68wyPyHN5VA
+
+### Decisions
+1. **Degradation `single_vendor_review`** (phase IMPL_REVIEW, vendor claude_code, policy TRUST_POSTURE.md 479dcd9) — `converge(review_type=implementation, min_quorum=1, fix_mode=targeted)` ran as the whole phase. Dispatch evidence: claude_code succeeded (CLI, model fable, 325 s, 15 findings, fact-check kept all); codex failed `auth_required` ("No API key available for SDK dispatch"). No other lane was dispatchable. Manifest: `.review-cache/round-1-impl-initial/review-manifest.json`.
+2. **Conductor-applied findings (policy addendum 4)** — With one vendor, D3 marks no judgment finding blocking, so the review would otherwise have converged vacuously. The 15 findings were read as conductor; one medium correctness finding was genuine and fixed, two low test-oracle findings were hardened because they pin the fix's own contract. Everything else is low and left open advisory in the ledger (10, 37–47, 49, 50, 52).
+3. **IMPL_FIX 1 — ledger 35, medium, correctness, `skills/install.sh`** (commit 000c2bc) — `check_install_stamp` hashed each mirror with the checkout's manifest; when checkout B removes or re-scopes a skill the pinned payload still ships, a byte-identical mirror hashed differently and `--check` printed a spurious "Runtime drift … re-run install.sh" beside the legitimate checkout drift. Each mirror is now hashed against the manifest synced beside it. Proved with the pre-fix `install.sh` in a scratch consumer (both mirrors reported runtime drift; fixed version reports checkout drift only). Test: `test_checkout_drift_with_changed_skill_set_is_not_runtime_drift`.
+4. **IMPL_FIX 2 — ledger 48, low, test oracle, `test_install_stamp.py`** (commit 000c2bc) — `test_aborted_install_leaves_previous_stamp_intact` now marks the prior stamp so a stamp wrongly rewritten within the same UTC second cannot be byte-identical to the prior one.
+5. **IMPL_FIX 3 — ledger 51, low, test oracle, `test_install_check_drift.py`** (commit 2cf3614) — the new test also asserts "Cannot compute mirror payload hash" is absent, so a missing mirror manifest cannot mask the runtime-drift path.
+6. **Verification round** — a second `converge()` run over the fix diff only (packet base = pre-fix commit 8c75145; 53 KB, four files) converged with 3 low findings, 0 blocking (claude_code 70 s; codex `auth_required`). Evidence: `.review-cache/round-1-impl-verify/`.
+7. **Ledger bookkeeping before the run** (commit 8c75145) — ledger 3, 6, 7 retired with the operator dispositions already recorded under "Review Ledger Dispositions"; ledger 1, 2, 4, 5, 12, 13, 15, 16, 21 parked `reject_out_of_scope` because they cite files outside this change (roadmap scaffolds, TRUST_POSTURE.md, checkpoint.json, roadmap.yaml, orchestrator-owned loop-state.json) and were tabled to their owners in plan-findings.md Iteration 2. Ledger 36 (re-verification echo of 10) retired after round 1.
+8. **Packet scoped to this change** `skill-procedure-deviation` — `converge()` hardcodes the packet base to local `main`, which here is the roadmap branch's base and would have reproduced PLAN_REVIEW's 88-file off-target packet. The driver wrapped `convergence_loop.build_review_packet` with `base_ref=origin/openspec/roadmap-multiplayer-collaboration` (24 files, all from this change); no local ref was created and no repo code changed.
+9. **Round evidence directories renamed** `skill-procedure-deviation` — `converge()` always writes `.review-cache/round-1/`, which already held the committed PLAN_REVIEW verification evidence. That directory was `git mv`'d to `round-1-plan-verify` before the run, and the two IMPL_REVIEW runs were moved to `round-1-impl-initial` and `round-1-impl-verify` afterwards. Only the small evidence files (manifest, findings, fact-check, raw meta) are committed; packets and raw output are reproducible and left untracked.
+10. **Real IMPL_FIX applicator wired, never invoked** — `fix_callback` was `phase_fixer.apply_phase_fixes(fix_mode="targeted", package_authors={toolkit-consistency: claude_code})` with a dispatch_fn to the claude_code CLI adapter's write-capable mode and `change_dir=None` (so no `pending-fixes.json` lands inside the change dir, which the post-fix scope check would reject). With `min_quorum=1` no item was blocking, so it never fired; the three fixes above are conductor sub-steps for the orchestrator to record in `phase_history`.
+
+### Alternatives Considered
+- Let the 13 open PLAN_REVIEW items ride into the IMPL packet: rejected, 12 cite other artifacts and would have produced another round of "Re-verified ledger N" echoes (PLAN_REVIEW capability gap).
+- Skip the verification round: rejected, the single-vendor policy's compensating control is a reader of the fix; the fix-only packet kept the cost to 70 s.
+
+### Trade-offs
+- Verification re-lists all open ledger items for re-verification; echo noise is bounded by scoping the packet to the fix diff.
+
+### Capability Gaps Observed
+- **convergence_failed**: `converge()` exposes no `base_ref`; a change on a roadmap branch must monkeypatch `build_review_packet` to review its own diff (skill: autopilot, severity: low)
+- **convergence_failed**: `_changed_paths` diffs the working tree against the pre-fix HEAD, so the tracked `.review-ledger/ledger.json` that `converge()` saves before `fix_callback` would trip `reject_out_of_scope_fix` on the first real fix dispatch; latent because no single-vendor item ever blocks (skill: autopilot, severity: medium)
+- **verification_failed**: `.review-cache/round-N/` is reused across phases, so a second review phase overwrites the first phase's committed evidence unless renamed by hand (skill: parallel-infrastructure, severity: low)
+
+### Open Questions
+- [ ] Ledger 40/50 (low): `--check` iterates the CLI `agent_list`, not the stamp's `agents`; a bare `--check` after `--agents claude` reports a never-installed mirror. Document or drive the loop from the stamp.
+- [ ] Ledger 41 (low): `generate_report.py` does not merge shared learnings (also Implementation 1 decision 12).
+
+### Completed Work
+- converge(review_type=implementation, min_quorum=1): 15 findings, 0 blocking, converged round 1
+- IMPL_FIX 1–3 (000c2bc, 2cf3614); verification converge over the fix diff: 3 low findings, 0 blocking, converged round 1
+- Tests (skills/.venv): install_sh + improve-harness + _shared 98 passed, 15 skipped (rsync absent); ruff clean on edited tests; `bash -n install.sh` clean
+
+### Next Steps
+- Orchestrator: apply outcome `converged` for IMPL_REVIEW; record the degradation and IMPL_FIX sub-steps 1–3 in `phase_history`; cherry-pick the commits from `openspec/toolkit-consistency--impl-review` (not pushed)
+- VALIDATE: the scratch-consumer `install.sh` + `--check` run is the behavioural check for T2/T3 (tasks.md's self-install Verification line only covers mirror parity; ledger 42)
+
+### Relevant Files
+- `skills/install.sh` — IMPL_FIX 1 (runtime-drift loop)
+- `skills/tests/install_sh/test_install_check_drift.py`, `skills/tests/install_sh/test_install_stamp.py` — new and hardened tests
+- `openspec/changes/toolkit-consistency/.review-ledger/ledger.json` — 52 items: 15 open advisory (all low judgment), 12 addressed, 16 retired, 9 parked, 0 blocking
+- `openspec/changes/toolkit-consistency/.review-cache/round-1-impl-initial/`, `round-1-impl-verify/` — dispatch evidence
+
+### Context
+IMPL_REVIEW ran on branch openspec/toolkit-consistency--impl-review from origin/openspec/toolkit-consistency b7b7939. Both converge runs converged with 0 blocking ledger items under the single-vendor policy; outcome converged.

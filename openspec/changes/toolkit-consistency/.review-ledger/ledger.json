@@ -643,8 +643,8 @@
         "claude_code"
       ],
       "description": "Runtime drift hashes each installed mirror with the *source checkout's* manifest (`$INSTALL_MANIFEST`), not the mirror's own `install-manifest.json`. The pinned `payload_hash` was computed over the pinned manifest's skill set. Whenever the checkout's portable skill set differs from the pinned one (a skill removed, renamed, or flipped portable\u2192non-portable between commit A and commit B), a mirror that is byte-identical to the pinned payload hashes differently and `--check` prints 'Runtime drift ... Re-run install.sh from the pinned toolkit commit' in addition to checkout drift. The spec's Checkout drift scenario expects only the checkout-drift message, and the runtime-drift remediation text is wrong in that case (re-running from the pinned commit changes nothing). Session-log decision 6 chose this to also catch a missing skill, but mirror parity already reports that. Fix: hash the mirror with its own manifest (omit `--manifest` or pass `$TARGET_ROOT/$rel_dir/install-manifest.json`); `test_checkout_drift` should add a skill removal in checkout B to pin the behaviour.",
-      "consensus_status": "unconfirmed",
-      "resolution": "IMPL_FIX 1 (000c2bc): check_install_stamp hashes each mirror against its own synced install-manifest.json; test_checkout_drift_with_changed_skill_set_is_not_runtime_drift"
+      "resolution": "IMPL_FIX 1 (000c2bc): check_install_stamp hashes each mirror against its own synced install-manifest.json; test_checkout_drift_with_changed_skill_set_is_not_runtime_drift",
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 36,
@@ -662,8 +662,8 @@
         "claude_code"
       ],
       "description": "Re-verified ledger 10: still open. `write_install_stamp` never reads the existing stamp, so an install from any checkout silently replaces the pin with no notice when the new `payload_hash` differs from the committed one; the only signal remains the git diff of a hash string. No scenario or test covers 'install over an existing stamp with a different hash'. Remains deferred per plan-findings; a one-line 'Pin moved: <old prefix> -> <new prefix>' notice would close it cheaply.",
-      "consensus_status": "unconfirmed",
-      "resolution": "echo of ledger 10 (re-verification landed as a new item); ledger 10 stays open advisory, deferred per plan-findings"
+      "resolution": "echo of ledger 10 (re-verification landed as a new item); ledger 10 stays open advisory, deferred per plan-findings",
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 37,
@@ -869,8 +869,8 @@
         "claude_code"
       ],
       "description": "`test_aborted_install_leaves_previous_stamp_intact` compares bytes, but the only field that would differ on an erroneous rewrite is `installed_at` at one-second resolution (same payload, agents and mode). If the stamp were wrongly written before `check_openspec_cli` and both writes fell in the same UTC second, the test passes against the broken ordering. Mutate the prior stamp first (e.g. add a `\"marker\": 1` key or change `installed_at`) so any rewrite is detected deterministically.",
-      "consensus_status": "unconfirmed",
-      "resolution": "IMPL_FIX 2 (000c2bc): test_aborted_install_leaves_previous_stamp_intact marks the prior stamp so any rewrite is byte-detectable"
+      "resolution": "IMPL_FIX 2 (000c2bc): test_aborted_install_leaves_previous_stamp_intact marks the prior stamp so any rewrite is byte-detectable",
+      "consensus_status": "unconfirmed"
     },
     {
       "id": 49,
@@ -887,6 +887,58 @@
         "claude_code"
       ],
       "description": "When the user passes `--shared-learnings <path>` explicitly but `config.json` does not enable sharing, the file is ignored with no message. The behaviour is correct per spec, but an explicit flag silently doing nothing is hard to diagnose; a one-line stderr notice ('shared learnings ignored: sharing not enabled in <config>') would make the opt-in rule discoverable.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 50,
+      "status": "open",
+      "axis": "resilience",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "fingerprint": "aa9b34ac95fb273d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The runtime-drift loop now depends on `$TARGET_ROOT/$rel_dir/install-manifest.json` existing in every mirror. When it does not (a mirror synced by a pre-manifest install.sh, a mirror whose manifest was deleted, or, per open ledger 40, an agent in the CLI `agent_list` that was never installed), payload_hash.py exits 2 and the only output is the generic 'Cannot compute mirror payload hash for <agent>'. That is a legitimate drift condition (mirror no longer matches the pinned payload) but it is neither the spec's runtime-drift message naming the pinned `toolkit_version`/`source_commit` nor a hint about the missing manifest. Before invoking the helper, test for the mirror manifest: if absent, print the runtime-drift message with a 'mirror manifest missing' qualifier (and skip the agent entirely when it is not listed in the stamp's `agents`, which also closes ledger 40).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 51,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_check_drift.py",
+      "fingerprint": "43e03f3327e5ad64",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The new test correctly fails against the pre-fix code (checkout B's manifest drops json-canvas, so the mirror hash no longer equals the stamp and 'Runtime drift' is printed). But its negative assertions are loose: if install.sh stopped syncing `install-manifest.json` into the mirrors, payload_hash.py would exit 2, stderr would read 'Cannot compute mirror payload hash', the exit code would still be 1 and 'Checkout drift' would still be present, so the test would pass while the feature it pins is broken. Add `assert \"Cannot compute\" not in result.stderr` (or assert the exact expected stderr lines) so the test only passes on the intended path. Also note the hard-coded dependency on `json-canvas` being portable in the real manifest; the explicit `assert manifest[\"skills\"][\"json-canvas\"] == ...` makes that coupling fail loudly, which is acceptable, but picking the first portable skill from the manifest would make the test independent of that skill's future scoping.",
+      "consensus_status": "unconfirmed",
+      "resolution": "IMPL_FIX 3 (2cf3614): test asserts 'Cannot compute mirror payload hash' is absent, so a missing mirror manifest cannot mask the runtime-drift path"
+    },
+    {
+      "id": 52,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/.review-ledger/ledger.json",
+      "fingerprint": "efb3ca40f2da0123",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Fourteen pre-existing ledger entries change only in the relative order of `resolution`, `parked_reason` and `consensus_status`, with identical values. The ledger writer serialises keys in insertion order rather than a stable order, so every round that touches an entry re-emits unrelated entries and inflates the diff reviewers must read. The substantive additions (35 and 48 addressed with the 000c2bc reference, 36 retired as an echo of 10, 37-47 and 49 opened) are correct and consistent with the spec; the open items listed for re-verification are untouched by this diff and remain open. Consider `json.dump(..., sort_keys=True)` or a fixed key order in the ledger writer so future rounds diff only what changed.",
       "consensus_status": "unconfirmed"
     }
   ]
