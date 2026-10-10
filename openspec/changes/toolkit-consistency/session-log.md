@@ -159,3 +159,24 @@ Pytest, skills/.venv: install_sh + improve-harness + shared: 149 passed, 16 skip
 
 ### Next Steps
 - Resume IMPLEMENT for T7 verification once the operator authorizes the resume.
+
+## Phase: Implementation 2 (T7 verification) (2026-10-10)
+
+### Decisions
+1. **T7 verified and ticked** — scratch consumer (git init, outside the repo) used; no repo mirrors touched.
+
+### Alternatives Considered
+- Not applicable; verification only.
+
+### Trade-offs
+- rsync is absent in this environment, so rsync-only portability cases skip (6 of 11 in test_consumer_portability.py); copy mode was exercised instead.
+
+### Open Questions
+- None.
+
+### Context
+- `install.sh --mode copy --force --deps none --python-tools none` into scratch consumer: exit 0, 75 skills x2 agents, stamp written.
+- `install.sh --check`: exit 0 ("Installed skill mirrors match canonical payload", "Pinned toolkit matches: 0.2.0 (sha256:0d66d3b9b8b4)").
+- Installed `shared/payload_hash.py --root .claude/skills` = stamp payload_hash (sha256:0d66d3b9...c9ed8c); installed `export_shared_learnings.py --help` exit 0.
+- `validate_install_manifest.py --skills-root skills`: exit 0.
+- pytest test_consumer_portability.py: 5 passed, 6 skipped (rsync). pytest skills/tests/install_sh/: 48 passed, 15 skipped (rsync), exit 0.

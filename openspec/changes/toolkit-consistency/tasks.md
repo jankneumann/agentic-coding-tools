@@ -5,8 +5,8 @@
 ## Status
 
 - [x] Planning
-- [ ] Implementation
-- [ ] Testing
+- [x] Implementation
+- [x] Testing
 - [ ] Review
 - [ ] Done
 
@@ -73,7 +73,7 @@ on. Tasks with no shared files and no `Depends on` can run in parallel worktrees
   Files: `docs/guides/state-artifacts.md`, `docs/guides/skills.md`, `skills/tests/install_sh/test_state_artifacts_registration.py`.
   Depends on: none (file names are fixed by design.md).
 
-- [ ] **T7. Manifest and portability gate** — Add `smoke_entrypoints` for
+- [x] **T7. Manifest and portability gate** — Add `smoke_entrypoints` for
   `shared/payload_hash.py` and `improve-harness/scripts/export_shared_learnings.py`, add
   `session-log` to `improve-harness` in `cross_skill_dependencies`, then run
   `bash install.sh --mode copy --force ... && bash install.sh --check`,
