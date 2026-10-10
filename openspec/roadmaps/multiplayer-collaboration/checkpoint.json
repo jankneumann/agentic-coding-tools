@@ -2,9 +2,12 @@
   "schema_version": 1,
   "roadmap_id": "multiplayer-collaboration",
   "current_item_id": "ri-01",
-  "phase": "planning",
+  "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T09:54:19.977585+00:00",
+  "updated_at": "2026-10-10T10:02:44.552831+00:00",
+  "completed_items": [
+    "ri-01"
+  ],
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -979,6 +982,62 @@
       "item_id": "ri-05",
       "lease_generation": 3,
       "note": "Operator in ri-05 worker session session_01GTShWgrUnZ1sK8G98uXsda: \"Option 2\" at 2026-10-10T03:02:20Z (port converge() base_ref + bookkeeping fix, run IMPL_REVIEW unshimmed) and \"Approve PR now\" at ~09:48Z (PR creation); both verified from that session's transcript."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:02:30.460639+00:00",
+      "decision_id": "0f11ded8-2231-4a22-a08e-65ec1fa6505c",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "dispatch-contract",
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "item_id": "ri-21",
+      "lease_generation": 4
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator in supervisor session 2026-10-10 (\"1. Rerun\"): re-run validation for the merged item. validation-report.md lacks the required Validation Review section; resume at VALIDATE so VALIDATE and VAL_REVIEW regenerate it in this run.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:02:43.201595+00:00",
+      "decision_id": "724eaee2-ea65-4edc-a891-f9ece3964707",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "dispatch-contract",
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "item_id": "ri-21",
+      "lease_generation": 4,
+      "note": "Operator in supervisor session 2026-10-10 (\"1. Rerun\"): re-run validation for the merged item. validation-report.md lacks the required Validation Review section; resume at VALIDATE so VALIDATE and VAL_REVIEW regenerate it in this run.",
+      "resume_at": "VALIDATE"
     }
   ],
   "dispatch_attempts": [
@@ -988,7 +1047,7 @@
       "change_id": "multiplayer-principles-guide",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "completed",
       "prepared_at": "2026-10-05T07:01:35.452722+00:00",
       "launch_marker_path": ".supervised-dispatch/multiplayer-principles-guide/ri-01-attempt-1.marker",
       "lease_generation": 6,
@@ -1193,14 +1252,10 @@
       },
       "context": {},
       "launch_digest": "sha256:4a5c3c939aa599de4fc826d6595dbb0903f109cf33ff9f13f786b6244107ed7c",
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:23a757ff-357a-4111-bac9-120d8d301ff3"
-      },
       "lease": {
         "generation": 6,
         "owner_nonce": "owner-nonce-1791601730601",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T03:08:51.124839+00:00",
         "heartbeat_at": "2026-10-10T03:08:51.124839+00:00",
         "expires_at": "2026-10-10T03:23:51.124839+00:00"
@@ -1217,7 +1272,39 @@
         "handle": "session_01FwdCrA4nqZt1id2u1MuZma#g6",
         "go_released_at": "2026-10-10T03:08:51.462392+00:00",
         "entered_at": "2026-10-10T03:08:51.816763+00:00"
-      }
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/multiplayer-principles-guide",
+          "change_id": "multiplayer-principles-guide",
+          "degradations": [],
+          "dispatch_id": "batch-99711f190e5197a99d956016:ri-01:attempt-1",
+          "evidence": {
+            "commit": "c0d275084e5fd9e0c2aef879fbaa914258f06929",
+            "loop_state_digest": "08d17d4ec5e7696b05d3ed34fc609302fae644f4ff43b1e67d75ed0165bcb4b9",
+            "loop_state_path": "openspec/changes/multiplayer-principles-guide/loop-state.json"
+          },
+          "handoff_id": "0b4dc20a-e3d6-468b-8d9f-d3c3f9752725",
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 6,
+          "outcome": "success",
+          "schema_version": 2,
+          "worktree_ref": "multiplayer-principles-guide"
+        },
+        "result_digest": "5c3b9a4771e278636e668a5f296c02dd1292658dafec8d992c77718ffe06127e",
+        "bound_at": "2026-10-10T10:02:14.645638+00:00",
+        "callback_started_at": "2026-10-10T10:02:14.668878+00:00",
+        "callback_acknowledged_at": "2026-10-10T10:02:14.697198+00:00",
+        "terminal_persisted_at": "2026-10-10T10:02:14.727996+00:00",
+        "effects_applied_at": "2026-10-10T10:02:14.807055+00:00"
+      },
+      "outcome": "success",
+      "resolved_at": "2026-10-10T10:02:14.727960+00:00",
+      "degradations": [],
+      "handoff_id": "0b4dc20a-e3d6-468b-8d9f-d3c3f9752725"
     },
     {
       "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
@@ -1927,7 +2014,7 @@
       "status": "launched",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
-      "lease_generation": 4,
+      "lease_generation": 5,
       "launch_history": [
         {
           "generation": 1,
@@ -2052,6 +2139,37 @@
           "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
           "observed_at": "2026-10-10T09:51:44.260906+00:00",
           "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g4"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791626563521",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T10:02:44.008675+00:00"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791626563521",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T10:02:44.290024+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g5"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791626563521",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T10:02:44.290024+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g5"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791626563521",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
+          "observed_at": "2026-10-10T10:02:44.549900+00:00",
+          "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g5"
         }
       ],
       "scope": {
@@ -2066,7 +2184,7 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
-      "launch_digest": "sha256:5350a67210f2855a30e9021e3cefdcd358799ffaf214053c517214ce87d1ac88",
+      "launch_digest": "sha256:f0f6fcc028a6eb450da374bb33f3b4a1294d01027f8f431ed4bf1dfa30e074d3",
       "degradations": [
         {
           "code": "single_vendor_review",
@@ -2096,28 +2214,28 @@
       ],
       "continuation": {
         "kind": "policy_pause",
-        "approval_ref": "gate-decision:fb5a1364-f4d7-41ce-b1fb-f385d2261d4d"
+        "approval_ref": "gate-decision:724eaee2-ea65-4edc-a891-f9ece3964707"
       },
       "lease": {
-        "generation": 4,
-        "owner_nonce": "owner-nonce-1791625903421",
+        "generation": 5,
+        "owner_nonce": "owner-nonce-1791626563521",
         "state": "active",
-        "acquired_at": "2026-10-10T09:51:43.747706+00:00",
-        "heartbeat_at": "2026-10-10T09:51:43.747706+00:00",
-        "expires_at": "2026-10-10T10:06:43.747706+00:00"
+        "acquired_at": "2026-10-10T10:02:44.008675+00:00",
+        "heartbeat_at": "2026-10-10T10:02:44.008675+00:00",
+        "expires_at": "2026-10-10T10:17:44.008675+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 4,
-        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g4",
-        "observed_at": "2026-10-10T09:51:44.006258+00:00"
+        "generation": 5,
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g5",
+        "observed_at": "2026-10-10T10:02:44.290024+00:00"
       },
       "launch_gate": {
-        "generation": 4,
+        "generation": 5,
         "state": "entered",
-        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g4",
-        "go_released_at": "2026-10-10T09:51:44.006258+00:00",
-        "entered_at": "2026-10-10T09:51:44.260906+00:00"
+        "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g5",
+        "go_released_at": "2026-10-10T10:02:44.290024+00:00",
+        "entered_at": "2026-10-10T10:02:44.549900+00:00"
       }
     }
   ]
