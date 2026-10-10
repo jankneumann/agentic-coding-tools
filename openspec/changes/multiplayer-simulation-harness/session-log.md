@@ -250,3 +250,39 @@ Implemented all of tasks.md (groups 1-9) in the orchestrator-supplied worktree: 
 ### Context
 Reviewed harness against spec/design/contracts; 93 tests pass, ruff clean; no real defects found, no code changes.
 
+---
+
+## Phase: Implementation Review (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Degradation: single_vendor_review (IMPL_REVIEW, vendor claude_code), min_quorum=1** `architectural: skill-procedure-deviation` — Only claude_code can dispatch. codex, antigravity, grok, pi and ocr have no CLI, SDK or endpoint, and the dispatcher printed 'DEGRADED: Cross-vendor implementation review NOT CHECKED'. TRUST_POSTURE.md, section 'Review quorum in cloud containers (temporary)' (479dcd9), allows min_quorum=1.
+2. **converge() called unshimmed with base_ref=d22417e** — The operator chose option 2 on 2026-10-10: fix converge() itself (9aa7b24) rather than run a monkeypatching driver. d22417e is the last plan-only commit, so the packet covers only this change's implementation plus the 9aa7b24 port.
+
+### Capability Gaps Observed
+- **convergence_failed**: Ledger item 23 (medium) says skills/uv.lock is missing from the diff. It is not: git diff --stat d22417e..HEAD shows skills/uv.lock with 344 changed lines. The packet most likely truncated or omitted the lockfile hunk, and the diff-grounded fact-check kept the finding anyway. The packet should list omitted files, so a reviewer can tell an omitted file from an unchanged one. (skill: parallel-infrastructure, severity: low)
+- **convergence_failed**: converge() writes every round's checkpoint to .review-cache/round-<n>/ with no review_type namespace. The implementation round-1 checkpoint therefore overwrote the plan-review round-1 manifest and packet. findings-*-plan.json survives only because its filename carries the review type, and git history still holds the plan artifacts. (skill: autopilot, severity: low)
+
+### Open Questions
+- [ ] Ledger 20 (medium): test B.4 does not yet pin that a no-dependency principal is admitted through Roadmap.ready_items(). The design half of item 11 is done; the test pin is missing.
+- [ ] Ledger 23 (medium): likely a false positive, since skills/uv.lock is committed in this change. Confirm, then dismiss.
+
+### Completed Work
+- converge(review_type=implementation, fix_mode=targeted, max_rounds=3, min_quorum=1, base_ref=d22417e) converged in round 1, trend [0]
+- 15 findings merged into ledger items 17-30 (2 medium: 20 and 23, the rest low). Item 9 stays parked out_of_scope
+- IMPL_FIX sub-step: fix_callback wired up, 0 invocations (no blocking items)
+- Validation: tests/multiplayer-simulation 93 passed; ruff check clean
+
+### Next Steps
+- Proceed to VALIDATE
+- Optionally address advisory ledger items 20 (B.4 admission pin) and 24-30 (low) in a follow-up touch-up
+
+### Relevant Files
+- `openspec/changes/multiplayer-simulation-harness/.review-ledger/ledger.json` — Ledger: 0 blocking; advisory items 5, 6, 10-30 open
+- `openspec/changes/multiplayer-simulation-harness/.review-cache/round-1/findings-claude_code-implementation.json` — Round-1 implementation findings
+- `skills/autopilot/scripts/convergence_loop.py` — converge() with base_ref (9aa7b24)
+
+### Context
+Ran IMPL_REVIEW as a plain converge() call through its public signature: review_type=implementation, fix_mode=targeted, max_rounds=3, min_quorum=1, base_ref=d22417e. No monkeypatching and no shims. Commit 9aa7b24 supplies base_ref and the bookkeeping-path scope exclusion. Round 1 dispatched to claude-local and returned 15 findings (2 medium, 13 low), all single-vendor judgment. The fact-check ran and removed none. After merging, the ledger held 0 blocking items and none needing adjudication, so converge() returned converged in round 1 with trend [0]. The IMPL_FIX fix_callback (a conductor-applied, file-scoped applicator) was wired up but not invoked, because there were no blocking items. Harness suite: 93 passed (35 s). ruff check: clean. Outcome: converged.
+

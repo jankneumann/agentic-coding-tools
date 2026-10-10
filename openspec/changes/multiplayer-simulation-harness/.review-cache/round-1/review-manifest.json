@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "change_id": "multiplayer-simulation-harness",
-  "review_type": "plan",
-  "created_at": "2026-10-09T08:05:45Z",
+  "review_type": "implementation",
+  "created_at": "2026-10-10T03:12:04Z",
   "target": "multiplayer-simulation-harness",
   "dispatches": [
     {
@@ -12,7 +12,7 @@
       "models_attempted": [
         "fable"
       ],
-      "elapsed_seconds": 153.041795083,
+      "elapsed_seconds": 304.259011713,
       "error": null,
       "error_class": null
     }
@@ -22,8 +22,8 @@
   "vendors": [
     {
       "name": "claude_code",
-      "findings_path": "findings-claude_code-plan.json",
-      "finding_count": 8,
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 15,
       "unanchored_findings": 0,
       "fact_check": "ran",
       "fact_check_removed": 0,

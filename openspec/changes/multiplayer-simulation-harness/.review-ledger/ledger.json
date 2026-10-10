@@ -226,14 +226,14 @@
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a9b56ed97decb12c5/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-      "fingerprint": "b8a3cd9eaea6c0c2",
+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
+      "fingerprint": "af542f94c654364d",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
         "claude_code"
       ],
-      "description": "After the A1 fix, D5 introduces `mpsim/applier.py` (the status applier) and task 5.2 implements it, but D2's package inventory was not updated and still omits it. D6 also gives clones only to principals; nothing says where the applier's checkout of `main` lives (its own clone under `<world>/supervisor/`, or a worktree of the remote), nor that its commits use the same tick-derived fixed dates and `GIT_CONFIG_GLOBAL=/dev/null` rules as principal commits, which D.1 byte-identity depends on. Add `applier.py` to D2 and state the applier's working copy and determinism rules in D5 or D6.",
+      "description": "Re-verification of ledger item 13: partially addressed. D5 now states the applier is part of `mpsim`, 'operating on its own clone of the shared remote, not a principal's clone', which applier.py implements via `world.clone_for(root/'supervisor'/'clone', SUPERVISOR_IDENTITY)`. The diff does not touch D2's package inventory (so `applier.py`, and also `fixture.py`, `model.py`, `paths.py`, `runner.py`, `errors.py` as shipped, may still be missing from it) nor D6's determinism statement that supervisor commits use the same tick-derived dates and `GIT_CONFIG_GLOBAL=/dev/null` env as principal commits (which `commit_as` -> `_commit` does, and D.1 byte-identity depends on).",
       "consensus_status": "unconfirmed"
     },
     {
@@ -286,6 +286,248 @@
         "claude_code"
       ],
       "description": "Re-verification of open ledger item 6: still unaddressed. Task 1.4's `bin/mpsim` runs a bare `python`, and task 7.3 invokes the `gen-eval` console script by name with only `bin/` prepended to PATH, so both depend on the skills venv already being first on PATH. Cheapest fix: have `bin/mpsim` use `#!/usr/bin/env python3` and have the subprocess tests (6.1, 7.3) pass `sys.executable` explicitly (`[sys.executable, '-m', 'mpsim', ...]` and `[sys.executable, '-m', 'gen_eval', ...]` if gen-eval exposes a module entry point), with `bin/` on PATH only for gen-eval's own invocation of `mpsim`. Record the choice in D3 and the README task 8.2.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/contracts/multiplayer-simulation/cli/mpsim.yaml",
+      "fingerprint": "1a3d5753cb5a64c3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item 5: still present. The promoted openspec/contracts/multiplayer-simulation/cli/mpsim.yaml keeps the change-local header: 'Validates against ../../../../contracts/gen-eval-framework/schemas/cli-contract.schema.json (path relative to this file's change-local location)' and 'promoted ... by task 1.2'. From the promoted location four `..` segments land at the repo root, so `contracts/gen-eval-framework/...` does not resolve (the schema is under `openspec/contracts/`). test_contracts.py pins the promoted copy byte-identical to the change-local one, so the stale note ships in the canonical file. Use a repo-root-relative path and word the provenance so it is true at both locations.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/multiplayer-simulation/test_gen_eval_pack.py",
+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
+      "fingerprint": "a5bfc403df741b99",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger items 6/16: addressed in code, not in the design record. bin/mpsim now uses `#!/usr/bin/env python3`, test_cli.py runs the launcher with `sys.executable`, and test_gen_eval_pack.py resolves `gen-eval` from `Path(sys.executable).parent` and prepends that directory plus `bin/` to PATH so the launcher's `python3` resolves to the test interpreter. That is the cheapest fix the ledger asked for. The ledger also asked that the choice be recorded in D3 and in the README (task 8.2); the design.md diff does not touch D3 and the README's 'Running locally' section does not mention that the subprocess tests pin the interpreter.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
+      "fingerprint": "f58e801130eb80c1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item 10: resolved. design.md D4 now says probes run 'At the second principal's plan step', collision.py runs the oracle and probes only when `index == 1`, and the blocked scenarios build their report without `probes`/`collision_*`, so those fields are null there (new_report defaults). test_probes.py S.1 pins exactly one entry per stub.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/multiplayer-simulation/test_blocked_scenarios.py",
+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
+      "fingerprint": "8cd2a437868022ed",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item 11: the design half is done (D5 now says 'A principal with no dependency is also admitted through Roadmap.ready_items(). The harness never short-circuits readiness', and blocked.py routes every waiting principal through ready_items()), but the pinning half is not. In B.4 (`test_a_dependency_that_starts_completed_unblocks_through_the_admission_rule`) the fixture seeds `ri-storage` as `completed`; with no short-circuit, storage-owner's implement step is never admitted (its item is not `approved`), so after retrieval-owner finishes at tick 5 the scheduler's fast-forward sets final_tick=20 and the report carries `unblocked.storage-owner: false`, `blocked_ticks.storage-owner: 17`. The test asserts only retrieval-owner, so this intended-by-design outcome is unpinned and a later change to admission could silently alter it. Pin storage-owner's values (or drop its implement step in that fixture copy) as the ledger asked.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "open",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/multiplayer-simulation/mpsim/agents.py",
+      "fingerprint": "38d0e8597059121c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item 12: resolved. D7 now declares `Agent.act(world, step, tick)` returning the step's declared transitions, agents.py's Protocol matches, and test_agents.py asserts the returned StatusTransition list and that `on_start` is read via `declared_transitions(step, 'start')`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 22,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
+      "fingerprint": "c52aaf09489d856a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item 14: no hunk in this diff touches the D5 sentence counting the ri-11 flip as 'three fixture edits plus one expectation edit', so the count/list mismatch is still open as far as this packet shows. The README's 'Where ri-11 must look' section lists the call site, the fixture dependency form, the fixture transitions, and the pinned blocked_ticks, which is the accurate enumeration D5 should mirror.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 23,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/pyproject.toml",
+      "fingerprint": "a56b03dff8459661",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "skills/pyproject.toml adds `gen-eval` to the `test` extra and a `[tool.uv.sources]` path entry, and task 1.3 (ticked) says to run `uv lock` in skills/, but no `skills/uv.lock` hunk appears in this diff. If the lock was not committed, `uv sync --locked`/`--frozen` in CI either fails outright or installs without gen-eval, and the newly swept `tests/multiplayer-simulation` fails in test_gen_eval_pack.py with a FileNotFoundError on the console script. If lockfiles are simply filtered out of review packets, this is a non-issue; the packet gives no way to tell.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 24,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/multiplayer-simulation/README.md",
+      "fingerprint": "e84b3cf06f5d3934",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "README 'Running locally' gives `PATH=tests/multiplayer-simulation/bin:$PATH uv run python -m mpsim list   # from the harness dir` after `cd skills`. Prepending `bin/` to PATH does nothing for `python -m mpsim`, and `python -m mpsim` from `skills/` cannot import `mpsim` (only the launcher puts the harness root on sys.path). The trailing comment contradicts the preceding `cd skills`. A reader following it gets `No module named mpsim`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "fingerprint": "5b4c60dccbc9abfa",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The `_BOOKKEEPING_DIRS` comment says converge writes the ledger/cache itself and that `save_ledger` 'runs before the pre-fix snapshot'. If that were the whole story the bookkeeping paths would already be in `pre_rev` and never show up in `_changed_paths`, and the filter (and the escalation that motivated it) would be unnecessary. Something writes under `.review-ledger/` or `.review-cache/` between the snapshot and the scope check; the comment should name that write so the next reader understands why the filter exists rather than concluding it is dead code.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/multiplayer-simulation/mpsim/scenarios/collision.py",
+      "fingerprint": "c613fd5e51678478",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The agent id format `<name>-agent-1` is defined three times: world.py (`Principal(name, email, f\"{name}-agent-1\", clone)`), agents.py (`self.agent_id = f\"{spec.name}-agent-1\"`), and collision.py, which re-derives it as `f\"{p.name}-agent-1\"` for the report instead of reading `agent.agent_id` from the ScriptedAgent it just created. blocked.py does read `s.agent.agent_id`. A change to the format in one place silently diverges the report from the world/agent.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 27,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/multiplayer-simulation/mpsim/runner.py",
+      "fingerprint": "baa331bba62e6485",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "runner.run only catches ScenarioError around `scenario.run(ctx)`. `render()` runs outside that inner try, so a ScenarioError message that happens to contain a 40-hex commit id (git stderr often does) makes `render` raise ReportError, which escapes as an uncaught traceback with no report printed. Likewise a malformed `scenario.yaml` raises yaml.YAMLError out of `load_fixture` before any mapping to exit 64/1. Both end up as exit 1 via the interpreter, which matches the contract's code but not its 'A report carrying a non-null error is printed when possible' intent.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 28,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/multiplayer-simulation/test_probes.py",
+      "fingerprint": "896d0af43cee4288",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_no_probe_is_registered_at_import_time pops `mpsim.probes` from sys.modules and re-imports it. importlib then rebinds the package attribute `mpsim.probes` to the fresh module and the `finally` restores only sys.modules, so for the rest of the session `mpsim.probes` (attribute access) and `sys.modules['mpsim.probes']` are different objects with different `REGISTRY` and `ProbeResult` classes. Nothing currently breaks because every consumer bound the original at import, but any later `from mpsim import probes` evaluated at runtime sees the stale module. Separately, once ri-06 adds `from mpsim.probes import requirement_collision`, the re-import finds that submodule cached, its module-level `register()` does not re-run, and `fresh.REGISTRY == {}` passes trivially, so the test no longer tests what its name claims.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 29,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/multiplayer-simulation/conftest.py",
+      "fingerprint": "ebb1a4a4c64b8068",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "In conftest.py `_blocked` ends with `raise AssertionError(\"non-inet connect is not expected in this harness\")`, but `_wrap` only calls `_blocked` when `self.family in _INET_FAMILIES`, so that branch is unreachable and the message is misleading (AF_UNIX connects are in fact passed through to the original).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 30,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
+      "fingerprint": "1bf979087155d2f1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The recorded wall time for the harness suite disagrees across the packet: tasks.md 9.1 says 34 s with ~8 s in the archive-stability guard, the Implementation Iteration session-log entry says ~37 s with ~11 s. Both exceed the 30 s budget the plan set (recorded, not asserted, per plan finding iteration 3). Not a defect, but the validation report should carry one number and name the environment it was measured in.",
       "consensus_status": "unconfirmed"
     }
   ]
