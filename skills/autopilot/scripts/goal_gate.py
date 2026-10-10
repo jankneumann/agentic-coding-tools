@@ -113,15 +113,20 @@ def _git(change_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def _report_time(report_path: Path) -> tuple[datetime, str]:
-    """``(time, source)``: the last commit touching the report when the working
-    copy matches it, else the file's mtime."""
+    """``(time, source)``: the author date of the last commit touching the report
+    when the working copy matches it, else the file's mtime."""
     name = report_path.name
     cwd = report_path.parent
     try:
         tracked = _git(cwd, "ls-files", "--error-unmatch", "--", name).returncode == 0
         clean = tracked and _git(cwd, "diff", "--quiet", "HEAD", "--", name).returncode == 0
         if clean:
-            stamp = _git(cwd, "log", "-1", "--format=%cI", "--", name).stdout.strip()
+            # Author date, not committer date: a rebase merge or cherry-pick
+            # rewrites the committer date to the moment it ran, which made every
+            # rebase-merged change read as edited after its review. (Caveat: an
+            # amend keeps the author date; amending a validated report is out of
+            # protocol, since phases commit the report and never rewrite it.)
+            stamp = _git(cwd, "log", "-1", "--format=%aI", "--", name).stdout.strip()
             parsed = _parse_timestamp(stamp)
             if parsed is not None:
                 return parsed, "commit"
