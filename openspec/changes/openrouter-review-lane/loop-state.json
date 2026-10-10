@@ -1,0 +1,90 @@
+{
+  "schema_version": 6,
+  "change_id": "openrouter-review-lane",
+  "current_phase": "PLAN",
+  "iteration": 0,
+  "total_iterations": 2,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "local:gatekeeper-openrouter-review-lane-20261010T1050Z"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-10T10:51:34.903189+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "last_handoff_id": "local:gatekeeper-openrouter-review-lane-20261010T1050Z",
+  "started_at": "2026-10-10T10:48:36.099038+00:00",
+  "phase_started_at": "2026-10-10T10:51:37.770500+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "architect",
+  "force": false,
+  "gate_signals": {},
+  "gate_verdict": "proceed_with_review",
+  "gate_decisions": [
+    {
+      "gate": "proposal_approval",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block (unscoped fallback: auto requires a launch marker carrying a roadmap_approval_ref)",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "scope": "unscoped",
+      "disposition": "block",
+      "phase": "PLAN",
+      "recorded_at": "2026-10-10T10:51:43.189455+00:00"
+    }
+  ],
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "openrouter-review-lane",
+    "gate": "proposal_approval",
+    "phase": "PLAN",
+    "requested_at": "2026-10-10T10:51:43.190388+00:00",
+    "prompt": "Approve this OpenSpec proposal and begin implementation?",
+    "context": {
+      "proposal_path": "openspec/changes/openrouter-review-lane/proposal.md",
+      "approach": "exists"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true,
+      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+    }
+  },
+  "goal_gate": null,
+  "park": null,
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "PLAN",
+      "detail": "audit sink reported failure for gate proposal_approval decision posture_block"
+    }
+  ]
+}
