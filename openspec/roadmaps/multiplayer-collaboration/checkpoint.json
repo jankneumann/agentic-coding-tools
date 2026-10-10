@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:37:08.146003+00:00",
+  "updated_at": "2026-10-10T10:41:22.885203+00:00",
   "completed_items": [
     "ri-01"
   ],
@@ -1234,6 +1234,34 @@
       "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
       "item_id": "ri-20",
       "lease_generation": 5
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator in ri-20 worker session session_01SFH32A8gaJCyUn6j7uBLgb at 2026-10-10T10:38:13Z (\"1\": open the PR); verified from the transcript. PR #671 opened on that approval without a runner-evaluated pr_creation gate (branch posture predates 7fea1cd; applying it was correctly refused as self-modification).",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:41:11.360947+00:00",
+      "decision_id": "72884c28-66fc-4dc2-a045-0f906deca020",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 5,
+      "note": "Operator in ri-20 worker session session_01SFH32A8gaJCyUn6j7uBLgb at 2026-10-10T10:38:13Z (\"1\": open the PR); verified from the transcript. PR #671 opened on that approval without a runner-evaluated pr_creation gate (branch posture predates 7fea1cd; applying it was correctly refused as self-modification)."
     }
   ],
   "dispatch_attempts": [
@@ -1995,7 +2023,7 @@
       "status": "parked",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
-      "lease_generation": 5,
+      "lease_generation": 6,
       "launch_history": [
         {
           "generation": 1,
@@ -2151,6 +2179,37 @@
           "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
           "observed_at": "2026-10-10T09:43:02.093670+00:00",
           "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791628871620",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:41:12.135752+00:00"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791628871620",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:41:12.409883+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g6"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791628871620",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:41:12.409883+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g6"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1791628871620",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T10:41:12.690989+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g6"
         }
       ],
       "scope": {
@@ -2165,28 +2224,28 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
-      "launch_digest": "sha256:72c0a816dbb2f20d656d185e09429d647755cbfb6d9aa56d8cfa9a5508323483",
+      "launch_digest": "sha256:b045fbab652a0fbd2d181ed92c763b8a1a86d86768094b0c1ae2f0adaa11cfbb",
       "degradations": [],
       "lease": {
-        "generation": 5,
-        "owner_nonce": "owner-nonce-1791625381520",
+        "generation": 6,
+        "owner_nonce": "owner-nonce-1791628871620",
         "state": "released",
-        "acquired_at": "2026-10-10T09:43:01.219779+00:00",
-        "heartbeat_at": "2026-10-10T09:43:01.219779+00:00",
-        "expires_at": "2026-10-10T09:58:01.219779+00:00"
+        "acquired_at": "2026-10-10T10:41:12.135752+00:00",
+        "heartbeat_at": "2026-10-10T10:41:12.135752+00:00",
+        "expires_at": "2026-10-10T10:56:12.135752+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 5,
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5",
-        "observed_at": "2026-10-10T09:43:01.506442+00:00"
+        "generation": 6,
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g6",
+        "observed_at": "2026-10-10T10:41:12.409883+00:00"
       },
       "launch_gate": {
-        "generation": 5,
+        "generation": 6,
         "state": "entered",
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5",
-        "go_released_at": "2026-10-10T09:43:01.506442+00:00",
-        "entered_at": "2026-10-10T09:43:02.093670+00:00"
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g6",
+        "go_released_at": "2026-10-10T10:41:12.409883+00:00",
+        "entered_at": "2026-10-10T10:41:12.690989+00:00"
       },
       "application_journal": {
         "schema_version": 1,
@@ -2198,38 +2257,38 @@
           "degradations": [],
           "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
           "evidence": {
-            "commit": "1b6904956bde4563ff4f6555ef82c3cd463811e2",
-            "loop_state_digest": "4c932efdde01199eb7fde2094d91359b29427aaf994515062eaa8bd492e535c7",
+            "commit": "128c78ede837935d81431d0a96b15034daa15099",
+            "loop_state_digest": "69fe69a70ffe8958e631125d79f582b485e1948d0d2b2549405d9939aa19ddff",
             "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
           },
           "host_id": "machine-dc39bf1e25efdf45",
-          "lease_generation": 5,
+          "lease_generation": 6,
           "outcome": "parked",
           "parked": {
             "deadline": null,
-            "gate": null,
-            "kind": "policy_pause",
-            "reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
-            "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+            "gate": "merge",
+            "kind": "pending_gate",
+            "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+            "resume_hint": "answer gate merge through the resume request's gate_answer"
           },
           "schema_version": 2,
           "worktree_ref": "toolkit-consistency"
         },
-        "result_digest": "fbca35b1d07b6ce5fd4f9434eb6452d7c90dd0b2850cf54dd0bfec2a39c959e0",
-        "bound_at": "2026-10-10T10:37:05.381332+00:00",
-        "callback_started_at": "2026-10-10T10:37:05.406216+00:00",
-        "callback_acknowledged_at": "2026-10-10T10:37:05.428951+00:00",
-        "terminal_persisted_at": "2026-10-10T10:37:05.451786+00:00",
-        "effects_applied_at": "2026-10-10T10:37:05.505319+00:00"
+        "result_digest": "ec5bbe6f90e7a054ea702cb172170500a984901986ac45e3c6748486699f53eb",
+        "bound_at": "2026-10-10T10:41:22.742619+00:00",
+        "callback_started_at": "2026-10-10T10:41:22.767296+00:00",
+        "callback_acknowledged_at": "2026-10-10T10:41:22.799406+00:00",
+        "terminal_persisted_at": "2026-10-10T10:41:22.832012+00:00",
+        "effects_applied_at": "2026-10-10T10:41:22.880706+00:00"
       },
       "outcome": "parked",
-      "resolved_at": "2026-10-10T10:37:05.451751+00:00",
+      "resolved_at": "2026-10-10T10:41:22.831968+00:00",
       "parked": {
         "deadline": null,
-        "gate": null,
-        "kind": "policy_pause",
-        "reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
-        "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+        "gate": "merge",
+        "kind": "pending_gate",
+        "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+        "resume_hint": "answer gate merge through the resume request's gate_answer"
       }
     },
     {
