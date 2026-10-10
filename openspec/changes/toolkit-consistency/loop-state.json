@@ -3,7 +3,7 @@
   "change_id": "toolkit-consistency",
   "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 25,
+  "total_iterations": 27,
   "max_phase_iterations": 3,
   "findings_trend": [
     16,
@@ -200,9 +200,9 @@
   ],
   "last_handoff_id": "val-review-2-toolkit-consistency-ff7d385",
   "started_at": "2026-10-05T07:11:57.548342+00:00",
-  "phase_started_at": "2026-10-10T10:46:47.295081+00:00",
+  "phase_started_at": "2026-10-10T10:51:21.655047+00:00",
   "previous_phase": "SUBMIT_PR",
-  "escalation_reason": "goal gate refused: validate record predates report",
+  "escalation_reason": "goal gate refused: required section not passed: Spec Compliance (missing)",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
@@ -511,23 +511,76 @@
       "phase": "ESCALATE",
       "recorded_at": "2026-10-10T10:46:47.093106+00:00",
       "note": "operator merged PR #671 and confirmed 'Merged' in-session; resume to attempt SUBMIT_PR -> DONE under the fixed goal gate"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T10:51:21.267736+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 goal-gate author-date fix d1f65b25 applied; resume SUBMIT_PR -> DONE",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:5f8bf169-1e0c-4426-a189-9a26171571ba"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T10:51:21.438083+00:00",
+      "note": "goal-gate author-date fix d1f65b25 applied; resume SUBMIT_PR -> DONE"
     }
   ],
   "pending_gate": null,
   "goal_gate": {
     "verdict": "refused",
-    "reason": "validate record predates report",
+    "reason": "required section not passed: Spec Compliance (missing)",
     "evidence": {
       "merge_authorized": true,
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/671",
       "report_path": "openspec/changes/toolkit-consistency/validation-report.md",
-      "checked_at": "2026-10-10T10:46:47.277413+00:00",
+      "checked_at": "2026-10-10T10:51:21.623331+00:00",
       "validate_outcome": "passed",
       "validate_at": "2026-10-10T03:55:27.609153+00:00",
-      "report_time": "2026-10-10T06:44:31-04:00",
+      "report_time": "2026-10-10T10:26:51+00:00",
       "report_time_source": "commit",
       "bound_by": "VAL_REVIEW",
-      "val_review_at": "2026-10-10T10:31:33.112993+00:00"
+      "val_review_at": "2026-10-10T10:31:33.112993+00:00",
+      "required_sections": [
+        "Spec Compliance",
+        "Smoke Tests",
+        "Security",
+        "E2E Tests",
+        "Validation Review"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "missing",
+        "Smoke Tests": "missing",
+        "Security": "missing",
+        "E2E Tests": "missing",
+        "Validation Review": "missing"
+      }
     }
   },
   "park": null,
