@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:46:57.576675+00:00",
+  "updated_at": "2026-10-10T10:47:27.068430+00:00",
   "completed_items": [
     "ri-01",
     "ri-21"
@@ -2738,12 +2738,44 @@
       "change_id": "openrouter-review-lane",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "prepared",
+      "status": "launched",
       "prepared_at": "2026-10-10T10:46:57.575028+00:00",
       "launch_digest": "sha256:d100b55631b1f868bc77a93fea74c16f2515375fb4d76f15bdd1262a9c01dc35",
       "launch_marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
       "lease_generation": 1,
-      "launch_history": [],
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-1791629246122",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T10:47:26.505701+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-1791629246122",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T10:47:26.791265+00:00",
+          "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g1"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-1791629246122",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T10:47:26.791265+00:00",
+          "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g1"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-1791629246122",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T10:47:27.066080+00:00",
+          "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g1"
+        }
+      ],
       "scope": {
         "proof": "serial_indeterminate",
         "write_allow": [],
@@ -2792,7 +2824,28 @@
           "sunset": "Delete this entry, restoring quorum 2 everywhere, once API-based multi-vendor review (an OpenRouter integration) or the GX10 review lane is available to cloud workers."
         }
       },
-      "roadmap_approval_ref": "gate-decision:40776beb-63e5-4a06-b7b9-b349f3a918df"
+      "roadmap_approval_ref": "gate-decision:40776beb-63e5-4a06-b7b9-b349f3a918df",
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "owner-nonce-1791629246122",
+        "state": "active",
+        "acquired_at": "2026-10-10T10:47:26.505701+00:00",
+        "heartbeat_at": "2026-10-10T10:47:26.505701+00:00",
+        "expires_at": "2026-10-10T11:02:26.505701+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g1",
+        "observed_at": "2026-10-10T10:47:26.791265+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g1",
+        "go_released_at": "2026-10-10T10:47:26.791265+00:00",
+        "entered_at": "2026-10-10T10:47:27.066080+00:00"
+      }
     }
   ]
 }
