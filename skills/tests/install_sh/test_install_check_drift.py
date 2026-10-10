@@ -111,6 +111,9 @@ def test_checkout_drift_with_changed_skill_set_is_not_runtime_drift(tmp_path: Pa
     assert result.returncode == 1
     assert "Checkout drift" in result.stderr
     assert "Runtime drift" not in result.stderr
+    # The mirrors must actually have been hashed (against their own synced
+    # manifest); a missing mirror manifest would also suppress "Runtime drift".
+    assert "Cannot compute mirror payload hash" not in result.stderr
 
 
 def test_runtime_drift_names_the_agent(installed: Path) -> None:
