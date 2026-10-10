@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agentic-coding-tools.local/contracts/routing-decision-record-v1.2-v1.schema.json",
-  "title": "Sanitized authoritative routing_decisions record (v1.2: incumbent retention)",
+  "$id": "https://agentic-coding-tools.local/contracts/routing-decision-record-v1.4-v1.schema.json",
+  "title": "Sanitized authoritative routing_decisions record (v1.4: incumbent retention with configured fallback)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -108,22 +108,28 @@
           ]
         },
         "fallback": {
-          "description": "Present only when reason is incumbent-infeasible-configured-fallback.",
+          "description": "Required when reason is incumbent-infeasible-configured-fallback and forbidden otherwise (enforced by allOf).",
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "incumbent_exclusion_reason",
+            "incumbent_exclusion_reasons",
             "order_applied"
           ],
           "properties": {
-            "incumbent_exclusion_reason": {
-              "type": "string",
-              "enum": [
-                "lane:unavailable",
-                "unavailable",
-                "quota:exhausted",
-                "lane:model-rate-limited"
-              ]
+            "incumbent_exclusion_reasons": {
+              "description": "Sorted, unique reasons of the incumbent's excluded rows; all transient (design D3).",
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "lane:unavailable",
+                  "unavailable",
+                  "quota:exhausted",
+                  "lane:model-rate-limited"
+                ]
+              }
             },
             "order_applied": {
               "type": "object",
@@ -189,6 +195,27 @@
               "retained": {
                 "const": false
               }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "incumbent-infeasible-configured-fallback"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "fallback"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "fallback"
+              ]
             }
           }
         }

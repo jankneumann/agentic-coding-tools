@@ -6,7 +6,8 @@
 incumbent is supplied, the resolver SHALL keep it unless a feasible challenger is evidenced
 (posterior sample size of at least 1, or a benchmark prior greater than 0) and scores strictly more than
 `ROUTING_INCUMBENT_MARGIN` (default 0.05) above the incumbent's best feasible score. The resolver
-MUST NOT select a challenger without evidence while an incumbent is supplied. Every response and
+MUST NOT select a challenger without evidence while an incumbent is supplied, except for the
+configured fallback below, which selects by operator configuration and never by score. Every response and
 persisted decision made with an incumbent SHALL carry a `retention` record stating whether the
 incumbent was kept and why. When no incumbent is supplied, selection SHALL be identical to the
 behavior before this requirement.
@@ -54,17 +55,20 @@ behavior before this requirement.
 
 #### Scenario: Transiently unavailable incumbent falls back to the configured order
 
-- **WHEN** the incumbent is excluded for transient availability (`lane:unavailable`, `unavailable`, `quota:exhausted`, or `lane:model-rate-limited`), no feasible challenger is evidenced, the routing policy configures `fallback.vendor_order`, and at least one feasible candidate exists
-- **THEN** the feasible candidate that ranks first by `fallback.vendor_order`, then `location_order`, `isolation_order`, `dispatch_mode_order`, then `agent_id` SHALL be selected, independent of score and random draws
+- **WHEN** every excluded row of the incumbent carries a transient availability reason (`lane:unavailable`, `unavailable`, `quota:exhausted`, or `lane:model-rate-limited`), the incumbent is not excluded by cost policy, no feasible challenger is evidenced, the routing policy configures a non-empty `fallback.vendor_order`, lane assignments are enabled, and at least one feasible candidate other than the incumbent's rows has an assignment whose agent type is in `fallback.vendor_order` and whose location, isolation and dispatch mode are enumerated in `location_order`, `isolation_order` and `dispatch_mode_order`
+- **THEN** the eligible candidate that ranks first by `fallback.vendor_order`, then `location_order`, `isolation_order`, `dispatch_mode_order`, then `agent_id` SHALL be selected, independent of score and random draws
 - **AND** `retention` SHALL be `{retained: false, reason: "incumbent-infeasible-configured-fallback"}`
-- **AND** the persisted decision SHALL record the exclusion reason of the incumbent and the fallback order applied
+- **AND** `retention.fallback` SHALL record `incumbent_exclusion_reasons` (the sorted, unique reasons of the incumbent's excluded rows) and `order_applied` (the fallback order used)
+- **AND** the response's top-level `fallback` SHALL remain `false`
+- **AND** the same inputs SHALL yield the same selection on every call, and enabling exploration SHALL NOT change the selection or the reason
 
 #### Scenario: Infeasible incumbent without an evidenced alternative
 
-- **WHEN** the incumbent is excluded as infeasible, no feasible challenger is evidenced, and the configured-fallback scenario does not apply (the exclusion is a permanent mismatch such as `lane:archetype-ineligible`, `lane:location-mismatch`, a `roadmap:` exclusion, or `registry:no-catalog-projection`; or no `fallback.vendor_order` is configured; or no feasible candidate exists)
+- **WHEN** the incumbent is excluded as infeasible, no feasible challenger is evidenced, and the configured-fallback scenario does not apply: at least one of the incumbent's excluded rows carries a permanent reason (the design D3 list, such as `lane:archetype-ineligible`, `lane:location-mismatch`, a `roadmap:` exclusion, or `registry:no-catalog-projection`); or `fallback.vendor_order` is absent; or lane assignments are disabled; or no candidate is eligible under the configured lists
 - **THEN** `selected` SHALL be null
 - **AND** `retention` SHALL be `{retained: true, reason: "incumbent-infeasible-no-evidenced-alternative"}`
-- **AND** the router SHALL NOT select a candidate that a permanent-mismatch exclusion would bypass
+- **AND** `retention` SHALL NOT carry a `fallback` record
+- **AND** the router SHALL NOT select a candidate whose agent type is absent from `fallback.vendor_order`
 
 #### Scenario: Exploration only among evidenced challengers
 

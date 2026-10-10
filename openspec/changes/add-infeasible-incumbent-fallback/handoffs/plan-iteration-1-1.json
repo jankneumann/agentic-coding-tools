@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-10T21:18:09.707556+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Three parallel dimension analysts plus the architect's code read produced 18 findings (3 critical, 8 high, 6 medium, 1 low); all at or above medium were fixed. The runner contract now carries options['provider'] and fails loudly on an unservable provider; vendor_order became an allowlist with the three sibling lists as allowlists too; the local trust boundary is applied to routed selections (D7); the wp-router hold is machine-visible (D8); the v1.4 contracts gained a presence conditional, a reasons array and the cost-policy pattern fix.",
+    "completed_work": [
+      "[critical] feasibility: runner contract and unservable-provider failure (D1, agent-archetypes.7, tasks 1.3/1.4/1.6)",
+      "[critical] consistency: D4 no longer claims client/server sort identity; client stays same-provider",
+      "[critical] security: vendor_order allowlist with validation (D4/D5, 3.1/3.3)",
+      "[high] security: local trust boundary on routed selections (D7, agent-archetypes.9, task 3.8, scope)",
+      "[high] feasibility: assignment-disabled and policy-less cases fall back to today's behavior (D3, 3.3)",
+      "[high] consistency: vendor_order optional, shipped absent; install-skew hazard removed (D5, 3.2, wp-router verification)",
+      "[high] consistency: incumbent_exclusion_reasons array in v1.4 OpenAPI, record schema, models.py, README",
+      "[high] completeness: every-row-transient rule, cost-tier precedence and masked-reason rule in D3 and model-routing.8/.9",
+      "[high] assumptions: D3 rationale rewritten; static dispatch of a permanently excluded incumbent is an explicit non-goal",
+      "[high] scope: wp-router hold in work-packages inputs, description, tasks header, proposal Sequencing, task 2.0, D8",
+      "[medium] consistency: fallback presence conditional, v1.4 titles, cost-policy pattern, top-level fallback stays false",
+      "[medium] completeness: CLAUDE.md reason-list task 3.7; NFR observability re-pointed to 3.5; migration test path dropped",
+      "[medium] feasibility: smoke_provider_dispatch resized and re-checks against the resolved provider",
+      "[medium] assumptions: D2 lists newly reachable routing outcomes and the _selected_provider return-type audit",
+      "[medium] completeness: RetentionDecision.fallback threaded (3.4/3.6); exploration invariant asserted (3.3)",
+      "[medium] testability: task 2.0 gate pins v1.3 SHA e832cff5 and names the parity test",
+      "[medium] parallelizability: 1.4 depends on 1.2; 1.3 gets its own test module; 3.4 asserts enum parity",
+      "[low] consistency: agent-archetypes.10 WHEN reworded; 4.1 covers the permanent case"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Runner contract carries options['provider'] and must raise when it cannot serve it (D1)",
+        "rationale": "SubagentRunner is (prompt, options); passing the provider under the same key build_phase_dispatch_kwargs emits keeps one shape, and a loud failure takes the existing D8 retry/escalation path instead of producing a mismatched pair.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "fallback.vendor_order is an allowlist; every order list is an allowlist (D4)",
+        "rationale": "A preference order with unlisted vendors sorting last let a typo or a narrow list pick grok, pi or local via location_order. Excluding non-enumerated values matches the client's existing rule and makes the owner's choice binding.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Routed selections onto local are subject to LOCAL_TRUSTED_ARCHETYPES (D7)",
+        "rationale": "The coordinator checks the trust boundary only on the caller's provider; the fallback makes a local landing reachable during a vendor outage. agents_config.py joins wp-router scope for the check.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Shipped routing.yaml keeps vendor_order absent; absent disables (D5)",
+        "rationale": "Both parsers reject unknown or empty keys, so an absent key is loadable by stale skill copies and older coordinators; the owner populates it at implementation review.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "retention.fallback records incumbent_exclusion_reasons as a sorted unique array (D6)",
+        "rationale": "An incumbent can have several transient rows with different reasons; a single field would have to pick one arbitrarily. The array keeps the machine-readable fact.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Masked reasons classify by the reported reason; mixed sets are permanent (D3)",
+        "rationale": "_lane_exclusion_reason reports availability first, so a down-and-policy-excluded lane reads transient. Safe because every fallback candidate passed the full policy filter; a second reason pass adds a code path for no safety gain.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "wp-router hold recorded in work-packages.yaml inputs and task 2.0 (D8)",
+        "rationale": "The operator approved wp-dispatch only for this run; depends_on alone would let a DAG dispatcher start wp-router. metadata is schema-closed, inputs is the open field.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Iteration ran in the isolated agent worktree on a --plan-iterate branch, not the canonical .git-worktrees checkout",
+        "rationale": "The harness refuses git operations outside this agent's worktree, so the skill's worktree.py setup/cd step could not be followed. Work was done on openspec/add-infeasible-incumbent-fallback--plan-iterate cut from the feature branch tip (b666e218) and is pushed to origin/openspec/add-infeasible-incumbent-fallback; the canonical worktree must fast-forward before the next phase.",
+        "capability": "skill-procedure-deviation",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}
