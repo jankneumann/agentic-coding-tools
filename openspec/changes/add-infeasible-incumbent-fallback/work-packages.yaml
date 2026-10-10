@@ -53,7 +53,7 @@ packages:
         - "skills/tests/autopilot/**"
         - "skills/tests/phase-record-compaction/**"
         - "skills/tests/vendor-neutral-autopilot/**"
-        - "openspec/changes/add-infeasible-incumbent-fallback/tasks.md"
+        - "openspec/changes/add-infeasible-incumbent-fallback/**"   # tasks.md, session-log.md, handoffs/
       read_allow:
         - "**"
       deny:
@@ -79,8 +79,15 @@ packages:
               - "skills/tests/phase-record-compaction"
               - "skills/tests/vendor-neutral-autopilot"
             result_keys: ["autopilot_tests_pass"]
+        - name: "Lint (skills ruff config)"
+          kind: command
+          command: "skills/.venv/bin/ruff check --config skills/pyproject.toml skills/autopilot/scripts skills/tests/autopilot skills/tests/phase-record-compaction skills/tests/vendor-neutral-autopilot"
+          evidence:
+            artifacts:
+              - "skills/autopilot/scripts"
+            result_keys: ["ruff_clean"]
     outputs:
-      result_keys: ["autopilot_tests_pass"]
+      result_keys: ["autopilot_tests_pass", "ruff_clean"]
     metadata:
       loc_estimate: 200
       package_kind: integration

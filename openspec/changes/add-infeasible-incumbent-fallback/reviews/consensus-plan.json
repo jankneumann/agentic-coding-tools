@@ -228,5 +228,7 @@
     "disagreement_count": 0,
     "blocking_count": 0,
     "advisory_count": 12
-  }
+  },
+  "degraded": true,
+  "quorum_note": "quorum_received counts the primary reviewer's own findings (claude_code) as a reviewer; the vendor dispatch received 1 of 4. The phase was DEGRADED, not converged. summary counts: 14 unique = 12 advisory (low) + 2 unclassified (medium, single-vendor)."
 }

@@ -49,11 +49,15 @@ class FallbackOrderApplied(BaseModel):
     dispatch_mode_order: list[str] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def _lists_unique(self) -> "FallbackOrderApplied":
+    def _lists_unique_and_non_empty(self) -> "FallbackOrderApplied":
         for name in ("vendor_order", "location_order", "isolation_order", "dispatch_mode_order"):
             values = getattr(self, name)
             if len(values) != len(set(values)):
                 raise ValueError(f"order_applied.{name} must not contain duplicates")
+            if any(not value for value in values):
+                # A FallbackOrder entry is a non-empty agent type / enum value (design D5);
+                # the wire schemas say minLength: 1 on every list's items.
+                raise ValueError(f"order_applied.{name} must not contain empty strings")
         return self
 
 

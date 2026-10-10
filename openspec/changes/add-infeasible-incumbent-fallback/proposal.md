@@ -83,12 +83,19 @@ then stays a tier alias (`standard`), which is sent as the incumbent
 - A **v1.4 contract overlay**, built on `split-no-evidence-retention-reason`'s v1.3, adds the
   reason and the `retention.fallback` record.
 
-Nothing here is **BREAKING**:
+Nothing here is **BREAKING**, but two behaviors change observably even with `vendor_order`
+absent, and both are deliberate:
 - `ROUTING_ADAPTIVE` still defaults off.
-- With no `vendor_order` configured, phase 2 changes nothing. The fallback is opt-in by config:
-  the shipped `routing.yaml` keeps the key absent with a commented example, and the owner
-  populates it at implementation review (design D5).
-- Phase 1 only corrects pairs that were already wrong.
+- With no `vendor_order` configured, the configured fallback never fires. It is opt-in by
+  config: the shipped `routing.yaml` keeps the key absent with a commented example, and the
+  owner populates it at implementation review (design D5).
+- Provider-less dispatch now resolves the default provider first, so such callers receive the
+  tier's concrete alias (`standard` → `sonnet`) instead of the raw tier name, flag on or off
+  (design D2; asserted by task 1.1).
+- A `local` lane advertises only `LOCAL_TRUSTED_ARCHETYPES`, so with the flag on an untrusted
+  archetype can no longer be routed to `local` even as an evidenced challenger (design D7;
+  asserted by task 3.8). This closes a pre-existing trust-boundary gap.
+- Phase 1 otherwise only corrects pairs that were already wrong.
 
 ## Non-Functional Requirements
 
@@ -97,7 +104,7 @@ Nothing here is **BREAKING**:
 | Correctness | Dispatches whose runner vendor ≠ the routed provider, across all autopilot dispatch paths | 0 | Dispatch-pairing tests, task 1.3 (Implementation) |
 | Determinism | Fallback pick for identical catalog + config + availability | Identical on every run; no RNG involved; `allow_exploration` has no effect | Repeated-call unit test, task 3.3 (Implementation) |
 | Safety | Fallback chosen when the incumbent's exclusion is a permanent mismatch, or onto a vendor absent from `vendor_order`, or onto `local` for an untrusted archetype | 0 | Parametrized test over every exclusion reason (3.3) + allowlist test (3.3) + trust-boundary test (3.8) (Implementation) |
-| Compatibility | Selection outcomes with `vendor_order` absent, or with assignments disabled | 0 differences from today | Retention matrix (3.3) + `test_empty_evidence_end_to_end` (4.1) (CI) |
+| Compatibility | Retention outcomes with `vendor_order` absent, or with assignments disabled | 0 differences from today, except the two deliberate changes above: the provider-less concrete alias (D2) and `local` lanes excluded for untrusted archetypes (D7) | Retention matrix (3.3) + `test_empty_evidence_end_to_end` (4.1) for the unchanged set; 1.1 (D2) and 3.8 (D7) pin the two deliberate differences (CI) |
 | Observability | Fallback decisions carrying their reasons and the config order used | 100% persisted (`retention.reason` + `retention.fallback.{incumbent_exclusion_reasons, order_applied}`), validated against the v1.4 record schema | Service-level persistence test, task 3.5 (Implementation) |
 
 ## Approaches Considered
@@ -209,7 +216,9 @@ Approaches 2 and 3 were not taken, for the reasons under Recommended.
     an operator/orchestrator action from the feature worktree, since no scheduler can run a
     task of a package it does not load — after `split-no-evidence-retention-reason` (v1.3) and
     `wp-dispatch` are both on `origin/main`; task 2.0 re-checks the same facts inside the
-    package and fails fast.
+    package and fails fast. The change directory stays active between the two runs:
+    `cleanup-feature` is withheld after the `wp-dispatch` PR merges and runs only after
+    `wp-router` merges, and the second run re-enters on the same change-id.
   - v1.3 itself waits for `implement-the-task-router-vendor-x-location-x-model` to close out.
   - Phase 1 touches only skills, so it can be implemented and merged independently, ahead of
     that chain.

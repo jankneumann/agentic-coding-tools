@@ -633,24 +633,28 @@ components:
                   uniqueItems: true
                   items:
                     type: string
+                    minLength: 1
                 location_order:
                   type: array
                   minItems: 1
                   uniqueItems: true
                   items:
                     type: string
+                    minLength: 1
                 isolation_order:
                   type: array
                   minItems: 1
                   uniqueItems: true
                   items:
                     type: string
+                    minLength: 1
                 dispatch_mode_order:
                   type: array
                   minItems: 1
                   uniqueItems: true
                   items:
                     type: string
+                    minLength: 1
       allOf:
       - if:
           properties:

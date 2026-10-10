@@ -1,6 +1,6 @@
 {
   "review_type": "plan",
-  "target": "cli-dispatch",
+  "target": "add-infeasible-incumbent-fallback",
   "reviewer_vendor": "codex",
   "findings": [
     {
@@ -167,5 +167,6 @@
       "severity": "nit",
       "evidence_class": "judgment"
     }
-  ]
+  ],
+  "provenance_note": "Normalized 2026-10-10 during PLAN_REVIEW: the dispatch ran without --change-id, so change_id/target were null/'cli-dispatch'. Dispatcher quorum was 1 of 4 (codex only); the phase was DEGRADED. See plan-findings.md, 'Vendor Review (2026-10-10T21:37Z)'."
 }

@@ -3,8 +3,9 @@
 # tasks.md step P0 (an operator/orchestrator action from the feature worktree, not a task of
 # this package: nothing can dispatch a task of a package no scheduler loads) promotes it into
 # work-packages.yaml once v1.3 and wp-dispatch are on origin/main; task 2.0 then re-checks the
-# same facts inside the package. Keep this file schema-valid so validate_work_packages.py can
-# check it.
+# same facts inside the package. Keep this file schema-valid: P0 runs validate_work_packages.py
+# on it before the copy and on work-packages.yaml after. The change directory must stay active
+# (not archived) between the two runs; cleanup-feature is withheld until wp-router merges.
 schema_version: 1
 
 feature:
