@@ -1,0 +1,24 @@
+{
+  "attempt": 1,
+  "branch": "openspec/toolkit-consistency",
+  "change_id": "toolkit-consistency",
+  "degradations": [],
+  "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+  "evidence": {
+    "commit": "be36e3a44ed959248cdd18e89a3907ba2d98da2d",
+    "loop_state_digest": "2cecd7732847b8707d271d7fc41986c27d545c6619d813dcf603d7967c7bd346",
+    "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+  },
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 8,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": null,
+    "kind": "policy_pause",
+    "reason": "goal gate refused: required section not passed: Spec Compliance (missing)",
+    "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+  },
+  "schema_version": 2,
+  "worktree_ref": "toolkit-consistency"
+}

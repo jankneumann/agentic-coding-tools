@@ -351,7 +351,12 @@ def _default_marker_reader(repo_root: Optional[str]) -> MarkerReader:
             from shared import dispatch_contract  # type: ignore[attr-defined]
         except ImportError:
             return None
-        return dispatch_contract.read_launch_marker(change_id, repo_root=repo_root)
+        marker = dispatch_contract.read_launch_marker(change_id, repo_root=repo_root)
+        if marker is not None:
+            return marker
+        # A cloud worker has no host-local marker; the supervisor-written attempt
+        # in the checkpoint committed at HEAD carries the same roadmap scope.
+        return dispatch_contract.read_committed_dispatch_scope(change_id, repo_root=repo_root)
 
     return read
 

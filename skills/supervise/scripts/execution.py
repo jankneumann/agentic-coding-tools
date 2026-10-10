@@ -328,6 +328,8 @@ def _gate_answer(checkpoint: Any, attempt: Mapping[str, Any]) -> dict[str, Any] 
     provenance = record.get("provenance")
     if isinstance(provenance, Mapping) and provenance.get("source") in {"posture", "human"}:
         answer["provenance"] = dict(provenance)
+    if record.get("resume_at") == "VALIDATE" and answer["decision"] == "approved":
+        answer["resume_at"] = "VALIDATE"
     return answer
 
 
@@ -1390,10 +1392,16 @@ class ExecutionAdapter:
         worktree = self._verify_current_isolation(attempt)
 
         evidence = result["evidence"]
-        expected_loop_path = (
-            Path("openspec") / "changes" / attempt["change_id"] / "loop-state.json"
-        )
+        change_id = attempt["change_id"]
+        expected_loop_path = Path("openspec") / "changes" / change_id / "loop-state.json"
         supplied_loop_path = Path(evidence["loop_state_path"])
+        # A change archived before its loop reached DONE (archived inside its
+        # own PR) keeps its loop state at exactly one other place.
+        if re.fullmatch(
+            rf"openspec/changes/archive/\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(change_id)}/loop-state\.json",
+            supplied_loop_path.as_posix(),
+        ):
+            expected_loop_path = supplied_loop_path
         resolved_loop = (worktree / supplied_loop_path).resolve(strict=False)
         expected_resolved = (worktree / expected_loop_path).resolve(strict=False)
         if resolved_loop != expected_resolved or not _contains(worktree, resolved_loop):

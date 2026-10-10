@@ -328,3 +328,159 @@ def test_verdict_is_frozen(tmp_path: Path) -> None:
 
     with pytest.raises(FrozenInstanceError):
         verdict.verdict = "refused"  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# Binding record and report time (VAL_REVIEW appends to the report; a checkout
+# resets mtime)
+# ---------------------------------------------------------------------------
+
+def review_entry(offset_seconds: int, outcome: str = "converged") -> dict[str, Any]:
+    at = REPORT_MTIME + timedelta(seconds=offset_seconds)
+    return {"phase": "VAL_REVIEW", "outcome": outcome, "at": at.isoformat()}
+
+
+def _review_sections() -> dict[str, str]:
+    return {"Spec Compliance": "pass", "Validation Review": "pass"}
+
+
+def test_converged_val_review_binds_a_report_it_appended_to(tmp_path: Path) -> None:
+    """VALIDATE passed, then VAL_REVIEW appended its section (report touched
+    after VALIDATE) and converged: the review record binds the report."""
+    change_dir = write_change_dir(tmp_path, sections=_review_sections())
+    state = FakeState(
+        phase_history=[validate_entry(-120), review_entry(60)], val_review_enabled=True
+    )
+    verdict = check(state, change_dir)
+
+    assert verdict.verdict == "passed"
+    assert verdict.evidence["bound_by"] == "VAL_REVIEW"
+
+
+def test_unconverged_val_review_does_not_bind(tmp_path: Path) -> None:
+    change_dir = write_change_dir(tmp_path, sections=_review_sections())
+    state = FakeState(
+        phase_history=[validate_entry(-120), review_entry(60, outcome="max_iter")],
+        val_review_enabled=True,
+    )
+    verdict = check(state, change_dir)
+
+    assert verdict.verdict == "refused"
+    assert verdict.reason == goal_gate.REASON_STALE_REPORT
+
+
+def test_val_review_before_the_latest_validate_does_not_bind(tmp_path: Path) -> None:
+    """A review that converged before a later VALIDATE run reviewed an older report."""
+    change_dir = write_change_dir(tmp_path, sections=_review_sections())
+    state = FakeState(
+        phase_history=[review_entry(60), validate_entry(-120)], val_review_enabled=True
+    )
+    verdict = check(state, change_dir)
+
+    assert verdict.reason == goal_gate.REASON_STALE_REPORT
+
+
+def test_val_review_does_not_bind_when_disabled(tmp_path: Path) -> None:
+    change_dir = write_change_dir(tmp_path)
+    state = FakeState(phase_history=[validate_entry(-120), review_entry(60)])
+    verdict = check(state, change_dir)
+
+    assert verdict.reason == goal_gate.REASON_STALE_REPORT
+
+
+def _git(
+    cwd: Path, *args: str, when: datetime | None = None, committed: datetime | None = None
+) -> None:
+    import subprocess
+
+    env = dict(os.environ)
+    if when is not None:
+        env["GIT_AUTHOR_DATE"] = when.isoformat()
+        env["GIT_COMMITTER_DATE"] = (committed or when).isoformat()
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
+        cwd=cwd, env=env, check=True, capture_output=True,
+    )
+
+
+def _committed_change_dir(
+    tmp_path: Path, committed_at: datetime, *, rewritten_at: datetime | None = None
+) -> Path:
+    change_dir = write_change_dir(tmp_path)
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "report", when=committed_at, committed=rewritten_at)
+    # A checkout or clone stamps the file with "now", long after validation.
+    stamp = FROZEN_NOW.timestamp()
+    os.utime(change_dir / "validation-report.md", (stamp, stamp))
+    return change_dir
+
+
+def test_a_committed_unmodified_report_is_timed_by_its_commit(tmp_path: Path) -> None:
+    change_dir = _committed_change_dir(tmp_path, REPORT_MTIME)
+    verdict = check(FakeState(phase_history=[validate_entry(60)]), change_dir)
+
+    assert verdict.verdict == "passed"
+    assert verdict.evidence["report_time_source"] == "commit"
+
+
+def test_a_report_committed_after_validation_is_stale(tmp_path: Path) -> None:
+    change_dir = _committed_change_dir(tmp_path, REPORT_MTIME + timedelta(seconds=120))
+    verdict = check(FakeState(phase_history=[validate_entry(60)]), change_dir)
+
+    assert verdict.reason == goal_gate.REASON_STALE_REPORT
+    assert verdict.evidence["report_time_source"] == "commit"
+
+
+def test_an_uncommitted_edit_falls_back_to_mtime(tmp_path: Path) -> None:
+    change_dir = _committed_change_dir(tmp_path, REPORT_MTIME)
+    report = change_dir / "validation-report.md"
+    report.write_text(report.read_text() + "\nedited after validation\n")
+    verdict = check(FakeState(phase_history=[validate_entry(60)]), change_dir)
+
+    assert verdict.reason == goal_gate.REASON_STALE_REPORT
+    assert verdict.evidence["report_time_source"] == "mtime"
+
+
+def test_a_rebase_merge_does_not_make_the_report_look_newer(tmp_path: Path) -> None:
+    """A rebase merge rewrites the committer date to the merge time; the report
+    was still written (authored) before the validation record."""
+    change_dir = _committed_change_dir(
+        tmp_path, REPORT_MTIME, rewritten_at=REPORT_MTIME + timedelta(hours=2)
+    )
+    verdict = check(FakeState(phase_history=[validate_entry(60)]), change_dir)
+
+    assert verdict.verdict == "passed"
+    assert verdict.evidence["report_time"] == REPORT_MTIME.isoformat()
+
+
+def test_archiving_the_change_does_not_make_the_report_look_newer(tmp_path: Path) -> None:
+    """``openspec archive`` moves the change directory: a pure rename after the
+    review. The report's content still dates from before the validation record."""
+    change_dir = _committed_change_dir(tmp_path, REPORT_MTIME)
+    archived = tmp_path / "openspec" / "changes" / "archive" / "2026-10-10-demo"
+    archived.parent.mkdir(parents=True)
+    _git(tmp_path, "mv", str(change_dir.relative_to(tmp_path)), str(archived.relative_to(tmp_path)))
+    _git(tmp_path, "commit", "-q", "-m", "archive", when=REPORT_MTIME + timedelta(hours=20))
+
+    verdict = check(FakeState(phase_history=[validate_entry(60)]), archived)
+
+    assert verdict.verdict == "passed"
+    assert verdict.evidence["report_time"] == REPORT_MTIME.isoformat()
+    assert verdict.evidence["report_time_source"] == "commit"
+
+
+def test_an_edit_committed_with_the_archive_still_counts(tmp_path: Path) -> None:
+    change_dir = _committed_change_dir(tmp_path, REPORT_MTIME)
+    archived = tmp_path / "openspec" / "changes" / "archive" / "2026-10-10-demo"
+    archived.parent.mkdir(parents=True)
+    _git(tmp_path, "mv", str(change_dir.relative_to(tmp_path)), str(archived.relative_to(tmp_path)))
+    report = archived / "validation-report.md"
+    report.write_text(report.read_text() + "\nedited while archiving\n")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "archive+edit", when=REPORT_MTIME + timedelta(hours=20))
+
+    verdict = check(FakeState(phase_history=[validate_entry(60)]), archived)
+
+    assert verdict.reason == goal_gate.REASON_STALE_REPORT
+

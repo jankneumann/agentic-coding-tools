@@ -608,6 +608,32 @@ def _resolve_id_in_scope(
     raise UnresolvedRequirementError(req_id, _nearest_headings(slug, list(by_slug.values())))
 
 
+def _capability_has_spec(
+    specs_root: Path, changes_root: Path, capability: str, change_id: str | None
+) -> bool:
+    """Whether ``capability`` has a spec under this run's resolution mode.
+
+    The archived ``openspec/specs/<capability>/spec.md`` always counts. A
+    capability that a change *introduces* has no archived spec until that
+    change is archived, so the delta that resolution reads also counts: the
+    resolving change's own ``specs/<capability>/spec.md`` in shadow mode, or
+    any non-archive change's in union mode. Without this, a change that adds a
+    capability together with its traced contract could never pass the gate.
+    Citations still resolve against that delta and fail closed as usual.
+    """
+    if (specs_root / capability / "spec.md").is_file():
+        return True
+    if change_id is not None:
+        return (changes_root / change_id / "specs" / capability / "spec.md").is_file()
+    if not changes_root.is_dir():
+        return False
+    return any(
+        (change_dir / "specs" / capability / "spec.md").is_file()
+        for change_dir in changes_root.iterdir()
+        if change_dir.is_dir() and change_dir.name != "archive"
+    )
+
+
 def _change_id_or_union(value: str) -> str | None:
     """Normalize a blank ``--change`` to ``None`` — union mode.
 
@@ -721,7 +747,9 @@ def run_gate(
         # Capabilities with contract documents but no spec — resolved before
         # attempting citation resolution so the message is distinguishable
         # from a generic unresolved-id failure (D6/3.6).
-        if doc.opted_in and not (specs_root / doc.capability / "spec.md").is_file():
+        if doc.opted_in and not _capability_has_spec(
+            specs_root, changes_root, doc.capability, resolve_change_id
+        ):
             result.errors.append(
                 f"{doc.rel_path}: capability {doc.capability!r} declares traceability "
                 f"but has no spec at openspec/specs/{doc.capability}/spec.md"

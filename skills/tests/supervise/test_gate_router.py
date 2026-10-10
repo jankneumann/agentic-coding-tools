@@ -1535,3 +1535,30 @@ def test_cycle_state_gate_answer_covers_a_pending_escalate_resume_park(
     assert payload["outcome"] == "proceed"
     assert payload["lease_generation"] == 3
     assert _resolve_current(repo, workspace, adapter).outcome == "proceed"
+
+
+def test_escalate_resume_answer_records_resume_at_validate(repo: Path, workspace: Path) -> None:
+    _save_escalation_checkpoint(repo, workspace)
+
+    routed = gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+        context={"dispatch_id": "d-1", "resume_at": "VALIDATE"},
+    )
+
+    assert routed.record["resume_at"] == "VALIDATE"
+    assert routed.decision.proceed
+
+
+@pytest.mark.parametrize("approved, resume_at", [(False, "VALIDATE"), (True, "IMPLEMENT")])
+def test_resume_at_is_refused_unless_an_approved_validate_resume(
+    repo: Path, workspace: Path, approved: bool, resume_at: str
+) -> None:
+    _save_escalation_checkpoint(repo, workspace)
+    before = (workspace / "checkpoint.json").read_bytes()
+
+    with pytest.raises(gate_router.GateRefusalError, match="resume_at"):
+        gate_router.answer(
+            Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=approved,
+            context={"dispatch_id": "d-1", "resume_at": resume_at},
+        )
+    assert (workspace / "checkpoint.json").read_bytes() == before

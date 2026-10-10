@@ -1,0 +1,70 @@
+{
+  "review_type": "plan",
+  "target": "ownership-map",
+  "reviewer_vendor": "claude_code",
+  "coverage": {
+    "reviewed": [
+      "openspec/changes/ownership-map/proposal.md",
+      "openspec/changes/ownership-map/design.md",
+      "openspec/changes/ownership-map/tasks.md",
+      "openspec/changes/ownership-map/work-packages.yaml",
+      "openspec/changes/ownership-map/specs/ownership-map/spec.md",
+      "openspec/changes/ownership-map/specs/agent-identity/spec.md",
+      "openspec/changes/ownership-map/contracts/README.md",
+      "openspec/changes/ownership-map/contracts/schemas/owners.schema.json",
+      "openspec/changes/ownership-map/contracts/schemas/human-principals.schema.json"
+    ],
+    "skipped": [],
+    "rate": 1.0
+  },
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "wp-contracts' verification step runs only test_schema_copies.py, so the conftest fixture builder introduced by task 1.3 is first exercised by wp-registry and wp-resolver rather than by the package that ships it.",
+      "resolution": "Accepted: a smoke test for a fixture builder adds little; the dependent packages fail fast if it is wrong.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/work-packages.yaml"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The Ownership Check requirement enumerates only the map/registry error classes; the CODEOWNERS-class errors (missing_github_handle, codeowners_disagreement, not_a_git_checkout) are specified under CODEOWNERS Projection and cross-referenced through design D9's code table.",
+      "resolution": "Accepted: each error is normatively specified once; D9 is the single enumeration the --json contract points at.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/ownership-map/specs/ownership-map/spec.md"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Tasks 5.4 and 5.5 (state-artifacts inventory row and its test) have no dependencies but sit in wp-dogfood-docs, which waits on wp-registry and wp-codeowners.",
+      "resolution": "Accepted: two S documentation tasks do not justify a seventh package; the implementer may run them first inside wp-dogfood-docs.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/ownership-map/tasks.md"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The human-principals schema keeps an optional `email` field that no code in this change consumes (design D5); it exists for ri-03 attribution and is personal data a maintainer may prefer not to publish.",
+      "resolution": "Escalate to the human reviewer at approval: keep (schema stability for six later items) or strike until ri-03. Recorded as an open question in design.md and the session log.",
+      "disposition": "escalate",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/contracts/schemas/human-principals.schema.json"
+    }
+  ]
+}

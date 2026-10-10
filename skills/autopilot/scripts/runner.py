@@ -49,7 +49,7 @@ import phase_agent  # type: ignore[import-not-found]  # noqa: E402
 from shared import approval_gate as shared_approval_gate  # noqa: E402
 from shared import dispatch_contract  # noqa: E402
 from shared.approval_gate import ApprovalDecision  # noqa: E402
-from shared.trust_posture import Gate, load_posture, posture_digest  # noqa: E402
+from shared.trust_posture import SCOPED_GATES, Gate, load_posture, posture_digest  # noqa: E402
 
 logger = logging.getLogger("autopilot.runner")
 
@@ -119,7 +119,25 @@ def _human_rejection_in_force(state: "autopilot.LoopState", gate: str) -> dict |
 
 
 def _change_dir(change_id: str) -> Path:
-    return Path("openspec") / "changes" / change_id
+    """The change directory, active or archived.
+
+    A change archived before its loop reached DONE (archived inside its own
+    PR) must still be drivable to DONE and emit its result. The rule follows
+    the tests' ``openspec_paths.change_dir``: the active directory, else the
+    latest ``archive/<YYYY-MM-DD>-<id>`` (the date matched exactly so a
+    ``followup-<id>`` never shadows its parent). One difference: an active
+    directory without a loop state (``emit-result`` recreates one holding only
+    its fixed-path ``dispatch-results/``) does not hide an archived loop.
+    """
+    changes = Path("openspec") / "changes"
+    active = changes / change_id
+    if (active / "loop-state.json").exists():
+        return active
+    archived = [
+        d for d in sorted(changes.glob(f"archive/????-??-??-{change_id}"))
+        if (d / "loop-state.json").exists()
+    ]
+    return archived[-1] if archived else active
 
 
 def _state_path(change_id: str) -> Path:
@@ -178,10 +196,13 @@ def _cmd_gate_check(args: argparse.Namespace) -> int:
         return 2
     pending = _load_pending(args.change_id)
     if pending is not None:
-        if _launch_marker(args.change_id) is None and _posture_moved(pending):
+        if _launch_marker(args.change_id) is None and (
+            _posture_moved(pending) or _scope_arrived(args.change_id, pending)
+        ):
             # Standalone run: this worktree's posture is authoritative, and it
             # changed since the gate parked (D5). A dispatched child never
-            # re-evaluates; it applies only its marker's gate_answer.
+            # re-evaluates; it applies only its marker's gate_answer. A cloud
+            # worker (no marker) re-evaluates once its roadmap scope is committed.
             return _reevaluate_pending(args, pending)
         sys.stdout.write(json.dumps(pending, indent=2, sort_keys=True) + "\n")
         return 0
@@ -200,6 +221,17 @@ def _posture_moved(pending: dict) -> bool:
     except Exception:  # noqa: BLE001 - an invalid posture is not a re-evaluation
         return False
     return current != recorded
+
+
+def _scope_arrived(change_id: str, pending: dict) -> bool:
+    """A scoped gate parked by the ``unscoped`` fallback whose roadmap scope is
+    now committed at HEAD (a cloud worker that pulled the supervisor's checkpoint)."""
+    if pending.get("gate") not in {g.value for g in SCOPED_GATES}:
+        return False
+    last = _last_decision(autopilot.load_state(_state_path(change_id)), str(pending["gate"]))
+    if not last or last.get("scope") != "unscoped" or _is_human_final(last):
+        return False
+    return dispatch_contract.read_committed_dispatch_scope(change_id, repo_root=Path.cwd()) is not None
 
 
 def _reevaluate_pending(args: argparse.Namespace, pending: dict) -> int:
@@ -431,6 +463,22 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
             "nothing was recorded\n"
         )
         return 2
+    resume_at = getattr(args, "resume_at", None)
+    if resume_at is not None and (
+        args.gate != Gate.ESCALATE_RESUME.value or args.decision != "approved"
+    ):
+        sys.stderr.write(
+            "runner: --resume-at applies only to an approved escalate_resume; "
+            "nothing was recorded\n"
+        )
+        return 2
+    if marker is not None and resume_at != marker_answer.get("resume_at"):
+        # The resume target is part of the supervisor's answer, never the child's.
+        sys.stderr.write(
+            "runner: --resume-at does not match the launch marker's gate_answer "
+            f"({marker_answer.get('resume_at')!r}); nothing was recorded\n"
+        )
+        return 2
     if marker is not None and (
         args.gate != marker_answer.get("gate") or args.decision != marker_answer.get("decision")
     ):
@@ -500,6 +548,8 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
         return 0
 
     outcome = str(edge.get("outcome", ""))
+    if resume_at == "VALIDATE" and outcome == "resolved":
+        outcome = "revalidate"
     if edge.get("target") == "ESCALATE":
         # enter_escalate (not the bare table edge) so previous_phase and
         # escalation_reason are populated for the resume path.
@@ -1091,6 +1141,16 @@ def _build_parser() -> argparse.ArgumentParser:
             "gate-decision:<id> from the resume request's gate_answer. Recorded in "
             "the decision's provenance; a dispatched child refuses a reference "
             "that differs from its launch marker's."
+        ),
+    )
+    ga.add_argument(
+        "--resume-at",
+        default=None,
+        choices=["VALIDATE"],
+        help=(
+            "Resume an approved escalate_resume at VALIDATE instead of the parked "
+            "phase, so validation evidence is regenerated by this run. Must match "
+            "the launch marker's gate_answer when one is present."
         ),
     )
     ga.set_defaults(func=_cmd_gate_answer)

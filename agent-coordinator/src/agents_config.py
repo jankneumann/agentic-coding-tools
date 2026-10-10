@@ -387,10 +387,95 @@ VALID_CAPABILITIES = {
     "feature_registry", "vendor_limit_reporter",
 }
 
+#: Slug pattern shared by agent names and human principal ids (one namespace).
+PRINCIPAL_ID_PATTERN = r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+
+#: One ``humans:`` entry. Mirrors ``openspec/schemas/human-principals.schema.json``
+#: minus its ``$schema``/``$id``/``title``/``description`` metadata; a test pins
+#: the two equal (design D2 of change ownership-map).
+HUMAN_PRINCIPAL_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["display_name"],
+    "properties": {
+        "display_name": {"type": "string", "minLength": 1, "maxLength": 200},
+        "github": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 39,
+            "pattern": r"^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+            "description": (
+                "GitHub login without the leading `@`. Required for any principal "
+                "that appears in an emitted CODEOWNERS owner set (design D8)."
+            ),
+        },
+        "email": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 254,
+            "pattern": r"^[^@\s]+@[^@\s]+$",
+            "description": (
+                "Declared for commit-author attribution in later roadmap items "
+                "(ri-03); not consumed by ri-02 (design D5). Optional: omit it if "
+                "you prefer not to publish it."
+            ),
+        },
+        "domains": {
+            "type": "array",
+            "uniqueItems": True,
+            "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": r"^[a-z0-9][a-z0-9._-]*$",
+            },
+            "description": (
+                "Advisory area-of-expertise slugs. Nothing routes on them in ri-02; "
+                "ri-06 is the first consumer and may tighten them to capability names."
+            ),
+        },
+        "availability": {
+            "type": "object",
+            "additionalProperties": False,
+            "description": "Declared so later items can consume it; not interpreted by ri-02.",
+            "properties": {
+                "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "IANA time zone name, e.g. Europe/Berlin.",
+                },
+                "hours": {
+                    "type": "string",
+                    "pattern": r"^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$",
+                    "description": "Working hours in the declared time zone, HH:MM-HH:MM.",
+                },
+                "days": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 7,
+                    "uniqueItems": True,
+                    "items": {
+                        "type": "string",
+                        "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+                    },
+                },
+            },
+        },
+        "description": {"type": "string", "maxLength": 1000},
+    },
+}
+
 AGENTS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["agents", "credential_vendors"],
     "properties": {
+        # Human principals: principals, not agents. Never projected (design D1).
+        "humans": {
+            "type": "object",
+            "propertyNames": {"type": "string", "maxLength": 64, "pattern": PRINCIPAL_ID_PATTERN},
+            "additionalProperties": HUMAN_PRINCIPAL_SCHEMA,
+        },
         "credential_vendors": {
             "type": "array",
             "uniqueItems": True,
@@ -653,6 +738,23 @@ class AgentEntry:
     sdk: SdkConfig | None = None
 
 
+@dataclass
+class HumanEntry:
+    """A human principal from the ``humans:`` block of ``agents.yaml``.
+
+    Deliberately not an :class:`AgentEntry`: humans are never projected into
+    profiles, identities, dispatch configs or OpenBao principals.
+    """
+
+    name: str
+    display_name: str
+    github: str | None = None
+    email: str | None = None
+    domains: list[str] = field(default_factory=list)
+    availability: dict[str, Any] = field(default_factory=dict)
+    description: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Archetype data classes
 # ---------------------------------------------------------------------------
@@ -810,6 +912,47 @@ def _default_secrets_path() -> Path:
     return Path(__file__).resolve().parent.parent / ".secrets.yaml"
 
 
+def _check_principal_namespace(raw: Mapping[str, Any]) -> None:
+    """Agent names and human ids share one namespace (design D1)."""
+    clashes = sorted(set(raw.get("agents", {})) & set(raw.get("humans", {})))
+    if clashes:
+        name = clashes[0]
+        raise ValueError(
+            f"'{name}' is declared as both an agent and a human principal; "
+            f"agent names and human ids share one namespace"
+        )
+
+
+def load_human_principals(path: Path | None = None) -> list[HumanEntry]:
+    """Load the ``humans:`` block of ``agents.yaml`` (empty list when absent).
+
+    Raises:
+        FileNotFoundError: If *path* does not exist.
+        jsonschema.ValidationError: If the registry fails schema validation.
+        ValueError: If a human id collides with an agent name.
+    """
+    if path is None:
+        path = _default_agents_path()
+    with open(path) as fh:
+        raw = yaml.safe_load(fh)
+    if raw is None:
+        raise ValueError("Empty agents.yaml file")
+    validate(instance=raw, schema=AGENTS_SCHEMA)
+    _check_principal_namespace(raw)
+    return [
+        HumanEntry(
+            name=name,
+            display_name=data["display_name"],
+            github=data.get("github"),
+            email=data.get("email"),
+            domains=list(data.get("domains", [])),
+            availability=dict(data.get("availability", {})),
+            description=data.get("description", ""),
+        )
+        for name, data in raw.get("humans", {}).items()
+    ]
+
+
 def load_agents_config(
     path: Path | None = None,
     *,
@@ -842,6 +985,7 @@ def load_agents_config(
         raise ValueError("Empty agents.yaml file")
 
     validate(instance=raw, schema=AGENTS_SCHEMA)
+    _check_principal_namespace(raw)
     # Validate the cross-entry catalog and names once, before interpolation.
     project_principals({
         "credential_vendors": raw["credential_vendors"],

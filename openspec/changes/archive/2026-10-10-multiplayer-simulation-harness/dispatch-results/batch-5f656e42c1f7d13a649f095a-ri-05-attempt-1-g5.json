@@ -1,0 +1,18 @@
+{
+  "attempt": 1,
+  "branch": "openspec/multiplayer-simulation-harness",
+  "change_id": "multiplayer-simulation-harness",
+  "degradations": [],
+  "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
+  "evidence": {
+    "commit": "3b6c2ce26bcda9a9e14f2e2eb5639f96858955e4",
+    "loop_state_digest": "f24cb17df8cf0f43ace6cca58c7dbd562a73d2845644a4659c79876df6123219",
+    "loop_state_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json"
+  },
+  "handoff_id": "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7",
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 5,
+  "outcome": "success",
+  "schema_version": 2,
+  "worktree_ref": "multiplayer-simulation-harness"
+}

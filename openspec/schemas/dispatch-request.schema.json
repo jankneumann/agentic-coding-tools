@@ -195,7 +195,11 @@
         },
         "decision": {"enum": ["approved", "rejected"]},
         "approval_ref": {"$ref": "#/$defs/ApprovalRef"},
-        "provenance": {"$ref": "#/$defs/Provenance"}
+        "provenance": {"$ref": "#/$defs/Provenance"},
+        "resume_at": {
+          "enum": ["VALIDATE"],
+          "description": "Operator-approved escalate_resume target: re-run VALIDATE instead of resuming the parked phase."
+        }
       }
     },
     "Provenance": {

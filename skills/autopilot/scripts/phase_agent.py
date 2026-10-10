@@ -582,7 +582,12 @@ _PHASE_TASKS: dict[str, str | None] = {
         "around that operation. Return 'converged' if no blocking ledger\n"
         "items remain, 'max_iter' if the inner loop stalled or exhausted\n"
         "rounds. Do not return 'not_converged' to bounce the outer machine\n"
-        "into PLAN_FIX."
+        "into PLAN_FIX.\n"
+        "When the only review lane is this agent (cloud single-vendor),\n"
+        "drive converge() with the committed\n"
+        "`skills/autopilot/scripts/agent_lane.py converge --phase PLAN_REVIEW`\n"
+        "and serve the lane through its protocol directory; never write an\n"
+        "ad-hoc driver script."
     ),
     "PLAN_FIX": (
         "PLAN_FIX is the inner fix_callback of converge(), not an outer\n"
@@ -616,7 +621,12 @@ _PHASE_TASKS: dict[str, str | None] = {
         "package_authors, scoped to cited file_paths) and record IMPL_FIX\n"
         "as a phase_history sub-step. Return 'converged' if no blocking\n"
         "ledger items remain, 'max_iter' if the inner loop stalled or\n"
-        "exhausted rounds."
+        "exhausted rounds.\n"
+        "When the only review lane is this agent (cloud single-vendor),\n"
+        "drive converge() with the committed\n"
+        "`skills/autopilot/scripts/agent_lane.py converge --phase IMPL_REVIEW`\n"
+        "and serve the lane through its protocol directory; never write an\n"
+        "ad-hoc driver script."
     ),
     "IMPL_FIX": (
         "IMPL_FIX is the inner fix_callback of converge(), not an outer\n"
@@ -636,7 +646,12 @@ _PHASE_TASKS: dict[str, str | None] = {
         "cold validation review. Pass a real VAL_FIX applicator as\n"
         "fix_callback and record VAL_FIX as a phase_history sub-step.\n"
         "Return 'converged' if validation passes critique, 'max_iter'\n"
-        "otherwise."
+        "otherwise.\n"
+        "When the only review lane is this agent (cloud single-vendor),\n"
+        "drive converge() with the committed\n"
+        "`skills/autopilot/scripts/agent_lane.py converge --phase VAL_REVIEW`\n"
+        "and serve the lane through its protocol directory; never write an\n"
+        "ad-hoc driver script."
     ),
     "VAL_FIX": (
         "VAL_FIX is the inner fix_callback of converge(), not an outer\n"

@@ -213,6 +213,7 @@ jobs:
             tests/improve-harness \
             tests/iterate-on-plan \
             tests/langfuse \
+            tests/multiplayer-simulation \
             tests/phase-record-compaction \
             tests/plan-roadmap \
             tests/playwright-validator \

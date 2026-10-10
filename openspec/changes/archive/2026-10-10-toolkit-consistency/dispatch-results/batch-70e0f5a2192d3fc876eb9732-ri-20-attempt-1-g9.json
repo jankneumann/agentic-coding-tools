@@ -1,0 +1,18 @@
+{
+  "attempt": 1,
+  "branch": "openspec/toolkit-consistency",
+  "change_id": "toolkit-consistency",
+  "degradations": [],
+  "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+  "evidence": {
+    "commit": "8ab8eeef51b3f9a1c56ab89f86e970277d92a71c",
+    "loop_state_digest": "48334dcb78121cf14855cf5ec1f9a78445623537d3777cd4538404139ae1c113",
+    "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+  },
+  "handoff_id": "val-review-3-toolkit-consistency-36cfa8c",
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 9,
+  "outcome": "success",
+  "schema_version": 2,
+  "worktree_ref": "toolkit-consistency"
+}

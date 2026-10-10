@@ -403,3 +403,46 @@ def test_permitted_combinations_are_derived_from_the_schema() -> None:
     assert ("parked", "permission_blocked", None) in combos
     assert ("parked", "capability_unavailable", None) in combos
     assert len(combos) == 3 + 8 + 2 + 1 + 1
+
+
+def _done(**extra: Any) -> dict[str, Any]:
+    return {"current_phase": "DONE", "goal_gate": {"verdict": "abandoned"}, **extra}
+
+
+def test_phase_history_degradations_reach_the_result() -> None:
+    """A run that noted its degradations only in phase_history (ri-20) still
+    reports them; the supervisor's ledger copies only the result's list."""
+    state = _done(phase_history=[
+        {"phase": "PLAN_REVIEW", "degradation": "single_vendor_review", "outcome": "degraded",
+         "note": "codex auth_required"},
+        {"phase": "VAL_REVIEW", "degradation": "single_vendor_review", "outcome": "degraded"},
+        {"phase": "VALIDATE", "outcome": "passed"},
+    ])
+
+    degradations = dc.result_from_loop_state(state, _ctx())["degradations"]
+
+    assert degradations == [
+        {"code": "single_vendor_review", "phase": "PLAN_REVIEW", "detail": "codex auth_required"},
+        {"code": "single_vendor_review", "phase": "VAL_REVIEW", "detail": ""},
+    ]
+
+
+def test_a_recorded_degradation_is_not_duplicated_from_history() -> None:
+    recorded = {"code": "single_vendor_review", "phase": "IMPL_REVIEW", "detail": "recorded"}
+    state = _done(
+        degradations=[recorded],
+        phase_history=[{"phase": "IMPL_REVIEW", "degradation": "single_vendor_review", "note": "noted"}],
+    )
+
+    assert dc.result_from_loop_state(state, _ctx())["degradations"] == [recorded]
+
+
+def test_codes_outside_the_closed_set_stay_in_history() -> None:
+    state = _done(phase_history=[
+        {"phase": "VAL_REVIEW", "degradation": "secret_scan_substitute", "note": "regex scan"},
+        {"phase": "PLAN", "degradation": "single_vendor_review"},
+    ])
+
+    codes = [d["code"] for d in dc.result_from_loop_state(state, _ctx())["degradations"]]
+
+    assert codes == ["single_vendor_review"]
