@@ -1,4 +1,5 @@
 {
+  "autoCompactWindow": 200000,
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [
