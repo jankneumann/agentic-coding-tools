@@ -400,3 +400,63 @@ def test_parked_path_location(tmp_path: Path) -> None:
     assert parked_path(tmp_path / "change") == (
         tmp_path / "change" / "reviews" / "parked-disagreements.json"
     )
+
+
+def _addressed_doc_finding(tmp_path: Path, *, touched: list[str] | None) -> dict:
+    """A report finding fixed additively: the corrected words stay in the file."""
+    doc = tmp_path / "docs" / "report.md"
+    doc.parent.mkdir(parents=True, exist_ok=True)
+    doc.write_text("Outcome six run id 4955e24 is confirmed by the gitleaks secret scan.\n")
+    artifacts = tmp_path / "change"
+    artifacts.mkdir(exist_ok=True)
+    ledger = load_or_create(artifacts, "demo")
+    merge_findings(
+        ledger,
+        [_cf(description="Outcome six run id 4955e24 not confirmed by secret scan", file_path="docs/report.md")],
+        round_num=1,
+    )
+    from review_ledger import mark_addressed
+
+    mark_addressed(ledger, [ledger["items"][0]["id"]], touched_paths=touched)
+    return ledger
+
+
+def test_compact_keeps_an_additive_fix_addressed_when_the_fix_touched_the_file(tmp_path: Path) -> None:
+    ledger = _addressed_doc_finding(tmp_path, touched=["docs/report.md"])
+    assert ledger["items"][0]["fix_touched_file"] is True
+
+    compact(ledger, tmp_path)
+
+    assert ledger["items"][0]["status"] == "addressed"
+
+
+def test_compact_reopens_when_the_fix_did_not_touch_the_cited_file(tmp_path: Path) -> None:
+    ledger = _addressed_doc_finding(tmp_path, touched=["src/other.py"])
+    assert ledger["items"][0]["fix_touched_file"] is False
+
+    compact(ledger, tmp_path)
+
+    assert ledger["items"][0]["status"] == "open"
+    assert ledger["items"][0]["resolution"] == "compact: claimed fix did not take"
+
+
+def test_a_re_raised_finding_reopens_even_after_a_touching_fix(tmp_path: Path) -> None:
+    ledger = _addressed_doc_finding(tmp_path, touched=["docs/report.md"])
+    compact(ledger, tmp_path)
+
+    merge_findings(
+        ledger,
+        [_cf(description="Outcome six run id 4955e24 not confirmed by secret scan", file_path="docs/report.md")],
+        round_num=2,
+    )
+
+    assert ledger["items"][0]["status"] == "open"
+
+
+def test_mark_addressed_without_touched_paths_keeps_the_old_behavior(tmp_path: Path) -> None:
+    ledger = _addressed_doc_finding(tmp_path, touched=None)
+    assert "fix_touched_file" not in ledger["items"][0]
+
+    compact(ledger, tmp_path)
+
+    assert ledger["items"][0]["status"] == "open"
