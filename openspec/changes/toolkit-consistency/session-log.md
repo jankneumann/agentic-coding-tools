@@ -150,3 +150,12 @@ Autopilot PLAN_REVIEW ran converge(review_type=plan, min_quorum=1) twice: the re
 
 ### Context
 Pytest, skills/.venv: install_sh + improve-harness + shared: 149 passed, 16 skipped (rsync-only cases); new files: test_payload_hash 9 passed 1 skipped, test_install_stamp 5 passed, test_install_check_drift 11 passed, test_export_shared_learnings 12 passed, test_shared_learnings_merge 9 passed, test_state_artifacts_registration 5 passed. ruff clean on the new scripts.
+
+## Phase: Operator Decisions (2026-10-10)
+
+### Decisions
+1. **D1, D2 and D8 approved** — The operator approved all three decisions flagged at the proposal gate: the new `toolkit-distribution` capability (D1), the tracked `.agentic-toolkit/` directory at the consumer root (D2), and the unconditional exclusion of `source:transcript-mined` learnings from export (D8). `proposal.md` now lists them under "Approved decisions"; the merge review no longer needs to sign them off.
+2. **Out-of-scope review findings dispositioned** — The operator dispositioned three PLAN_REVIEW findings that sit outside this change: ledger 3 (`proposal_approval: auto` should apply only after roadmap approval) and ledger 6 (stale ri-01 status in `roadmap.yaml`) are to be fixed by the roadmap supervisor, which owns those files; ledger 7 (committed `launch_token`/`owner_nonce` in `checkpoint.json`) is accepted as safe. No edit was made in this change.
+
+### Next Steps
+- Resume IMPLEMENT for T7 verification once the operator authorizes the resume.

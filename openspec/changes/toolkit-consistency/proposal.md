@@ -97,13 +97,13 @@ share learnings without sharing private session transcripts.
   and `skills/tests/install_sh/test_consumer_portability.py`; this change adds no new
   requirement for it and instead requires its new files to pass that existing gate.
 
-## Decisions needing approval
+## Approved decisions
 
-Surfaced here because this iteration ran non-interactively (see `design.md` for the
-alternatives considered on each):
+Surfaced for approval because the plan iteration ran non-interactively (see `design.md` for
+the alternatives considered on each). All three were approved by the operator on 2026-10-10:
 
-- D1: new capability `toolkit-distribution` rather than appending to `skill-workflow`.
-- D2: stamp, config and learnings live under a tracked `.agentic-toolkit/` directory at the
-  consumer root, independent of the agent mirror directories.
-- D8: exported learnings are JSONL and exclude `source:transcript-mined` entries outright,
-  rather than including their summaries behind a flag.
+- D1 (approved): new capability `toolkit-distribution` rather than appending to `skill-workflow`.
+- D2 (approved): stamp, config and learnings live under a tracked `.agentic-toolkit/` directory
+  at the consumer root, independent of the agent mirror directories.
+- D8 (approved): exported learnings are JSONL and exclude `source:transcript-mined` entries
+  outright, rather than including their summaries behind a flag.
