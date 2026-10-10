@@ -11,8 +11,21 @@
 
 **wp-router lives in work-packages.held.yaml until promoted by task 2.0 (D8)** — The DAG scheduler computes readiness from depends_on only and the schema has no hold field, so the only enforceable hold is absence from the executable manifest. The held file stays schema-valid and is loaded by no scheduler.
 
+- Status: `superseded`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D1)
+- **Superseded by**: `add-infeasible-incumbent-fallback` (D1)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Review
+
+**Promotion of wp-router is step P0, run by the operator/orchestrator from the feature worktree; task 2.0 only re-checks** — No scheduler loads work-packages.held.yaml, so no worker can be dispatched to a task of that package; a task inside it could never promote it (circular bootstrap found by both vendors).
+
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D1)
+- **Supersedes**: `add-infeasible-incumbent-fallback#plan-iteration-3/D1`
 
 ---
 
@@ -44,6 +57,18 @@
 
 **Task 2.0 proves prerequisites from the origin/main tree, never the working tree (D8)** — A branch that cherry-picks v1.3 would pass a working-tree check; git rev-parse origin/main:<path> and git grep on origin/main cannot be fooled that way and sidestep the archive deny.
 
+- Status: `superseded`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D2)
+- **Superseded by**: `add-infeasible-incumbent-fallback` (D3)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Review
+
+**The change stays active between the wp-dispatch and wp-router runs; cleanup-feature is withheld until wp-router merges (D8)** — cleanup-feature step 5 migrates open tasks and openspec archive moves the directory, the held manifest and step P0 out from under the second run; the scheduler loads work-packages.yaml from the active directory.
+
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D2)
 
@@ -68,6 +93,18 @@
 
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D3)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Review
+
+**P0 and 2.0 prove every wp-dispatch surface on origin/main, one marker per task (1.4, 1.5, 1.6)** — A single UnservableProviderError grep proved only task 1.4; a partial implementation could have let wp-router ship over provider-mismatching smoke or SKILL.md paths.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D3)
+- **Supersedes**: `add-infeasible-incumbent-fallback#plan-iteration-3/D2`
 
 ---
 
@@ -117,9 +154,31 @@
 
 ## 2026-10-10 — add-infeasible-incumbent-fallback
 
+### Phase: Plan Review
+
+**The record schema requires retention whenever request.incumbent is an object (v1.4 difference 4); the response keeps it as the api.py service invariant** — v1.3 required retention only for a null selected, so a routed selection made with an incumbent, the configured fallback included, could be persisted without its audit record; SelectModelResponse carries no request, so the rule is not expressible there.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D5)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
 ### Phase: Plan Iteration 1
 
 **Masked reasons classify by the reported reason; mixed sets are permanent (D3)** — _lane_exclusion_reason reports availability first, so a down-and-policy-excluded lane reads transient. Safe because every fallback candidate passed the full policy filter; a second reason pass adds a code path for no safety gain.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D6)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Review
+
+**Scenario model-routing.8 states the infeasibility precondition: no feasible incumbent row and at least one excluded row (D3)** — apply_incumbent_retention reaches the infeasible branch only with matches empty and the key in excluded_identities; 'every excluded row is transient' was vacuous without it.
 
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D6)
@@ -134,6 +193,28 @@
 
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D7)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Review
+
+**Proposal names D2 (concrete alias for provider-less callers) and D7 (local excluded for untrusted archetypes) as deliberate observable changes; the Compatibility NFR is scoped to retention outcomes** — 'Phase 2 changes nothing with vendor_order absent' understated two intended behavior changes.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D7)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Review
+
+**Single-vendor codex finding on test_resolver.py scope rejected: the module is agent-coordinator/tests/model_routing/test_resolver.py, inside wp-router's write_allow** — Adjudicated against the package manifest; 3.8 now spells the full path.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D8)
 
 ---
 

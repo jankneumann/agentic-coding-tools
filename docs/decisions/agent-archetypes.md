@@ -11,8 +11,9 @@
 
 **Runner contract carries options['provider'] and must raise when it cannot serve it (D1)** — SubagentRunner is (prompt, options); passing the provider under the same key build_phase_dispatch_kwargs emits keeps one shape, and a loud failure takes the existing D8 retry/escalation path instead of producing a mismatched pair.
 
-- Status: `active`
+- Status: `superseded`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D1)
+- **Superseded by**: `add-infeasible-incumbent-fallback` (D4)
 
 ---
 
@@ -46,6 +47,18 @@
 
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D4)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Review
+
+**UnservableProviderError is non-retryable: PhaseEscalationError on the first attempt, retry budget untouched (D1)** — The failure is deterministic (the runner's supported set and options['provider'] do not change between attempts); retries only delayed escalation and spent budget on a configuration error.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D4)
+- **Supersedes**: `add-infeasible-incumbent-fallback#plan-iteration-1/D1`
 
 ---
 
