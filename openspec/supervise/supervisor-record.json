@@ -4,18 +4,7 @@
     "last_digest_at": null,
     "last_fingerprint": null
   },
-  "pending_gates": [
-    {
-      "approval_id": null,
-      "change_id": "dispatch-contract",
-      "deadline": "2026-10-17T03:12:34.501960+00:00",
-      "decision_id": "be4f2421-4f61-4c76-ad83-02c3045a1242",
-      "disposition": "block",
-      "gate": "escalate_resume",
-      "requested_at": "2026-10-10T03:12:34.501960+00:00",
-      "source": "supervise"
-    }
-  ],
+  "pending_gates": [],
   "schema_version": 1,
   "standing_decisions": [
     {
@@ -47,5 +36,5 @@
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-10T09:44:35.251898Z"
+  "written_at": "2026-10-10T09:51:42.881719Z"
 }
