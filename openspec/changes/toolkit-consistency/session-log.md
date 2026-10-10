@@ -187,3 +187,20 @@ Pytest, skills/.venv: install_sh + improve-harness + shared: 149 passed, 16 skip
 1. **Ledger 3 closed (implemented elsewhere)** — `proposal_approval: auto` now applies only with a recorded roadmap approval: ri-21 dispatch-contract (#667, landed on main via #662, 731557b) made `proposal_approval` and `replan_required` scoped gates whose `auto` requires a `roadmap_approval_ref` on the launch marker, falling back to `block`. Source: roadmap supervisor, 2026-10-10.
 2. **Ledger 6 closed (owned by supervisor)** — The stale `current_item_id: ri-01` in `roadmap.yaml`/checkpoint is corrected by the roadmap supervisor in its bookkeeping pass; this change does not edit roadmap state.
 3. **Ledger 7 closed (accepted)** — Operator confirmed the checkpoint tokens are safe; the checkpoint has been digest-only since 4955e24.
+
+## Phase: Implementation Iteration 1 (2026-10-10)
+
+### Decisions
+1. **Transcript-mined exclusion fails closed** — `export_shared_learnings.py` previously matched `source:transcript-mined` by exact string. It now excludes any tag that, after strip and lowercase, starts with that prefix, so a cased, padded or suffixed variant cannot leak a transcript-derived entry into the tracked `learnings.jsonl`. Severity: medium (privacy hardening; no known producer emits a variant today). Test: `test_transcript_mined_variants_fail_closed`.
+2. **Stamp temp file cleaned up when the final `mv` fails** — `write_install_stamp` now removes `.stamp.XXXXXX` and returns non-zero instead of leaving a stray file in `.agentic-toolkit/` that could be committed. Severity: low.
+
+### Reviewed and found sound (no change)
+- Allowlist, tag namespaces, sanitizer pass, sort/dedupe determinism, exit codes 2/3 in the exporter.
+- Stamp is written last, via temp file plus `mv`; `--check` and self-install never write; invalid stamp is never rewritten.
+- Payload hash: sorted POSIX paths, content-only digest, excluded components match the install mirror excludes, symlinks followed.
+- Read side of shared learnings: gated on config, never writes, skips malformed lines.
+
+### Left alone
+- Payload hash includes untracked cache directories inside skill dirs (for example `.pytest_cache`) because `install.sh` mirrors them too; excluding them would diverge from mirror parity and the spec's fixed exclusion list. Preference, not a bug.
+- Read side does not re-filter `source:transcript-mined` in `learnings.jsonl`; the file is a human-reviewed tracked projection and the spec places the filter on export.
+- An interrupted install (SIGKILL) can still leave a `.stamp.*` temp file; a trap was judged out of scope.
