@@ -58,7 +58,7 @@ boundary the static path applies.
 #### Scenario: Runner cannot serve the routed provider
 
 - **WHEN** `options["provider"]` names a provider the runner cannot dispatch to
-- **THEN** the runner SHALL raise `UnservableProviderError`, and `run_phase_subagent` SHALL treat the attempt as failed under its existing retry budget and then raise `PhaseEscalationError`
+- **THEN** the runner SHALL raise `UnservableProviderError`, and `run_phase_subagent` SHALL raise `PhaseEscalationError` on that first attempt, without retrying and without consuming its retry budget, because the failure is deterministic (neither the runner's supported set nor `options["provider"]` changes between attempts)
 - **AND** the runner SHALL NOT invoke the routed model under its own provider
 
 #### Scenario: Retained incumbent returns the exact static object
@@ -77,3 +77,9 @@ boundary the static path applies.
 
 - **WHEN** the flag is on, no catalog candidate has posterior samples or a positive benchmark prior, and the configured-fallback scenario of `model-routing` does not apply to any phase (every incumbent is feasible, or no `fallback.vendor_order` is configured, or the incumbent's exclusion is permanent, or no candidate is eligible)
 - **THEN** every archetype/phase resolution SHALL equal its static resolution
+
+#### Scenario: A harness without a provider adapter escalates
+
+- **WHEN** a harness whose only dispatch adapter is `Agent(...)` follows an autopilot per-phase dispatch block whose `runner.py build-dispatch` output names a `provider` other than `claude_code`
+- **THEN** the block SHALL direct it to route the dispatch through the provider-neutral adapter or to escalate the phase
+- **AND** no per-phase dispatch block in the autopilot SKILL.md SHALL instruct a harness to call `Agent(...)` with another provider's model; every adapter-call sentence that follows a `build-dispatch` invocation SHALL name `provider`

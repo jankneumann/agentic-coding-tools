@@ -12,7 +12,7 @@
 >   resolves its default provider first"; `.6` is "Dispatch honors the routed provider"; `.7`
 >   is "Runner cannot serve the routed provider"; `.9` is "Routed selection onto the local
 >   provider respects the trust boundary"; `.10` is the narrowed "Empty catalog evidence
->   changes no phase".
+>   changes no phase"; `.11` is "A harness without a provider adapter escalates".
 >
 > **HOLD (design D8, operator decision 2026-10-10): only `wp-dispatch` runs in this autopilot
 > run. `work-packages.yaml` therefore lists `wp-dispatch` only; `wp-router` is defined in
@@ -50,7 +50,9 @@
     (regression);
   - `claude_agent_runner(agent_fn, supported={"claude_code"})` raises `UnservableProviderError`
     for any other `options["provider"]` without calling `agent_fn`; `run_phase_subagent`
-    retries and then raises `PhaseEscalationError`;
+    raises `PhaseEscalationError` on the first `UnservableProviderError` without a retry (the
+    failure is deterministic: neither the runner's supported set nor `options["provider"]`
+    changes between attempts) and without consuming the retry budget;
   - `smoke_provider_dispatch` pairs the resolved provider with the resolved model; routed onto
     `local` with an untrusted archetype it refuses; routed away from `local` it dispatches; a
     resolved non-Claude provider with a Claude alias raises `ProviderModelMappingError`; the
@@ -81,10 +83,12 @@
   `test_prose_free_gates.py`) that locates every `runner.py build-dispatch` invocation,
   asserts the adapter-call sentence after each names `provider`, and asserts the count is
   eight. [S]
+  **Spec scenarios**: agent-archetypes.11
+  **Design decisions**: D1
   **Dependencies**: 1.4
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-## 2. Contracts (wp-router)
+## P. Promotion gate (operator/orchestrator step; belongs to no package)
 
 - [ ] P0 Promotion gate. **Not a task of any package**: `work-packages.held.yaml` is loaded by
   no scheduler, so no worker can be dispatched to a `wp-router` task before this step; it is run
@@ -110,6 +114,9 @@
   manifest), delete the held file, and commit on the feature branch. [XS]
   **Design decisions**: D6, D8
   **Dependencies**: `wp-dispatch` and v1.3 on `origin/main` (external; not a task id)
+
+## 2. Contracts (wp-router)
+
 - [ ] 2.0 Fail-fast re-check (first step of the package; both chains depend on it). Re-run P0's
   `origin/main` checks exactly (the three blob comparisons, both `git grep` markers,
   `merge-base --is-ancestor`) from the package worktree and stop the package if any fails. This
@@ -136,14 +143,19 @@
     explicit `fallback: null` for any other reason;
   - `ExcludedAssignment.reason` accepts `cost-policy:unclassified`;
   - the `RetentionReason` parity test from `split-no-evidence-retention-reason` (its task 1.2:
-    the Literal equals the enum) covers the new value — this file owns parity. [S]
+    the Literal equals the enum) covers the new value — this file owns parity. That one case
+    is expected to stay red after 2.2 (the code Literal gains the value only in 3.4); mark it
+    `xfail(strict=True, reason="until task 3.4")` so the 2.x checkpoint is green and 3.4 flips
+    it by removing the marker. [S]
   **Spec scenarios**: model-routing.8, model-routing.9
   **Contracts**: contracts/openapi/v1.4.yaml, contracts/events/routing-decision-record.schema.json
   **Design decisions**: D6
   **Dependencies**: 2.0
-- [ ] 2.2 Finalize `v1.4.yaml`, the record schema, and `generated/models.py` so 2.1 passes;
-  each differs from v1.3 only by the differences listed in `contracts/README.md`. [S]
+- [ ] 2.2 Finalize `v1.4.yaml`, the record schema, and `generated/models.py` so 2.1 passes
+  (every case except the `xfail`-marked parity case, which 3.4 turns green); each differs from
+  v1.3 only by the differences listed in `contracts/README.md`. [S]
   **Dependencies**: 2.1
+- [ ] Checkpoint: run tests, review diff, verify scope
 
 ## 3. Configured fallback (wp-router)
 
@@ -189,7 +201,8 @@
   `(vendor, model) → {reasons}` map, pass `policy.document.fallback` (only when the policy is a
   `RoutingPolicy` and assignments are enabled), implement the configured pick, add
   `fallback: RetentionFallback | None` to `RetentionDecision`, and add
-  `incumbent-infeasible-configured-fallback` to `RetentionReason`. [M]
+  `incumbent-infeasible-configured-fallback` to `RetentionReason`, and remove the `xfail`
+  marker 2.1 put on the parity case. [M]
   **Dependencies**: 3.3, 2.2
 - [ ] 3.5 Write a failing service-level test in
   `agent-coordinator/tests/model_routing/test_service_incumbent.py`: a transient fallback
@@ -223,7 +236,7 @@
   **Dependencies**: 3.4
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-## 4. End to end (wp-router)
+## 4. End to end (4.1 in wp-router; 4.2 is the validation phase's feature-level gate, no package)
 
 - [ ] 4.1 Extend `agent-coordinator/tests/model_routing/test_empty_evidence_end_to_end.py`
   with a failing test: with the flag on, an unavailable incumbent lane, a configured allowlist

@@ -129,3 +129,21 @@ change" for `routing_fallback.py` (claude #4, #5); D1 citing a foreign "D8" (cla
 the packages list" losing the wp-dispatch record (claude #1). Left open as advisory: the
 decision-timeline index (claude #2, generated artifact), the historical review JSON (claude #7),
 and the retry-budget consumption on `UnservableProviderError` (claude #8, pre-existing path).
+
+## PLAN_REVIEW convergence, pass 2 (2026-10-10T22:14Z)
+
+Delta round on the pass-1 fix commit (`9ff51335`): claude-local returned 8 findings (192 s);
+codex returned a findings payload that failed schema validation and, because this change's
+vocabulary (`quota:exhausted`, `lane:model-rate-limited`) matches the dispatcher's capacity
+patterns, `classify_error` labelled it `capacity_exhausted` instead of sending the repair prompt,
+so quorum was lost (1/2) before synthesis. The driver now treats a body that parses as a
+findings object as never an error body, which restores the repair path. Claude's eight findings
+never reached the ledger, so they were fixed ahead of pass 3 on the cited files: 2.1's parity
+case is `xfail` until 3.4 (#1, medium); Risks said "task 2.0 regenerates" (#2); P0 moved to its
+own non-package section and the section-4 heading names 4.2's owner (#3); new scenario
+agent-archetypes.11 anchors the SKILL.md harness rule and task 1.6 cites it (#4);
+`UnservableProviderError` is now non-retryable (#8, also ledger #8). Procedure deviation (#5):
+all plan-iteration and plan-review handoffs were written as local fallback files because the
+coordinator handoff RPC failed (`rpc_failed: unspecified coordinator error`); recorded here so
+the audit trail shows why `handoffs/*.json` exist. Still open, advisory: the generated decision
+timelines (#6 = ledger #2) and the historical review JSON (#7 = ledger #7).

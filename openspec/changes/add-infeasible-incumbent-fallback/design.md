@@ -80,9 +80,12 @@ The phase 1 changes are prerequisites and independently correct:
 - The runner contract becomes: a `SubagentRunner` MUST dispatch to `options["provider"]`
   through the provider-neutral adapter (`provider_dispatch`). A runner that cannot serve that
   provider MUST raise `phase_agent.UnservableProviderError(provider, supported)` rather than
-  run the model under its own vendor; the raise takes the failure path `run_phase_subagent`
-  already implements (retry budget, then `PhaseEscalationError`; not this document's D8). The
-  mismatched pair is never produced.
+  run the model under its own vendor. `run_phase_subagent` treats `UnservableProviderError` as
+  non-retryable: it raises `PhaseEscalationError` on the first attempt without consuming the
+  retry budget, because the failure is deterministic (the runner's supported set and
+  `options["provider"]` do not change between attempts; a retry would only delay escalation).
+  Every other runner failure keeps the existing retry-then-escalate path. The mismatched pair
+  is never produced.
   `phase_agent.py` ships a reference adapter, `claude_agent_runner(agent_fn, supported=
   {"claude_code"})`, that wraps the harness `Agent(...)` callable and raises on any other
   `options["provider"]`; it is the runner the SKILL.md Claude blocks describe, and the one
@@ -91,7 +94,7 @@ The phase 1 changes are prerequisites and independently correct:
   Claude-alias and `local` trust-boundary checks against the **resolved** provider, picks the
   smoke phase from the caller's provider (that is what the smoke exercises), and reports both:
   the JSON body and the text line keep `provider` (the caller's) and add `resolved_provider`.
-- The autopilot SKILL.md adapter contract names `provider` in the 8-phase protocol block and in
+- The autopilot SKILL.md adapter contract (scenario agent-archetypes.11) names `provider` in the 8-phase protocol block and in
   every per-phase dispatch block that follows a `runner.py build-dispatch` call: the
   GATEKEEPER block (today "call the dispatch adapter with `prompt`/`model`") and the seven
   "Capture `prompt`, `model`, `isolation`" blocks, eight in all. The rule: a harness whose
@@ -329,8 +332,8 @@ promotes. Reading from the git object store sidesteps the package's
 
 - **Contract chain dependency.** v1.4 needs v1.3 first, and v1.3 waits on the task-router
   change. Phase 1 is independent of that chain, so the most important correctness fix doesn't
-  wait. The v1.3 the overlay was derived from is pinned by SHA in the contracts README; task
-  2.0 regenerates and diffs if it moved.
+  wait. The v1.3 the overlay was derived from is pinned by blob id in the contracts README;
+  step P0 regenerates, diffs and re-pins if it moved, and task 2.0 only re-checks.
 - **A configured order can name a vendor whose model is weaker, or a metered lane.** That is
   the explicit trade-off the owner chose: an available, human-chosen model over a
   known-failing one. The reasons and the order are persisted, so this is auditable.
