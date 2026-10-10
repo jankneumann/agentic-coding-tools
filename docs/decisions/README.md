@@ -41,6 +41,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [merge-pull-requests](./merge-pull-requests.md)
 - [model-routing](./model-routing.md)
 - [multiplayer-collaboration](./multiplayer-collaboration.md)
+- [multiplayer-simulation](./multiplayer-simulation.md)
 - [observability](./observability.md)
 - [ownership-map](./ownership-map.md)
 - [project-context-refresh](./project-context-refresh.md)
