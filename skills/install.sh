@@ -398,7 +398,11 @@ PY
     agent="${agent//[[:space:]]/}"
     [[ -n "$agent" ]] || continue
     rel_dir="$(agent_dir_for "$agent")" || continue
-    mirror_hash="$(python3 "$SCRIPT_DIR/shared/payload_hash.py" --root "$TARGET_ROOT/$rel_dir" --manifest "$INSTALL_MANIFEST")" || {
+    # Hash the mirror against ITS OWN manifest (synced with the payload), not
+    # the checkout's: the pin was computed over the pinned manifest's skill
+    # set, so a mirror byte-identical to the pinned payload must hash equal
+    # even when this checkout has since added, removed or re-scoped a skill.
+    mirror_hash="$(python3 "$SCRIPT_DIR/shared/payload_hash.py" --root "$TARGET_ROOT/$rel_dir" --manifest "$TARGET_ROOT/$rel_dir/install-manifest.json")" || {
       echo "Cannot compute mirror payload hash for $agent" >&2
       status=1
       continue

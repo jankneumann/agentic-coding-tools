@@ -84,6 +84,12 @@ def test_aborted_install_leaves_previous_stamp_intact(tmp_path: Path) -> None:
     first = _run(["--target", str(tmp_path), "--mode", "copy", *QUIET])
     assert first.returncode == 0, first.stderr
     stamp_path = tmp_path / ".agentic-toolkit" / "stamp.json"
+    # Make the prior stamp distinguishable from anything a rewrite could
+    # produce: same payload, agents and mode within the same UTC second would
+    # otherwise be byte-identical and mask a stamp written too early.
+    marked = json.loads(stamp_path.read_text())
+    marked["marker"] = "prior-install"
+    stamp_path.write_text(json.dumps(marked))
     prior = stamp_path.read_bytes()
 
     # `--openspec-cli required` fails when the CLI is absent; build a PATH
