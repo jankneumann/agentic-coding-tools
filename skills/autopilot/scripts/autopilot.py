@@ -272,7 +272,10 @@ TRANSITIONS: dict[str, dict[str, str]] = {
     "VAL_REVIEW": {"converged": "SUBMIT_PR", "not_converged": "VAL_FIX", "max_iter": "ESCALATE"},
     "VAL_FIX": {"fixed": "VALIDATE", "stuck": "ESCALATE"},
     "SUBMIT_PR": {"created": "DONE"},
-    "ESCALATE": {"resolved": "_previous_phase", "abandoned": "DONE"},
+    # "revalidate" exists only for an operator-approved escalate_resume that
+    # names resume_at=VALIDATE: evidence the goal gate refused is regenerated
+    # by this run instead of being edited after the fact.
+    "ESCALATE": {"resolved": "_previous_phase", "revalidate": "VALIDATE", "abandoned": "DONE"},
 }
 
 

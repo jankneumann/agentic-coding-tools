@@ -349,3 +349,43 @@ def test_checkpoint_attempts_and_results_are_single_definitions() -> None:
     assert attempt["properties"]["application_journal"]["properties"]["result"] == {
         "$ref": result_v2["$id"]
     }
+
+
+def test_gate_answer_may_name_validate_as_the_resume_target(
+    validators: dict[str, Draft202012Validator],
+) -> None:
+    request = _v2_request()
+    request["lease_generation"] = 2
+    request["continuation"] = {
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:33333333-4444-4555-8666-777777777777",
+    }
+    request["gate_answer"] = {
+        "gate": "escalate_resume",
+        "decision": "approved",
+        "approval_ref": "gate-decision:33333333-4444-4555-8666-777777777777",
+        "resume_at": "VALIDATE",
+    }
+    assert _errors(validators["request_v2"], request) == []
+    request["gate_answer"]["resume_at"] = "IMPLEMENT"
+    assert _errors(validators["request_v2"], request)
+
+
+def test_the_continuation_answer_carries_the_recorded_resume_target() -> None:
+    from types import SimpleNamespace
+
+    import execution
+
+    ref = "gate-decision:33333333-4444-4555-8666-777777777777"
+    record = {
+        "decision_id": ref.removeprefix("gate-decision:"),
+        "gate": "escalate_resume",
+        "outcome": "proceed",
+        "resume_at": "VALIDATE",
+    }
+    checkpoint = SimpleNamespace(gate_decisions=[record])
+    attempt = {"continuation": {"kind": "policy_pause", "approval_ref": ref}}
+
+    assert execution._gate_answer(checkpoint, attempt)["resume_at"] == "VALIDATE"
+    record.pop("resume_at")
+    assert "resume_at" not in execution._gate_answer(checkpoint, attempt)

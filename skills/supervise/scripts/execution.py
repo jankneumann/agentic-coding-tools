@@ -328,6 +328,8 @@ def _gate_answer(checkpoint: Any, attempt: Mapping[str, Any]) -> dict[str, Any] 
     provenance = record.get("provenance")
     if isinstance(provenance, Mapping) and provenance.get("source") in {"posture", "human"}:
         answer["provenance"] = dict(provenance)
+    if record.get("resume_at") == "VALIDATE" and answer["decision"] == "approved":
+        answer["resume_at"] = "VALIDATE"
     return answer
 
 

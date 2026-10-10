@@ -326,3 +326,67 @@ def test_apply_outcome_still_works_when_no_gate_is_pending(workspace: Path) -> N
 
     assert rc == 0
     assert read_state(state_path)["last_handoff_id"] == "h-1"
+
+
+# ---------------------------------------------------------------------------
+# escalate_resume --resume-at VALIDATE (operator-approved re-validation)
+# ---------------------------------------------------------------------------
+
+
+def _escalated_after_goal_gate(workspace: Path) -> Path:
+    return seed(
+        workspace,
+        pending=pending_request(
+            Gate.ESCALATE_RESUME,
+            phase="ESCALATE",
+            edge={"outcome": "resolved", "target": "SUBMIT_PR"},
+            context={"escalation_reason": "goal gate refused", "previous_phase": "SUBMIT_PR"},
+        ),
+        current_phase="ESCALATE",
+        previous_phase="SUBMIT_PR",
+    )
+
+
+def test_resume_at_validate_reruns_validation_instead_of_the_parked_phase(
+    workspace: Path,
+) -> None:
+    state_path = _escalated_after_goal_gate(workspace)
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+        "--resume-at", "VALIDATE",
+    ])
+
+    assert rc == 0
+    state = read_state(state_path)
+    assert state["current_phase"] == "VALIDATE"
+    assert state["pending_gate"] is None
+    assert state["gate_decisions"][-1]["resolution"] == "console_approved"
+
+
+def test_without_resume_at_the_parked_phase_resumes(workspace: Path) -> None:
+    state_path = _escalated_after_goal_gate(workspace)
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+    ])
+
+    assert rc == 0
+    assert read_state(state_path)["current_phase"] == "SUBMIT_PR"
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--gate", "escalate_resume", "--decision", "rejected", "--resume-at", "VALIDATE"],
+        ["--gate", "proposal_approval", "--decision", "approved", "--resume-at", "VALIDATE"],
+    ],
+)
+def test_resume_at_is_refused_outside_an_approved_escalate_resume(
+    workspace: Path, argv: list[str]
+) -> None:
+    state_path = _escalated_after_goal_gate(workspace)
+    before = state_path.read_bytes()
+
+    assert runner.main(["gate-answer", "demo", *argv]) == 2
+    assert state_path.read_bytes() == before
