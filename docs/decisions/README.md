@@ -52,6 +52,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [skill-workflow](./skill-workflow.md)
 - [software-factory-tooling](./software-factory-tooling.md)
 - [supervise](./supervise.md)
+- [toolkit-distribution](./toolkit-distribution.md)
 - [trust-posture](./trust-posture.md)
 - [validate-feature-ephemeral](./validate-feature-ephemeral.md)
 - [worktree](./worktree.md)
