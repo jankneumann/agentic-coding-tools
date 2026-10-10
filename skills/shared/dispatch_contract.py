@@ -499,6 +499,31 @@ def _parked_from_park(park: Mapping[str, Any]) -> dict[str, Any]:
     raise DispatchContractError(f"unknown loop-state park kind {kind!r}", pointer="/park/kind")
 
 
+def _result_degradations(state: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """``state.degradations`` plus closed-code degradations a run noted only in
+    ``phase_history`` (``{"degradation": <code>, "phase": ..., "note": ...}``).
+
+    ``runner.py record-degradation`` is the only writer of
+    ``state.degradations``, but a run that logged its degradations as phase
+    history entries would otherwise emit a result claiming none, and the
+    supervisor's ledger copies only the result's list (ri-20 lost three
+    single_vendor_review entries this way). Codes outside the closed set stay
+    in the run's own history; they cannot be expressed in a result.
+    """
+    out = copy.deepcopy(list(state.get("degradations") or []))
+    codes = set(load_schema(RESULT_V2)["$defs"]["Degradation"]["properties"]["code"]["enum"])
+    seen = {(d.get("code"), d.get("phase")) for d in out if isinstance(d, dict)}
+    for entry in state.get("phase_history") or []:
+        if not isinstance(entry, dict):
+            continue
+        code, phase = entry.get("degradation"), entry.get("phase")
+        if code not in codes or not isinstance(phase, str) or (code, phase) in seen:
+            continue
+        seen.add((code, phase))
+        out.append({"code": code, "phase": phase, "detail": _bounded(entry.get("note"), 512, "")})
+    return out[:32]
+
+
 def result_from_loop_state(
     state: Mapping[str, Any], attempt_ctx: Mapping[str, Any]
 ) -> Optional[dict[str, Any]]:
@@ -565,7 +590,7 @@ def result_from_loop_state(
         "branch": attempt_ctx["branch"],
         "host_id": attempt_ctx["host_id"],
         "evidence": copy.deepcopy(dict(attempt_ctx["evidence"])),
-        "degradations": copy.deepcopy(list(state.get("degradations") or [])),
+        "degradations": _result_degradations(state),
     }
     if handoff_id is not None:
         result["handoff_id"] = handoff_id
