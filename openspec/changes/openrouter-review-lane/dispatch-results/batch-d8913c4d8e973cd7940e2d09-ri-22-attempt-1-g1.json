@@ -1,0 +1,35 @@
+{
+  "attempt": 1,
+  "branch": "openspec/openrouter-review-lane",
+  "change_id": "openrouter-review-lane",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
+      "phase": "PLAN"
+    }
+  ],
+  "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+  "evidence": {
+    "commit": "c631f23f64fcf6af4c3e6e15d70f2d5fe7ff7a0c",
+    "loop_state_digest": "66379bb4cc4760e8e530cb7dcc925348ce5a1dff2b605c3bf27597322b0434ea",
+    "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
+  },
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 1,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": "proposal_approval",
+    "kind": "pending_gate",
+    "reason": "Approve this OpenSpec proposal and begin implementation?",
+    "resume_hint": "answer gate proposal_approval through the resume request's gate_answer"
+  },
+  "schema_version": 2,
+  "worktree_ref": "openrouter-review-lane"
+}
