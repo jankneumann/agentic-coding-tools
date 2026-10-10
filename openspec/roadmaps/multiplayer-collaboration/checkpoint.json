@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:55:48.197578+00:00",
+  "updated_at": "2026-10-10T10:56:12.892001+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -1502,6 +1502,40 @@
       "lease_generation": 8,
       "note": "Operator in ri-20 worker session at 2026-10-10T10:54:47Z (\"Approved\", option a): re-run VALIDATE with documented **Status** lines, then VAL_REVIEW, then DONE. Verified from the transcript.",
       "resume_at": "VALIDATE"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:56:12.778050+00:00",
+      "decision_id": "4a0f1bf4-1f54-4ede-a24b-9b2c4565875c",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "openrouter-review-lane",
+      "dedupe_fingerprint": "f62c543cfeb35dd4231fe00d26e6887cbfd8fe6f3d9e0b0283b9441096e4e81a",
+      "dispatch_ids": [
+        {
+          "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+          "lease_generation": 2
+        }
+      ],
+      "parked_commands": [
+        "runner.py gate-answer openrouter-review-lane --gate proposal_approval --decision approved --approval-ref gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6"
+      ]
     }
   ],
   "dispatch_attempts": [
@@ -2966,7 +3000,7 @@
       "change_id": "openrouter-review-lane",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-10T10:46:57.575028+00:00",
       "launch_digest": "sha256:961335ddb53d2e4961ac3574b9eae7dfb8ad582b99659631c9d909b51bb7315b",
       "launch_marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
@@ -3096,14 +3130,10 @@
           "phase": "PLAN"
         }
       ],
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6"
-      },
       "lease": {
         "generation": 2,
         "owner_nonce": "owner-nonce-1791629609222",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T10:53:29.680433+00:00",
         "heartbeat_at": "2026-10-10T10:53:29.680433+00:00",
         "expires_at": "2026-10-10T11:08:29.680433+00:00"
@@ -3120,6 +3150,68 @@
         "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g2",
         "go_released_at": "2026-10-10T10:53:29.963278+00:00",
         "entered_at": "2026-10-10T10:53:30.223617+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/openrouter-review-lane",
+          "change_id": "openrouter-review-lane",
+          "degradations": [
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned forbidden",
+              "phase": "INIT"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
+              "phase": "PLAN"
+            }
+          ],
+          "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+          "evidence": {
+            "commit": "d6c49b1eaace9ff5f232c0c477f516a3966cbcaa",
+            "loop_state_digest": "4e58211e36b7abf52f53a5ff200d4cfa55a75af35570fcf137f83a3558bfe458",
+            "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
+          },
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 2,
+          "outcome": "parked",
+          "parked": {
+            "classifier_reason": "Applying a supervisor-relayed gate approval (cross-session message, no launch marker) was classified as an auto-mode bypass",
+            "command": "runner.py gate-answer openrouter-review-lane --gate proposal_approval --decision approved --approval-ref gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6",
+            "deadline": null,
+            "gate": null,
+            "kind": "permission_blocked",
+            "reason": "permission denied for Bash under rule auto mode classifier: [Auto-Mode Bypass]",
+            "resume_hint": null,
+            "rule": "auto mode classifier: [Auto-Mode Bypass]",
+            "tool": "Bash"
+          },
+          "schema_version": 2,
+          "worktree_ref": "openrouter-review-lane"
+        },
+        "result_digest": "985d38e71b1886dbe13582cc8a635cac96f86537778bef55f09f9b76b6872377",
+        "bound_at": "2026-10-10T10:56:09.945787+00:00",
+        "callback_started_at": "2026-10-10T10:56:10.002919+00:00",
+        "callback_acknowledged_at": "2026-10-10T10:56:10.031001+00:00",
+        "terminal_persisted_at": "2026-10-10T10:56:10.063592+00:00",
+        "effects_applied_at": "2026-10-10T10:56:10.121299+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-10T10:56:10.063495+00:00",
+      "parked": {
+        "classifier_reason": "Applying a supervisor-relayed gate approval (cross-session message, no launch marker) was classified as an auto-mode bypass",
+        "command": "runner.py gate-answer openrouter-review-lane --gate proposal_approval --decision approved --approval-ref gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6",
+        "deadline": null,
+        "gate": null,
+        "kind": "permission_blocked",
+        "reason": "permission denied for Bash under rule auto mode classifier: [Auto-Mode Bypass]",
+        "resume_hint": null,
+        "rule": "auto mode classifier: [Auto-Mode Bypass]",
+        "tool": "Bash"
       }
     }
   ]
