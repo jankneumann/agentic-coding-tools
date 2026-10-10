@@ -253,8 +253,39 @@
       "phase": "ESCALATE",
       "recorded_at": "2026-10-10T09:48:18.635059+00:00",
       "note": "Operator (user, 2026-10-10) approved opening the PR against openspec/roadmap-multiplayer-collaboration: the pr_creation gate could not notify (coordinator 403); the PR base's TRUST_POSTURE.md already sets pr_creation to auto (7fea1cd). Console approval stands in for the undeliverable notification."
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-10T09:49:12.385406+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "multiplayer-simulation-harness",
+    "gate": "merge",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-10-10T09:49:12.386338+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/669",
+      "branch": "openspec/multiplayer-simulation-harness",
+      "change_id": "multiplayer-simulation-harness"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true
+    }
+  },
   "goal_gate": null
 }
