@@ -102,5 +102,6 @@ Max parallel width: 3. Shared-file conflicts: `skills/install.sh` (T2, T3 — se
 
 - `openspec validate toolkit-consistency --strict`
 - `skills/.venv/bin/python -m pytest skills/tests/install_sh/ skills/tests/improve-harness/`
-- `bash skills/install.sh --mode copy --force --deps none --openspec-assets none --openspec-cli none --python-tools none && bash skills/install.sh --check` (source-contribution-only commands run from this repository)
+- `bash skills/install.sh --mode copy --force --deps none --openspec-assets none --openspec-cli none --python-tools none && bash skills/install.sh --check` (source-contribution-only commands run from this repository; a self-install, so by D6 it writes no stamp and only checks mirror parity)
+- Behavioural check for T2/T3 against a scratch consumer: `C=$(mktemp -d) && bash skills/install.sh --target "$C" --mode copy --deps none --openspec-assets none --openspec-cli none --python-tools none && bash skills/install.sh --target "$C" --check` — expect `Install stamp: .../.agentic-toolkit/stamp.json` on install and `Pinned toolkit matches` with exit `0` on check
 - `uv run ruff check skills/shared/payload_hash.py skills/improve-harness/scripts/`

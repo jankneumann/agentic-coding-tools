@@ -82,7 +82,9 @@ def _read(root: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in text.splitlines()]
 
 
-@pytest.mark.parametrize("state", ["absent", "disabled", "string-true", "bad-json", "not-object"])
+@pytest.mark.parametrize(
+    "state", ["absent", "disabled", "string-true", "bad-json", "not-object", "wrong-schema"]
+)
 def test_export_refused_without_opt_in(
     tmp_path: Path, exporter: types.ModuleType, monkeypatch: pytest.MonkeyPatch, state: str
 ) -> None:
@@ -98,6 +100,12 @@ def test_export_refused_without_opt_in(
     elif state == "not-object":
         cfg.mkdir()
         (cfg / "config.json").write_text("[]")
+    elif state == "wrong-schema":
+        # An unknown schema is not an opt-in, exactly as the stamp reader treats it.
+        cfg.mkdir()
+        (cfg / "config.json").write_text(
+            json.dumps({"schema_version": 2, "shared_learnings": {"enabled": True}})
+        )
     before = {p: p.read_bytes() for p in cfg.rglob("*") if p.is_file()} if cfg.exists() else {}
 
     assert exporter.export(tmp_path) == 2
@@ -188,6 +196,68 @@ def test_transcript_mined_variants_fail_closed(
     _enable(tmp_path)
     exporter.export(tmp_path)
     assert "mined variant" not in (tmp_path / ".agentic-toolkit" / "learnings.jsonl").read_text()
+
+
+def test_producer_transcript_tag_is_excluded(
+    tmp_path: Path, exporter: types.ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The exclusion matches the tag collect-transcripts actually writes, not a hand-typed copy."""
+    scripts = SKILLS_ROOT / "collect-transcripts" / "scripts"
+    monkeypatch.syspath_prepend(str(scripts))
+    spec = importlib.util.spec_from_file_location(
+        "deep_analyze_under_test", scripts / "deep_analyze.py"
+    )
+    assert spec and spec.loader
+    deep_analyze = importlib.util.module_from_spec(spec)
+    # dataclasses resolves sys.modules[cls.__module__] while building the class.
+    monkeypatch.setitem(sys.modules, "deep_analyze_under_test", deep_analyze)
+    spec.loader.exec_module(deep_analyze)
+    finding = deep_analyze.TranscriptFinding(
+        failure_type="tool_error", capability_gap="x", affected_skill="s", severity="low",
+    )
+    producer_tags = finding.to_memory_tags()
+    assert any(t.startswith("source:") for t in producer_tags)
+
+    mined = _entry(summary="mined by producer", tags=producer_tags)
+    _stub_memory(monkeypatch, [mined, _entry()])
+    _enable(tmp_path)
+    assert exporter.export(tmp_path) == 0
+    assert "mined by producer" not in (tmp_path / ".agentic-toolkit" / "learnings.jsonl").read_text()
+    assert [r["summary"] for r in _read(tmp_path)] == ["Agent could not detect circular dependency"]
+
+
+def test_export_calls_the_real_query_memory_signature(
+    tmp_path: Path, exporter: types.ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Load the real analyze_failures (coordinator HTTP stubbed) so the exporter's
+    keyword call is checked against the real ``query_memory`` signature."""
+    af_path = SKILLS_ROOT / "improve-harness" / "scripts" / "analyze_failures.py"
+    spec = importlib.util.spec_from_file_location("analyze_failures", af_path)
+    assert spec and spec.loader
+    af = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(af)
+    monkeypatch.setitem(sys.modules, "analyze_failures", af)
+    requests: list[str] = []
+
+    class _Resp:
+        def __enter__(self) -> "_Resp":
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps([_entry()]).encode()
+
+    def fake_urlopen(req: Any, timeout: int = 0) -> _Resp:
+        requests.append(req.full_url)
+        return _Resp()
+
+    monkeypatch.setattr(af, "urlopen", fake_urlopen)
+    _enable(tmp_path)
+    assert exporter.export(tmp_path, time_window_days=7, limit=50) == 0
+    assert len(requests) == 1 and requests[0].endswith("/memory/query")
+    assert len(_read(tmp_path)) == 1
 
 
 def test_secrets_are_redacted(
