@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "ownership-map",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 18,
+  "total_iterations": 19,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -84,9 +84,9 @@
   ],
   "last_handoff_id": "val-review-ownership-map-b71f042",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-10T02:59:09.052414+00:00",
+  "phase_started_at": "2026-10-10T11:37:51.793953+00:00",
   "previous_phase": "SUBMIT_PR",
-  "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
+  "escalation_reason": "goal gate refused: validate record predates report",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
@@ -298,11 +298,19 @@
   ],
   "pending_gate": null,
   "goal_gate": {
-    "verdict": "pending",
-    "reason": "merge authorized; DONE evidence not yet checked",
+    "verdict": "refused",
+    "reason": "validate record predates report",
     "evidence": {
       "merge_authorized": true,
-      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/668"
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/668",
+      "report_path": "openspec/changes/archive/2026-10-10-ownership-map/validation-report.md",
+      "checked_at": "2026-10-10T11:37:51.778511+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-10-09T13:17:11.683632+00:00",
+      "report_time": "2026-10-10T10:47:29+00:00",
+      "report_time_source": "commit",
+      "bound_by": "VAL_REVIEW",
+      "val_review_at": "2026-10-09T13:39:44.110215+00:00"
     }
   },
   "park": null,
