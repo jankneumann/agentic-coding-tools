@@ -84,6 +84,15 @@ def load_sanitizer() -> Callable[[str], tuple[str, list[dict[str, str]]]]:
     return module.sanitize  # type: ignore[no-any-return]
 
 
+def _is_excluded_source(tag: str) -> bool:
+    """True for ``source:transcript-mined`` tags, tolerant of case, padding and suffixes.
+
+    Fail closed: a differently-cased or suffixed variant must not leak a
+    transcript-derived entry into a tracked file.
+    """
+    return tag.strip().lower().startswith(EXCLUDED_SOURCE_TAG)
+
+
 def _tag_value(tags: list[str], prefix: str) -> str:
     for tag in tags:
         if tag.startswith(prefix):
@@ -109,7 +118,7 @@ def project_entries(
     records: list[dict[str, Any]] = []
     for entry in entries:
         raw_tags = [t for t in entry.get("tags") or [] if isinstance(t, str)]
-        if EXCLUDED_SOURCE_TAG in raw_tags:
+        if any(_is_excluded_source(t) for t in raw_tags):
             continue
         record: dict[str, Any] = {k: entry[k] for k in ALLOWED_FIELDS if k in entry}
         record["tags"] = sorted(t for t in raw_tags if t.startswith(ALLOWED_TAG_PREFIXES))
