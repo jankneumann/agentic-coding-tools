@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "ownership-map",
-  "current_phase": "ESCALATE",
+  "current_phase": "SUBMIT_PR",
   "iteration": 0,
-  "total_iterations": 19,
+  "total_iterations": 20,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -84,7 +84,7 @@
   ],
   "last_handoff_id": "val-review-ownership-map-b71f042",
   "started_at": "2026-10-05T07:11:19.832453+00:00",
-  "phase_started_at": "2026-10-10T11:37:51.793953+00:00",
+  "phase_started_at": "2026-10-10T13:07:50.672607+00:00",
   "previous_phase": "SUBMIT_PR",
   "escalation_reason": "goal gate refused: validate record predates report",
   "val_review_enabled": true,
@@ -294,6 +294,45 @@
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-10-10T10:46:02.519319+00:00",
       "note": "operator (user) approved merge and archive of PR #668 in worker session 2026-10-10"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T13:07:50.484083+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 operator approved resume in supervisor session (\"Resume ri02\"); goal-gate content-timing fix 00ca6198 merged",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:02f15fb8-1876-4e00-892a-f180078c3649"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T13:07:50.672384+00:00",
+      "note": "operator approved resume in supervisor session (\"Resume ri02\"); goal-gate content-timing fix 00ca6198 merged"
     }
   ],
   "pending_gate": null,
