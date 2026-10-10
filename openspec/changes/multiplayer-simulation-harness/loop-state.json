@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "multiplayer-simulation-harness",
-  "current_phase": "ESCALATE",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 18,
+  "total_iterations": 20,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -78,7 +78,7 @@
   ],
   "last_handoff_id": "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7",
   "started_at": "2026-10-05T07:12:02.399401+00:00",
-  "phase_started_at": "2026-10-10T10:35:43.149574+00:00",
+  "phase_started_at": "2026-10-10T10:44:02.441949+00:00",
   "previous_phase": "SUBMIT_PR",
   "escalation_reason": "goal gate refused: required section not passed: Smoke Tests (not_applicable)",
   "val_review_enabled": false,
@@ -307,53 +307,47 @@
       "disposition": "block",
       "phase": "ESCALATE",
       "recorded_at": "2026-10-10T10:37:31.871689+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator (user, 2026-10-10) approved resuming after the DONE goal gate refusal: proposal.md now declares deployable: false (ad747240), matching validation's measured surface; only Spec Compliance is required and it passes.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T10:44:02.162212+00:00",
+      "note": "Operator (user, 2026-10-10) approved resuming after the DONE goal gate refusal: proposal.md now declares deployable: false (ad747240), matching validation's measured surface; only Spec Compliance is required and it passes."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "multiplayer-simulation-harness",
-    "gate": "escalate_resume",
-    "phase": "ESCALATE",
-    "requested_at": "2026-10-10T10:37:31.872930+00:00",
-    "prompt": "Has this escalation been resolved? Resume the loop?",
-    "context": {
-      "escalation_reason": "goal gate refused: required section not passed: Smoke Tests (not_applicable)",
-      "previous_phase": "SUBMIT_PR"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true,
-      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-    },
-    "edge": {
-      "outcome": "resolved",
-      "target": "SUBMIT_PR"
-    }
-  },
+  "pending_gate": null,
   "goal_gate": {
-    "verdict": "refused",
-    "reason": "required section not passed: Smoke Tests (not_applicable)",
+    "verdict": "passed",
+    "reason": "all required evidence present",
     "evidence": {
       "merge_authorized": true,
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/669",
       "report_path": "openspec/changes/multiplayer-simulation-harness/validation-report.md",
-      "checked_at": "2026-10-10T10:35:43.115022+00:00",
+      "checked_at": "2026-10-10T10:44:02.415919+00:00",
       "validate_outcome": "passed",
       "validate_at": "2026-10-10T03:18:09.228272+00:00",
       "report_time": "2026-10-10T03:17:49+00:00",
       "report_time_source": "commit",
       "bound_by": "VALIDATE",
       "required_sections": [
-        "Spec Compliance",
-        "Smoke Tests",
-        "Security",
-        "E2E Tests"
+        "Spec Compliance"
       ],
       "phase_statuses": {
-        "Spec Compliance": "pass",
-        "Smoke Tests": "not_applicable",
-        "Security": "not_applicable",
-        "E2E Tests": "not_applicable"
+        "Spec Compliance": "pass"
       }
     }
   },
