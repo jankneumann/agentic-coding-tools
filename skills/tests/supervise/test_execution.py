@@ -2530,3 +2530,56 @@ def test_a_secret_in_the_blocked_command_is_redacted(tmp_path: Path) -> None:
     )
     commands = resolution.routed.record["parked_commands"]
     assert commands and "abc123" not in commands[0] and "[REDACTED:" in commands[0]
+
+
+def _archive_loop_state(request: dict[str, Any], result: dict[str, Any], folder: str) -> None:
+    worktree = _wt(request)
+    active = worktree / result["evidence"]["loop_state_path"]
+    archived = worktree / "openspec" / "changes" / "archive" / folder / "loop-state.json"
+    archived.parent.mkdir(parents=True)
+    active.rename(archived)
+    result["evidence"]["loop_state_path"] = archived.relative_to(worktree).as_posix()
+
+
+def test_apply_accepts_the_loop_state_of_a_change_archived_before_done(tmp_path: Path) -> None:
+    """A change archived inside its own PR keeps its loop state under
+    openspec/changes/archive/<date>-<change_id>/; the result points there."""
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    result = _result("success-result.json", request)
+    _archive_loop_state(request, result, f"2026-10-10-{request['change_id']}")
+
+    applied = adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[result],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["completed_item_ids"] == ["ri-01"]
+
+
+@pytest.mark.parametrize(
+    "folder",
+    ["2026-10-10-other-change", "2026-10-10-followup-change-alpha", "latest-change-alpha"],
+)
+def test_apply_rejects_an_archive_path_for_another_change(tmp_path: Path, folder: str) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    result = _result("success-result.json", request)
+    _archive_loop_state(request, result, folder)
+
+    with pytest.raises(ValueError, match="loop-state containment"):
+        adapter.apply(
+            workspace,
+            batch_id=request["dispatch_id"].split(":", 1)[0],
+            results=[result],
+            dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+            repo_root=repo,
+        )
+    assert _attempt(workspace)["status"] == "launched"
