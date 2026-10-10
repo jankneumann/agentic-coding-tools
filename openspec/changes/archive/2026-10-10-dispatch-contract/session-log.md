@@ -350,3 +350,25 @@ VAL_REVIEW (operator-approved scratch driver, single_vendor_review) did not conv
 ### Context
 VAL_REVIEW converged in 3 rounds via committed agent_lane.py (ebc08d6) with the ledger fix (53d94ef); claude_code lane only, min_quorum=1 under cloud-container-single-vendor-2026-10-09 (single_vendor_review). Round 1: 3 low report fixes (CI run/head attribution 37974967529@4955e24, 37976320517@789705a, 38019470729@731557b; added-tests block moved out of outcome 6; outcome 5 names permission_blocked and capability_unavailable) in 0466eab9. Round 2: 1 low fix (e2e park test covers both kinds) in 3b7be179. Round 3: no findings. Driver wrote ## Validation Review **Status**: pass; Spec Compliance pass.
 
+---
+
+## Phase: Cleanup (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Archive on the feature branch, not main** — Supervisor-directed: the archive commit goes to openspec/dispatch-contract with a close-out PR against the roadmap branch, which later lands on main via the roadmap PR.
+2. **No open-task migration** — tasks.md has 0 unchecked items (41 checked).
+
+### Completed Work
+- task-check
+- archive
+- decision-index-regen
+- validate-strict
+
+### Next Steps
+- Close-out PR against openspec/roadmap-multiplayer-collaboration; operator merges
+
+### Context
+Post-merge cleanup for dispatch-contract (ri-21): PR #667 was merged by the operator into openspec/roadmap-multiplayer-collaboration as 0d078ff (rebase/merge chosen by the operator; autopilot never merges). All 41 tasks checked, so no open-task migration; no choices ledger. Loop reached DONE at gen 7 after operator-authorized re-validation (VALIDATE + VAL_REVIEW converged via committed agent_lane.py). Archived the change, regenerated docs/decisions in the same commit; staged rollout N/A (non-deployable skills/schemas change, no feature flag).
+
