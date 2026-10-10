@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T04:08:32.523283+00:00",
+  "updated_at": "2026-10-10T09:43:02.098283+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -813,6 +813,34 @@
       "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
       "item_id": "ri-20",
       "lease_generation": 4
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator in ri-20 worker session session_01SFH32A8gaJCyUn6j7uBLgb at 2026-10-10T09:41:49Z (\"accept regex scan and resume\"); verified from that session's transcript. Regex secret-scan substitute accepted in place of gitleaks; VAL_REVIEW resumes.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T09:43:00.128237+00:00",
+      "decision_id": "e32b840c-1473-4124-847f-185077ab3dcb",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 4,
+      "note": "Operator in ri-20 worker session session_01SFH32A8gaJCyUn6j7uBLgb at 2026-10-10T09:41:49Z (\"accept regex scan and resume\"); verified from that session's transcript. Regex secret-scan substitute accepted in place of gitleaks; VAL_REVIEW resumes."
     }
   ],
   "dispatch_attempts": [
@@ -1485,10 +1513,10 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
-      "lease_generation": 4,
+      "lease_generation": 5,
       "launch_history": [
         {
           "generation": 1,
@@ -1613,6 +1641,37 @@
           "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
           "observed_at": "2026-10-10T03:10:59.839327+00:00",
           "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g4"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791625381520",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T09:43:01.219779+00:00"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791625381520",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T09:43:01.506442+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791625381520",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T09:43:01.506442+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791625381520",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-10T09:43:02.093670+00:00",
+          "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5"
         }
       ],
       "scope": {
@@ -1627,71 +1686,32 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
-      "launch_digest": "sha256:d843e14df4fc77198e36fc7a4db81e8bcb6b0a8c78f81b25f0c7af98be7f1a37",
+      "launch_digest": "sha256:72c0a816dbb2f20d656d185e09429d647755cbfb6d9aa56d8cfa9a5508323483",
+      "degradations": [],
+      "continuation": {
+        "kind": "policy_pause",
+        "approval_ref": "gate-decision:e32b840c-1473-4124-847f-185077ab3dcb"
+      },
       "lease": {
-        "generation": 4,
-        "owner_nonce": "owner-nonce-1791601858420",
-        "state": "released",
-        "acquired_at": "2026-10-10T03:10:59.233125+00:00",
-        "heartbeat_at": "2026-10-10T03:10:59.233125+00:00",
-        "expires_at": "2026-10-10T03:25:59.233125+00:00"
+        "generation": 5,
+        "owner_nonce": "owner-nonce-1791625381520",
+        "state": "active",
+        "acquired_at": "2026-10-10T09:43:01.219779+00:00",
+        "heartbeat_at": "2026-10-10T09:43:01.219779+00:00",
+        "expires_at": "2026-10-10T09:58:01.219779+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 4,
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g4",
-        "observed_at": "2026-10-10T03:10:59.537971+00:00"
+        "generation": 5,
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5",
+        "observed_at": "2026-10-10T09:43:01.506442+00:00"
       },
       "launch_gate": {
-        "generation": 4,
+        "generation": 5,
         "state": "entered",
-        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g4",
-        "go_released_at": "2026-10-10T03:10:59.537971+00:00",
-        "entered_at": "2026-10-10T03:10:59.839327+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/toolkit-consistency",
-          "change_id": "toolkit-consistency",
-          "degradations": [],
-          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
-          "evidence": {
-            "commit": "a5626f15a88ee6232db68be979922b46202dbb16",
-            "loop_state_digest": "b0c57bf17a0fb6d6508ce239f706a1a9d7544aa210bee58c2df03ece49351398",
-            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
-          },
-          "host_id": "machine-dc39bf1e25efdf45",
-          "lease_generation": 4,
-          "outcome": "parked",
-          "parked": {
-            "deadline": null,
-            "gate": null,
-            "kind": "policy_pause",
-            "reason": "policy_pause/permission_denied: VAL_REVIEW sub-agent's gitleaks download was denied (curl -sSI https://github.com/gitleaks/gitleaks/releases/latest; gh release view returned 403 repo-not-enabled). VAL_FIX 1 integrated: rsync installed in container, suite re-run 183 passed / 1 skipped. converge() critique round not run; Validation Review section reads 'Result: incomplete'. Needs operator: approve gitleaks fetch or accept the regex secret-scan substitute.",
-            "resume_hint": "previous_phase=VAL_REVIEW; answer escalate_resume to resume"
-          },
-          "schema_version": 2,
-          "worktree_ref": "toolkit-consistency"
-        },
-        "result_digest": "a6df221bccb775c8317c0e11d0445f8e204dd99a561a5afa46e8efafa2476454",
-        "bound_at": "2026-10-10T04:08:29.208880+00:00",
-        "callback_started_at": "2026-10-10T04:08:29.260188+00:00",
-        "callback_acknowledged_at": "2026-10-10T04:08:29.294947+00:00",
-        "terminal_persisted_at": "2026-10-10T04:08:29.324841+00:00",
-        "effects_applied_at": "2026-10-10T04:08:29.396984+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-10T04:08:29.324795+00:00",
-      "degradations": [],
-      "parked": {
-        "deadline": null,
-        "gate": null,
-        "kind": "policy_pause",
-        "reason": "policy_pause/permission_denied: VAL_REVIEW sub-agent's gitleaks download was denied (curl -sSI https://github.com/gitleaks/gitleaks/releases/latest; gh release view returned 403 repo-not-enabled). VAL_FIX 1 integrated: rsync installed in container, suite re-run 183 passed / 1 skipped. converge() critique round not run; Validation Review section reads 'Result: incomplete'. Needs operator: approve gitleaks fetch or accept the regex secret-scan substitute.",
-        "resume_hint": "previous_phase=VAL_REVIEW; answer escalate_resume to resume"
+        "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g5",
+        "go_released_at": "2026-10-10T09:43:01.506442+00:00",
+        "entered_at": "2026-10-10T09:43:02.093670+00:00"
       }
     },
     {
