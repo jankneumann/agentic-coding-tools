@@ -71,25 +71,32 @@
 ### D1: Phase 1 (dispatch) lands before phase 2 (fallback), and the runner contract carries `provider`
 
 The phase 1 changes are prerequisites and independently correct:
-- `run_phase_subagent` writes `options["provider"] = state_dict.get("_resolved_provider") or
-  selected_provider`, the same key and precedence `build_phase_dispatch_kwargs` already uses
-  for the payload. `_build_options` is called with the selected provider so the incumbent is
-  provider-ful on this path too.
+- `run_phase_subagent` and `make_phase_callback` gain `provider: str | None = None`, threaded
+  to `_build_options(phase, state_dict, provider=_selected_provider(provider))`, so an
+  explicit caller provider and the env path both make the incumbent provider-ful (today the
+  path is env-only). `run_phase_subagent` then writes
+  `options["provider"] = state_dict.get("_resolved_provider") or selected_provider`, the same
+  key and precedence `build_phase_dispatch_kwargs` already uses for the payload.
 - The runner contract becomes: a `SubagentRunner` MUST dispatch to `options["provider"]`
   through the provider-neutral adapter (`provider_dispatch`). A runner that cannot serve that
-  provider (for example an in-process Claude `Agent(...)` wrapper asked for `codex`) MUST
-  raise rather than run the model under its own vendor; the raise takes the existing failure
-  path (`phase_agent` D8: retry budget, then `PhaseEscalationError`). The mismatched pair is
-  never produced.
+  provider MUST raise `phase_agent.UnservableProviderError(provider, supported)` rather than
+  run the model under its own vendor; the raise takes the existing failure path (`phase_agent`
+  D8: retry budget, then `PhaseEscalationError`). The mismatched pair is never produced.
+  `phase_agent.py` ships a reference adapter, `claude_agent_runner(agent_fn, supported=
+  {"claude_code"})`, that wraps the harness `Agent(...)` callable and raises on any other
+  `options["provider"]`; it is the runner the SKILL.md Claude blocks describe, and the one
+  tests exercise.
 - `smoke_provider_dispatch` builds the pair from the resolved provider and model, re-runs the
   Claude-alias and `local` trust-boundary checks against the **resolved** provider, picks the
-  smoke phase from the caller's provider (that is what the smoke exercises), and reports both
-  providers.
-- The autopilot SKILL.md adapter contract names `provider` in every per-phase dispatch block
-  and states the same rule: a harness whose only adapter is `Agent(...)` MUST route a
-  non-`claude_code` provider through the provider adapter or escalate; it never calls
-  `Agent(...)` with another vendor's model. A prose-guard test (modelled on
-  `test_dispatch_prohibitions.py`) asserts each block names `provider`.
+  smoke phase from the caller's provider (that is what the smoke exercises), and reports both:
+  the JSON body and the text line keep `provider` (the caller's) and add `resolved_provider`.
+- The autopilot SKILL.md adapter contract names `provider` in the 8-phase protocol block and in
+  each of the seven per-phase "Capture `prompt`, `model`, `isolation`" dispatch blocks, with
+  the rule: a harness whose only adapter is `Agent(...)` MUST route a non-`claude_code`
+  provider through the provider adapter or escalate; it never calls `Agent(...)` with another
+  vendor's model. A prose-guard test, `skills/tests/autopilot/test_skill_dispatch_provider_prose.py`
+  (modelled on `test_prose_free_gates.py`), asserts every capture line after a
+  `build-dispatch` call names `provider` and that the count of such blocks is seven.
 - `build_phase_dispatch_kwargs` already honors `_resolved_provider`; it gains a regression
   test and no behavior change.
 
@@ -100,18 +107,26 @@ mismatched model/vendor pairs.
 ### D2: The default provider is resolved before resolution, and it is the same default
 
 `_selected_provider()` returns `claude_code` when no explicit provider and neither
-`AUTOPILOT_PROVIDER` nor `AGENT_TYPE` is set: the value `build_phase_dispatch_payload`
-already applies *after* resolution. Its return type narrows from `str | None` to `str`; the
-callers that branch on `None` (`build_phase_dispatch_kwargs`'s `dispatch_provider`,
-`build_phase_dispatch_payload`'s post-resolution default) keep working and the latter becomes
-unreachable-by-default but stays as a guard.
+`AUTOPILOT_PROVIDER` nor `AGENT_TYPE` is set, or when the env value is whitespace only: the
+value `build_phase_dispatch_payload` already applies *after* resolution. Its return type
+narrows from `str | None` to `str`; the callers that branch on `None`
+(`build_phase_dispatch_kwargs`'s `dispatch_provider`, `build_phase_dispatch_payload`'s
+post-resolution default) keep working and the latter becomes unreachable-by-default but stays
+as a guard.
 
-What changes for provider-less callers: the incumbent becomes a concrete `(vendor, model)`,
-so every routing outcome that needs one becomes reachable — `challenger-evidenced-above-margin`,
-`exploration-evidenced`, `incumbent-infeasible-evidenced-alternative` and the new configured
-fallback. Before, such runs always ended `incumbent-unresolved`. The dispatched vendor with
-routing off, or with a retained incumbent, is the one it already was. A non-Claude harness
-that wants another default must set `AGENT_TYPE`, as today.
+What changes for provider-less callers:
+- The **model** becomes the default provider's concrete mapping of the archetype tier.
+  Today `resolve_provider_model_spec` passes the tier alias through when `provider` is falsy,
+  so the payload carried `model: "standard"`; with the default applied first it carries the
+  `claude_code` alias for that tier (`standard` → `sonnet`, per `archetypes.yaml`
+  `model_aliases`). The **provider** is unchanged (`claude_code` either way).
+- The incumbent becomes a concrete `(vendor, model)`, so every routing outcome that needs one
+  becomes reachable — `challenger-evidenced-above-margin`, `exploration-evidenced`,
+  `incumbent-infeasible-evidenced-alternative` and the new configured fallback. Before, such
+  runs always ended `incumbent-unresolved`.
+- With routing off, or with a retained incumbent, the dispatched provider is the one it
+  already was and the model is the concrete alias above. A non-Claude harness that wants
+  another default must set `AGENT_TYPE`, as today.
 
 ### D3: The fallback fires only on transient availability exclusions
 
@@ -148,10 +163,10 @@ Precedences and classification rules:
   candidate passed the full policy filter, and the recorded reason is what the router
   actually observed. The masked case is a tested, documented behavior rather than a second
   reason pass.
-- The fallback requires lane assignments: the service must run with `_assignment_enabled`
-  and a loaded `RoutingPolicy` whose document carries `fallback`, and every considered
-  candidate must have an `assignment`. Without them there is nothing to order by and
-  behavior is today's.
+- The fallback requires lane assignments: it is **disabled** (today's behavior) when the
+  service runs without `_assignment_enabled` or without a loaded `RoutingPolicy` whose
+  document carries `fallback`. When it is enabled, a candidate that has no `assignment` is
+  simply **ineligible** (skipped); the other candidates are still ordered.
 
 ### D4: The order lists are allowlists; the pick is lexicographic over them with `agent_id` as the final tie-break
 
@@ -194,10 +209,13 @@ skill copy or deployed coordinator that predates this change (both parsers rejec
 empty keys), so there is no install-order hazard.
 
 Validation split: the server validates shape only (it has no `agents.yaml` at policy load).
-The client loader, which already reads `agents.yaml`, additionally rejects a `vendor_order`
-entry that names no agent `type`, so a typo in the shipped file fails the coordination-bridge
-skill tests in CI. The `routing.yaml` edit is the last step of task 3.2, after both parsers
-accept the key.
+On the client, `routing_fallback.load_routing_policy_document(repo_root)` gains the check: when
+`fallback.vendor_order` is present it reads `agents.yaml` via `_agents_yaml_path(repo_root)`
+and raises `ValueError("fallback.vendor_order names unknown agent type <x>")` for an entry that
+matches no agent `type`. The loader test fixture builder gains an `agents.yaml` so the
+populated-key case is covered; the shipped file ships the key absent, so the check guards the
+owner's later edit, not the initial state. The `routing.yaml` edit is the last step of task
+3.2, after both parsers accept the key.
 
 ### D6: A new retention reason, `retained: false`, in a v1.4 overlay
 
@@ -209,9 +227,11 @@ client follows it to the new provider through the dispatch path D1 fixes.
   `retention.fallback = {incumbent_exclusion_reasons, order_applied}`:
   `incumbent_exclusion_reasons` is the sorted, unique set of the incumbent's excluded-row
   reasons (all transient by D3; one lane may be `lane:unavailable` while another is
-  `quota:exhausted`); `order_applied` is the `fallback:` block as applied.
-- Both schemas enforce presence: `retention.fallback` is required when `reason` is the
-  configured fallback and forbidden otherwise.
+  `quota:exhausted`); `order_applied` is a **verbatim copy** of `policy.document.fallback`:
+  all four lists, each non-empty and duplicate-free.
+- Both schemas enforce presence and shape: `retention.fallback` is required when `reason` is
+  the configured fallback and forbidden otherwise, and that reason implies `selected` is an
+  object (a configured fallback is never a null selection).
 - The response's top-level `fallback: bool` keeps its existing meaning (offline local-static
   route) and stays `false` for a configured fallback.
 - Exploration cannot disturb the pick: the trigger requires that no feasible challenger is
@@ -224,24 +244,44 @@ client follows it to the new provider through the dispatch path D1 fixes.
   the contracts README as a v1.4 difference.
 - There is no migration: `retention` is JSONB with no CHECK on its contents.
 
-### D7: A routed selection onto `local` respects the trust boundary
+### D7: A routed selection onto `local` respects the trust boundary, in the router first
 
-After routing, `resolve_archetype_for_phase` applies the same check the static path applies
-to the caller's provider: when the routed provider is `local` and the archetype is outside
-`LOCAL_TRUSTED_ARCHETYPES`, resolution returns the static resolution with a reason naming the
-refusal, and the decision stays persisted as routed (the coordinator, not the client, is the
-single decision point). This closes a pre-existing gap for evidenced challengers as well; the
-fallback is what makes it reachable during a vendor outage, so it ships here. The operator
-additionally controls whether `local` is ever a fallback target through `vendor_order` (D4).
+Two layers, both in the coordinator:
+
+1. **Primary, at lane projection.** `vendor_registry._lane` advertises, for an agent whose
+   `type` is `LOCAL_PROVIDER`, only `archetypes ∩ LOCAL_TRUSTED_ARCHETYPES`. The router then
+   excludes such a lane for an untrusted archetype with the existing
+   `lane:archetype-ineligible` (`_lane_exclusion_reason` already checks the request's
+   archetype against the lane's list), so a `local` lane is never a feasible candidate, never
+   a challenger and never a fallback target for an untrusted archetype. The persisted decision
+   therefore matches what is dispatched: no attribution gap of the kind that ruled out
+   Approach 2.
+2. **Guard, at resolution.** `resolve_archetype_for_phase` applies the static path's check to
+   `_routed_provider(selected)` (which derives `local` from `assignment.vendor_type` or, with
+   no assignment, from the catalog vendor): when it is `local` and the archetype is untrusted,
+   resolution returns `dataclasses.replace(static, reasons=[*static.reasons, "adaptive routing
+   refused: provider=local outside LOCAL_TRUSTED_ARCHETYPES (archetype=<name>)"])` and logs a
+   warning. This is defense in depth; if it ever fires, layer 1 has a bug. The scenario asserts
+   equality with the static resolution plus that reason, not object identity.
+
+This closes a pre-existing gap for evidenced challengers as well; the fallback is what makes
+it reachable during a vendor outage, so it ships here. The operator additionally controls
+whether `local` is ever a fallback target through `vendor_order` (D4).
 
 ### D8: wp-router is held until v1.3 merges
 
 The operator approved this change on 2026-10-10 with the condition that only `wp-dispatch`
 runs now and `wp-router` waits for `split-no-evidence-retention-reason` (v1.3) to merge. The
 hold is recorded in `work-packages.yaml` (`inputs.hold`, `inputs.external_prerequisites` on
-`wp-router`; `metadata` is closed by the schema, `inputs` is the open extension point), in the package description, in tasks.md, and as task 2.0, which fails fast
-when v1.3 is not in `openspec/changes/`. A dispatcher that reads only `depends_on` MUST NOT
-be used to start wp-router; the orchestrator checks the hold before dispatch.
+`wp-router`; `metadata` is closed by the schema, `inputs` is the open extension point), in the
+package description, in tasks.md, and as task 2.0, which is the package's first step and the
+dependency of both the 2.x and the 3.x chains. Task 2.0 proves the merge rather than a file's
+presence: it resolves the v1.3 change with `change_dir()` (active or archived), requires the
+feature branch to contain `origin/main`, compares the **blob hashes** of the three v1.3
+contract files with the ones pinned in the contracts README (a squash merge keeps blob hashes
+but not commit SHAs), and asserts the v1.3 code is present (`"no-evidenced-challenger"` in
+`api.RetentionReason`). A dispatcher that reads only `depends_on` MUST NOT be used to start
+wp-router; the orchestrator checks the hold before dispatch.
 
 ## Risks / Trade-offs
 
@@ -260,5 +300,14 @@ be used to start wp-router; the orchestrator checks the hold before dispatch.
   the incumbent's lanes) adds a code path for no safety gain.
 - **#647's displaced-incumbent rule does not apply here.** Exploration is not involved: the
   fallback pick is deterministic and the incumbent is infeasible anyway.
-- **Scope growth for D7.** `agents_config.py` joins wp-router's scope for a few lines and a
-  test. Kept in this change because the fallback creates the production exposure.
+- **Scope growth for D7.** `agents_config.py` and `vendor_registry.py` join wp-router's scope
+  for a few lines each and their tests. Kept in this change because the fallback creates the
+  production exposure.
+- **`install.sh --check` cannot run inside an isolated package worktree.** It diffs `skills/`
+  against the gitignored `.claude/skills` and `.agents/skills` mirrors, which an isolated
+  worktree does not have. It is therefore not a per-package verification step; task 4.2 runs
+  it from the feature worktree after `install.sh --mode copy --force --deps none
+  --python-tools none`, and the validation phase repeats it.
+- **The plan was written against a branch behind `main`.** The named router files are
+  unchanged on `main`; `phase_agent.py` and `agents_config.py` gained unrelated code. Each
+  package rebases onto `main` before its first commit and re-anchors the cited lines.

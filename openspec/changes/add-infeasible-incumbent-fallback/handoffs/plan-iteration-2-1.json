@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-10T21:29:12.405790+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Two fresh analysts re-reviewed the iteration-1 result and found 12 residual items (3 high, 7 medium, 2 low); all were fixed. The local trust boundary now lives in the router first (lane projection) with the resolution guard as defense in depth; task 2.0 proves the v1.3 merge by blob hash and gates both wp-router chains; the provider-less model change (tier alias to concrete alias) is stated; every test task names its module.",
+    "completed_work": [
+      "[high] testability: D2 and agent-archetypes.1/.5 state the tier-alias to concrete-alias model change",
+      "[high] feasibility: task 2.0 uses change_dir(), origin/main ancestry, pinned blob hashes, v1.3 code check; 3.1 depends on 2.0",
+      "[high] feasibility: install.sh --check moved out of per-package verification to task 4.2",
+      "[medium] consistency: D7 two-layer enforcement; vendor_registry.py in scope; refusal reason string fixed",
+      "[medium] consistency: order_applied fully required and unique in all three contract files",
+      "[medium] completeness: provider kwarg on run_phase_subagent/make_phase_callback",
+      "[medium] testability: UnservableProviderError and claude_agent_runner reference adapter",
+      "[medium] ambiguity: candidate without assignment is ineligible; fallback disabled only when assignments are disabled",
+      "[medium] feasibility: client loader check named (load_routing_policy_document, ValueError text, populated fixture)",
+      "[medium] testability: phase-record-compaction and vendor-neutral-autopilot tests in wp-dispatch verification; smoke output keys named",
+      "[low] completeness: configured-fallback reason implies non-null selected in both schemas",
+      "[low] consistency: vacuous clause moved to model-routing.8; prose-guard test named; test modules named; parity owned by 2.1"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Local trust boundary enforced at lane projection, resolution guard kept as defense in depth (D7)",
+        "rationale": "A resolution-time refusal persisted a routed local decision while dispatching static, the attribution gap that ruled out Approach 2. Advertising only trusted archetypes on local lanes makes the router exclude them with lane:archetype-ineligible, so the persisted decision matches dispatch.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Task 2.0 proves the v1.3 merge by change_dir() plus pinned blob hashes, and gates 3.x too (D8)",
+        "rationale": "A literal changes/ path breaks on archival and a branch commit SHA does not survive a squash merge; blob ids do. 3.1 depending on 2.0 closes the gap where router edits could start before the gate.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "order_applied is a verbatim copy of the fallback block: all four lists required and unique (D6)",
+        "rationale": "Optional lists let two implementations validate; the record must be reproducible.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Provider-less dispatch changes the model to the tier's concrete alias, provider unchanged (D2)",
+        "rationale": "resolve_provider_model_spec passes the raw tier through without a provider; applying claude_code first maps standard to sonnet. Stating it keeps agent-archetypes.1/.5 testable.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "install.sh --check leaves per-package verification; task 4.2 runs it from the feature worktree",
+        "rationale": "It diffs against gitignored mirrors that an isolated package worktree does not have.",
+        "capability": "model-routing",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

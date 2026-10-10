@@ -501,6 +501,18 @@ components:
           properties:
             assignment: &id001
               $ref: '#/components/schemas/RoutingAssignment'
+      - if:
+          required:
+          - retention
+          properties:
+            retention:
+              properties:
+                reason:
+                  const: incumbent-infeasible-configured-fallback
+        then:
+          properties:
+            selected:
+              type: object
       properties:
         decision_id:
           type: string
@@ -604,26 +616,37 @@ components:
                 - quota:exhausted
                 - lane:model-rate-limited
             order_applied:
+              description: Verbatim copy of the routing policy's `fallback:` block as applied (design D6).
               type: object
               additionalProperties: false
               required:
               - vendor_order
+              - location_order
+              - isolation_order
+              - dispatch_mode_order
               properties:
                 vendor_order:
                   type: array
                   minItems: 1
+                  uniqueItems: true
                   items:
                     type: string
                 location_order:
                   type: array
+                  minItems: 1
+                  uniqueItems: true
                   items:
                     type: string
                 isolation_order:
                   type: array
+                  minItems: 1
+                  uniqueItems: true
                   items:
                     type: string
                 dispatch_mode_order:
                   type: array
+                  minItems: 1
+                  uniqueItems: true
                   items:
                     type: string
       allOf:

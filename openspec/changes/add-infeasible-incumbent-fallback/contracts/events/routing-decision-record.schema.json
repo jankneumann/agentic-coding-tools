@@ -135,35 +135,46 @@
               "type": "object",
               "additionalProperties": false,
               "required": [
-                "vendor_order"
+                "vendor_order",
+                "location_order",
+                "isolation_order",
+                "dispatch_mode_order"
               ],
               "properties": {
                 "vendor_order": {
                   "type": "array",
                   "minItems": 1,
+                  "uniqueItems": true,
                   "items": {
                     "type": "string"
                   }
                 },
                 "location_order": {
                   "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
                   "items": {
                     "type": "string"
                   }
                 },
                 "isolation_order": {
                   "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
                   "items": {
                     "type": "string"
                   }
                 },
                 "dispatch_mode_order": {
                   "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
                   "items": {
                     "type": "string"
                   }
                 }
-              }
+              },
+              "description": "Verbatim copy of the routing policy's `fallback:` block as applied (design D6)."
             }
           }
         }
@@ -518,6 +529,29 @@
       "then": {
         "properties": {
           "assignment": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "retention"
+        ],
+        "properties": {
+          "retention": {
+            "properties": {
+              "reason": {
+                "const": "incumbent-infeasible-configured-fallback"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "selected": {
             "type": "object"
           }
         }

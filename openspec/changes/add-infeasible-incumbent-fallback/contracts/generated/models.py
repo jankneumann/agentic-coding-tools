@@ -39,12 +39,22 @@ TransientExclusionReason = Literal[
 
 
 class FallbackOrderApplied(BaseModel):
+    """Verbatim copy of the routing policy's `fallback:` block as applied (design D6)."""
+
     model_config = ConfigDict(extra="forbid")
 
     vendor_order: list[str] = Field(min_length=1)
-    location_order: list[str] | None = None
-    isolation_order: list[str] | None = None
-    dispatch_mode_order: list[str] | None = None
+    location_order: list[str] = Field(min_length=1)
+    isolation_order: list[str] = Field(min_length=1)
+    dispatch_mode_order: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _lists_unique(self) -> "FallbackOrderApplied":
+        for name in ("vendor_order", "location_order", "isolation_order", "dispatch_mode_order"):
+            values = getattr(self, name)
+            if len(values) != len(set(values)):
+                raise ValueError(f"order_applied.{name} must not contain duplicates")
+        return self
 
 
 class RetentionFallback(BaseModel):

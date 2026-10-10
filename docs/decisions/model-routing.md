@@ -18,6 +18,28 @@
 
 ## 2026-10-10 — add-infeasible-incumbent-fallback
 
+### Phase: Plan Iteration 2
+
+**Task 2.0 proves the v1.3 merge by change_dir() plus pinned blob hashes, and gates 3.x too (D8)** — A literal changes/ path breaks on archival and a branch commit SHA does not survive a squash merge; blob ids do. 3.1 depending on 2.0 closes the gap where router edits could start before the gate.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D2)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 2
+
+**order_applied is a verbatim copy of the fallback block: all four lists required and unique (D6)** — Optional lists let two implementations validate; the record must be reproducible.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D3)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
 ### Phase: Plan Iteration 1
 
 **Shipped routing.yaml keeps vendor_order absent; absent disables (D5)** — Both parsers reject unknown or empty keys, so an absent key is loadable by stale skill copies and older coordinators; the owner populates it at implementation review.
@@ -32,6 +54,17 @@
 ### Phase: Plan Iteration 1
 
 **retention.fallback records incumbent_exclusion_reasons as a sorted unique array (D6)** — An incumbent can have several transient rows with different reasons; a single field would have to pick one arbitrarily. The array keeps the machine-readable fact.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D5)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 2
+
+**install.sh --check leaves per-package verification; task 4.2 runs it from the feature worktree** — It diffs against gitignored mirrors that an isolated package worktree does not have.
 
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D5)

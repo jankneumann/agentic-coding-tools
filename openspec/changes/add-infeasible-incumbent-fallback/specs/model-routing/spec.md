@@ -55,10 +55,11 @@ behavior before this requirement.
 
 #### Scenario: Transiently unavailable incumbent falls back to the configured order
 
-- **WHEN** every excluded row of the incumbent carries a transient availability reason (`lane:unavailable`, `unavailable`, `quota:exhausted`, or `lane:model-rate-limited`), the incumbent is not excluded by cost policy, no feasible challenger is evidenced, the routing policy configures a non-empty `fallback.vendor_order`, lane assignments are enabled, and at least one feasible candidate other than the incumbent's rows has an assignment whose agent type is in `fallback.vendor_order` and whose location, isolation and dispatch mode are enumerated in `location_order`, `isolation_order` and `dispatch_mode_order`
+- **WHEN** every excluded row of the incumbent carries a transient availability reason (`lane:unavailable`, `unavailable`, `quota:exhausted`, or `lane:model-rate-limited`), the incumbent is not excluded by cost policy, no feasible challenger is evidenced, the routing policy configures a non-empty `fallback.vendor_order`, lane assignments are enabled, and at least one eligible candidate exists (a feasible candidate other than the incumbent's rows that has an assignment whose agent type is in `fallback.vendor_order` and whose location, isolation and dispatch mode are enumerated in `location_order`, `isolation_order` and `dispatch_mode_order`)
 - **THEN** the eligible candidate that ranks first by `fallback.vendor_order`, then `location_order`, `isolation_order`, `dispatch_mode_order`, then `agent_id` SHALL be selected, independent of score and random draws
-- **AND** `retention` SHALL be `{retained: false, reason: "incumbent-infeasible-configured-fallback"}`
-- **AND** `retention.fallback` SHALL record `incumbent_exclusion_reasons` (the sorted, unique reasons of the incumbent's excluded rows) and `order_applied` (the fallback order used)
+- **AND** the router SHALL NOT select a candidate that has no assignment, whose agent type is absent from `fallback.vendor_order`, or whose location, isolation or dispatch mode is not enumerated in the corresponding list
+- **AND** `retention` SHALL be `{retained: false, reason: "incumbent-infeasible-configured-fallback"}` and `selected` SHALL NOT be null
+- **AND** `retention.fallback` SHALL record `incumbent_exclusion_reasons` (the sorted, unique reasons of the incumbent's excluded rows) and `order_applied` (a verbatim copy of the policy's `fallback:` block: all four lists)
 - **AND** the response's top-level `fallback` SHALL remain `false`
 - **AND** the same inputs SHALL yield the same selection on every call, and enabling exploration SHALL NOT change the selection or the reason
 
@@ -68,7 +69,6 @@ behavior before this requirement.
 - **THEN** `selected` SHALL be null
 - **AND** `retention` SHALL be `{retained: true, reason: "incumbent-infeasible-no-evidenced-alternative"}`
 - **AND** `retention` SHALL NOT carry a `fallback` record
-- **AND** the router SHALL NOT select a candidate whose agent type is absent from `fallback.vendor_order`
 
 #### Scenario: Exploration only among evidenced challengers
 

@@ -90,3 +90,43 @@ Planned #636 items 7 and 6: a configured, deterministic fallback when the incumb
 ### Context
 Three parallel dimension analysts plus the architect's code read produced 18 findings (3 critical, 8 high, 6 medium, 1 low); all at or above medium were fixed. The runner contract now carries options['provider'] and fails loudly on an unservable provider; vendor_order became an allowlist with the three sibling lists as allowlists too; the local trust boundary is applied to routed selections (D7); the wp-router hold is machine-visible (D8); the v1.4 contracts gained a presence conditional, a reasons array and the cost-policy pattern fix.
 
+---
+
+## Phase: Plan Iteration 2 (2026-10-10)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Local trust boundary enforced at lane projection, resolution guard kept as defense in depth (D7)** `architectural: agent-archetypes` — A resolution-time refusal persisted a routed local decision while dispatching static, the attribution gap that ruled out Approach 2. Advertising only trusted archetypes on local lanes makes the router exclude them with lane:archetype-ineligible, so the persisted decision matches dispatch.
+2. **Task 2.0 proves the v1.3 merge by change_dir() plus pinned blob hashes, and gates 3.x too (D8)** `architectural: model-routing` — A literal changes/ path breaks on archival and a branch commit SHA does not survive a squash merge; blob ids do. 3.1 depending on 2.0 closes the gap where router edits could start before the gate.
+3. **order_applied is a verbatim copy of the fallback block: all four lists required and unique (D6)** `architectural: model-routing` — Optional lists let two implementations validate; the record must be reproducible.
+4. **Provider-less dispatch changes the model to the tier's concrete alias, provider unchanged (D2)** `architectural: agent-archetypes` — resolve_provider_model_spec passes the raw tier through without a provider; applying claude_code first maps standard to sonnet. Stating it keeps agent-archetypes.1/.5 testable.
+5. **install.sh --check leaves per-package verification; task 4.2 runs it from the feature worktree** `architectural: model-routing` — It diffs against gitignored mirrors that an isolated package worktree does not have.
+
+### Alternatives Considered
+- Keep the D7 check only in resolve_archetype_for_phase: rejected because Reopens the attribution gap in the fallback path.
+- Run install.sh --mode copy inside each package worktree before --check: rejected because Writes gitignored mirrors outside write_allow; scope checkers would flag it.
+
+### Trade-offs
+- Accepted vendor_registry.py joins wp-router scope for the archetype intersection over A router-side special case keyed on vendor_type == local because Projection is where lane archetypes are already decided; the router stays generic.
+
+### Open Questions
+- [ ] Owner to populate fallback.vendor_order in routing.yaml at implementation review (ships absent).
+
+### Completed Work
+- [high] testability: D2 and agent-archetypes.1/.5 state the tier-alias to concrete-alias model change
+- [high] feasibility: task 2.0 uses change_dir(), origin/main ancestry, pinned blob hashes, v1.3 code check; 3.1 depends on 2.0
+- [high] feasibility: install.sh --check moved out of per-package verification to task 4.2
+- [medium] consistency: D7 two-layer enforcement; vendor_registry.py in scope; refusal reason string fixed
+- [medium] consistency: order_applied fully required and unique in all three contract files
+- [medium] completeness: provider kwarg on run_phase_subagent/make_phase_callback
+- [medium] testability: UnservableProviderError and claude_agent_runner reference adapter
+- [medium] ambiguity: candidate without assignment is ineligible; fallback disabled only when assignments are disabled
+- [medium] feasibility: client loader check named (load_routing_policy_document, ValueError text, populated fixture)
+- [medium] testability: phase-record-compaction and vendor-neutral-autopilot tests in wp-dispatch verification; smoke output keys named
+- [low] completeness: configured-fallback reason implies non-null selected in both schemas
+- [low] consistency: vacuous clause moved to model-routing.8; prose-guard test named; test modules named; parity owned by 2.1
+
+### Context
+Two fresh analysts re-reviewed the iteration-1 result and found 12 residual items (3 high, 7 medium, 2 low); all were fixed. The local trust boundary now lives in the router first (lane projection) with the resolution guard as defense in depth; task 2.0 proves the v1.3 merge by blob hash and gates both wp-router chains; the provider-less model change (tier alias to concrete alias) is stated; every test task names its module.
+

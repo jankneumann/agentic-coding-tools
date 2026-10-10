@@ -18,12 +18,34 @@
 
 ## 2026-10-10 — add-infeasible-incumbent-fallback
 
+### Phase: Plan Iteration 2
+
+**Local trust boundary enforced at lane projection, resolution guard kept as defense in depth (D7)** — A resolution-time refusal persisted a routed local decision while dispatching static, the attribution gap that ruled out Approach 2. Advertising only trusted archetypes on local lanes makes the router exclude them with lane:archetype-ineligible, so the persisted decision matches dispatch.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D1)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
 ### Phase: Plan Iteration 1
 
 **Routed selections onto local are subject to LOCAL_TRUSTED_ARCHETYPES (D7)** — The coordinator checks the trust boundary only on the caller's provider; the fallback makes a local landing reachable during a vendor outage. agents_config.py joins wp-router scope for the check.
 
 - Status: `active`
 - Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D3)
+
+---
+
+## 2026-10-10 — add-infeasible-incumbent-fallback
+
+### Phase: Plan Iteration 2
+
+**Provider-less dispatch changes the model to the tier's concrete alias, provider unchanged (D2)** — resolve_provider_model_spec passes the raw tier through without a provider; applying claude_code first maps standard to sonnet. Stating it keeps agent-archetypes.1/.5 testable.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D4)
 
 ---
 
