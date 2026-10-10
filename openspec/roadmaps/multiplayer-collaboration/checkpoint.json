@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:52:24.689960+00:00",
+  "updated_at": "2026-10-10T10:53:30.226018+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -1446,6 +1446,33 @@
       "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
       "item_id": "ri-20",
       "lease_generation": 8
+    },
+    {
+      "gate": "proposal_approval",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "scope": "roadmap_approval",
+      "disposition": "auto",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:53:17.764906+00:00",
+      "decision_id": "2b09fbd1-b6b9-49e7-8bda-b724b22f17d6",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "openrouter-review-lane",
+      "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+      "item_id": "ri-22"
     }
   ],
   "dispatch_attempts": [
@@ -2920,9 +2947,9 @@
       "attempt": 1,
       "status": "launched",
       "prepared_at": "2026-10-10T10:46:57.575028+00:00",
-      "launch_digest": "sha256:d100b55631b1f868bc77a93fea74c16f2515375fb4d76f15bdd1262a9c01dc35",
+      "launch_digest": "sha256:961335ddb53d2e4961ac3574b9eae7dfb8ad582b99659631c9d909b51bb7315b",
       "launch_marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
-      "lease_generation": 1,
+      "lease_generation": 2,
       "launch_history": [
         {
           "generation": 1,
@@ -2954,6 +2981,37 @@
           "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
           "observed_at": "2026-10-10T10:47:27.066080+00:00",
           "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g1"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "owner-nonce-1791629609222",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T10:53:29.680433+00:00"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "owner-nonce-1791629609222",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T10:53:29.963278+00:00",
+          "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "owner-nonce-1791629609222",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T10:53:29.963278+00:00",
+          "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g2"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "owner-nonce-1791629609222",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-10T10:53:30.223617+00:00",
+          "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g2"
         }
       ],
       "scope": {
@@ -3005,26 +3063,42 @@
         }
       },
       "roadmap_approval_ref": "gate-decision:40776beb-63e5-4a06-b7b9-b349f3a918df",
+      "degradations": [
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "project-state submit returned forbidden",
+          "phase": "INIT"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
+          "phase": "PLAN"
+        }
+      ],
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6"
+      },
       "lease": {
-        "generation": 1,
-        "owner_nonce": "owner-nonce-1791629246122",
+        "generation": 2,
+        "owner_nonce": "owner-nonce-1791629609222",
         "state": "active",
-        "acquired_at": "2026-10-10T10:47:26.505701+00:00",
-        "heartbeat_at": "2026-10-10T10:47:26.505701+00:00",
-        "expires_at": "2026-10-10T11:02:26.505701+00:00"
+        "acquired_at": "2026-10-10T10:53:29.680433+00:00",
+        "heartbeat_at": "2026-10-10T10:53:29.680433+00:00",
+        "expires_at": "2026-10-10T11:08:29.680433+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 1,
-        "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g1",
-        "observed_at": "2026-10-10T10:47:26.791265+00:00"
+        "generation": 2,
+        "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g2",
+        "observed_at": "2026-10-10T10:53:29.963278+00:00"
       },
       "launch_gate": {
-        "generation": 1,
+        "generation": 2,
         "state": "entered",
-        "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g1",
-        "go_released_at": "2026-10-10T10:47:26.791265+00:00",
-        "entered_at": "2026-10-10T10:47:27.066080+00:00"
+        "handle": "session_016WgvgxjTWSNgdFd2c2x72n#g2",
+        "go_released_at": "2026-10-10T10:53:29.963278+00:00",
+        "entered_at": "2026-10-10T10:53:30.223617+00:00"
       }
     }
   ]
