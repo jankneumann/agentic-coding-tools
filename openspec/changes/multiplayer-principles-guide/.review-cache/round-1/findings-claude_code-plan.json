@@ -1,0 +1,151 @@
+{
+  "review_type": "plan",
+  "target": "multiplayer-principles-guide",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The branch diff (main...HEAD) for ri-01 carries far more than the ri-01 plan: all 19 sibling scaffold changes, roadmap.yaml, checkpoint.json, the roadmap proposal, TRUST_POSTURE.md and openspec/supervise/supervisor-record.json. proposal.md's Non-Goals state 'No edits to roadmap.yaml or to sibling changes' artifacts', yet the PR that will be opened from this branch introduces them all. Either the roadmap bootstrap should land on main first (or in its own PR) or the proposal's scope statement must be corrected so reviewers know what they are approving.",
+      "disposition": "escalate",
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/proposal.md",
+      "line_range": "53-57"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "reviews/consensus-plan.json records quorum_requested=1 and quorum_received=1 but quorum_met=false, and its summary has advisory_count=0 while three advisory (non-blocking) findings are listed. It also disagrees with reviews/review-manifest.json, which records zero successful dispatches (codex auth_required), quorum_received=0, vendors=[] and change_id=null, while consensus claims a successful claude_code reviewer with elapsed_seconds=0.0. The two review-record files describe different runs; downstream gating that reads either file gets contradictory answers about whether review happened.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/reviews/consensus-plan.json",
+      "line_range": "15-17"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "loop-state.json (final gate note) and session-log.md both cite a TRUST_POSTURE.md section 'Review quorum in cloud containers (temporary)' at commit 479dcd9 as the authority for single-vendor review, but the TRUST_POSTURE.md in this diff contains no such section and no review-quorum policy at all. The recorded authorization points at content that is not in the committed contract.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "line_range": "29-40"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "design.md D3 states that when a roadmap capability is split, every resulting change-id inherits the capability's full Serves list. 'Ownership-routed escalation and attention budgets' serves P1, P3, P8, P10 and was split into owner-routed-escalation and attention-budgets-digests, but the P10 row lists only team-work-queue, queue-dispatch-owner-acceptance and owner-routed-escalation; attention-budgets-digests is missing from P10 while present in P1, P3 and P8. The mapping violates its own stated rule.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/design.md",
+      "line_range": "74-83"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Requirement 'Solo and team mode vocabulary' says solo mode MUST be defined as the resolver yielding exactly one distinct human principal (including when owners.yaml is absent) and team mode as two or more, but no scenario checks any of that definitional content; the scenarios only check the bold terms, the exact guarantee sentence, the token 'ownership-map' and the phrase 'passive output'. The core definition the whole roadmap branches on is unguarded. If it is intentionally a review check, say so as the per-skill requirement does.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md",
+      "line_range": "96-117"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json is stale relative to loop-state.json: its only dispatch attempt still reads outcome 'parked' on proposal_approval with a resume hint (updated_at 2026-10-05T07:06), while loop-state records that gate approved at 07:12 the same day and three later phases through 2026-10-09. A supervisor reading the checkpoint would re-issue a gate-answer that has already been given.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "line_range": "6-7"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "loop-state.json shows PLAN_REVIEW exiting with outcome 'max_iter' (and total_iterations=8, max_phase_iterations=3) yet findings_trend is empty and blocking_findings is empty. A phase that exhausted its iteration budget should have left a per-iteration findings trail; the empty trend makes the max_iter escalation unexplainable from the state file alone.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-principles-guide/loop-state.json",
+      "line_range": "4-9"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "All 19 plan-roadmap scaffold specs use the placeholder pattern 'WHEN <change-id> is implemented THEN <acceptance outcome>', so every SHALL technically has a WHEN/THEN but none is a testable scenario, and requirement headings are truncated with '...' (e.g. 'Requirement: A roadmap item depending on a contract becomes a ready queue entry when its...'). The generator also lower-cases the first letter of each outcome, producing 'The system SHALL ensure that pRs created by ...' in reviewer-shaped-prs. Acceptable as flagged SCAFFOLD placeholders, but they must not be mistaken for reviewed specs, and the casing bug belongs in plan-roadmap.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
+      "line_range": "8-10"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "TRUST_POSTURE.md sets replan_required to auto while its own summary table says 'merge and all failure/escalation gates block'. replan_required fires when a roadmap item's plan has failed and must be redone, which is a failure path; with proposal_approval also auto, a re-plan is produced and accepted with no human looking at it. The header comment attributes this to an operator decision, so this is recorded rather than contested.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "line_range": "17-18"
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "TRUST_POSTURE.md says the approval gate service is 'roadmap item ri-05', but in the roadmap committed alongside it ri-05 is the simulation harness. The reference is to a different roadmap's item numbering and should name that roadmap (or the change-id) to avoid misdirecting readers.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "line_range": "44-48"
+    },
+    {
+      "id": 11,
+      "type": "observability",
+      "criticality": "low",
+      "description": "openspec/supervise/supervisor-record.json has written_at 2026-10-05T06:59:55.764282Z, which precedes the decided_at 06:59:55.799843 of the decision it records. The write timestamp is being captured before the decision timestamp, so ordering by written_at misrepresents causality.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/supervise/supervisor-record.json",
+      "line_range": "38-39"
+    },
+    {
+      "id": 12,
+      "type": "security",
+      "criticality": "low",
+      "description": "checkpoint.json commits a dispatch launch_token and lease owner_nonce to git. If these values are ever used to authenticate a marker or lease claim (rather than merely to disambiguate), committing them defeats that purpose; if they are not secrets, a comment or schema note should say so.",
+      "disposition": "escalate",
+      "axis": "security",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "line_range": "62-63"
+    }
+  ]
+}

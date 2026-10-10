@@ -29,7 +29,7 @@ items:
     gates, or PR checkpoints.
 - item_id: ri-02
   title: Add human principals and the git-native ownership map
-  status: approved
+  status: in_progress
   priority: 1
   effort: L
   depends_on: []
@@ -55,6 +55,84 @@ items:
     a reconcile check.
   - owners.yaml is registered in docs/guides/state-artifacts.md with writer, authority,
     and missing/stale behavior.
+- item_id: ri-21
+  title: Publish the supervisor-worker dispatch contract
+  status: in_progress
+  priority: 1
+  effort: L
+  depends_on: []
+  description: 'Publish versioned dispatch-request and dispatch-result JSON schemas
+    as the single definition of the supervisor-worker boundary; emit results from
+    loop-state via runner.py emit-result; add gate provenance with posture-digest
+    re-evaluation, execution_profile, review_requirements, degradations[], and the
+    parked kinds permission_blocked and capability_unavailable, with a closure contract
+    test so every schema-permitted parked shape has a supervisor answer path. Make
+    dispatch state safe to land on a shared ref: persist only a hash of each launch
+    token, record isolation as host-portable (repo-relative path plus host id) so
+    another host can rebind or reinitialize live attempts, and scope auto gate dispositions
+    to a matching roadmap_approval_ref instead of the repository-global posture.'
+  rationale: Every stall in the first supervised run occurred at an unwritten part
+    of the supervisor-worker boundary; queue-dispatched work (team-work-queue, owner-routed-escalation,
+    queue-dispatch-owner-acceptance) is built on it.
+  change_id: dispatch-contract
+  acceptance_outcomes:
+  - dispatch-request and dispatch-result schemas exist under openspec/schemas and
+    execution.py and orchestrator.py validate against them with existing fixtures
+    passing.
+  - runner.py emit-result produces a schema-valid result for every terminal and parked
+    loop-state shape, verified end to end.
+  - A closure contract test fails when any schema-permitted parked kind/gate combination
+    lacks a supervisor answer or resume path.
+  - A posture-derived gate block clears on resume after a posture change while a human
+    rejection does not.
+  - execution_profile, review_requirements, and degradations[] are carried end to
+    end, and permission_blocked and capability_unavailable parks are routed to the
+    operator as single escalations.
+  - checkpoint.json stores no raw launch token (only a digest that child_start verifies)
+    and the default secret-scan passes on a committed checkpoint with live attempts
+    and no allowlist entry.
+  - A checkpoint with live attempts committed on one host can be reconciled on another
+    host, which rebinds or reinitializes attempts instead of failing on absolute isolation
+    paths.
+  - An auto disposition for proposal_approval or replan_required proceeds only for
+    a dispatch carrying a valid roadmap_approval_ref; a standalone autopilot run without
+    one is gated by its non-auto fallback.
+- item_id: ri-22
+  title: OpenRouter review lane for cloud workers
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-21
+  description: Make API-based multi-vendor review available in cloud containers by
+    registering OpenRouter-backed reviewer lanes (non-Anthropic model families) that
+    dispatch over HTTP through the existing OpenAI-compatible adapter, need no vendor
+    CLI, and count toward converge() quorum. Lanes are declared in the dispatch request's
+    execution_profile and review_requirements from ri-21, verified by a dry invocation
+    rather than credential probing, bounded by the existing spend ceiling, and their
+    use retires the temporary cloud single-vendor review policy.
+  rationale: Restores the two-vendor review quorum for cloud workers at metered API
+    cost instead of waiting on the GX10 review lane, and replaces a prompt-level policy
+    exception with a configured, observable lane.
+  change_id: openrouter-review-lane
+  acceptance_outcomes:
+  - In a cloud container with an OpenRouter credential provisioned as an environment
+    secret, converge() reaches min_quorum=2 for PLAN_REVIEW using claude_code plus
+    at least one OpenRouter lane from a different model family, verified end to end
+    on a fixture change.
+  - Lane availability is established by a dry invocation of the lane for the requested
+    mode and reported in execution_profile; no worker reads environment variables
+    or credentials to discover it, and --check-vendors no longer reports a lane that
+    cannot dispatch.
+  - Every OpenRouter review records model, generation id and cost against the existing
+    monthly spend ceiling; exceeding the ceiling parks with capability_unavailable
+    instead of silently dropping to single-vendor review.
+  - OpenRouter findings conform to review-findings.schema.json and are synthesized
+    by ConsensusSynthesizer like CLI lanes, with vendor attribution preserved in the
+    ledger.
+  - The "Review quorum in cloud containers (temporary)" section of TRUST_POSTURE.md
+    is removed once the lane passes in cloud, restoring quorum 2 everywhere, and review_requirements
+    expresses any remaining per-environment exception as data with a sunset.
 - item_id: ri-03
   title: Add on-behalf-of chains and causal trace IDs to coordinator records
   status: approved
@@ -101,7 +179,7 @@ items:
     IDs.
 - item_id: ri-05
   title: Build the multi-player simulation harness
-  status: approved
+  status: in_progress
   priority: 2
   effort: M
   depends_on: []
@@ -173,6 +251,7 @@ items:
   effort: L
   depends_on:
   - ri-02
+  - ri-21
   description: Extend work_queue.py, /supervise, and /autopilot-roadmap so queue entries
     carry the owning principal, the originating roadmap item, and its dependencies,
     any eligible agent can claim any ready entry, and ordering across principals follows
@@ -194,6 +273,9 @@ items:
     owner.
   - With a single principal and no owners.yaml, queue ordering and claim behavior
     match the pre-change behavior in the existing work-queue tests.
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-07
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: ri-09
   title: Route approvals and escalations to resolved owners
   status: approved
@@ -202,6 +284,7 @@ items:
   depends_on:
   - ri-02
   - ri-08
+  - ri-21
   description: Make the approval gate resolve its owner set from the ownership map
     with a fallback chain, enforce that decided_by belongs to that set, let trust
     posture declare gate owners per capability, add a principal-conflict escalation
@@ -302,6 +385,7 @@ items:
   - ri-08
   - ri-09
   - ri-12
+  - ri-21
   description: Separate owner from implementer on roadmap items and changes, default
     the implementer to the agent queue (optionally restricted to a named principal's
     agents), have queue agents implement from the agreed contract and open PRs into
@@ -466,7 +550,7 @@ items:
     owner.
 - item_id: ri-20
   title: Stamp and check team toolkit consistency
-  status: approved
+  status: in_progress
   priority: 5
   effort: M
   depends_on: []
@@ -485,4 +569,45 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-05T07:06:10.446456+00:00'
+updated_at: '2026-10-10T09:44:51.762507+00:00'
+refinements:
+- timestamp: '2026-10-06T08:36:39.023367+00:00'
+  actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
+  source: openspec/roadmaps/multiplayer-collaboration/supervisor-worker-contract.md
+  rationale: The first supervised execution (2026-10-05/06) stalled on four supervisor-worker
+    boundary failures (stale gates after posture change, env-probing permission friction,
+    silent quorum degradation, unanswerable parked kinds), all traced to the missing
+    dispatch request/result contract. Queue-based execution must also run on the GX10
+    dispatcher lane so multi-vendor review uses local subscription CLIs, instead of
+    building a second queue.
+  base_sha256: f14a9147399dcc539dde085995c4f313217d0677ded8921f0940b300f75de329
+  operations:
+  - add:ri-21
+  - edit:ri-08
+  - edit:ri-09
+  - edit:ri-13
+- timestamp: '2026-10-06T09:07:05.783053+00:00'
+  actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
+  source: https://github.com/jankneumann/agentic-coding-tools/pull/662 (Codex review,
+    secret-scan)
+  rationale: 'Codex review and secret-scan on PR #662 showed that supervised-dispatch
+    state is not safe to land on a shared ref: raw launch tokens in tracked checkpoints,
+    absolute host-local isolation paths, and a repository-global trust posture that
+    cannot scope auto approvals to an approved roadmap. These belong to the dispatch
+    contract.'
+  base_sha256: bd39d3d0ffe538d49df86022e6306f98c9298a53bbec3948cf302cb50969c5f6
+  operations:
+  - edit:ri-21
+- timestamp: '2026-10-09T07:58:33.574230+00:00'
+  actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
+  source: operator request 2026-10-09 ("add open router integration"), cloud single-vendor
+    review policy in TRUST_POSTURE.md
+  rationale: Cloud containers run on the Claude subscription only, so multi-vendor
+    review quorum is unattainable there and the operator accepted single-vendor review
+    as a temporary, sunset policy (TRUST_POSTURE.md 479dcd9). The repository already
+    carries an OpenAI-compatible OpenRouter adapter with spend tracking; wiring it
+    as a quorum-counting review lane gives cloud workers a second (and third) vendor
+    without the GX10 and lets the temporary policy be retired.
+  base_sha256: 7b774483ca37d4afa397d819f78a288f76d5aaf414566e662b09759af6def7f8
+  operations:
+  - add:ri-22

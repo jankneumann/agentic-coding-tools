@@ -86,6 +86,33 @@ error (it usually means a mis-placed field).
 A gate omitted from `gates:` resolves to `block` (fail-closed). Only an unknown
 gate key or an unknown disposition is a hard validation error.
 
+## Roadmap-approval-scoped `auto` (`proposal_approval`, `replan_required`)
+
+`auto` on `proposal_approval` or `replan_required` applies **only** to a run
+dispatched by `/supervise` under a recorded `roadmap_approval`: the launch marker
+the supervisor writes into the child's worktree carries that approval reference,
+and the approval gate reads it from the marker itself (a reference passed any
+other way is ignored). Every other run — a standalone `/autopilot`, for example —
+uses the gate's `unscoped` fallback instead, which defaults to `block`:
+
+```yaml
+  proposal_approval:
+    disposition: auto
+    unscoped:                       # optional; absent means {disposition: block}
+      disposition: notify_with_timeout
+      timeout_seconds: 600
+      default_action: block
+```
+
+`unscoped` follows the same rules as a gate config except that `auto` is not
+allowed, and it may only appear on these two gates. The decision record names the
+scope that applied (`scope: roadmap_approval` or `scope: unscoped`).
+
+Every gate decision also records its `provenance`: a posture-derived decision
+carries the posture's digest — a SHA-256 over the parsed `gates:` map, so prose
+edits and key order never count as a posture change — and is re-evaluated when
+that digest changes; a human answer is final.
+
 ## Worked example
 
 A posture that auto-creates PRs, notifies-with-a-one-hour-timeout on merge

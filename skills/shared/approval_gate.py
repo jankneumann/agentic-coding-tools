@@ -61,12 +61,14 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Protocol, Union
 
 from shared.trust_posture import (
+    SCOPED_GATES,
     DefaultAction,
     Disposition,
     Gate,
     GateDisposition,
     TrustPosture,
     load_posture,
+    posture_digest,
 )
 
 logger = logging.getLogger(__name__)
@@ -157,6 +159,13 @@ class ApprovalDecision:
     posture_present: bool = False
     notified: Optional[bool] = None
     timeout_seconds: Optional[int] = None
+    # dispatch-contract D5: who decided. ``{"source": "posture", "posture_digest"}``
+    # for posture-derived resolutions (auto, posture_block, timeout defaults,
+    # coordinator-unreachable degradation); ``{"source": "human", "approval_ref"}``
+    # for console and coordinator approvals and rejections.
+    provenance: Optional[dict[str, Any]] = None
+    # D8: ``roadmap_approval`` or ``unscoped`` for an ``auto`` scoped gate.
+    scope: Optional[str] = None
 
     @property
     def proceed(self) -> bool:
@@ -168,7 +177,7 @@ class ApprovalDecision:
 
     def to_audit_record(self) -> dict[str, Any]:
         """Flatten to the dict handed to the :class:`AuditSink`."""
-        return {
+        record: dict[str, Any] = {
             "gate": self.gate.value,
             "outcome": self.outcome.value,
             "resolution": self.resolution.value,
@@ -182,6 +191,11 @@ class ApprovalDecision:
             "notified": self.notified,
             "timeout_seconds": self.timeout_seconds,
         }
+        if self.provenance is not None:
+            record["provenance"] = dict(self.provenance)
+        if self.scope is not None:
+            record["scope"] = self.scope
+        return record
 
 
 # --------------------------------------------------------------------------- #
@@ -190,7 +204,12 @@ class ApprovalDecision:
 # --------------------------------------------------------------------------- #
 
 def console_decision(
-    gate: Gate, posture: dict[str, Any], approved: bool, note: Optional[str]
+    gate: Gate,
+    posture: dict[str, Any],
+    approved: bool,
+    note: Optional[str],
+    *,
+    approval_ref: Optional[str] = None,
 ) -> ApprovalDecision:
     """Build the ApprovalDecision for an answer a human gave in-conversation.
 
@@ -219,6 +238,7 @@ def console_decision(
             f"{suffix}"
         ),
         posture_present=bool(posture.get("posture_present", False)),
+        provenance={"source": "human", "approval_ref": approval_ref},
     )
 
 
@@ -306,6 +326,34 @@ class AuditSink(Protocol):
 Clock = Callable[[], float]
 Sleep = Callable[[float], None]
 PostureLoader = Callable[..., TrustPosture]
+#: Returns the current launch marker for the evaluation context, or ``None`` for
+#: a standalone run (dispatch-contract D8, D10a).
+MarkerReader = Callable[[dict[str, Any]], Optional[dict[str, Any]]]
+
+#: Reason fragment recorded when a scoped gate falls back (D8).
+UNSCOPED_FALLBACK_REASON = "unscoped fallback"
+#: Reason fragment recorded when a dispatched child's posture drifted (D5).
+POSTURE_DRIFT_REASON = "posture digest differs from dispatch"
+
+
+def _default_marker_reader(repo_root: Optional[str]) -> MarkerReader:
+    """Lazily bind ``dispatch_contract.read_launch_marker`` (D8).
+
+    Imported on first use so this module lands and tests before the contract
+    library exists; an import failure means "no marker" (standalone).
+    """
+
+    def read(context: dict[str, Any]) -> Optional[dict[str, Any]]:
+        change_id = context.get("change_id")
+        if not isinstance(change_id, str) or not change_id:
+            return None
+        try:
+            from shared import dispatch_contract  # type: ignore[attr-defined]
+        except ImportError:
+            return None
+        return dispatch_contract.read_launch_marker(change_id, repo_root=repo_root)
+
+    return read
 
 
 # --------------------------------------------------------------------------- #
@@ -332,7 +380,15 @@ class ApprovalGate:
     # Overrides the (repo_root) argument passed to the loader when set; lets tests and
     # callers point at an explicit contract path.
     posture_path: Optional[str] = None
+    # D8 seam: the launch marker is obtained here, never from the evaluation
+    # context, so no caller can assert roadmap-approval scope by passing a value.
+    marker_reader: Optional[MarkerReader] = None
     _logger: logging.Logger = field(default=logger, repr=False)
+
+    def _read_marker(self, ctx: dict[str, Any]) -> Optional[dict[str, Any]]:
+        reader = self.marker_reader or _default_marker_reader(self.repo_root)
+        marker = reader(ctx)
+        return marker if isinstance(marker, dict) else None
 
     def check_filed(
         self,
@@ -398,13 +454,52 @@ class ApprovalGate:
         gd = posture.disposition_for(gate_enum)
 
         if gd.disposition is Disposition.AUTO:
-            return self._finalize(self._auto(gate_enum, gd), posture)
+            return self._finalize(self._evaluate_auto(gate_enum, gd, posture, ctx), posture)
         if gd.disposition is Disposition.BLOCK:
             return self._finalize(self._posture_block(gate_enum, gd), posture)
         # NOTIFY_WITH_TIMEOUT
         return self._finalize(self._notify(gate_enum, gd, ctx), posture)
 
     # -- disposition handlers ------------------------------------------------ #
+
+    def _evaluate_auto(
+        self, gate: Gate, gd: GateDisposition, posture: TrustPosture, ctx: dict[str, Any]
+    ) -> _Draft:
+        """Apply an ``auto`` disposition under the dispatch scope rules.
+
+        D5/D10a: a dispatched child whose worktree posture digest differs from
+        the one its launch marker carries takes no ``auto`` — the supervisor's
+        posture is authoritative, so the gate parks for it to decide.
+        D8: ``auto`` on a scoped gate applies only when the launch marker
+        carries a ``roadmap_approval_ref``; otherwise the gate's ``unscoped``
+        fallback applies. A reference supplied in ``ctx`` is ignored.
+        """
+        marker = self._read_marker(ctx)
+        dispatched_digest = (marker or {}).get("posture_digest")
+        if isinstance(dispatched_digest, str) and dispatched_digest != posture_digest(posture):
+            draft = self._posture_block(gate, gd)
+            draft.reason = (
+                f"gate {gate.value!r} parked: {POSTURE_DRIFT_REASON} "
+                "(the worktree trust posture is not the supervisor's)"
+            )
+            return draft
+        if gate not in SCOPED_GATES:
+            return self._auto(gate, gd)
+        if marker is not None and marker.get("roadmap_approval_ref"):
+            draft = self._auto(gate, gd)
+            draft.scope = "roadmap_approval"
+            return draft
+        fallback = posture.unscoped_for(gate)
+        if fallback.disposition is Disposition.NOTIFY_WITH_TIMEOUT:
+            draft = self._notify(gate, fallback, ctx)
+        else:
+            draft = self._posture_block(gate, fallback)
+        draft.reason = (
+            f"{draft.reason} ({UNSCOPED_FALLBACK_REASON}: auto requires a launch "
+            "marker carrying a roadmap_approval_ref)"
+        )
+        draft.scope = "unscoped"
+        return draft
 
     def _auto(self, gate: Gate, gd: GateDisposition) -> _Draft:
         return _Draft(
@@ -629,6 +724,10 @@ class ApprovalGate:
     # -- finalize + audit ---------------------------------------------------- #
 
     def _finalize(self, draft: _Draft, posture: TrustPosture) -> ApprovalDecision:
+        if draft.resolution in (Resolution.APPROVED, Resolution.REJECTED):
+            provenance: dict[str, Any] = {"source": "human", "approval_ref": None}
+        else:
+            provenance = {"source": "posture", "posture_digest": posture_digest(posture)}
         decision = ApprovalDecision(
             gate=draft.gate,
             outcome=draft.outcome,
@@ -640,6 +739,8 @@ class ApprovalGate:
             posture_present=posture.present,
             notified=draft.notified,
             timeout_seconds=draft.timeout_seconds,
+            provenance=provenance,
+            scope=draft.scope,
         )
         self._record_audit(decision)
         return decision
@@ -699,6 +800,7 @@ class _Draft:
     default_action: Optional[DefaultAction] = None
     notified: Optional[bool] = None
     timeout_seconds: Optional[int] = None
+    scope: Optional[str] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -904,6 +1006,7 @@ def build_default_gate(
     http_url: Optional[str] = None,
     api_key: Optional[str] = None,
     poll_interval_seconds: float = DEFAULT_POLL_INTERVAL_SECONDS,
+    marker_reader: Optional[MarkerReader] = None,
 ) -> ApprovalGate:
     """Wire an :class:`ApprovalGate` with the production bridge-backed defaults."""
     return ApprovalGate(
@@ -914,4 +1017,5 @@ def build_default_gate(
         agent_id=agent_id,
         repo_root=repo_root,
         poll_interval_seconds=poll_interval_seconds,
+        marker_reader=marker_reader,
     )
