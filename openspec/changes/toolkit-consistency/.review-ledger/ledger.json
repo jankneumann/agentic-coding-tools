@@ -4,7 +4,7 @@
   "items": [
     {
       "id": 1,
-      "status": "open",
+      "status": "parked",
       "axis": "correctness",
       "type": "spec_gap",
       "criticality": "medium",
@@ -18,11 +18,13 @@
         "claude_code"
       ],
       "description": "19 of the 20 spec deltas (every change except toolkit-consistency) are plan-roadmap scaffolds whose scenarios are circular: `WHEN <change-id> is implemented THEN <acceptance outcome>`. Each SHALL technically has a WHEN/THEN, but none is verifiable, and all sit under the placeholder capability `multiplayer-collaboration`, for which no `openspec/specs/` directory exists. toolkit-consistency's own plan-findings graded this same pattern 'critical testability' and replaced it. Acceptable as scaffolds that /plan-feature or PLAN_ITERATE must refine, but they must not pass through to IMPLEMENT as-is.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 2,
-      "status": "open",
+      "status": "parked",
       "axis": "readability",
       "type": "style",
       "criticality": "low",
@@ -35,11 +37,13 @@
         "claude_code"
       ],
       "description": "The scaffold generator truncates requirement headings mid-sentence with `...` and lowercases the first character of the outcome, producing `pRs created by` here (and `that given any`, `that /implement-feature` elsewhere). `### Requirement:` headings are the identity used by opsx:sync and by the planned requirement-level collision scanner (ri-06), so truncated, near-identical headings undermine the very collision detection this roadmap introduces.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 3,
-      "status": "open",
+      "status": "retired",
       "axis": "security",
       "type": "security",
       "criticality": "medium",
@@ -52,11 +56,12 @@
         "claude_code"
       ],
       "description": "The rationale for `proposal_approval: auto` is that a recorded `roadmap_approval` already authorizes the plans inside a roadmap. But `proposal_approval` also fires for standalone changes started via /plan-feature or /autopilot with no parent roadmap, where no roadmap_approval exists. As written, the posture removes the only human intent gate for non-roadmap changes, which contradicts the epic's own P3 (intent is an owned artifact) and the fail-closed constraint.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "unconfirmed",
+      "resolution": "operator disposition 2026-10-10: implemented elsewhere (ri-21 dispatch-contract #667, main 731557b)"
     },
     {
       "id": 4,
-      "status": "open",
+      "status": "parked",
       "axis": "readability",
       "type": "style",
       "criticality": "low",
@@ -69,11 +74,13 @@
         "claude_code"
       ],
       "description": "The header comment says 'every failure/escalation path still wait[s] for a human', but `replan_required` (fires when a roadmap item enters `replan_required`, i.e. after a failed plan) is set to `auto`. The table further down is internally consistent (`proposal_approval, replan_required | auto`), so only the comment is wrong, but the comment is what an operator reads first.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 5,
-      "status": "open",
+      "status": "parked",
       "axis": "observability",
       "type": "observability",
       "criticality": "medium",
@@ -86,11 +93,13 @@
         "claude_code"
       ],
       "description": "Two operator approvals of `escalate_resume` cite a 'cloud single-vendor review policy (TRUST_POSTURE.md 479dcd9)' as their authority. The TRUST_POSTURE.md in this packet contains no review-quorum or single-vendor policy at all; it only defines gate dispositions. Either the policy lives in a commit not present here, or the authority citation is unverifiable from the repository, which defeats P9 traceability. Both approvals also carry `approval_id: null`, so the only record of the human decision is free text in `reason`.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 6,
-      "status": "open",
+      "status": "retired",
       "axis": "correctness",
       "type": "correctness",
       "criticality": "medium",
@@ -103,11 +112,12 @@
         "claude_code"
       ],
       "description": "Canonical roadmap state disagrees with the change loop-state. `toolkit-consistency/loop-state.json` shows ri-20 ran GATEKEEPER and PLAN_ITERATE on 2026-10-05 and has been parked in PLAN_REVIEW twice, yet roadmap.yaml still lists ri-20 as `approved` (not `in_progress`), checkpoint.json has no dispatch_attempt for it, `current_item_id` is still ri-01, and roadmap `status` is `planning` after a recorded roadmap_approval proceed. Per docs/guides/work-queue-truth-projection.md roadmap.yaml/loop-state.json are the canonical state a rebuilt queue is projected from, so a reconciliation would re-dispatch ri-20 as fresh work.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "unconfirmed",
+      "resolution": "operator disposition 2026-10-10: owned by roadmap supervisor bookkeeping pass"
     },
     {
       "id": 7,
-      "status": "open",
+      "status": "retired",
       "axis": "security",
       "type": "security",
       "criticality": "low",
@@ -120,7 +130,8 @@
         "claude_code"
       ],
       "description": "The dispatch handshake `launch_token` and lease `owner_nonce` are committed in a tracked file. They appear to be single-use and already consumed (lease state `released`, gate `entered`), so exposure is low, but committing live-looking tokens trains readers to treat them as harmless and will trip secret scanners.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "unconfirmed",
+      "resolution": "operator disposition 2026-10-10: accepted; checkpoint digest-only since 4955e24"
     },
     {
       "id": 8,
@@ -196,7 +207,7 @@
     },
     {
       "id": 12,
-      "status": "open",
+      "status": "parked",
       "axis": "observability",
       "type": "observability",
       "criticality": "low",
@@ -209,11 +220,13 @@
         "claude_code"
       ],
       "description": "The record's `written_at` (06:59:55.764) is 35 ms earlier than the `decided_at` of the decision it contains (06:59:55.799), so the file claims to have been written before the decision it records. Two different timestamp formats (`+00:00` vs `Z`) are also used in the same file.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 13,
-      "status": "open",
+      "status": "parked",
       "axis": "architecture",
       "type": "architecture",
       "criticality": "low",
@@ -226,7 +239,9 @@
         "claude_code"
       ],
       "description": "Priority inversion: ri-13 (priority 2) depends on ri-12 (priority 3), so the priority-2 item cannot become ready until a priority-3 item completes. Under the autopilot-roadmap/queue ordering the priority field then misrepresents effective scheduling order.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 14,
@@ -248,7 +263,7 @@
     },
     {
       "id": 15,
-      "status": "open",
+      "status": "parked",
       "axis": "observability",
       "type": "observability",
       "criticality": "low",
@@ -261,11 +276,13 @@
         "claude_code"
       ],
       "description": "After the operator-approved resume, `escalation_reason` still holds the pre-resume reason, `previous_phase` equals `current_phase`, and `iteration` is 0 while `total_iterations` is 8. Readers of the loop-state cannot tell whether the loop is still escalated or running. Harmless for execution but reduces the state file's value as the canonical record.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 16,
-      "status": "open",
+      "status": "parked",
       "axis": "readability",
       "type": "spec_gap",
       "criticality": "low",
@@ -278,7 +295,9 @@
         "claude_code"
       ],
       "description": "Scaffold proposals list dependencies as roadmap item IDs (`ri-02`) rather than change IDs (`ownership-map`). A change proposal is meant to be readable on its own in a PR; a reader without the roadmap cannot resolve `ri-02`. This matters more given the epic's constraint that artifacts stay legible to teammates who do not use the skills.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 17,
@@ -356,7 +375,7 @@
     },
     {
       "id": 21,
-      "status": "open",
+      "status": "parked",
       "axis": "security",
       "type": "contract_mismatch",
       "criticality": "low",
@@ -369,7 +388,9 @@
         "claude_code"
       ],
       "description": "The summary table asserts that `pr_creation` 'Fails closed if the notification is undelivered', but the Dispositions section, which is the normative description of `notify_with_timeout`, defines only 'file approval, notify, poll until timeout, apply default_action' and says nothing about undelivered notifications. With `default_action: proceed` the documented semantics would proceed after an hour regardless of delivery. Either document the undelivered-notification rule under Dispositions or drop the claim from the table so the contract does not promise behaviour it does not specify.",
-      "consensus_status": "unconfirmed"
+      "consensus_status": "disagreement",
+      "parked_reason": "reject_out_of_scope",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)"
     },
     {
       "id": 22,
