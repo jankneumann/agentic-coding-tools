@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T09:51:44.263381+00:00",
+  "updated_at": "2026-10-10T09:54:19.977585+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -924,6 +924,61 @@
       "item_id": "ri-21",
       "lease_generation": 3,
       "note": "Operator in supervisor session 2026-10-10 (\"1. Rerun\"): resume ri-21 to DONE. Goal-gate fix 1d79737 binds the report to the converged VAL_REVIEW (14:08) after its last commit (14:06), so the existing validation evidence is accepted without a VALIDATE re-run."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T09:54:03.538641+00:00",
+      "decision_id": "e2abdbef-72e1-4d21-931f-89cc945cdd97",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-simulation-harness",
+      "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
+      "item_id": "ri-05",
+      "lease_generation": 3
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator in ri-05 worker session session_01GTShWgrUnZ1sK8G98uXsda: \"Option 2\" at 2026-10-10T03:02:20Z (port converge() base_ref + bookkeeping fix, run IMPL_REVIEW unshimmed) and \"Approve PR now\" at ~09:48Z (PR creation); both verified from that session's transcript.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T09:54:03.936706+00:00",
+      "decision_id": "1561670b-85df-4d57-8cb7-388d5a44859d",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "multiplayer-simulation-harness",
+      "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
+      "item_id": "ri-05",
+      "lease_generation": 3,
+      "note": "Operator in ri-05 worker session session_01GTShWgrUnZ1sK8G98uXsda: \"Option 2\" at 2026-10-10T03:02:20Z (port converge() base_ref + bookkeeping fix, run IMPL_REVIEW unshimmed) and \"Approve PR now\" at ~09:48Z (PR creation); both verified from that session's transcript."
     }
   ],
   "dispatch_attempts": [
@@ -1450,7 +1505,7 @@
       "status": "parked",
       "prepared_at": "2026-10-05T07:10:51.250636+00:00",
       "launch_marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
-      "lease_generation": 3,
+      "lease_generation": 4,
       "launch_history": [
         {
           "generation": 1,
@@ -1544,6 +1599,37 @@
           "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
           "observed_at": "2026-10-09T12:16:32.539755+00:00",
           "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g3"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "owner-nonce-1791626044405",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
+          "observed_at": "2026-10-10T09:54:04.683591+00:00"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "owner-nonce-1791626044405",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
+          "observed_at": "2026-10-10T09:54:04.955937+00:00",
+          "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g4"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "owner-nonce-1791626044405",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
+          "observed_at": "2026-10-10T09:54:04.955937+00:00",
+          "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g4"
+        },
+        {
+          "generation": 4,
+          "owner_nonce": "owner-nonce-1791626044405",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/multiplayer-simulation-harness/ri-05-attempt-1.marker",
+          "observed_at": "2026-10-10T09:54:05.207805+00:00",
+          "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g4"
         }
       ],
       "scope": {
@@ -1558,26 +1644,27 @@
         "host_id": "machine-dc39bf1e25efdf45"
       },
       "context": {},
+      "launch_digest": "sha256:4bd9abfa2c9fab0a44730f6065225c560a95392626647300e00503105f1864b0",
       "lease": {
-        "generation": 3,
-        "owner_nonce": "de65d2016b45b357e6bb2c519ba9fc44",
+        "generation": 4,
+        "owner_nonce": "owner-nonce-1791626044405",
         "state": "released",
-        "acquired_at": "2026-10-09T12:16:32.526381+00:00",
-        "heartbeat_at": "2026-10-09T12:16:32.526381+00:00",
-        "expires_at": "2026-10-09T12:31:32.526381+00:00"
+        "acquired_at": "2026-10-10T09:54:04.683591+00:00",
+        "heartbeat_at": "2026-10-10T09:54:04.683591+00:00",
+        "expires_at": "2026-10-10T10:09:04.683591+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 3,
-        "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g3",
-        "observed_at": "2026-10-09T12:16:32.532228+00:00"
+        "generation": 4,
+        "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g4",
+        "observed_at": "2026-10-10T09:54:04.955937+00:00"
       },
       "launch_gate": {
-        "generation": 3,
+        "generation": 4,
         "state": "entered",
-        "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g3",
-        "go_released_at": "2026-10-09T12:16:32.532228+00:00",
-        "entered_at": "2026-10-09T12:16:32.539755+00:00"
+        "handle": "session_01GTShWgrUnZ1sK8G98uXsda#g4",
+        "go_released_at": "2026-10-10T09:54:04.955937+00:00",
+        "entered_at": "2026-10-10T09:54:05.207805+00:00"
       },
       "application_journal": {
         "schema_version": 1,
@@ -1586,42 +1673,43 @@
           "attempt": 1,
           "branch": "openspec/multiplayer-simulation-harness",
           "change_id": "multiplayer-simulation-harness",
+          "degradations": [],
           "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
           "evidence": {
-            "commit": "4932f544913c765e596ace3122ceeaea25dae97b",
-            "loop_state_digest": "9d63b9ebbd7e3300640bdbf5b3ca116a1b77de5292d7b188b2831c4ae7e299d1",
+            "commit": "a7909b82a7d3d89a984d1fa995d22d8494659b34",
+            "loop_state_digest": "4dcdcc97792237578d5a0dbbd89ca4b2cfd017b4406ecfc7188953d41fa71a06",
             "loop_state_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json"
           },
-          "handoff_id": "cc44baf6-dd8c-4ae4-931c-2203d6928c33",
-          "lease_generation": 3,
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 4,
           "outcome": "parked",
           "parked": {
-            "gate": "escalate_resume",
+            "deadline": null,
+            "gate": "merge",
             "kind": "pending_gate",
-            "reason": "IMPLEMENT and IMPL_ITERATE complete (93 tests). IMPL_REVIEW blocked before any review: classifier denied a converge() driver shim (base_ref override, bookkeeping-path exclusion, min_quorum=1) as CI Bypass. Root cause: converge() lacks base_ref and counts its own ledger/cache writes in _changed_paths.",
-            "resume_hint": "After converge() gains base_ref and excludes its own bookkeeping paths (and the fix reaches this branch), answer escalate_resume; loop resumes at IMPL_REVIEW unshimmed."
+            "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+            "resume_hint": "answer gate merge through the resume request's gate_answer"
           },
           "schema_version": 2,
-          "degradations": [],
-          "worktree_ref": "multiplayer-simulation-harness",
-          "host_id": "machine-dc39bf1e25efdf45"
+          "worktree_ref": "multiplayer-simulation-harness"
         },
-        "result_digest": "a6faf97b7e3e23093adc19663cbdebb04bc9a5f6fbac812ef9bfad8fbd371417",
-        "bound_at": "2026-10-09T12:23:21.463827+00:00",
-        "callback_started_at": "2026-10-09T12:23:21.467975+00:00",
-        "callback_acknowledged_at": "2026-10-09T12:23:21.471173+00:00",
-        "terminal_persisted_at": "2026-10-09T12:23:21.474464+00:00",
-        "effects_applied_at": "2026-10-09T12:23:21.512126+00:00"
+        "result_digest": "bc3c7bcd68ff367bf8218bcef0b0b312e72cfee49f85a42e72a52b840ce5c568",
+        "bound_at": "2026-10-10T09:54:19.856055+00:00",
+        "callback_started_at": "2026-10-10T09:54:19.879406+00:00",
+        "callback_acknowledged_at": "2026-10-10T09:54:19.905984+00:00",
+        "terminal_persisted_at": "2026-10-10T09:54:19.927046+00:00",
+        "effects_applied_at": "2026-10-10T09:54:19.974078+00:00"
       },
       "outcome": "parked",
-      "resolved_at": "2026-10-09T12:23:21.474439+00:00",
+      "resolved_at": "2026-10-10T09:54:19.927005+00:00",
+      "degradations": [],
       "parked": {
-        "gate": "escalate_resume",
+        "deadline": null,
+        "gate": "merge",
         "kind": "pending_gate",
-        "reason": "IMPLEMENT and IMPL_ITERATE complete (93 tests). IMPL_REVIEW blocked before any review: classifier denied a converge() driver shim (base_ref override, bookkeeping-path exclusion, min_quorum=1) as CI Bypass. Root cause: converge() lacks base_ref and counts its own ledger/cache writes in _changed_paths.",
-        "resume_hint": "After converge() gains base_ref and excludes its own bookkeeping paths (and the fix reaches this branch), answer escalate_resume; loop resumes at IMPL_REVIEW unshimmed."
-      },
-      "launch_digest": "sha256:88c51079161469885b923be25f35a945c68b3c811a9b167a809477c2eb51eeb9"
+        "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+        "resume_hint": "answer gate merge through the resume request's gate_answer"
+      }
     },
     {
       "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
