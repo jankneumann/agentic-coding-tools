@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "dispatch-contract",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 12,
+  "total_iterations": 13,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -78,9 +78,9 @@
   ],
   "last_handoff_id": "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
   "started_at": "2026-10-06T09:08:58.470413+00:00",
-  "phase_started_at": "2026-10-09T14:08:09.206576+00:00",
-  "previous_phase": "PLAN_REVIEW",
-  "escalation_reason": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable (codex listed by --check-vendors but no codex CLI/credential). Quorum not lowered; awaiting operator decision on cloud review lane (GX10/policy/credential). handoff 9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
+  "phase_started_at": "2026-10-10T03:10:45.098479+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": "goal gate refused: validate record predates report",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
@@ -172,27 +172,42 @@
       "disposition": "block",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-10-09T14:09:04.031160+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator approved merge in supervisor session 2026-10-09 ('merge both 662, 667, 666'); PR #667 merged as 0d078ff by the operator.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:d2c8df05-dcfb-4133-a9d4-239e812c5620"
+      },
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-10T03:10:34.221320+00:00",
+      "note": "Operator approved merge in supervisor session 2026-10-09 ('merge both 662, 667, 666'); PR #667 merged as 0d078ff by the operator."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "dispatch-contract",
-    "gate": "merge",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-10-09T14:09:04.032176+00:00",
-    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-    "context": {
+  "pending_gate": null,
+  "goal_gate": {
+    "verdict": "refused",
+    "reason": "validate record predates report",
+    "evidence": {
+      "merge_authorized": true,
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/667",
-      "branch": "openspec/dispatch-contract",
-      "change_id": "dispatch-contract"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true,
-      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      "report_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "checked_at": "2026-10-10T03:10:45.098385+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-10-09T13:55:05.532741+00:00",
+      "report_mtime": "2026-10-09T14:08:04.183909+00:00"
     }
   },
-  "goal_gate": null,
   "park": null,
   "degradations": [
     {
