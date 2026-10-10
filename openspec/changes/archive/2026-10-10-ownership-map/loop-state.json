@@ -306,5 +306,31 @@
     }
   },
   "park": null,
-  "degradations": []
+  "degradations": [
+    {
+      "code": "single_vendor_review",
+      "phase": "PLAN_REVIEW",
+      "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "IMPL_REVIEW",
+      "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "VAL_REVIEW",
+      "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "phase": "INIT",
+      "detail": "coordinator project-state/approvals 403 for this worker key"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "PLAN",
+      "detail": "audit sink reported failure on every gate-check decision from proposal_approval onward"
+    }
+  ]
 }
