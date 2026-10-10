@@ -3,7 +3,7 @@
   "change_id": "dispatch-contract",
   "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 13,
+  "total_iterations": 15,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -74,13 +74,19 @@
       "at": "2026-10-09T14:08:06.250432+00:00",
       "outcome": "converged",
       "phase": "VAL_REVIEW"
+    },
+    {
+      "phase": "ESCALATE",
+      "outcome": "transition_failed",
+      "at": "2026-10-10T09:52:41.398847+00:00",
+      "note": "Invalid outcome 'created' for phase 'ESCALATE'"
     }
   ],
   "last_handoff_id": "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
   "started_at": "2026-10-06T09:08:58.470413+00:00",
-  "phase_started_at": "2026-10-10T03:10:45.098479+00:00",
+  "phase_started_at": "2026-10-10T09:53:00.404737+00:00",
   "previous_phase": "SUBMIT_PR",
-  "escalation_reason": "goal gate refused: validate record predates report",
+  "escalation_reason": "goal gate refused: required section not passed: Validation Review (missing)",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
@@ -192,20 +198,71 @@
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-10-10T03:10:34.221320+00:00",
       "note": "Operator approved merge in supervisor session 2026-10-09 ('merge both 662, 667, 666'); PR #667 merged as 0d078ff by the operator."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T09:52:54.591188+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator resumed merged item ri-21 in supervisor session 2026-10-10 (decision fb5a1364, a4948ea); goal gate fixed in 1d79737 (VAL_REVIEW binds after VALIDATE).",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:fb5a1364-f4d7-41ce-b1fb-f385d2261d4d"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-10T09:52:57.428960+00:00",
+      "note": "Operator resumed merged item ri-21 in supervisor session 2026-10-10 (decision fb5a1364, a4948ea); goal gate fixed in 1d79737 (VAL_REVIEW binds after VALIDATE)."
     }
   ],
   "pending_gate": null,
   "goal_gate": {
     "verdict": "refused",
-    "reason": "validate record predates report",
+    "reason": "required section not passed: Validation Review (missing)",
     "evidence": {
       "merge_authorized": true,
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/667",
       "report_path": "openspec/changes/dispatch-contract/validation-report.md",
-      "checked_at": "2026-10-10T03:10:45.098385+00:00",
+      "checked_at": "2026-10-10T09:53:00.161786+00:00",
       "validate_outcome": "passed",
       "validate_at": "2026-10-09T13:55:05.532741+00:00",
-      "report_mtime": "2026-10-09T14:08:04.183909+00:00"
+      "report_mtime": "2026-10-09T14:08:04.183909+00:00",
+      "report_time": "2026-10-09T14:06:06+00:00",
+      "report_time_source": "commit",
+      "bound_by": "VAL_REVIEW",
+      "val_review_at": "2026-10-09T14:08:06.250432+00:00",
+      "required_sections": [
+        "Spec Compliance",
+        "Validation Review"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass",
+        "Validation Review": "missing"
+      }
     }
   },
   "park": null,
