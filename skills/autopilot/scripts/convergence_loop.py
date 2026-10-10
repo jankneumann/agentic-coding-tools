@@ -1262,7 +1262,9 @@ def converge(
             if changed:
                 reject_out_of_scope_fix(changed, allowed)
             last_fix_diff = _last_fix_diff(worktree_path, pre_rev)
-            mark_addressed(ledger, [int(item["id"]) for item in dispatch_items])
+            mark_addressed(
+                ledger, [int(item["id"]) for item in dispatch_items], touched_paths=changed,
+            )
             save_ledger(ledger, artifacts_dir)
 
             # 2l. Post-fix validation (optional)
