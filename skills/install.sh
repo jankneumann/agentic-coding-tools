@@ -965,7 +965,11 @@ PY
     return 1
   fi
   chmod 644 "$stamp_tmp"
-  mv -f "$stamp_tmp" "$stamp_dir/stamp.json"
+  if ! mv -f "$stamp_tmp" "$stamp_dir/stamp.json"; then
+    rm -f "$stamp_tmp"
+    echo "Install stamp: could not replace $stamp_dir/stamp.json" >&2
+    return 1
+  fi
   echo "Install stamp: $stamp_dir/stamp.json ($payload_hash)"
 }
 
