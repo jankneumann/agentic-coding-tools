@@ -118,4 +118,30 @@ skipped or weakened by the validator.
 
 ## Validation Review
 
-_To be filled in by VAL_REVIEW._
+Result: incomplete (parked after a permission denial; `converge()` did not run, so no
+pass/fail verdict is recorded here yet)
+
+Evidence produced before the park (VAL_FIX evidence sub-step, this container,
+branch `openspec/toolkit-consistency--val-review` from 544fa99):
+
+- rsync was installed (`apt-get install -y rsync`) and the suite from the Test suites
+  section re-ran with it present (skills/.venv; `skills/tests/install_sh`,
+  `improve-harness`, `_shared`, `shared`): **183 passed, 1 skipped, 0 failed** (311.8s).
+  The 15 previously rsync-skipped tests all pass, including
+  `test_consumer_portability::test_manifest_entry_points_run_without_source_checkout`
+  for both `.claude` and `.agents`, which is the test the "Helper passes the portability
+  gate" and "Exporter passes the portability gate" scenarios name and which the earlier
+  run could not execute (it runs `shared/payload_hash.py --help` and
+  `improve-harness/scripts/export_shared_learnings.py --help` from the installed closure
+  only). `test_payload_hash::test_source_and_mirror_hash_identically[rsync]` also passed,
+  so "Source and mirror hash identically" is now proven in rsync mode as well as copy
+  mode. The one remaining skip is the pre-existing "node_modules not present".
+- The Spec Compliance table above cited `test_consumer_portability (passed)` for the two
+  portability scenarios while three of that module's tests were skipped; the rsync run
+  above is the evidence that closes that gap. No other result line was changed.
+
+Not done: the gitleaks secret scan (the regex substitute in the Security section still
+stands); the single-vendor `converge()` critique of this report; the review of the four
+roadmap acceptance outcomes against the evidence. The downloading of a gitleaks release
+(`curl -sSI ... https://github.com/gitleaks/gitleaks/releases/latest`) was denied by the
+permission system and, per the operator policy, not worked around.
