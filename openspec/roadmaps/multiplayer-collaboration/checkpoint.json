@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T10:51:38.425801+00:00",
+  "updated_at": "2026-10-10T10:52:24.689960+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -1419,6 +1419,33 @@
       "item_id": "ri-20",
       "lease_generation": 7,
       "note": "Operator merged PR #671 (2026-10-10T10:44:31Z); the DONE refusal was a goal-gate defect (committer date rewritten by the rebase merge), fixed in d1f65b25. Resume to SUBMIT_PR -> DONE under the fixed gate; no VALIDATE re-run needed."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T10:52:24.641847+00:00",
+      "decision_id": "b1f1380d-07e0-4dee-a802-13bf4f2b5557",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "toolkit-consistency",
+      "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "lease_generation": 8
     }
   ],
   "dispatch_attempts": [
@@ -2204,7 +2231,7 @@
       "change_id": "toolkit-consistency",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:53.278971+00:00",
       "launch_marker_path": ".supervised-dispatch/toolkit-consistency/ri-20-attempt-1.marker",
       "lease_generation": 8,
@@ -2472,14 +2499,10 @@
       "context": {},
       "launch_digest": "sha256:2e491b84f4d49c5e7544582627190c0bf7d043ba5ada064687722e9502925803",
       "degradations": [],
-      "continuation": {
-        "kind": "policy_pause",
-        "approval_ref": "gate-decision:5f8bf169-1e0c-4426-a189-9a26171571ba"
-      },
       "lease": {
         "generation": 8,
         "owner_nonce": "owner-nonce-1791629454820",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T10:50:54.914888+00:00",
         "heartbeat_at": "2026-10-10T10:50:54.914888+00:00",
         "expires_at": "2026-10-10T11:05:54.914888+00:00"
@@ -2496,6 +2519,49 @@
         "handle": "session_01SFH32A8gaJCyUn6j7uBLgb#g8",
         "go_released_at": "2026-10-10T10:50:55.180400+00:00",
         "entered_at": "2026-10-10T10:50:55.464481+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/toolkit-consistency",
+          "change_id": "toolkit-consistency",
+          "degradations": [],
+          "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+          "evidence": {
+            "commit": "be36e3a44ed959248cdd18e89a3907ba2d98da2d",
+            "loop_state_digest": "2cecd7732847b8707d271d7fc41986c27d545c6619d813dcf603d7967c7bd346",
+            "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+          },
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 8,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": null,
+            "kind": "policy_pause",
+            "reason": "goal gate refused: required section not passed: Spec Compliance (missing)",
+            "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+          },
+          "schema_version": 2,
+          "worktree_ref": "toolkit-consistency"
+        },
+        "result_digest": "064f3903bbd9885c51b3a116452bfe63793b0e3df97bbf83f7af4830b285eabc",
+        "bound_at": "2026-10-10T10:52:21.749669+00:00",
+        "callback_started_at": "2026-10-10T10:52:21.780806+00:00",
+        "callback_acknowledged_at": "2026-10-10T10:52:21.808391+00:00",
+        "terminal_persisted_at": "2026-10-10T10:52:21.837116+00:00",
+        "effects_applied_at": "2026-10-10T10:52:21.894348+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-10T10:52:21.837065+00:00",
+      "parked": {
+        "deadline": null,
+        "gate": null,
+        "kind": "policy_pause",
+        "reason": "goal gate refused: required section not passed: Spec Compliance (missing)",
+        "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
       }
     },
     {
