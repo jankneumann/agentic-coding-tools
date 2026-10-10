@@ -3,8 +3,8 @@
   "change_id": "dispatch-contract",
   "round": 2,
   "body_path": "review-packet.md",
-  "sha256": "a6b09643e05f485b1e7cea7154905c840d87c939b3b5def879bd7bfd1e30c0dd",
-  "char_length": 76649,
+  "sha256": "aa44429bb5b9083ed1d1ac6c0488b64e298d142dd1a543358799d9b261185854",
+  "char_length": 69301,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -17,28 +17,14 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1601
+        "est_tokens": 1574
       },
       {
         "path": "openspec/changes/dispatch-contract/validation-report.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2881
-      },
-      {
-        "path": "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
-        "status": "modified",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 1197
-      },
-      {
-        "path": "skills/tests/roadmap-runtime/test_cross_host_reconcile.py",
-        "status": "modified",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 504
+        "est_tokens": 2045
       }
     ],
     "excluded": [
@@ -47,28 +33,28 @@
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 3146
+        "est_tokens": 2826
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-manifest.json",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 282
+        "est_tokens": 283
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.md",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 14480
+        "est_tokens": 102774
       },
       {
         "path": "openspec/changes/dispatch-contract/.review-cache/round-1/review-packet.meta.json",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 2177
+        "est_tokens": 9691
       }
     ],
     "truncated": []
@@ -81,15 +67,6 @@
       "files": [
         "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
         "openspec/changes/dispatch-contract/validation-report.md"
-      ]
-    },
-    {
-      "group_id": 2,
-      "source": "default",
-      "pattern": "skills/tests/**",
-      "files": [
-        "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
-        "skills/tests/roadmap-runtime/test_cross_host_reconcile.py"
       ]
     }
   ]

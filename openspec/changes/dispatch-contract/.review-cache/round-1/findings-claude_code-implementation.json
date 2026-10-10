@@ -12,47 +12,27 @@
       "evidence_class": "deterministic",
       "disposition": "fix",
       "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-      "description": "Outcome 6 evidence is overstated. The report says 'The CI gitleaks job remains the real-binary check', but .github/workflows/security.yml runs gitleaks only on push to main and on pull_request/merge_group targeting main. This change's PR targets openspec/roadmap-multiplayer-collaboration, so no real gitleaks run covers it until the roadmap PR (#662) to main runs Security. Locally only one default rule (generic-api-key) is ported to Python; the full default ruleset was never applied. The Result line ('All eight acceptance outcomes are covered by passing tests') does not qualify outcome 6.",
-      "resolution": "State outcome 6 as pass by the generic-api-key rule-port proxy, with the real default-ruleset scan deferred to the Security workflow on PR #662 (roadmap branch to main), name that this change's own PR does not trigger it, and qualify the Result line accordingly."
+      "line_range": "119-126",
+      "existing_code": "No CI run covers it yet either: ... The first real default-ruleset scan of these commits is the Security workflow on PR #662 (roadmap branch to `main`). Treat outcome 6 as confirmed only once that job passes.",
+      "description": "Outcome 6 describes as future a scan that had already passed when the report was regenerated. PR #662 (roadmap branch to main) merged at 2026-10-10T03:07:43Z as 731557bc (gh api repos/.../pulls/662). The Security workflow's secret-scan job (gitleaks/gitleaks-action@v3, default ruleset via .gitleaks.toml useDefault=true) concluded success on PR #662 heads 0d078ff (the PR #667 merge), 4955e24 (the live multiplayer-collaboration checkpoint migrated to digest-only launch tokens with live attempts), c04a1a8 and 789705a, and on the push to main 731557bc (run 38019470729: secret-scan success). The report was written at 1560d08 (2026-10-10T10:06Z), seven hours later. The .gitleaks.toml commit allowlist exempts only the three raw-token-introducing commits (ddd2c4a8, c6424d74, 3c06430a), not 4955e24, so these runs are real default-ruleset evidence that a committed checkpoint with live attempts passes with no allowlist entry. The same stale statement appears in the Security section (line 155) and the Result line (line 172: 'first runs in PR #662's Security job and must pass there'). The report understates outcome 6 and leaves a confirmation condition open that is already met.",
+      "resolution": "Cite the PR #662 Security runs (secret-scan success at 0d078ff, 4955e24, c04a1a8, 789705a; push-to-main run 38019470729 at 731557bc). Note that gitleaks-action scans the PR/push commit range, so the digest-only checkpoint commit 4955e24 was scanned and is not allowlisted. Mark outcome 6 confirmed by the real default-ruleset scan, and update the Security section and Result line to match."
     },
     {
       "id": 2,
       "type": "spec_gap",
-      "criticality": "medium",
-      "severity": "critical",
-      "axis": "correctness",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
       "evidence_class": "deterministic",
       "disposition": "fix",
-      "file_path": "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
-      "description": "Outcome 4 on the capability-fingerprint path is only half-proved. The human side is covered (rejection survives membership change, approval ends the subject), but no test parks a capability fingerprint under escalate_resume=block, flips the posture to auto with no human answer, and shows resolve_parked proceeds with posture provenance and resumes the child. _resolve_capability_park reaches that path only via _apply_prior_record + the dispatch_ids==listed check, which nothing exercises. test_an_operator_approval_ends_a_human_rejected_escalation reaches posture-auto only after a human approval.",
-      "resolution": "Add an end-to-end test: capability park, resolve_parked blocked with posture provenance (digest A), posture flip to auto, resolve_parked proceeds with posture provenance (digest B) and the attempt is resumed."
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "line_range": "97",
+      "existing_code": "`test_an_approval_resumes_a_member_that_joined_after_the_rejection`",
+      "description": "Outcome 4 (capability-fingerprint path) cites a test that no longer exists. 765f9d8 renamed it to test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected (skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py:376) and changed what it asserts: an approval given before re-projection resumes nothing ('early[\"resumed\"] == []'). The report's header says 765f9d8 is in the code under test, but this citation uses the pre-fix name and so describes the pre-fix semantics. The renamed test passes.",
+      "resolution": "Cite the current test id and describe what it proves: an approval authorizes only the durable subject's listing, and a late member is resumed only after its resolve_parked extends the human-rejected subject."
     },
     {
       "id": 3,
-      "type": "spec_gap",
-      "criticality": "medium",
-      "severity": "critical",
-      "axis": "compatibility",
-      "evidence_class": "deterministic",
-      "disposition": "fix",
-      "file_path": "skills/tests/roadmap-runtime/test_cross_host_reconcile.py",
-      "description": "Outcome 7 evidence cannot detect the defect the outcome targets. Host A and host B share the same repo root and workspace directory, so an absolute host-A path leaking into checkpoint.json (or into any record reconcile reads) would still resolve on 'host B'. Nothing asserts that a reconciled checkpoint holds no absolute path, and nothing reconciles a checkpoint copied to a different repository root (the 'committed on one host, checked out on another' case).",
-      "resolution": "Add a test that copies host A's repository (checkpoint, schemas, roadmap) to a different root, asserts the committed checkpoint text contains no host-A absolute path, and reconciles from host B rooted there (rebind of a matching worktree), with the original tree removed so no absolute path can resolve."
-    },
-    {
-      "id": 4,
-      "type": "spec_gap",
-      "criticality": "medium",
-      "severity": "critical",
-      "axis": "correctness",
-      "evidence_class": "deterministic",
-      "disposition": "fix",
-      "file_path": "skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py",
-      "description": "Outcome 5 says execution_profile, review_requirements and degradations[] are 'carried end to end', which the proposal defines as request -> launch marker -> child loop-state.json -> emit-result file -> apply -> checkpoint attempt and apply return value. The report's only end-to-end citation is the capability-park routing test; degradations are proven only piecewise (test_emit_result::test_degradations_travel_into_the_result, and test_execution::test_apply_persists_degradations_on_the_attempt with a hand-composed result), and the marker's profile only in a unit test.",
-      "resolution": "Add one e2e test through the real chain: prepare, launch, assert the child's marker carries the request's execution_profile and review_requirements, record a degradation with runner.py record-degradation, emit-result, apply, and assert the attempt record and apply return value carry it."
-    },
-    {
-      "id": 5,
       "type": "spec_gap",
       "criticality": "low",
       "severity": "optional",
@@ -60,8 +40,9 @@
       "evidence_class": "deterministic",
       "disposition": "fix",
       "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-      "description": "Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.",
-      "resolution": "Correct the citations; refresh counts and the commit header after VAL_FIX."
+      "line_range": "77-134",
+      "description": "The header names the PR #667 review fixes and the post-merge commits as code under test, but the outcome-to-test mapping cites none of the tests they added. Each one bears on a claimed outcome. (a) Outcome 4: 765f9d8's supervise/test_execution.py tests test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer, test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved and test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked show that a human rejection survives a member joining. (b) Outcome 5: 43a9b11's test_concurrent_resolvers_on_one_fingerprint_are_single_flight (block/auto) shows racing resolvers still yield a single escalation. (c) Outcome 7: b35e544's test_a_cloud_worker_at_the_repo_root_prepares_and_starts, shared/test_dispatch_contract.py::test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot and ::test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref cover the portable repo-root isolation ref. (d) Outcome 1 and the gate-answer path: 3a29785 changed dispatch-request.schema.json and the escalate_resume answer, with tests in supervise/test_execution_contract.py, supervise/test_gate_router.py (test_escalate_resume_answer_records_resume_at_validate, test_resume_at_is_refused_unless_an_approved_validate_resume) and autopilot/test_console_interviewer.py. (e) f44bbd6's autopilot/test_goal_gate.py tests are not mentioned. These tests ran inside the whole-suite totals, so the evidence exists, but a reader cannot see from the mapping that the review fixes are proven.",
+      "resolution": "Add these test ids under outcomes 4, 5, 7 and 1, and add a one-line note for the goal-gate tests (f44bbd6), so the mapping reflects the review fixes the header lists."
     }
   ]
 }

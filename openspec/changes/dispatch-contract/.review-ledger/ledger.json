@@ -518,7 +518,95 @@
       "description": "Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.",
       "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 30,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "fingerprint": "722edcc42b23fd2a",
+      "first_seen_round": 1,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Outcome 6 describes as future a scan that had already passed when the report was regenerated. PR #662 (roadmap branch to main) merged at 2026-10-10T03:07:43Z as 731557bc (gh api repos/.../pulls/662). The Security workflow's secret-scan job (gitleaks/gitleaks-action@v3, default ruleset via .gitleaks.toml useDefault=true) concluded success on PR #662 heads 0d078ff (the PR #667 merge), 4955e24 (the live multiplayer-collaboration checkpoint migrated to digest-only launch tokens with live attempts), c04a1a8 and 789705a, and on the push to main 731557bc (run 38019470729: secret-scan success). The report was written at 1560d08 (2026-10-10T10:06Z), seven hours later. The .gitleaks.toml commit allowlist exempts only the three raw-token-introducing commits (ddd2c4a8, c6424d74, 3c06430a), not 4955e24, so these runs are real default-ruleset evidence that a committed checkpoint with live attempts passes with no allowlist entry. The same stale statement appears in the Security section (line 155) and the Result line (line 172: 'first runs in PR #662's Security job and must pass there'). The report understates outcome 6 and leaves a confirmation condition open that is already met. \u2014 re-verified resolved in 794b4281",
+      "resolution": "compact: claimed fix did not take",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 31,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "fingerprint": "3918054b5bd61d53",
+      "first_seen_round": 1,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Outcome 4 (capability-fingerprint path) cites a test that no longer exists. 765f9d8 renamed it to test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected (skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py:376) and changed what it asserts: an approval given before re-projection resumes nothing ('early[\"resumed\"] == []'). The report's header says 765f9d8 is in the code under test, but this citation uses the pre-fix name and so describes the pre-fix semantics. The renamed test passes. \u2014 re-verified resolved in 794b4281",
+      "resolution": "compact: claimed fix did not take",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 32,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "fingerprint": "36f8fd22e4a93864",
+      "first_seen_round": 1,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The header names the PR #667 review fixes and the post-merge commits as code under test, but the outcome-to-test mapping cites none of the tests they added. Each one bears on a claimed outcome. (a) Outcome 4: 765f9d8's supervise/test_execution.py tests test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer, test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved and test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked show that a human rejection survives a member joining. (b) Outcome 5: 43a9b11's test_concurrent_resolvers_on_one_fingerprint_are_single_flight (block/auto) shows racing resolvers still yield a single escalation. (c) Outcome 7: b35e544's test_a_cloud_worker_at_the_repo_root_prepares_and_starts, shared/test_dispatch_contract.py::test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot and ::test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref cover the portable repo-root isolation ref. (d) Outcome 1 and the gate-answer path: 3a29785 changed dispatch-request.schema.json and the escalate_resume answer, with tests in supervise/test_execution_contract.py, supervise/test_gate_router.py (test_escalate_resume_answer_records_resume_at_validate, test_resume_at_is_refused_unless_an_approved_validate_resume) and autopilot/test_console_interviewer.py. (e) f44bbd6's autopilot/test_goal_gate.py tests are not mentioned. These tests ran inside the whole-suite totals, so the evidence exists, but a reader cannot see from the mapping that the review fixes are proven. \u2014 re-verified resolved in 794b4281",
+      "resolution": "compact: claimed fix did not take",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 33,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "fingerprint": "0f802205815899da",
+      "first_seen_round": 2,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 34,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "fingerprint": "a477c41a2d7bb1b2",
+      "first_seen_round": 2,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The new 'Tests added after IMPL review' block is indented as a continuation of list item 6 (the secret-scan outcome). Its bullets cite evidence for outcomes 4, 5, 7 and 1, so in the rendered list they appear under outcome 6. Each bullet names its outcome, so nothing is wrong, but a reader scanning outcome 4 or 7 will not find those tests there.",
+      "consensus_status": "unconfirmed"
     }
   ],
-  "compacted_at": "2026-10-09T14:06:08Z"
+  "compacted_at": "2026-10-10T10:26:17Z"
 }
