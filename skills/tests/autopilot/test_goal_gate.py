@@ -452,3 +452,35 @@ def test_a_rebase_merge_does_not_make_the_report_look_newer(tmp_path: Path) -> N
 
     assert verdict.verdict == "passed"
     assert verdict.evidence["report_time"] == REPORT_MTIME.isoformat()
+
+
+def test_archiving_the_change_does_not_make_the_report_look_newer(tmp_path: Path) -> None:
+    """``openspec archive`` moves the change directory: a pure rename after the
+    review. The report's content still dates from before the validation record."""
+    change_dir = _committed_change_dir(tmp_path, REPORT_MTIME)
+    archived = tmp_path / "openspec" / "changes" / "archive" / "2026-10-10-demo"
+    archived.parent.mkdir(parents=True)
+    _git(tmp_path, "mv", str(change_dir.relative_to(tmp_path)), str(archived.relative_to(tmp_path)))
+    _git(tmp_path, "commit", "-q", "-m", "archive", when=REPORT_MTIME + timedelta(hours=20))
+
+    verdict = check(FakeState(phase_history=[validate_entry(60)]), archived)
+
+    assert verdict.verdict == "passed"
+    assert verdict.evidence["report_time"] == REPORT_MTIME.isoformat()
+    assert verdict.evidence["report_time_source"] == "commit"
+
+
+def test_an_edit_committed_with_the_archive_still_counts(tmp_path: Path) -> None:
+    change_dir = _committed_change_dir(tmp_path, REPORT_MTIME)
+    archived = tmp_path / "openspec" / "changes" / "archive" / "2026-10-10-demo"
+    archived.parent.mkdir(parents=True)
+    _git(tmp_path, "mv", str(change_dir.relative_to(tmp_path)), str(archived.relative_to(tmp_path)))
+    report = archived / "validation-report.md"
+    report.write_text(report.read_text() + "\nedited while archiving\n")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "archive+edit", when=REPORT_MTIME + timedelta(hours=20))
+
+    verdict = check(FakeState(phase_history=[validate_entry(60)]), archived)
+
+    assert verdict.reason == goal_gate.REASON_STALE_REPORT
+
