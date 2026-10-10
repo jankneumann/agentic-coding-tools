@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T11:32:14.174410+00:00",
+  "updated_at": "2026-10-10T11:43:04.164682+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -1588,6 +1588,33 @@
       "roadmap_id": "multiplayer-collaboration",
       "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
       "note": "Operator in the supervisor session: \"Proceed with 673 and 668\" (merge #668 once CI green). #668 merged as f0dc5803 after the operator re-ran test-openbao-live (green)."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T11:43:04.114879+00:00",
+      "decision_id": "dfe4de44-1206-47cc-8a82-ae64d6f8497c",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "ownership-map",
+      "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "lease_generation": 7
     }
   ],
   "dispatch_attempts": [
@@ -1862,7 +1889,7 @@
       "change_id": "ownership-map",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-05T07:10:13.179980+00:00",
       "launch_marker_path": ".supervised-dispatch/ownership-map/ri-02-attempt-1.marker",
       "lease_generation": 7,
@@ -2098,15 +2125,37 @@
       },
       "context": {},
       "launch_digest": "sha256:3c681ce6699a9c4663af73f574b1d1419ab17e0f596bc7fefc654b335d9b3032",
-      "degradations": [],
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:3ebc2a1f-08d0-4857-ae2f-626e50762d1e"
-      },
+      "degradations": [
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+          "phase": "VAL_REVIEW"
+        },
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "coordinator project-state/approvals 403 for this worker key",
+          "phase": "INIT"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure on every gate-check decision from proposal_approval onward",
+          "phase": "PLAN"
+        }
+      ],
       "lease": {
         "generation": 7,
         "owner_nonce": "owner-nonce-1791631933702",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T11:32:13.363574+00:00",
         "heartbeat_at": "2026-10-10T11:32:13.363574+00:00",
         "expires_at": "2026-10-10T11:47:13.363574+00:00"
@@ -2123,6 +2172,75 @@
         "handle": "session_011LTtuyAcYi2oaHLoJtpwwM#g7",
         "go_released_at": "2026-10-10T11:32:13.868875+00:00",
         "entered_at": "2026-10-10T11:32:14.171132+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/ownership-map",
+          "change_id": "ownership-map",
+          "degradations": [
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code lane only, min_quorum=1, TRUST_POSTURE 479dcd9; codex auth_required",
+              "phase": "VAL_REVIEW"
+            },
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "coordinator project-state/approvals 403 for this worker key",
+              "phase": "INIT"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure on every gate-check decision from proposal_approval onward",
+              "phase": "PLAN"
+            }
+          ],
+          "dispatch_id": "batch-38d29036afe852aa275bde24:ri-02:attempt-1",
+          "evidence": {
+            "commit": "d2234571d8632f5307d08f65507e2c8f16a8812a",
+            "loop_state_digest": "e509929bbafd0ddca34213a187b8a0ee4cdce86b89b996138d73db638205f288",
+            "loop_state_path": "openspec/changes/archive/2026-10-10-ownership-map/loop-state.json"
+          },
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 7,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": null,
+            "kind": "policy_pause",
+            "reason": "goal gate refused: validate record predates report",
+            "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+          },
+          "schema_version": 2,
+          "worktree_ref": "ownership-map"
+        },
+        "result_digest": "cee46cd98726e1befacae205cf892838e27b6216ece8dd6bbc43244b837745a8",
+        "bound_at": "2026-10-10T11:43:01.472900+00:00",
+        "callback_started_at": "2026-10-10T11:43:01.504379+00:00",
+        "callback_acknowledged_at": "2026-10-10T11:43:01.533992+00:00",
+        "terminal_persisted_at": "2026-10-10T11:43:01.563796+00:00",
+        "effects_applied_at": "2026-10-10T11:43:01.622690+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-10T11:43:01.563740+00:00",
+      "parked": {
+        "deadline": null,
+        "gate": null,
+        "kind": "policy_pause",
+        "reason": "goal gate refused: validate record predates report",
+        "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
       }
     },
     {
