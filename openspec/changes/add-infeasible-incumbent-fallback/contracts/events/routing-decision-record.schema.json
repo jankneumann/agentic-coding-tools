@@ -156,7 +156,11 @@
                   "uniqueItems": true,
                   "items": {
                     "type": "string",
-                    "minLength": 1
+                    "enum": [
+                      "local",
+                      "cloud",
+                      "unknown"
+                    ]
                   }
                 },
                 "isolation_order": {
@@ -165,7 +169,11 @@
                   "uniqueItems": true,
                   "items": {
                     "type": "string",
-                    "minLength": 1
+                    "enum": [
+                      "none",
+                      "worktree",
+                      "sandbox"
+                    ]
                   }
                 },
                 "dispatch_mode_order": {
@@ -174,7 +182,12 @@
                   "uniqueItems": true,
                   "items": {
                     "type": "string",
-                    "minLength": 1
+                    "enum": [
+                      "review",
+                      "alternative",
+                      "quick",
+                      "sdk"
+                    ]
                   }
                 }
               },
@@ -578,6 +591,36 @@
         "properties": {
           "selected": {
             "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "retention"
+        ],
+        "properties": {
+          "retention": {
+            "properties": {
+              "reason": {
+                "const": "incumbent-infeasible-configured-fallback"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "request": {
+            "required": [
+              "incumbent"
+            ],
+            "properties": {
+              "incumbent": {
+                "type": "object"
+              }
+            }
           }
         }
       }

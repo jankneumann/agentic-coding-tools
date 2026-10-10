@@ -167,6 +167,30 @@ run `validate_work_packages.py` on the held file and the promoted manifest (#18)
 2.1 updated (#26); wp-dispatch gains a ruff step and the whole change directory in `write_allow`
 (#19, #20). Parked as out of scope (tooling, not this plan): the decision timelines mark
 superseded entries `active` because `archive_index.py --emit-decisions` does not read the
-`supersedes:` tag `phase_record.py` writes (#2, #21, #22) — this phase's session-log entry
-carries `supersedes:` tags anyway, so the index can pick them up once the generator does;
-candidate follow-up: teach `archive_index.py` the tag and order same-date entries by phase.
+`supersedes:` tag `phase_record.py` writes (#2, #21, #22). The Plan Review session-log entry
+(written at the end of this phase, after the last pass) carries `supersedes:` tags on the
+decisions that reverse earlier ones; the generated index will not show them until
+`archive_index.py` learns the tag. Candidate follow-up: teach it the tag and order same-date
+entries by phase.
+
+## PLAN_REVIEW convergence, pass 4 (2026-10-10T22:32Z)
+
+Delta round on `8d5aea25`: claude-local 5 findings (233 s), codex-local 4 (96 s), 9
+unconfirmed, 0 blocking, three single-vendor high items → `adjudication_required`:
+
+| Ledger # | Vendor | Criticality | Verdict | Action |
+|---|---|---|---|---|
+| 32 | codex | high | Valid: the record schema never said configured-fallback ⇒ `request.incumbent` object | Reverse conditional added; README difference (4) is now both directions; D6; 2.1 negative cases for absent and null incumbent |
+| 34 (= claude #31) | codex | high | Valid: 2.0 cannot execute the prose-guard test (package denies `skills/autopilot/**`, no second checkout) | 2.0 re-runs object-store checks only (`git grep`, `git cat-file -e`); P0 alone runs the test, from the rebased feature worktree, and records command and result in the promotion commit; D8 |
+| 35 | codex | high | Valid in part: the hold was prose at the lifecycle boundary | Named the two fail-closed mechanisms in D8: `cleanup-feature` step 5 stops on unchecked tasks 2.x–4.x and asks (tasks header tells the operator to stop); a `DONE` loop-state is terminal, so P0 moves it to `loop-state.run-1.json` and refuses to promote while a run is in flight; run-1 manifest header says completing it does not complete the change |
+
+Also fixed: second-run re-entry semantics (claude #27, same loop-state mechanism); D7 is
+coordinator-wide and flag-independent for every `select_model` caller (claude #29); the three
+lane-attribute lists of `order_applied` are enum-typed in all three contracts (claude #30,
+codex #33). Claude #28 (parking rationale rested on a session-log entry not yet in the branch)
+is addressed by the wording above and by the Plan Review entry this phase writes.
+
+Trend across passes (unique findings / blocking / single-vendor high-or-critical):
+15/0/4 → 8 (unsynthesized) → 12/0/4 → 9/0/3. Every finding in every pass was single-vendor
+judgment-class; the ledger never held a blocking item. After the pass-4 adjudication the ledger
+has no open, no blocking and no adjudication items, which is the engine's converged state.

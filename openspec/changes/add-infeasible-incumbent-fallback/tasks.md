@@ -23,7 +23,10 @@
 > both its task chains depend on it; it re-checks P0's facts and fails fast, it never promotes.
 > The change directory stays active between the two runs: `cleanup-feature` (task migration and
 > `openspec archive`) is withheld after the `wp-dispatch` PR merges and runs only after
-> `wp-router` merges (design D8).**
+> `wp-router` merges (design D8). Operator running `cleanup-feature` after the first PR: its
+> step 5 will find tasks 2.x–4.x unchecked and ask for a migration target — answer by
+> stopping, not by migrating; those tasks belong to the second run. P0 moves the finished
+> `loop-state.json` aside so the second run starts fresh.**
 >
 > Each package rebases onto `main` before its first commit (the plan was written on a branch
 > behind `main`; the named router files are unchanged there, `phase_agent.py` and
@@ -110,13 +113,19 @@
     `git grep -q UnservableProviderError origin/main -- skills/autopilot/scripts/phase_agent.py`
     (1.4), `git grep -q resolved_provider origin/main -- skills/autopilot/scripts/smoke_provider_dispatch.py`
     (1.5), and `git cat-file -e origin/main:skills/tests/autopilot/test_skill_dispatch_provider_prose.py`
-    followed by running that prose-guard test from a clean `origin/main` checkout (1.6: the
-    eight SKILL.md blocks); a partial implementation fails one of the three;
+    followed by running that prose-guard test from the feature worktree, which is rebased onto
+    `origin/main` and therefore carries that SKILL.md (1.6: the eight SKILL.md blocks); a
+    partial implementation fails one of the three; record the command and result in the
+    promotion commit message;
   - require `git merge-base --is-ancestor origin/main HEAD` (the feature branch is rebased);
   - require that the change directory is still active: `openspec/changes/<id>/` exists on
     `origin/main` and not under `openspec/changes/archive/` (design D8: `cleanup-feature` is
     withheld for this change until `wp-router` merges; if it was archived, stop and restore
-    before promoting).
+    before promoting);
+  - require that `openspec/changes/<id>/loop-state.json` is absent or has `current_phase:
+    DONE` (the first run finished); move it to `loop-state.run-1.json` as the `wp-dispatch`
+    completion record, so the second run starts at `INIT` (`runner.py init` leaves an existing
+    file alone and `apply-outcome` is a no-op at `DONE`).
   If a blob differs, regenerate `v1.4.yaml`, the record schema and `generated/models.py` from
   the merged v1.3, confirm the diff is only the README's listed differences, and re-pin the
   three blob ids and the source commit in `contracts/README.md` in the same commit. Then promote
@@ -133,11 +142,15 @@
 ## 2. Contracts (wp-router)
 
 - [ ] 2.0 Fail-fast re-check (first step of the package; both chains depend on it). Re-run P0's
-  `origin/main` checks exactly (the three blob comparisons, the v1.3 marker, the three
-  `wp-dispatch` markers, `merge-base --is-ancestor`) from the package worktree, and run
+  **object-store** checks from the package worktree: the three blob comparisons, the v1.3
+  marker, the three `wp-dispatch` markers as `git grep` / `git cat-file -e` against
+  `origin/main` (not the prose-guard test execution: the package denies `skills/autopilot/**`
+  and cannot create another checkout; P0's run of it is attested by the promotion commit),
+  `merge-base --is-ancestor`, and
   `skills/validate-packages/scripts/validate_work_packages.py work-packages.yaml` on the promoted
-  manifest; stop the package if any fails. This step never promotes or regenerates anything; it
-  proves that P0 ran against the tree the worker sees. [XS]
+  manifest; stop the package if any fails. Every command reads the git object store or the
+  change directory, both inside the package's read scope. This step never promotes or
+  regenerates anything; it proves that P0 ran against the tree the worker sees. [XS]
   **Design decisions**: D8
   **Dependencies**: None
 - [ ] 2.1 Write failing contract tests in
@@ -150,8 +163,12 @@
   - `incumbent_exclusion_reasons` accepts only transient values, `minItems: 1`, unique
     (unsorted input is accepted by all three contracts: sorting is a producer invariant,
     tested in 3.5);
-  - `order_applied` requires all four lists, each non-empty and duplicate-free, and rejects an
-    empty-string entry in any list (all three contracts);
+  - `order_applied` requires all four lists, each non-empty and duplicate-free; rejects an
+    empty-string `vendor_order` entry; and rejects a `location_order` / `isolation_order` /
+    `dispatch_mode_order` value outside the `Location` / `Isolation` / `DispatchMode` enums
+    (e.g. `location_order: ["mars"]`), in all three contracts;
+  - the record schema rejects `retention.reason: incumbent-infeasible-configured-fallback`
+    when `request.incumbent` is absent and when it is `null` (negative cases both);
   - a configured-fallback response with top-level `fallback: true` is rejected;
   - the record schema requires `retention` whenever `request.incumbent` is an object: a record
     with an incumbent and no `retention` is rejected, one with `incumbent: null` (or absent) and

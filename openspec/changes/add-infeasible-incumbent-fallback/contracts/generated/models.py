@@ -38,15 +38,24 @@ TransientExclusionReason = Literal[
 ]
 
 
+Location = Literal["local", "cloud", "unknown"]
+Isolation = Literal["none", "worktree", "sandbox"]
+DispatchMode = Literal["review", "alternative", "quick", "sdk"]
+
+
 class FallbackOrderApplied(BaseModel):
-    """Verbatim copy of the routing policy's `fallback:` block as applied (design D6)."""
+    """Verbatim copy of the routing policy's `fallback:` block as applied (design D6).
+
+    The three lane-attribute lists carry the same enums as `FallbackOrder`
+    (`routing_policy.py`); `vendor_order` is an open agent-type allowlist (D5).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     vendor_order: list[str] = Field(min_length=1)
-    location_order: list[str] = Field(min_length=1)
-    isolation_order: list[str] = Field(min_length=1)
-    dispatch_mode_order: list[str] = Field(min_length=1)
+    location_order: list[Location] = Field(min_length=1)
+    isolation_order: list[Isolation] = Field(min_length=1)
+    dispatch_mode_order: list[DispatchMode] = Field(min_length=1)
 
     @model_validator(mode="after")
     def _lists_unique_and_non_empty(self) -> "FallbackOrderApplied":
