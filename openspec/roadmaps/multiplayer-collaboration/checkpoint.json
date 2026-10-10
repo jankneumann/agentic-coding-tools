@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-10T03:10:59.842304+00:00",
+  "updated_at": "2026-10-10T03:12:34.540456+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -759,6 +759,33 @@
       "item_id": "ri-20",
       "lease_generation": 3,
       "note": "Operator resumed ri-20 in worker session session_01SFH32A8gaJCyUn6j7uBLgb at 2026-10-10T03:08:03Z (\"Resume\"); verified from that session's transcript. T7 verification runs as separate commands without rm -rf."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-10T03:12:34.501960+00:00",
+      "decision_id": "be4f2421-4f61-4c76-ad83-02c3045a1242",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "dispatch-contract",
+      "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+      "item_id": "ri-21",
+      "lease_generation": 3
     }
   ],
   "dispatch_attempts": [
@@ -1606,7 +1633,7 @@
       "change_id": "dispatch-contract",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-06T09:07:52.136681+00:00",
       "launch_marker_path": ".supervised-dispatch/dispatch-contract/ri-21-attempt-1.marker",
       "lease_generation": 3,
@@ -1718,14 +1745,10 @@
       },
       "context": {},
       "launch_digest": "sha256:b49638717af32df05977885133fd555ca706a2236e7ec59a75decadfd7198cae",
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:d2c8df05-dcfb-4133-a9d4-239e812c5620"
-      },
       "lease": {
         "generation": 3,
         "owner_nonce": "owner-nonce-1791601731321",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-10T03:08:52.227368+00:00",
         "heartbeat_at": "2026-10-10T03:08:52.227368+00:00",
         "expires_at": "2026-10-10T03:23:52.227368+00:00"
@@ -1742,6 +1765,102 @@
         "handle": "session_016nxtswoDxS5hqr8EiY7RzW#g3",
         "go_released_at": "2026-10-10T03:08:52.537529+00:00",
         "entered_at": "2026-10-10T03:08:52.846609+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/dispatch-contract",
+          "change_id": "dispatch-contract",
+          "degradations": [
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+              "phase": "VAL_REVIEW"
+            },
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
+              "phase": "SUBMIT_PR"
+            }
+          ],
+          "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+          "evidence": {
+            "commit": "45f9195322bc3f52fc4c18bbb5ce5c98e7a011fd",
+            "loop_state_digest": "b55ce362b3fcfcaf304c6770f1708b4946aed1e852a38c1ae8853a4ab893fb35",
+            "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
+          },
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 3,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": null,
+            "kind": "policy_pause",
+            "reason": "goal gate refused: validate record predates report",
+            "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+          },
+          "schema_version": 2,
+          "worktree_ref": "dispatch-contract"
+        },
+        "result_digest": "194bf2b7874e803c17553ad68ae3d59810f79c9dff9ddecfb8d7f183a49a9b16",
+        "bound_at": "2026-10-10T03:12:31.077322+00:00",
+        "callback_started_at": "2026-10-10T03:12:31.102602+00:00",
+        "callback_acknowledged_at": "2026-10-10T03:12:31.126848+00:00",
+        "terminal_persisted_at": "2026-10-10T03:12:31.152376+00:00",
+        "effects_applied_at": "2026-10-10T03:12:31.209997+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-10T03:12:31.152319+00:00",
+      "degradations": [
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+          "phase": "VAL_REVIEW"
+        },
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
+          "phase": "SUBMIT_PR"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
+          "phase": "SUBMIT_PR"
+        }
+      ],
+      "parked": {
+        "deadline": null,
+        "gate": null,
+        "kind": "policy_pause",
+        "reason": "goal gate refused: validate record predates report",
+        "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
       }
     }
   ]
