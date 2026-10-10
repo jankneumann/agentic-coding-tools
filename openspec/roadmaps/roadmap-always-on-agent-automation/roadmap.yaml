@@ -233,7 +233,7 @@ items:
     every daemon-dispatched item.
 - item_id: ri-11
   title: Amend skill-workflow spec for policy-authorized sync windows
-  status: candidate
+  status: approved
   priority: 2
   effort: S
   depends_on:
@@ -338,7 +338,7 @@ items:
   - Failures emit findings conforming to review-findings.schema.json.
 - item_id: ri-16
   title: Seed scenario suite and nightly cross-vendor parity runs
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -358,7 +358,7 @@ items:
   - Scenario results are queryable per vendor per skill over time.
 - item_id: ri-17
   title: Auto-seed scenarios from incidents
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -409,7 +409,7 @@ items:
   - Ambient review ledger findings are available to sync-point gates.
 - item_id: ri-20
   title: Migrate CI to self-hosted GX10 runners
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on: []

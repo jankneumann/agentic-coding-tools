@@ -34,7 +34,14 @@
       "id": "40776beb-63e5-4a06-b7b9-b349f3a918df",
       "rationale": "Operator re-approved the roadmap after the ri-22 refinement: supervisor session 2026-10-10 (\"5. Yes\", approve ri-22 openrouter-review-lane for dispatch). ri-22 added in aacac4c and approved in 0064137.",
       "scope": "multiplayer-collaboration"
+    },
+    {
+      "decided_at": "2026-10-10T21:03:22.028844+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "600b975a-f130-4eaa-b1b8-22cb95d20be0",
+      "rationale": "operator approved via /supervise execute (2026-10-09/10 session)",
+      "scope": "roadmap-always-on-agent-automation"
     }
   ],
-  "written_at": "2026-10-10T13:30:53.391366Z"
+  "written_at": "2026-10-10T21:03:22.012153Z"
 }
