@@ -118,8 +118,13 @@ def test_commit_dates_derive_from_the_tick_and_ignore_global_config(tmp_path, mo
     world = _build(tmp_path)
     _commit_change(world, "alice", "sim-alice-notes", tick=3)
     clone = world.principal("alice").clone
-    date = _git(clone, "log", "-1", "--format=%aI|%cI|%an", "sim/alice/sim-alice-notes")
-    assert date == "2026-01-01T00:03:00+00:00|2026-01-01T00:03:00+00:00|alice"
+    # Raw dates (`<epoch> <tz>`), not %aI: git changed how strict ISO renders UTC
+    # (`+00:00` before 2.5x, `Z` after), and the assertion is about the date, not
+    # git's formatting. 1767225780 is 2026-01-01T00:03:00Z, i.e. tick 3.
+    date = _git(
+        clone, "log", "-1", "--date=raw", "--format=%ad|%cd|%an", "sim/alice/sim-alice-notes"
+    )
+    assert date == "1767225780 +0000|1767225780 +0000|alice"
 
 
 def test_identical_inputs_in_different_roots_give_identical_commit_ids(tmp_path):
