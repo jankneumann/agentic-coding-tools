@@ -215,11 +215,10 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
 
 ### Decide first
 
-- **Data.** The Railway coordinator and this one have separate databases.
-  Starting fresh drops its locks, queue, memory and audit history; migrating
-  means a `pg_dump` restored into `coordinator-postgres` *before* the first
-  API start, from a Railway instance at a schema the image's migrations can
-  continue from.
+- **Data.** Carried over: `seed-from-railway.sh` copies the Railway database,
+  `schema_migrations` included, so the first GX-10 start applies only the
+  migrations Railway has not run. Writes that land on Railway after the final
+  dump are lost, which is why step 6 stops the Railway API first.
 - **Keys.** If the GX-10 `coordination_api_keys` differ from Railway's, every
   client needs a new `COORDINATION_API_KEY` too. If they are the same, the
   Railway instance stays a live, Access-free door for those keys until it is
@@ -242,17 +241,41 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
    `/run/aca/gx10/cloudflared/credentials.json` (0600); a config with one
    ingress rule, `coord.rotkohl.ai` → `http://coordinator-api:8081`, then
    `http_status:404`; `GX10_COORD_TUNNEL_CONFIG` pointing at it.
-5. **Bring up** per [Bring-up](#bring-up), from a commit that includes the
-   Access wiring. `make status` must show `coordinator-api` healthy *before*
-   DNS moves.
-6. **Clients** — set `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` beside
+5. **Clients** — set `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` beside
    `COORDINATION_API_KEY` in every environment, including this host's session
    environment. The coordination bridge, the HTTP proxy transport and the
    session hooks send them when both are set. Harmless against Railway, so do
    this before the switch.
+6. **Freeze, seed, bring up.** Rehearse a–b on any day before; the real run
+   is one sitting, and agents see an outage from (b) to step 7.
+
+   ```bash
+   # a. Anywhere with pg_dump >= Railway's server version. The DSN file holds
+   #    the Railway Postgres DATABASE_PUBLIC_URL, mode 0600.
+   RAILWAY_COORD_DSN_FILE=~/.railway-coord-dsn deploy/gx10/seed-from-railway.sh dump coord.dump
+   deploy/gx10/seed-from-railway.sh check coord.dump   # any CHANGED/MISSING: stop
+   # b. Stop the Railway coordinator *service* (not its Postgres), then re-run (a)
+   #    so the final dump holds every write.
+   # c. On GX-10, with the dump copied over (0600): start only Postgres, restore
+   #    into the still-empty database, then hand the container back to the unit.
+   sudo systemctl start aca-gx10-coordinator-secrets.service
+   sudo podman-compose -p aca-gx10-coord -f /opt/agentic-coding-tools/deploy/gx10/docker-compose.coordinator.yml up -d coordinator-postgres
+   sudo /opt/agentic-coding-tools/deploy/gx10/seed-from-railway.sh restore coord.dump
+   sudo /opt/agentic-coding-tools/deploy/gx10/coordinator-runtime.sh down
+   sudo make -C /opt/agentic-coding-tools/deploy/gx10 start   # applies the pending migrations
+   # d. Once `make status` is healthy and step 8 passes: the dump holds every
+   #    agent's memory and audit trail.
+   shred -u coord.dump
+   ```
+
+   `restore` re-runs `check`, refuses a database that already has a schema
+   (an API that started first has migrated it empty), and creates the
+   `anon`/`authenticated`/`service_role` roles the row-level policies name —
+   roles are cluster-level, so no `pg_dump` carries them.
 7. **Switch DNS** — note the current Railway CNAME target (rollback), then
    `cloudflared tunnel route dns --overwrite-dns gx10-coordinator coord.rotkohl.ai`.
-   Rollback is restoring that CNAME, grey-clouded.
+   Rollback is restoring that CNAME, grey-clouded, and restarting the Railway
+   service; anything written to GX-10 in between stays behind.
 8. **Prove it**:
 
    ```bash
