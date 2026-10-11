@@ -74,18 +74,31 @@
       "disposition": "auto",
       "phase": "PLAN",
       "recorded_at": "2026-10-10T13:35:48.613149+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:a0408bee-2afc-4b03-8a84-b6daaf11326d"
+      },
+      "disposition": "block",
+      "phase": "PLAN",
+      "recorded_at": "2026-10-11T13:50:04.379017+00:00",
+      "note": null
     }
   ],
   "pending_gate": null,
   "goal_gate": null,
-  "park": {
-    "kind": "permission_blocked",
-    "tool": "Bash",
-    "rule": "auto mode classifier: [Auto-Mode Bypass]",
-    "classifier_reason": "Applying a supervisor-relayed gate approval (cross-session message, no launch marker) was classified as an auto-mode bypass",
-    "command": "runner.py gate-answer openrouter-review-lane --gate proposal_approval --decision approved --approval-ref gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6",
-    "reason": "permission denied for Bash under rule auto mode classifier: [Auto-Mode Bypass]"
-  },
+  "park": null,
   "degradations": [
     {
       "code": "coordinator_projection_forbidden",
