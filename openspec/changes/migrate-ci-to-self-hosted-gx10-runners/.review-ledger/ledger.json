@@ -1720,6 +1720,173 @@
       ],
       "description": "`ci_wallclock.py` does not handle structurally invalid but syntactically valid YAML inputs. For example, a `--workflow-file` containing a YAML list reaches `_workflow_jobs()` and raises an uncaught `AttributeError`; malformed manifest shapes similarly raise uncaught `TypeError` or `AttributeError`. `main()` does not catch these exceptions, so the operator gets a traceback instead of the documented controlled error exit. Validate loaded document types or catch and translate these failures, and add a test using valid YAML with the wrong structure.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 102,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/validation-report.md",
+      "fingerprint": "0f444d2b9601f6d7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "validation-report.md (Evidence, line 28) classifies the 12 full-suite failures + 1 collection error in multiplayer-simulation and roadmap-runtime as 'pre-existing cross-directory pollution / basename collision' but records no main-baseline run proving they fail without this diff. Static evidence on the branch supports non-causation: skills/tests/ci_runners is a package (__init__.py present), all eleven test basenames are unique across skills/tests, its conftest.py defines only local fixtures (repo_root, manifest, load_workflow, kit_dir) and mutates no global state, and the only sys.modules writes use the unique keys 'ci_wallclock' and 'ci_wallclock_rb' that nothing else in skills/tests imports. multiplayer-simulation itself lacks __init__.py, which is the classic basename-collision shape (test_cli.py, test_report.py, test_contracts.py). I could not execute pytest or git in this session to reproduce either way. Recommend the report cite the baseline command/result so the claim is auditable rather than inferred.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 103,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "fingerprint": "9007c111eefca753",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "tasks.md Status checklist still shows '- [ ] Testing' and '- [ ] Review' while validation-report.md records VALIDATE pass with 199 ci_runners tests green and IMPL_REVIEW converged over three rounds. The change artefacts disagree about phase state; the goal gate and archive tooling read tasks.md.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 104,
+      "status": "open",
+      "axis": "resilience",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "fingerprint": "dfbf8727cb246fdd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "IMPL_REVIEW round-3 unlabelled-job check verified: verify_run in scripts/ci/ci_wallclock.py reports a placement violation ('placement is unproven') when job_lane(entry) is None for a non-skipped job, and test_job_that_ran_without_labels_is_a_placement_violation pins it across both lanes and two job names. However compare()'s run_lane helper silently drops unlabelled jobs, and a run whose routed jobs are all unlabelled is excluded as 'no routed job was assigned a runner'. The two entry points therefore treat the same data differently: verify-run fails loudly, compare quietly shrinks the sample. This is acceptable because compare is a measurement tool and verify-run is the enforcement point (O8 vs O6/O9 in the runbook), but the median can be computed over fewer runs than the operator believes without any warning.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 105,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "fingerprint": "fc93e9ce7af66877",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Placement evidence relies on the Jobs API `labels` field, which echoes the labels the job requested, not the runner that executed it. For self-hosted lanes this is sufficient (GitHub only assigns runners holding all requested labels). For the hosted lane, a rogue self-hosted runner registered with the label `ubuntu-latest` would satisfy the requested labels while actually being self-hosted; the OTHER_SELF_HOSTED check only catches runners that advertise `self-hosted`. runner_name / runner_id (also in the Jobs API payload) identify the actual machine and would close that gap. This is a hardening observation, not a defect in the stated acceptance criteria.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 106,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/mint-jitconfig.sh",
+      "fingerprint": "c4bfeb3fbe92e1de",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "IMPL_REVIEW round-3 mint time budget verified correct: deploy/gx10-runner/mint-jitconfig.sh starts the budget clock before the cache-args check, credential check, sweep and mint; fits() requires elapsed + delay + req_max <= budget; fail_slow clips the hold-off to remaining budget; sweep is capped at half the budget. With GX10_MINT_MAX_ELAPSED=600, GX10_MINT_REQ_MAX=30 and TimeoutStartSec=900 the worst case (600 + 30 + 300 hold-off clipped) stays inside the unit timeout. test_whole_mint_run_is_bounded_below_the_start_timeout pins the arithmetic (max_elapsed + req_max < timeout, holdoff <= max_elapsed), the clock-before-sweep ordering, the `fits 0` call and the per-request --max-time. No defect; recorded so the round-3 fix has a vendor-review trace.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 107,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "fingerprint": "efe60f4fd9f690db",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "IMPL_REVIEW round-3 isolation unit verified: the dedicated oneshot gx10-runner-isolation.service (DefaultDependencies=no, Before=network-pre.target systemd-user-sessions.service) loads an idempotent `table inet gx10_runner_isolation` whose DNS exemption to 127.0.0.53 precedes `fib daddr type local drop`, and never routes through nftables.service (whose config begins with `flush ruleset`). test_nft_ruleset_is_ordered_persistent_and_dual_stack pins the rule ordering, the ExecStart line, the Before= ordering, the absence of `flush ruleset` and bans `enable --now nftables`. One gap: the unit has no ExecStop that deletes the table, so `systemctl stop gx10-runner-isolation` leaves the drop rules live. That is the safe failure direction for a code-execution surface and the runbook's O12 rollback does not depend on it, so this is informational.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 108,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": ".github/workflows/ci.yml",
+      "fingerprint": "000f0ef1771b373c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D10 says routed jobs pin tool setup actions to 'the same major version the repository uses elsewhere'. The only actions/setup-node pin in .github/workflows is the new one at ci.yml:391 (@v6), so the rule is vacuously satisfied and there is no existing major to agree with. Not a defect; noting so a future reviewer does not look for a mismatch.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 109,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "db90a9191c1924da",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The dedicated nftables boot unit does not guarantee that isolation is active before the lingering runner user manager starts. It is ordered before `systemd-user-sessions.service`, but systemd v255's `user@.service` has no ordering dependency on that service; `enable-linger` starts the user manager at boot independently. Moreover, `Before=` supplies ordering only, so an nft load failure would not prevent the runner units from starting. This leaves a boot-time path for PR code to run without host-network isolation. `test_nft_ruleset_is_ordered_persistent_and_dual_stack` merely pins the insufficient `Before=network-pre.target systemd-user-sessions.service` text and does not test the resolved dependency graph or failure behavior. Establish a hard ordering and failure dependency between the isolation service and the actual lingering user manager/runner startup, then test that relationship.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 110,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "e5f49dd49f64469a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The mint script's claimed single total time budget is not enforced for sweep API calls. `sweep()` calls `api_call` after checking only its half-budget elapsed cap, without checking that the request's `GX10_MINT_REQ_MAX` fits in the remaining overall budget. For example, `GX10_MINT_MAX_ELAPSED=10` with the default 30-second request maximum can exceed the advertised 10-second total on the first sweep request. The round-3 test claims every request is budget-checked but only searches globally for `if ! fits 0`; that check belongs to the later mint loop and does not pin sweep behavior. Check `fits` before every API request or validate the budget/request relationship, and add a timed stub regression covering sweep plus mint/hold-off under one budget.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 111,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "e8b6329651424891",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`validation-report.md` does not conform to the validation status/evidence contract. Deploy, Smoke, and E2E are described as not applicable but recorded as `skip`; Security is recorded as `skip` while its narrative explicitly says `Degraded`. The validation procedure requires `not applicable` for non-deployable phases and requires `DEGRADED` to be recorded verbatim when checks could not run. The report also omits the required validated commit and tree identifiers, so its otherwise reproducible test counts are not bound to an exact revision. Regenerate the report with consistent phase states and commit/tree provenance; retain O1-O12 as explicitly pending-operator, not passes.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }

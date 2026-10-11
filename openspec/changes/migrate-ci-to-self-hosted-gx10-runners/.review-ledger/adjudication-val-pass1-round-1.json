@@ -1,0 +1,45 @@
+{
+ "phase": "VAL_REVIEW",
+ "pass": 1,
+ "round": 1,
+ "adjudicator": "orchestrator (claude_code VAL_REVIEW sub-agent)",
+ "at": "2026-10-11T04:36:16.744770+00:00",
+ "decisions": [
+  {
+   "id": 109,
+   "vendor": "codex",
+   "criticality": "high",
+   "verdict": "valid (corroborated by claude_code in an earlier timed-out-quorum pass, rated medium)",
+   "action": "fixed",
+   "rationale": "Before= orders but does not gate; an nft load failure (or a user@ start not waiting on user sessions) would let lingering runner units start without isolation on a host code-execution surface. Runbook O4 now installs a user@<ghrunner uid>.service drop-in with Requires=/After=gx10-runner-isolation.service, verifies it with systemctl show, and drops the overstated 'never start without the rules' claim; tasks.md O4 and design.md risk row aligned. Pinned by test_runner_user_manager_requires_the_isolation_unit and test_isolation_unit_is_an_early_boot_oneshot."
+  },
+  {
+   "id": 110,
+   "vendor": "codex",
+   "criticality": "medium",
+   "verdict": "valid",
+   "action": "fixed",
+   "rationale": "Sweep list/delete requests checked only the half-budget cap, not that req_max fits in the remaining whole budget. Both now also require `fits 0`. Behavioural regression: GX10_MINT_MAX_ELAPSED=1, GX10_MINT_REQ_MAX=5 makes zero API calls."
+  },
+  {
+   "id": 111,
+   "vendor": "codex",
+   "criticality": "medium",
+   "verdict": "valid (gate_logic parsed the five `skip` sections as missing)",
+   "action": "fixed",
+   "rationale": "Statuses now not applicable (Deploy/Smoke/E2E), degraded (Security), skipped (CI Status, Pending-Operator Items); provenance line added."
+  }
+ ],
+ "also_fixed": [
+  102,
+  103
+ ],
+ "parked": {
+  "104": "advisory: compare() sample attrition warning",
+  "105": "advisory hardening: runner_name-based hosted placement proof",
+  "106": "verification note (no defect)",
+  "107": "verification note; ExecStop symmetry optional, superseded by Requires= which stops runners with the unit",
+  "108": "informational"
+ },
+ "control_evidence": "ci_runners + multiplayer-simulation + roadmap-runtime together: 477 passed, 1 skipped"
+}

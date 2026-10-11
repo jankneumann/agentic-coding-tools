@@ -27,7 +27,7 @@ Everything of that kind is in § 7 (operator-only).
 
 - [x] Planning
 - [x] Implementation
-- [ ] Testing
+- [x] Testing
 - [ ] Review
 - [ ] Done
 
@@ -458,7 +458,10 @@ Everything of that kind is in § 7 (operator-only).
     at boot with a dedicated oneshot unit, `gx10-runner-isolation.service`
     (`ExecStart=/usr/sbin/nft -f /etc/nftables.d/gx10-runner.nft`, ordered before
     `systemd-user-sessions.service`), never through `nftables.service`, whose stock config
-    begins with `flush ruleset` and would wipe the host's other firewall tables. Fallback: rebind
+    begins with `flush ruleset` and would wipe the host's other firewall tables. Gate the
+    runners on it with a `user@<ghrunner uid>.service` drop-in carrying
+    `Requires=gx10-runner-isolation.service` and `After=gx10-runner-isolation.service`
+    (ordering alone never stops a dependent unit when `nft` fails). Fallback: rebind
     every host service the runners must not reach to `127.0.0.1`.
   - Then run `deploy/gx10-runner/install-units.sh`, then `systemctl --user daemon-reload` and
     `systemctl --user enable --now gx10-runner@{1..8}` as `ghrunner`.
@@ -473,7 +476,9 @@ Everything of that kind is in § 7 (operator-only).
     the loop includes the host's IPv6 addresses;
     `podman exec gx10-runner-1 getent hosts api.github.com` resolves (the DNS exemption works;
     a host-side `getent` does not exercise it);
-    `systemctl is-enabled gx10-runner-isolation.service` prints `enabled` and
+    `systemctl is-enabled gx10-runner-isolation.service` prints `enabled`,
+    `systemctl show -p Requires -p After user@$(id -u ghrunner).service` names the isolation
+    unit twice, and
     `grep -c skuid /etc/nftables.d/gx10-runner.nft` is non-zero (the rules are persistent),
     and `nft list ruleset | grep -c '^table'` did not drop when the unit was started;
     `sudo nft list ruleset | grep skuid` shows the rules (or `ss -ltnp` shows those ports bound

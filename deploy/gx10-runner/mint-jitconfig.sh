@@ -113,10 +113,11 @@ api_call() {
 # later runners onto pages already read, so the next page request would skip them.
 sweep() {
   local page=1 url code id name status has_next stale=()
-  # The sweep may use at most half the budget; the mint keeps the rest.
+  # The sweep may use at most half the budget; the mint keeps the rest. Like every other
+  # request, a sweep request starts only when it can finish inside the whole budget.
   local sweep_cap_us=$(( budget_us / 2 ))
   while (( page <= max_pages )); do
-    if (( $(elapsed_us) > sweep_cap_us )); then
+    if (( $(elapsed_us) > sweep_cap_us )) || ! fits 0; then
       log "sweep: time cap reached on page ${page}; leaving the rest for the next start"
       break
     fi
@@ -143,7 +144,7 @@ sweep() {
   fi
   local entry
   for entry in "${stale[@]}"; do
-    if (( $(elapsed_us) > sweep_cap_us )); then
+    if (( $(elapsed_us) > sweep_cap_us )) || ! fits 0; then
       log "sweep: time cap reached; remaining stale runners are left for the next start"
       break
     fi

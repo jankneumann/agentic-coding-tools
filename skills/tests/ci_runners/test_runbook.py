@@ -118,6 +118,35 @@ def test_nft_ruleset_is_ordered_persistent_and_dual_stack(runbook):
     assert runbook.index("mkdir -p /etc/nftables.d") < runbook.index("tee /etc/nftables.d/gx10-runner.nft")
 
 
+def _heredoc(runbook: str, tag: str) -> str:
+    m = re.search(rf"<<'{tag}'\n(.*?)\n{tag}\n", runbook, flags=re.S)
+    assert m, f"runbook has no {tag} heredoc"
+    return m.group(1)
+
+
+def test_isolation_unit_is_an_early_boot_oneshot(runbook):
+    unit = _heredoc(runbook, "UNIT")
+    # Without DefaultDependencies=no the unit gains After=basic.target, which defeats the
+    # Before=network-pre.target ordering.
+    for needle in ("DefaultDependencies=no", "Type=oneshot", "RemainAfterExit=yes",
+                   "WantedBy=multi-user.target"):
+        assert needle in unit, needle
+
+
+def test_runner_user_manager_requires_the_isolation_unit(runbook):
+    """Before= orders but never gates: an nft load failure must stop the runners from
+    starting, so ghrunner's user manager Requires= (and is After=) the isolation unit."""
+    dropin = _heredoc(runbook, "DROPIN")
+    assert "Requires=gx10-runner-isolation.service" in dropin
+    assert "After=gx10-runner-isolation.service" in dropin
+    o4 = sections(runbook)["O4"]
+    assert "/etc/systemd/system/user@${gx10_uid}.service.d/gx10-runner-isolation.conf" in o4
+    # The drop-in is in place before the runner units are enabled, and is verified.
+    assert o4.index("gx10-runner-isolation.conf") < o4.index("enable --now gx10-runner@")
+    assert "systemctl show -p Requires -p After user@" in o4
+    assert "never start without the rules" not in runbook
+
+
 def test_o1_installs_and_verifies_host_prerequisites(runbook, kit_dir):
     o1 = sections(runbook)["O1"]
     assert "apt-get install -y podman curl jq nftables" in o1
