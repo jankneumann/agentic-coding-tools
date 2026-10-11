@@ -67,8 +67,10 @@ requirements, not as hardening to add later.
    pure functions over `gh api` JSON, with a thin CLI:
    - `median` computes the median wall-clock time of successful runs per lane and time window.
    - `compare` applies the acceptance threshold.
-   - `verify-run` checks one workflow run against the manifest: each routed job ran on a
-     `gx10` runner, each hosted job ran on a GitHub-hosted runner, and every job succeeded.
+   - `verify-run` checks one workflow run against the manifest: each routed job ran on the
+     expected lane, each hosted job ran on a GitHub-hosted runner, and every job succeeded or
+     was skipped by its own job-level `if:` (failed `continue-on-error` jobs are warnings;
+     design D8).
 5. **Operator runbook (new, `docs/guides/self-hosted-ci-runners.md`).** It covers each
    operator-only step with a concrete verification command: host user and linger, credential,
    image build, enabling the units, the fork-approval repository setting, the A/B dry run,
@@ -190,7 +192,6 @@ recorded as the path to take if engine-backed jobs or multi-host scaling are lat
 - **A9. Initial runner concurrency is 8 instances**, configurable. The operator tunes it
   against the wall-clock measurement. The ri-08 dispatcher daemon shares the host, so per-
   container CPU and memory limits are mandatory.
-
 - **A10. The shared uv cache volume is off by default and enabled only by explicit operator
   risk acceptance.** Same-repository branches are written not only by the owner but also by
   automation (Dependabot, agent PR sources such as Jules and Codex) and potentially by a leaked

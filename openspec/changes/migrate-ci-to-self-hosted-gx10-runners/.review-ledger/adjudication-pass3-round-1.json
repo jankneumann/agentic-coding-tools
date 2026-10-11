@@ -1,0 +1,103 @@
+{
+  "phase": "PLAN_REVIEW",
+  "pass": 3,
+  "round": 1,
+  "adjudicator": "orchestrator (claude_code PLAN_REVIEW sub-agent)",
+  "at": "2026-10-11T02:37:18.518581+00:00",
+  "note": "pass 2 lost quorum: codex/pi failed with E2BIG (packet > 128 KiB as argv); pass 3 delivered the prompt to codex/pi over stdin (transport only)",
+  "decisions": [
+    {
+      "id": 27,
+      "vendor": "claude_code",
+      "criticality": "high",
+      "verdict": "valid",
+      "action": "fixed",
+      "rationale": "skuid drop rule would also drop DNS to 127.0.0.53; DNS exemption added before the drop; O4 checks getent."
+    },
+    {
+      "id": 28,
+      "vendor": "claude_code",
+      "criticality": "high",
+      "verdict": "valid",
+      "action": "fixed",
+      "rationale": "curl probe false-negative on non-HTTP ports; replaced with /dev/tcp connect probe in design, O4 and spec."
+    },
+    {
+      "id": 40,
+      "vendor": "codex",
+      "criticality": "high",
+      "verdict": "valid (corroborated by claude_code #33/#5)",
+      "action": "fixed",
+      "rationale": "EnvironmentFile= and LoadCredential= pinned in D7, tests 3.1, O2 and a spec scenario."
+    },
+    {
+      "id": 41,
+      "vendor": "codex",
+      "criticality": "high",
+      "verdict": "valid (corroborated by claude_code #6)",
+      "action": "fixed",
+      "rationale": "podman run --replace; mint script sweeps the instance's own offline registrations; tested and specified."
+    },
+    {
+      "id": 42,
+      "vendor": "codex",
+      "criticality": "high",
+      "verdict": "partially valid -> medium (clarity)",
+      "action": "fixed",
+      "rationale": "merge is the orchestrator's merge_worktrees.py step (implement-feature C5) with per-package scope checks; wp-integration description now says so."
+    }
+  ],
+  "addressed": [
+    3,
+    5,
+    6,
+    9,
+    16,
+    19,
+    20,
+    21,
+    23,
+    25,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    36,
+    38,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    48
+  ],
+  "parked_rejected": {
+    "17": "repo convention: change-local contract paths in work-packages are consumed pre-archive; path-stability rule targets tests",
+    "24": "repo convention for changes with no HTTP surface (recorded in contracts/README.md)",
+    "37": "reviewer itself recommends accept (same as #17/#24)",
+    "47": "same as #24; work-package schema requires an openapi block; not a plan defect of this change",
+    "22": "drift is caught by tests 2.1/3.3 tying expression and mint labels to the manifest; schema stays reusable",
+    "35": "reviewer recommends accept (same as #22)",
+    "26": "environment degradations, not plan defects",
+    "39": "environment degradations, not plan defects (duplicate of #26)",
+    "31": "proposal What-Changes item 4 fixed; session-log.md and plan-findings.md are historical phase records and are not rewritten"
+  },
+  "lanes": {
+    "succeeded": [
+      "claude_code",
+      "codex"
+    ],
+    "failed": {
+      "pi": "classified auth_required (pi wrote findings to a file instead of stdout) - dropped from later rounds per policy"
+    },
+    "not_dispatched": [
+      "antigravity",
+      "grok"
+    ]
+  }
+}

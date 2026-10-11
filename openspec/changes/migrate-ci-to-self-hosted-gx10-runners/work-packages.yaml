@@ -253,6 +253,8 @@ packages:
         - "deploy/gx10-runner/mint-jitconfig.sh"
         - "deploy/gx10-runner/cleanup-runner.sh"
         - "deploy/gx10-runner/install-units.sh"
+        - "deploy/gx10-runner/gx10-runner.env.example"
+        - "deploy/gx10-runner/toolchain.txt"
 
   # ─────────────────────────────────────────────────────────────────────
   # wp-tooling — wall-clock measurement + run verification CLI
@@ -282,10 +284,10 @@ packages:
         - "skills/tests/ci_runners/fixtures/runs/**"
       read_allow:
         - ".github/runner-lanes.yaml"
+        - ".github/workflows/**"  # read-only: verify_run's D8 correlation reads job definitions; writes stay with wp-workflows
         - "skills/**"
         - "openspec/**"
       deny:
-        - ".github/workflows/**"
         - "deploy/**"
     worktree:
       name: migrate-ci-to-self-hosted-gx10-runners-wp-tooling
@@ -386,7 +388,11 @@ packages:
     title: "Integration — merge packages, full skills suite, openspec validate, actionlint"
     task_type: integration
     description: |
-      tasks.md 6.1. Merge the package branches. Run the full skills suite, `openspec validate
+      tasks.md 6.1. The package branches are merged by the orchestrator's merge step
+      (implement-feature C5, merge_worktrees.py) before this package starts, and each package's
+      diff is scope-checked against its own write_allow, so the materialized .github/, deploy/,
+      scripts/, docs/ and skills/ files are not writes of this package. This package writes only
+      under the change directory (evidence, validation notes). Run the full skills suite, `openspec validate
       --strict` and actionlint (if it is installed), and confirm that the diff stays inside the
       package scopes. Operator steps O1-O12 are NOT run here. They are recorded as pending_gate.
     role: integrator
