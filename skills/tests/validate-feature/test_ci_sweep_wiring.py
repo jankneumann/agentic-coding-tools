@@ -287,6 +287,11 @@ def test_job_has_no_if_guard() -> None:
     assert "pull_request" in triggers
     assert "merge_group" in triggers
     for step in job["steps"]:
+        # The self-hosted fork guard (migrate-ci-to-self-hosted-gx10-runners D4) is conditioned
+        # on `runner.environment == 'self-hosted'`, so it can never skip the check on a
+        # hosted merge_group run; it is the one permitted step-level `if:`.
+        if step.get("name") == "Refuse ineligible events on self-hosted runner":
+            continue
         assert "if" not in step, f"step {step.get('name')!r} carries an `if:` guard"
 
 
