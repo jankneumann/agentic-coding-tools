@@ -42,6 +42,11 @@ allows:
    - A scheduled run MUST NOT use the force escape hatch.
    - A scheduled run acts only on PRs from the window's allowed sources and
      never merges a PR above the window's auto-merge ceiling.
+   - A window is necessary but not sufficient: it never overrides a trust
+     posture gate disposition (including `merge`).
+   - Also MODIFY "Merge Conductor Invokes Iterate Skills", whose sentence "The
+     merge skill remains the user-invoked sync-point" would otherwise contradict
+     the amended requirement.
 2. **Spec addition (`trust-posture`).** ADD "Sync Window Declarations":
    - The posture front matter gains an optional `sync_windows` list. Each entry
      has `id`, `cadence`, `skills`, `allowed_sources` and `auto_merge_ceiling`.
@@ -55,10 +60,15 @@ allows:
    - add an `authorize_sync_window(posture, window_id, skill)` check that later
      scheduled callers (`ri-12`, `ri-13`) must pass before they run
    - mirror the shape in `openspec/schemas/trust-posture.schema.json`
-4. **Template documentation.** Document the `sync_windows` block, commented
+4. **Origin vocabulary export.** Add an exported `PR_ORIGINS` frozenset to
+   `skills/shared/github_classifier.py`, the module that actually emits PR
+   origins. Today the set exists only as scattered string literals, so nothing
+   could pin the window vocabulary against it.
+5. **Template documentation.** Document the `sync_windows` block, commented
    out, in `TRUST_POSTURE.template.md`.
-5. **Tests** in `skills/shared/tests/` for the parser, the validator, the
-   digest stability and the authorization check.
+6. **Tests** in `skills/shared/tests/` for the parser, the validator, the
+   digest stability, the authorization check, the schema mirror, and the
+   vocabulary parity with `github_classifier` and `classify_kind`.
 
 ### Out of scope
 
@@ -124,22 +134,37 @@ declaration. Approach 3 contradicts the roadmap's single-contract rationale.
 - **A1.** Window cadence is a five-field cron expression in UTC. Interpreting it
   (next-fire computation) is left to the scheduler (`ri-13`). This change
   validates only the expression's shape.
-- **A2.** `allowed_sources` uses the existing PR origin vocabulary of
-  `skills/merge-pull-requests/scripts/discover_prs.py`.
+- **A2.** `allowed_sources` uses the existing PR origin vocabulary that
+  `skills/shared/github_classifier.classify_pr` emits (and that
+  `discover_prs.py` passes through): `openspec`, `sentinel`, `bolt`, `palette`,
+  `jules`, `codex`, `dependabot`, `renovate`, `other`. The detailed origins are
+  used, not the folded PR-card origins, so a window can admit `sentinel`
+  without admitting every Jules PR.
 - **A3.** `auto_merge_ceiling` uses the PR kinds of
   `skills/merge-pull-requests/scripts/classify_kind.py` (`automation` < `plan` <
   `implementation`), plus `none`. A window with ceiling `none` may triage and
   notify but never merges unattended.
 - **A4.** A scheduled run MUST NOT use the active-agent guard's force escape
   hatch. Only a human may force.
+- **A5.** A sync window authorizes *starting* a sync point unattended; it does
+  not authorize any gated action. Gate dispositions (notably `merge`) still
+  apply. This is the fail-closed reading; the opposite reading (a window
+  implies `auto` for the actions it covers) would let one window silently widen
+  a gate, and is rejected.
+- **A6.** Declared windows are covered by the single posture digest. Declaring
+  or editing a window therefore re-evaluates digest-pinned decisions exactly as
+  any gate edit does today (see design Risks).
 
 ## Impact
 
-- Specs: `skill-workflow` (one MODIFIED requirement), `trust-posture` (one ADDED
-  requirement)
+- Specs: `skill-workflow` (two MODIFIED requirements: "Main Receives Work
+  Through PR Sync Points" and "Merge Conductor Invokes Iterate Skills"),
+  `trust-posture` (one ADDED requirement)
 - Code: `skills/shared/trust_posture.py`,
-  `openspec/schemas/trust-posture.schema.json`
+  `skills/shared/github_classifier.py` (exported `PR_ORIGINS` only; no behaviour
+  change), `openspec/schemas/trust-posture.schema.json`
 - Docs: `TRUST_POSTURE.template.md`
-- Tests: `skills/shared/tests/test_trust_posture_sync_windows.py`
+- Tests: `skills/shared/tests/test_trust_posture_sync_windows.py`,
+  `skills/tests/merge-pull-requests/test_classify.py` (origin-set coverage)
 - Runtime behaviour of this repository: unchanged. No window is declared, and
   the posture digest is unchanged.

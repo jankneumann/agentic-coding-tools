@@ -32,3 +32,47 @@
 ### Context
 Planned ri-11: amend the skill-workflow sync-point requirement so sync-point skills may run on a schedule only under a sync window explicitly declared in the trust posture, with guards and validation gates unchanged. Selected spec amendment plus a fail-closed sync_windows extension of the ri-04 trust posture contract. Supervised child run: discovery and Gate 1/2 are covered by the recorded roadmap approval; no interactive questions were asked.
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-11)
+
+**Agent**: claude-code (autopilot PLAN_ITERATE, architect) | **Session**: N/A
+
+### Decisions
+1. **Also MODIFY 'Merge Conductor Invokes Iterate Skills'** `architectural: skill-workflow` — Its sentence 'The merge skill remains the user-invoked sync-point' would contradict the amended sync-point requirement once a scheduled merge exists
+2. **Sync window is necessary, never sufficient (D8)** `architectural: skill-workflow` — A window authorizes starting a sync point unattended; it does not imply auto for any gate. Fail-closed reading; the alternative widens two controls with one edit
+3. **allowed_sources uses github_classifier's detailed origins; export PR_ORIGINS there** `architectural: trust-posture` — discover_prs.py only passes origins through and no exported set existed, so the parity test had nothing to pin; detailed origins let a window admit sentinel without all Jules PRs
+4. **Digest sorts windows by id** `architectural: trust-posture` — Matches the existing invariant that front-matter ordering never changes the digest; ids are unique so order carries no meaning
+5. **Keep windows inside the single posture digest and document the consequence** `architectural: trust-posture` — A window edit re-evaluates posture_block reuse and drops auto for in-flight children until rebased; accepted as fail-closed over a separate digest that existing checks would ignore
+6. **Deviation: assumption findings recorded as decisions instead of AskUserQuestion** `architectural: skill-procedure-deviation` — Supervised autopilot child run with no interactive channel; proposal_approval is auto under the recorded roadmap approval. Each assumption (A5, A6) took the fail-closed option and is listed for PLAN_REVIEW
+7. **Deviation: analysis run sequentially, no parallel Explore sub-agents** `architectural: skill-procedure-deviation` — Proposal was below the skill's parallel threshold (4 tasks, 2 spec deltas at start); the change is small and sequential analysis was sufficient
+8. **Deviation: Step 10 multi-vendor review not dispatched from this phase** `architectural: skill-procedure-deviation` — Autopilot runs a dedicated PLAN_REVIEW phase (cli_review_enabled) that dispatches parallel-review-plan; running it here would duplicate it and nest isolated dispatch inside a phase sub-agent
+9. **Deviation: worktree.py setup and coordinator detection preamble not re-run** `architectural: skill-procedure-deviation` — The managed feature worktree already existed on openspec/<change-id> at the PLAN commit; HEAD verified; the loop state already records the coordinator projection as forbidden
+
+### Alternatives Considered
+- Have trust_posture import PR_ORIGINS from github_classifier: rejected because Keeps the posture contract a leaf module; mixed import styles (shared.x vs top-level) make a cross-import fragile; parity test gives the same guarantee
+- Separate digest for sync windows: rejected because Existing launch-marker and posture_block checks would not notice a widened window
+- Use folded PR-card origins (jules, manual): rejected because Too coarse: cannot admit sentinel without admitting every Jules PR
+
+### Trade-offs
+- Accepted Touching skills/shared/github_classifier.py (export only) over Pinning parity against scattered string literals because A machine-readable origin set is what makes the parity test meaningful
+- Accepted Single sequential work package over Splitting 2.0 into its own package because ~350 LOC with a shared test file; parallelism would only add merge risk
+
+### Open Questions
+- [ ] Whether ri-13 wants named-cron macros (@daily); currently rejected by the cadence shape check
+
+### Completed Work
+- [high] consistency: MODIFIED Merge Conductor requirement added
+- [high] feasibility: origin vocabulary source corrected; task 2.0 PR_ORIGINS export
+- [medium] consistency: digest window-order invariance
+- [medium] testability: scheduled-invocation scenarios made enforceable; verification boundary in D6
+- [medium] assumptions: D8 necessary-not-sufficient; A5/A6
+- [medium] completeness: container/entry/list/id/unknown-kind validation in spec
+- [medium] completeness: task 1.1 restated; digest-consumer suites added to verification
+
+### Next Steps
+- PLAN_REVIEW: multi-vendor review of the refined plan
+
+### Context
+Two iterations; converged with no medium-or-higher findings left. Fixed a contradicting skill-workflow requirement (Merge Conductor still said user-invoked), corrected the PR-origin vocabulary source to github_classifier with a new exported PR_ORIGINS for the parity test, made the digest window-order-invariant, made the scheduled-invocation scenarios enforceable via the trigger and the authorization check, and recorded the window-vs-gate and digest-coupling decisions.
+
