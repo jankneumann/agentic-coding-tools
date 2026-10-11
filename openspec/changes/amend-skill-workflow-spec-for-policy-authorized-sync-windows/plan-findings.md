@@ -30,3 +30,31 @@ suites green (1448 passed).
 | 3 | scope | low | Session-log open question on `@daily` macros remains. | Deferred to ri-13. |
 
 No findings at or above medium. Converged.
+
+## PLAN_REVIEW (autopilot, multi-vendor `converge()`)
+
+Round 1 of `converge(review_type="plan", min_quorum=2)`: 5 vendors dispatched;
+`claude_code` (fable) and `pi` (nemotron-3-ultra) succeeded, so quorum 2/2 was met.
+`codex` returned findings that failed the review-findings schema (string ids),
+`antigravity` timed out at 240s, and `grok` failed because its CLI is too old
+(HTTP 426, 1.0.5 < 1.0.13). Consensus: 0 confirmed, 12 unconfirmed, 0 blocking,
+so the loop converged in round 1. Checkpoint: `.review-cache/round-1/`.
+
+The orchestrator then adjudicated the single-vendor findings, including the
+two `high` findings from codex's schema-rejected output, and applied them as a
+PLAN_FIX sub-step:
+
+| Source | Criticality | Finding | Disposition |
+|--------|-------------|---------|-------------|
+| claude_code#1 + codex#R1-002 | medium/high | The no-window scenario carried the general trigger and check obligations, and the check was required only "before touching main", so an unauthorized run could still discover, remediate, or write branches. | Fixed: new scenario "Scheduled invocation names a window and passes authorization first" (check before any work); the no-window scenario is reduced to check-fails, main untouched. D6 updated. |
+| codex#R1-001 | high | The cadence was declared but nothing required a trigger to observe it. | Fixed: the trigger MUST start only at times the cadence permits; enforcement belongs to the scheduler (ri-13). D6 notes that the check does not consult cadence. |
+| claude_code#2 | medium | "(including the `merge` gate)" implied a gate applicability that the base spec does not define for sync-point skills. | Fixed: the window changes no disposition; gate applicability is defined by the change that adds the scheduled caller (ri-12/ri-13). Proposal updated. |
+| claude_code#3 | medium | `write_allow` omitted `docs/decisions/{skill-workflow,trust-posture}.md`, which the plan diff already writes. | Fixed in work-packages.yaml. |
+| codex#R1-003 | medium | The spec called `cadence` a cron expression, but D4 validates shape only. | Fixed: the spec defines a cron-shaped string and requires the scheduler to refuse unschedulable windows; D4 states the gap explicitly. |
+| codex#R1-004 | medium | The kebab-case `id` constraint had no scenario coverage. | Fixed: added to the requirement text and the malformed-window scenario. |
+| codex#R1-005 | medium | The schema tests did not pin null, `[]`, or wrong-type parity with the loader. | Fixed: task 2.3 extended. |
+| claude_code#4 | low | "not a list" conflicted with `null` = no windows. | Fixed: "neither `null` nor a list". |
+| claude_code#5 | low | Unknown-skill `ValueError` and absent-posture input were missing from the spec. | Fixed: spec requirement and scenario; D6; task 2.1. |
+| claude_code#6,#7,#8; pi#1-4 | low | README filed under the openapi contract sub-type; source and ceiling are mandatory for non-PR skills; loop-state gate signals are stale or the audit sink failed; restatements of accepted D4 and single-package decisions. | Accepted, no change (all low; pi items restate decisions already recorded above). |
+
+Post-fix: `openspec validate --strict` valid; `validate_work_packages.py` VALID.

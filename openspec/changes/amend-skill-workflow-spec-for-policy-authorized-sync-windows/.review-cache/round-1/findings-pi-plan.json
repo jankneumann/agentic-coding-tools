@@ -1,0 +1,47 @@
+{
+  "review_type": "plan",
+  "target": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 1.1 description in tasks.md only references `openspec/specs/skill-workflow/spec.md` for base requirements verification, but the trust-posture ADDED requirement 'Sync Window Declarations' has no base scenarios to preserve (it's entirely new). The task description should clarify this distinction or reference both base spec files for completeness.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Cadence validation in design.md (D4) is shape-only (five whitespace-separated fields matching `[0-9*/,-]+`). Invalid cron values like `99 * * * *` would pass schema validation but fail at scheduler runtime (ri-13). This is a known limitation explicitly accepted and deferred to ri-13.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The cadence field rejects `@daily` macros and named months/days per D4. This is an open question deferred to ri-13 (noted in session-log and plan-findings iteration 2 finding #3). The schema validation will reject these forms.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Work-packages.yaml defines only a single sequential package (wp-main) with max parallel width 1. The plan-findings iteration 2 finding #1 notes this is accepted because ~350 LOC with shared test file and shared SyncWindow shape make splitting a net loss. Documented at top of tasks.md.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    }
+  ]
+}

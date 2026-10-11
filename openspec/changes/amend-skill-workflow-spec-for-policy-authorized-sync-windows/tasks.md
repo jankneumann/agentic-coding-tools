@@ -14,7 +14,8 @@ only produce merge conflicts on a ~350 LOC change.
   the base requirements in `openspec/specs/skill-workflow/spec.md`, and that
   `openspec validate amend-skill-workflow-spec-for-policy-authorized-sync-windows --strict`
   passes (XS)
-  **Spec scenarios**: skill-workflow "No sync window declared keeps the
+  **Spec scenarios**: skill-workflow "Scheduled invocation names a window and
+  passes authorization first", "No sync window declared keeps the
   user-invoked default", "Scheduled invocation keeps the guards unchanged",
   "Scheduled invocation keeps validation gates unchanged", "Scheduled
   invocation is bounded by the window's sources and ceiling", "Sync window does
@@ -47,7 +48,8 @@ only produce merge conflicts on a ~350 LOC change.
     kinds `== set(classify_kind.KIND_TO_SKILL)`
   - `authorize_sync_window` success, unknown-window and unlisted-skill
     refusals (message names the missing declaration), unknown skill raises
-    `ValueError`
+    `ValueError` (not `SyncWindowNotAuthorized`), and refusal for both the
+    absent-posture value and `None`
   - digest byte-identical to the gates-only digest without windows (pinned
     against a literal for the live `TRUST_POSTURE.md`), changed by a window
     edit, unchanged by window or list-value reordering
@@ -76,8 +78,9 @@ only produce merge conflicts on a ~350 LOC change.
 - [ ] 2.3 Mirror `sync_windows` in `openspec/schemas/trust-posture.schema.json`
   (`SyncWindow` `$def`, closed enums, `uniqueItems`, id and cadence patterns)
   and add schema tests to `test_trust_posture_sync_windows.py`: the template and
-  a sample window validate, a malformed window fails, and the schema enums equal
-  the Python frozensets (S)
+  a sample window validate, `sync_windows` absent, `null` and `[]` all validate,
+  a malformed window fails (including wrong field types and wrong list-member
+  types), and the schema enums equal the Python frozensets (S)
   **Design decisions**: D1, D3, D4
   **Dependencies**: 2.2
 
