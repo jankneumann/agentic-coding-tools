@@ -26,3 +26,7 @@ No UI/API surface.
 
 ## Overall
 **Status**: pass
+
+## Validation Review
+**Status**: pass
+The multi-vendor `converge()` run completed one round. Quorum was met 2/2 by `claude_code` and `codex`. `antigravity` timed out, `grok` failed with HTTP 426 and `pi` failed with `auth_required`. The loop returned `adjudication_required` with 0 blocking items, so the orchestrator adjudicated. Ledger 28 (schema id uniqueness, single-vendor high) was downgraded to low: JSON Schema cannot express uniqueness by one field, and the loader is the documented, tested authority. Ledger 29 (the jsonschema `$` trailing-newline divergence, already documented) was downgraded to low. Ledger 30 (this report overstated scenario coverage) was fixed by VAL_FIX in Spec Compliance above. The ledger is left with 0 blocking items and 0 adjudication items. Details are in `val-findings.md`.
