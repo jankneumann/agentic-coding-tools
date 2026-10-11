@@ -2,16 +2,17 @@
   "schema_version": 1,
   "roadmap_id": "roadmap-always-on-agent-automation",
   "current_item_id": "ri-11",
-  "phase": "planning",
+  "phase": "completed",
   "created_at": "2026-10-10T21:03:19.589753+00:00",
-  "updated_at": "2026-10-11T23:15:19.340563+00:00",
+  "updated_at": "2026-10-11T23:19:20.311584+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
     "ri-04",
     "ri-05",
     "ri-06",
-    "ri-15"
+    "ri-15",
+    "ri-20"
   ],
   "serial_indeterminate_items": [
     "ri-17"
@@ -229,7 +230,7 @@
       "change_id": "migrate-ci-to-self-hosted-gx10-runners",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "acknowledged",
+      "status": "completed",
       "prepared_at": "2026-10-11T01:50:46.066735+00:00",
       "launch_digest": "sha256:032b52f81913d9567f76f569a7b824ba14cae365342e3d617b710f432b674373",
       "launch_marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
@@ -301,6 +302,14 @@
           "state": "go_released",
           "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
           "observed_at": "2026-10-11T23:15:19.242646+00:00",
+          "handle": "aac0e66e3da8fd63f"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "G6MAaT8CP-MzRcmGwNv1e2FBexGsChdt",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T23:15:22.244964+00:00",
           "handle": "aac0e66e3da8fd63f"
         }
       ],
@@ -387,14 +396,10 @@
           "phase": "SUBMIT_PR"
         }
       ],
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:20f4f4fa-5c94-4948-ac6a-5bdb36d5ffd1"
-      },
       "lease": {
         "generation": 3,
         "owner_nonce": "G6MAaT8CP-MzRcmGwNv1e2FBexGsChdt",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-11T23:14:41.652617+00:00",
         "heartbeat_at": "2026-10-11T23:14:41.652617+00:00",
         "expires_at": "2026-10-11T23:24:41.652617+00:00"
@@ -407,11 +412,63 @@
       },
       "launch_gate": {
         "generation": 3,
-        "state": "go_released",
+        "state": "entered",
         "handle": "aac0e66e3da8fd63f",
         "go_released_at": "2026-10-11T23:15:19.242646+00:00",
-        "entered_at": null
-      }
+        "entered_at": "2026-10-11T23:15:22.244964+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/migrate-ci-to-self-hosted-gx10-runners",
+          "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+          "degradations": [
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned forbidden",
+              "phase": "INIT"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision auto",
+              "phase": "PLAN"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate pr_creation decision auto",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate merge decision posture_block",
+              "phase": "SUBMIT_PR"
+            }
+          ],
+          "dispatch_id": "batch-913508fa11d0da93a9594473:ri-20:attempt-1",
+          "evidence": {
+            "commit": "fe0511fd727f6e4b46772eb59f2a9631f7beae7d",
+            "loop_state_digest": "42b4a523a0bfbf12300d5bb7155f004716deccc468a1894623ab4b8fb7a6bb17",
+            "loop_state_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json"
+          },
+          "handoff_id": "44bcdff3-66b6-4953-a2c0-4761a43fb751",
+          "host_id": "machine-8ce412f9e16ce285",
+          "lease_generation": 3,
+          "outcome": "success",
+          "schema_version": 2,
+          "worktree_ref": "migrate-ci-to-self-hosted-gx10-runners"
+        },
+        "result_digest": "92a86fc1450d5f450e74708eb39b9758f54756376d50d774a3731b166eba8de0",
+        "bound_at": "2026-10-11T23:19:20.276503+00:00",
+        "callback_started_at": "2026-10-11T23:19:20.283046+00:00",
+        "callback_acknowledged_at": "2026-10-11T23:19:20.288003+00:00",
+        "terminal_persisted_at": "2026-10-11T23:19:20.292920+00:00",
+        "effects_applied_at": "2026-10-11T23:19:20.310281+00:00"
+      },
+      "outcome": "success",
+      "resolved_at": "2026-10-11T23:19:20.292907+00:00",
+      "handoff_id": "44bcdff3-66b6-4953-a2c0-4761a43fb751"
     },
     {
       "dispatch_id": "batch-bb11fb2566458676be71b75a:ri-11:attempt-1",
@@ -419,7 +476,7 @@
       "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "acknowledged",
+      "status": "launched",
       "prepared_at": "2026-10-11T04:52:10.507032+00:00",
       "launch_digest": "sha256:d7b61be03c528cc5da837d98426d2354a97a5fb4bff8d6daa7f57453de0e7a4e",
       "launch_marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
@@ -477,6 +534,14 @@
           "state": "go_released",
           "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
           "observed_at": "2026-10-11T23:15:19.339691+00:00",
+          "handle": "a7d875fe1b81c44e7"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "R7AAHQeFyy0WG0CAZXwZQcyRQczd-4gB",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+          "observed_at": "2026-10-11T23:15:42.553688+00:00",
           "handle": "a7d875fe1b81c44e7"
         }
       ],
@@ -583,10 +648,10 @@
       },
       "launch_gate": {
         "generation": 2,
-        "state": "go_released",
+        "state": "entered",
         "handle": "a7d875fe1b81c44e7",
         "go_released_at": "2026-10-11T23:15:19.339691+00:00",
-        "entered_at": null
+        "entered_at": "2026-10-11T23:15:42.553688+00:00"
       }
     },
     {
