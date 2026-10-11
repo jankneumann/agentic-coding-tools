@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 10,
+  "total_iterations": 11,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -66,7 +66,7 @@
   ],
   "last_handoff_id": "val-review-amend-skill-workflow-spec-for-policy-authorized-sync-windows-fdbeb6f5",
   "started_at": "2026-10-11T04:52:56.233172+00:00",
-  "phase_started_at": "2026-10-11T05:47:57.978769+00:00",
+  "phase_started_at": "2026-10-11T23:17:50.393438+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
@@ -145,27 +145,53 @@
       "disposition": "block",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-10-11T05:48:42.216562+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:438e09b0-9961-4cc9-994b-3012f0fff3a2"
+      },
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-11T23:17:43.217711+00:00",
+      "note": null
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
-    "gate": "merge",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-10-11T05:48:42.216897+00:00",
-    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-    "context": {
+  "pending_gate": null,
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "merge_authorized": true,
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/681",
-      "branch": "openspec/amend-skill-workflow-spec-for-policy-authorized-sync-windows",
-      "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true,
-      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      "report_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/validation-report.md",
+      "checked_at": "2026-10-11T23:17:50.324204+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-10-11T05:38:08.670586+00:00",
+      "report_time": "2026-10-11T01:47:45-04:00",
+      "report_time_source": "commit",
+      "bound_by": "VAL_REVIEW",
+      "val_review_at": "2026-10-11T05:47:57.899926+00:00",
+      "required_sections": [
+        "Spec Compliance",
+        "Validation Review"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass",
+        "Validation Review": "pass"
+      }
     }
   },
-  "goal_gate": null,
   "park": null,
   "degradations": [
     {
@@ -187,6 +213,11 @@
       "code": "audit_sink_failed",
       "phase": "SUBMIT_PR",
       "detail": "audit sink reported failure for gate merge decision posture_block"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "phase": "DONE",
+      "detail": "project-state submit returned forbidden after merge gate-answer + DONE transition"
     }
   ]
 }
