@@ -56,6 +56,8 @@ packages:
         - "skills/tests/merge-pull-requests/test_classify.py"
         - "openspec/schemas/trust-posture.schema.json"
         - "TRUST_POSTURE.template.md"
+        - "docs/decisions/skill-workflow.md"
+        - "docs/decisions/trust-posture.md"
       read_allow:
         - "**"
       deny:

@@ -58,7 +58,9 @@ unnoticed.
 
 `cadence` must be exactly five whitespace-separated fields, each matching
 `[0-9*/,-]+`. Named months and days, `@daily` macros and six-field forms are
-rejected.
+rejected. This is deliberately a cron-*shaped* string, not a full cron grammar:
+`99 * * * *` or `*/0 * * * *` pass the loader, and the spec requires the
+scheduler to refuse a window it cannot schedule.
 
 Computing the next fire time is the scheduler's job (`ri-13`), so this module
 does not depend on a cron library. Times are interpreted as UTC, and the
@@ -91,9 +93,16 @@ meaning. As a result:
 - Otherwise raises `SyncWindowNotAuthorized`, whose message names either the
   missing window or the missing skill.
 - An unknown skill name raises `ValueError`, because the skill set is closed.
+- It accepts the absent-posture value that `load_posture` returns when no
+  contract file exists (`present=False`, no windows), and also `None`, as
+  `posture_digest` does, and fails for both.
 
 This is the check that the amended `skill-workflow` scenarios require of any
-scheduled caller. No skill calls it yet; `ri-12` wires it in.
+scheduled caller, **before any other work** (discovery, remediation, branch
+writes), not merely before touching main. No skill calls it yet; `ri-12` wires
+it in. The check does not consult `cadence`: observing the cadence is the
+trigger's obligation (the scheduler, `ri-13`), which the spec states and
+`ri-13` tests.
 
 **Verification boundary.** No scheduled caller exists in this change, so the
 `skill-workflow` scheduled-invocation scenarios cannot be exercised end to end

@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "items": [
+    {
+      "id": 1,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "fingerprint": "4d18f19095dc00ea",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Scenario 'No sync window declared keeps the user-invoked default' is internally inconsistent. Its WHEN is 'posture absent or declares no sync_windows', yet the first two THEN clauses describe the general scheduled path (trigger names a window id, skill calls the check) that is not conditional on that WHEN, and the final clause says user invocation 'MUST remain the only path by which the skill runs' even though the preceding clause allows the skill to be started by a trigger and then refuse. The obligations on the trigger and on the skill to call the authorization check are the core new contract and currently have no scenario of their own; they are only reachable through this no-window scenario. Split into (a) a general 'Scheduled invocation must name a window and call the authorization check' scenario and (b) a no-window scenario whose THEN is simply that the check fails and main is untouched.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 2,
+      "status": "open",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "fingerprint": "348aa297a98f2565",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The scenario 'Sync window does not override gate dispositions' names the `merge` gate as applying to a scheduled sync-point action, but the proposal's own Out-of-scope section says the `merge` gate governs autopilot's SUBMIT_PR -> DONE edge, and the base trust-posture spec defines gates only for autopilot phases. No gate today is evaluated by `/merge-pull-requests`, `/update-specs` or `/cleanup-feature`, so 'as it would be for that action without a window' has no defined baseline. The D8 intent (window is necessary, not sufficient) is sound, but the spec should either state which gates a scheduled sync-point skill evaluates, or explicitly delegate that mapping to ri-12 and drop the parenthetical that implies the `merge` gate already applies.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 3,
+      "status": "open",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "fingerprint": "3d37d1cdbb719f09",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The package write scope omits `docs/decisions/skill-workflow.md` and `docs/decisions/trust-posture.md`, yet this very diff writes both via the session-log decision projection, and the implement/validate phases will append further phase records there. A scope check against `write_allow` will flag those writes as out-of-scope during implementation.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 4,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "fingerprint": "b49ed2fff385a120",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The requirement says any `sync_windows` value that is not a list is a validation error, then two sentences later says `null` declares no windows. `null` is not a list, so the two sentences conflict as written; the 'Malformed sync_windows container is rejected' scenario inherits the ambiguity.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 5,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "fingerprint": "bb4043a08fed2339",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Design D6 and task 2.1 specify that an unknown skill name raises `ValueError` (closed set), a different failure from `SyncWindowNotAuthorized`, but the spec text says the check 'otherwise fails with an error naming the missing declaration' and no scenario covers the closed-skill-set rejection. Also, scenario 'Absent sync windows declare nothing' covers 'no contract file exists', so the check must accept the `present=False` absent-posture object (or `None`, as `posture_digest` does); neither spec nor design says which.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 6,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "fingerprint": "e126debb8da7c56e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The contracts block files a Markdown README under the `openapi` sub-type while the README itself says OpenAPI does not apply. The validator accepts it, but the label is misleading for anyone reading the package for API surface.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "fingerprint": "685c6e903abe3a53",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`allowed_sources` and `auto_merge_ceiling` are mandatory and non-empty for every window, including a window that lists only `update-specs` or `cleanup-feature`, which never select PRs. Operators will have to declare meaningless source lists for those windows. The skill-workflow scenario already bounds the fields to 'whenever it selects, remediates, or merges pull requests', so the inconsistency is only ergonomic.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 8,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json",
+      "fingerprint": "0759a26f7d77df80",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`gate_signals` still reflect the GATEKEEPER snapshot (no proposal, specs or tasks) although all three now exist, and `degradations` records an `audit_sink_failed` for the auto proposal_approval decision. Neither blocks review, but the gate decision for this change has no durable audit record outside loop-state.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "open",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "b09509f75501a7ee",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "Task 1.1 description in tasks.md only references `openspec/specs/skill-workflow/spec.md` for base requirements verification, but the trust-posture ADDED requirement 'Sync Window Declarations' has no base scenarios to preserve (it's entirely new). The task description should clarify this distinction or reference both base spec files for completeness.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "4c4f5e91777b6472",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "Cadence validation in design.md (D4) is shape-only (five whitespace-separated fields matching `[0-9*/,-]+`). Invalid cron values like `99 * * * *` would pass schema validation but fail at scheduler runtime (ri-13). This is a known limitation explicitly accepted and deferred to ri-13.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "b3d63a89cf6ab58a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "The cadence field rejects `@daily` macros and named months/days per D4. This is an open question deferred to ri-13 (noted in session-log and plan-findings iteration 2 finding #3). The schema validation will reject these forms.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "247cb0dff7fe94e4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "Work-packages.yaml defines only a single sequential package (wp-main) with max parallel width 1. The plan-findings iteration 2 finding #1 notes this is accepted because ~350 LOC with shared test file and shared SyncWindow shape make splitting a net loss. Documented at top of tasks.md.",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}

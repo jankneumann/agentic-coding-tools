@@ -42,8 +42,11 @@ allows:
    - A scheduled run MUST NOT use the force escape hatch.
    - A scheduled run acts only on PRs from the window's allowed sources and
      never merges a PR above the window's auto-merge ceiling.
-   - A window is necessary but not sufficient: it never overrides a trust
-     posture gate disposition (including `merge`).
+   - A scheduled trigger must name a window and observe its cadence, and the
+     skill must pass the authorization check before any other work.
+   - A window is necessary but not sufficient: it never changes a trust
+     posture gate disposition. Which gates apply to a scheduled action is
+     defined by the change that adds the scheduled caller (`ri-12`, `ri-13`).
    - Also MODIFY "Merge Conductor Invokes Iterate Skills", whose sentence "The
      merge skill remains the user-invoked sync-point" would otherwise contradict
      the amended requirement.

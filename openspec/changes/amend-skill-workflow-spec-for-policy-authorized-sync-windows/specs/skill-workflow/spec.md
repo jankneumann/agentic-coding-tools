@@ -30,16 +30,28 @@ clean-tree check, the active-agent guard, or any validation gate.
 - **AND** it MUST verify that no active agents hold non-stale worktrees unless
   the operator explicitly uses a force escape hatch
 
+#### Scenario: Scheduled invocation names a window and passes authorization first
+
+- **WHEN** a scheduler or any other non-user trigger starts a sync-point skill
+- **THEN** the trigger MUST name a sync window id, and MUST NOT start the skill
+  without one
+- **AND** the skill MUST call the trust posture sync-window authorization check
+  before any other work, including PR discovery, remediation, branch writes, or
+  any other externally visible side effect
+- **AND** when that check fails the skill MUST stop without performing any of
+  that work and without touching main
+- **AND** the trigger MUST start the skill only at times the window's declared
+  `cadence` permits; computing fire times and their tolerance is the
+  scheduler's responsibility
+
 #### Scenario: No sync window declared keeps the user-invoked default
 
 - **WHEN** the trust posture contract is absent, or declares no `sync_windows`
-- **AND** a scheduler or any other non-user trigger would start a sync-point
-  skill
-- **THEN** the trigger MUST NOT start the skill without naming a sync window id
-- **AND** a skill started with a sync window id MUST call the trust posture
-  sync-window authorization check before touching main, and MUST refuse to
-  touch main when that check fails
-- **AND** user invocation MUST remain the only path by which the skill runs
+- **AND** a scheduler or any other non-user trigger starts a sync-point skill
+- **THEN** the sync-window authorization check MUST fail for every window id
+- **AND** the skill MUST stop without touching main
+- **AND** user invocation MUST remain the only path by which the skill can
+  touch main
 
 #### Scenario: Scheduled invocation names an undeclared window or skill
 
@@ -85,10 +97,13 @@ clean-tree check, the active-agent guard, or any validation gate.
   sync window
 - **THEN** the window's authorization MUST be treated as necessary but not
   sufficient
-- **AND** every trust posture gate disposition that applies to the same action
-  (including the `merge` gate) MUST still be evaluated as it would be for that
-  action without a window
+- **AND** the window MUST NOT change any trust posture gate disposition; every
+  gate that applies to the scheduled action MUST be evaluated exactly as it
+  would be without the window
 - **AND** a gate that resolves to `block` MUST stop the scheduled run's action
+- **AND** which gates apply to a scheduled sync-point action is defined by the
+  change that adds that scheduled caller (`ri-12` headless merge, `ri-13`
+  drain); this requirement defines no new gate applicability
 
 ### Requirement: Merge Conductor Invokes Iterate Skills
 
