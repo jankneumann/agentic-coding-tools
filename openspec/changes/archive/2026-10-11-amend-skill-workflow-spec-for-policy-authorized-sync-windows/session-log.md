@@ -119,3 +119,27 @@ Added PR_ORIGINS export, sync_windows parsing/validation, authorize_sync_window,
 
 ### Context
 The IMPL_REVIEW checkpoint is preserved as `.review-cache/impl-review-round-1/`. The VAL_REVIEW checkpoint is `.review-cache/round-1/`.
+
+---
+
+## Phase: Cleanup (2026-10-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Post-merge mode, no merge by the child** — The operator merged PR #681 directly; cleanup skipped the merge steps and landed the archive on main, per cleanup-feature Step 1.5.
+2. **No task migration** — tasks.md had zero unchecked items.
+3. **Architecture refresh skipped** — Step 4 is informational, not a gate; skipped to keep the archive commit narrow while ri-20 cleanup lands concurrently on main.
+
+### Completed Work
+- gate-answer
+- archive
+- spec-delta-merge
+- decision-index-regen
+
+### Next Steps
+- Supervisor applies the ri-11 dispatch result for roadmap-always-on-agent-automation
+
+### Context
+PR #681 was merged by the operator (rebase, merge commit 2e08de32); the supervised ri-11 child applied the marker's merge gate answer, transitioned SUBMIT_PR -> DONE, and ran post-merge cleanup only. All tasks were checked, so no task migration was needed; the change was archived and its skill-workflow spec delta merged into openspec/specs/.
+

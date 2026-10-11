@@ -5,80 +5,80 @@
 
 ---
 
-## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
 ### Phase: Plan
 
 **Declare sync windows in TRUST_POSTURE.md front matter (sync_windows)** — Single governance contract and single pinned digest, per the roadmap rationale that every unattended behavior reads authorization from the trust posture
 
 - Status: `active`
-- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
 
 ---
 
-## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
 ### Phase: Implementation
 
 **Window-less posture keeps gates-only digest** — Live digest pinned to e8262346... so existing launch markers stay valid
 
 - Status: `active`
-- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
 
 ---
 
-## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
 ### Phase: Validation Review
 
 **Adjudicate the single-vendor high (ledger 28) to low** — JSON Schema cannot express per-property uniqueness; the schema already names the loader as authoritative for unique ids, and a test pins the loader's rejection of duplicate ids
 
 - Status: `active`
-- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
 
 ---
 
-## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
 ### Phase: Plan
 
 **Posture digest unchanged when no windows are declared** — Avoids invalidating existing launch markers and recorded gate decisions while making any window edit re-trigger posture-derived decisions
 
 - Status: `active`
-- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D3)
 
 ---
 
-## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
 ### Phase: Plan Iteration 1
 
 **allowed_sources uses github_classifier's detailed origins; export PR_ORIGINS there** — discover_prs.py only passes origins through and no exported set existed, so the parity test had nothing to pin; detailed origins let a window admit sentinel without all Jules PRs
 
 - Status: `active`
-- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D3)
 
 ---
 
-## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
 ### Phase: Plan Iteration 1
 
 **Digest sorts windows by id** — Matches the existing invariant that front-matter ordering never changes the digest; ids are unique so order carries no meaning
 
 - Status: `active`
-- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D4)
 
 ---
 
-## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
 ### Phase: Plan Iteration 1
 
 **Keep windows inside the single posture digest and document the consequence** — A window edit re-evaluates posture_block reuse and drops auto for in-flight children until rebased; accepted as fail-closed over a separate digest that existing checks would ignore
 
 - Status: `active`
-- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D5)
 
 ---
 
