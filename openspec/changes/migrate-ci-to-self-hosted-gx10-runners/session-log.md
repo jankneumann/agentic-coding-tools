@@ -194,3 +194,46 @@ Implemented all non-operator tasks (phases 1-6): lane manifest, canonical runs-o
 ### Context
 Reviewed IMPLEMENT: runs-on expression and hook fail closed (verified); tightened the ci_sweep fork-guard exemption to assert the self-hosted-gated if; test_gate workflow_dispatch widening judged minimal; nft rules stay in runbook (no shipped file in tasks) with new ordering/persistence parse tests; clarified persistence verify command.
 
+---
+
+## Phase: IMPL_REVIEW (2026-10-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Persist host isolation with a dedicated boot unit, not nftables.service** `architectural: ci-runner-infrastructure` — The stock /etc/nftables.conf starts with flush ruleset, so enabling or starting nftables.service (and every boot) wipes ufw/firewalld/podman tables; gx10-runner-isolation.service loads only the idempotent table, ordered before systemd-user-sessions.service.
+2. **A job that ran without runner labels is an unproven placement** `architectural: ci-runner-infrastructure` — verify_run must prove where every non-skipped job ran; absent labels used to pass silently (#89). Non-GX10 self-hosted runners are never a valid placement (#76).
+3. **One time budget for the whole mint ExecStartPre** `architectural: ci-runner-infrastructure` — TimeoutStartSec bounds sweep, mint retries and hold-off together; the clock starts before any API call and no request starts unless it can finish (#99).
+4. **Exclude autopilot bookkeeping from the implementation review packet and normalize codex output format in the scratchpad driver** `architectural: skill-procedure-deviation` — Ledger/session-log/loop-state consumed the 320k budget and truncated ci_wallclock.py and all tests; codex exec returned string ids and no review_type/target. Transport/format only; content untouched.
+
+### Trade-offs
+- Accepted orchestrator adjudication of the round-3 fixes without a fourth vendor round over exceeding the 3-round phase budget because the loop contract caps rounds at 3; VAL_REVIEW is asked to confirm #99/#88/#89
+
+### Capability Gaps Observed
+- **vendor_output_misclassified**: review_dispatcher.classify_error scans raw output (which echoes the packet containing 401/token text) and labels schema-invalid but otherwise good codex output auth_required (skill: parallel-infrastructure, severity: medium)
+- **vendor_writes_worktree**: pi review lane wrote review_findings.json and overwrote tracked findings.json in the worktree instead of stdout (skill: parallel-infrastructure, severity: high)
+- **packet_budget_bookkeeping**: review packet includes .review-ledger/ledger.json, loop-state, session-log diffs that truncate code under review (skill: parallel-infrastructure, severity: medium)
+- **argv_size**: antigravity takes the packet via --prompt and fails E2BIG on a ~300 KB packet; grok CLI 1.0.5 < required 1.0.13 (HTTP 426) (skill: parallel-infrastructure, severity: medium)
+
+### Completed Work
+- 3 quorum IMPL_REVIEW rounds (claude_code + codex); 2 earlier passes lost quorum and are archived as ipass1/ipass2
+- Round fixes: eb52804d, 14675cb4, 58eac49a; adjudication records adjudication-impl-pass{3,4,5}-round-1.json
+- Tests green: skills/tests/ci_runners + workflow-parsing suites (481 passed); openspec validate --strict green
+
+### Next Steps
+- VAL_REVIEW should confirm the round-3 fixes, which were orchestrator-adjudicated after the last vendor round: mint time budget (#99), isolation boot unit (#88), unlabelled-job placement (#89)
+- Fix review_dispatcher: classify_error should not scan the echoed packet; pass codex --output-schema; stop pi writing into the worktree; feed antigravity via stdin; upgrade grok CLI >= 1.0.13
+- Consider excluding .review-ledger/ and autopilot bookkeeping from implementation packets by default
+
+### Relevant Files
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-impl-pass3-round-1.json` — round 1 adjudication
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-impl-pass4-round-1.json` — round 2 adjudication
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-impl-pass5-round-1.json` — round 3 adjudication
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/ledger.json` — review ledger, 0 open
+- `deploy/gx10-runner/mint-jitconfig.sh` — budget, sweep, hold-off, cache-args validation
+- `docs/guides/self-hosted-ci-runners.md` — runbook O1/O4/O9/O10 fixes
+- `scripts/ci/ci_wallclock.py` — placement and input-shape fixes
+
+### Context
+Multi-vendor IMPL_REVIEW via convergence_loop.converge() (fix_mode=targeted, min_quorum=2, verified lanes antigravity/claude_code/codex/grok/pi): three quorum rounds with claude_code + codex. Each round stopped on adjudication_required for single-vendor high judgment findings; the orchestrator adjudicated them against the rubric (all valid) and applied IMPL_FIX scoped to the cited files. Findings 17 -> 10 -> 11, high-judgment 1 -> 2 -> 1; ledger ends with 0 open, 0 blocking, 1 parked advisory (#96). Two earlier passes lost quorum to lane faults (codex schema drift misclassified auth_required; pi writing findings into the worktree). Both PLAN_REVIEW-only fixes (job-started fork-guard hook, persistent nftables isolation) were in every packet; the nftables persistence was redesigned after #83/#88.
+
