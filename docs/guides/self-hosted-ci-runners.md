@@ -202,6 +202,9 @@ for addr in 10.0.2.2 $(hostname -I); do
 done                                                                # every line: unreachable
 
 sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman exec gx10-runner-1 getent hosts api.github.com   # resolves (DNS exemption works)
+# If it does not resolve: the container's upstream resolver (copied from the host's resolv.conf) is
+# probably a LAN or Tailscale address the ruleset drops. Give it an explicit accept rule above the
+# drops (`meta skuid ghrunner ip daddr <resolver> udp dport 53 accept`, same for tcp); never widen a drop.
 systemctl is-enabled gx10-runner-isolation.service                       # enabled: loaded at every boot
 systemctl show -p Requires -p After user@$(id -u ghrunner).service | grep -c gx10-runner-isolation   # 2: runners gated on the rules
 grep -c skuid /etc/nftables.d/gx10-runner.nft                            # non-zero: the rules are in the loaded file

@@ -8,15 +8,15 @@
 **Status**: not applicable
 Not applicable: the change ships a runner kit (`deploy/gx10-runner/`) that is written and never installed on this host. No deployable service exists. Building/installing the runner image or units is HARD-BOUNDARY operator work (O3/O4).
 
-## Smoke
+## Smoke Tests
 **Status**: not applicable
 Not applicable: nothing is deployed. Static smoke equivalents (unit property checks, script parsing, workflow routing evaluation) are covered under Spec Compliance.
 
 ## Security
-**Status**: degraded
-DEGRADED: no gitleaks/semgrep/bandit/trivy/actionlint on this host and no ZAP target (no service). Substituted evidence: `test_fork_guard.py` (fork-PR jobs never reach self-hosted lane), `test_systemd_unit.py` (isolation properties of the unit), `test_jit_scripts.py` (no token persisted/logged, JIT config handling). No secrets introduced (kit uses `gx10-runner.env.example` only).
+**Status**: not applicable
+Not applicable: no deployable surface (the surface classifier requires only Spec Compliance). Context, not a pass: no gitleaks/semgrep/bandit/trivy/actionlint on this host and no ZAP target (no service). Substituted evidence: `test_fork_guard.py` (fork-PR jobs never reach self-hosted lane), `test_systemd_unit.py` (isolation properties of the unit), `test_jit_scripts.py` (no token persisted/logged, JIT config handling). No secrets introduced (kit uses `gx10-runner.env.example` only).
 
-## E2E
+## E2E Tests
 **Status**: not applicable
 Not applicable: no deployed service or browser surface.
 
@@ -28,10 +28,10 @@ Not applicable: no deployed service or browser surface.
 **Status**: pass
 - ci_runners 202 passed; ci_runners + ci_coverage + validate-feature + project-context-refresh (workflow-parsing suites) together 862 passed, 5 skipped (VAL_FIX re-run; 859 at VALIDATE).
 - Full `skills/tests` (--continue-on-collection-errors): 7966 passed, 9 skipped, 12 failed, 1 collection error. All 13 are in `multiplayer-simulation` and `roadmap-runtime`, none touched by this diff; each passes when run in isolation (multiplayer-simulation 96 passed, test_landable_checkpoint 7 passed, test_checkpoint_legacy_migration 6 passed, test_cross_host_reconcile 8 passed) = cross-directory pollution / basename collision, pre-existing and unrelated.
-- Control for the claim above (VAL_REVIEW): `pytest tests/ci_runners tests/multiplayer-simulation tests/roadmap-runtime` = 477 passed, 1 skipped; the two failing directories alone = 278 passed, 1 skipped. Running this diff's test package alongside them causes no failure, so the full-suite failures come from other directories' collection order, not from `ci_runners` (unique basenames, package `__init__.py`, only `ci_wallclock*` `sys.modules` keys). No baseline full-suite run on `main` was made.
+- Control for the claim above (VAL_REVIEW): `pytest tests/ci_runners tests/multiplayer-simulation tests/roadmap-runtime` = 477 passed, 1 skipped; the two failing directories alone = 278 passed, 1 skipped. Running this diff's test package alongside them causes no failure, so the full-suite failures come from other directories' collection order, not from `ci_runners` (unique basenames, package `__init__.py`, only `ci_wallclock*` `sys.modules` keys). No baseline full-suite run on `main` was made, so "unrelated" is inferred from this control, not proven against a main baseline.
 - ruff on `scripts/ci` and `skills/tests/ci_runners`: initially one TRY004 in `scripts/ci/ci_wallclock.py:409`; fixed with a justified `noqa` (CLI maps ValueError to a clean error, a test pins it); now clean.
 - actionlint: not installed (skipped).
-- VAL_FIX (VAL_REVIEW pass 1): (a) runbook O4 adds a `user@<ghrunner uid>.service` drop-in with `Requires=`/`After=gx10-runner-isolation.service`, so an nft load failure stops the runners instead of only ordering them (pinned by `test_runner_user_manager_requires_the_isolation_unit`, `test_isolation_unit_is_an_early_boot_oneshot`); (b) `mint-jitconfig.sh` sweep requests now pass the same whole-budget `fits` check as the mint (pinned by `test_no_request_starts_when_it_cannot_finish_inside_the_budget`); (c) report statuses use the validate-feature vocabulary (`not applicable`, `degraded`, `skipped`) and carry commit/tree provenance. `bash -n` on the mint script, ruff on `scripts/ci` + `skills/tests/ci_runners`, and `openspec validate --strict` clean after the fix.
+- VAL_FIX (VAL_REVIEW pass 1): (a) runbook O4 adds a `user@<ghrunner uid>.service` drop-in with `Requires=`/`After=gx10-runner-isolation.service`, so an nft load failure stops the runners instead of only ordering them (pinned by `test_runner_user_manager_requires_the_isolation_unit`, `test_isolation_unit_is_an_early_boot_oneshot`); (b) `mint-jitconfig.sh` sweep requests now pass the same whole-budget `fits` check as the mint (pinned by `test_no_request_starts_when_it_cannot_finish_inside_the_budget`); (c) report statuses use the validate-feature vocabulary (`not applicable`, `skipped`) under the canonical gate headings (`Smoke Tests`, `E2E Tests`) and carry commit/tree provenance. `bash -n` on the mint script, ruff on `scripts/ci` + `skills/tests/ci_runners`, and `openspec validate --strict` clean after the fix.
 
 ## CI Status
 **Status**: skipped

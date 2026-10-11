@@ -1723,19 +1723,19 @@
     },
     {
       "id": 102,
-      "status": "addressed",
+      "status": "open",
       "axis": "observability",
       "type": "observability",
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/validation-report.md",
-      "fingerprint": "0f444d2b9601f6d7",
+      "fingerprint": "80a7c3c272a3a20f",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
         "claude_code"
       ],
-      "description": "validation-report.md (Evidence, line 28) classifies the 12 full-suite failures + 1 collection error in multiplayer-simulation and roadmap-runtime as 'pre-existing cross-directory pollution / basename collision' but records no main-baseline run proving they fail without this diff. Static evidence on the branch supports non-causation: skills/tests/ci_runners is a package (__init__.py present), all eleven test basenames are unique across skills/tests, its conftest.py defines only local fixtures (repo_root, manifest, load_workflow, kit_dir) and mutates no global state, and the only sys.modules writes use the unique keys 'ci_wallclock' and 'ci_wallclock_rb' that nothing else in skills/tests imports. multiplayer-simulation itself lacks __init__.py, which is the classic basename-collision shape (test_cli.py, test_report.py, test_contracts.py). I could not execute pytest or git in this session to reproduce either way. Recommend the report cite the baseline command/result so the claim is auditable rather than inferred.",
+      "description": "validation-report.md classifies the 12 full-suite failures (multiplayer-simulation, roadmap-runtime) as pre-existing and unrelated, but the report itself states 'No baseline full-suite run on main was made'. I checked the plausible interference mechanisms and found none: skills/tests/ci_runners is a proper package (__init__.py), none of its test basenames collide with the duplicate basenames that already exist across other suites (test_cli.py, test_models.py, etc. are all pre-existing), the only sys.modules keys it registers are the unique 'ci_wallclock' and 'ci_wallclock_rb', conftest fixtures are package-scoped, and skills/pyproject.toml only appends tests/ci_runners to testpaths. The 'unrelated' claim is therefore well-supported by reasoning, but the report presents it as established rather than inferred. Suggest one sentence noting the claim rests on the isolation control run (477 passed) plus absence of shared state, not on a main baseline. Note: I could not independently re-run the ci_runners suite in this review (command denied by the permission system); the 202-pass figure is taken from the report.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -1797,13 +1797,13 @@
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "deploy/gx10-runner/mint-jitconfig.sh",
-      "fingerprint": "c4bfeb3fbe92e1de",
+      "fingerprint": "8265b4edac7d0026",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
         "claude_code"
       ],
-      "description": "IMPL_REVIEW round-3 mint time budget verified correct: deploy/gx10-runner/mint-jitconfig.sh starts the budget clock before the cache-args check, credential check, sweep and mint; fits() requires elapsed + delay + req_max <= budget; fail_slow clips the hold-off to remaining budget; sweep is capped at half the budget. With GX10_MINT_MAX_ELAPSED=600, GX10_MINT_REQ_MAX=30 and TimeoutStartSec=900 the worst case (600 + 30 + 300 hold-off clipped) stays inside the unit timeout. test_whole_mint_run_is_bounded_below_the_start_timeout pins the arithmetic (max_elapsed + req_max < timeout, holdoff <= max_elapsed), the clock-before-sweep ordering, the `fits 0` call and the per-request --max-time. No defect; recorded so the round-3 fix has a vendor-review trace.",
+      "description": "Re-verification of ledger [106] (mint script single time budget): confirmed correct. In deploy/gx10-runner/mint-jitconfig.sh the EPOCHREALTIME clock starts before cache-arg resolution, credential read, the registration sweep and the JIT mint; fits() refuses any request whose elapsed + delay + max-request-time would exceed GX10_MINT_MAX_ELAPSED (600); the sweep is capped at half the budget; the fail_slow hold-off (300) is clipped to the remaining budget. Worst case 600 + 30 + clipped hold-off stays below TimeoutStartSec=900 in gx10-runner@.service. Pinned by test_whole_mint_run_is_bounded_below_the_start_timeout and test_no_request_starts_when_it_cannot_finish_inside_the_budget in skills/tests/ci_runners, which drive the curl stub with slow responses and assert the elapsed bound against the unit's TimeoutStartSec parsed from the file, so a regression in either file breaks the test. No defect.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -1886,6 +1886,90 @@
         "codex"
       ],
       "description": "`validation-report.md` does not conform to the validation status/evidence contract. Deploy, Smoke, and E2E are described as not applicable but recorded as `skip`; Security is recorded as `skip` while its narrative explicitly says `Degraded`. The validation procedure requires `not applicable` for non-deployable phases and requires `DEGRADED` to be recorded verbatim when checks could not run. The report also omits the required validated commit and tree identifiers, so its otherwise reproducible test counts are not bound to an exact revision. Regenerate the report with consistent phase states and commit/tree provenance; retain O1-O12 as explicitly pending-operator, not passes.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 112,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "fingerprint": "a421b40e389e2e49",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger [104] (unlabelled-job placement check): confirmed. In scripts/ci/ci_wallclock.py verify_run records a 'placement is unproven' violation whenever job_lane returns None for a non-skipped job, while compare's run_lane intentionally drops such jobs from timing medians (accepted asymmetry per ledger). Pinned by test_job_that_ran_without_labels_is_a_placement_violation for both the self-hosted and hosted lanes; removing the None branch in verify_run fails the test. No defect.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 113,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "fingerprint": "83446613c543b81f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Pending-operator observation, not a defect. The nftables ruleset exempts only 127.0.0.53 for DNS before dropping all private, CGNAT and link-local destinations. The container runs with slirp4netns:allow_host_loopback=false, so rootless podman will not hand the container the host's 127.0.0.53 stub; podman instead copies the upstream servers from /run/systemd/resolve/resolv.conf (or /etc/resolv.conf). If the GX10 host's upstream resolver is a LAN router (192.168.x.x) or the Tailscale MagicDNS address (100.100.100.100), those addresses fall inside the dropped ranges and in-container DNS fails, which would surface as every job failing to reach api.github.com. The runbook's O4 in-container 'getent hosts api.github.com' check is exactly the probe that catches this, and the fix (a public upstream resolver for the ghrunner user, or an explicit --dns on the podman run line) is an operator choice. Suggest the runbook name this cause next to O4 so the first failure is diagnosable without a network trace.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 114,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/validation-report.md",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "1eeb4ab7ae7c9e00",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Validation report honesty check (priority 1): every pass claim traces to on-branch tests (ci_runners suite, narrowed project-context-refresh and validate-feature suites, workflow-parsing suites), and the host/repo acceptance outcomes O1-O12 are listed under Pending-Operator Items with Status: skipped and explicit evidence pointers, never as passes. The two narrowed pre-existing tests (test_gate.py now asserts the trigger set minus workflow_dispatch equals {push, pull_request, merge_group}; test_ci_sweep_wiring.py permits exactly the one fork-guard step-level if: that starts with runner.environment == 'self-hosted' &&) are the minimum relaxation needed and are recorded as a deviation in tasks.md 2.9. Status vocabulary (not applicable / degraded / pass / skipped) and the machine-readable section headers the goal gate needs are present. No gap found.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 115,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "187f87a590bc4dac",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`validation-report.md` uses the headings `## Smoke` and `## E2E`, but the validation contract parses `## Smoke Tests` and `## E2E Tests`. Running `gate_logic.py` against the report classifies both phases as `missing` and halts the pre-merge gate. Regenerate the report with the canonical headings so its not-applicable outcomes are machine-readable.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 116,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "a67220919d6d6109",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The report marks Security as `degraded` while declaring that the change has no deployable surface. The repository's surface classifier returns `deployable: false` with only Spec Compliance required, and `validate-feature` requires Deploy, Smoke, Security, and E2E to be `not applicable` in that case. As written, Security is treated as an unchecked required phase and blocks the gate despite the overall PASS claim. Mark Security `not applicable`; the unavailable scanners may remain documented as context.",
       "consensus_status": "unconfirmed"
     }
   ]
