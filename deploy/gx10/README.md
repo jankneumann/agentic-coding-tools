@@ -219,18 +219,25 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
   `schema_migrations` included, so the first GX-10 start applies only the
   migrations Railway has not run. Writes that land on Railway after the final
   dump are lost, which is why step 6 stops the Railway API first.
-- **Postgres image: match Railway exactly.** Railway runs ParadeDB 0.22.5 on
-  PostgreSQL 18.3. Restoring into the analyzer's `0.25.9-pg17` (the handoff's
+- **Postgres image: PostgreSQL 18, ParadeDB 0.26.1.** Railway runs ParadeDB
+  0.22.5 on PostgreSQL 18.3. The analyzer's `0.25.9-pg17` (the handoff's
   original suggestion) would be a major-version downgrade, which Postgres
   does not support. Pin, in `/etc/aca/gx10-images.env`:
 
   ```
-  GX10_COORD_POSTGRES_IMAGE=docker.io/paradedb/paradedb:0.22.5-pg18@sha256:dc8f0d3d5f8de4131b57f2b19d11ccd9103a26c410a21973cbe31a835881a201
+  GX10_COORD_POSTGRES_IMAGE=docker.io/paradedb/paradedb:0.26.1-pg18@sha256:29bd8cc90a89ff15f8350f89b4849c2ef807aa9381c79febd1afb1a8a25fb706
   ```
 
-  (multi-arch list digest, amd64 + arm64). Its `pg_dump` is 18.3, so the
-  seed script uses the same image for its client tools. A ParadeDB upgrade
-  is a separate, later change; the coordinator uses none of `pg_search`.
+  (multi-arch list digest, amd64 + arm64; PostgreSQL 18.6, pg_search 0.26.1,
+  vector 0.8.6). Moving extension versions during the cutover is safe here
+  because the coordinator stores nothing that depends on them: no migration
+  creates a BM25 index or touches `pg_search`, and no table has a `vector`
+  column. The restore skips the dump's extension entries, so the image's
+  newer versions are what run. Rehearsed against the real Railway dump into
+  both `0.22.5-pg18` and this image with identical results (below). Fallback,
+  if 0.26.1 misbehaves: `0.22.5-pg18@sha256:dc8f0d3d5f8de4131b57f2b19d11ccd9103a26c410a21973cbe31a835881a201`,
+  Railway's exact image. Its `pg_dump` (18.6) also serves as the seed
+  script's client tools — newer than the 18.3 server, as pg_dump requires.
 - **Keys.** If the GX-10 `coordination_api_keys` differ from Railway's, every
   client needs a new `COORDINATION_API_KEY` too. If they are the same, the
   Railway instance stays a live, Access-free door for those keys until it is
@@ -298,7 +305,7 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
    Nothing is dropped.
 
    Rehearsed 2026-10-11 with the real Railway data (49 MB, 49 migrations)
-   into a throwaway `0.22.5-pg18` container: 29 image-provided entries
+   into throwaway `0.22.5-pg18` and `0.26.1-pg18` containers, each: 29 image-provided entries
    skipped, all 36 tables restored, row counts identical except tables
    Railway kept writing to after the dump, and the migration runner found
    nothing to apply. Expect the same five checksum warnings at every start
