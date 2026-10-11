@@ -5,6 +5,10 @@ feature:
   title: "Amend skill-workflow spec for policy-authorized sync windows"
   plan_revision: 2
   created_by: claude-code
+  # No deployable surface: the change touches a shared skills library
+  # (skills/shared), its JSON schema, OpenSpec specs, and docs (the template is
+  # documentation). No service, endpoint, or container is built or deployed.
+  deployable: false
 
 contracts:
   revision: 1
