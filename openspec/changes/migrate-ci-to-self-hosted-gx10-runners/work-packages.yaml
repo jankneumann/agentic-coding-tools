@@ -90,7 +90,7 @@ packages:
       complexity: low
       package_kind: config
     context_impact:
-      surfaces: [capabilities, documentation]
+      surfaces: [apis, capabilities, documentation, semantic_code]
     inputs: {}
     outputs:
       result_keys: ["contracts_valid"]
@@ -161,7 +161,7 @@ packages:
       complexity: medium
       package_kind: config
     context_impact:
-      surfaces: [capabilities]
+      surfaces: [capabilities, semantic_code]
     inputs: {}
     outputs:
       result_keys: ["workflows_routed"]
@@ -243,7 +243,7 @@ packages:
       complexity: medium
       package_kind: config
     context_impact:
-      surfaces: [capabilities, documentation]
+      surfaces: [capabilities, documentation, semantic_code]
     inputs: {}
     outputs:
       result_keys: ["runner_kit_valid", "shellcheck"]
@@ -375,7 +375,7 @@ packages:
       complexity: low
       package_kind: config
     context_impact:
-      surfaces: [documentation]
+      surfaces: [documentation, semantic_code]
     inputs: {}
     outputs:
       result_keys: ["runbook_valid"]
