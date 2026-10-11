@@ -33,7 +33,7 @@ Everything of that kind is in § 7 (operator-only).
 
 ## Phase 1 — Contracts: manifest schema, manifest, test package
 
-- [ ] 1.1 Write `skills/tests/ci_runners/test_manifest_schema.py` (S)
+- [x] 1.1 Write `skills/tests/ci_runners/test_manifest_schema.py` (S)
   - The promoted `.github/runner-lanes.schema.json` is valid Draft 2020-12.
   - `.github/runner-lanes.yaml` validates against it.
   - Negative fixtures are rejected:
@@ -47,7 +47,7 @@ Everything of that kind is in § 7 (operator-only).
   **Contracts**: contracts/schemas/runner-lanes.schema.json
   **Design decisions**: D1
   **Dependencies**: none
-- [ ] 1.2 Promote the schema from the change's `contracts/schemas/` to
+- [x] 1.2 Promote the schema from the change's `contracts/schemas/` to
       `.github/runner-lanes.schema.json`, then author `.github/runner-lanes.yaml` (S)
   - The manifest classifies every current job of `ci.yml` (25) and `security.yml` (3) exactly
     as the design D2 table does.
@@ -57,7 +57,7 @@ Everything of that kind is in § 7 (operator-only).
   **Spec scenarios**: ci-runner-infrastructure / "Hosted job without justification is rejected"
   **Design decisions**: D1, D2
   **Dependencies**: 1.1
-- [ ] 1.3 Create the `skills/tests/ci_runners/` package skeleton and register it (XS)
+- [x] 1.3 Create the `skills/tests/ci_runners/` package skeleton and register it (XS)
   - Add `__init__.py`.
   - Add `conftest.py` with fixtures `repo_root`, `manifest` and `load_workflow(name)`.
   - Register the directory in the `testpaths` of `skills/pyproject.toml`, so that
