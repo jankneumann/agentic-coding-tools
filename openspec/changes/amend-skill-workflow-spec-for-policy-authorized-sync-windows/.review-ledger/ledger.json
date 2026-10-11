@@ -112,17 +112,18 @@
       "id": 7,
       "status": "open",
       "axis": "architecture",
-      "type": "architecture",
+      "type": "spec_gap",
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
-      "fingerprint": "685c6e903abe3a53",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "fingerprint": "a745b938f8afcf1c",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
         "claude_code"
       ],
-      "description": "`allowed_sources` and `auto_merge_ceiling` are mandatory and non-empty for every window, including a window that lists only `update-specs` or `cleanup-feature`, which never select PRs. Operators will have to declare meaningless source lists for those windows. The skill-workflow scenario already bounds the fields to 'whenever it selects, remediates, or merges pull requests', so the inconsistency is only ergonomic.",
+      "description": "Re-verification of ledger [7]/[19]: `allowed_sources` and `auto_merge_ceiling` remain required and non-empty for every window, including windows listing only `update-specs` or `cleanup-feature`, which never select PRs. Still ergonomic only; the skill-workflow scenario scopes the fields to PR selection, remediation and merge. Defer to ri-12 once the real caller shape is known.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -388,6 +389,122 @@
         "codex"
       ],
       "description": "Nit: Open ledger item 6 remains unresolved: `work-packages.yaml` registers `contracts/README.md` as the primary OpenAPI contract even though that file explicitly says OpenAPI does not apply. This misclassifies a prose applicability record as a machine-readable API contract and can mislead contract-review tooling.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 24,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/trust_posture.py",
+      "fingerprint": "eba291d7f0477761",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The cadence pattern uses `( +...)`, so runs of internal spaces are accepted: `0  3 * * 1` loads and passes the JSON schema (the agreement test even pins this). The trust-posture spec says tab- or padded forms are rejected and the template says fields are separated by spaces, which an operator will read as single-space-separated. Because `to_canonical` hashes the raw cadence string, `0 3 * * 1` and `0  3 * * 1` are semantically identical cadences with different posture digests, contrary to the stated intent that whitespace never counts as a posture change. Tighten to `( [0-9*/,-]+){4}` in both the loader and the schema (the mirror test keeps them in step), or state explicitly in the spec/template that repeated separators are permitted.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/tests/test_trust_posture_sync_windows.py",
+      "fingerprint": "9b0b9d81b5704d78",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The shared-library test suite now pins the SHA-256 of the repository's live TRUST_POSTURE.md. Any legitimate gate edit to the live posture will break a `skills/shared` test unrelated to the edit, and the failure message will not say why. The comment explains the refresh procedure and the structural invariant is pinned separately, so this is acceptable as a deliberate tripwire, but it is a new cross-file coupling worth knowing about when the next gate edit lands.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/trust_posture.py",
+      "fingerprint": "1d0342e1ce136858",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "In `_check_list_field`, non-string items always take the `unknown value` branch, so the `repr(item)` fallback added to `seen` is never consulted and never affects the repeat check. The conditional is dead code that suggests a repeat check for non-strings that does not exist.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 27,
+      "status": "open",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "fingerprint": "90fcd824eb715ee7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger [6]/[18]/[23]: work-packages.yaml still files contracts/README.md under the `openapi` sub-type while the README states OpenAPI does not apply. Unchanged in this diff; validator accepts it; labelling nit only.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 28,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "3a492b787b94e077",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`openspec/schemas/trust-posture.schema.json` does not enforce the required uniqueness of window IDs. `uniqueItems: true` compares complete array entries, so two windows with the same `id` but different cadence or policy fields pass schema validation while the Python loader rejects them. This conflicts with the specification and with the README's characterization of the schema as the canonical machine-readable contract.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 29,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "1c4da1fd590c8144",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The schema and loader do not accept exactly the same cadence strings as claimed. The schema pattern ends with `$`, which permits a match immediately before a final newline under the validator's regex semantics, while `_CADENCE_RE.fullmatch` rejects that value. The parity test explicitly excludes this known divergence. Add an absolute-end constraint (and a regression case containing a trailing newline) so schema-only validation cannot accept a posture the authoritative loader rejects.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 30,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "3cdcb44cacbba1b3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`validation-report.md` states that the sync-window tests cover every spec scenario, but `design.md` and `tasks.md` explicitly acknowledge that the scheduled-invocation scenarios cannot be exercised until the ri-12/ri-13 callers exist. The report should describe the tested authorization/contract boundary and identify the end-to-end scenarios as deferred; otherwise it overstates the validation evidence.",
       "consensus_status": "unconfirmed"
     }
   ]
