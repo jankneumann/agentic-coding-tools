@@ -1,17 +1,49 @@
 {
-  "schema_version": 6,
-  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
-  "current_phase": "VAL_REVIEW",
-  "iteration": 0,
-  "total_iterations": 9,
-  "max_phase_iterations": 3,
-  "findings_trend": [],
   "blocking_findings": [],
-  "vendor_availability": {},
-  "packages_status": {},
-  "package_authors": {},
-  "implementation_strategy": {},
-  "memory_ids": [],
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "cli_review_enabled": true,
+  "current_phase": "SUBMIT_PR",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto",
+      "phase": "PLAN"
+    }
+  ],
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [],
+  "force": false,
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "auto",
+      "default_action": null,
+      "disposition": "auto",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "recorded_at": "2026-10-11T02:05:25.600576+00:00",
+      "resolution": "auto",
+      "scope": "roadmap_approval",
+      "timeout_seconds": null
+    }
+  ],
+  "gate_signals": {},
+  "gate_verdict": "proceed_with_review",
+  "goal_gate": null,
   "handoff_ids": [
     "05bf94d2-17bb-4e98-9cf1-dd3e4e6b01c7",
     "626043b7-a679-4f06-96d8-8550b4acc092",
@@ -20,8 +52,19 @@
     "2433019a-368d-472d-a08e-a9567ee584dc",
     "0f029336-ed22-4462-a40c-2457de3e67a5",
     "23dd9feb-9839-4e7e-8ec9-426685abae1c",
-    "f97a1c8e-5fba-4cd2-9368-c814a27e1a01"
+    "f97a1c8e-5fba-4cd2-9368-c814a27e1a01",
+    "44bcdff3-66b6-4953-a2c0-4761a43fb751"
   ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "44bcdff3-66b6-4953-a2c0-4761a43fb751",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "park": null,
+  "pending_gate": null,
+  "phase_archetype": "runner",
   "phase_history": [
     {
       "at": "2026-10-11T01:54:17.788250+00:00",
@@ -62,55 +105,18 @@
       "at": "2026-10-11T04:10:57.583095+00:00",
       "outcome": "passed",
       "phase": "VALIDATE"
-    }
-  ],
-  "last_handoff_id": "f97a1c8e-5fba-4cd2-9368-c814a27e1a01",
-  "started_at": "2026-10-11T01:52:33.759559+00:00",
-  "phase_started_at": "2026-10-11T04:10:59.936100+00:00",
-  "previous_phase": null,
-  "escalation_reason": null,
-  "val_review_enabled": true,
-  "cli_review_enabled": true,
-  "error": null,
-  "phase_archetype": "validator",
-  "force": false,
-  "gate_signals": {},
-  "gate_verdict": "proceed_with_review",
-  "gate_decisions": [
-    {
-      "approval_id": null,
-      "authorizing_disposition": "auto",
-      "default_action": null,
-      "disposition": "auto",
-      "gate": "proposal_approval",
-      "notified": null,
-      "outcome": "proceed",
-      "phase": "PLAN",
-      "posture_present": true,
-      "provenance": {
-        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
-        "source": "posture"
-      },
-      "reason": "gate 'proposal_approval' auto-approved by trust posture",
-      "recorded_at": "2026-10-11T02:05:25.600576+00:00",
-      "resolution": "auto",
-      "scope": "roadmap_approval",
-      "timeout_seconds": null
-    }
-  ],
-  "pending_gate": null,
-  "goal_gate": null,
-  "park": null,
-  "degradations": [
-    {
-      "code": "coordinator_projection_forbidden",
-      "detail": "project-state submit returned forbidden",
-      "phase": "INIT"
     },
     {
-      "code": "audit_sink_failed",
-      "detail": "audit sink reported failure for gate proposal_approval decision auto",
-      "phase": "PLAN"
+      "at": "2026-10-11T04:48:59.870303+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
     }
-  ]
+  ],
+  "phase_started_at": "2026-10-11T04:49:02.076478+00:00",
+  "previous_phase": null,
+  "schema_version": 6,
+  "started_at": "2026-10-11T01:52:33.759559+00:00",
+  "total_iterations": 10,
+  "val_review_enabled": true,
+  "vendor_availability": {}
 }
