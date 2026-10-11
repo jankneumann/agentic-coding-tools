@@ -72,6 +72,16 @@ Each round SHALL:
 Every lane's findings SHALL be written to the round checkpoint under its own lane id, and
 ConsensusSynthesizer SHALL attribute consensus findings to those lane ids.
 
+After each run, `agent_lane.py` SHALL write `ConvergenceResult.consensus` (including
+`quorum_received`) under `openspec/changes/<change-id>/reviews/`, with one file per phase:
+- `consensus-plan.json` for `PLAN_REVIEW`;
+- `consensus-impl-review.json` for `IMPL_REVIEW`;
+- `consensus-val-review.json` for `VAL_REVIEW`.
+
+The two implementation phases share `review_type: implementation`, so the file is named by phase
+and neither run overwrites the other. `converge()` itself SHALL NOT be required to write these
+files.
+
 The review body written for `VAL_REVIEW` SHALL list every lane that reviewed. It SHALL name a
 `single_vendor_review` degradation only when exactly one lane reviewed.
 
@@ -80,8 +90,8 @@ The review body written for `VAL_REVIEW` SHALL list every lane that reviewed. It
   runs against a fixture change, with an injected OpenRouter transport that returns
   schema-valid findings and an agent handshake that writes schema-valid findings
 - **THEN** `converge()` SHALL be called with `min_quorum=2`, the round checkpoint SHALL contain
-  findings files for both `claude_code` and `openrouter`, and `consensus` SHALL report
-  `quorum_received: 2`
+  findings files for both `claude_code` and `openrouter`, `consensus` SHALL report
+  `quorum_received: 2`, and `reviews/consensus-plan.json` SHALL contain the same consensus
 
 #### Scenario: Findings carry vendor attribution
 - **WHEN** both lanes report a finding at the same file and line range

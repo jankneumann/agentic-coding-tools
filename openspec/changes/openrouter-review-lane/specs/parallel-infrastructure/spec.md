@@ -192,14 +192,35 @@ degradation `metered_spend_unrecorded` with phase and lane.
 
 ### Requirement: Tool-less Lane Packet Refusal
 
-An OpenAI-compatible lane SHALL NOT review a packet whose sidecar metadata has
-`tools_overflow: true`. Its dispatch SHALL return `success=False`,
-`error_class=vendor_unavailable` and `error="packet_requires_tools"` without sending a request.
+When a round's primary review packet has `tools_overflow: true`, `converge()` SHALL also build a
+tool-less packet for OpenAI-compatible lanes, within the same `BUDGET_CHARS`, with its own sidecar
+`review-packet.toolless.meta.json`:
+- for `review_type == "plan"`, its diff SHALL be limited to `openspec/changes/<change-id>/**`,
+  and it SHALL carry the full text of `proposal.md`, `design.md`, `tasks.md` and the spec deltas;
+- for `review_type == "implementation"`, it SHALL keep the rule-group selection, drop the excluded
+  and truncated files, and list them in the sidecar as `coverage.skipped`.
+
+`dispatch_and_wait` SHALL give OpenAI-compatible lanes the tool-less packet when one exists, and
+the primary packet otherwise. CLI lanes and the `claude_code` handshake lane SHALL keep the
+primary packet.
+
+An OpenAI-compatible lane SHALL NOT review a packet it received whose sidecar has
+`tools_overflow: true`. That means the tool-less packet when one was built, otherwise the primary
+packet. Its dispatch SHALL return `success=False`, `error_class=vendor_unavailable` and
+`error="packet_requires_tools"` without sending a request.
 The Empty Or Blinded Review Is Not Success rule SHALL apply to OpenAI-compatible lanes as it
 does to CLI lanes.
 
+#### Scenario: Overflowing branch diff still reaches the HTTP lane
+- **WHEN** a plan review's primary packet has `tools_overflow: true` because the branch diff
+  exceeds `BUDGET_CHARS`, but the change's own artifacts fit, and an `openrouter` lane is selected
+- **THEN** a tool-less packet with `tools_overflow: false` SHALL be written. The `openrouter` lane
+  SHALL be dispatched with that packet's body, and the CLI and handshake lanes SHALL receive the
+  primary packet
+
 #### Scenario: Overflowing packet is refused
-- **WHEN** a round's packet metadata has `tools_overflow: true` and an `openrouter` lane is selected
+- **WHEN** the packet an `openrouter` lane would receive (the tool-less packet, or the primary
+  packet when no tool-less packet was built) has `tools_overflow: true`
 - **THEN** the lane's result SHALL be `success=False` with `error="packet_requires_tools"`, and the
   injected transport SHALL record zero requests
 
