@@ -18,7 +18,7 @@ Add a collect-facts <trace-id | change-id | PR> command that writes facts with f
 - Given a causal trace ID, collect-facts produces a schema-valid ledger whose facts each carry source, gathered_by, time_window, and tool_version.
 - A missing source (e.g. no effects journal yet) produces an explicit source_unavailable fact rather than a failure.
 - A secret-pattern fixture placed in a source is redacted in the output, and every invocation writes an audit record.
-- Collection performs no writes outside the target ledger and refuses to run past its configured time limit.
+- Collection performs no mutations of source systems; its only writes are the target ledger and its audit record, and it refuses to run past its configured time limit.
 
 ## Rationale
 

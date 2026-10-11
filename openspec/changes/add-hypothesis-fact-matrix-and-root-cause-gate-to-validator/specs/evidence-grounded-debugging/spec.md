@@ -5,14 +5,14 @@
 
 ## ADDED Requirements
 
-### Requirement: The validator rejects fixtures with an uncited root cause and with a root...
+### Requirement: The validator rejects fixtures with an uncited root cause, a root cause...
 
-The system SHALL ensure that the validator rejects fixtures with an uncited root cause and with a root cause contradicted by a recorded fact.
+The system SHALL ensure that the validator rejects fixtures with an uncited root cause, a root cause contradicted by a recorded fact, and a root cause with any unknown cell against a recorded fact.
 
-#### Scenario: The validator rejects fixtures with an uncited root cause and with a root...
+#### Scenario: The validator rejects fixtures with an uncited root cause, a root cause...
 
 WHEN `add-hypothesis-fact-matrix-and-root-cause-gate-to-validator` is implemented
-THEN The validator rejects fixtures with an uncited root cause and with a root cause contradicted by a recorded fact.
+THEN The validator rejects fixtures with an uncited root cause, a root cause contradicted by a recorded fact, and a root cause with any unknown cell against a recorded fact.
 
 ### Requirement: The validator emits the matrix with per-signal hypothesis counts and flags...
 

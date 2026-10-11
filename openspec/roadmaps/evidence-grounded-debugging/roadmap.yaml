@@ -42,15 +42,15 @@ items:
   description: Extend the ledger validator to compute the hypothesis-by-fact matrix
     (consistent / contradicted / unknown), per-fact column counts as signal strength,
     and all-consistent survivor rows. Reject any root_cause that cites no facts, is
-    contradicted by a fact, or is a multi-cause hypothesis containing a non-necessary
-    component.
+    not an all-consistent survivor row (any contradicted or unknown cell), or is a
+    multi-cause hypothesis containing a non-necessary component.
   rationale: The constraint that no root cause may be reported without fact citations
     needs a deterministic enforcement point, and the matrix is the ranking mechanism
     the rewritten debugging method and eliminative reviewer both rely on.
   change_id: add-hypothesis-fact-matrix-and-root-cause-gate-to-validator
   acceptance_outcomes:
-  - The validator rejects fixtures with an uncited root cause and with a root cause
-    contradicted by a recorded fact.
+  - The validator rejects fixtures with an uncited root cause, a root cause contradicted
+    by a recorded fact, and a root cause with any unknown cell against a recorded fact.
   - The validator emits the matrix with per-signal hypothesis counts and flags the
     all-consistent rows.
   - The necessity check fails a combined hypothesis when removing one component leaves
@@ -130,8 +130,8 @@ items:
     fact rather than a failure.
   - A secret-pattern fixture placed in a source is redacted in the output, and every
     invocation writes an audit record.
-  - Collection performs no writes outside the target ledger and refuses to run past
-    its configured time limit.
+  - Collection performs no mutations of source systems; its only writes are the target
+    ledger and its audit record, and it refuses to run past its configured time limit.
   external_depends_on:
   - multiplayer-collaboration:ri-03
 - item_id: ri-06

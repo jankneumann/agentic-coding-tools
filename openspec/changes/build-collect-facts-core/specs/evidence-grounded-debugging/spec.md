@@ -32,11 +32,11 @@ The system SHALL ensure that a secret-pattern fixture placed in a source is reda
 WHEN `build-collect-facts-core` is implemented
 THEN A secret-pattern fixture placed in a source is redacted in the output, and every invocation writes an audit record.
 
-### Requirement: Collection performs no writes outside the target ledger and refuses to run...
+### Requirement: Collection performs no mutations of source systems; its only writes are the...
 
-The system SHALL ensure that collection performs no writes outside the target ledger and refuses to run past its configured time limit.
+The system SHALL ensure that collection performs no mutations of source systems; its only writes are the target ledger and its audit record, and it refuses to run past its configured time limit.
 
-#### Scenario: Collection performs no writes outside the target ledger and refuses to run...
+#### Scenario: Collection performs no mutations of source systems; its only writes are the...
 
 WHEN `build-collect-facts-core` is implemented
-THEN Collection performs no writes outside the target ledger and refuses to run past its configured time limit.
+THEN Collection performs no mutations of source systems; its only writes are the target ledger and its audit record, and it refuses to run past its configured time limit.
