@@ -12,6 +12,11 @@
 # a full schema+data copy *including* schema_migrations: on first start the
 # GX-10 API then applies only migrations newer than Railway's.
 #
+# SEED_ACCEPT_CHANGED="<file> ..." lets `check` pass a migration edited after
+# Railway applied it -- only once you have verified the database already has
+# the edit's effect (typically via a later forward migration). Each accepted
+# file is printed, so the restore log records what was waived.
+#
 # The dump holds every agent's memory, audit trail and handoffs. It is written
 # 0600 and should be deleted once the restore is verified.
 set -euo pipefail
@@ -24,6 +29,19 @@ DB_USER="${COORD_DB_USER:-coordinator}"
 DB_NAME="${COORD_DB_NAME:-coordinator}"
 
 usage() { sed -n '2,8p' "$0" >&2; exit 2; }
+
+# pg_dump refuses a server newer than itself, and an older pg_restore cannot
+# read a newer archive. PG_TOOLS_IMAGE runs both from a container matching the
+# server's major version; -e NAME passes each PG* variable by inheritance, so
+# the password still never appears in argv. Archives travel via stdin/stdout.
+pgtool() {
+  if [[ -n "${PG_TOOLS_IMAGE:-}" ]]; then
+    "$PODMAN" run --rm -i -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD -e PGDATABASE \
+      "$PG_TOOLS_IMAGE" "$@"
+  else
+    "$@"
+  fi
+}
 [[ $# -eq 2 ]] || usage
 cmd="$1" dump="$2"
 
@@ -45,9 +63,9 @@ for k, v in (("PGHOST", u.hostname), ("PGPORT", u.port), ("PGUSER", u.username),
     print(f"export {k}={shlex.quote(unquote(str(v or '')))}")
 PY
 )"
-  pg_dump --format=custom --no-owner --no-privileges --file="$dump.partial"
+  pgtool pg_dump --format=custom --no-owner --no-privileges >"$dump.partial"
   mv "$dump.partial" "$dump"
-  pg_restore --list "$dump" >/dev/null   # proves the archive is readable
+  pgtool pg_restore --list <"$dump" >/dev/null   # proves the archive is readable
   echo "dumped: $dump ($(du -h "$dump" | cut -f1))"
   ;;
 
@@ -55,7 +73,7 @@ check)
   # The runner SKIPS (with only a warning) a migration whose recorded checksum
   # differs from the file on disk -- a silently half-migrated database. Refuse
   # to proceed unless every migration Railway applied is byte-identical here.
-  rows="$(pg_restore --data-only --table=schema_migrations --file=- "$dump" \
+  rows="$(pgtool pg_restore --data-only --table=schema_migrations --file=- <"$dump" \
     | awk '/^COPY .*schema_migrations/{on=1;next} /^\\\.$/{on=0} on')"
   [[ -n "$rows" ]] || { echo "no schema_migrations rows in $dump" >&2; exit 1; }
   bad=0 applied=0
@@ -70,7 +88,11 @@ check)
     if [[ ! -f "$MIGRATIONS/$file" ]]; then
       echo "MISSING here: $file (applied on Railway)"; bad=1
     elif [[ "$(sha256sum <"$MIGRATIONS/$file" | cut -d' ' -f1)" != "$sum" ]]; then
-      echo "CHANGED since Railway applied it: $file"; bad=1
+      if [[ " ${SEED_ACCEPT_CHANGED:-} " == *" $file "* ]]; then
+        echo "ACCEPTED (changed, verified equivalent): $file"
+      else
+        echo "CHANGED since Railway applied it: $file"; bad=1
+      fi
     fi
   done <<<"$rows"
   pending="$(comm -13 <(printf '%s\n' "$rows" | grep -oE '[0-9]{3}_[^[:space:]]+\.sql' | sort) \
@@ -84,19 +106,45 @@ restore)
   [[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
   "$0" check "$dump"
   exec_psql() { "$PODMAN" exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" "$@"; }
-  # An API that already started has migrated an empty schema; restoring on top
-  # would collide object by object. Refuse rather than half-merge.
-  if [[ "$(exec_psql -tAc "SELECT to_regclass('public.schema_migrations') IS NOT NULL")" == t ]]; then
-    echo "$DB_NAME already has a schema; restore needs a fresh database" >&2; exit 1
-  fi
+  # Only into a database holding nothing of ours: an API that already started
+  # has migrated it, and any table in public no extension owns is real data
+  # (PostGIS keeps its own spatial_ref_sys there). Refuse rather than merge.
+  ours="$(exec_psql -tAc "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('r','p') AND NOT EXISTS
+      (SELECT 1 FROM pg_depend d WHERE d.objid = c.oid AND d.deptype = 'e')")"
+  [[ "$ours" == 0 ]] || { echo "$DB_NAME already has $ours table(s) of its own; restore needs a fresh database" >&2; exit 1; }
   # Cluster-level roles are not in a pg_dump; the RLS policies name them.
   exec_psql -c "DO \$\$ BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF;
   END \$\$;"
+  # The ParadeDB image pre-installs its extensions -- with their schemas and
+  # config-table rows -- into the fresh database, and the dump (of a database
+  # made by the same image) recreates them, so the first CREATE SCHEMA
+  # collides. Skip exactly the entries the target already has; nothing is
+  # dropped, and each skipped entry is printed for the restore log.
+  existing="$(exec_psql -tA -F ' ' -c "
+    SELECT 'SCHEMA', nspname FROM pg_namespace
+      WHERE nspname NOT LIKE 'pg\_%' AND nspname NOT IN ('public', 'information_schema')
+    UNION ALL SELECT 'EXTENSION', extname FROM pg_extension
+    UNION ALL SELECT 'DATA', n.nspname || ' ' || c.relname FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_depend d ON d.objid = c.oid AND d.deptype = 'e'
+      WHERE c.relkind = 'r'")"
+  pgtool pg_restore --list <"$dump" | python3 -I -c '
+import re, sys
+have = {tuple(l.split(" ", 1)) for l in sys.argv[1].splitlines() if l.strip()}
+for line in sys.stdin:
+    m = re.match(r"\d+; \d+ \d+ (?:(SCHEMA|EXTENSION) - (\S+)|COMMENT - (SCHEMA|EXTENSION) (\S+)|TABLE DATA (\S+ \S+) )", line)
+    key = m and ((m[1], m[2]) if m[1] else (m[3], m[4]) if m[3] else ("DATA", m[5]))
+    if key and key in have:
+        print("skip (already in target): " + line.strip(), file=sys.stderr)
+        line = ";" + line
+    sys.stdout.write(line)
+' "$existing" | "$PODMAN" exec -i "$CONTAINER" sh -c 'cat > /tmp/seed.toc'
   "$PODMAN" exec -i "$CONTAINER" pg_restore --exit-on-error --single-transaction \
-    --no-owner --no-privileges -U "$DB_USER" -d "$DB_NAME" <"$dump"
+    --no-owner --no-privileges --use-list=/tmp/seed.toc -U "$DB_USER" -d "$DB_NAME" <"$dump"
   exec_psql -tAc "SELECT count(*) || ' migrations recorded' FROM schema_migrations"
   ;;
 
