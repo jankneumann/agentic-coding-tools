@@ -63,7 +63,7 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
   **Dependencies**: 2.3
 - [x] 2.7 Author implement scenarios `implement-feature-tdd-new-function` + `implement-feature-respects-scope` with outcome modules [M]
   **Dependencies**: 2.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [x] 2.8 Author validate scenarios `validate-feature-flags-failing-test`, `validate-feature-clean-pass`, `validate-feature-spec-gap` with outcome modules [M]
   **Dependencies**: 2.3
 - [x] 2.9 Author merge scenarios `merge-pull-requests-local-merge` + `cleanup-feature-archive` (`local_remote: true`, seeded `prs:`) with outcome modules [M]
@@ -73,24 +73,24 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 
 ## 3. Results store and query CLI (wp-results)
 
-- [ ] 3.1 Write tests for `ResultsStore` append/read [S]
+- [x] 3.1 Write tests for `ResultsStore` append/read [S]
   Record shape vs schema (field mapping from ri-15 `VendorRunVerdict` per D2; all D2 fields present, nullable as explicit null; schema rejects `fail` without failed gates, `pass`/`skipped_budget` with failed gates, `error` without a message), flock-protected append, torn final line and unknown `schema_version` skipped with warning, `result` records without a `run` record flagged as interrupted — or in progress while the run lock is held.
   **Spec scenarios**: ath.Durable per-vendor per-skill results store/results are appended per scenario and vendor; ath.Durable results store/reader tolerates a torn final line and unknown versions; ath.Durable results store/results survive an interrupted run; ath.Durable results store/a run in progress is not reported as interrupted
   **Contracts**: contracts/schemas/results-record.schema.json
   **Design decisions**: D2
   **Dependencies**: 1.1
-- [ ] 3.2 Implement `results_store.py` (`ResultsStore` protocol, `JsonlResultsStore`, `records_from_matrices`) [M]
+- [x] 3.2 Implement `results_store.py` (`ResultsStore` protocol, `JsonlResultsStore`, `records_from_matrices`) [M]
   `records_from_matrices` takes an injected `family_of(skill) -> str` callable (wired to `suite.skill_family` by the nightly runner), so this package does not depend on wp-scenarios.
   **Dependencies**: 3.1
-- [ ] 3.3 Write tests for `results query` filters + `results latest` [S]
+- [x] 3.3 Write tests for `results query` filters + `results latest` [S]
   **Spec scenarios**: ath.Durable results store/query by vendor and skill over a time window; ath.Durable results store/query by skill family and scenario; ath.Durable results store/latest result per scenario and vendor
   **Dependencies**: 3.2
-- [ ] 3.4 Write tests for `results trend` bucketing/pass-rate denominator, plus a 15k-record performance test (< 2 s) [S]
+- [x] 3.4 Write tests for `results trend` bucketing/pass-rate denominator, plus a 15k-record performance test (< 2 s) [S]
   **Spec scenarios**: ath.Durable results store/trend aggregates pass rate per bucket
   **Dependencies**: 3.2
-- [ ] 3.5 Implement `results_cli.py` (`add_parser(subparsers)`, `query`, `trend`, `latest`; json and table output) [M]
+- [x] 3.5 Implement `results_cli.py` (`add_parser(subparsers)`, `query`, `trend`, `latest`; json and table output) [M]
   **Dependencies**: 3.3, 3.4
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## 4. Capability-gap emission (wp-gaps)
 

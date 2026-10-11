@@ -50,6 +50,8 @@ select = ["E", "F", "I", "N", "W", "UP"]
 "src/agent_scenarios/gh_shim.py" = ["E501"]
 # Outcome modules are named after their (hyphenated) scenario ids.
 "tests/scenario_outcomes/*" = ["N999"]
+# Compact table-style test data.
+"tests/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
