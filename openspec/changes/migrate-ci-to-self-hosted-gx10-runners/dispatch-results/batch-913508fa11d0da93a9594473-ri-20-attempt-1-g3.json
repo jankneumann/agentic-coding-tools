@@ -1,0 +1,39 @@
+{
+  "attempt": 1,
+  "branch": "openspec/migrate-ci-to-self-hosted-gx10-runners",
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto",
+      "phase": "PLAN"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate pr_creation decision auto",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate merge decision posture_block",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "dispatch_id": "batch-913508fa11d0da93a9594473:ri-20:attempt-1",
+  "evidence": {
+    "commit": "fe0511fd727f6e4b46772eb59f2a9631f7beae7d",
+    "loop_state_digest": "42b4a523a0bfbf12300d5bb7155f004716deccc468a1894623ab4b8fb7a6bb17",
+    "loop_state_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json"
+  },
+  "handoff_id": "44bcdff3-66b6-4953-a2c0-4761a43fb751",
+  "host_id": "machine-8ce412f9e16ce285",
+  "lease_generation": 3,
+  "outcome": "success",
+  "schema_version": 2,
+  "worktree_ref": "migrate-ci-to-self-hosted-gx10-runners"
+}
