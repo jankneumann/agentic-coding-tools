@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
-  "current_phase": "VAL_REVIEW",
+  "current_phase": "SUBMIT_PR",
   "iteration": 0,
-  "total_iterations": 9,
+  "total_iterations": 10,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -19,7 +19,8 @@
     "414147ce-fddd-4a7d-b424-77ca816637a5",
     "impl-iterate-amend-skill-workflow-spec-for-policy-authorized-sync-windows-c532c75a",
     "impl-review-amend-skill-workflow-spec-for-policy-authorized-sync-windows-e0c29b5d",
-    "validate-amend-skill-workflow-spec-for-policy-authorized-sync-windows-53944965"
+    "validate-amend-skill-workflow-spec-for-policy-authorized-sync-windows-53944965",
+    "val-review-amend-skill-workflow-spec-for-policy-authorized-sync-windows-fdbeb6f5"
   ],
   "phase_history": [
     {
@@ -56,17 +57,22 @@
       "at": "2026-10-11T05:38:08.670586+00:00",
       "outcome": "passed",
       "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-10-11T05:47:57.899926+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
     }
   ],
-  "last_handoff_id": "validate-amend-skill-workflow-spec-for-policy-authorized-sync-windows-53944965",
+  "last_handoff_id": "val-review-amend-skill-workflow-spec-for-policy-authorized-sync-windows-fdbeb6f5",
   "started_at": "2026-10-11T04:52:56.233172+00:00",
-  "phase_started_at": "2026-10-11T05:38:08.762470+00:00",
+  "phase_started_at": "2026-10-11T05:47:57.978769+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "validator",
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -101,6 +107,25 @@
       "resolution": "auto",
       "scope": "roadmap_approval",
       "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'pr_creation' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "auto",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-11T05:48:02.873580+00:00"
     }
   ],
   "pending_gate": null,
@@ -116,6 +141,11 @@
       "code": "audit_sink_failed",
       "detail": "audit sink reported failure for gate proposal_approval decision auto",
       "phase": "PLAN"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "SUBMIT_PR",
+      "detail": "audit sink reported failure for gate pr_creation decision auto"
     }
   ]
 }
