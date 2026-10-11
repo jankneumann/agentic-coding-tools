@@ -83,3 +83,28 @@ def test_runbook_uses_only_flags_the_cli_accepts(runbook, repo_root):
         accepted = {s for a in sub[cmd]._actions for s in a.option_strings}
         for flag in re.findall(r"--[a-z-]+", rest):
             assert flag in accepted, f"{cmd} does not accept {flag}"
+
+
+def _nft_block(runbook: str) -> str:
+    m = re.search(r"<<'NFT'\n(.*?)\nNFT\n", runbook, flags=re.S)
+    assert m, "runbook has no NFT ruleset heredoc"
+    return m.group(1)
+
+
+def test_nft_ruleset_is_ordered_persistent_and_dual_stack(runbook):
+    rules = _nft_block(runbook)
+    assert "table inet gx10_runner_isolation {" in rules
+    assert "hook output" in rules and "policy accept" in rules
+    lines = [ln.strip() for ln in rules.splitlines()]
+    dns_udp = next(i for i, ln in enumerate(lines) if "127.0.0.53 udp dport 53 accept" in ln)
+    dns_tcp = next(i for i, ln in enumerate(lines) if "127.0.0.53 tcp dport 53 accept" in ln)
+    local_drop = next(i for i, ln in enumerate(lines) if "fib daddr type local drop" in ln)
+    assert max(dns_udp, dns_tcp) < local_drop, "DNS exemption must precede the local drop"
+    for needle in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10",
+                   "169.254.0.0/16", "fc00::/7", "fe80::/10", 'oifname "tailscale0"'):
+        assert needle in rules, needle
+    assert all("meta skuid ghrunner" in ln for ln in lines if ln.endswith(("accept", "drop")))
+    # persistence and re-check after reboot
+    assert 'include "/etc/nftables.d/gx10-runner.nft"' in runbook
+    assert "systemctl enable --now nftables" in runbook
+    assert "nft list ruleset | grep skuid" in sections(runbook)["O10"]

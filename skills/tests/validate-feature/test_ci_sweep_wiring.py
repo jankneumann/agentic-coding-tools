@@ -291,6 +291,8 @@ def test_job_has_no_if_guard() -> None:
         # on `runner.environment == 'self-hosted'`, so it can never skip the check on a
         # hosted merge_group run; it is the one permitted step-level `if:`.
         if step.get("name") == "Refuse ineligible events on self-hosted runner":
+            # Only the exact self-hosted-gated condition is permitted, never a skip of the check.
+            assert str(step.get("if", "")).startswith("runner.environment == 'self-hosted' &&")
             continue
         assert "if" not in step, f"step {step.get('name')!r} carries an `if:` guard"
 
