@@ -87,7 +87,7 @@ is resolved by the operator dry run (O6). A failure there produces a manifest mo
 Every routed job uses exactly this string. The tests compare it after whitespace normalization:
 
 ```yaml
-runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
 ```
 
 **Evaluation table.** This table is the spec for the tests' reference evaluator (task 2.1):
@@ -97,11 +97,24 @@ runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.h
 | pull_request | yes | — | any | `ubuntu-latest` |
 | pull_request | no | — | unset / `hosted` / other | `ubuntu-latest` |
 | pull_request | no | — | `self-hosted` | GX10 labels |
-| push / merge_group | — | — | `self-hosted` | GX10 labels |
-| push / merge_group | — | — | unset | `ubuntu-latest` |
+| push | — | — | `self-hosted` | GX10 labels |
+| push | — | — | unset | `ubuntu-latest` |
+| merge_group | — | — | any | `ubuntu-latest` |
+| any other event | — | — | any | `ubuntu-latest` |
 | workflow_dispatch | — | `self-hosted` | any | GX10 labels |
 | workflow_dispatch | — | `hosted` | any | `ubuntu-latest` |
 | workflow_dispatch | — | `auto` | follows variable | follows variable |
+
+**Event eligibility is an allowlist, not a fork test.** Only three event shapes can reach the
+GX10: `push` (to `main`, i.e. code already merged), `workflow_dispatch` (started by a user with
+write access, on a ref of this repository) and a same-repository `pull_request`. Everything
+else resolves to `ubuntu-latest`. In particular, **`merge_group` always runs hosted**: a merge
+queue builds a temporary merge commit that can contain an approved *fork* PR's code, and the
+`merge_group` payload carries no reliable head-repository field to tell fork from same-repo
+entries. Routing it would let fork code execute on the host after a maintainer enqueues it,
+which the fork requirement forbids. The cost is that merge-queue runs keep hosted wall-clock
+time; the post-merge `push` run on `main` still routes. A later change may route `merge_group`
+only if fork provenance of every queued PR can be established safely.
 
 **Rejected: routing job (Approach B).** It adds a serial hosted hop in front of every job,
 which costs wall-clock time.
@@ -118,14 +131,19 @@ test checks this.
 Each routed job's **first** step:
 
 ```yaml
-- name: Refuse fork code on self-hosted runner
-  if: runner.environment == 'self-hosted' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+- name: Refuse ineligible events on self-hosted runner
+  if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
   shell: bash
   working-directory: ${{ github.workspace }}
   run: |
-    echo "::error::Fork pull requests must never execute on self-hosted runners; routing expression bypassed."
+    echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
     exit 1
 ```
+
+The guard condition is `runner.environment == 'self-hosted'` combined with the **negation of
+the D3 event-eligibility clause**, character for character, so a fork `pull_request` and every
+`merge_group` run fail the job if they ever land on a self-hosted runner. A test pins the
+guard's clause to the clause inside the canonical expression.
 
 `working-directory` is overridden so that jobs with `defaults.run.working-directory` do not fail
 on a directory that has not been checked out yet.
@@ -139,7 +157,8 @@ run with base-repo privileges on fork-supplied input:
 
 **Repository setting (operator-only, O5).** Set *Require approval for all external
 contributors* through the `fork-pr-contributor-approval` API. Approval only lets a fork run
-start. Under D3 that run still lands on `ubuntu-latest`.
+start. Under D3 that run still lands on `ubuntu-latest`, and so does any `merge_group` run that
+later carries the fork PR's code.
 
 ### D5 — Host-minted JIT config; credentials never enter the container
 
@@ -195,7 +214,10 @@ The `podman run` invocation in the unit (`ExecStart`) MUST include:
 - `--pids-limit`
 - `--cpus` and `--memory`, from the env file (default 2 CPU / 8 GiB per instance)
 - `--tmpfs /tmp`
-- one named volume for the uv cache (`gx10-runner-uv-cache:/home/runner/.cache/uv`)
+- the word `$GX10_RUNNER_CACHE_ARGS`, unbraced and standing alone, which systemd splits on
+  whitespace into zero or more arguments. It is empty by default (no cache volume); the only
+  opted-in value is `--volume gx10-runner-uv-cache:/home/runner/.cache/uv` (see the uv cache
+  trade-off below)
 
 It MUST NOT include any of the following:
 - `--privileged`
@@ -210,28 +232,62 @@ changes the default to `pasta`, which by default maps the gateway address to the
 would expose those services to PR code after a routine host upgrade. The unit therefore passes
 `--network slirp4netns:allow_host_loopback=false` and a test requires that exact option. If the
 host later moves to podman 5 and the operator prefers `pasta`, the equivalent is
-`--network pasta:--no-map-gw`, which is a reviewed unit change, not a default. O4 verifies
-isolation on the host.
+`--network pasta:--no-map-gw`, which is a reviewed unit change, not a default.
 
-**Shared uv cache trade-off.** A cache shared across jobs speeds up `uv sync`. It is also a
-poisoning vector: a same-repository PR job can write arbitrary files into a cache that a later
-`main` push job reads, and uv does not re-hash cached entries on reuse. Lockfile hash checking
-does **not** mitigate this: it applies at download time only, and several jobs run
-`uv sync --all-extras` without `--locked`, `uv run --with pytest-cov` or `uv pip install
-pip-audit`, which resolve outside the lockfile. The risk is accepted (assumption A10) because:
-- forks never route here (D3 and D4), so only same-repository branches can reach the cache;
-- pushing a same-repository branch already requires write access to the repository, and this
-  is a single-principal repository in solo mode, so every cache writer is already a trusted
-  principal;
-- the cache can be dropped at any time.
+**What the pin does not cover: services bound to non-loopback host addresses.**
+`allow_host_loopback=false` only removes the `10.0.2.2 → 127.0.0.1` mapping. slirp4netns still
+NATs container traffic through the host's network stack as the `ghrunner` user, so any host
+service listening on `0.0.0.0` or on the host's LAN or Tailscale address (a compose-published
+`0.0.0.0:54322` Postgres is the common case; the coordinator API and the ri-08 daemon may also
+bind non-loopback) stays reachable from PR code through the host's real IP. Isolation of host
+services therefore rests on one of two operator-enforced controls, and O4 must prove it:
+1. **Preferred — an nftables egress rule for the runner user**: drop every packet whose socket
+   owner is `ghrunner` and whose destination is a local host address
+   (`meta skuid ghrunner fib daddr type local drop` in an `output` hook chain). Because
+   slirp4netns runs as `ghrunner`, this blocks every host-local destination regardless of how
+   services bind, while leaving internet egress intact. Installing the rule is operator-only.
+2. **Fallback — loopback-only binding**: every host service the runners must not reach binds to
+   `127.0.0.1` only (compose ports published as `127.0.0.1:54322:5432`), checked with
+   `ss -ltnp`.
 
-The operator can disable the cache with `GX10_RUNNER_UV_CACHE=off`, which drops the volume. If
-the repository gains collaborators who are not fully trusted (team mode), the runbook directs
-the operator to set `GX10_RUNNER_UV_CACHE=off` as part of that transition.
+O4's verification probes the coordinator API port and `:54322` on **each** host address
+(`10.0.2.2`, the LAN address and the Tailscale address, from `hostname -I`) from inside a
+runner container and requires every probe to fail. A probe of `10.0.2.2` alone is not
+sufficient evidence.
 
-The operator can disable the cache with `GX10_RUNNER_UV_CACHE=off`, which drops the volume. The
-setup-* toolcache stays inside the container, because concurrent writers would race on a
-shared toolcache.
+**Shared uv cache trade-off: off by default, explicit operator opt-in.** A cache shared across
+jobs speeds up `uv sync`. It is also a cross-trust poisoning vector: a same-repository PR job
+can write arbitrary files into a cache that a later `main` push job reads, and uv does not
+re-hash cached entries on reuse. Lockfile hash checking does **not** mitigate this: it applies
+at download time only, and several jobs run `uv sync --all-extras` without `--locked`,
+`uv run --with pytest-cov` or `uv pip install pip-audit`, which resolve outside the lockfile.
+
+"Every same-repository branch author is a trusted human" is **not** true here. Same-repository
+branches are also pushed by automation — Dependabot (whose PRs carry freshly bumped third-party
+packages) and the agent PR sources the `merge-pull-requests` skill accepts (Jules, Codex and
+other agent branches) — and by any holder of a leaked collaborator credential. Pushing a branch
+is also weaker than merging to protected `main`. With a shared writable cache, such a branch
+could influence a later `main` job before any human has reviewed its diff.
+
+Per-trust-tier volumes are not available: the container starts before the job is assigned, so
+the unit cannot choose a volume by event. The design therefore makes the cache **opt-in**:
+- `gx10-runner.env.example` ships `GX10_RUNNER_CACHE_ARGS=` (empty), so a default install
+  mounts no shared cache and every job starts with an empty in-container cache.
+- Enabling it is an operator decision recorded as an explicit risk acceptance (assumption A10,
+  runbook step O4): the operator sets
+  `GX10_RUNNER_CACHE_ARGS=--volume gx10-runner-uv-cache:/home/runner/.cache/uv`, and records
+  in the runbook's acceptance line who accepted the risk and on what date, having confirmed that
+  every same-repository writer (humans and automation) is acceptable as a cache writer.
+- Disabling it again is the same variable set back to empty, plus
+  `podman volume rm gx10-runner-uv-cache`. A move to team mode requires disabling it.
+- A trust-split follow-up (a separate cache-holding pool selected by label for `push` runs
+  only) is the upgrade path if the cache is needed without the shared-writer risk.
+
+When the cache is on, routed jobs must actually use it: the container sets
+`UV_CACHE_DIR=/home/runner/.cache/uv`, and routed jobs that use `astral-sh/setup-uv` pass
+`cache-local-path: /home/runner/.cache/uv` so the action does not redirect the cache to
+`$RUNNER_TEMP`. The setup-* toolcache stays inside the container, because concurrent writers
+would race on a shared toolcache.
 
 **Runner image.** `deploy/gx10-runner/Containerfile` is built
 `FROM ghcr.io/actions/actions-runner:<version>@sha256:<digest>`, a multi-arch image that is
@@ -295,8 +351,9 @@ credentials and SSH keys.
     with `expected_lane="hosted"`, a routed job ran on a self-hosted runner (the O12 rollback
     check);
   - a hosted job ran on a self-hosted runner;
-  - a job concluded anything other than `success` or `skipped` (`continue-on-error` jobs are
-    reported as warnings, not violations);
+  - a job concluded anything other than `success` or `skipped` (a job declared
+    `continue-on-error: true` is reported as a **warning**, not a violation; the result model is
+    `{violations: [...], warnings: [...]}` and the CLI exits non-zero only on violations);
   - a job concluded `skipped` although its workflow definition has **no** job-level `if:`
     (an unconditional job can only be skipped by an upstream failure, which is a violation);
   - a manifest job is missing from the run's jobs list.
@@ -306,6 +363,23 @@ credentials and SSH keys.
   the normal case for `dependency-update-remediation`, whose `if:` limits it to Dependabot pull
   requests: it is skipped on every dispatch, push and ordinary PR run. Without this rule every
   O6, O7, O11 and O12 check would report a false violation.
+
+**Job correlation contract.** The jobs API returns each job's display `name`, not its YAML job
+id. `verify_run` maps a manifest job id to API job entries by deriving the expected display
+name from the workflow definition:
+- a job with no `name:` key is displayed as its job id; a job with a literal `name:` is
+  displayed as that string;
+- a job with a `strategy.matrix` expands to one API entry per combination, displayed as
+  `<display name> (<v1>, <v2>, …)`; `verify_run` matches the prefix `<display name> (` and
+  checks every expansion individually (each must meet the lane and conclusion rules, and at
+  least one expansion must be present);
+- a `name:` that contains an expression (`${{`) is rejected by the manifest completeness test,
+  because it cannot be resolved statically.
+
+Today no job in `ci.yml` or `security.yml` sets `name:` or `strategy.matrix`, so every display
+name equals its job id. The completeness test (task 2.2) asserts that derived display names are
+unique within each workflow, so the mapping is one-to-one; an API entry that matches no
+manifest job is reported as a violation ("unknown job"), which also catches a renamed job.
 
 A run's lane is derived from where its routed jobs actually ran, using the runner labels in the
 jobs API. It is not derived from dispatch inputs, because the runs API does not expose them.
@@ -382,6 +456,7 @@ implementation task, and nothing in the implementation phases performs them.
 | Host down with lane=self-hosted | D9 manual flip plus the queued-run detection command |
 | New jobs added by concurrent changes | Manifest completeness test fails until they are classified |
 | Podman upgrade changes the rootless network default to `pasta` and exposes host loopback | Explicit `--network slirp4netns:allow_host_loopback=false` in the unit, pinned by a test (D6) |
+| PR code reaches a host service bound to `0.0.0.0` or a LAN/Tailscale address through slirp4netns NAT | Operator nftables rule dropping `ghrunner`-owned traffic to local addresses, or loopback-only binding; O4 probes every host address (D6) |
 | Mint script killed mid-backoff by the start timeout, hammering the API | Explicit `TimeoutStartSec` above the bounded `GX10_MINT_MAX_ELAPSED` budget, pinned by a test (D5, D7) |
-| Cache poisoning by a same-repository PR job | Accepted in solo mode (A10); `GX10_RUNNER_UV_CACHE=off` switch, mandated on a move to team mode |
+| Cache poisoning by a same-repository PR job (human, Dependabot or agent branch) | Cache off by default; enabling it is a recorded operator risk acceptance (A10); disabled again by emptying `GX10_RUNNER_CACHE_ARGS`, mandated on a move to team mode |
 | A routed job invokes a container engine indirectly through a script | O6 dry run backstop; the static scan only sees `run:` text (D10) |

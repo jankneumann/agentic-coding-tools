@@ -1,0 +1,77 @@
+{
+  "review_type": "plan",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Design D3 excludes fork code only when `github.event_name == 'pull_request'`. A `merge_group` run can execute a temporary merge commit containing an approved fork PR, but the expression treats every `merge_group` as non-fork and routes it to GX10 whenever `CI_RUNNER_LANE=self-hosted`. This violates the requirement that fork code never execute on self-hosted runners. Route all `merge_group` runs to hosted runners unless fork provenance can be established safely.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "D8 requires `verify_run` to correlate manifest job IDs with jobs returned by GitHub's workflow-jobs API, but that API exposes display names rather than stable YAML job IDs; matrix jobs can also produce multiple names from one job definition. No mapping or naming contract is defined, so missing-job, lane, conditional-skip, and hosted/routed checks cannot be implemented reliably. Define and test a stable correlation mechanism, including matrix expansions.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "high",
+      "description": "Assumption A10 equates the ability to create a same-repository branch with authorization to persist code into later trusted runs through the shared uv cache. That premise ignores Dependabot and other automation, compromised collaborator credentials, and branch-protection distinctions between pushing a branch and merging to protected main. A PR can poison the writable cache and influence a later main job with stronger credentials. Disable cross-trust cache sharing or isolate caches by trust level; otherwise require explicit human risk acceptance.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Operator step O11 invokes `verify-run` without `--expect-lane hosted`, although `verify-run` defaults to `self-hosted`. A correctly routed fork PR would therefore report every routed job on GitHub-hosted runners as a violation instead of producing the stated zero-violation result. O11 and its runbook command must pass `--expect-lane hosted`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "D6 promises that `GX10_RUNNER_UV_CACHE=off` removes the cache volume, but neither the systemd-unit contract nor tasks 3.1\u20133.2 define or test how that switch changes `ExecStart`. An implementation can satisfy the planned tests while always mounting the cache or passing the literal value `off` to Podman. Specify the argument-expansion or wrapper mechanism and add positive tests for both enabled and disabled modes.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The artifacts disagree on failed `continue-on-error` jobs. Design D8 and task 4.1 require them to be warnings, while the specification says `verify_run` SHALL report every conclusion other than `success` or `skipped`, and the CLI exits nonzero on every violation. Define the result model and exit behavior explicitly and add a WHEN/THEN scenario for the warning exception.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The specification's normative CLI clause requiring explicit run filters and a bounded `--limit` has no WHEN/THEN scenario that verifies filtering or bounded pagination. Task 4.1 only checks argument parsing, which would not detect an implementation that fetches all pages before truncating. Add a scenario covering request selection and the maximum number of fetched results/pages.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

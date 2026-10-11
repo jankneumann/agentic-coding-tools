@@ -33,14 +33,16 @@ requirements, not as hardening to add later.
 2. **Workflow routing (`ci.yml` and `security.yml`, on this branch only).**
    - Every `routed` job gets the same canonical `runs-on` expression. It selects the GX10
      label set only when both of these hold:
-     - The event is not a fork pull request.
+     - The event is a `push`, a `workflow_dispatch`, or a same-repository pull request. Fork
+       pull requests and `merge_group` runs (whose merge commit can contain approved fork code)
+       always run hosted.
      - The lane resolves to `self-hosted`. The lane comes from the `runner_lane`
        `workflow_dispatch` input, or else from the `CI_RUNNER_LANE` repository variable.
    - In every other case, including when the variable is unset (the default), the expression
      evaluates to `ubuntu-latest`. Merging this change therefore changes no CI behaviour until
      an operator sets the variable.
    - Every routed job's first step is an in-job guard. It fails the job if a fork pull request
-     ever reaches a self-hosted runner.
+     or a `merge_group` run ever reaches a self-hosted runner.
    - Hosted-pinned jobs keep a literal `runs-on: ubuntu-latest`. Each has a justification in
      the manifest. The pinned jobs are the container-engine jobs (`test-integration`,
      `gen-eval`, `test-openbao-live`), `docker-smoke-import` (production image architecture is
@@ -189,15 +191,22 @@ recorded as the path to take if engine-backed jobs or multi-host scaling are lat
   against the wall-clock measurement. The ri-08 dispatcher daemon shares the host, so per-
   container CPU and memory limits are mandatory.
 
-- **A10. The shared uv cache volume is acceptable in solo mode.** Only same-repository branches
-  reach the runners, and pushing one requires write access, so every cache writer is already a
-  trusted principal. Lockfile hashes do not protect cached entries on reuse (design D6). If the
-  repository moves to team mode with collaborators who are not fully trusted, the operator sets
-  `GX10_RUNNER_UV_CACHE=off`.
+- **A10. The shared uv cache volume is off by default and enabled only by explicit operator
+  risk acceptance.** Same-repository branches are written not only by the owner but also by
+  automation (Dependabot, agent PR sources such as Jules and Codex) and potentially by a leaked
+  collaborator credential, and lockfile hashes do not protect cached entries on reuse (design
+  D6). A shared writable cache would let such a branch influence a later `main` job. The kit
+  therefore ships with no cache volume; the operator may enable it (`GX10_RUNNER_CACHE_ARGS`)
+  only after recording, in the runbook, an acceptance that names the date and confirms every
+  same-repository writer is acceptable. A move to team mode requires disabling it.
 - **A11. Rootless container networking is pinned, not inherited.** The unit passes
   `--network slirp4netns:allow_host_loopback=false` explicitly, so a podman 5 upgrade (whose
   default `pasta` maps the gateway to host loopback) cannot silently expose the coordinator
-  API or Postgres to PR code (design D6).
+  API or Postgres to PR code (design D6). The pin covers host *loopback* only: a service bound
+  to `0.0.0.0` or to a LAN/Tailscale address stays reachable through slirp4netns NAT. Host
+  services are therefore isolated by an operator-installed nftables rule that drops
+  `ghrunner`-owned traffic to local addresses (or, as a fallback, by binding them to
+  `127.0.0.1` only), and O4 verifies it by probing every host address from a runner container.
 
 ## Impact
 
