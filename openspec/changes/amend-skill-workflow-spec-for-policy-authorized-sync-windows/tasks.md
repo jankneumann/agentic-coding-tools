@@ -27,7 +27,7 @@ only produce merge conflicts on a ~350 LOC change.
 
 ## 2. Posture contract: sync windows
 
-- [ ] 2.0 Add an exported `PR_ORIGINS` frozenset to
+- [x] 2.0 Add an exported `PR_ORIGINS` frozenset to
   `skills/shared/github_classifier.py` (add to `__all__`; no behaviour change)
   and a test in `skills/tests/merge-pull-requests/test_classify.py` that every
   origin `classify_pr` returns for the existing fixtures is in `PR_ORIGINS` and
