@@ -1,0 +1,28 @@
+# Example nightly config. Copy to ~/.config/agent-scenarios/nightly.yaml and edit.
+# Shipped OFF: flip `enabled` only after `agent-scenarios nightly --dry-run` looks right.
+# Schema: src/agent_scenarios/schemas/nightly-config.schema.json (design D4).
+enabled: false
+disable_file: ~/.config/agent-scenarios/DISABLED   # kill-file: its presence disables a run
+scenarios_dir: ~/agentic-coding-tools/packages/agent-scenarios/scenarios
+repo_root: ~/agentic-coding-tools                  # checkout under test (repo_sha, skills_root base)
+skills_root: skills                                # relative to repo_root
+vendors: [claude, codex]                           # allowlist (>= 2) intersected with each scenario's vendors
+vendor_commands:                                   # fill in the real headless invocations
+  claude: "claude -p {prompt} --permission-mode acceptEdits"
+  codex: "codex exec {prompt}"
+env_scrub: []        # extra names only; the built-in hermetic denylist always applies
+env_set: {}          # may not name a denylisted variable or COORDINATION_API_URL
+retain_failed_runs: 7
+caps:                # every key optional; these are the defaults
+  max_pairs: 30
+  max_pairs_per_vendor: 15
+  max_wall_clock_minutes: 240
+  per_pair_timeout_seconds: 1200
+results: {path: ~/.local/state/agent-scenarios/results.jsonl}
+findings: {path: "~/.local/state/agent-scenarios/findings/{run_id}.json"}
+gaps:
+  enabled: true
+  agent_id: agent-scenarios-nightly
+  coordinator_url_env: COORDINATION_API_URL
+  api_key_env: COORDINATION_API_KEY
+judge: {enabled: false}

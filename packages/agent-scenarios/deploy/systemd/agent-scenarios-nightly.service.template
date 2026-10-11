@@ -1,0 +1,23 @@
+# Template only - NOT installed by the repository. Render, review, then install by hand
+# (runbook: docs/guides/agent-scenarios-nightly.md). Replace every @PLACEHOLDER@ token.
+#
+#   @UV@        absolute path of the uv binary
+#   @REPO@      absolute path of the checkout under test
+#
+# TimeoutStartSec must stay >= caps.max_wall_clock_minutes + caps.per_pair_timeout_seconds
+# + 10 minutes: the wall-clock budget is only checked between pairs, so the last pair can
+# overrun it by up to one per-pair timeout (defaults: 240 + 20 + 10 = 270 minutes).
+
+[Unit]
+Description=agent-scenarios nightly cross-vendor parity run
+Documentation=file://@REPO@/docs/guides/agent-scenarios-nightly.md
+ConditionPathExists=%h/.config/agent-scenarios/nightly.yaml
+
+[Service]
+Type=oneshot
+ExecStart=@UV@ run --project @REPO@/packages/agent-scenarios agent-scenarios nightly --config %h/.config/agent-scenarios/nightly.yaml
+TimeoutStartSec=270min
+Nice=10
+# Only a fully green night (exit 0) is a success: 1 = scenario failures, 2 = config/cap
+# error, 3 = infrastructure errors or an incomplete (budget-exhausted) matrix.
+SuccessExitStatus=0

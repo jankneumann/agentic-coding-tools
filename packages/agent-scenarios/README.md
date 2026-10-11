@@ -56,3 +56,29 @@ Findings conform to `openspec/schemas/review-findings.schema.json` and feed the
 Live multi-vendor execution requires real vendor CLIs and keys and runs on the
 **GX10** nightly. In-container tests use `FakeExecutor` and a fake judge backend
 to prove the framework end-to-end without any vendor.
+
+## Seed suite, nightly runs and results
+
+`scenarios/` ships a seed suite (plan / implement / validate / merge skill families, at
+least two scenarios each, every scenario across at least two vendors). Every scenario has a
+scripted golden and broken outcome under `tests/scenario_outcomes/`, so each gate set is
+proven satisfiable and discriminating without a vendor.
+
+```
+agent-scenarios validate --scenarios scenarios/        # legacy --scenarios/--validate-only still works
+agent-scenarios nightly --config ~/.config/agent-scenarios/nightly.yaml [--dry-run]
+agent-scenarios results query|trend|latest [--vendor V --skill S --family F --since D]
+agent-scenarios gaps flush
+```
+
+- `nightly` is **off by default** (`enabled: false`, plus a kill-file) and runs under
+  explicit pair/wall-clock/timeout caps. Live runs are hermetic: a `gh` shim backed by a
+  fixture-local bare `origin`, a built-in credential denylist and an unreachable coordinator
+  URL, so nothing reaches GitHub or the live coordinator.
+- Results go to an append-only JSONL store (`results_store.py`); deterministic failures are
+  emitted as `source:scenario-parity` capability gaps for `/improve-harness`
+  (`gap_emitter.py`), spooled locally when the coordinator is unreachable.
+- `deploy/` holds systemd unit/timer **templates** and `nightly.example.yaml`
+  (`enabled: false`); nothing here installs a schedule.
+
+See the runbook: [`docs/guides/agent-scenarios-nightly.md`](../../docs/guides/agent-scenarios-nightly.md).

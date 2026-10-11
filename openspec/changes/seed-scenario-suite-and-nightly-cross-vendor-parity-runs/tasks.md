@@ -126,36 +126,36 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 
 ## 5. Nightly runner, CLI and deploy templates (wp-nightly)
 
-- [ ] 5.1 Write tests for nightly config loading and guards [M]
+- [x] 5.1 Write tests for nightly config loading and guards [M]
   Guard order per D4: invalid config / missing `vendor_commands` entry / `env_set` naming a denylisted variable, `COORDINATION_API_URL`, an `env_scrub` entry or a `gaps.*_env` name → exit 2, no record; config omitting `caps` / `enabled` / `disable_file` takes the documented defaults; `enabled: false` (executor factory never called); kill-file; run lock; < 2 effective vendors → `config_error` record + exit 2; over-cap (`max_pairs` and per-vendor) → `cap_exceeded` + exit 2 with nothing launched; `--dry-run` with `enabled: false` and with `enabled: true` (no lock, no record, no executor).
   **Spec scenarios**: ath.Live runs never reach real GitHub/config cannot re-open the live coordinator path; ath.Nightly runner/disabled by default; ath.Nightly runner/kill-file disables an enabled config; ath.Nightly runner/over-cap plan refuses to start; ath.Nightly runner/fewer than two effective vendors is a config error; ath.Nightly runner/invalid config writes nothing; ath.Nightly runner/overlapping runs are refused; ath.Nightly runner/dry run plans without executing
   **Contracts**: contracts/schemas/nightly-config.schema.json
   **Design decisions**: D4
   **Dependencies**: 1.1
-- [ ] 5.2 Write tests for the run loop with an injected fake clock [M]
+- [x] 5.2 Write tests for the run loop with an injected fake clock [M]
   Wall-clock budget → `skipped_budget` + `budget_exhausted` (deterministic pair order); results appended incrementally (simulated kill after N pairs leaves N records, no `run` record); findings/gaps written; exit-code precedence 2 > 1 > 3 > 0 (fail + budget_exhausted → 1; errors only → 3; budget_exhausted with all executed pairs passing → 3; completed and all pass → 0); spool flushed first; pass workspaces deleted, fail/error kept, old run dirs pruned beyond `retain_failed_runs`; `duration_seconds` measured per pair.
   **Spec scenarios**: ath.Nightly runner/wall-clock budget stops launching new pairs; ath.Nightly runner/failing scenarios make the run exit non-zero; ath.Nightly runner/an infrastructure-only failure is not a green night; ath.Nightly runner/workspaces are bounded; ath.Durable results store/results are appended per scenario and vendor; ath.Durable results store/results survive an interrupted run
   **Design decisions**: D4
   **Dependencies**: 1.1
-- [ ] 5.3 Implement `nightly.py` (config model, guards, pair planning, run loop with budget, wiring of results store, findings emitter, gap emitter, executor factory with `skills_root`/`env_scrub`/timeout) [L]
+- [x] 5.3 Implement `nightly.py` (config model, guards, pair planning, run loop with budget, wiring of results store, findings emitter, gap emitter, executor factory with `skills_root`/`env_scrub`/timeout) [L]
   Kept L rather than split: guards and loop share the run-record lifecycle; tests 5.1/5.2 bound it. Flagged per sizing rules.
   **Dependencies**: 5.1, 5.2, 3.2, 4.3, 1.5
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 5.4 Write tests for the `__main__` subcommand dispatcher (legacy `--scenarios`/`--validate-only` form unchanged; `validate`, `nightly`, `results`, `gaps` routed) [S]
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 5.4 Write tests for the `__main__` subcommand dispatcher (legacy `--scenarios`/`--validate-only` form unchanged; `validate`, `nightly`, `results`, `gaps` routed) [S]
   **Design decisions**: D8
   **Dependencies**: None
-- [ ] 5.5 Rewrite `__main__.py` as a subcommand dispatcher (drop the stale `--target`/`--out` docstring) [S]
+- [x] 5.5 Rewrite `__main__.py` as a subcommand dispatcher (drop the stale `--target`/`--out` docstring) [S]
   **Dependencies**: 5.4, 3.5, 4.3, 5.3
-- [ ] 5.6 Write tests for deploy assets (placeholders present, `TimeoutStartSec` ≥ wall-clock cap + per-pair timeout of the example config, example config parses with `enabled: false`, no `systemctl` invocation anywhere in package code/tests) [XS]
+- [x] 5.6 Write tests for deploy assets (placeholders present, `TimeoutStartSec` ≥ wall-clock cap + per-pair timeout of the example config, example config parses with `enabled: false`, no `systemctl` invocation anywhere in package code/tests) [XS]
   **Spec scenarios**: ath.Schedule shipped as templates only/templates and example config are inert
   **Design decisions**: D7
   **Dependencies**: None
-- [ ] 5.7 Add `deploy/systemd/*.template` + `deploy/nightly.example.yaml` [S]
+- [x] 5.7 Add `deploy/systemd/*.template` + `deploy/nightly.example.yaml` [S]
   **Dependencies**: 5.6
-- [ ] 5.8 Write runbook `docs/guides/agent-scenarios-nightly.md` (+ package README update) [S]
+- [x] 5.8 Write runbook `docs/guides/agent-scenarios-nightly.md` (+ package README update) [S]
   Must cover: exit codes 0/1/2/3 and triage (3 = errors or an incomplete, budget-exhausted matrix), capability-gap frequency unit (run, vendor), `COORDINATION_API_URL` vs `COORDINATOR_URL` (gap emitter vs `/improve-harness`) pointing at the same coordinator, dedicated HOME without global skills or coordinator MCP config, workspace retention, `gh` shim unsupported-call errors.
   **Dependencies**: 5.7
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## 6. Integration and acceptance (wp-integration)
 

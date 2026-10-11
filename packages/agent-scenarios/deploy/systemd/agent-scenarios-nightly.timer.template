@@ -1,0 +1,18 @@
+# Template only - NOT installed by the repository. See the service template and
+# docs/guides/agent-scenarios-nightly.md. Enable by hand with:
+#   systemctl --user enable --now agent-scenarios-nightly.timer
+# (only after the dry-run review and a manual service run; the shipped config is
+# `enabled: false`).
+
+[Unit]
+Description=Nightly agent-scenarios cross-vendor parity run
+
+[Timer]
+OnCalendar=*-*-* 02:30
+# A missed night is skipped, never burst-replayed.
+Persistent=false
+RandomizedDelaySec=15m
+Unit=agent-scenarios-nightly.service
+
+[Install]
+WantedBy=timers.target
