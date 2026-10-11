@@ -38,6 +38,17 @@
 
 ---
 
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Validation Review
+
+**VAL_FIX the validation report's coverage claim (ledger 30)** — The report now states the verification boundary from design D6 instead of claiming every scenario is covered
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)
+
+---
+
 ## 2026-10-09 — 2026-10-10-dispatch-contract
 
 ### Phase: Plan Review
