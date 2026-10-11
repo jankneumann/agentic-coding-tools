@@ -145,6 +145,19 @@ class GoalGatesBlock(BaseModel):
         return resolved
 
 
+class FixturePR(BaseModel):
+    """A pull request seeded into the ``gh`` shim's state for a ``local_remote`` fixture.
+
+    ``head`` must be a branch that exists in the fixture repo once its ``commands``
+    have run; it is pushed to the local origin at materialization.
+    """
+
+    number: int
+    head: str
+    base: str | None = None  # defaults to the fixture's base_branch
+    title: str = ""
+
+
 class FixtureSpec(BaseModel):
     """Declarative starting repo state for a scenario.
 
@@ -158,6 +171,17 @@ class FixtureSpec(BaseModel):
     git_init: bool = True
     base_branch: str = "main"
     commands: list[list[str]] = Field(default_factory=list)
+    # Create a sibling bare repo ``<workdir>.origin.git``, register it as ``origin`` and
+    # push the base branch, so push/merge skills never reach GitHub.
+    local_remote: bool = False
+    # Seed PRs for the ``gh`` shim (requires ``local_remote``).
+    prs: list[FixturePR] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _prs_need_remote(self) -> FixtureSpec:
+        if self.prs and not self.local_remote:
+            raise ValueError("fixture 'prs' requires 'local_remote: true'")
+        return self
 
 
 class AgentScenario(BaseModel):
@@ -244,6 +268,9 @@ class RunResult(BaseModel):
     transcript_path: str | None = None
     exit_code: int = 0
     error: str | None = None
+    # Git revision of the skills checkout materialized for this run (``+dirty`` suffix
+    # when modified); None when no ``skills_root`` was used.
+    skills_sha: str | None = None
 
 
 class GateVerdict(BaseModel):

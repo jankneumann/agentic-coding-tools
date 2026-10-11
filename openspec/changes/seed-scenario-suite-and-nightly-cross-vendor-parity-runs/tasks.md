@@ -7,7 +7,7 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 
 ## 1. Foundation — schemas and harness extensions (wp-foundation)
 
-- [ ] 1.1 Promote contract schemas into package data (with schema tests) [S]
+- [x] 1.1 Promote contract schemas into package data (with schema tests) [S]
   Copy `contracts/schemas/*.json` into `packages/agent-scenarios/src/agent_scenarios/schemas/`
   (package data); write `tests/test_schemas.py` asserting each is a valid Draft 2020-12
   schema and that the capability-gap example payload validates. Also copy the example
@@ -15,30 +15,30 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
   runtime dependency.
   **Contracts**: contracts/schemas/results-record.schema.json, capability-gap-entry.schema.json, nightly-config.schema.json
   **Dependencies**: None
-- [ ] 1.2 Write tests for fixture `local_remote`/`prs`, hermetic env and timeout message [S]
+- [x] 1.2 Write tests for fixture `local_remote`/`prs`, hermetic env and timeout message [S]
   Built-in `HERMETIC_SCRUB` denylist applied with an empty `env_scrub` (GitHub tokens, every coordination-bridge URL/API-key/CF Access variable); `env_scrub` extends it; `gaps.api_key_env` / `gaps.coordinator_url_env` variables always scrubbed; `COORDINATION_API_URL` forced to the sentinel after `env_set`; drift test `HERMETIC_SCRUB` ⊇ `coordination_bridge` `_HTTP_URL_ENV_KEYS` ∪ `_API_KEY_ENV_KEYS` ∪ CF names (skip when the skills tree is absent); drift test config-schema `env_set.propertyNames` enum == `HERMETIC_SCRUB ∪ {COORDINATION_API_URL}`; `TimeoutExpired` → "timed out after Ns" distinct from "unavailable".
   **Spec scenarios**: ath.Live runs never reach real GitHub/local remote fixture; ath.Live runs never reach real GitHub/credential variables are scrubbed; ath.Live runs never reach real GitHub/the runner's coordinator credential never reaches an agent; ath.Live runs never reach real GitHub/the denylist covers every coordinator variable the skills read; ath.Skill under test is materialized/a timeout is distinguishable from a missing CLI
   **Design decisions**: D5
   **Dependencies**: None
-- [ ] 1.3 Implement `FixtureSpec.local_remote` + `FixtureSpec.prs` + `HERMETIC_SCRUB` + `CLIVendorExecutor(env_scrub=..., env_set=..., always_scrub=...)` (sentinel forced last) + timeout message [M]
+- [x] 1.3 Implement `FixtureSpec.local_remote` + `FixtureSpec.prs` + `HERMETIC_SCRUB` + `CLIVendorExecutor(env_scrub=..., env_set=..., always_scrub=...)` (sentinel forced last) + timeout message [M]
   Sibling bare repo `<workdir>.origin.git`, `origin` remote, base branch and PR head branches pushed; backward-compatible defaults (no env change when both are empty).
   **Dependencies**: 1.2
-- [ ] 1.4 Write tests for skill-under-test materialization [S]
+- [x] 1.4 Write tests for skill-under-test materialization [S]
   Whole-tree copy (siblings present; `tests/`, `.venv/`, `__pycache__/`, `node_modules/` excluded), git-exclude, `skills_sha` with `+dirty` carried onto the result.
   **Spec scenarios**: ath.Skill under test is materialized/skill copied into the workspace; ath.Skill under test is materialized/missing skill is an executor error
   **Design decisions**: D5
   **Dependencies**: None
-- [ ] 1.5 Implement whole-tree `skills_root` materialization in `materialize.py` with git-exclude and `skills_sha` capture [M]
+- [x] 1.5 Implement whole-tree `skills_root` materialization in `materialize.py` with git-exclude and `skills_sha` capture [M]
   Shared helper usable by both `CLIVendorExecutor` and `FakeExecutor` (opt-in) so the acceptance drill can exercise it.
   **Dependencies**: 1.4
-- [ ] 1.6 Write tests for the `gh` shim `tests/test_gh_shim.py` [S]
+- [x] 1.6 Write tests for the `gh` shim `tests/test_gh_shim.py` [S]
   Subprocess-level against a temp local origin: `auth status`, `repo view`, `pr list|view|status --json`, `pr create`, `pr merge --merge|--squash|--rebase [--delete-branch]` (merge visible on origin, state `MERGED`), `api repos/{o}/{r}` permissions + protection 404, unsupported call → exit 1 + logged → executor forces `error`; executor's post-run `gh pr view` resolves through the shim.
   **Spec scenarios**: ath.Live runs never reach real GitHub/gh resolves to the shim; ath.Live runs never reach real GitHub/an unsupported gh call is an infrastructure error
   **Design decisions**: D5
   **Dependencies**: None
-- [ ] 1.7 Implement `gh_shim.py` (stdlib-only script body + installer writing `<workdir>.bin/gh`, PATH prepend in `CLIVendorExecutor`, unsupported-log check forcing `error`) [M]
+- [x] 1.7 Implement `gh_shim.py` (stdlib-only script body + installer writing `<workdir>.bin/gh`, PATH prepend in `CLIVendorExecutor`, unsupported-log check forcing `error`) [M]
   **Dependencies**: 1.6, 1.3
-- [ ] Checkpoint: run `uv run pytest` in packages/agent-scenarios, review diff, verify scope
+- [x] Checkpoint: run `uv run pytest` in packages/agent-scenarios, review diff, verify scope
 
 ## 2. Seed suite (wp-scenarios)
 

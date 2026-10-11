@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-scenarios/results-record.schema.json",
+  "title": "agent-scenarios results store record",
+  "description": "One line of the append-only JSONL results store (design D2).",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/result"
+    },
+    {
+      "$ref": "#/$defs/run"
+    }
+  ],
+  "$defs": {
+    "iso_ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "run_id",
+        "recorded_at",
+        "scenario_id",
+        "skill_under_test",
+        "skill_family",
+        "vendor",
+        "deterministic_status",
+        "failed_gates",
+        "trajectory_status",
+        "duration_seconds",
+        "repo_sha",
+        "skills_sha",
+        "error"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "result"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/iso_ts"
+        },
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill_under_test": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill_family": {
+          "enum": [
+            "plan",
+            "implement",
+            "validate",
+            "merge",
+            "other"
+          ]
+        },
+        "vendor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deterministic_status": {
+          "enum": [
+            "pass",
+            "fail",
+            "error",
+            "skipped_budget"
+          ]
+        },
+        "failed_gates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trajectory_status": {
+          "enum": [
+            "pass",
+            "fail",
+            "skip",
+            null
+          ]
+        },
+        "duration_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "repo_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "skills_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "deterministic_status": {
+                "const": "fail"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "failed_gates": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "deterministic_status": {
+                "enum": [
+                  "pass",
+                  "skipped_budget"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "failed_gates": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "deterministic_status": {
+                "const": "error"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "error": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "Nullable fields are still required (explicit null), so a schema-valid record always carries the full D2 field set; status-dependent constraints reject contradictory states."
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "run_id",
+        "started_at",
+        "status",
+        "planned_pairs",
+        "executed_pairs",
+        "finished_at",
+        "vendors",
+        "config_digest",
+        "repo_sha",
+        "skills_sha",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "run"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "started_at": {
+          "$ref": "#/$defs/iso_ts"
+        },
+        "finished_at": {
+          "$ref": "#/$defs/iso_ts"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "disabled",
+            "cap_exceeded",
+            "budget_exhausted",
+            "locked",
+            "config_error"
+          ]
+        },
+        "planned_pairs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "executed_pairs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "vendors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "config_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repo_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "skills_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "description": "The run record is always written last, so finished_at is always set; vendors, config_digest, repo_sha, skills_sha and reason are required (nullable where the guard that wrote the record had no value)."
+    }
+  }
+}

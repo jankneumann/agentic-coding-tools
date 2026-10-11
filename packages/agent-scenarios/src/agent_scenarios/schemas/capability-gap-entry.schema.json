@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-scenarios/capability-gap-entry.schema.json",
+  "title": "scenario-parity capability-gap memory entry",
+  "description": "Body of POST /memory/store (coordinator MemoryStoreRequest) emitted per deterministic scenario failure (design D3). Identical payload is written to the gap spool when the coordinator is unreachable.",
+  "type": "object",
+  "required": ["agent_id", "session_id", "event_type", "summary", "details", "tags"],
+  "properties": {
+    "agent_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1, "description": "nightly run_id"},
+    "event_type": {"const": "capability_gap"},
+    "summary": {"type": "string", "minLength": 1},
+    "outcome": {"type": ["string", "null"]},
+    "lessons": {"type": ["array", "null"], "items": {"type": "string"}},
+    "details": {
+      "type": "object",
+      "required": ["run_id", "scenario_id", "vendor", "failed_gates"],
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1, "description": "nightly run_id, duplicated from session_id because POST /memory/query does not return session_id"},
+        "scenario_id": {"type": "string"},
+        "vendor": {"type": "string"},
+        "failed_gates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["gate_id"],
+            "properties": {"gate_id": {"type": "string"}, "detail": {"type": "string", "maxLength": 500}}
+          }
+        },
+        "skills_sha": {"type": ["string", "null"]},
+        "repo_sha": {"type": ["string", "null"]}
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "allOf": [
+        {"contains": {"const": "capability_gap"}},
+        {"contains": {"pattern": "^capability_gap:scenario-parity/[^/]+/[^/]+$"}},
+        {"contains": {"const": "failure_type:verification_failed"}},
+        {"contains": {"pattern": "^affected_skill:[a-z0-9-]+$"}},
+        {"contains": {"const": "severity:high"}},
+        {"contains": {"const": "source:scenario-parity"}},
+        {"contains": {"pattern": "^vendor:.+$"}},
+        {"contains": {"pattern": "^scenario:.+$"}}
+      ]
+    }
+  }
+}
