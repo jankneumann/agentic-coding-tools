@@ -367,7 +367,7 @@ items:
   - Failures emit findings conforming to review-findings.schema.json.
 - item_id: ri-16
   title: Seed scenario suite and nightly cross-vendor parity runs
-  status: approved
+  status: in_progress
   priority: 3
   effort: M
   depends_on:
@@ -543,7 +543,7 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-10-11T05:49:10.062857+00:00'
+updated_at: '2026-10-11T05:49:27.420893+00:00'
 refinements:
 - timestamp: '2026-10-10T21:15:13.046973+00:00'
   actor: supervisor (operator-approved, Jan Neumann)

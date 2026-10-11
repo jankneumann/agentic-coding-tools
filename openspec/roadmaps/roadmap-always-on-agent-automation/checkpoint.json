@@ -4,7 +4,7 @@
   "current_item_id": "ri-11",
   "phase": "planning",
   "created_at": "2026-10-10T21:03:19.589753+00:00",
-  "updated_at": "2026-10-11T05:49:10.072328+00:00",
+  "updated_at": "2026-10-11T05:50:01.766057+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -14,7 +14,6 @@
     "ri-15"
   ],
   "serial_indeterminate_items": [
-    "ri-16",
     "ri-17"
   ],
   "gate_decisions": [
@@ -542,6 +541,125 @@
         "kind": "pending_gate",
         "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
         "resume_hint": "answer gate merge through the resume request's gate_answer"
+      }
+    },
+    {
+      "dispatch_id": "batch-ea05256986efa1fbadb2535d:ri-16:attempt-1",
+      "item_id": "ri-16",
+      "change_id": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "acknowledged",
+      "prepared_at": "2026-10-11T05:49:27.410839+00:00",
+      "launch_digest": "sha256:fe439a1793730bcb5850ede68f242c4186158710df2ce1a4cfdb0f8f44c8246c",
+      "launch_marker_path": ".supervised-dispatch/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/ri-16-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "lNtvNfAzLHjNUVdrUbfsU4KjaC7x7ctS",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/ri-16-attempt-1.marker",
+          "observed_at": "2026-10-11T05:49:35.161537+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "lNtvNfAzLHjNUVdrUbfsU4KjaC7x7ctS",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/ri-16-attempt-1.marker",
+          "observed_at": "2026-10-11T05:50:01.765415+00:00",
+          "handle": "a8304ca6b1aa360b6"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "lNtvNfAzLHjNUVdrUbfsU4KjaC7x7ctS",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/ri-16-attempt-1.marker",
+          "observed_at": "2026-10-11T05:50:01.765415+00:00",
+          "handle": "a8304ca6b1aa360b6"
+        }
+      ],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [],
+        "lock_keys": []
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_ref": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+        "branch": "openspec/seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+        "host_id": "machine-8ce412f9e16ce285"
+      },
+      "context": {},
+      "execution_profile": {
+        "lanes": {
+          "review": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ],
+          "alternative": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ],
+          "quick": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ]
+        },
+        "location": "local",
+        "isolation": "managed_worktree",
+        "probe_command": "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py --check-vendors --json"
+      },
+      "review_requirements": {
+        "min_quorum": {
+          "PLAN_REVIEW": 2,
+          "IMPL_REVIEW": 2,
+          "VAL_REVIEW": 2
+        },
+        "counting_lanes": [
+          "antigravity",
+          "claude_code",
+          "codex",
+          "grok",
+          "pi",
+          "ocr"
+        ],
+        "quorum_policy": {
+          "environment": "host",
+          "policy_id": null,
+          "sunset": null
+        }
+      },
+      "roadmap_approval_ref": "gate-decision:2d683b7a-2f39-4b59-96d9-3abdf22f8a8f",
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "lNtvNfAzLHjNUVdrUbfsU4KjaC7x7ctS",
+        "state": "active",
+        "acquired_at": "2026-10-11T05:49:35.161537+00:00",
+        "heartbeat_at": "2026-10-11T05:49:35.161537+00:00",
+        "expires_at": "2026-10-11T05:59:35.161537+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "a8304ca6b1aa360b6",
+        "observed_at": "2026-10-11T05:50:01.765415+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "go_released",
+        "handle": "a8304ca6b1aa360b6",
+        "go_released_at": "2026-10-11T05:50:01.765415+00:00",
+        "entered_at": null
       }
     }
   ]
