@@ -158,8 +158,12 @@ It works in four steps:
    - `work_folder=_work`
 3. It writes `ACTIONS_RUNNER_INPUT_JITCONFIG=<encoded>` and the runner id into
    `$XDG_RUNTIME_DIR/gx10-runner/<instance>.env`, with umask 077.
-4. On API failure it retries with exponential backoff, capped at 300 s, then exits non-zero so
-   systemd restarts it.
+4. On API failure it retries with exponential backoff (per-attempt delay capped at 300 s) inside
+   a **total retry budget** `GX10_MINT_MAX_ELAPSED` (default 600 s), then exits non-zero so
+   systemd restarts it. The budget must stay below the unit's `TimeoutStartSec=` (D7), or
+   systemd kills the script mid-backoff, restarts it after `RestartSec`, and the backoff never
+   takes effect (the API is hammered every ~10 s instead). A test pins
+   `GX10_MINT_MAX_ELAPSED < TimeoutStartSec`.
 
 The container receives only the single-use encoded JIT config, through `--env-file`. A job that
 reads it gains nothing, because the config is consumed by the runner it already belongs to.
@@ -181,6 +185,9 @@ always exits 0.
 
 The `podman run` invocation in the unit (`ExecStart`) MUST include:
 - `--rm`
+- `--pull=never` (the image is the locally built `localhost/gx10-runner:<sha>` from O3; a start
+  must never pull a different image from a registry)
+- `--network slirp4netns:allow_host_loopback=false` (explicit, see below)
 - `--name gx10-runner-%i`
 - `--env-file %t/gx10-runner/%i.env`
 - `--security-opt no-new-privileges`
@@ -196,14 +203,31 @@ It MUST NOT include any of the following:
 - a mounted podman or docker socket (`*.sock`)
 - any bind mount of the host user's home directory
 
-Network is rootless default (`slirp4netns`, `allow_host_loopback=false`), so host loopback
-services are unreachable. O6 verifies this on the host.
+**Network is pinned explicitly, not inherited from the podman default.** Podman 4.9 (the GX10
+today) defaults rootless networking to `slirp4netns` with `allow_host_loopback=false`, which
+makes host loopback services (coordinator API, Postgres on `:54322`) unreachable. Podman 5.x
+changes the default to `pasta`, which by default maps the gateway address to the host and
+would expose those services to PR code after a routine host upgrade. The unit therefore passes
+`--network slirp4netns:allow_host_loopback=false` and a test requires that exact option. If the
+host later moves to podman 5 and the operator prefers `pasta`, the equivalent is
+`--network pasta:--no-map-gw`, which is a reviewed unit change, not a default. O4 verifies
+isolation on the host.
 
 **Shared uv cache trade-off.** A cache shared across jobs speeds up `uv sync`. It is also a
-poisoning vector: a PR job can write into a cache that a `main` push job later reads. This is
-accepted because:
-- forks never route here (D3 and D4), so only same-repository writers can reach the cache;
-- `uv sync --locked` verifies lockfile hashes for distributions it downloads.
+poisoning vector: a same-repository PR job can write arbitrary files into a cache that a later
+`main` push job reads, and uv does not re-hash cached entries on reuse. Lockfile hash checking
+does **not** mitigate this: it applies at download time only, and several jobs run
+`uv sync --all-extras` without `--locked`, `uv run --with pytest-cov` or `uv pip install
+pip-audit`, which resolve outside the lockfile. The risk is accepted (assumption A10) because:
+- forks never route here (D3 and D4), so only same-repository branches can reach the cache;
+- pushing a same-repository branch already requires write access to the repository, and this
+  is a single-principal repository in solo mode, so every cache writer is already a trusted
+  principal;
+- the cache can be dropped at any time.
+
+The operator can disable the cache with `GX10_RUNNER_UV_CACHE=off`, which drops the volume. If
+the repository gains collaborators who are not fully trusted (team mode), the runbook directs
+the operator to set `GX10_RUNNER_UV_CACHE=off` as part of that transition.
 
 The operator can disable the cache with `GX10_RUNNER_UV_CACHE=off`, which drops the volume. The
 setup-* toolcache stays inside the container, because concurrent writers would race on a
@@ -225,8 +249,13 @@ user stays non-root, and sudo is not granted to it.
 dedicated `ghrunner` account (A4). It has these properties:
 - `Restart=always` and `RestartSec=10`. The container exits after its single job, and systemd
   starts a fresh one. This is the per-job ephemerality mechanism.
-- `StartLimitIntervalSec=0`, because restarts after normal jobs are frequent and expected.
-  Back-off on persistent API failure lives in `mint-jitconfig.sh`, not in the start limit.
+- `StartLimitIntervalSec=0` in the **`[Unit]`** section (that is where systemd ≥ 230 reads it;
+  in `[Service]` it is ignored with a warning), because restarts after normal jobs are frequent
+  and expected. Back-off on persistent API failure lives in `mint-jitconfig.sh`, not in the
+  start limit.
+- `TimeoutStartSec=900`, which bounds `ExecStartPre` and must exceed the mint script's total
+  retry budget `GX10_MINT_MAX_ELAPSED` (D5). The default of 90 s would kill the script in the
+  middle of its backoff.
 - `ExecStartPre` is the mint script.
 - `ExecStart` is `podman run …` (D6).
 - `ExecStopPost` is the cleanup script.
@@ -260,19 +289,36 @@ credentials and SSH keys.
 - `compare(baseline, candidate, *, threshold=0.85, min_n=5)`. It returns pass/fail plus the
   numbers. Pass requires `candidate_median ≤ threshold × baseline_median` and `n ≥ min_n` on
   both sides (A6).
-- `verify_run(jobs, manifest, workflow)`. It returns one violation per job in these cases:
-  - a routed job did not run on a runner labelled `gx10`;
+- `verify_run(jobs, manifest, workflow, *, expected_lane="self-hosted")`. It returns one
+  violation per job in these cases:
+  - with `expected_lane="self-hosted"`, a routed job did not run on a runner labelled `gx10`;
+    with `expected_lane="hosted"`, a routed job ran on a self-hosted runner (the O12 rollback
+    check);
   - a hosted job ran on a self-hosted runner;
-  - any job conclusion is not `success` (`continue-on-error` jobs are reported as warnings);
-  - a manifest job is missing from the run.
+  - a job concluded anything other than `success` or `skipped` (`continue-on-error` jobs are
+    reported as warnings, not violations);
+  - a job concluded `skipped` although its workflow definition has **no** job-level `if:`
+    (an unconditional job can only be skipped by an upstream failure, which is a violation);
+  - a manifest job is missing from the run's jobs list.
 
-`verify_run` takes `expected_lane`, either `self-hosted` (the default) or `hosted`. With
-`hosted`, routed jobs must also have run on GitHub-hosted runners. This is the O12 rollback
-check.
+  A job that concluded `skipped` **and** has a job-level `if:` is not a violation, and its
+  runner placement is not checked, because a skipped job is never assigned a runner. This is
+  the normal case for `dependency-update-remediation`, whose `if:` limits it to Dependabot pull
+  requests: it is skipped on every dispatch, push and ordinary PR run. Without this rule every
+  O6, O7, O11 and O12 check would report a false violation.
 
 A run's lane is derived from where its routed jobs actually ran, using the runner labels in the
 jobs API. It is not derived from dispatch inputs, because the runs API does not expose them.
 `compare --baseline-lane hosted --candidate-lane self-hosted` groups runs on that basis.
+
+Run selection for `median` and `compare` is explicit, so that the A6 measurement is reproducible:
+- `--workflow <file>` (required);
+- `--head-sha <sha>` restricts to runs of one commit, which is how the paired O8 dispatch runs
+  are selected;
+- `--event <name>` (for example `workflow_dispatch` for O8, `pull_request` for the corroborating
+  window);
+- `--since` / `--until` (ISO dates) bound the before/after window;
+- `--limit` (default 200) caps the number of runs fetched, so a paginated fetch is bounded.
 
 The CLI wrappers (`median`, `compare`, `verify-run`) shell out to `gh api` only when the
 **operator** runs them. The tests use JSON fixtures only, with no network access.
@@ -303,14 +349,23 @@ example `npm` in `validate-specs`. Each such job either:
 - uses a tool listed in `toolchain.txt`.
 
 A static test scans the `run:` blocks of routed jobs for a fixed list of commands that are
-hosted-only:
+hosted-only. It matches a command only in **command position**: at the start of a line or after
+`;`, `&&`, `||`, `|`, `$(`, `sudo ` or `env `, followed by whitespace or end of line. A
+substring such as `scripts/check_docker_imports.py` therefore never matches `docker`. The
+commands are:
 - `npm`, `npx`, `node`, `java`, `go`
 - `docker`, `podman`, `sudo`, `apt-get`
 
 For every hit, the job must have the matching setup action, or must be hosted. `docker`,
-`podman`, `sudo` and `apt-get` are always disallowed in routed jobs, with one exception:
-`check-docker-imports` names `docker` only in a script path, and an allowlist entry with a
-comment covers it.
+`podman`, `sudo` and `apt-get` are always disallowed in routed jobs. The test keeps an
+allowlist mechanism (each entry: workflow, job, command and a comment) for a future justified
+exception; it starts **empty**, because command-position matching already ignores the
+`check_docker_imports.py` script path.
+
+**Known limit.** The scan sees only `run:` text. A command invoked indirectly, from inside a
+script the step calls (as `run_live_matrix.sh` does with podman), is invisible to it. The O6
+self-hosted dry run is the backstop for that class, and any job it catches moves to `hosted`
+through the manifest.
 
 ## Operator-only steps (summary; the full runbook is in `docs/guides/self-hosted-ci-runners.md`)
 
@@ -326,3 +381,7 @@ implementation task, and nothing in the implementation phases performs them.
 | PAT leak from the host | 0600 file or systemd credential; dedicated user; 90-day expiry; minimum scope; App upgrade path |
 | Host down with lane=self-hosted | D9 manual flip plus the queued-run detection command |
 | New jobs added by concurrent changes | Manifest completeness test fails until they are classified |
+| Podman upgrade changes the rootless network default to `pasta` and exposes host loopback | Explicit `--network slirp4netns:allow_host_loopback=false` in the unit, pinned by a test (D6) |
+| Mint script killed mid-backoff by the start timeout, hammering the API | Explicit `TimeoutStartSec` above the bounded `GX10_MINT_MAX_ELAPSED` budget, pinned by a test (D5, D7) |
+| Cache poisoning by a same-repository PR job | Accepted in solo mode (A10); `GX10_RUNNER_UV_CACHE=off` switch, mandated on a move to team mode |
+| A routed job invokes a container engine indirectly through a script | O6 dry run backstop; the static scan only sees `run:` text (D10) |

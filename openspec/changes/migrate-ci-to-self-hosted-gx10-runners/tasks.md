@@ -108,17 +108,22 @@ Everything of that kind is in § 7 (operator-only).
   **Dependencies**: 1.2, 1.3
 - [ ] 2.4 Write `test_tool_parity.py` (S)
   - A routed job must not declare `services:`.
-  - A routed job's `run:` blocks must not invoke `docker`, `podman`, `sudo` or `apt-get`,
-    except for entries in the commented allowlist. The allowlist covers `check-docker-imports`,
-    where `docker` appears in a script path.
+  - A routed job's `run:` blocks must not invoke `docker`, `podman`, `sudo` or `apt-get` in
+    command position (D10 matching rule), except for entries in the commented allowlist, which
+    starts empty.
+  - A path such as `scripts/check_docker_imports.py` is not an invocation (positive fixture).
   - A routed job that invokes `npm`/`npx`/`node`, `java` or `go` must have the matching
     `actions/setup-*` step.
 
   **Spec scenarios**: ci-runner-infrastructure / "Container-engine job marked routed is
-  rejected", "Routed job calls npm without setup-node"
+  rejected", "Command name inside a script path is not an invocation", "Routed job calls npm
+  without setup-node"
   **Design decisions**: D2, D10
   **Dependencies**: 1.2, 1.3
 - [ ] Checkpoint: run tests (expect 2.1–2.4 RED), review diff, verify scope
+> **Same-file chain.** 2.5 → 2.6 → 2.7 → 2.8 all edit `ci.yml` and/or `security.yml` and run
+> serially inside `wp-workflows`; they are never split across agents.
+
 - [ ] 2.5 Route the 20 routed `ci.yml` jobs (M)
   - Replace their `runs-on` with the canonical expression and insert the D4 guard as their
     first step.
@@ -130,18 +135,19 @@ Everything of that kind is in § 7 (operator-only).
 - [ ] 2.6 Route the 3 `security.yml` jobs (S)
   - Apply the canonical expression and the D4 guard, as in 2.5.
 
-  **Dependencies**: 2.1, 2.2, 2.3
+  **Dependencies**: 2.1, 2.2, 2.3, 2.5 (serial; same package)
 - [ ] 2.7 Add the `workflow_dispatch` trigger to both workflows (XS)
   - Add the trigger with the `runner_lane` choice input: `auto` | `hosted` | `self-hosted`,
     default `auto`.
   - Leave the existing triggers unchanged.
 
-  **Dependencies**: 2.3
+  **Dependencies**: 2.3, 2.6 (serial; edits both workflows after routing)
 - [ ] 2.8 Add explicit setup steps to routed jobs that rely on hosted-preinstalled tools (S)
   - `validate-specs` needs `npm` and gets `actions/setup-node` at the repository's pinned
     major version. Any other job that 2.4 flags gets the same treatment.
+  - The setup step goes after the D4 guard, which must stay the first step.
 
-  **Dependencies**: 2.4
+  **Dependencies**: 2.4, 2.7 (serial; edits `ci.yml` after routing)
 - [ ] 2.9 Run the existing tests that parse workflows and confirm they stay green (XS)
   - `skills/tests/ci_coverage/`
   - `skills/tests/validate-feature/test_ci_sweep_wiring.py`
@@ -160,11 +166,14 @@ Everything of that kind is in § 7 (operator-only).
   - Parse `systemd/gx10-runner@.service` with an INI parser that allows repeated keys.
   - `Restart=always` and `StartLimitIntervalSec=0` are set, and `WantedBy=default.target` is
     present.
+  - `Restart=always` and `TimeoutStartSec` (> 90, and > the example env file's
+    `GX10_MINT_MAX_ELAPSED`) are in `[Service]`; `StartLimitIntervalSec=0` is in `[Unit]`.
   - `ExecStartPre` invokes `mint-jitconfig.sh`, and `ExecStopPost` invokes `cleanup-runner.sh`.
-  - `ExecStart` is `podman run` with each of these: `--rm`, `--env-file`, `--cap-drop ALL`,
-    `--security-opt no-new-privileges`, `--pids-limit`, `--cpus`, `--memory`.
-  - `ExecStart` contains none of these: `--privileged`, `--network host`/`--network=host`, a
-    `*.sock` volume source, or `%h`/`$HOME` as a bind source.
+  - `ExecStart` is `podman run` with each of these: `--rm`, `--pull=never`, `--env-file`,
+    `--cap-drop ALL`, `--security-opt no-new-privileges`,
+    `--network slirp4netns:allow_host_loopback=false`, `--pids-limit`, `--cpus`, `--memory`.
+  - `ExecStart` contains none of these: `--privileged`, `--network host`/`--network=host`, any
+    other `--network` value, a `*.sock` volume source, or `%h`/`$HOME` as a bind source.
   - If `systemd-analyze` is present, also run `systemd-analyze verify --user` on a copy whose
     `Exec*` paths are stubbed. Otherwise skip that check.
 
@@ -176,7 +185,8 @@ Everything of that kind is in § 7 (operator-only).
 - [ ] 3.2 Author `deploy/gx10-runner/systemd/gx10-runner@.service` and
       `deploy/gx10-runner/gx10-runner.env.example` (S)
   - The example env file sets: repo slug, instance CPU and memory limits, image reference,
-    `GX10_RUNNER_UV_CACHE`, and labels mirrored from the manifest.
+    `GX10_RUNNER_UV_CACHE`, `GX10_MINT_MAX_ELAPSED` (default 600), and labels mirrored from the
+    manifest.
 
   **Dependencies**: 3.1
 - [ ] 3.3 Write `test_jit_scripts.py` (M)
@@ -188,12 +198,13 @@ Everything of that kind is in § 7 (operator-only).
     `routing.self_hosted_labels`.
   - The output env file has mode 0600 and contains only `ACTIONS_RUNNER_INPUT_JITCONFIG` and
     `GX10_RUNNER_ID`.
-  - The mint script retries with backoff on HTTP 5xx and exits non-zero once the retries are
-    exhausted. The test uses a backoff environment override so it stays fast.
+  - The mint script retries with backoff on HTTP 5xx and exits non-zero, writing no env file,
+    once `GX10_MINT_MAX_ELAPSED` is spent. The test overrides the base delay and the budget so
+    it stays fast.
   - The cleanup script issues a DELETE only for an offline runner id and always exits 0.
 
-  **Spec scenarios**: ci-runner-infrastructure / "Credential stays on the host", "JIT labels
-  match the routing labels"
+  **Spec scenarios**: ci-runner-infrastructure / "Credential stays on the host", "Mint retries
+  are bounded below the start timeout", "JIT labels match the routing labels"
   **Design decisions**: D5
   **Dependencies**: 1.2, 1.3
 - [ ] Checkpoint: run tests, review diff, verify scope
@@ -202,7 +213,8 @@ Everything of that kind is in § 7 (operator-only).
   - Read the credential from `$CREDENTIALS_DIRECTORY/github-token`, falling back to
     `GX10_RUNNER_TOKEN_FILE`.
   - Write with umask 077.
-  - Use exponential backoff capped at 300 s.
+  - Use exponential backoff with a per-attempt cap of 300 s, inside the total budget
+    `GX10_MINT_MAX_ELAPSED` (default 600 s).
 
   **Dependencies**: 3.3
 - [ ] 3.5 Author `deploy/gx10-runner/cleanup-runner.sh` (XS)
@@ -249,14 +261,21 @@ Everything of that kind is in § 7 (operator-only).
   - The median uses `success` runs only.
   - `compare` checks the 600/540/500 threshold cases and n<5 (insufficient sample).
   - `verify_run` flags each of these:
-    - a misrouted routed job;
+    - a misrouted routed job (both `expected_lane` values);
     - a hosted job on `gx10`;
-    - a non-success conclusion, with jobs marked `continue-on-error` reported as warnings;
+    - a conclusion other than `success`/`skipped`, with jobs marked `continue-on-error`
+      reported as warnings;
+    - a `skipped` job that has no job-level `if:`;
     - a missing job.
-  - The CLI's argument parsing works with no network access. `gh` is stubbed.
+  - `verify_run` does **not** flag `dependency-update-remediation` concluding `skipped` with no
+    runner (it has a job-level `if:`).
+  - The CLI's argument parsing, including `--head-sha`, `--event`, `--since`, `--until`,
+    `--limit` and `--expect-lane`, works with no network access. `gh` is stubbed.
 
   **Spec scenarios**: ci-runner-infrastructure / "Median ignores cancelled and failed runs",
-  "Comparison enforces threshold and sample size", "Run verification flags misrouted jobs"
+  "Comparison enforces threshold and sample size", "Run verification flags misrouted jobs",
+  "Conditionally skipped job is not a violation", "Unconditional job skipped by an upstream
+  failure is a violation", "Rollback check expects hosted placement"
   **Design decisions**: D8
   **Dependencies**: 1.2, 1.3
 - [ ] 4.2 Implement the pure functions `median_wallclock`, `compare` and `verify_run` in
@@ -265,8 +284,11 @@ Everything of that kind is in § 7 (operator-only).
 
   **Dependencies**: 4.1
 - [ ] 4.3 Add the CLI subcommands `median`, `compare` and `verify-run` (S)
-  - Each fetches through `gh api --paginate`, which is read-only GET.
-  - `verify-run` exits non-zero on any violation.
+  - Each fetches through `gh api` read-only GETs, bounded by `--limit` (default 200).
+  - `median` and `compare` select runs with `--workflow` (required), `--head-sha`, `--event`,
+    `--since` and `--until` (D8).
+  - `verify-run` takes `--expect-lane self-hosted|hosted` (default `self-hosted`) and exits
+    non-zero on any violation.
 
   **Dependencies**: 4.2
 - [ ] Checkpoint: run tests, review diff, verify scope
@@ -287,7 +309,10 @@ Everything of that kind is in § 7 (operator-only).
   - Write steps O1–O12 from § 7, each with its exact commands and verification.
   - Include the queued-run detection command for D9.
   - Include the GitHub App upgrade path for D5.
-  - Include the cache-disable switch for D6.
+  - Include the cache-disable switch for D6, and the rule that a move to team mode sets it to
+    `off` (A10).
+  - Include the podman-5 note: keep the explicit `slirp4netns` network, or switch to
+    `pasta:--no-map-gw` only through a reviewed unit change (A11).
 
   **Dependencies**: 5.1
 - [ ] 5.3 Link the runbook from `docs/guides/documentation.md`, under setup and deployment (XS)
@@ -336,9 +361,9 @@ Everything of that kind is in § 7 (operator-only).
   - **Verify**:
     `gh api repos/{owner}/{repo}/actions/runners --jq '[.runners[]|select(any(.labels[];.name=="gx10"))|.status]'`
     lists 8 entries, all `online`.
-  - **Also verify**: from inside a runner container,
-    `curl -m 3 http://10.0.2.2:54322 || echo unreachable` prints `unreachable`. This shows that
-    host loopback is isolated (D6).
+  - **Also verify**: `podman exec gx10-runner-1 bash -c 'curl -sm 3 http://10.0.2.2:54322 >/dev/null && echo reachable || echo unreachable'`
+    prints `unreachable`, and `podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'`
+    shows `slirp4netns`. This shows that host loopback is isolated (D6).
 - [ ] O5 Set the fork-PR approval policy *(outcome 3, settings half)*
   - Run `gh api -X PUT repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors`.
   - Confirm the runners are repository-scoped, not organization-scoped.
@@ -359,15 +384,17 @@ Everything of that kind is in § 7 (operator-only).
 - [ ] O8 Measure wall-clock time *(outcome 2)*
   - Dispatch 5 or more paired runs per lane on the same commit (`runner_lane=hosted` versus
     `self-hosted`).
-  - **Verify**: `python scripts/ci/ci_wallclock.py compare --baseline-lane hosted --candidate-lane self-hosted --workflow ci.yml`
+  - **Verify**: `python scripts/ci/ci_wallclock.py compare --baseline-lane hosted --candidate-lane self-hosted --workflow ci.yml --event workflow_dispatch --head-sha <sha>`
     passes, meaning the median ratio is 0.85 or less with n ≥ 5 on each side.
   - **Corroborate**: run `median` over 20 or more PR runs before and after the O7 date.
   - If the comparison fails, tune the instance count, or move the slowest routed jobs to
     `measured-slower`.
 - [ ] O9 Check per-job ephemerality *(outcome 4)*
   - **Verify**: after 3 or more jobs have run on instance 1,
-    `journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'` is 3 or more, and the
-    runner names in the job API are all distinct.
+    `journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'` is 3 or more, and
+    `gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs --jq '.jobs[].runner_name'` shows
+    distinct names (JIT runners deregister after their job, so the runners list cannot show
+    them).
   - **Also verify**: `podman ps -a --filter name=gx10-runner --filter status=exited` is empty.
 - [ ] O10 Check reboot survival *(outcome 4)*
   - Run `sudo systemctl reboot`. Do not log in as `ghrunner`.

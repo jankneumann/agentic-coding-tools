@@ -62,3 +62,41 @@ Verdict: proceed_with_review. ri-20 has four concrete, checkable acceptance outc
 ### Context
 Planned ri-20 non-interactively (coordinated tier, Gate 2 skipped for supervisor proposal_approval). Selected Approach A: a lane manifest classifying all 28 ci.yml/security.yml jobs, an inline test-pinned runs-on expression that defaults to ubuntu-latest and never routes fork PRs, and host-minted JIT runners in hardened rootless podman containers under a systemd user template unit. Live outcomes (green on arm64, wall-clock drop, approval setting, reboot survival) are operator-only steps O1-O12 with verification commands.
 
+---
+
+## Phase: PLAN_ITERATE (2026-10-11)
+
+**Agent**: claude-code | **Session**: N/A
+
+### Decisions
+1. **Pin rootless network explicitly** — Podman 5 defaults to pasta, which maps the gateway to host loopback; isolation must not depend on a package default (A11, D6).
+2. **verify_run accepts skipped jobs with a job-level if** — dependency-update-remediation is skipped on every non-Dependabot run; otherwise every operator verify-run would falsely fail.
+3. **Accept shared uv cache in solo mode as explicit assumption A10** — Lockfile hashes do not protect cached entries; same-repo writers already hold write access; off switch mandated on move to team mode.
+4. **Skip multi-vendor review in this phase** `architectural: skill-procedure-deviation` — No --vendor-review flag and coordinator projection forbidden; autopilot PLAN_REVIEW owns vendor review.
+5. **Record assumptions instead of AskUserQuestion** `architectural: skill-procedure-deviation` — Non-interactive supervised run; assumptions A10/A11 written into proposal.md.
+6. **Run analysis inline rather than five Explore sub-agents** `architectural: skill-procedure-deviation` — Single spec delta and four documents; direct verification against live workflow YAML was more reliable than fan-out.
+
+### Alternatives Considered
+- Per-trust-tier uv cache volumes: rejected because Runner container does not know the job event at start; cannot pick a volume per event.
+
+### Trade-offs
+- Accepted Shared uv cache speed over Strict per-job cache isolation because Solo-mode repository; documented off switch.
+
+### Open Questions
+- [ ] Are gitleaks-action and setup-java arm64-clean? Resolved only by the O6 dry run.
+
+### Completed Work
+- F1 mint retry budget vs TimeoutStartSec
+- F2 explicit slirp4netns + --pull=never
+- F3 verify_run skipped semantics
+- F4 uv cache rationale + A10
+- F5 ephemerality via jobs API
+- F6 expected_lane in spec/tasks
+- F7 compare run selection flags
+- F8 command-position tool-parity matching
+- F9 StartLimitIntervalSec in [Unit]
+- F10 serial chain 2.5-2.8
+
+### Context
+Iterate-on-plan converged in one fix iteration plus a clean re-review: 4 high and 6 medium findings fixed across design, spec delta, tasks, proposal and work-packages. Key fixes: bounded mint retries below an explicit TimeoutStartSec, explicit slirp4netns network pin against the podman-5 pasta default, verify_run accepting conditionally skipped jobs, and a corrected uv-cache poisoning rationale (A10).
+

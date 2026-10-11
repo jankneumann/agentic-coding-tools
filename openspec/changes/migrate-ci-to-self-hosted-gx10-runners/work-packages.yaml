@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: migrate-ci-to-self-hosted-gx10-runners
   title: "Migrate CI to self-hosted GX10 runners (roadmap-always-on-agent-automation ri-20)"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-code
   # No running service. The change consists of workflow YAML, a host kit that is never
   # installed, a measurement CLI, docs and static tests. validate-feature skips the
@@ -263,8 +263,9 @@ packages:
     description: |
       tasks.md 4.1-4.3. Write the pure functions median_wallclock, compare (threshold 0.85,
       min_n 5) and verify_run (with expected_lane), tested over JSON fixtures. Add the CLI
-      subcommands, which use read-only `gh api --paginate`. Tests stub gh and make no network
-      calls.
+      subcommands, which use read-only `gh api` GETs bounded by --limit and select runs with
+      --workflow/--head-sha/--event/--since/--until. verify_run accepts `skipped` for jobs with a
+      job-level `if:` (design D8). Tests stub gh and make no network calls.
     role: implementer
     priority: 3
     depends_on: [wp-contracts]

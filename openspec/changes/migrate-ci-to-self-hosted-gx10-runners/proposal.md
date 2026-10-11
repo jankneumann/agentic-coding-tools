@@ -189,6 +189,16 @@ recorded as the path to take if engine-backed jobs or multi-host scaling are lat
   against the wall-clock measurement. The ri-08 dispatcher daemon shares the host, so per-
   container CPU and memory limits are mandatory.
 
+- **A10. The shared uv cache volume is acceptable in solo mode.** Only same-repository branches
+  reach the runners, and pushing one requires write access, so every cache writer is already a
+  trusted principal. Lockfile hashes do not protect cached entries on reuse (design D6). If the
+  repository moves to team mode with collaborators who are not fully trusted, the operator sets
+  `GX10_RUNNER_UV_CACHE=off`.
+- **A11. Rootless container networking is pinned, not inherited.** The unit passes
+  `--network slirp4netns:allow_host_loopback=false` explicitly, so a podman 5 upgrade (whose
+  default `pasta` maps the gateway to host loopback) cannot silently expose the coordinator
+  API or Postgres to PR code (design D6).
+
 ## Impact
 
 - **New capability:** `ci-runner-infrastructure`.
