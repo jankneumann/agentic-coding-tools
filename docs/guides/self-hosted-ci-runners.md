@@ -152,7 +152,8 @@ for addr in 10.0.2.2 $(hostname -I); do
 done                                                                # every line: unreachable
 
 sudo -u ghrunner podman exec gx10-runner-1 getent hosts api.github.com   # resolves (DNS exemption works)
-grep -c skuid /etc/nftables.conf /etc/nftables.d/gx10-runner.nft         # non-zero: rules are persistent
+grep -c 'nftables.d/gx10-runner.nft' /etc/nftables.conf                  # non-zero: the include is persistent
+grep -c skuid /etc/nftables.d/gx10-runner.nft                            # non-zero: the rules are in the included file
 sudo nft list ruleset | grep skuid                                       # rules are loaded
 sudo -u ghrunner podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'   # slirp4netns
 ```
