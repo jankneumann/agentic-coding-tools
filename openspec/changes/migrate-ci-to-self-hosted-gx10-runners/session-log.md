@@ -100,3 +100,47 @@ Planned ri-20 non-interactively (coordinated tier, Gate 2 skipped for supervisor
 ### Context
 Iterate-on-plan converged in one fix iteration plus a clean re-review: 4 high and 6 medium findings fixed across design, spec delta, tasks, proposal and work-packages. Key fixes: bounded mint retries below an explicit TimeoutStartSec, explicit slirp4netns network pin against the podman-5 pasta default, verify_run accepting conditionally skipped jobs, and a corrected uv-cache poisoning rationale (A10).
 
+---
+
+## Phase: PLAN_REVIEW (2026-10-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Enforce fork exclusion in the runner image, not in workflow YAML** `architectural: ci-runner-infrastructure` — pull_request runs evaluate the PR's own workflow files, so runs-on and the in-job guard cannot stop a fork; an ACTIONS_RUNNER_HOOK_JOB_STARTED hook judges the GitHub-written event payload before any step runs.
+2. **Route merge_group to hosted runners always** `architectural: ci-runner-infrastructure` — A merge-queue commit can contain an approved fork PR's code and the payload has no reliable head-repo field; D3 eligibility is an event allowlist (push, workflow_dispatch, same-repo pull_request).
+3. **Make the shared uv cache an explicit operator opt-in** `architectural: ci-runner-infrastructure` — Same-repo branches are also written by Dependabot and agent PR sources, so the 'every writer is trusted' premise of A10 was wrong; cache is off by default and enabling it requires a recorded risk acceptance.
+4. **Isolate host and LAN services with a persistent per-user nftables rule set** `architectural: ci-runner-infrastructure` — slirp4netns allow_host_loopback=false only removes the 10.0.2.2 mapping; services on 0.0.0.0, LAN or tailnet stay reachable through NAT. A table inet skuid ruleset with a DNS exemption, persisted and re-verified after reboot, closes it.
+
+### Alternatives Considered
+- Self-host only push and workflow_dispatch runs (codex #59 baseline): rejected because The runner-side hook closes the fork path while keeping same-repo PR routing, which carries most of the wall-clock benefit.
+- Per-trust-tier uv cache volumes: rejected because The container starts before the job is assigned, so the unit cannot pick a volume by event; a separate cache pool for push runs is recorded as the upgrade path.
+
+### Trade-offs
+- Accepted Merge-queue runs keep hosted wall-clock time over Routing merge_group to GX10 because Fork code can reach a merge_group commit; the post-merge push run still routes.
+- Accepted Cold uv cache per job by default over Shared cache speedup because Shared writable cache is a cross-trust poisoning vector; operator can opt in with recorded acceptance.
+
+### Capability Gaps Observed
+- **tool_failure**: Review packet (~180 KB) exceeds MAX_ARG_STRLEN when codex/pi receive the prompt as argv (E2BIG); worked around per-run by sending it on stdin (skill: parallel-infrastructure, severity: medium)
+- **tool_failure**: pi lane classified auth_required although pi wrote findings to a file in cwd instead of stdout; lane dropped on a misclassification (skill: parallel-infrastructure, severity: low)
+- **vendor_unavailable**: grok CLI 1.0.5 rejected with HTTP 426 (needs >=1.0.13); antigravity timed out at 240s (skill: parallel-infrastructure, severity: low)
+
+### Completed Work
+- PLAN_REVIEW rounds 1-3 with quorum (claude_code, codex, pi in round 1)
+- Orchestrator adjudication of 11 single-vendor high/critical findings, all valid and fixed
+- openspec validate --strict green; work-packages VALID
+
+### Next Steps
+- IMPL/VAL review should confirm the round-3 fixes (job-started hook #59, nftables persistence #60), which were orchestrator-adjudicated after the last vendor round
+- Update grok CLI (>=1.0.13) and fix codex/pi prompt transport for large packets (stdin) in agents.yaml
+
+### Relevant Files
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md` — D3 eligibility allowlist, D4 runner hook, D5 sweep, D6 isolation/cache, D7 wiring, D8 correlation
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/ledger.json` — final ledger: 0 open, 0 blocking
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-round-1.json` — round 1 adjudication
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-pass3-round-1.json` — round 2 adjudication
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-pass4-round-1.json` — round 3 adjudication
+
+### Context
+Multi-vendor PLAN_REVIEW via convergence_loop.converge() (min_quorum=2): three quorum review rounds (claude_code+codex+pi, then claude_code+codex twice; one extra pass lost quorum to an argv-size failure). Each round stopped on adjudication_required for single-vendor high/critical judgment findings, which the orchestrator adjudicated against the rubric and fixed inline (PLAN_FIX). High/critical trend 4 -> 5 -> 2; ledger ends with 0 open, 0 blocking. Key fixes: merge_group always hosted; runner-image job-started hook as the real fork-enforcement point; uv cache opt-in only; persistent nftables host/LAN isolation with DNS exemption; unit EnvironmentFile/LoadCredential/--replace wiring; verify_run job correlation contract.
+
