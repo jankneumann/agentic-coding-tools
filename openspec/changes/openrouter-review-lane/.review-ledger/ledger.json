@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "change_id": "openrouter-review-lane",
+  "items": [
+    {
+      "id": 1,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "architecture",
+      "criticality": "high",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "7e6360f7659f9cd1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D6 makes HTTP lanes refuse any packet with tools_overflow:true, but PLAN_REVIEW packets for real changes in this repo routinely overflow: the round-1 packet for this very change is 320000/320000 chars with tools_overflow:true (branch diff vs origin/main spans ~420 files). In cloud, the OpenRouter lane would therefore return packet_requires_tools on round 1 of most reviews and the run parks capability_unavailable, so Acceptance Outcome 1 (quorum 2 in cloud) holds only for the small fixture used as evidence.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 2,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "high",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
+      "fingerprint": "46808a6d10102848",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "OpenAICompatAdapter.dispatch only calls CliVendorAdapter._parse_findings. The CLI ingest path also runs coerce_findings_payload, schema validation, stamp_judgment_ingest, line resolution, placeholder rejection and the empty_findings_too_fast floor. No task brings the HTTP lane onto that pipeline, yet the spec scenario 'Fast empty HTTP review does not count' and Acceptance Outcome 4 (findings conform to the schema and are synthesized like CLI lanes) depend on it. The traceability table maps Tool-less Lane Packet Refusal only to 1.5 and 3.8. Without judgment stamping, OpenRouter findings default to evidence_class=deterministic and count as blocking while CLI-lane findings do not, which skews consensus.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 3,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "7bf8fc1d2f272600",
+      "first_seen_round": 1,
+      "last_seen_round": 3,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 4,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "bbe851f68eea7841",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The D9 evidence gate and the 'Cloud Single-Vendor Policy Retirement' requirement both require two lanes attributed in consensus-plan.json. The converge()/agent_lane path that autopilot PLAN_REVIEW must use never writes consensus-plan.json; only /parallel-review-plan does. converge() writes .review-cache/round-N/findings-<vendor>-plan.json plus the index, and agent_lane writes result.json without the consensus. As written, the evidence cannot be produced from the mandated path.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 5,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "8a6152404f8d4f7c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D1 gives openrouter-review location: cloud. In routing.yaml the only tier carrying endpoint_kind openrouter is metered-api with location: local, so RoutingPolicy.cost_tier('cloud', 'openrouter') returns None, and select_model excludes the candidate (model_routing/api.py around lines 577-600). The new agent becomes an inconsistent roster entry for the coordinator router.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 6,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "a111a5046fcfc79e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "discover_reviewers makes a single pass over sorted(all_vendors), so the 'roster order' that D5 relies on is not available. The D2 family rule and the D5 fill rule both depend on tier-1/2 selections, which can include vendors that sort after 'openrouter' (e.g. 'pi'). Implemented inside the existing loop, both rules would read an incomplete selection.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "3777c42d6a736dfa",
+      "first_seen_round": 1,
+      "last_seen_round": 3,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 8,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "8a11399a9a35f341",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D1 says the agent has 'no cli and no sdk block, the same shape as ocr-local', but ocr-local declares a cli block (agents.yaml around lines 452-468).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
+      "fingerprint": "22e360157aaa6f9b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "agent_lane.run_converge does not copy ConvergenceResult.missing_lanes into result.json. Task 6.4 expects the worker to park capability_unavailable with missing_lanes, but no task adds that field (or per-lane cost) to result.json.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "4c7bcb281a057be6",
+      "first_seen_round": 2,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The round-1 fix adds normative behaviour to design D6 and tasks 3.8a/5.6: when the primary packet overflows, HTTP lanes get a separate tool-less packet (for plan reviews, scoped to openspec/changes/<id>/**) with its own sidecar, and they refuse only if that packet also overflows. The 'Tool-less Lane Packet Refusal' requirement still describes refusal of the round's packet only. No requirement or scenario defines the tool-less packet, so the spec no longer matches the design and tasks.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md",
+      "spec_file": "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md",
+      "fingerprint": "f0d66f7c84167355",
+      "first_seen_round": 2,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Task 5.6 now has agent_lane persist ConvergenceResult.consensus to reviews/consensus-<review_type>.json, which the retirement evidence depends on. The 'Composite Agent-Lane Review' requirement does not state this. Also, IMPL_REVIEW and VAL_REVIEW share review_type 'implementation', so a VAL_REVIEW run would overwrite the IMPL_REVIEW consensus file.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
+      "fingerprint": "92b8158fe22cb772",
+      "first_seen_round": 3,
+      "last_seen_round": 3,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The round-2 spec fix names the consensus file per phase (consensus-plan.json, consensus-impl-review.json, consensus-val-review.json). Task 5.6 and design D9 still say reviews/consensus-<review_type>.json, which gives consensus-implementation.json for both implementation phases, so they collide. The PLAN_REVIEW case, which the retirement evidence depends on, agrees in all three artifacts. Design D9 also cites 'task 5.5' for this write, but the work is in task 5.6.",
+      "consensus_status": "unconfirmed"
+    }
+  ],
+  "compacted_at": "2026-10-11T14:18:09Z"
+}

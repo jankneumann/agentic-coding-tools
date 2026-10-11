@@ -1,0 +1,46 @@
+{
+  "review_type": "plan",
+  "target": "openrouter-review-lane",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
+      "line_range": "216-219",
+      "description": "The round-2 spec fix names the consensus file per phase (consensus-plan.json, consensus-impl-review.json, consensus-val-review.json). Task 5.6 and design D9 still say reviews/consensus-<review_type>.json, which gives consensus-implementation.json for both implementation phases, so they collide. The PLAN_REVIEW case, which the retirement evidence depends on, agrees in all three artifacts. Design D9 also cites 'task 5.5' for this write, but the work is in task 5.6.",
+      "resolution": "Change task 5.6 and design D9 to the per-phase file names used in the skill-workflow 'Composite Agent-Lane Review' requirement.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "correctness",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "line_range": "232-235",
+      "description": "The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].",
+      "resolution": "Define missing lanes as verified_lanes minus the lanes with a successful result. A verified lane that produced no result counts as unavailable and is named in missing_lanes. Make the same change in the skill-workflow Honest Review Quorum text and add a scenario.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "resilience",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "line_range": "123-146",
+      "description": "D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.",
+      "resolution": "Either re-check the budget (coordinator usage and/or GET /key, both zero-cost) before each metered dispatch in CompositeOrchestrator, returning vendor_unavailable when exhausted, or require a key credit limit as the hard backstop and document the coordinator ceiling as advisory. Add a scenario for exhaustion between rounds.",
+      "disposition": "fix"
+    }
+  ]
+}

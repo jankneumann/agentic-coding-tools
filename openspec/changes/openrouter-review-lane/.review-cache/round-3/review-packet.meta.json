@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "change_id": "openrouter-review-lane",
+  "round": 3,
+  "body_path": "review-packet.md",
+  "sha256": "e0ce97742b60f4fe5c40b57a8a7a4e647278dacc68adb397bf461950a6f74d26",
+  "char_length": 33839,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "last_fix",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 741
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 504
+      }
+    ],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+        "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md"
+      ]
+    }
+  ]
+}

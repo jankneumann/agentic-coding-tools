@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "change_id": "openrouter-review-lane",
+  "round": 2,
+  "body_path": "review-packet.md",
+  "sha256": "0a0dee51aa6e04f8d47e239afd57f5a84d6dd27c1222ef3f990f69e7f48db89c",
+  "char_length": 44130,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "last_fix",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/openrouter-review-lane/design.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1775
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/tasks.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2481
+      }
+    ],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/openrouter-review-lane/design.md",
+        "openspec/changes/openrouter-review-lane/tasks.md"
+      ]
+    }
+  ]
+}

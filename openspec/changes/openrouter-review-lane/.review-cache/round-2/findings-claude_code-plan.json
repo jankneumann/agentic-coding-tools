@@ -1,0 +1,59 @@
+{
+  "review_type": "plan",
+  "target": "openrouter-review-lane",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+      "line_range": "193-208",
+      "description": "The round-1 fix adds normative behaviour to design D6 and tasks 3.8a/5.6: when the primary packet overflows, HTTP lanes get a separate tool-less packet (for plan reviews, scoped to openspec/changes/<id>/**) with its own sidecar, and they refuse only if that packet also overflows. The 'Tool-less Lane Packet Refusal' requirement still describes refusal of the round's packet only. No requirement or scenario defines the tool-less packet, so the spec no longer matches the design and tasks.",
+      "resolution": "Extend the requirement to define the tool-less packet (scope per review_type, the review-packet.toolless.meta.json sidecar, refusal only when the tool-less packet overflows, CLI and handshake lanes keep the primary packet). Add a scenario: a plan review whose full branch diff overflows still dispatches the openrouter lane with a tool-less packet that fits. Reword 'Overflowing packet is refused' to refer to the tool-less packet's metadata.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "observability",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md",
+      "line_range": "72-76",
+      "description": "Task 5.6 now has agent_lane persist ConvergenceResult.consensus to reviews/consensus-<review_type>.json, which the retirement evidence depends on. The 'Composite Agent-Lane Review' requirement does not state this. Also, IMPL_REVIEW and VAL_REVIEW share review_type 'implementation', so a VAL_REVIEW run would overwrite the IMPL_REVIEW consensus file.",
+      "resolution": "Add a sentence to the requirement: agent_lane SHALL write the consensus to reviews/consensus-plan.json for PLAN_REVIEW. For the implementation phases, name the file by phase (e.g. consensus-impl-review.json, consensus-val-review.json) so they do not collide, and align task 5.6.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "correctness",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "line_range": "232-235",
+      "description": "The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].",
+      "resolution": "Define missing lanes as verified_lanes minus the lanes with a successful result. A verified lane that produced no result counts as unavailable and is named in missing_lanes. Make the same change in the skill-workflow Honest Review Quorum text and add a scenario.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "resilience",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "line_range": "123-146",
+      "description": "D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.",
+      "resolution": "Either re-check the budget (coordinator usage and/or GET /key, both zero-cost) before each metered dispatch in CompositeOrchestrator, returning vendor_unavailable when exhausted, or require a key credit limit as the hard backstop and document the coordinator ceiling as advisory. Add a scenario for exhaustion between rounds.",
+      "disposition": "fix"
+    }
+  ]
+}
