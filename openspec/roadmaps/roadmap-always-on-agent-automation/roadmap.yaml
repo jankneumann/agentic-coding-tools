@@ -262,7 +262,7 @@ items:
     every daemon-dispatched item.
 - item_id: ri-11
   title: Amend skill-workflow spec for policy-authorized sync windows
-  status: in_progress
+  status: completed
   priority: 2
   effort: S
   depends_on:
@@ -543,7 +543,7 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-10-11T23:19:20.301969+00:00'
+updated_at: '2026-10-11T23:19:54.413286+00:00'
 refinements:
 - timestamp: '2026-10-10T21:15:13.046973+00:00'
   actor: supervisor (operator-approved, Jan Neumann)

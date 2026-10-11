@@ -4,7 +4,7 @@
   "current_item_id": "ri-11",
   "phase": "completed",
   "created_at": "2026-10-10T21:03:19.589753+00:00",
-  "updated_at": "2026-10-11T23:19:20.311584+00:00",
+  "updated_at": "2026-10-11T23:19:54.422717+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -12,7 +12,8 @@
     "ri-05",
     "ri-06",
     "ri-15",
-    "ri-20"
+    "ri-20",
+    "ri-11"
   ],
   "serial_indeterminate_items": [
     "ri-17"
@@ -476,7 +477,7 @@
       "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "completed",
       "prepared_at": "2026-10-11T04:52:10.507032+00:00",
       "launch_digest": "sha256:d7b61be03c528cc5da837d98426d2354a97a5fb4bff8d6daa7f57453de0e7a4e",
       "launch_marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
@@ -626,16 +627,17 @@
           "code": "audit_sink_failed",
           "detail": "audit sink reported failure for gate merge decision posture_block",
           "phase": "SUBMIT_PR"
+        },
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "project-state submit returned forbidden after merge gate-answer + DONE transition",
+          "phase": "DONE"
         }
       ],
-      "continuation": {
-        "kind": "pending_gate",
-        "approval_ref": "gate-decision:438e09b0-9961-4cc9-994b-3012f0fff3a2"
-      },
       "lease": {
         "generation": 2,
         "owner_nonce": "R7AAHQeFyy0WG0CAZXwZQcyRQczd-4gB",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-11T23:14:41.551985+00:00",
         "heartbeat_at": "2026-10-11T23:14:41.551985+00:00",
         "expires_at": "2026-10-11T23:24:41.551985+00:00"
@@ -652,7 +654,64 @@
         "handle": "a7d875fe1b81c44e7",
         "go_released_at": "2026-10-11T23:15:19.339691+00:00",
         "entered_at": "2026-10-11T23:15:42.553688+00:00"
-      }
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+          "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+          "degradations": [
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned forbidden",
+              "phase": "INIT"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision auto",
+              "phase": "PLAN"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate pr_creation decision auto",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate merge decision posture_block",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned forbidden after merge gate-answer + DONE transition",
+              "phase": "DONE"
+            }
+          ],
+          "dispatch_id": "batch-bb11fb2566458676be71b75a:ri-11:attempt-1",
+          "evidence": {
+            "commit": "5f9dbb0e67985cd84742a2fef030aa262ef08092",
+            "loop_state_digest": "932277d5f467b9209bbc68d2291371a8079b9e39bb01ef0129a6c986306b86d4",
+            "loop_state_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json"
+          },
+          "handoff_id": "val-review-amend-skill-workflow-spec-for-policy-authorized-sync-windows-fdbeb6f5",
+          "host_id": "machine-8ce412f9e16ce285",
+          "lease_generation": 2,
+          "outcome": "success",
+          "schema_version": 2,
+          "worktree_ref": "amend-skill-workflow-spec-for-policy-authorized-sync-windows"
+        },
+        "result_digest": "64a6c6cadc408a5e381a9ff659c7bf8643b3854d0953b385677165dd922a3618",
+        "bound_at": "2026-10-11T23:19:54.385975+00:00",
+        "callback_started_at": "2026-10-11T23:19:54.393314+00:00",
+        "callback_acknowledged_at": "2026-10-11T23:19:54.398800+00:00",
+        "terminal_persisted_at": "2026-10-11T23:19:54.403982+00:00",
+        "effects_applied_at": "2026-10-11T23:19:54.421542+00:00"
+      },
+      "outcome": "success",
+      "resolved_at": "2026-10-11T23:19:54.403969+00:00",
+      "handoff_id": "val-review-amend-skill-workflow-spec-for-policy-authorized-sync-windows-fdbeb6f5"
     },
     {
       "dispatch_id": "batch-ea05256986efa1fbadb2535d:ri-16:attempt-1",
