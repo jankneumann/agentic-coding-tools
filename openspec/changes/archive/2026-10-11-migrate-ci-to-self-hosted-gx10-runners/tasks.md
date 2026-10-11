@@ -29,7 +29,7 @@ Everything of that kind is in § 7 (operator-only).
 - [x] Implementation
 - [x] Testing
 - [x] Review
-- [ ] Done
+- [x] Done
 
 ## Phase 1 — Contracts: manifest schema, manifest, test package
 
@@ -542,3 +542,6 @@ Everything of that kind is in § 7 (operator-only).
   - Run `gh variable set CI_RUNNER_LANE --body hosted`.
   - **Verify**: the next CI run's `verify-run --expect-lane hosted` shows every job on
     GitHub-hosted runners. Then restore with O7.
+
+## Migration Notes
+Open tasks O1–O12 (Phase 7) are operator-only by design and were not migrated to agent work on 2026-10-11. They remain owned by the operator and are tracked by the runbook `docs/guides/self-hosted-ci-runners.md` § 5 and the `pending_gate` entries in `validation-report.md`. PR #679 merged (rebase, e6db2c9b) without performing any of them.

@@ -293,3 +293,30 @@ Validation passed on-branch: 199 ci_runners tests, strict openspec valid, ruff c
 ### Context
 VAL_REVIEW converged on pass 3/3 (claude_code + codex, min_quorum=2). Trend 3 -> 2 -> 0 high/medium findings; two VAL_FIX rounds applied after orchestrator adjudication. IMPL_REVIEW round-3 fixes (#99 mint budget, #88 isolation unit, #89 placement check) vendor-confirmed.
 
+---
+
+## Phase: Cleanup (2026-10-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Post-merge mode, no merge by agent** — The operator merged PR #679 directly; cleanup-feature skipped Steps 2-3.5 and landed archive work on main.
+2. **Operator tasks not migrated to agent work** — O1-O12 need host and repo-admin access and are marked operator-only in tasks.md; they are tracked by docs/guides/self-hosted-ci-runners.md section 5 and the validation report's pending_gate entries.
+3. **Architecture refresh skipped** — Step 4 is a courtesy, not a gate; consumer skills regenerate on demand via --ensure.
+
+### Completed Work
+- gate-answer
+- loop-done
+- dispatch-result
+- task-annotation
+- archive
+- decision-index
+- branch-cleanup
+
+### Next Steps
+- Operator runs O1-O12 from docs/guides/self-hosted-ci-runners.md
+- Supervisor continues roadmap-always-on-agent-automation
+
+### Context
+PR #679 was rebase-merged by the operator (e6db2c9b); cleanup ran in post-merge mode and did not merge. The supervisor's merge gate answer was applied, the loop reached DONE with a passing goal gate, and the change was archived on main. Operator-only tasks O1-O12 stay with the operator via the runbook; no agent work was migrated.
+
