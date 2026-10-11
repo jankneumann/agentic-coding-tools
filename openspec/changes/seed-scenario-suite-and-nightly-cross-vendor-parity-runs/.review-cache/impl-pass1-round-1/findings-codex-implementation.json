@@ -1,0 +1,109 @@
+{
+  "review_type": "implementation",
+  "target": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: skills/improve-harness/scripts/analyze_failures.py:61-78 sends agent_id=\"improve-harness\", while scenario gaps are stored as agent_id=\"agent-scenarios-nightly\". The live coordinator passes the requested agent_id to get_relevant_memories, whose SQL filters agent_id exactly, so /improve-harness cannot retrieve the scenario-parity entries this change emits. The test stub checks that agent_id exists but does not reproduce the live filtering behavior.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "line_range": {
+        "start": 61,
+        "end": 78
+      },
+      "resolution": "Add an API-supported cross-agent query scope, or use a shared storage/query identity that still permits all capability-gap sources; update the consumer test to enforce the live agent_id filtering semantics.",
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: packages/agent-scenarios/src/agent_scenarios/gh_shim.py:169-252 recognizes implemented subcommands but never rejects unknown flags. Calls such as `gh pr list --search ...`, `gh pr merge --admin`, or `gh pr view --jq ...` are silently accepted with ignored or incorrect semantics, so gh-unsupported.log remains empty and the executor does not convert the shim coverage gap into an infrastructure error as required.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "line_range": {
+        "start": 169,
+        "end": 252
+      },
+      "resolution": "Validate each subcommand against an explicit option grammar and route every unimplemented flag or flag combination through unsupported(); add tests for unsupported options on otherwise supported subcommands.",
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: packages/agent-scenarios/scenarios/plan-feature-basic.scenario.yaml:52-62 does not actually enforce its stated invariants. `main-unchanged` only checks that the initial commit appears somewhere in `git log main`, so additional commits on main still pass, and `no-source-edit` only rejects edits containing the word \"health\". An agent can modify product source, commit on main, then create the expected branch and receive a deterministic pass. The analogous no-source-edit gate in plan-feature-spec-delta only searches for \"csv\" and has the same false-positive behavior.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/scenarios/plan-feature-basic.scenario.yaml",
+      "line_range": {
+        "start": 52,
+        "end": 62
+      },
+      "resolution": "Compare the main ref exactly with the fixture base SHA and use `git diff --quiet <base> -- src` to enforce source immutability; apply the same exact-diff gate to plan-feature-spec-delta and add adversarial outcomes proving arbitrary source edits fail.",
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Optional: packages/agent-scenarios/src/agent_scenarios/results_store.py:294-309 applies one global nightly-lock state to every unfinished run. While a new nightly is active, all older runs lacking a run-summary record are mislabeled `in_progress` instead of `interrupted`, making query output inaccurate during live runs.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/results_store.py",
+      "line_range": {
+        "start": 294,
+        "end": 309
+      },
+      "resolution": "Associate the lock with its current run_id, or mark only the newest unfinished run as in progress and all older unfinished runs as interrupted; add a test containing both an old interrupted run and a current locked run.",
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Optional: packages/agent-scenarios/src/agent_scenarios/gh_shim.py:144-166 creates a temporary clone with tempfile.mkdtemp for every merge but never removes it on success or failure. Nightly merge scenarios therefore leak complete repositories under /tmp indefinitely.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "line_range": {
+        "start": 144,
+        "end": 166
+      },
+      "resolution": "Wrap the temporary clone lifecycle in try/finally with shutil.rmtree, or place it under the pair's managed directory so normal workspace cleanup removes it.",
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Optional: packages/agent-scenarios/src/agent_scenarios/nightly.py:121-144 accepts `judge.enabled`, but the runtime never reads that value; the CLI always supplies judge_backend=None. An operator can set `judge.enabled: true` in a schema-valid configuration and still receive only `trajectory_status: skip`, with no warning that judging was not activated.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "optional",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "line_range": {
+        "start": 121,
+        "end": 144
+      },
+      "resolution": "Wire enabled configurations to a supported judge backend, or reject `judge.enabled: true` until such a backend is configured instead of silently ignoring it.",
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    }
+  ]
+}

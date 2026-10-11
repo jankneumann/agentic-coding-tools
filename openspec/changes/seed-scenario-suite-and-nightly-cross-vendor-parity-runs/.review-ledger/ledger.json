@@ -543,6 +543,211 @@
       "description": "Nit: The final tier-A `wp-integration` verification runs `skills/tests/improve-harness` and `skills/session-log/tests` but omits `skills/improve-harness/tests`, even though task 4.4a modifies that test tree. The package-specific gate covers it earlier, but the final convergence gate would not catch a later-package regression. Include every touched improve-harness test directory in the final command.",
       "resolution": "fixed with #23 (codex duplicate)",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 31,
+      "status": "open",
+      "axis": "observability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/results_store.py",
+      "fingerprint": "b15091a83b6c0de5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "run_states() applies one global lock probe to every run id lacking a RunRecord, so while any nightly holds nightly.lock, every older interrupted run (killed before its RunRecord was written) is reported as in_progress instead of interrupted. Only the newest run without a RunRecord can be the live one; older ones are interrupted regardless of the lock. The results CLI and the runbook's 'interrupted vs in_progress' distinction therefore give wrong answers exactly during the window an operator is most likely to query (a run in flight). Suggested fix: when held, label only the most recent unfinished run id (by first-seen order or recorded_at) as in_progress and the rest interrupted.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 32,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "fingerprint": "d4dca1d935fe738e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "codex"
+      ],
+      "description": "merge_pr clones the bare origin into a fresh tempfile.mkdtemp directory and never removes it, on either the success or the failure path. Each `gh pr merge` the agent under test issues leaks a full clone under /tmp; a nightly suite running merge-pull-requests scenarios across several vendors leaks one per pair per night, and the nightly's own `_remove_workspace` cannot reclaim them because they live outside the workdir. Wrap the clone in try/finally with shutil.rmtree(tmp, ignore_errors=True), or place the clone under bin_dir_for(workdir) so existing workspace cleanup covers it.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 33,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "fingerprint": "abcd77d1a222413f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The RunRecord written by finish() stores the configured vendor list, not the effective one. When a vendor is excluded by preflight (CLI unavailable, or the broken-vendor exclusion path that still leaves >=2 effective vendors), the run record claims vendors that never executed, so `results latest`/trend consumers and the runbook's 'which vendors ran' question read a misleading answer. Record the effective vendors (and optionally the excluded ones with a reason) so the ledger reflects what actually ran.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 34,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/executor.py",
+      "fingerprint": "0effb0f3f6df22f8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "install_gh_shim is invoked for every live run, including fixtures without `local_remote`. The shim's gh-state.json then points `origin` at a bare repo path that was never created, so any `gh pr create`/`gh pr merge` the agent attempts will fail inside the shim with a git clone/push error rather than a clean 'unsupported call' entry in gh-unsupported.log; the scenario surfaces as a vendor error with an opaque traceback instead of the designed `gh shim: unsupported call` message. Either skip shim installation (or install a stub that logs every call as unsupported) when fx.local_remote is false, or have the shim check origin existence and route to the unsupported log.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 35,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "fingerprint": "6f25af4f6b546d3c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The task-4.4a repair added `--agent-id`, `IMPROVE_HARNESS_AGENT_ID`, and `COORDINATION_API_KEY` (Bearer auth) to analyze_failures.py, and the live coordinator at COORDINATOR_URL now rejects unauthenticated /memory/query with 401 (which query_memory reports only as 'Coordinator unreachable' and returns []). SKILL.md's Prerequisites and Step 1 example still describe only COORDINATOR_URL and do not mention the key or agent id, so a user following the skill against a secured coordinator silently gets an empty ranking with a misleading 'unreachable' warning. Document COORDINATION_API_KEY / IMPROVE_HARNESS_AGENT_ID (and the `--agent-id` flag) in Prerequisites, and consider distinguishing HTTP 401/403 from a connection failure in the warning text.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 36,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+      "fingerprint": "8962d3342604b3ef",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The broken-skill acceptance test only exercises the improve-harness ranking assertion when skills/improve-harness/scripts/analyze_failures.py exists on disk; otherwise it silently passes without checking that the emitted capability-gap entries rank the broken skill first. Because this file lives at a fixed repo-relative path and the test is the acceptance evidence for design D3/D4 ('improve-harness surfaces the gap'), a rename or a packaging layout where the skills tree is absent turns the key assertion into a no-op green. Use pytest.skip with a reason (visible in the summary) or make the path a hard assertion so the gap is reported rather than hidden.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 37,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "fingerprint": "0ad860e0ec7182f5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The shim's shebang interpolates sys.executable verbatim. Linux shebangs do not support spaces or quoting, so a venv under a path containing a space (common on dev laptops with `~/My Projects/...`) yields a shim that cannot be executed and every `gh` call fails with ENOENT-style errors rather than the designed unsupported-call path. Low likelihood in the nightly deployment (systemd unit, fixed path); if it matters, write a `#!/bin/sh` trampoline that execs \"$PYTHON\" \"$0\" with the path quoted, or exec via a tiny sh wrapper.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 38,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+      "fingerprint": "38b22c1cb00a4f39",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "skills_sha() marks the sha `+dirty` from a repo-wide `git status --porcelain`, so any uncommitted file anywhere in the checkout (an unrelated worktree edit, a stray review-findings.json) flags the skills sha as dirty even when skills/ itself is clean. This matches the spec wording ('that checkout has uncommitted changes') so it is not a defect, but trend consumers comparing skills_sha across nights will see spurious dirty markers on a dev machine. Scoping the porcelain call to the skills directory (`git status --porcelain -- <skills_dir>`) would make the marker mean what readers assume.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 39,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "969db24f072b77ec",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: skills/improve-harness/scripts/analyze_failures.py:61-78 sends agent_id=\"improve-harness\", while scenario gaps are stored as agent_id=\"agent-scenarios-nightly\". The live coordinator passes the requested agent_id to get_relevant_memories, whose SQL filters agent_id exactly, so /improve-harness cannot retrieve the scenario-parity entries this change emits. The test stub checks that agent_id exists but does not reproduce the live filtering behavior.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 40,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "fingerprint": "a87edf6c077295a9",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: packages/agent-scenarios/src/agent_scenarios/gh_shim.py:169-252 recognizes implemented subcommands but never rejects unknown flags. Calls such as `gh pr list --search ...`, `gh pr merge --admin`, or `gh pr view --jq ...` are silently accepted with ignored or incorrect semantics, so gh-unsupported.log remains empty and the executor does not convert the shim coverage gap into an infrastructure error as required.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 41,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/results_store.py",
+      "fingerprint": "99cc6baa91cab984",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Optional: packages/agent-scenarios/src/agent_scenarios/results_store.py:294-309 applies one global nightly-lock state to every unfinished run. While a new nightly is active, all older runs lacking a run-summary record are mislabeled `in_progress` instead of `interrupted`, making query output inaccurate during live runs.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 42,
+      "status": "open",
+      "axis": "observability",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "fingerprint": "4f89b652fae6fedc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Optional: packages/agent-scenarios/src/agent_scenarios/nightly.py:121-144 accepts `judge.enabled`, but the runtime never reads that value; the CLI always supplies judge_backend=None. An operator can set `judge.enabled: true` in a schema-valid configuration and still receive only `trajectory_status: skip`, with no warning that judging was not activated.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }

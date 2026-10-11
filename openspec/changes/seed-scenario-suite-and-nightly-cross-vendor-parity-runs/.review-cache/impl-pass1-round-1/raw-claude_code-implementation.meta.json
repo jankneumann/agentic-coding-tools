@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "vendor": "claude_code",
+  "review_type": "implementation",
+  "stdout_path": "raw-claude_code-implementation.txt",
+  "byte_length": 7682,
+  "truncated": false,
+  "sha256": "7bb1a1a2cc609c8c8504a5baf4d3225d941753cba401620ccac9ab10cf7f82f7",
+  "repair_attempted": false,
+  "coercions": []
+}

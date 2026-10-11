@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "change_id": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "review_type": "implementation",
+  "created_at": "2026-10-11T23:30:57Z",
+  "target": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 184.06459434889257,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 380.12271191366017,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 2.1992885572835803,
+      "error": "Error: Internal error: {\n  \"message\": \"API error (status 426 Upgrade Required): Your Grok CLI version (1.0.5) is outdated. Please update to version 1.0.13 or later via `grok update` or the installation documentation.\",\n  \"http_status\": 426\n}\n",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 108.89850723836571,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a12d41-fdb1-73a5-943b-4352b48ca4d2\",\"timestamp\":\"2026-10-11T23:17:41.938Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/seed-scenario-suite-and-nightly-cross-vendor-parity-runs\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"## Review Round 1\\n\\nThis packet exceeds the size budget and was truncated. You MAY use Read/Grep to recover truncated context.\\n\\nR",
+      "error_class": "vendor_unavailable"
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 8,
+      "unanchored_findings": 1,
+      "fact_check": "ran",
+      "fact_check_removed": 0,
+      "fact_check_tokens": 0
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 6,
+      "unanchored_findings": 0,
+      "fact_check": "ran",
+      "fact_check_removed": 1,
+      "fact_check_tokens": 0
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "phase": "IMPL_FIX",
+    "pass": 1,
+    "round": 1,
+    "at": "2026-10-11T23:42:34.492153+00:00",
+    "lead_vendor": "claude_code",
+    "trigger": "converge() returned adjudication_required (2 lone-codex judgment items, high/critical)",
+    "adjudication": {
+      "39": {
+        "verdict": "valid",
+        "adjusted_criticality": "high",
+        "evidence": "agent-coordinator/src/coordination_api.py query_memories -> memory.recall(agent_id) -> get_relevant_memories WHERE agent_id = p_agent_id (004_memory_tables.sql:132); emitter default agent-scenarios-nightly vs improve-harness default improve-harness; spec harness-engineering 'scenario-parity entries are retrievable by the improve-harness memory query'",
+        "fix": "query_memory issues one request per resolve_agent_ids() (default improve-harness + agent-scenarios-nightly, comma-separated override), merges by row id, skips a 403/unreachable id with a warning; test stub now filters agent_id exactly"
+      },
+      "40": {
+        "verdict": "valid",
+        "adjusted_criticality": "high",
+        "evidence": "gh_shim main() looked flags up by name and ignored the rest, so --search/--admin/--draft/--jq were silently accepted; design D5 + spec 'an unsupported gh call is an infrastructure error'",
+        "fix": "per-subcommand flag allowlist (check_flags) routes unknown flags to unsupported(); --jq honoured via jq -r or unsupported when jq is absent; --limit, --body-file, --fill, merge --subject/--body implemented"
+      }
+    },
+    "item_ids": [
+      39,
+      40
+    ],
+    "outcome": "fixed",
+    "allowed_paths": [
+      "skills/improve-harness/scripts/analyze_failures.py",
+      "skills/tests/improve-harness/test_scenario_parity_source.py",
+      "skills/tests/improve-harness/test_export_shared_learnings.py",
+      "docs/guides/agent-scenarios-nightly.md",
+      "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "packages/agent-scenarios/tests/test_gh_shim.py"
+    ],
+    "advisory_out_of_quorum": "pi-local wrote review-findings.json to cwd despite vendor_unavailable; 1 high (missing src/__init__.py) rejected - python -m pytest puts cwd on sys.path so src is a namespace package; rest advisory/pre-existing; file deleted, not committed"
+  }
+]
