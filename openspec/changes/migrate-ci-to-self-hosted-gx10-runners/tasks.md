@@ -284,7 +284,7 @@ Everything of that kind is in § 7 (operator-only).
     install it in the image with `ACTIONS_RUNNER_HOOK_JOB_STARTED`.
 
   **Dependencies**: 3.6
-- [ ] 3.8 Write `test_install_units.py` (XS)
+- [x] 3.8 Write `test_install_units.py` (XS)
   - Run `install-units.sh --prefix <tmp>` with stub `systemctl`/`loginctl`/`podman` on `PATH`.
     Each stub fails the test if it is invoked.
   - Files land only beneath `<tmp>`.
@@ -295,7 +295,7 @@ Everything of that kind is in § 7 (operator-only).
   during tests", "Scripts default to non-mutating behaviour"
   **Design decisions**: D7
   **Dependencies**: 1.3
-- [ ] 3.9 Author `deploy/gx10-runner/install-units.sh` (XS)
+- [x] 3.9 Author `deploy/gx10-runner/install-units.sh` (XS)
   - Use the copy-and-print-only behaviour of D7.
 
   **Dependencies**: 3.8
