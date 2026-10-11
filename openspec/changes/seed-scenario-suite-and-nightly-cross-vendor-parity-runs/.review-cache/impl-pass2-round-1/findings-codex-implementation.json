@@ -1,0 +1,135 @@
+{
+  "review_type": "implementation",
+  "target": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: `AgentScenario.id` and vendor identifiers are unrestricted strings, but `run_scenario()` interpolates them directly into a workspace path. Absolute or traversal-bearing IDs can escape `workspaces_root`; fixture materialization then writes there, and a passing run calls `_remove_workspace()` on the escaped path. Validate identifiers as path-safe kebab-case and defensively resolve each workspace beneath the run directory before writing or deleting it.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/models.py",
+      "line_range": {
+        "start": 194,
+        "end": 215
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: `materialize_skills()` uses `entry.is_dir()` and `shutil.copytree()` with the default `symlinks=False`, so symlinks in the checkout's skills tree are followed. A branch under evaluation can point a top-level or nested symlink at HOME-scoped vendor credentials or other host files and copy them into the agent-readable workspace. Reject symlinks at every depth and verify every copied source resolves beneath `skills_root`.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+      "line_range": {
+        "start": 73,
+        "end": 82
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: the per-pair timeout uses `subprocess.run(timeout=...)`, which kills only the vendor CLI process, not subprocesses it spawned. Orphaned tool processes can continue consuming resources or mutating a workspace after the pair is recorded as timed out, so the advertised timeout is not an effective execution cap. Start each vendor in a new process session and terminate and reap the entire process group on timeout.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/executor.py",
+      "line_range": {
+        "start": 271,
+        "end": 288
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: the revised `implement-feature-basic` gates do not prove that the fix commit is on the pushed feature branch. An agent can fix and commit on `main`, create and push an unchanged `feature/fix-add` branch from the fixture commit, and satisfy every gate because the branch check tests only existence and the remote check tests only that a ref exists. Gate that the fix commit is reachable from `origin/feature/fix-add` and that `origin/main` remains at the fixture commit.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/scenarios/implement-feature-basic.scenario.yaml",
+      "line_range": {
+        "start": 47,
+        "end": 60
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: `plan-feature-spec-delta` claims product source must remain untouched, but its prohibit gate merely checks that `src/billing.py` does not contain the word `csv`. Arbitrary edits or deletion of that file still pass, so the scenario is not discriminating for its stated behavior. Replace this with a git-diff gate against the fixture commit covering product-source paths.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/scenarios/plan-feature-spec-delta.scenario.yaml",
+      "line_range": {
+        "start": 70,
+        "end": 74
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: failures from `emit_findings()` are caught and reduced to a warning, after which the run is recorded as `completed` or `budget_exhausted` and may exit green. This violates the nightly contract that results, findings, and gaps are written before completion and can silently leave operators without the required review artifact. Treat findings persistence failure as a non-green infrastructure outcome and reflect it in the run record and exit code.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "line_range": {
+        "start": 527,
+        "end": 546
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 7,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Optional: bare `agent-scenarios gaps flush`, as documented in the runbook, ignores nightly configuration and always uses the default XDG spool and default environment-variable names. With a custom `results.path`, `gaps.spool_path`, or renamed coordinator/key variables, it can report zero pending entries while the actual spool remains untouched. Add `--config` support or document the required `--spool`, `--url-env`, and `--key-env` arguments.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gap_emitter.py",
+      "line_range": {
+        "start": 325,
+        "end": 345
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Nit: `_post_memory_query()` promises an empty result with a warning on any failure, but invalid UTF-8 raises uncaught `UnicodeDecodeError`, an invalid URL can raise uncaught `ValueError`, and a JSON envelope whose `memories` value is not a list can raise `TypeError` during iteration. These malformed coordinator/proxy responses abort improve-harness and its callers instead of degrading safely. Catch decoding/request errors and validate the envelope collection before iterating it.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "line_range": {
+        "start": 115,
+        "end": 147
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    }
+  ]
+}

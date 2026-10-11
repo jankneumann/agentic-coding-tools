@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "vendor": "claude_code",
+  "round": 1,
+  "status": "ran",
+  "skip_reason": null,
+  "model": null,
+  "tokens": 0,
+  "decisions": [
+    {
+      "finding_id": "1",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "2",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "3",
+      "verdict": "removed",
+      "ground": "A_absent_from_subject_diff",
+      "evidence_line": "skills/skill-audit/scripts/evidence_join.py has no diff section and is absent from every rule-group file list (Groups 1\u20136), so the reviewed diff contains none of the code this finding targets."
+    },
+    {
+      "finding_id": "4",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "5",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "6",
+      "verdict": "kept"
+    }
+  ]
+}

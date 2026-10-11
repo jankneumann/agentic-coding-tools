@@ -1,0 +1,1165 @@
+{
+  "schema_version": 2,
+  "change_id": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "7c3845b0b06a1390d86bc588ca6e8f8af4a8cb021962120e38841614a8de07b2",
+  "char_length": 320000,
+  "budget_chars": 320000,
+  "tools_overflow": true,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "docs/decisions/README.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 150
+      },
+      {
+        "path": "docs/decisions/harness-engineering.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 679
+      },
+      {
+        "path": "docs/guides/agent-scenarios-nightly.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1751
+      },
+      {
+        "path": "docs/guides/memory-conventions.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 853
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.openspec.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 103
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/README.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 539
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/examples/capability-gap-entry.example.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 347
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/capability-gap-entry.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 697
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/nightly-config.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1460
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/results-record.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1640
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 9473
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3085
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/agent-trajectory-harness/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4640
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/harness-engineering/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 723
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/tasks.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5472
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/work-packages.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4934
+      },
+      {
+        "path": "packages/agent-scenarios/README.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 508
+      },
+      {
+        "path": "packages/agent-scenarios/deploy/nightly.example.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 462
+      },
+      {
+        "path": "packages/agent-scenarios/deploy/systemd/agent-scenarios-nightly.service.template",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 371
+      },
+      {
+        "path": "packages/agent-scenarios/deploy/systemd/agent-scenarios-nightly.timer.template",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 231
+      },
+      {
+        "path": "packages/agent-scenarios/pyproject.toml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 170
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/cleanup-feature-archive.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 704
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/implement-feature-basic.scenario.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 554
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/implement-feature-respects-scope.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 603
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/implement-feature-tdd-new-function.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 539
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/iterate-on-plan-split-fused-task.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 650
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/merge-pull-requests-local-merge.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 492
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/plan-feature-basic.scenario.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 213
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/plan-feature-spec-delta.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 748
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/validate-feature-clean-pass.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 577
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/validate-feature-flags-failing-test.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 570
+      },
+      {
+        "path": "packages/agent-scenarios/scenarios/validate-feature-spec-gap.scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 686
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/__main__.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1034
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/executor.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2840
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/gap_emitter.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3275
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3728
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 911
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/models.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 495
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5410
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/results_cli.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1352
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/results_store.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4358
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/schemas/capability-gap-entry.example.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 317
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/schemas/capability-gap-entry.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 667
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/schemas/nightly-config.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1431
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/schemas/results-record.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1610
+      },
+      {
+        "path": "packages/agent-scenarios/src/agent_scenarios/suite.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 313
+      },
+      {
+        "path": "packages/agent-scenarios/tests/conftest.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 170
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/__init__.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 46
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/_helpers.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 192
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/cleanup-feature-archive.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 382
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/implement-feature-basic.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 316
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/implement-feature-respects-scope.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 268
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/implement-feature-tdd-new-function.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 332
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/iterate-on-plan-split-fused-task.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 312
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/merge-pull-requests-local-merge.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 235
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/plan-feature-basic.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 309
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/plan-feature-spec-delta.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 395
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/validate-feature-clean-pass.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 262
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/validate-feature-flags-failing-test.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 298
+      },
+      {
+        "path": "packages/agent-scenarios/tests/scenario_outcomes/validate-feature-spec-gap.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 273
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1637
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_acceptance_nightly_suite.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 758
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_deploy_assets.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 592
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_findings_emitter.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 509
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_fixture_extensions.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2093
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_gap_emitter.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2591
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_gh_shim.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2130
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_main_cli.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 659
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_nightly_config.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2395
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_nightly_run.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2439
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_results_cli.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1656
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_results_store.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1863
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_schemas.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 343
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_seed_outcomes.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 625
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_seed_suite.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1240
+      },
+      {
+        "path": "packages/agent-scenarios/tests/test_skill_materialization.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1359
+      },
+      {
+        "path": "skills/improve-harness/SKILL.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 323
+      },
+      {
+        "path": "skills/improve-harness/scripts/analyze_failures.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2074
+      },
+      {
+        "path": "skills/improve-harness/tests/test_improve_harness.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 346
+      },
+      {
+        "path": "skills/session-log/tests/test_memory_tag_conventions.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 111
+      },
+      {
+        "path": "skills/tests/improve-harness/fixtures/capability-gap-entry.example.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 305
+      },
+      {
+        "path": "skills/tests/improve-harness/test_export_shared_learnings.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 407
+      },
+      {
+        "path": "skills/tests/improve-harness/test_scenario_parity_source.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2724
+      }
+    ],
+    "excluded": [
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 301
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 337
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2451
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/findings-codex-implementation.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1782
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 224
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2051
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/raw-codex-implementation.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 217
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/raw-codex-implementation.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1424
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/raw-grok-implementation.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 215
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/raw-grok-implementation.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 83
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/raw-pi-implementation.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 214
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/raw-pi-implementation.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 522063
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 813
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/impl-pass1-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 10123
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 331
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 291
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 3873
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1630
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-antigravity-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 207
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-antigravity-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 79
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 208
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 3367
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 201
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1359
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-grok-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 199
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-grok-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 75
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 196
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 74
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass1-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 709
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2426
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-antigravity-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 207
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-antigravity-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 79
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 208
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2143
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 200
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 76
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-grok-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 199
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-grok-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 75
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 196
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 74
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/pass2-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 629
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 280
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 241
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2883
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 971
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 207
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2536
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 200
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 783
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/raw-grok-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 198
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/raw-grok-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 75
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 197
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 778724
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-cache/plan-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 800
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-ledger/impl-fix-substeps.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 683
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-ledger/ledger.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 12444
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.review-ledger/plan-fix-substeps.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 835
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/plan-findings.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1330
+      },
+      {
+        "path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/session-log.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 3775
+      }
+    ],
+    "truncated": [
+      "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+      "packages/agent-scenarios/tests/test_acceptance_nightly_suite.py",
+      "packages/agent-scenarios/tests/test_deploy_assets.py",
+      "packages/agent-scenarios/tests/test_findings_emitter.py",
+      "packages/agent-scenarios/tests/test_fixture_extensions.py",
+      "packages/agent-scenarios/tests/test_gap_emitter.py",
+      "packages/agent-scenarios/tests/test_gh_shim.py",
+      "packages/agent-scenarios/tests/test_main_cli.py",
+      "packages/agent-scenarios/tests/test_nightly_config.py",
+      "packages/agent-scenarios/tests/test_nightly_run.py",
+      "packages/agent-scenarios/tests/test_results_cli.py",
+      "packages/agent-scenarios/tests/test_results_store.py",
+      "packages/agent-scenarios/tests/test_schemas.py",
+      "packages/agent-scenarios/tests/test_seed_outcomes.py",
+      "packages/agent-scenarios/tests/test_seed_suite.py",
+      "packages/agent-scenarios/tests/test_skill_materialization.py",
+      "skills/improve-harness/SKILL.md",
+      "skills/improve-harness/scripts/analyze_failures.py",
+      "skills/improve-harness/tests/test_improve_harness.py",
+      "skills/session-log/tests/test_memory_tag_conventions.py",
+      "skills/tests/improve-harness/fixtures/capability-gap-entry.example.json",
+      "skills/tests/improve-harness/test_export_shared_learnings.py",
+      "skills/tests/improve-harness/test_scenario_parity_source.py"
+    ]
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "docs/decisions/README.md",
+        "docs/decisions/harness-engineering.md",
+        "docs/guides/agent-scenarios-nightly.md",
+        "docs/guides/memory-conventions.md",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/.openspec.yaml",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/README.md",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/examples/capability-gap-entry.example.json",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/capability-gap-entry.schema.json",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/nightly-config.schema.json",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/results-record.schema.json",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/proposal.md",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/tasks.md",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/work-packages.yaml",
+        "packages/agent-scenarios/README.md",
+        "packages/agent-scenarios/deploy/nightly.example.yaml",
+        "packages/agent-scenarios/deploy/systemd/agent-scenarios-nightly.service.template",
+        "packages/agent-scenarios/deploy/systemd/agent-scenarios-nightly.timer.template",
+        "packages/agent-scenarios/pyproject.toml",
+        "packages/agent-scenarios/scenarios/cleanup-feature-archive.scenario.yaml",
+        "packages/agent-scenarios/scenarios/implement-feature-basic.scenario.yaml",
+        "packages/agent-scenarios/scenarios/implement-feature-respects-scope.scenario.yaml",
+        "packages/agent-scenarios/scenarios/implement-feature-tdd-new-function.scenario.yaml",
+        "packages/agent-scenarios/scenarios/iterate-on-plan-split-fused-task.scenario.yaml",
+        "packages/agent-scenarios/scenarios/merge-pull-requests-local-merge.scenario.yaml",
+        "packages/agent-scenarios/scenarios/plan-feature-basic.scenario.yaml",
+        "packages/agent-scenarios/scenarios/plan-feature-spec-delta.scenario.yaml",
+        "packages/agent-scenarios/scenarios/validate-feature-clean-pass.scenario.yaml",
+        "packages/agent-scenarios/scenarios/validate-feature-flags-failing-test.scenario.yaml",
+        "packages/agent-scenarios/scenarios/validate-feature-spec-gap.scenario.yaml",
+        "packages/agent-scenarios/src/agent_scenarios/schemas/capability-gap-entry.example.json",
+        "packages/agent-scenarios/src/agent_scenarios/schemas/capability-gap-entry.schema.json",
+        "packages/agent-scenarios/src/agent_scenarios/schemas/nightly-config.schema.json",
+        "packages/agent-scenarios/src/agent_scenarios/schemas/results-record.schema.json"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/agent-trajectory-harness/spec.md",
+        "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/harness-engineering/spec.md"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "**/*.py",
+      "files": [
+        "packages/agent-scenarios/src/agent_scenarios/__main__.py",
+        "packages/agent-scenarios/src/agent_scenarios/executor.py",
+        "packages/agent-scenarios/src/agent_scenarios/gap_emitter.py",
+        "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+        "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+        "packages/agent-scenarios/src/agent_scenarios/models.py",
+        "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+        "packages/agent-scenarios/src/agent_scenarios/results_cli.py",
+        "packages/agent-scenarios/src/agent_scenarios/results_store.py",
+        "packages/agent-scenarios/src/agent_scenarios/suite.py",
+        "packages/agent-scenarios/tests/conftest.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/__init__.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/_helpers.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/cleanup-feature-archive.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/implement-feature-basic.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/implement-feature-respects-scope.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/implement-feature-tdd-new-function.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/iterate-on-plan-split-fused-task.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/merge-pull-requests-local-merge.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/plan-feature-basic.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/plan-feature-spec-delta.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/validate-feature-clean-pass.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/validate-feature-flags-failing-test.py",
+        "packages/agent-scenarios/tests/scenario_outcomes/validate-feature-spec-gap.py",
+        "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+        "packages/agent-scenarios/tests/test_acceptance_nightly_suite.py",
+        "packages/agent-scenarios/tests/test_deploy_assets.py",
+        "packages/agent-scenarios/tests/test_findings_emitter.py",
+        "packages/agent-scenarios/tests/test_fixture_extensions.py",
+        "packages/agent-scenarios/tests/test_gap_emitter.py",
+        "packages/agent-scenarios/tests/test_gh_shim.py",
+        "packages/agent-scenarios/tests/test_main_cli.py",
+        "packages/agent-scenarios/tests/test_nightly_config.py",
+        "packages/agent-scenarios/tests/test_nightly_run.py",
+        "packages/agent-scenarios/tests/test_results_cli.py",
+        "packages/agent-scenarios/tests/test_results_store.py",
+        "packages/agent-scenarios/tests/test_schemas.py",
+        "packages/agent-scenarios/tests/test_seed_outcomes.py",
+        "packages/agent-scenarios/tests/test_seed_suite.py",
+        "packages/agent-scenarios/tests/test_skill_materialization.py",
+        "skills/improve-harness/tests/test_improve_harness.py",
+        "skills/session-log/tests/test_memory_tag_conventions.py"
+      ]
+    },
+    {
+      "group_id": 4,
+      "source": "default",
+      "pattern": "skills/*/SKILL.md",
+      "files": [
+        "skills/improve-harness/SKILL.md"
+      ]
+    },
+    {
+      "group_id": 5,
+      "source": "default",
+      "pattern": "skills/*/scripts/*.py",
+      "files": [
+        "skills/improve-harness/scripts/analyze_failures.py"
+      ]
+    },
+    {
+      "group_id": 6,
+      "source": "default",
+      "pattern": "skills/tests/**",
+      "files": [
+        "skills/tests/improve-harness/fixtures/capability-gap-entry.example.json",
+        "skills/tests/improve-harness/test_export_shared_learnings.py",
+        "skills/tests/improve-harness/test_scenario_parity_source.py"
+      ]
+    }
+  ]
+}

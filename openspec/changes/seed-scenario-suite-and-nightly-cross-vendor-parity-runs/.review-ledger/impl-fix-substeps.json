@@ -34,5 +34,97 @@
       "packages/agent-scenarios/tests/test_gh_shim.py"
     ],
     "advisory_out_of_quorum": "pi-local wrote review-findings.json to cwd despite vendor_unavailable; 1 high (missing src/__init__.py) rejected - python -m pytest puts cwd on sys.path so src is a namespace package; rest advisory/pre-existing; file deleted, not committed"
+  },
+  {
+    "phase": "IMPL_FIX",
+    "pass": 2,
+    "round": 1,
+    "at": "2026-10-11T23:57:38.036145+00:00",
+    "lead_vendor": "claude_code",
+    "trigger": "converge() returned adjudication_required (10 judgment items; lanes claude_code, codex, grok; pi auth_required)",
+    "adjudication": {
+      "34": {
+        "verdict": "valid",
+        "adjusted_criticality": "medium",
+        "fix": "shim routes pr create/merge to unsupported() when the fixture has no local origin"
+      },
+      "41": {
+        "verdict": "valid",
+        "adjusted_criticality": "medium",
+        "fix": "run_states marks only the newest unfinished run in_progress while the lock is held"
+      },
+      "48": {
+        "verdict": "valid-hardening",
+        "adjusted_criticality": "medium",
+        "fix": "downgraded from critical: vendor CLIs already run with the real HOME, so copying adds no new exposure; out-of-root symlinks now refused before copy. Also fixed: copytree(ignore_dangling_symlinks=True) dropped every relative in-tree link (CPython resolves readlink against cwd), so skills/supabase-postgres-best-practices/CLAUDE.md was never materialized"
+      },
+      "49": {
+        "verdict": "valid",
+        "adjusted_criticality": "high",
+        "fix": "vendor runs in its own session; timeout kills the process group, bounded drain"
+      },
+      "50": {
+        "verdict": "valid",
+        "adjusted_criticality": "high",
+        "fix": "pushed-to-origin gate checks the pushed branch carries the fix; new origin-main-untouched gate"
+      },
+      "51": {
+        "verdict": "valid",
+        "adjusted_criticality": "medium",
+        "fix": "new source-untouched verify gate: git diff vs fixture root commit + no untracked files under src/"
+      },
+      "52": {
+        "verdict": "valid",
+        "adjusted_criticality": "high",
+        "fix": "findings emission failure recorded in run reason and exits 3 (spec: exit 3 after writing results, findings, gaps)"
+      },
+      "53": {
+        "verdict": "valid",
+        "adjusted_criticality": "low",
+        "fix": "merge temp clone removed in finally"
+      },
+      "55": {
+        "verdict": "valid",
+        "adjusted_criticality": "low",
+        "fix": "SKILL.md documents COORDINATION_API_KEY and per-agent_id querying; HTTP errors reported with status instead of 'unreachable'"
+      },
+      "56": {
+        "verdict": "valid",
+        "adjusted_criticality": "low",
+        "fix": "acceptance test asserts the analyzer exists instead of silently skipping"
+      }
+    },
+    "item_ids": [
+      34,
+      41,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      55,
+      56
+    ],
+    "outcome": "fixed",
+    "allowed_paths": [
+      "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "packages/agent-scenarios/src/agent_scenarios/executor.py",
+      "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+      "packages/agent-scenarios/src/agent_scenarios/results_store.py",
+      "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "packages/agent-scenarios/tests/test_gh_shim.py",
+      "packages/agent-scenarios/tests/test_skill_materialization.py",
+      "packages/agent-scenarios/tests/test_results_store.py",
+      "packages/agent-scenarios/tests/test_nightly_run.py",
+      "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+      "packages/agent-scenarios/scenarios/implement-feature-basic.scenario.yaml",
+      "packages/agent-scenarios/scenarios/plan-feature-spec-delta.scenario.yaml",
+      "skills/improve-harness/SKILL.md",
+      "skills/improve-harness/scripts/analyze_failures.py"
+    ],
+    "not_addressed": {
+      "fact_check_removed": "codex plan-feature-basic gate weakness (gates unchanged by this diff; pre-existing) - follow-up candidate"
+    }
   }
 ]

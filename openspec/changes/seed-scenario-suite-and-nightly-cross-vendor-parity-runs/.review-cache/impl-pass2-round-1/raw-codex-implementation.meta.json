@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "vendor": "codex",
+  "review_type": "implementation",
+  "stdout_path": "raw-codex-implementation.txt",
+  "byte_length": 5512,
+  "truncated": false,
+  "sha256": "be0251da10f4b3813dc777be199c3b616972eaaca9103cb3f007070c510f6df9",
+  "repair_attempted": false,
+  "coercions": []
+}

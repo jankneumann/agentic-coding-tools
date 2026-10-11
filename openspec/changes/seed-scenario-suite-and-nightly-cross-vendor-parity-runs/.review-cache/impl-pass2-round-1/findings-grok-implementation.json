@@ -1,0 +1,177 @@
+{
+  "review_type": "implementation",
+  "target": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Re-verified ledger [31]/[41]: run_states() still applies one global nightly.lock probe to every run_id lacking a RunRecord. While any nightly holds the lock, older interrupted runs are mislabeled in_progress. Only the newest unfinished run_id can be live; older ones remain interrupted. results_store.py:294-309; results CLI and runbook interrupted/in_progress distinction stay wrong during a live run.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/results_store.py",
+      "line_range": {
+        "start": 294,
+        "end": 309
+      },
+      "evidence_class": "judgment",
+      "existing_code": "held = lock_is_held(lock)\n...\nstates[run_id] = \"in_progress\" if held else \"interrupted\"",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Re-verified ledger [32]: merge_pr still clones into tempfile.mkdtemp(prefix=\"gh-shim-\") and never rmtree on success or fail(). Each gh pr merge leaks a full clone under /tmp; nightly workspace cleanup cannot reclaim it because the clone is outside workdir/bin_dir.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "line_range": {
+        "start": 177,
+        "end": 213
+      },
+      "evidence_class": "judgment",
+      "existing_code": "tmp = tempfile.mkdtemp(prefix=\"gh-shim-\")\nwork = os.path.join(tmp, \"r\")\ngit(\"clone\", \"-q\", origin, work)",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Re-verified ledger [33]: finish() still writes RunRecord.vendors=list(cfg.vendors) even after effective_vendors() filters the allowlist to vendors that appear in the suite. Config vendors with no planned pairs are recorded as if they ran; results latest/trend and the runbook's which-vendors-ran question stay misleading.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "line_range": {
+        "start": 399,
+        "end": 404
+      },
+      "evidence_class": "judgment",
+      "existing_code": "vendors=list(cfg.vendors), config_digest=digest, repo_sha=repo_sha,",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Re-verified ledger [34]: CLIVendorExecutor always calls install_gh_shim(..., origin_path_for(workdir)) even when fixture.local_remote is false. State points origin at a bare repo that was never created; gh pr create/merge then fail inside the shim with opaque git errors and do not append gh-unsupported.log, so the pair becomes a vendor error instead of the designed gh shim: unsupported call message.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/executor.py",
+      "line_range": {
+        "start": 259,
+        "end": 259
+      },
+      "evidence_class": "judgment",
+      "existing_code": "shim_dir = install_gh_shim(scenario, workdir, origin_path_for(workdir))",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "high",
+      "description": "Re-verified ledger [35]: analyze_failures.py requires COORDINATION_API_KEY (Bearer) and supports --agent-id / IMPROVE_HARNESS_AGENT_ID, but SKILL.md Prerequisites/Step 1 still document only COORDINATOR_URL. A secured coordinator 401 is reported only as Coordinator unreachable with []. Operators following the skill get an empty ranking with a misleading warning.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "line_range": {
+        "start": 87,
+        "end": 101
+      },
+      "evidence_class": "judgment",
+      "existing_code": "## Prerequisites\n\n- Python 3.11+\n- Coordinator running at `COORDINATOR_URL` (default: http://localhost:8000)\n- Falls back gracefully with a warning if the coordinator is unreachable",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Re-verified ledger [36]: test_acceptance_broken_skill only ranks via improve-harness when analyze_failures.py exists (if analyze.is_file(): ...); otherwise the D3/D4 acceptance assertion that scenario-parity gaps rank the broken skill is skipped and the test stays green. Missing or relocated skills tree hides the acceptance evidence.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+      "line_range": {
+        "start": 119,
+        "end": 130
+      },
+      "evidence_class": "judgment",
+      "existing_code": "analyze = SKILLS_PY / \"analyze_failures.py\"\nif analyze.is_file():\n    ...\n    ranked = af.rank_findings(sink.entries)",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Re-verified ledger [37]: install_gh_shim still writes shebang f\"#!{sys.executable}\\n\". Linux shebangs cannot contain spaces; a venv under a path with spaces makes every gh invocation fail with ENOENT-style errors rather than the unsupported-call path. Lower likelihood on the fixed-path nightly host.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "line_range": {
+        "start": 365,
+        "end": 365
+      },
+      "evidence_class": "judgment",
+      "existing_code": "shim.write_text(f\"#!{sys.executable}\\n{SHIM_SOURCE}\", encoding=\"utf-8\")",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Re-verified ledger [38]: skills_sha() still uses repo-wide git status --porcelain, so any uncommitted file outside skills/ marks +dirty. Matches current spec wording but makes skills_sha noisy for trend consumers on a dirty checkout. Scoping porcelain to the skills directory would match reader expectations.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+      "line_range": {
+        "start": 40,
+        "end": 42
+      },
+      "evidence_class": "judgment",
+      "existing_code": "status = _git(\"status\", \"--porcelain\")\nif status.returncode == 0 and status.stdout.strip():\n    sha += \"+dirty\"",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Re-verified ledger [42]: NightlyConfig.judge.enabled is schema-valid and accepted by the pydantic model, but _cmd_nightly / run_nightly never read cfg.judge and always pass judge_backend=None. Operators can set judge.enabled: true and still get only trajectory_status: skip with no warning that judging was not activated.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "line_range": {
+        "start": 121,
+        "end": 144
+      },
+      "evidence_class": "judgment",
+      "existing_code": "class JudgeCfg(BaseModel):\n    model_config = ConfigDict(extra=\"forbid\")\n    enabled: bool = False\n...\njudge: JudgeCfg = Field(default_factory=lambda: JudgeCfg())",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 10,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "New: resolve_agent_id() returns IMPROVE_HARNESS_AGENT_ID verbatim (including commas), while resolve_agent_ids() splits on commas and query_memory loops those ids. build_memory_query() uses resolve_agent_id, so with the runbook's documented comma-separated IMPROVE_HARNESS_AGENT_ID=improve-harness,agent-scenarios-nightly a direct build_memory_query() payload carries agent_id=\"improve-harness,agent-scenarios-nightly\", which the coordinator exact-match filter will not return. query_memory itself is fine; the public MemoryQueryRequest helper and any caller that trusts its agent_id field are not.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "line_range": {
+        "start": 64,
+        "end": 97
+      },
+      "evidence_class": "judgment",
+      "existing_code": "def resolve_agent_id(agent_id: str | None = None) -> str:\n    return agent_id or os.environ.get(\"IMPROVE_HARNESS_AGENT_ID\") or DEFAULT_AGENT_ID\n...\n\"agent_id\": resolve_agent_id(agent_id),",
+      "line_resolution": "vendor"
+    }
+  ]
+}

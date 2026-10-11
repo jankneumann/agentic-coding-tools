@@ -598,19 +598,20 @@
     },
     {
       "id": 34,
-      "status": "open",
+      "status": "addressed",
       "axis": "correctness",
       "type": "correctness",
-      "criticality": "low",
+      "criticality": "high",
       "evidence_class": "judgment",
       "file_path": "packages/agent-scenarios/src/agent_scenarios/executor.py",
-      "fingerprint": "0effb0f3f6df22f8",
+      "fingerprint": "c040effc4f323e78",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
-        "claude_code"
+        "claude_code",
+        "grok"
       ],
-      "description": "install_gh_shim is invoked for every live run, including fixtures without `local_remote`. The shim's gh-state.json then points `origin` at a bare repo path that was never created, so any `gh pr create`/`gh pr merge` the agent attempts will fail inside the shim with a git clone/push error rather than a clean 'unsupported call' entry in gh-unsupported.log; the scenario surfaces as a vendor error with an opaque traceback instead of the designed `gh shim: unsupported call` message. Either skip shim installation (or install a stub that logs every call as unsupported) when fx.local_remote is false, or have the shim check origin existence and route to the unsupported log.",
+      "description": "Re-verified ledger [34]: CLIVendorExecutor always calls install_gh_shim(..., origin_path_for(workdir)) even when fixture.local_remote is false. State points origin at a bare repo that was never created; gh pr create/merge then fail inside the shim with opaque git errors and do not append gh-unsupported.log, so the pair becomes a vendor error instead of the designed gh shim: unsupported call message.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -672,13 +673,14 @@
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
-      "fingerprint": "38b22c1cb00a4f39",
+      "fingerprint": "8706e40913a4afb4",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
-        "claude_code"
+        "claude_code",
+        "grok"
       ],
-      "description": "skills_sha() marks the sha `+dirty` from a repo-wide `git status --porcelain`, so any uncommitted file anywhere in the checkout (an unrelated worktree edit, a stray review-findings.json) flags the skills sha as dirty even when skills/ itself is clean. This matches the spec wording ('that checkout has uncommitted changes') so it is not a defect, but trend consumers comparing skills_sha across nights will see spurious dirty markers on a dev machine. Scoping the porcelain call to the skills directory (`git status --porcelain -- <skills_dir>`) would make the marker mean what readers assume.",
+      "description": "Re-verified ledger [38]: skills_sha() still uses repo-wide git status --porcelain, so any uncommitted file outside skills/ marks +dirty. Matches current spec wording but makes skills_sha noisy for trend consumers on a dirty checkout. Scoping porcelain to the skills directory would match reader expectations.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -717,19 +719,20 @@
     },
     {
       "id": 41,
-      "status": "open",
+      "status": "addressed",
       "axis": "correctness",
       "type": "correctness",
-      "criticality": "medium",
+      "criticality": "high",
       "evidence_class": "judgment",
       "file_path": "packages/agent-scenarios/src/agent_scenarios/results_store.py",
-      "fingerprint": "99cc6baa91cab984",
+      "fingerprint": "13ffcc1fe6091e05",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
-        "codex"
+        "codex",
+        "grok"
       ],
-      "description": "Optional: packages/agent-scenarios/src/agent_scenarios/results_store.py:294-309 applies one global nightly-lock state to every unfinished run. While a new nightly is active, all older runs lacking a run-summary record are mislabeled `in_progress` instead of `interrupted`, making query output inaccurate during live runs.",
+      "description": "Re-verified ledger [31]/[41]: run_states() still applies one global nightly.lock probe to every run_id lacking a RunRecord. While any nightly holds the lock, older interrupted runs are mislabeled in_progress. Only the newest unfinished run_id can be live; older ones remain interrupted. results_store.py:294-309; results CLI and runbook interrupted/in_progress distinction stay wrong during a live run.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -747,6 +750,297 @@
         "codex"
       ],
       "description": "Optional: packages/agent-scenarios/src/agent_scenarios/nightly.py:121-144 accepts `judge.enabled`, but the runtime never reads that value; the CLI always supplies judge_backend=None. An operator can set `judge.enabled: true` in a schema-valid configuration and still receive only `trajectory_status: skip`, with no warning that judging was not activated.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 43,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gap_emitter.py",
+      "fingerprint": "99c9fdbde62f6767",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "codex"
+      ],
+      "description": "`agent-scenarios gaps flush` has no `--config` option and ignores nightly.yaml: `_cmd_flush` resolves the spool as `args.spool or default_spool_path()` (XDG state dir) and the env names from `--url-env/--key-env` defaults, while the nightly runner derives the spool from `NightlyConfig.spool_path()` (`results.path` parent, or `gaps.spool_path`) and reads `gaps.coordinator_url_env`/`gaps.api_key_env`. The README and runbook tell operators to run a bare `agent-scenarios gaps flush`; with any non-default `results.path`, a `gaps.spool_path`, or renamed env vars, the manual flush silently reports `{\"delivered\": 0, \"remaining\": 0}` against an empty default spool while the real spool stays undelivered. Add a `--config PATH` that resolves spool and env names through `NightlyConfig`, or document that `--spool/--url-env/--key-env` must mirror the config.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 44,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/improve-harness/test_scenario_parity_source.py",
+      "fingerprint": "63c1247460a9296a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`skills/tests/improve-harness/fixtures/capability-gap-entry.example.json` is a third verbatim copy of the contract example (also in the change `contracts/examples/` and in `agent_scenarios/schemas/`). `test_schemas.py` validates the package copy against the schema, but nothing asserts the skills-side copy is byte-identical to it, so a future tag or field change to the emitter's example will leave `test_scenario_parity_source.py` exercising a stale payload shape while still passing. Add an equality assertion against the package copy (resolved relative to the repo root, not a literal openspec path) or load the package copy directly.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 45,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/session-log/tests/test_memory_tag_conventions.py",
+      "fingerprint": "502aa5d8f5da11f5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Module docstring of `test_memory_tag_conventions.py` still says `source:` works \"for all four vocabulary values\" while `SOURCE_VOCABULARY` in the same file now lists five (scenario-parity added). Also `gh_shim` `pr list` without `--json` prints JSON rather than real gh's table, a minor fidelity divergence worth noting in the shim docstring.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 46,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "ab39662e6cc049de",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "codex"
+      ],
+      "description": "`_post_memory_query` catches `URLError, OSError, json.JSONDecodeError` but `resp.read().decode()` can raise `UnicodeDecodeError` (a `ValueError`, not caught) on a non-UTF-8 body from a proxy or error page, which would propagate out of `query_memory` and abort `analyze_failures.py`, `generate_report.py` and `export_shared_learnings.py` instead of degrading to the documented warning-and-empty-result behaviour. Catch `ValueError` (which also covers JSONDecodeError) in that handler.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 47,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/memory-conventions.md",
+      "fingerprint": "ef742c7c951cb9c9",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "In `docs/guides/memory-conventions.md` the new scenario-parity bias bullet is separated from the preceding bullet list by a blank line, so it renders as a separate one-item list rather than continuing the list. Remove the blank line.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 48,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "critical",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+      "fingerprint": "467ce80ccfc4623e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: `materialize_skills()` uses `entry.is_dir()` and `shutil.copytree()` with the default `symlinks=False`, so symlinks in the checkout's skills tree are followed. A branch under evaluation can point a top-level or nested symlink at HOME-scoped vendor credentials or other host files and copy them into the agent-readable workspace. Reject symlinks at every depth and verify every copied source resolves beneath `skills_root`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 49,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/executor.py",
+      "fingerprint": "f2b700a32cc87d27",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: the per-pair timeout uses `subprocess.run(timeout=...)`, which kills only the vendor CLI process, not subprocesses it spawned. Orphaned tool processes can continue consuming resources or mutating a workspace after the pair is recorded as timed out, so the advertised timeout is not an effective execution cap. Start each vendor in a new process session and terminate and reap the entire process group on timeout.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 50,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/scenarios/implement-feature-basic.scenario.yaml",
+      "fingerprint": "49977d61a906dca6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: the revised `implement-feature-basic` gates do not prove that the fix commit is on the pushed feature branch. An agent can fix and commit on `main`, create and push an unchanged `feature/fix-add` branch from the fixture commit, and satisfy every gate because the branch check tests only existence and the remote check tests only that a ref exists. Gate that the fix commit is reachable from `origin/feature/fix-add` and that `origin/main` remains at the fixture commit.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 51,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/scenarios/plan-feature-spec-delta.scenario.yaml",
+      "fingerprint": "f9647308f5254905",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: `plan-feature-spec-delta` claims product source must remain untouched, but its prohibit gate merely checks that `src/billing.py` does not contain the word `csv`. Arbitrary edits or deletion of that file still pass, so the scenario is not discriminating for its stated behavior. Replace this with a git-diff gate against the fixture commit covering product-source paths.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 52,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "fingerprint": "06cd0558e1b8f9d1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: failures from `emit_findings()` are caught and reduced to a warning, after which the run is recorded as `completed` or `budget_exhausted` and may exit green. This violates the nightly contract that results, findings, and gaps are written before completion and can silently leave operators without the required review artifact. Treat findings persistence failure as a non-green infrastructure outcome and reflect it in the run record and exit code.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 53,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "fingerprint": "7a8ba9df23c18812",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verified ledger [32]: merge_pr still clones into tempfile.mkdtemp(prefix=\"gh-shim-\") and never rmtree on success or fail(). Each gh pr merge leaks a full clone under /tmp; nightly workspace cleanup cannot reclaim it because the clone is outside workdir/bin_dir.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 54,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "fingerprint": "01f1a58ef6bd6091",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verified ledger [33]: finish() still writes RunRecord.vendors=list(cfg.vendors) even after effective_vendors() filters the allowlist to vendors that appear in the suite. Config vendors with no planned pairs are recorded as if they ran; results latest/trend and the runbook's which-vendors-ran question stay misleading.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 55,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "fingerprint": "157df264cd5a475f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verified ledger [35]: analyze_failures.py requires COORDINATION_API_KEY (Bearer) and supports --agent-id / IMPROVE_HARNESS_AGENT_ID, but SKILL.md Prerequisites/Step 1 still document only COORDINATOR_URL. A secured coordinator 401 is reported only as Coordinator unreachable with []. Operators following the skill get an empty ranking with a misleading warning.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 56,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+      "fingerprint": "ece9624a80c39248",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verified ledger [36]: test_acceptance_broken_skill only ranks via improve-harness when analyze_failures.py exists (if analyze.is_file(): ...); otherwise the D3/D4 acceptance assertion that scenario-parity gaps rank the broken skill is skipped and the test stays green. Missing or relocated skills tree hides the acceptance evidence.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 57,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "fingerprint": "60a2cdad7a6f297b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verified ledger [37]: install_gh_shim still writes shebang f\"#!{sys.executable}\\n\". Linux shebangs cannot contain spaces; a venv under a path with spaces makes every gh invocation fail with ENOENT-style errors rather than the unsupported-call path. Lower likelihood on the fixed-path nightly host.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 58,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "fingerprint": "5d511eb39334c1a1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verified ledger [42]: NightlyConfig.judge.enabled is schema-valid and accepted by the pydantic model, but _cmd_nightly / run_nightly never read cfg.judge and always pass judge_backend=None. Operators can set judge.enabled: true and still get only trajectory_status: skip with no warning that judging was not activated.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 59,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "cb97bac740387d4c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "New: resolve_agent_id() returns IMPROVE_HARNESS_AGENT_ID verbatim (including commas), while resolve_agent_ids() splits on commas and query_memory loops those ids. build_memory_query() uses resolve_agent_id, so with the runbook's documented comma-separated IMPROVE_HARNESS_AGENT_ID=improve-harness,agent-scenarios-nightly a direct build_memory_query() payload carries agent_id=\"improve-harness,agent-scenarios-nightly\", which the coordinator exact-match filter will not return. query_memory itself is fine; the public MemoryQueryRequest helper and any caller that trusts its agent_id field are not.",
       "consensus_status": "unconfirmed"
     }
   ]

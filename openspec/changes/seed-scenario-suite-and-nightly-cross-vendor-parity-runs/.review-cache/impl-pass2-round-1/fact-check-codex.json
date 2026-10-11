@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "vendor": "codex",
+  "round": 1,
+  "status": "ran",
+  "skip_reason": null,
+  "model": null,
+  "tokens": 0,
+  "decisions": [
+    {
+      "finding_id": "1",
+      "verdict": "removed",
+      "ground": "A_absent_from_subject_diff",
+      "evidence_line": " class AgentScenario(BaseModel): \u2014 the models.py diff does not change AgentScenario.id or vendor identifier validation."
+    },
+    {
+      "finding_id": "2",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "3",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "4",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "5",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "6",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "7",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "8",
+      "verdict": "kept"
+    }
+  ]
+}
