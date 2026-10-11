@@ -77,7 +77,8 @@ def test_runbook_uses_only_flags_the_cli_accepts(runbook, repo_root):
     spec.loader.exec_module(mod)
     parser = mod.build_parser()
     sub = next(a for a in parser._actions if a.dest == "cmd").choices
-    for m in re.finditer(r"ci_wallclock\.py\s+([a-z-]+)([^\n`]*)", runbook):
+    joined = runbook.replace("\\\n", " ")  # flags on backslash-continued lines count too
+    for m in re.finditer(r"ci_wallclock\.py\s+([a-z-]+)([^\n`]*)", joined):
         cmd, rest = m.group(1), m.group(2)
         assert cmd in sub, cmd
         accepted = {s for a in sub[cmd]._actions for s in a.option_strings}
@@ -115,6 +116,15 @@ def test_nft_ruleset_is_ordered_persistent_and_dual_stack(runbook):
         assert banned not in runbook, banned
     # /etc/nftables.d is not shipped by Debian/Ubuntu: it is created before the tee.
     assert runbook.index("mkdir -p /etc/nftables.d") < runbook.index("tee /etc/nftables.d/gx10-runner.nft")
+
+
+def test_o1_installs_and_verifies_host_prerequisites(runbook, kit_dir):
+    o1 = sections(runbook)["O1"]
+    assert "apt-get install -y podman curl jq nftables" in o1
+    assert "command -v podman curl jq nft" in o1
+    host_scripts = (kit_dir / "mint-jitconfig.sh").read_text() + (kit_dir / "cleanup-runner.sh").read_text()
+    for tool in ("curl", "jq"):
+        assert tool in host_scripts  # still needed on the host
 
 
 def test_o1_delegates_cgroup_controllers_for_rootless_limits(runbook):

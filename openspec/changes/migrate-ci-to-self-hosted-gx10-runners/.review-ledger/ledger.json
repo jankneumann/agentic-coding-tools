@@ -1533,6 +1533,193 @@
       ],
       "description": "`GX10_RUNNER_CACHE_ARGS` is expanded as unrestricted Podman arguments after the hardening flags, but nothing enforces the documented single allowed value. A configured value such as `--network host`, `--privileged`, `--cap-add ALL`, or an arbitrary bind mount can override or defeat the unit's isolation; the tests only exercise the empty and expected named-volume values and therefore do not detect this. Replace the free-form argument variable with a validated boolean/fixed wrapper or reject every value except empty and the exact documented volume pair before `ExecStart`.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 91,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_manifest_completeness.py",
+      "fingerprint": "c5fd4b5c974a33f0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Three tests pin the lane census to literal counts: test_manifest_completeness.test_job_counts asserts 25 ci.yml / 3 security.yml jobs and test_hosted_jobs_use_literal_hosted_label asserts exactly 5 hosted jobs; test_routing_expression.test_every_routed_job_uses_canonical_expression asserts exactly 23 routed jobs. The set-equality checks already catch unclassified and stale entries, so these counts add no protection, but they turn every legitimate manifest move (the O6 `amd64-only` move, an O8 `measured-slower` move, any new job added by a concurrent change) into a mandatory test edit \u2014 contradicting D2/D8's promise that reclassification is a manifest-only change. Drop the literal counts or derive them from the manifest.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 92,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_tool_parity.py",
+      "fingerprint": "140ec3e99b82c6ea",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "commands_in() stops scanning a segment at the first non-watched word, so a disallowed command that follows a shell keyword or wrapper is never seen: `if test -f x; then docker build .; fi`, `for f in *; do podman load < $f; done`, `time docker run`, `exec sudo ...`, `timeout 60 apt-get ...`, `xargs docker rm`. Only `sudo` and `env` are treated as pass-through prefixes. This matches the letter of D10 but a routed job can be written (even accidentally) to call a container engine in a form the gate misses, and the O6 dry run is then the only backstop. Extend the pass-through set with at least then/do/else/elif/time/exec/timeout/nohup/xargs (and `!`).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 93,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_runbook.py",
+      "fingerprint": "3a6068c0f2cb6869",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_runbook_uses_only_flags_the_cli_accepts captures `ci_wallclock.py <cmd>([^\\n`]*)`, so flags on a backslash-continued line are never checked. The O8 `compare` invocation puts `--workflow`, `--event` and `--head-sha` on the continuation line and the two `median` invocations put `--since`/`--until`/`--limit` there too; a typo in any of those would pass this test. Join `\\\\\\n` continuations before matching.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 94,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/mint-jitconfig.sh",
+      "fingerprint": "55dd448910d8ea01",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The mint budget clock (`start_us`) starts after the sweep, but TimeoutStartSec=900 bounds the whole ExecStartPre. Sweep worst case is 10 listing GETs plus N DELETEs, each with `--max-time 30`; a slow-but-responding API (not an outage, which fails fast with 000 on page 1) can spend several minutes there, after which the full 600 s mint budget (plus up to 30 s of in-flight request) can push past 900 s. systemd then kills the script mid-backoff and restarts every RestartSec=10 \u2014 the exact hammering D5 sets out to avoid. Start the budget clock before the sweep, or cap sweep time against the same budget.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 95,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "fingerprint": "1f6ae9a37e4379bf",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "compare() indexes `r[\"id\"]` in lane_of/select while the sibling code uses `r.get(\"id\")`, and _workflow_jobs() assumes the parsed workflow is a mapping; a run without an `id`, or a workflow fetched at head_sha that parses to a list/scalar (e.g. a stub or a non-workflow file at that ref), raises KeyError/AttributeError. KeyError is caught by main(), AttributeError is not, so the CLI would print a traceback instead of the `error:` line the test test_cli_reports_bad_input_files_without_traceback promises. Guard the definition shape (`isinstance(..., dict)`) and use consistent id access.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 96,
+      "status": "parked",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/systemd/gx10-runner@.service",
+      "fingerprint": "278d3d13e9bc37f2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The unit runs `podman run` in the foreground under `Type=simple`. Podman's documented systemd integration (and `podman generate systemd`/Quadlet) uses `Type=notify` with `--sdnotify=conmon` so the unit is only `active` once the container is actually running, and `--cgroups=split` so the container's processes stay inside the service cgroup for `systemctl stop`/KillMode. With `simple`, O10's `is-active gx10-runner@1` can report `active` while the container is still being created, and a container whose conmon landed in a sibling cgroup may outlive the unit's SIGKILL (mitigated here by `--rm --replace`). Acceptable for an 8-instance pool; recorded so a future unit change picks the notify form deliberately.",
+      "parked_reason": "advisory_low",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 97,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "spec_file": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "928e7eae02c896a8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Requirement 'Routed Jobs Default To The Hosted Lane' states the expression resolves to ubuntu-latest for 'never any other event', but no scenario exercises an event outside {push, pull_request, merge_group, workflow_dispatch}. The test table covers `schedule` and the fork-guard test covers `pull_request_target`, so the behaviour is pinned in code but the normative text has no WHEN/THEN for it. Add a scenario (e.g. a `schedule` event with CI_RUNNER_LANE=self-hosted resolves to ubuntu-latest).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 98,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/install-units.sh",
+      "fingerprint": "0e73dabde9958c52",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`install-units.sh -h` prints header lines 2-9, which document `--prefix` only; `--instances N` (and the `GX10_INSTANCES` env fallback) are accepted but undocumented in the help text and the header comment.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 99,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "dcfaabe014c73d76",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The claimed start-time bound is incorrect. `mint-jitconfig.sh` starts its 600-second retry clock only after the stale-runner sweep, which may make 10 sequential API calls at up to 30 seconds each. A final mint request may also run for 30 seconds after the budget is effectively exhausted. The resulting worst case exceeds 930 seconds, while `gx10-runner@.service` sets `TimeoutStartSec=900`. systemd can therefore terminate `ExecStartPre` mid-operation. The test only compares 600 against 900 and misses the sweep and request overhead. Include all API work in one budget or increase the timeout with margin and test the composite bound.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 100,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "9e02b792f9539703",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The host-side scripts require `curl` and `jq`, but the runbook never installs or verifies those host prerequisites. Adding them to the runner container's `toolchain.txt` does not help `ExecStartPre` or `ExecStopPost`, which execute on the host. A valid Ubuntu/Podman installation may therefore enter a restart loop immediately because `jq` or `curl` is absent. Add an operator prerequisite/install step and verification before enabling the units.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 101,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "fa8538aa604f83ed",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`ci_wallclock.py` does not handle structurally invalid but syntactically valid YAML inputs. For example, a `--workflow-file` containing a YAML list reaches `_workflow_jobs()` and raises an uncaught `AttributeError`; malformed manifest shapes similarly raise uncaught `TypeError` or `AttributeError`. `main()` does not catch these exceptions, so the operator gets a traceback instead of the documented controlled error exit. Validate loaded document types or catch and translate these failures, and add a test using valid YAML with the wrong structure.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }

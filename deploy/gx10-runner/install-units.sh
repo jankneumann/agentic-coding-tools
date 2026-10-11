@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Copy the GX10 runner kit into a user's home and PRINT the commands that enable it (D7).
 #
-# Usage: install-units.sh [--prefix DIR]
+# Usage: install-units.sh [--prefix DIR] [--instances N]
 #
-# --prefix defaults to the `ghrunner` home directory. This script only copies files beneath
-# the prefix. It never runs systemctl, loginctl or podman: those are operator steps (O1, O4)
-# and are printed for the operator to run, as `ghrunner`.
+# --prefix defaults to the `ghrunner` home directory. --instances (default $GX10_INSTANCES,
+# else 8) only sets the instance range in the printed enable command. This script only
+# copies files beneath the prefix. It never runs systemctl, loginctl or podman: those are
+# operator steps (O1, O4) and are printed for the operator to run, as `ghrunner`.
 set -euo pipefail
 
 kit="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

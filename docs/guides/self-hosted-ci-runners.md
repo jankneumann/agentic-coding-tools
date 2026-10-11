@@ -33,6 +33,9 @@ Where things live:
 ## O1 - Create the dedicated host user and enable linger
 
 ```bash
+# Host prerequisites: the unit's ExecStartPre/ExecStopPost scripts run on the HOST and need
+# curl and jq (the image's toolchain does not help them); podman and nft run the rest.
+sudo apt-get install -y podman curl jq nftables
 sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner
 # useradd --system allocates no subordinate ids, which rootless podman needs for the
 # non-root `runner` user in the image. Pick a 65536-id range that overlaps nothing in
@@ -52,6 +55,7 @@ sudo systemctl daemon-reload
 Verify:
 
 ```bash
+command -v podman curl jq nft                 # four paths: host prerequisites present
 loginctl show-user ghrunner -p Linger        # Linger=yes
 grep ghrunner /etc/subuid /etc/subgid        # one range in each file
 sort -t: -k2 -n /etc/subuid                  # each start is above the previous entry's end

@@ -32,11 +32,6 @@ def test_job_sets_match_manifest(manifest, load_workflow):
     assert classification_errors(manifest, load_workflow) == []
 
 
-def test_job_counts(manifest):
-    assert len(manifest["workflows"]["ci.yml"]["jobs"]) == 25
-    assert len(manifest["workflows"]["security.yml"]["jobs"]) == 3
-
-
 def test_hosted_jobs_use_literal_hosted_label(manifest, load_workflow):
     hosted_label = manifest["routing"]["hosted_label"]
     n = 0
@@ -46,7 +41,7 @@ def test_hosted_jobs_use_literal_hosted_label(manifest, load_workflow):
             if entry["lane"] == "hosted":
                 n += 1
                 assert jobs[job_id]["runs-on"] == hosted_label, f"{wf_name}:{job_id}"
-    assert n == 5
+    assert n > 0  # no literal census: reclassification stays a manifest-only change (D2/D8)
 
 
 def test_display_names_are_unique_and_literal(manifest, load_workflow):

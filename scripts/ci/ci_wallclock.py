@@ -190,7 +190,7 @@ def compare(
         wf_file = workflow_file or _infer_workflow_file(manifest, wf)  # type: ignore[arg-type]
         lane, why = run_lane(r, manifest, wf, wf_file)  # type: ignore[arg-type]
         if lane is None:
-            excluded[r["id"]] = why
+            excluded[r.get("id")] = why
         return lane
 
     def select(runs: list[dict[str, Any]], want: str, other: list[dict[str, Any]]):
@@ -206,9 +206,9 @@ def compare(
             if lane == want:
                 kept.append(r)
             elif lane == OTHER_SELF_HOSTED:
-                excluded[r["id"]] = "routed jobs ran on a non-GX10 self-hosted runner"
-            elif lane is not None and r["id"] not in other_ids:
-                excluded[r["id"]] = f"ran on the {lane} lane, expected {want}"
+                excluded[r.get("id")] = "routed jobs ran on a non-GX10 self-hosted runner"
+            elif lane is not None and r.get("id") not in other_ids:
+                excluded[r.get("id")] = f"ran on the {lane} lane, expected {want}"
         return kept
 
     base = select(baseline, baseline_lane, candidate)
@@ -402,16 +402,35 @@ def fetch_jobs(run_id: Any) -> list[dict[str, Any]]:
         page += 1
 
 
+def _mapping(doc: Any, what: str, key: str) -> dict[str, Any]:
+    """Reject valid YAML of the wrong shape with a ValueError (a clean CLI error) instead of
+    letting it surface later as an AttributeError/TypeError traceback."""
+    if not isinstance(doc, dict) or not isinstance(doc.get(key), dict):
+        raise ValueError(f"{what} is not a mapping with a '{key}' mapping")
+    return doc
+
+
 def fetch_definition(workflow: str, sha: str) -> dict[str, Any]:
     text = gh_get(
         f"repos/{{owner}}/{{repo}}/contents/.github/workflows/{workflow}?ref={sha}",
         raw=True,
     )
-    return yaml.safe_load(text)
+    return _mapping(yaml.safe_load(text), f"workflow {workflow}@{sha}", "jobs")
+
+
+def _load_workflow_file(path: str) -> dict[str, Any]:
+    return _mapping(yaml.safe_load(Path(path).read_text()), f"workflow file {path}", "jobs")
 
 
 def _load_manifest(path: str | None) -> dict[str, Any]:
-    return yaml.safe_load(Path(path or DEFAULT_MANIFEST).read_text())
+    p = Path(path or DEFAULT_MANIFEST)
+    doc = _mapping(yaml.safe_load(p.read_text()), f"manifest {p}", "workflows")
+    for wf_name, spec in doc["workflows"].items():
+        _mapping(spec, f"manifest entry {wf_name}", "jobs")
+        for job_id, entry in spec["jobs"].items():
+            if not isinstance(entry, dict) or "lane" not in entry:
+                raise ValueError(f"manifest job {wf_name}:{job_id} has no lane")
+    return doc
 
 
 def _add_selection(p: argparse.ArgumentParser) -> None:
@@ -483,11 +502,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
     for r in runs:
         r["jobs"] = fetch_jobs(r["id"])
     cache: dict[str, dict[str, Any]] = {}
-    local = (
-        yaml.safe_load(Path(args.workflow_file).read_text())
-        if args.workflow_file
-        else None
-    )
+    local = _load_workflow_file(args.workflow_file) if args.workflow_file else None
 
     def definition(run: dict[str, Any]) -> dict[str, Any]:
         if local is not None:
@@ -515,7 +530,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
 def cmd_verify_run(args: argparse.Namespace) -> int:
     manifest = _load_manifest(args.manifest)
     if args.workflow_file:
-        definition = yaml.safe_load(Path(args.workflow_file).read_text())
+        definition = _load_workflow_file(args.workflow_file)
     else:
         run = gh_get(f"repos/{{owner}}/{{repo}}/actions/runs/{args.run_id}")
         definition = fetch_definition(args.workflow, run["head_sha"])

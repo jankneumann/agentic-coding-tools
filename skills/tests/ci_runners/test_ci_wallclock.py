@@ -384,6 +384,29 @@ def test_fetch_runs_returns_distinct_contiguous_runs(cw, monkeypatch):
     assert [r["id"] for r in cw.fetch_runs(args)] == list(range(1, 151))
 
 
+@pytest.mark.parametrize(
+    "target,content",
+    [
+        ("workflow", "- just\n- a list\n"),
+        ("manifest", "- not: a mapping\n"),
+        ("manifest", "workflows: {t.yml: {jobs: {build: no-lane}}}\n"),
+    ],
+)
+def test_cli_rejects_valid_yaml_of_the_wrong_shape(repo_root, tmp_path, target, content):
+    bad = tmp_path / "bad.yaml"
+    bad.write_text(content)
+    wf_file = tmp_path / "wf.yml"
+    wf_file.write_text(CI_TEXT)
+    args = ["verify-run", "7", "--workflow", "t.yml"]
+    if target == "workflow":
+        args += ["--manifest", _write_manifest(tmp_path), "--workflow-file", str(bad)]
+    else:
+        args += ["--manifest", str(bad), "--workflow-file", str(wf_file)]
+    res, _ = _cli(repo_root, tmp_path, {"run": {"id": 7, "head_sha": "s"}, "default_jobs": []}, args)
+    assert res.returncode == 2, res.stdout + res.stderr
+    assert res.stderr.startswith("error: ValueError") and "Traceback" not in res.stderr
+
+
 def test_cli_reports_bad_input_files_without_traceback(repo_root, tmp_path):
     res, _ = _cli(
         repo_root,

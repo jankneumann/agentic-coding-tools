@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -36,6 +37,7 @@ def _run(script: Path, args: list[str], env_extra: dict[str, str], tmp: Path, co
         "GX10_MINT_BASE_DELAY": "0.01",
         "GX10_MINT_MAX_ELAPSED": "5",
         "GX10_MINT_FAIL_HOLDOFF": "0",
+        "GX10_MINT_REQ_MAX": "0.01",
         **stub_env,
         **env_extra,
     }
@@ -155,14 +157,35 @@ def test_non_retryable_failure_holds_off_before_exiting(mint, tmp_path):
     assert "holding off 1s" in res.stderr
 
 
-def test_mint_default_hold_off_fits_inside_the_start_timeout(mint, kit_dir):
+def test_whole_mint_run_is_bounded_below_the_start_timeout(mint, kit_dir):
+    """TimeoutStartSec bounds ALL of ExecStartPre: sweep, mint retries and hold-off share one
+    clock started before the first API call, and no request starts unless it fits."""
     import re
 
+    text = mint.read_text()
     unit_text = (kit_dir / "systemd" / "gx10-runner@.service").read_text()
-
-    default = int(re.search(r"GX10_MINT_FAIL_HOLDOFF:-(\d+)", mint.read_text()).group(1))
+    env_text = (kit_dir / "gx10-runner.env.example").read_text()
+    max_elapsed = int(re.search(r"^GX10_MINT_MAX_ELAPSED=(\d+)", env_text, re.M).group(1))
+    req_max = int(re.search(r"GX10_MINT_REQ_MAX:-(\d+)", text).group(1))
+    holdoff = int(re.search(r"GX10_MINT_FAIL_HOLDOFF:-(\d+)", text).group(1))
     timeout = int(re.search(r"^TimeoutStartSec=(\d+)", unit_text, re.M).group(1))
-    assert default < timeout
+    assert max_elapsed + req_max < timeout
+    assert holdoff <= max_elapsed
+    # The clock starts before the sweep, and every request goes through the budget check.
+    assert text.index('start_us="$(now_us)"') < text.index("\nsweep() {")
+    assert "sweep_cap_us" in text and "if ! fits 0; then" in text
+    assert '--max-time "$req_max"' in text and "--max-time 30" not in text
+
+
+def test_hold_off_is_clipped_to_the_remaining_budget(mint, tmp_path):
+    cfg = {
+        "routes": [{"method": "POST", "pattern": r"generate-jitconfig$", "status": 403, "body": {}}]
+    }
+    res, _, _ = _run(
+        mint, ["1"], {"GX10_MINT_FAIL_HOLDOFF": "300", "GX10_MINT_MAX_ELAPSED": "1"}, tmp_path, cfg
+    )
+    assert res.returncode != 0
+    assert re.search(r"holding off [01]s", res.stderr), res.stderr
 
 
 @pytest.mark.parametrize(
