@@ -5,23 +5,23 @@
 
 ## ADDED Requirements
 
-### Requirement: The proposal check reports a new proposal that lacks a verification-signals...
+### Requirement: The proposal check fails a new proposal whose verification-signals section...
 
-The system SHALL ensure that the proposal check reports a new proposal that lacks a verification-signals section and lacks the docs-only opt-out marker, and fails it when run in blocking mode.
+The system SHALL ensure that the proposal check fails a new proposal whose verification-signals section is absent, empty, or marked not applicable without a stated reason.
 
-#### Scenario: The proposal check reports a new proposal that lacks a verification-signals...
-
-WHEN `add-verification-signals-contract-to-plan-feature` is implemented
-THEN The proposal check reports a new proposal that lacks a verification-signals section and lacks the docs-only opt-out marker, and fails it when run in blocking mode.
-
-### Requirement: The check ships in advisory mode by default, and its mode and observed...
-
-The system SHALL ensure that the check ships in advisory mode by default, and its mode and observed false-positive count are recorded before it can be set to blocking.
-
-#### Scenario: The check ships in advisory mode by default, and its mode and observed...
+#### Scenario: The proposal check fails a new proposal whose verification-signals section...
 
 WHEN `add-verification-signals-contract-to-plan-feature` is implemented
-THEN The check ships in advisory mode by default, and its mode and observed false-positive count are recorded before it can be set to blocking.
+THEN The proposal check fails a new proposal whose verification-signals section is absent, empty, or marked not applicable without a stated reason.
+
+### Requirement: A planning-only or documentation-only proposal whose section reads not...
+
+The system SHALL ensure that a planning-only or documentation-only proposal whose section reads not applicable with a reason passes, and changes in flight before the check landed are not failed.
+
+#### Scenario: A planning-only or documentation-only proposal whose section reads not...
+
+WHEN `add-verification-signals-contract-to-plan-feature` is implemented
+THEN A planning-only or documentation-only proposal whose section reads not applicable with a reason passes, and changes in flight before the check landed are not failed.
 
 ### Requirement: iterate-on-plan reports a finding when a declared signal names no emitting...
 

@@ -112,14 +112,19 @@ Planning must state *how correctness will be observed* before code is generated.
 `plan-feature` adds a required `verification-signals` section to proposals:
 named quantitative signals (e.g. RPC count per request, external calls, DB queries,
 DNS lookups, token usage), the layer that emits each one, the control or baseline
-to compare against, and the tolerance. `iterate-on-plan` gains a finding for
-"verification signal missing or not emitted at the top layer". This makes default
-data collection a design-time obligation.
+to compare against, and the tolerance. The section is **always present**: when no
+runtime behaviour changes (planning-only or documentation-only changes), it states
+`not applicable` together with the reason, rather than being omitted. An absent
+section and a bare `not applicable` with no reason are both incomplete.
+`iterate-on-plan` gains a finding for "verification signal missing or not emitted
+at the top layer". This makes default data collection a design-time obligation.
 
 **Acceptance Outcomes:**
-- `openspec validate --strict` (or a repo-local check) fails a new proposal that
-  lacks a `verification-signals` section, with an explicit opt-out marker for
-  docs-only changes.
+- `openspec validate --strict` (or a repo-local check) fails a new proposal whose
+  `verification-signals` section is absent, empty, or marked not applicable without
+  a stated reason.
+- A planning-only or documentation-only proposal whose section reads not applicable
+  with a reason passes.
 - `iterate-on-plan` reports a finding when a declared signal names no emitting
   layer or no baseline.
 
@@ -224,8 +229,12 @@ from the ledger's strongest signal.
   unless an operator override is recorded.
 - All fact collection must be read-only, scoped to one investigation, time-limited,
   audited, and secret-redacted.
-- New gates (baseline-diff, verification-signals) must ship advisory-first and only
-  become blocking with measured false-positive data.
+- New judgement-based gates (the baseline-diff gate, verification-signal quality
+  findings) must ship advisory-first and only become blocking with measured
+  false-positive data. The structural presence check for the `verification-signals`
+  section blocks from the start, because the explicit not-applicable-with-reason
+  path leaves it no false positives. Changes already in flight when it lands are
+  grandfathered.
 - Every capability must reuse existing substrate (causal trace IDs, effects
   journal, intervention-capture, review-findings schema, gen-eval format,
   closed-loop-learning store) rather than create parallel stores.
