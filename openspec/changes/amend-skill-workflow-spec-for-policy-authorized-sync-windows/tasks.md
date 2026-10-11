@@ -7,7 +7,7 @@ only produce merge conflicts on a ~350 LOC change.
 
 ## 1. Spec amendment
 
-- [ ] 1.1 Confirm the spec deltas already authored in this change — the
+- [x] 1.1 Confirm the spec deltas already authored in this change — the
   `skill-workflow` MODIFIED requirements "Main Receives Work Through PR Sync
   Points" and "Merge Conductor Invokes Iterate Skills", and the `trust-posture`
   ADDED requirement "Sync Window Declarations" — still carry every scenario of
@@ -34,7 +34,7 @@ only produce merge conflicts on a ~350 LOC change.
   that `to_pr_card_origin` accepts every member (XS)
   **Design decisions**: D3
   **Dependencies**: None
-- [ ] 2.1 Write failing tests in `skills/shared/tests/test_trust_posture_sync_windows.py`:
+- [x] 2.1 Write failing tests in `skills/shared/tests/test_trust_posture_sync_windows.py`:
   - absent, `null` and `[]` windows declare nothing, and authorization fails
     for every id and skill (including with no contract file)
   - a valid window round-trips through `load_posture`
@@ -65,7 +65,7 @@ only produce merge conflicts on a ~350 LOC change.
   or skill"
   **Design decisions**: D2, D3, D4, D5, D6, D7, D8
   **Dependencies**: 1.1, 2.0
-- [ ] 2.2 Implement `SyncWindow`, `MergeCeiling`, `SyncWindowNotAuthorized`,
+- [x] 2.2 Implement `SyncWindow`, `MergeCeiling`, `SyncWindowNotAuthorized`,
   `SYNC_SKILLS`/`SYNC_SOURCES` frozensets, `sync_windows` parsing/validation,
   `TrustPosture.sync_windows` (defaulting to an empty tuple so existing
   constructors are unaffected), `authorize_sync_window`, the digest extension
