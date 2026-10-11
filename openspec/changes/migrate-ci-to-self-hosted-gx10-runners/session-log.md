@@ -177,3 +177,20 @@ Multi-vendor PLAN_REVIEW via convergence_loop.converge() (min_quorum=2): three q
 ### Context
 Implemented all non-operator tasks (phases 1-6): lane manifest, canonical runs-on routing with fork guard, runner kit (unit, JIT scripts, image + job-started hook, install script), ci_wallclock tooling and operator runbook. Operator steps O1-O12 untouched.
 
+---
+
+## Phase: IMPL_ITERATE (2026-10-11)
+
+**Agent**: implementer | **Session**: N/A
+
+### Completed Work
+- Tightened test_ci_sweep_wiring exemption
+- Added nft ruleset parse tests
+- Clarified nftables persistence verify
+
+### Next Steps
+- IMPL_REVIEW
+
+### Context
+Reviewed IMPLEMENT: runs-on expression and hook fail closed (verified); tightened the ci_sweep fork-guard exemption to assert the self-hosted-gated if; test_gate workflow_dispatch widening judged minimal; nft rules stay in runbook (no shipped file in tasks) with new ordering/persistence parse tests; clarified persistence verify command.
+
