@@ -4,7 +4,7 @@
   "current_item_id": "ri-11",
   "phase": "planning",
   "created_at": "2026-10-10T21:03:19.589753+00:00",
-  "updated_at": "2026-10-11T21:14:26.245694+00:00",
+  "updated_at": "2026-10-11T23:15:19.340563+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -229,11 +229,11 @@
       "change_id": "migrate-ci-to-self-hosted-gx10-runners",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "claimed",
+      "status": "acknowledged",
       "prepared_at": "2026-10-11T01:50:46.066735+00:00",
       "launch_digest": "sha256:032b52f81913d9567f76f569a7b824ba14cae365342e3d617b710f432b674373",
       "launch_marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
-      "lease_generation": 2,
+      "lease_generation": 3,
       "launch_history": [
         {
           "generation": 1,
@@ -272,6 +272,36 @@
           "state": "claimed",
           "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
           "observed_at": "2026-10-11T21:12:59.609559+00:00"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "IwXpVl4pkCaiS80062Up02nY_RMptnhR",
+          "state": "stale_takeover",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T23:14:41.652617+00:00"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "G6MAaT8CP-MzRcmGwNv1e2FBexGsChdt",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T23:14:41.652617+00:00"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "G6MAaT8CP-MzRcmGwNv1e2FBexGsChdt",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T23:15:19.242646+00:00",
+          "handle": "aac0e66e3da8fd63f"
+        },
+        {
+          "generation": 3,
+          "owner_nonce": "G6MAaT8CP-MzRcmGwNv1e2FBexGsChdt",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T23:15:19.242646+00:00",
+          "handle": "aac0e66e3da8fd63f"
         }
       ],
       "scope": {
@@ -362,24 +392,24 @@
         "approval_ref": "gate-decision:20f4f4fa-5c94-4948-ac6a-5bdb36d5ffd1"
       },
       "lease": {
-        "generation": 2,
-        "owner_nonce": "IwXpVl4pkCaiS80062Up02nY_RMptnhR",
+        "generation": 3,
+        "owner_nonce": "G6MAaT8CP-MzRcmGwNv1e2FBexGsChdt",
         "state": "active",
-        "acquired_at": "2026-10-11T21:12:59.609559+00:00",
-        "heartbeat_at": "2026-10-11T21:12:59.609559+00:00",
-        "expires_at": "2026-10-11T21:22:59.609559+00:00"
+        "acquired_at": "2026-10-11T23:14:41.652617+00:00",
+        "heartbeat_at": "2026-10-11T23:14:41.652617+00:00",
+        "expires_at": "2026-10-11T23:24:41.652617+00:00"
       },
       "launch_evidence": {
-        "kind": "child_marker",
-        "generation": 2,
-        "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
-        "observed_at": "2026-10-11T21:12:59.609559+00:00"
+        "kind": "host_ack",
+        "generation": 3,
+        "handle": "aac0e66e3da8fd63f",
+        "observed_at": "2026-10-11T23:15:19.242646+00:00"
       },
       "launch_gate": {
-        "generation": 2,
-        "state": "waiting_ack",
-        "handle": null,
-        "go_released_at": null,
+        "generation": 3,
+        "state": "go_released",
+        "handle": "aac0e66e3da8fd63f",
+        "go_released_at": "2026-10-11T23:15:19.242646+00:00",
         "entered_at": null
       }
     },
@@ -389,7 +419,7 @@
       "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "prepared",
+      "status": "acknowledged",
       "prepared_at": "2026-10-11T04:52:10.507032+00:00",
       "launch_digest": "sha256:d7b61be03c528cc5da837d98426d2354a97a5fb4bff8d6daa7f57453de0e7a4e",
       "launch_marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
@@ -425,6 +455,29 @@
           "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
           "observed_at": "2026-10-11T04:52:37.920605+00:00",
           "handle": "ae6259e86f991e46a"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "R7AAHQeFyy0WG0CAZXwZQcyRQczd-4gB",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+          "observed_at": "2026-10-11T23:14:41.551985+00:00"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "R7AAHQeFyy0WG0CAZXwZQcyRQczd-4gB",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+          "observed_at": "2026-10-11T23:15:19.339691+00:00",
+          "handle": "a7d875fe1b81c44e7"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "R7AAHQeFyy0WG0CAZXwZQcyRQczd-4gB",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+          "observed_at": "2026-10-11T23:15:19.339691+00:00",
+          "handle": "a7d875fe1b81c44e7"
         }
       ],
       "scope": {
@@ -513,6 +566,27 @@
       "continuation": {
         "kind": "pending_gate",
         "approval_ref": "gate-decision:438e09b0-9961-4cc9-994b-3012f0fff3a2"
+      },
+      "lease": {
+        "generation": 2,
+        "owner_nonce": "R7AAHQeFyy0WG0CAZXwZQcyRQczd-4gB",
+        "state": "active",
+        "acquired_at": "2026-10-11T23:14:41.551985+00:00",
+        "heartbeat_at": "2026-10-11T23:14:41.551985+00:00",
+        "expires_at": "2026-10-11T23:24:41.551985+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 2,
+        "handle": "a7d875fe1b81c44e7",
+        "observed_at": "2026-10-11T23:15:19.339691+00:00"
+      },
+      "launch_gate": {
+        "generation": 2,
+        "state": "go_released",
+        "handle": "a7d875fe1b81c44e7",
+        "go_released_at": "2026-10-11T23:15:19.339691+00:00",
+        "entered_at": null
       }
     },
     {
