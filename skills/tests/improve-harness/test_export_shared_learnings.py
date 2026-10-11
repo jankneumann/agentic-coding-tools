@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 import types
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -247,7 +248,9 @@ def test_export_calls_the_real_query_memory_signature(
             return None
 
         def read(self) -> bytes:
-            return json.dumps([_entry()]).encode()
+            # The real query_memory filters on created_at client-side (30-day-style window).
+            fresh = datetime.now(timezone.utc).isoformat()
+            return json.dumps({"memories": [_entry(created_at=fresh)]}).encode()
 
     def fake_urlopen(req: Any, timeout: int = 0) -> _Resp:
         requests.append(req.full_url)

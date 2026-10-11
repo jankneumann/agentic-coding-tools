@@ -71,13 +71,22 @@ class TestQueryFailurePatterns:
         from analyze_failures import build_memory_query
 
         query = build_memory_query(time_window_days=7)
-        assert query["time_window_days"] == 7
+        # time_window_days is not a MemoryQueryRequest field: applied client-side.
+        assert "time_window_days" not in query
 
-    def test_default_time_window_is_30_days(self) -> None:
+    def test_query_matches_memory_query_request_shape(self) -> None:
         from analyze_failures import build_memory_query
 
         query = build_memory_query()
-        assert query["time_window_days"] == 30
+        assert query["agent_id"] == "improve-harness"
+        assert set(query) == {"agent_id", "tags", "limit"}
+
+    def test_agent_id_override(self, monkeypatch: Any) -> None:
+        from analyze_failures import build_memory_query
+
+        monkeypatch.setenv("IMPROVE_HARNESS_AGENT_ID", "from-env")
+        assert build_memory_query()["agent_id"] == "from-env"
+        assert build_memory_query(agent_id="explicit")["agent_id"] == "explicit"
 
 
 class TestGroupByCapabilityGap:

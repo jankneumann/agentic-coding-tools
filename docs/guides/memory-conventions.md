@@ -12,7 +12,9 @@ All capability-gap entries use the `prefix:value` format:
 | `capability_gap` | Free text | Describes what capability was missing from the harness |
 | `affected_skill` | Skill name (kebab-case) | Which skill was impacted |
 | `severity` | `low`, `medium`, `high`, `critical` | Impact severity |
-| `source` | `self-reported`, `coordinator-emitted`, `session-log`, `transcript-mined` | Which emitter produced this signal |
+| `source` | `self-reported`, `coordinator-emitted`, `session-log`, `transcript-mined`, `scenario-parity` | Which emitter produced this signal |
+| `vendor` | Vendor id (`claude`, `codex`, ...) | Auxiliary; which vendor CLI failed a scenario (`scenario-parity` entries) |
+| `scenario` | Scenario id (kebab-case) | Auxiliary; which agent-scenarios scenario failed (`scenario-parity` entries) |
 
 ### Example Tags
 
@@ -26,7 +28,7 @@ source:self-reported
 
 ## Source Vocabulary
 
-Four sources emit capability-gap signals into the shared tag schema:
+Five sources emit capability-gap signals into the shared tag schema:
 
 | Source | Emitter | When |
 |--------|---------|------|
@@ -34,12 +36,21 @@ Four sources emit capability-gap signals into the shared tag schema:
 | `coordinator-emitted` | Coordinator audit-triage background task | LLM classifier detects struggle patterns in audit batches |
 | `session-log` | Session-log skill at phase boundaries | Agent fills `### Capability Gaps Observed` section in session-log |
 | `transcript-mined` | `/collect-transcripts` deep-analysis pass | LLM analysis flags struggle patterns in raw transcripts |
+| `scenario-parity` | `agent-scenarios nightly` gap emitter | A seed scenario's deterministic goal gate failed for a vendor |
 
 Each source has a known bias profile:
 - **self-reported** under-reports struggle (agents don't stop to introspect when struggling)
 - **coordinator-emitted** misses tool-loop friction (only sees MCP/HTTP boundary)
 - **session-log** catches what the agent noticed but may miss timing details
 - **transcript-mined** catches everything but is the most expensive to run
+
+- **scenario-parity** is deterministic (goal gates, not a judge) but samples only the seed scenarios; executor errors and budget skips are never emitted
+
+### Scenario-parity entries
+
+`agent-scenarios nightly` emits one entry per failing (scenario, vendor) pair via `POST /memory/store`, tagged `capability_gap` (bare, so the `recall` tag filter matches), `capability_gap:scenario-parity/<scenario_id>/<first failed gate>`, `failure_type:verification_failed`, `affected_skill:<skill>`, `severity:high`, `source:scenario-parity`, `vendor:<vendor>` and `scenario:<scenario_id>`. The `capability_gap` value is stable per gate, so repeated nightly failures group into one `/improve-harness` finding.
+
+**Frequency unit**: `/improve-harness` ranks raw memory entries, so a finding's frequency counts failing (run, vendor) pairs, not nights. Two vendors failing the same gate in one run contribute 2. `details.run_id` carries the nightly run id so a later consumer fix can collapse per run (`POST /memory/query` does not return `session_id`).
 
 Cross-source agreement (same gap surfaced by 2+ sources) is the strongest signal.
 

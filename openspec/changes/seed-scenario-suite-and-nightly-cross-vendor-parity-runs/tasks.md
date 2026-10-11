@@ -94,35 +94,35 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 
 ## 4. Capability-gap emission (wp-gaps)
 
-- [ ] 4.1 Write tests for gap entry construction [S]
+- [x] 4.1 Write tests for gap entry construction [S]
   Fail → one entry with the D3 tag set, `session_id = run_id` and `details.run_id = run_id`; gap key uses the first failed gate in declaration order; `detail` truncated to 500 chars; error / skipped_budget / judge-only → none; payload validates against the schema and matches the example's tag shape.
   **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/a failing gate produces a tagged gap entry; ath.Scenario failures feed the capability-gap pipeline/errors and judge findings do not emit gaps
   **Contracts**: contracts/schemas/capability-gap-entry.schema.json, contracts/examples/capability-gap-entry.example.json
   **Design decisions**: D3
   **Dependencies**: 1.1
-- [ ] 4.2 Write tests for sinks: coordinator sink against a local `http.server` stub (headers, body, URL from `gaps.coordinator_url_env`), only 2xx + `success: true` acknowledges (200 + `success: false`, non-JSON, 5xx → spooled on emit, kept on flush), unset URL variable → spool with no HTTP request, spool on unreachable port, flush retains still-failing entries, concurrent flush + emit under the spool lock loses/duplicates nothing [S]
+- [x] 4.2 Write tests for sinks: coordinator sink against a local `http.server` stub (headers, body, URL from `gaps.coordinator_url_env`), only 2xx + `success: true` acknowledges (200 + `success: false`, non-JSON, 5xx → spooled on emit, kept on flush), unset URL variable → spool with no HTTP request, spool on unreachable port, flush retains still-failing entries, concurrent flush + emit under the spool lock loses/duplicates nothing [S]
   **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/coordinator unreachable spools entries; ath.Scenario failures feed the capability-gap pipeline/an application-level rejection is not a delivery; ath.Scenario failures feed the capability-gap pipeline/spool replay; ath.Scenario failures feed the capability-gap pipeline/no coordinator URL configured spools instead of guessing; ath.Scenario failures feed the capability-gap pipeline/concurrent flush and emission lose nothing
   **Dependencies**: 1.1
-- [ ] 4.3 Implement `gap_emitter.py` (`build_gap_entries`, `MemorySink`, `CoordinatorMemorySink`, `SpoolMemorySink`, `emit_gaps`, `flush_spool`, `add_parser` for `gaps flush`) [M]
+- [x] 4.3 Implement `gap_emitter.py` (`build_gap_entries`, `MemorySink`, `CoordinatorMemorySink`, `SpoolMemorySink`, `emit_gaps`, `flush_spool`, `add_parser` for `gaps flush`) [M]
   **Dependencies**: 4.1, 4.2
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 4.4 Write improve-harness consumer test `skills/tests/improve-harness/test_scenario_parity_source.py` [S]
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 4.4 Write improve-harness consumer test `skills/tests/improve-harness/test_scenario_parity_source.py` [S]
   Copies the example payload to `skills/tests/improve-harness/fixtures/`. (a) Drives `analyze_failures.query_memory` against a local `http.server` stub that enforces the real `MemoryQueryRequest` shape (`agent_id` required, `Authorization: Bearer` checked when configured) and answers with the real `memories` list envelope; asserts the entries come back and that entries older than the window are dropped by `created_at`. (b) Feeds the payload (two vendors in one run, plus a later run's copy) through `normalize_memory_entries`/`rank_findings`; asserts `scenario-parity` in sources and frequency 3.
   **Spec scenarios**: he.Scenario-parity capability-gap source/improve-harness attributes scenario-parity findings; he.Scenario-parity capability-gap source/frequency counts failing run-and-vendor pairs; he.Scenario-parity capability-gap source/scenario-parity entries are retrievable by the improve-harness memory query; he.Scenario-parity capability-gap source/the improve-harness memory query matches the coordinator API
   **Contracts**: contracts/examples/capability-gap-entry.example.json
   **Dependencies**: None
-- [ ] 4.4a Repair (signatures unchanged — `skills/skill-audit/scripts/evidence_join.py` and `export_shared_learnings.py` call them) `analyze_failures.query_memory` / `build_memory_query` in `skills/improve-harness/scripts/analyze_failures.py` [S]
+- [x] 4.4a Repair (signatures unchanged — `skills/skill-audit/scripts/evidence_join.py` and `export_shared_learnings.py` call them) `analyze_failures.query_memory` / `build_memory_query` in `skills/improve-harness/scripts/analyze_failures.py` [S]
   Send `agent_id` (default `improve-harness`, `--agent-id` / `IMPROVE_HARNESS_AGENT_ID` override) and `Authorization: Bearer` from `COORDINATION_API_KEY` when set; drop the unsupported `time_window_days` request field and filter by `created_at` client-side; read the `memories` envelope (keep `entries` / bare list for older coordinators). Ranking semantics unchanged (D3: frequency unit is (run, vendor)). Update the skill's existing tests that pin the old payload.
   **Design decisions**: D3
   **Dependencies**: 4.4
-- [ ] 4.5 Add `scenario-parity` to `SOURCE_VOCABULARY` in `skills/session-log/tests/test_memory_tag_conventions.py` [XS]
+- [x] 4.5 Add `scenario-parity` to `SOURCE_VOCABULARY` in `skills/session-log/tests/test_memory_tag_conventions.py` [XS]
   **Spec scenarios**: he.Scenario-parity capability-gap source/source value is documented and pinned
   **Dependencies**: None
-- [ ] 4.6 Document `source:scenario-parity`, `vendor:`, `scenario:` in `docs/guides/memory-conventions.md` [XS]
+- [x] 4.6 Document `source:scenario-parity`, `vendor:`, `scenario:` in `docs/guides/memory-conventions.md` [XS]
   **Dependencies**: 4.5
-- [ ] 4.7 Add the scenario-parity row to the data-sources table in `skills/improve-harness/SKILL.md` (noting the (run, vendor) frequency unit); sync runtime copies via `install.sh` [XS]
+- [x] 4.7 Add the scenario-parity row to the data-sources table in `skills/improve-harness/SKILL.md` (noting the (run, vendor) frequency unit); sync runtime copies via `install.sh` [XS]
   **Dependencies**: 4.4, 4.4a
-- [ ] Checkpoint: run skills gate set (touched skill tests, `install.sh --check`), review diff, verify scope
+- [x] Checkpoint: run skills gate set (touched skill tests, `install.sh --check`), review diff, verify scope
 
 ## 5. Nightly runner, CLI and deploy templates (wp-nightly)
 

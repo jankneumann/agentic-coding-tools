@@ -35,6 +35,7 @@ SOURCE_VOCABULARY = [
     "coordinator-emitted",
     "session-log",
     "transcript-mined",
+    "scenario-parity",
 ]
 
 FAILURE_TYPES = [

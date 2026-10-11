@@ -13,7 +13,9 @@ enables it.  Merged records are tagged ``origin:shared-repo`` and are never
 written back to episodic memory.
 
 Environment:
-    COORDINATOR_URL  — base URL of the coordinator (default: http://localhost:8000)
+    COORDINATOR_URL           — base URL of the coordinator (default: http://localhost:8000)
+    COORDINATION_API_KEY      — sent as ``Authorization: Bearer`` when set
+    IMPROVE_HARNESS_AGENT_ID  — ``agent_id`` for the memory query (default: improve-harness)
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ import os
 import re
 import sys
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -47,42 +50,74 @@ COORDINATOR_URL = os.environ.get("COORDINATOR_URL", "http://localhost:8000")
 # Query building
 # ---------------------------------------------------------------------------
 
+DEFAULT_AGENT_ID = "improve-harness"
+
+
+def resolve_agent_id(agent_id: str | None = None) -> str:
+    """``agent_id`` argument, else ``IMPROVE_HARNESS_AGENT_ID``, else the default."""
+    return agent_id or os.environ.get("IMPROVE_HARNESS_AGENT_ID") or DEFAULT_AGENT_ID
+
+
 def build_memory_query(
     time_window_days: int = 30,
     limit: int = 500,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """Build the query payload for the coordinator memory API.
 
-    Returns a dict suitable for POST /memory/query.
+    Returns a dict matching the coordinator's ``MemoryQueryRequest`` (``agent_id``
+    required, ``tags``, ``limit``) for POST /memory/query.  ``time_window_days`` is
+    not a request field, so it is applied client-side on ``created_at`` by
+    :func:`query_memory` and deliberately absent from the payload.
     """
+    del time_window_days  # applied client-side; see query_memory
     return {
+        "agent_id": resolve_agent_id(agent_id),
         "tags": ["capability_gap"],
-        "time_window_days": time_window_days,
         "limit": limit,
     }
+
+
+def _within_window(entry: dict[str, Any], cutoff: datetime) -> bool:
+    """True when the entry is newer than ``cutoff`` (entries without a usable
+    ``created_at`` are kept: dropping evidence silently is the worse failure)."""
+    raw = entry.get("created_at")
+    if not isinstance(raw, str) or not raw:
+        return True
+    try:
+        created = datetime.fromisoformat(raw)
+    except ValueError:
+        return True
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=UTC)
+    return created >= cutoff
 
 
 def query_memory(
     time_window_days: int = 30,
     limit: int = 500,
+    agent_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Query the coordinator episodic memory for capability-gap entries.
 
     Returns a list of memory entry dicts.  Falls back to an empty list with
     a warning if the coordinator is unreachable.
     """
-    payload = build_memory_query(time_window_days=time_window_days, limit=limit)
+    payload = build_memory_query(time_window_days=time_window_days, limit=limit, agent_id=agent_id)
     url = f"{COORDINATOR_URL}/memory/query"
+    headers = {"Content-Type": "application/json"}
+    api_key = os.environ.get("COORDINATION_API_KEY", "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     try:
         req = Request(
             url,
             data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         with urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
-            return data if isinstance(data, list) else data.get("entries", [])
     except (URLError, OSError, json.JSONDecodeError) as exc:
         print(
             f"WARNING: Coordinator unreachable at {url} — {exc}. "
@@ -90,6 +125,17 @@ def query_memory(
             file=sys.stderr,
         )
         return []
+    if isinstance(data, list):
+        rows = data
+    elif isinstance(data, dict):
+        # Live API envelope is ``memories``; ``entries`` kept for older coordinators.
+        rows = data.get("memories")
+        if rows is None:
+            rows = data.get("entries", [])
+    else:
+        rows = []
+    cutoff = datetime.now(UTC) - timedelta(days=time_window_days)
+    return [r for r in rows if isinstance(r, dict) and _within_window(r, cutoff)]
 
 
 # ---------------------------------------------------------------------------
@@ -478,6 +524,13 @@ def main() -> None:
         help="Maximum entries to fetch (default: 500)",
     )
     parser.add_argument(
+        "--agent-id", type=str, default=None,
+        help=(
+            "agent_id sent with the memory query (default: "
+            "$IMPROVE_HARNESS_AGENT_ID or 'improve-harness')"
+        ),
+    )
+    parser.add_argument(
         "--json", action="store_true",
         help="Output raw ranked findings as JSON",
     )
@@ -499,6 +552,7 @@ def main() -> None:
     memory_entries = query_memory(
         time_window_days=args.time_window,
         limit=args.limit,
+        agent_id=args.agent_id,
     )
     memory_findings = normalize_memory_entries(memory_entries)
     session_log_findings = scan_session_logs(repo_root=args.repo_root)

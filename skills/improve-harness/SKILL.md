@@ -33,7 +33,7 @@ Analyze capability-gap failure patterns recorded in episodic memory and generate
 
 ## Data Sources
 
-The skill consumes capability-gap signals from four emitters via the shared D4 tag schema:
+The skill consumes capability-gap signals from five emitters via the shared D4 tag schema:
 
 | Source | Tag | How it gets there |
 |--------|-----|-------------------|
@@ -41,6 +41,7 @@ The skill consumes capability-gap signals from four emitters via the shared D4 t
 | Coordinator audit-triage | `source:coordinator-emitted` | LLM classifier over audit batches |
 | Session-log | `source:session-log` | Agent fills `### Capability Gaps Observed` at phase boundary |
 | Transcript mining | `source:transcript-mined` | `/collect-transcripts` deep-analysis pass |
+| Scenario parity | `source:scenario-parity` | `agent-scenarios nightly` emits one entry per failing (scenario, vendor) pair; frequency counts (run, vendor) pairs, not nights |
 
 The skill also scans `openspec/changes/**/session-log.md` for `### Capability Gaps Observed` sections to catch gaps not yet mirrored to memory.
 
