@@ -29,6 +29,17 @@
 
 ## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
+### Phase: Validation Review
+
+**Adjudicate the single-vendor high (ledger 28) to low** — JSON Schema cannot express per-property uniqueness; the schema already names the loader as authoritative for unique ids, and a test pins the loader's rejection of duplicate ids
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
+
+---
+
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
 ### Phase: Plan
 
 **Posture digest unchanged when no windows are declared** — Avoids invalidating existing launch markers and recorded gate decisions while making any window edit re-trigger posture-derived decisions
