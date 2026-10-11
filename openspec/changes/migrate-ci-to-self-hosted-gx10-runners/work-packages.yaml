@@ -1,0 +1,442 @@
+schema_version: 1
+
+feature:
+  id: migrate-ci-to-self-hosted-gx10-runners
+  title: "Migrate CI to self-hosted GX10 runners (roadmap-always-on-agent-automation ri-20)"
+  plan_revision: 1
+  created_by: claude-code
+  # No running service. The change consists of workflow YAML, a host kit that is never
+  # installed, a measurement CLI, docs and static tests. validate-feature skips the
+  # deploy/smoke/scan phases. The live outcomes are the operator-only steps O1-O12 in tasks.md
+  # section 7, and the validation report records them as pending_gate.
+  deployable: false
+
+contracts:
+  revision: 1
+  # No OpenAPI surface (see contracts/README.md). The schema requires an openapi block, so
+  # `primary` points at the README that records that decision. The real boundary between
+  # packages is the lane-manifest JSON Schema.
+  openapi:
+    primary: "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md"
+    files:
+      - "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md"
+      - "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-contracts — lane manifest schema + manifest + test package (DAG root)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "Contracts — runner-lanes schema promoted, manifest authored, test package registered"
+    task_type: contracts
+    description: |
+      tasks.md 1.1-1.3. Promote the change-local draft schema to
+      .github/runner-lanes.schema.json. Author .github/runner-lanes.yaml, classifying all 28 jobs
+      as in design D2. Create the skills/tests/ci_runners package with its conftest fixtures and
+      register it in the testpaths of skills/pyproject.toml. HARD BOUNDARY: write files only; no
+      mutating host, repository-settings or GitHub API calls.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - ".github/runner-lanes.yaml"
+        - ".github/runner-lanes.schema.json"
+        - "skills/pyproject.toml"
+      keys:
+        - "contract:runner-lanes-schema"
+      ttl_minutes: 60
+      reason: "Lane manifest schema consumed by workflow, runner-kit and tooling packages"
+    scope:
+      write_allow:
+        - ".github/runner-lanes.yaml"
+        - ".github/runner-lanes.schema.json"
+        - "skills/pyproject.toml"
+        - "skills/tests/ci_runners/__init__.py"
+        - "skills/tests/ci_runners/conftest.py"
+        - "skills/tests/ci_runners/test_manifest_schema.py"
+        - "skills/tests/ci_runners/fixtures/manifests/**"
+      read_allow:
+        - "openspec/**"
+        - ".github/**"
+        - "skills/**"
+    worktree:
+      name: migrate-ci-to-self-hosted-gx10-runners-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Manifest validates against the promoted schema; negative fixtures rejected"
+          kind: command
+          command: "uv run pytest tests/ci_runners/test_manifest_schema.py tests/ci_coverage -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["contracts_valid"]
+    metadata:
+      loc_estimate: 180
+      complexity: low
+      package_kind: config
+    context_impact:
+      surfaces: [capabilities, documentation]
+    inputs: {}
+    outputs:
+      result_keys: ["contracts_valid"]
+      artifacts:
+        - ".github/runner-lanes.yaml"
+        - ".github/runner-lanes.schema.json"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-workflows — canonical routing expression, fork guard, dispatch input, tool parity
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-workflows
+    title: "Workflow routing — ci.yml and security.yml lanes, fork guard, dispatch input"
+    task_type: backend
+    description: |
+      tasks.md 2.1-2.9. Write the reference-evaluator routing tests, the manifest-completeness
+      tests, the fork-guard and trigger-allowlist tests, and the tool-parity tests (RED). Then
+      add three things to every routed job of ci.yml (20 jobs) and security.yml (3 jobs): the
+      canonical D3 runs-on expression, the D4 fork guard as the first step, and the setup steps
+      D10 requires. Add a workflow_dispatch trigger to both files with the runner_lane input.
+      Hosted jobs keep a literal ubuntu-latest. Job ids, needs, permissions and concurrency are
+      unchanged. The existing tests that parse workflows must stay green. HARD BOUNDARY: edit
+      the workflows on this branch only; never set CI_RUNNER_LANE and never touch main.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+        - ".github/workflows/security.yml"
+      keys: []  # file locks suffice; no logical namespace (api/db/event/flag/env/contract) applies
+      ttl_minutes: 120
+      reason: "Routing edits to CI workflows"
+    scope:
+      write_allow:
+        - ".github/workflows/ci.yml"
+        - ".github/workflows/security.yml"
+        - "skills/tests/ci_runners/test_routing_expression.py"
+        - "skills/tests/ci_runners/test_manifest_completeness.py"
+        - "skills/tests/ci_runners/test_fork_guard.py"
+        - "skills/tests/ci_runners/test_tool_parity.py"
+        - "skills/tests/ci_runners/_gha_expr.py"
+      read_allow:
+        - ".github/**"
+        - "skills/**"
+        - "openspec/**"
+      deny:
+        - "deploy/**"
+        - "scripts/ci/**"
+    worktree:
+      name: migrate-ci-to-self-hosted-gx10-runners-wp-workflows
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Routing and workflow-parser tests green"
+          kind: command
+          command: "uv run pytest tests/ci_runners tests/ci_coverage tests/validate-feature/test_ci_sweep_wiring.py tests/project-context-refresh tests/install_sh/test_consumer_portability.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["workflows_routed"]
+    metadata:
+      loc_estimate: 450
+      complexity: medium
+      package_kind: config
+    context_impact:
+      surfaces: [capabilities]
+    inputs: {}
+    outputs:
+      result_keys: ["workflows_routed"]
+      artifacts:
+        - ".github/workflows/ci.yml"
+        - ".github/workflows/security.yml"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-runner-kit — Containerfile, JIT mint/cleanup scripts, systemd user unit, install script
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-runner-kit
+    title: "Runner kit — pinned arm64 image, host-minted JIT config, systemd user template unit"
+    task_type: backend
+    description: |
+      tasks.md 3.1-3.9. Write deploy/gx10-runner/ test-first:
+        - the Containerfile, pinned by digest, and toolchain.txt;
+        - mint-jitconfig.sh and cleanup-runner.sh;
+        - systemd/gx10-runner@.service, with Restart=always, StartLimitIntervalSec=0,
+          WantedBy=default.target and the hardened podman run of D6;
+        - gx10-runner.env.example;
+        - install-units.sh, which copies and prints only.
+      Tests stub curl, systemctl, loginctl and podman on PATH, and must fail if a host-mutating
+      binary is invoked. HARD BOUNDARY: never build or run an image, never call
+      generate-jitconfig, and never install or enable a unit. Reading a registry manifest to
+      pin the digest is allowed.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "deploy/gx10-runner/Containerfile"
+        - "deploy/gx10-runner/systemd/gx10-runner@.service"
+      keys: []  # file locks suffice; no logical namespace (api/db/event/flag/env/contract) applies
+      ttl_minutes: 120
+      reason: "GX10 runner host kit"
+    scope:
+      write_allow:
+        - "deploy/gx10-runner/**"
+        - "skills/tests/ci_runners/test_systemd_unit.py"
+        - "skills/tests/ci_runners/test_jit_scripts.py"
+        - "skills/tests/ci_runners/test_runner_image.py"
+        - "skills/tests/ci_runners/test_install_units.py"
+        - "skills/tests/ci_runners/fixtures/jit/**"
+      read_allow:
+        - ".github/runner-lanes.yaml"
+        - ".github/runner-lanes.schema.json"
+        - "skills/**"
+        - "openspec/**"
+      deny:
+        - ".github/workflows/**"
+        - "scripts/ci/**"
+    worktree:
+      name: migrate-ci-to-self-hosted-gx10-runners-wp-runner-kit
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Runner-kit tests green, host binaries stubbed"
+          kind: command
+          command: "uv run pytest tests/ci_runners/test_systemd_unit.py tests/ci_runners/test_jit_scripts.py tests/ci_runners/test_runner_image.py tests/ci_runners/test_install_units.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["runner_kit_valid"]
+        - name: "Shell scripts pass shellcheck when available"
+          kind: command
+          command: "if command -v shellcheck >/dev/null; then shellcheck deploy/gx10-runner/*.sh; else echo 'shellcheck unavailable: skipped'; fi"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["shellcheck"]
+    metadata:
+      loc_estimate: 520
+      complexity: medium
+      package_kind: config
+    context_impact:
+      surfaces: [capabilities, documentation]
+    inputs: {}
+    outputs:
+      result_keys: ["runner_kit_valid", "shellcheck"]
+      artifacts:
+        - "deploy/gx10-runner/Containerfile"
+        - "deploy/gx10-runner/systemd/gx10-runner@.service"
+        - "deploy/gx10-runner/mint-jitconfig.sh"
+        - "deploy/gx10-runner/cleanup-runner.sh"
+        - "deploy/gx10-runner/install-units.sh"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-tooling — wall-clock measurement + run verification CLI
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-tooling
+    title: "Measurement tooling — ci_wallclock.py median/compare/verify-run"
+    task_type: backend
+    description: |
+      tasks.md 4.1-4.3. Write the pure functions median_wallclock, compare (threshold 0.85,
+      min_n 5) and verify_run (with expected_lane), tested over JSON fixtures. Add the CLI
+      subcommands, which use read-only `gh api --paginate`. Tests stub gh and make no network
+      calls.
+    role: implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "scripts/ci/ci_wallclock.py"
+      keys: []  # file locks suffice; no logical namespace (api/db/event/flag/env/contract) applies
+      ttl_minutes: 90
+      reason: "CI measurement CLI"
+    scope:
+      write_allow:
+        - "scripts/ci/**"
+        - "skills/tests/ci_runners/test_ci_wallclock.py"
+        - "skills/tests/ci_runners/fixtures/runs/**"
+      read_allow:
+        - ".github/runner-lanes.yaml"
+        - "skills/**"
+        - "openspec/**"
+      deny:
+        - ".github/workflows/**"
+        - "deploy/**"
+    worktree:
+      name: migrate-ci-to-self-hosted-gx10-runners-wp-tooling
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "ci_wallclock tests green offline"
+          kind: command
+          command: "uv run pytest tests/ci_runners/test_ci_wallclock.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["tooling_valid"]
+    metadata:
+      loc_estimate: 300
+      complexity: low
+      package_kind: algorithm
+    context_impact:
+      surfaces: [semantic_code]
+    inputs: {}
+    outputs:
+      result_keys: ["tooling_valid"]
+      artifacts:
+        - "scripts/ci/ci_wallclock.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-docs — operator runbook O1-O12
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-docs
+    title: "Operator runbook — O1-O12 with verification commands"
+    task_type: docs
+    description: |
+      tasks.md 5.1-5.3. Write the runbook test, then docs/guides/self-hosted-ci-runners.md.
+      The runbook covers operator steps O1-O12 from tasks.md section 7, each with a fenced
+      verification command. It also states the hard boundary, the D9 rollback and the
+      queued-run detection, the App upgrade path and the cache-disable switch. Link the runbook
+      from docs/guides/documentation.md.
+    role: documenter
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "docs/guides/self-hosted-ci-runners.md"
+        - "docs/guides/documentation.md"
+      keys: []  # file locks suffice; no logical namespace (api/db/event/flag/env/contract) applies
+      ttl_minutes: 60
+      reason: "Operator runbook"
+    scope:
+      write_allow:
+        - "docs/guides/self-hosted-ci-runners.md"
+        - "docs/guides/documentation.md"
+        - "skills/tests/ci_runners/test_runbook.py"
+      read_allow:
+        - "openspec/**"
+        - "deploy/**"
+        - "scripts/**"
+        - ".github/**"
+        - "docs/**"
+        - "skills/**"
+    worktree:
+      name: migrate-ci-to-self-hosted-gx10-runners-wp-docs
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Runbook test green"
+          kind: command
+          command: "uv run pytest tests/ci_runners/test_runbook.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["runbook_valid"]
+    metadata:
+      loc_estimate: 300
+      complexity: low
+      package_kind: config
+    context_impact:
+      surfaces: [documentation]
+    inputs: {}
+    outputs:
+      result_keys: ["runbook_valid"]
+      artifacts:
+        - "docs/guides/self-hosted-ci-runners.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-integration — merge, full suite, validators (DAG sink)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration — merge packages, full skills suite, openspec validate, actionlint"
+    task_type: integration
+    description: |
+      tasks.md 6.1. Merge the package branches. Run the full skills suite, `openspec validate
+      --strict` and actionlint (if it is installed), and confirm that the diff stays inside the
+      package scopes. Operator steps O1-O12 are NOT run here. They are recorded as pending_gate.
+    role: integrator
+    priority: 4
+    depends_on: [wp-workflows, wp-runner-kit, wp-tooling, wp-docs]
+    locks:
+      files: []
+      keys: []
+    scope:
+      write_allow:
+        - "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: migrate-ci-to-self-hosted-gx10-runners-wp-integration
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Skills suite green"
+          kind: command
+          command: "uv run pytest tests/ -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["skills_suite_green"]
+        - name: "OpenSpec valid"
+          kind: command
+          command: "openspec validate migrate-ci-to-self-hosted-gx10-runners --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+        - name: "actionlint over routed workflows (skipped if unavailable)"
+          kind: command
+          command: "if command -v actionlint >/dev/null; then actionlint .github/workflows/ci.yml .github/workflows/security.yml; else echo 'actionlint unavailable: skipped'; fi"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["actionlint"]
+    metadata:
+      loc_estimate: 20
+      complexity: low
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["skills_suite_green", "openspec_valid", "actionlint"]
+      artifacts: []
