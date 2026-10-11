@@ -147,6 +147,8 @@ testpaths = [
     "tests/skill-audit",
     "tests/state-artifacts",
     "tests/ownership-runtime",
+    # migrate-ci-to-self-hosted-gx10-runners: lane manifest, routing, runner kit, tooling.
+    "tests/ci_runners",
     # multiplayer-principles-guide: structural guard for docs/guides/multiplayer-collaboration.md.
     "tests/multiplayer-collaboration",
     "expedite/scripts/tests",
