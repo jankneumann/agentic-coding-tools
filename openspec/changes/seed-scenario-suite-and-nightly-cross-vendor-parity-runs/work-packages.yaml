@@ -1,6 +1,6 @@
 # Work packages for seed-scenario-suite-and-nightly-cross-vendor-parity-runs (ri-16).
 # DAG: wp-foundation -> {wp-scenarios, wp-results, wp-gaps} (parallel, disjoint write scopes)
-#      -> wp-nightly (needs results + gaps) -> wp-integration (needs scenarios + nightly).
+#      -> wp-nightly (needs scenarios for suite.skill_family + results + gaps) -> wp-integration (needs scenarios + nightly).
 # No OpenAPI/DB surface: contracts/README.md is the contracts entrypoint; payload
 # schemas live under contracts/schemas/ (design D2/D3/D4).
 schema_version: 1
@@ -277,11 +277,15 @@ packages:
 - package_id: wp-gaps
   title: Capability gaps — scenario-parity emitter, memory/spool sinks, improve-harness consumer test, tag docs
   task_type: implementation
-  description: 'Tasks 4.1–4.7. gap_emitter.py (D3 tag set incl. bare capability_gap tag, CoordinatorMemorySink via
+  description: 'Tasks 4.1–4.7 (incl. 4.4a). gap_emitter.py (D3 tag set incl. bare capability_gap tag, CoordinatorMemorySink via
 
-    POST /memory/store, SpoolMemorySink, flush). Skills side: SOURCE_VOCABULARY += scenario-parity,
+    POST /memory/store, success:true acknowledgement, SpoolMemorySink, flush). Skills side: SOURCE_VOCABULARY += scenario-parity,
 
-    memory-conventions.md, improve-harness SKILL.md row, consumer test over the example payload.
+    memory-conventions.md, improve-harness SKILL.md row, analyze_failures.query_memory repaired to the live
+
+    /memory/query contract (signatures kept: skill-audit evidence_join and export_shared_learnings call them),
+
+    consumer test against an API-shaped stub and over the example payload.
 
     '
   role: implementer
@@ -293,6 +297,7 @@ packages:
     files:
     - docs/guides/memory-conventions.md
     - skills/improve-harness/SKILL.md
+    - skills/improve-harness/scripts/analyze_failures.py
     - skills/session-log/tests/test_memory_tag_conventions.py
     keys:
     - feature:seed-scenario-suite-and-nightly-cross-vendor-parity-runs:gaps
@@ -306,6 +311,8 @@ packages:
     - skills/tests/improve-harness/fixtures/**
     - skills/session-log/tests/test_memory_tag_conventions.py
     - skills/improve-harness/SKILL.md
+    - skills/improve-harness/scripts/analyze_failures.py
+    - skills/improve-harness/tests/test_improve_harness.py
     - docs/guides/memory-conventions.md
     read_allow:
     - '**'
@@ -352,7 +359,7 @@ packages:
         - gaps_mypy_clean
     - name: improve-harness + session-log tag tests pass
       kind: command
-      command: skills/.venv/bin/python -m pytest skills/tests/improve-harness skills/session-log/tests/test_memory_tag_conventions.py
+      command: skills/.venv/bin/python -m pytest skills/tests/improve-harness skills/improve-harness/tests skills/session-log/tests/test_memory_tag_conventions.py
         -q
       cwd: .
       expect_exit_code: 0
@@ -399,6 +406,7 @@ packages:
   priority: 3
   depends_on:
   - wp-foundation
+  - wp-scenarios
   - wp-results
   - wp-gaps
   locks:

@@ -14,8 +14,9 @@
     "lessons": {"type": ["array", "null"], "items": {"type": "string"}},
     "details": {
       "type": "object",
-      "required": ["scenario_id", "vendor", "failed_gates"],
+      "required": ["run_id", "scenario_id", "vendor", "failed_gates"],
       "properties": {
+        "run_id": {"type": "string", "minLength": 1, "description": "nightly run_id, duplicated from session_id because POST /memory/query does not return session_id"},
         "scenario_id": {"type": "string"},
         "vendor": {"type": "string"},
         "failed_gates": {
@@ -24,7 +25,7 @@
           "items": {
             "type": "object",
             "required": ["gate_id"],
-            "properties": {"gate_id": {"type": "string"}, "detail": {"type": "string"}}
+            "properties": {"gate_id": {"type": "string"}, "detail": {"type": "string", "maxLength": 500}}
           }
         },
         "skills_sha": {"type": ["string", "null"]},

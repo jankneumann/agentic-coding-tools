@@ -1,0 +1,185 @@
+{
+  "review_type": "plan",
+  "target": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "security",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "line_range": {
+        "start": 272,
+        "end": 283
+      },
+      "existing_code": "scrub `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `COORDINATION_API_KEY`,\n  `COORDINATOR_URL`",
+      "description": "The default `env_scrub` list (design D5, nightly-config.schema.json `env_scrub.default`) misses credential variables the skills' coordination bridge actually reads. `skills/coordination-bridge/scripts/coordination_bridge.py` resolves the API key from `_API_KEY_ENV_KEYS = (COORDINATION_API_KEY, COORDINATOR_API_KEY)` and Cloudflare Access service tokens from `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`; URL aliases `COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_API_URL`, `AGENT_COORDINATOR_HTTP_URL` and `AGENT_COORDINATOR_REST_PORT` are also unscrubbed. The `COORDINATION_API_URL` sentinel wins URL precedence today, but `COORDINATOR_API_KEY` and the CF tokens still reach every fixture agent, and any future reordering or a non-loopback sentinel (rejected by `_validate_url`, falls through to `http://localhost:3000`) re-opens the live-coordinator path. The `always_scrub` set only covers `gaps.api_key_env`.",
+      "resolution": "Extend the default scrub list and the always-scrub set to every key in the bridge's `_API_KEY_ENV_KEYS` plus `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET`, and scrub the URL aliases (`COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_API_URL`, `AGENT_COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_REST_PORT`) so the sentinel is the only URL source. Add a spec scenario asserting none of these appear in the vendor subprocess environment, and a config validator that rejects an `env_set.COORDINATION_API_URL` whose host is not loopback (the bridge's `_validate_url` silently drops non-allowlisted hosts and falls back to localhost:3000).",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "line_range": {
+        "start": 123,
+        "end": 130
+      },
+      "existing_code": "The\n  consumer's dedup key `(capability_gap, affected_skill, session_id)` with\n  `session_id = run_id` collapses the same gate failing on several vendors in one run\n  into one finding occurrence \u2014 intended: frequency counts *nights*",
+      "description": "D3 asserts that `/improve-harness` dedup collapses multi-vendor failures of one gate in one run into a single occurrence so frequency counts nights. That is not what the consumer does: in `skills/improve-harness/scripts/analyze_failures.py` `main()` computes `deduplicate_findings(...)` and discards it (an in-source `BUG:` note says so), then calls `rank_findings(memory_entries)`, whose `frequency` is `len(gap_entries)` over raw memory entries. With two vendors failing the same gate, one night contributes frequency 2, not 1. Task 4.4's 'frequency 2 from two runs' assertion passes, but for a different reason than the design states, and the plan's trend reasoning ('frequency rises night over night') is off by the vendor count.",
+      "resolution": "Either state the actual semantics in D3 (frequency = failing scenario\u00d7vendor pairs across nights) or make the emitter produce one entry per (run, scenario, first-failed-gate) with the failing vendors listed in `details` and `vendor:` tags, so frequency genuinely counts nights regardless of the consumer's dedup state. Update task 4.4 to assert whichever semantics is chosen (e.g. two vendors in one run \u2192 frequency 1 or 2 explicitly).",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/agent-trajectory-harness/spec.md",
+      "line_range": {
+        "start": 65,
+        "end": 84
+      },
+      "existing_code": "and SHALL record the skills revision on each result.",
+      "description": "Group 4 check: the requirement 'Skill under test is materialized from the checkout being evaluated' contains the clause 'SHALL record the skills revision on each result', but none of its three scenarios (skill copied, missing skill, timeout) has a WHEN/THEN asserting `skills_sha` (or `+dirty`) on a result record; the 'results are appended' scenario's required-field list also omits it. Likewise the 'Durable per-vendor per-skill results store' requirement promises filtering by 'skill family, scenario and time window' but only vendor, skill and `--since` are scenario-covered. Task 1.4 tests `skills_sha` and task 3.3 tests filters, so implementation intent exists; the spec just does not pin it.",
+      "resolution": "Add a scenario under the materialization requirement: WHEN a result is recorded with `skills_root` set THEN `skills_sha` SHALL equal the git HEAD of the repo containing `skills_root`, suffixed `+dirty` when modified. Add `--family` and `--scenario` filter assertions to the 'query by vendor and skill over a time window' scenario (or a sibling scenario).",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/nightly-config.schema.json",
+      "line_range": {
+        "start": 8,
+        "end": 15
+      },
+      "existing_code": "\"required\": [\n    \"enabled\",\n    \"scenarios_dir\",\n    \"repo_root\",\n    \"vendors\",\n    \"vendor_commands\",\n    \"caps\"\n  ],",
+      "description": "The nightly-config schema lists `enabled` and `caps` as `required` (and `caps` requires all four sub-keys) while also declaring `default` values for them, and proposal.md's NFR table and design D4 describe `max_pairs` 30 / `max_pairs_per_vendor` 15 / `max_wall_clock_minutes` 240 / `per_pair_timeout_seconds` 1200 as defaults. A config that relies on the documented defaults fails guard 0 (exit 2). Separately, D4 shows `disable_file: ~/.config/agent-scenarios/DISABLED` as the default kill-file but the schema gives `disable_file` no default, so the design's 'kill-file' off-switch does not exist unless the operator spells it out.",
+      "resolution": "Decide per field: either drop `enabled`/`caps.*` from `required` so the pydantic model applies the defaults (recommended for caps; keeping `enabled` required is defensible as an explicit opt-in but then remove its `default`), and add the `disable_file` default to the schema and model, or state in D4 that there is no default kill-file path. Keep schema, pydantic model and example config in step and have `test_schemas.py` assert a minimal config validates.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/capability-gap-entry.schema.json",
+      "line_range": {
+        "start": 27,
+        "end": 27
+      },
+      "existing_code": "\"properties\": {\"gate_id\": {\"type\": \"string\"}, \"detail\": {\"type\": \"string\"}}",
+      "description": "Design D3 bounds each `failed_gates[].detail` to 500 characters so command-gate output cannot bloat memory, but the capability-gap-entry contract does not encode it; only task 4.1's unit test does. The contract is what the skills-side consumer test validates against, so a future emitter that drops the truncation would still pass the schema.",
+      "resolution": "Add `\"maxLength\": 500` to `details.failed_gates.items.properties.detail` (and keep the unit test).",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "line_range": {
+        "start": 180,
+        "end": 182
+      },
+      "existing_code": "env_set: {COORDINATION_API_URL: \"http://127.0.0.1:9\"}   # force skills into standalone tier (D5)",
+      "description": "Hermeticity rests on an operator-editable `env_set` with no validation: the schema accepts any string map, and the spec scenario pins `COORDINATION_API_URL` only to 'the configured env_set value'. A config with `env_set: {}` or `env_set: {COORDINATION_API_URL: https://coord.rotkohl.ai}` passes guard 0 and fixture agents take locks and write memories in production, which is exactly the failure plan-finding #3 was meant to close.",
+      "resolution": "Have the runner always force `COORDINATION_API_URL` to a loopback sentinel (operator may change the port, not the host), or reject configs whose effective `COORDINATION_API_URL` host is not `localhost`/`127.0.0.1`/`::1` at guard 0. Add a 5.1 test for the rejection.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "security",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "line_range": {
+        "start": 309,
+        "end": 316
+      },
+      "description": "Token scrubbing plus the `gh` shim covers the GitHub API path, but not git transport: an agent can still `git push` to a real GitHub remote via SSH keys, a credential helper, or `insteadOf` rewrites in the nightly user's `~/.gitconfig`/`~/.ssh`. The design delegates this to the operator (dedicated HOME, task 7.1), so it is not test-verifiable.",
+      "resolution": "Add to the default `env_set`: `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_TERMINAL_PROMPT=0`, and `GIT_SSH_COMMAND=ssh -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityFile=/dev/null`. This makes the 'never reach real GitHub' property enforceable by the 1.2 environment test rather than by runbook discipline.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "architecture",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/proposal.md",
+      "line_range": {
+        "start": 3,
+        "end": 4
+      },
+      "existing_code": "Roadmap: `roadmap-always-on-agent-automation`, item **ri-16** (depends on ri-15,\n`build-agent-trajectory-scenario-harness`, merged).",
+      "description": "ri-15's change `build-agent-trajectory-scenario-harness` is merged in code but not archived: it still lives under `openspec/changes/` and there is no `openspec/specs/agent-trajectory-harness/spec.md`. This change's `agent-trajectory-harness` delta is therefore ADDED-only against a capability that does not yet exist in `openspec/specs/`, which is valid, and the revised `implement-feature-basic` still satisfies ri-15's 'Seed scenarios exercising plan and implement skills' requirement (verify + prohibit gates, two vendors). But archive order matters: archiving ri-16 before ri-15 would create the capability spec from ri-16's deltas alone, and ri-15's later archive must then merge into it.",
+      "resolution": "Note in proposal.md Impact that ri-15 is unarchived and should be archived first (or that both archive cleanly in either order because all deltas are ADDED with disjoint requirement names).",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 9,
+      "type": "style",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/results-record.schema.json",
+      "line_range": {
+        "start": 184,
+        "end": 201
+      },
+      "description": "The `run` record schema carries `repo_sha`, `skills_sha` and `reason` that design D2's `run` field list (`run_id, started_at, finished_at, status, planned_pairs, executed_pairs, config_digest, vendors`) does not mention, and `finished_at` is optional in the schema although D2 lists it as a run field. Minor drift between the design and the contract that the record-shape tests (3.1) will pin one way or the other.",
+      "resolution": "Add `repo_sha`, `skills_sha`, `reason` (and `finished_at` nullable semantics for guard-exit records) to D2's `run` record description, or drop them from the schema.",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "observability",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "line_range": {
+        "start": 67,
+        "end": 72
+      },
+      "existing_code": "`result` records whose `run_id` has no `run` record are reported by\n`results query`/`trend` as belonging to an *interrupted* run",
+      "description": "Because the `run` record is written last, 'no run record for this run_id' is also the state of the currently executing nightly. A `results query`/`latest` run during the 02:30\u201306:30 window labels the live run as interrupted, which will mislead the runbook triage step and any future dispatcher gate reading `latest`.",
+      "resolution": "Label such records 'in progress or interrupted', or have the reader check whether `<state>/nightly.lock` is currently held for that run and distinguish the two.",
+      "line_resolution": "vendor"
+    }
+  ]
+}

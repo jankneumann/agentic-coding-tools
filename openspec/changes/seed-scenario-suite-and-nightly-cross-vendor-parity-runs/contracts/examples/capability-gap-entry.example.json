@@ -4,6 +4,7 @@
   "event_type": "capability_gap",
   "summary": "[codex] scenario validate-feature-clean-pass failed gates: report-has-status",
   "details": {
+    "run_id": "nightly-20261012T023000Z-3f9a1c",
     "scenario_id": "validate-feature-clean-pass",
     "vendor": "codex",
     "failed_gates": [

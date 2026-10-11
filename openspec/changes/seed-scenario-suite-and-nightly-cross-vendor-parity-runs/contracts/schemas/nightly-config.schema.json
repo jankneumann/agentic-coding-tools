@@ -6,12 +6,10 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "enabled",
     "scenarios_dir",
     "repo_root",
     "vendors",
-    "vendor_commands",
-    "caps"
+    "vendor_commands"
   ],
   "properties": {
     "enabled": {
@@ -22,7 +20,9 @@
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "default": "~/.config/agent-scenarios/DISABLED",
+      "description": "Kill-file: when it exists the run behaves as disabled. null turns the kill-file off."
     },
     "scenarios_dir": {
       "type": "string"
@@ -57,24 +57,36 @@
       "items": {
         "type": "string"
       },
-      "default": [
-        "GH_TOKEN",
-        "GITHUB_TOKEN",
-        "GH_ENTERPRISE_TOKEN",
-        "COORDINATION_API_KEY",
-        "COORDINATOR_URL"
-      ],
-      "description": "Removed from the vendor subprocess environment. The variable named by gaps.api_key_env is always scrubbed in addition."
+      "default": [],
+      "description": "Additional variables removed from the vendor subprocess environment. Always unioned with the built-in HERMETIC_SCRUB denylist (design D5) and with the variables named by gaps.api_key_env and gaps.coordinator_url_env; config can add to the denylist but never remove from it."
     },
     "env_set": {
       "type": "object",
       "additionalProperties": {
         "type": "string"
       },
-      "default": {
-        "COORDINATION_API_URL": "http://127.0.0.1:9"
+      "default": {},
+      "propertyNames": {
+        "not": {
+          "enum": [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "GH_ENTERPRISE_TOKEN",
+            "GITHUB_ENTERPRISE_TOKEN",
+            "COORDINATION_API_URL",
+            "COORDINATION_API_KEY",
+            "COORDINATOR_API_KEY",
+            "COORDINATOR_URL",
+            "COORDINATOR_HTTP_URL",
+            "AGENT_COORDINATOR_API_URL",
+            "AGENT_COORDINATOR_HTTP_URL",
+            "AGENT_COORDINATOR_REST_PORT",
+            "CF_ACCESS_CLIENT_ID",
+            "CF_ACCESS_CLIENT_SECRET"
+          ]
+        }
       },
-      "description": "Overrides applied to the vendor subprocess environment; the default sentinel forces skills into their standalone (no-coordinator) tier."
+      "description": "Extra overrides for the vendor subprocess environment. May not name a HERMETIC_SCRUB variable or COORDINATION_API_URL: the executor always forces COORDINATION_API_URL=http://127.0.0.1:9 after applying env_set, and a config that tries to set a denylisted name is schema-invalid (guard 0, exit 2)."
     },
     "workspaces_root": {
       "type": [
@@ -92,12 +104,6 @@
     "caps": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "max_pairs",
-        "max_pairs_per_vendor",
-        "max_wall_clock_minutes",
-        "per_pair_timeout_seconds"
-      ],
       "properties": {
         "max_pairs": {
           "type": "integer",
@@ -119,7 +125,14 @@
           "minimum": 30,
           "default": 1200
         }
-      }
+      },
+      "default": {
+        "max_pairs": 30,
+        "max_pairs_per_vendor": 15,
+        "max_wall_clock_minutes": 240,
+        "per_pair_timeout_seconds": 1200
+      },
+      "description": "Every key is optional and takes its default; a config that omits caps runs under the defaults."
     },
     "results": {
       "type": "object",

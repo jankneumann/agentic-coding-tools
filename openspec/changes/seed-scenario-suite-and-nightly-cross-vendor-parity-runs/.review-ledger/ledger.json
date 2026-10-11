@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "change_id": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "items": [
+    {
+      "id": 1,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "664a75e24e1d05c9",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The default `env_scrub` list (design D5, nightly-config.schema.json `env_scrub.default`) misses credential variables the skills' coordination bridge actually reads. `skills/coordination-bridge/scripts/coordination_bridge.py` resolves the API key from `_API_KEY_ENV_KEYS = (COORDINATION_API_KEY, COORDINATOR_API_KEY)` and Cloudflare Access service tokens from `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`; URL aliases `COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_API_URL`, `AGENT_COORDINATOR_HTTP_URL` and `AGENT_COORDINATOR_REST_PORT` are also unscrubbed. The `COORDINATION_API_URL` sentinel wins URL precedence today, but `COORDINATOR_API_KEY` and the CF tokens still reach every fixture agent, and any future reordering or a non-loopback sentinel (rejected by `_validate_url`, falls through to `http://localhost:3000`) re-opens the live-coordinator path. The `always_scrub` set only covers `gaps.api_key_env`.",
+      "resolution": "adjudicated valid (verified coordination_bridge.py _HTTP_URL_ENV_KEYS/_API_KEY_ENV_KEYS/CF_ACCESS_*): built-in HERMETIC_SCRUB denylist covers all bridge URL/key/CF vars + drift test (D5, spec, task 1.2)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 2,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "2c6940dfcab7a05b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D3 asserts that `/improve-harness` dedup collapses multi-vendor failures of one gate in one run into a single occurrence so frequency counts nights. That is not what the consumer does: in `skills/improve-harness/scripts/analyze_failures.py` `main()` computes `deduplicate_findings(...)` and discards it (an in-source `BUG:` note says so), then calls `rank_findings(memory_entries)`, whose `frequency` is `len(gap_entries)` over raw memory entries. With two vendors failing the same gate, one night contributes frequency 2, not 1. Task 4.4's 'frequency 2 from two runs' assertion passes, but for a different reason than the design states, and the plan's trend reasoning ('frequency rises night over night') is off by the vendor count.",
+      "resolution": "fixed with #16",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 3,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/agent-trajectory-harness/spec.md",
+      "spec_file": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/agent-trajectory-harness/spec.md",
+      "fingerprint": "c44770a70d75492b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Group 4 check: the requirement 'Skill under test is materialized from the checkout being evaluated' contains the clause 'SHALL record the skills revision on each result', but none of its three scenarios (skill copied, missing skill, timeout) has a WHEN/THEN asserting `skills_sha` (or `+dirty`) on a result record; the 'results are appended' scenario's required-field list also omits it. Likewise the 'Durable per-vendor per-skill results store' requirement promises filtering by 'skill family, scenario and time window' but only vendor, skill and `--since` are scenario-covered. Task 1.4 tests `skills_sha` and task 3.3 tests filters, so implementation intent exists; the spec just does not pin it.",
+      "resolution": "fixed: skills_sha asserted in materialization scenario and result field list; family/scenario/--until query scenario added",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 4,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/nightly-config.schema.json",
+      "fingerprint": "7c9697477c776dfa",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The nightly-config schema lists `enabled` and `caps` as `required` (and `caps` requires all four sub-keys) while also declaring `default` values for them, and proposal.md's NFR table and design D4 describe `max_pairs` 30 / `max_pairs_per_vendor` 15 / `max_wall_clock_minutes` 240 / `per_pair_timeout_seconds` 1200 as defaults. A config that relies on the documented defaults fails guard 0 (exit 2). Separately, D4 shows `disable_file: ~/.config/agent-scenarios/DISABLED` as the default kill-file but the schema gives `disable_file` no default, so the design's 'kill-file' off-switch does not exist unless the operator spells it out.",
+      "resolution": "fixed: enabled/caps no longer required, caps sub-keys optional with defaults, disable_file default ~/.config/agent-scenarios/DISABLED",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 5,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/capability-gap-entry.schema.json",
+      "fingerprint": "169d03bf38d5da59",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Design D3 bounds each `failed_gates[].detail` to 500 characters so command-gate output cannot bloat memory, but the capability-gap-entry contract does not encode it; only task 4.1's unit test does. The contract is what the skills-side consumer test validates against, so a future emitter that drops the truncation would still pass the schema.",
+      "resolution": "fixed: detail maxLength 500",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 6,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "543d2001be3b3dc6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Hermeticity rests on an operator-editable `env_set` with no validation: the schema accepts any string map, and the spec scenario pins `COORDINATION_API_URL` only to 'the configured env_set value'. A config with `env_set: {}` or `env_set: {COORDINATION_API_URL: https://coord.rotkohl.ai}` passes guard 0 and fixture agents take locks and write memories in production, which is exactly the failure plan-finding #3 was meant to close.",
+      "resolution": "fixed with #14",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "bc630eb0c231012e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Token scrubbing plus the `gh` shim covers the GitHub API path, but not git transport: an agent can still `git push` to a real GitHub remote via SSH keys, a credential helper, or `insteadOf` rewrites in the nightly user's `~/.gitconfig`/`~/.ssh`. The design delegates this to the operator (dedicated HOME, task 7.1), so it is not test-verifiable.",
+      "resolution": "fixed: git transport credentials named in D5 + residual risk; task 7.1 requires a HOME without GitHub push credentials",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 8,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/proposal.md",
+      "fingerprint": "97ffa847d40d5834",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "ri-15's change `build-agent-trajectory-scenario-harness` is merged in code but not archived: it still lives under `openspec/changes/` and there is no `openspec/specs/agent-trajectory-harness/spec.md`. This change's `agent-trajectory-harness` delta is therefore ADDED-only against a capability that does not yet exist in `openspec/specs/`, which is valid, and the revised `implement-feature-basic` still satisfies ri-15's 'Seed scenarios exercising plan and implement skills' requirement (verify + prohibit gates, two vendors). But archive order matters: archiving ri-16 before ri-15 would create the capability spec from ri-16's deltas alone, and ri-15's later archive must then merge into it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/results-record.schema.json",
+      "fingerprint": "f4fda403847a0110",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The `run` record schema carries `repo_sha`, `skills_sha` and `reason` that design D2's `run` field list (`run_id, started_at, finished_at, status, planned_pairs, executed_pairs, config_digest, vendors`) does not mention, and `finished_at` is optional in the schema although D2 lists it as a run field. Minor drift between the design and the contract that the record-shape tests (3.1) will pin one way or the other.",
+      "resolution": "fixed: D2 run field list includes repo_sha/skills_sha/reason; finished_at required",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "b63c647eb2959aaf",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Because the `run` record is written last, 'no run record for this run_id' is also the state of the currently executing nightly. A `results query`/`latest` run during the 02:30\u201306:30 window labels the live run as interrupted, which will mislead the runbook triage step and any future dispatcher gate reading `latest`.",
+      "resolution": "fixed: lock-held runs reported as in progress (D2, spec scenario, task 3.1)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "169e92eb35224b15",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: The plan fixes skill availability but not skill invocation. `design.md` D5 only copies the skills tree, while `CLIVendorExecutor` still gives the vendor a natural-language task prompt with no requirement or gate proving that `skill_under_test` was loaded or followed. Task 6.1 uses a custom fake executor that deliberately reads the break marker, so it can pass even if live vendors bypass the skill entirely. Define a vendor-neutral invocation/verification mechanism and test it through the real CLI-adapter path.",
+      "resolution": "adjudicated partially valid: seed task_prompts must invoke /<skill_under_test>, guard-tested (D5/D6, spec coverage-floor scenario, tasks 2.1/2.4/2.5); skill-following verified via skill-distinctive gates and recorded as residual risk. Rejected: testing through the real CLI adapter (no paid vendor runs in tests; live drill is task 7.5)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "214018ca375790d8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: `design.md` lines 162-166 incorrectly state that `/improve-harness` needs no code change. Its current query is incompatible with `POST /memory/query`: it sends no API key or required `agent_id`, sends unsupported `time_window_days`, and reads `entries` although the API returns a `memories` envelope. Task 4.4 bypasses this path by feeding fixtures directly into normalization/ranking, so the planned tests would pass while emitted gaps remain invisible. Add the consumer/API changes and an authenticated store-then-query integration test.",
+      "resolution": "adjudicated valid (verified MemoryQueryRequest requires agent_id, verify_api_key, list_envelope('memories'); analyze_failures sends none and reads 'entries'): D3 corrected, task 4.4a repairs query_memory, 4.4 tests against an API-shaped stub, harness-engineering scenario added, wp-gaps scope extended",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/work-packages.yaml",
+      "fingerprint": "281a7241e7fce0bd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: `wp-nightly` is specified to wire results through `suite.skill_family`, but `suite.py` is created by `wp-scenarios` and `wp-nightly` depends only on foundation, results, and gaps (`work-packages.yaml` lines 400-403). In isolated worktrees the nightly package can therefore start without the module it must import. Add `wp-scenarios` as a dependency of `wp-nightly`, or move the shared family mapping into a prerequisite package.",
+      "resolution": "adjudicated valid: wp-nightly now depends on wp-scenarios (suite.skill_family)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 14,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "1d2b2896c7eca7ac",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: The absolute requirement that live runs never reach the real coordinator is not enforced fail-closed. A schema-valid config can replace `env_scrub` or set `env_set` to an empty/live value, and D5 explicitly leaves user-HOME MCP coordinator access to a post-merge operator task. Such a run can execute fixture agents with a live coordinator transport despite the stated hermeticity guarantee. Make the coordinator/GitHub denylist and unreachable coordinator override non-overridable safety controls, and launch vendors with an isolated HOME/XDG/MCP configuration.",
+      "resolution": "adjudicated valid except isolated HOME: denylist non-removable, COORDINATION_API_URL always forced, env_set may not name denylisted vars (schema propertyNames + guard 0), spec scenario 'config cannot re-open the live coordinator path'. Isolated HOME rejected (vendor CLIs auth from HOME); handled by task 7.1 + named residual risk",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "6080627efcf72cae",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: D4 returns exit 0 for `budget_exhausted` when executed pairs passed, while the systemd template treats only exit 0 as success. An incomplete nightly matrix will therefore appear green and trigger no failure handling, even though an arbitrary deterministic tail was never tested. Give incomplete coverage a distinct non-zero exit or configure an explicit notification/health gate for `budget_exhausted`.",
+      "resolution": "adjudicated valid: budget_exhausted without fail exits 3 (D4, spec wall-clock + infra scenarios, task 5.2, proposal NFR)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 16,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "df3a280b5eec9d72",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: D3's claim that capability-gap frequency counts nights rather than vendors is false for the existing consumer. `analyze_failures.main()` explicitly discards its deduplicated `all_findings` and ranks raw memory entries, and `/memory/query` does not return `session_id`; two vendors failing the same gate in one run therefore count twice. Include `run_id` in returned data (for example in `details`), repair the consumed ranking path, and test two vendors in one run plus a later run.",
+      "resolution": "adjudicated partially valid (verified rank_findings counts raw entries; /memory/query omits session_id): D3 claim corrected to frequency unit (run, vendor), run_id added to details/contract, consumer test pins 2-vendors+later-run=3, new he scenario. Rejected: repairing the consumer ranking path here (the in-source BUG note scopes it to its own change)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/results-record.schema.json",
+      "fingerprint": "b4e7ce84d3a23faf",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Nit: `results-record.schema.json` is weaker than D2's declared record contract. Result records may omit `trajectory_status`, `duration_seconds`, `repo_sha`, `skills_sha`, and `error`; run records may omit `finished_at`, `vendors`, and `config_digest`; and the schema accepts contradictory states such as `fail` with no failed gates or `error` without an error. Require the declared nullable fields and add status-dependent constraints so consumers can trust schema-valid records.",
+      "resolution": "fixed: nullable D2 fields required; status-dependent if/then constraints",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "7ace54153015d3c4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Nit: The sink plan treats transport reachability as delivery but does not require checking the memory endpoint's application-level response. `POST /memory/store` can return HTTP 200 with `success: false`; if that is treated as delivered, the entry will be removed rather than spooled, violating the zero-loss requirement. Specify that only a valid response with `success: true` acknowledges delivery and add a 200/false replay test.",
+      "resolution": "fixed: only 2xx + success:true acknowledges delivery (D3, spec scenario, task 4.2)",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}

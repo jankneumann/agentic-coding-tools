@@ -1,0 +1,87 @@
+{
+  "review_type": "plan",
+  "target": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: The plan fixes skill availability but not skill invocation. `design.md` D5 only copies the skills tree, while `CLIVendorExecutor` still gives the vendor a natural-language task prompt with no requirement or gate proving that `skill_under_test` was loaded or followed. Task 6.1 uses a custom fake executor that deliberately reads the break marker, so it can pass even if live vendors bypass the skill entirely. Define a vendor-neutral invocation/verification mechanism and test it through the real CLI-adapter path.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: `design.md` lines 162-166 incorrectly state that `/improve-harness` needs no code change. Its current query is incompatible with `POST /memory/query`: it sends no API key or required `agent_id`, sends unsupported `time_window_days`, and reads `entries` although the API returns a `memories` envelope. Task 4.4 bypasses this path by feeding fixtures directly into normalization/ranking, so the planned tests would pass while emitted gaps remain invisible. Add the consumer/API changes and an authenticated store-then-query integration test.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: `wp-nightly` is specified to wire results through `suite.skill_family`, but `suite.py` is created by `wp-scenarios` and `wp-nightly` depends only on foundation, results, and gaps (`work-packages.yaml` lines 400-403). In isolated worktrees the nightly package can therefore start without the module it must import. Add `wp-scenarios` as a dependency of `wp-nightly`, or move the shared family mapping into a prerequisite package.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: The absolute requirement that live runs never reach the real coordinator is not enforced fail-closed. A schema-valid config can replace `env_scrub` or set `env_set` to an empty/live value, and D5 explicitly leaves user-HOME MCP coordinator access to a post-merge operator task. Such a run can execute fixture agents with a live coordinator transport despite the stated hermeticity guarantee. Make the coordinator/GitHub denylist and unreachable coordinator override non-overridable safety controls, and launch vendors with an isolated HOME/XDG/MCP configuration.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "high",
+      "description": "Critical: D4 returns exit 0 for `budget_exhausted` when executed pairs passed, while the systemd template treats only exit 0 as success. An incomplete nightly matrix will therefore appear green and trigger no failure handling, even though an arbitrary deterministic tail was never tested. Give incomplete coverage a distinct non-zero exit or configure an explicit notification/health gate for `budget_exhausted`.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: D3's claim that capability-gap frequency counts nights rather than vendors is false for the existing consumer. `analyze_failures.main()` explicitly discards its deduplicated `all_findings` and ranks raw memory entries, and `/memory/query` does not return `session_id`; two vendors failing the same gate in one run therefore count twice. Include `run_id` in returned data (for example in `details`), repair the consumed ranking path, and test two vendors in one run plus a later run.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: `results-record.schema.json` is weaker than D2's declared record contract. Result records may omit `trajectory_status`, `duration_seconds`, `repo_sha`, `skills_sha`, and `error`; run records may omit `finished_at`, `vendors`, and `config_digest`; and the schema accepts contradictory states such as `fail` with no failed gates or `error` without an error. Require the declared nullable fields and add status-dependent constraints so consumers can trust schema-valid records.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: The sink plan treats transport reachability as delivery but does not require checking the memory endpoint's application-level response. `POST /memory/store` can return HTTP 200 with `success: false`; if that is treated as delivered, the entry will be removed rather than spooled, violating the zero-loss requirement. Specify that only a valid response with `success: true` acknowledges delivery and add a 200/false replay test.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

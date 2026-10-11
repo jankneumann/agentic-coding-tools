@@ -53,7 +53,12 @@ override via config `results.path` or `--store`). Two record types, both carryin
   (ids), `trajectory_status`, `duration_seconds`, `repo_sha`, `skills_sha`, `error`.
 - `run` — one per nightly invocation: `run_id`, `started_at`, `finished_at`,
   `status` (`completed | disabled | cap_exceeded | budget_exhausted | locked |
-  config_error`), `planned_pairs`, `executed_pairs`, `config_digest`, `vendors`.
+  config_error`), `planned_pairs`, `executed_pairs`, `config_digest`, `vendors`,
+  `repo_sha`, `skills_sha`, `reason`.
+
+Every listed field is present on every record (nullable fields as explicit `null`);
+the schema also rejects contradictory states (`fail` with no failed gate, `pass` /
+`skipped_budget` with failed gates, `error` without an `error` message).
 
 **Field mapping from ri-15 types** (verified against `models.py`; ri-15's
 `VendorRunVerdict` has neither a duration nor a flat trajectory status):
@@ -69,7 +74,9 @@ its pair is scored, and the `run` record last. A run killed mid-way (systemd
 `TimeoutStartSec`, SIGKILL, host reboot) therefore keeps every completed pair's
 result; `result` records whose `run_id` has no `run` record are reported by
 `results query`/`trend` as belonging to an *interrupted* run and are otherwise
-counted normally.
+counted normally — unless the run still holds the nightly run lock (a non-blocking
+`flock` probe of `<state>/nightly.lock`), in which case they are reported as
+*in progress*, so a query during the nightly window does not mislabel the live run.
 
 **Why not SQLite**: SQLite would also work, but at ~12k records/year a full scan is
 cheap; JSONL is append-only by construction (no in-place updates, no migrations),
@@ -103,7 +110,7 @@ builds one entry:
 event_type: "capability_gap"
 summary:    "[<vendor>] scenario <scenario_id> failed gates: <gate ids>"
 session_id: "<run_id>"
-details:    {scenario_id, vendor, failed_gates:[{gate_id, detail}], skills_sha, repo_sha}
+details:    {run_id, scenario_id, vendor, failed_gates:[{gate_id, detail}], skills_sha, repo_sha}
 tags:
   - capability_gap                              # bare tag: what analyze_failures queries
   - capability_gap:scenario-parity/<scenario_id>/<first failed gate id>
@@ -122,14 +129,20 @@ Notes:
   the bare tag is harmless to `_extract_tag` (it only reads `prefix:`-tags).
 - **Stable `capability_gap` value** (`scenario-parity/<scenario>/<gate>`) so
   `/improve-harness` groups repeated nightly failures of the same gate into one
-  finding whose frequency rises night over night. `<gate>` is the first failed gate
-  in **scenario declaration order** (not verdict order), so the key is stable. The
-  consumer's dedup key `(capability_gap, affected_skill, session_id)` with
-  `session_id = run_id` collapses the same gate failing on several vendors in one run
-  into one finding occurrence — intended: frequency counts *nights*, and per-vendor
-  attribution stays available in the entries' `vendor:` tags and the results store.
-- **Detail bound**: each `failed_gates[].detail` is truncated to 500 characters, so a
-  command gate's captured output cannot bloat memory or carry large log excerpts.
+  finding whose frequency rises with repeated failures. `<gate>` is the first failed
+  gate in **scenario declaration order** (not verdict order), so the key is stable.
+- **Frequency unit is (run, vendor), not nights.** `/improve-harness` ranks raw
+  memory entries (`rank_findings` counts entries per `capability_gap` value; its
+  `deduplicate_findings` result is discarded — a known consumer bug owned by a
+  separate change), and `POST /memory/query` does not return `session_id`. So two
+  vendors failing the same gate in one run contribute frequency 2. This change does
+  **not** repair the consumer's ranking; it documents the unit (runbook, memory
+  conventions) and carries `run_id` inside `details` so a later consumer fix can
+  collapse per run. The consumer test pins the actual behaviour: two vendors in one
+  run → 2, plus a later run → 3.
+- **Detail bound**: each `failed_gates[].detail` is truncated to 500 characters
+  (also encoded as `maxLength: 500` in the contract), so a command gate's captured
+  output cannot bloat memory or carry large log excerpts.
 - **Only `fail` emits gaps.** `error` (CLI missing, timeout, fixture failure) and
   `skipped_budget` are infrastructure outcomes: recorded in the results store and the
   run summary, never as skill capability gaps. Judge findings never emit gaps (D3 of
@@ -144,7 +157,10 @@ Notes:
   `COORDINATOR_URL` — the runbook requires both to name the same coordinator), a 10 s
   request timeout, and `agent_id` from config (default `agent-scenarios-nightly`).
   An unset URL variable means "spool everything" (no localhost fallback, so a
-  misconfigured host never writes to an unintended coordinator); `SpoolMemorySink` —
+  misconfigured host never writes to an unintended coordinator). **Delivery is
+  acknowledged only by HTTP 2xx with a JSON body whose `success` is `true`**; a 200
+  with `success: false`, a non-JSON body, or any other status is a failed delivery
+  and the entry is spooled (on emit) or kept (on flush). `SpoolMemorySink` —
   appends the identical payload to `<state>/gap-spool.jsonl`. The emitter tries the
   coordinator and spools any entry that fails. `agent-scenarios gaps flush` (also run
   at the start of every nightly) replays the spool and rewrites it with only the
@@ -159,9 +175,18 @@ Notes:
   the in-flight `add-a-judged-first-stage-to-coordinator-audit-triage` already
   modifies that requirement and two MODIFIED deltas on one requirement collide at
   archive time.
-- `/improve-harness` needs **no code change**: it aggregates arbitrary `source:`
-  values. A consumer test in `skills/tests/improve-harness/` feeds the emitter's
-  example payload (`contracts/capability-gap-entry.example.json`) through
+- `/improve-harness` needs **no source-specific code** (it aggregates arbitrary
+  `source:` values), but its memory query is **incompatible with the live API** and
+  must be repaired in this change, or the emitted gaps are never read:
+  `analyze_failures.query_memory` posts no `agent_id` (required by
+  `MemoryQueryRequest`), sends no `X-API-Key`, sends `time_window_days` (not a request
+  field — ignored), and reads `entries` while `/memory/query` returns a `memories`
+  list envelope. The fix: send `agent_id` (default `improve-harness`, overridable),
+  send `X-API-Key` from `COORDINATION_API_KEY` when set, read `memories` (keeping
+  `entries`/bare-list for older coordinators), and apply the time window client-side
+  on `created_at`. A consumer test drives `query_memory` against a local
+  `http.server` stub that enforces the real request model and returns the real
+  envelope with the emitter's example payload, then feeds the result through
   `normalize_memory_entries` / `rank_findings` and asserts `scenario-parity` appears
   in the source set. The SKILL.md data-sources table gains a row.
 
@@ -178,11 +203,11 @@ repo_root: ~/agentic-coding-tools    # checkout under test (repo_sha, skills_roo
 skills_root: skills                  # relative to repo_root
 vendors: [claude, codex]             # allowlist ∩ scenario.vendors; must be ≥ 2
 vendor_commands: {claude: "claude -p {prompt} ...", codex: "codex exec {prompt} ..."}
-env_scrub: [GH_TOKEN, GITHUB_TOKEN, GH_ENTERPRISE_TOKEN, COORDINATION_API_KEY, COORDINATOR_URL]
-env_set: {COORDINATION_API_URL: "http://127.0.0.1:9"}   # force skills into standalone tier (D5)
+env_scrub: []        # extra names only; the built-in HERMETIC_SCRUB denylist always applies (D5)
+env_set: {}          # extra overrides; may not name a denylisted variable (D5)
 workspaces_root: ~/.local/state/agent-scenarios/workspaces
 retain_failed_runs: 7
-caps:
+caps:                                # every key optional; these are the defaults
   max_pairs: 30
   max_pairs_per_vendor: 15
   max_wall_clock_minutes: 240
@@ -228,9 +253,10 @@ deliberately ignores `enabled: false` because the runbook's pre-enable check
 
 Exit codes, highest precedence first: 2 config/cap error; 1 one or more scenario
 `fail` (so systemd marks the unit failed and `OnFailure=` hooks can notify); 3 no
-`fail` but one or more `error` results (infrastructure broken — a CLI missing, keys
-expired, timeouts — which must not look like a green night); 0 otherwise, including
-`disabled`, `locked` and a `budget_exhausted` run whose executed pairs all passed.
+`fail` but the night is not green — one or more `error` results (infrastructure
+broken: a CLI missing, keys expired, timeouts) **or** a `budget_exhausted` run (part
+of the matrix was never tested); 0 only for a `completed` run whose pairs all passed,
+and for `disabled` / `locked`. An incomplete matrix therefore never looks green.
 
 **Workspaces**: each pair runs in `<workspaces_root>/<run_id>/<scenario_id>--<vendor>/`
 (default `workspaces_root` = `<state>/workspaces`). Workspaces (and their sibling
@@ -269,20 +295,31 @@ skill. `CLIVendorExecutor` gains:
   `.git/info/exclude` so they never appear in agent commits or gate checks.
   `skills_sha` (git HEAD of the repo containing `skills_root`, `+dirty` if modified)
   is recorded on every result.
-- **Hermetic environment** — `env_scrub: list[str]` removes variables from the vendor
-  subprocess environment and `env_set: dict[str, str]` overrides others. Defaults:
-  scrub `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `COORDINATION_API_KEY`,
-  `COORDINATOR_URL`; set `COORDINATION_API_URL=http://127.0.0.1:9` (the discard
-  port). The override is needed because `coordination_bridge.py` falls back to
-  `http://localhost:3000` when the variable is absent — on the GX10 that *is* the live
-  coordinator, so scrubbing alone would let fixture agents take locks, write handoffs
-  and store memories in production. With the sentinel, coordinator detection fails
-  fast and every skill runs in its standalone tier. The variable named by
-  `gaps.api_key_env` is always scrubbed, whatever `env_scrub` says, so the runner's
-  own coordinator credential never reaches an agent. Vendor credentials
-  (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …) are untouched. MCP-based coordinator
-  access configured under the user's HOME is handled operationally (dedicated HOME,
-  task 7.1).
+- **Hermetic environment (fail-closed, not configurable away)** — the executor owns
+  a built-in `HERMETIC_SCRUB` denylist that config can extend (`env_scrub`) but never
+  shrink: GitHub tokens (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
+  `GITHUB_ENTERPRISE_TOKEN`) and every coordinator variable that
+  `skills/coordination-bridge/scripts/coordination_bridge.py` reads — the URL aliases
+  `COORDINATOR_URL`, `COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_API_URL`,
+  `AGENT_COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_REST_PORT`, the API keys
+  `COORDINATION_API_KEY`, `COORDINATOR_API_KEY`, and the Cloudflare Access service
+  token `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` — plus the variables named
+  by `gaps.api_key_env` and `gaps.coordinator_url_env`. After scrubbing and applying
+  `env_set`, the executor **always** sets `COORDINATION_API_URL=http://127.0.0.1:9`
+  (the discard port, which `_validate_url` accepts as loopback). The sentinel is
+  needed because `coordination_bridge.py` falls back to `http://localhost:3000` when
+  no URL variable is set — on the GX10 that *is* the live coordinator. `env_set` may
+  not name a denylisted variable or `COORDINATION_API_URL` (schema `propertyNames`,
+  enforced again by the pydantic model → guard 0, exit 2), so no schema-valid config
+  can re-open the live-coordinator path. A drift test (skipped when the skills tree
+  is absent) asserts `HERMETIC_SCRUB` ⊇ the bridge's `_HTTP_URL_ENV_KEYS`,
+  `_API_KEY_ENV_KEYS` and CF variable names, so a new bridge alias cannot silently
+  bypass the scrub. Vendor credentials (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …) are
+  untouched, and `HOME` is not replaced: vendor CLIs keep their auth there. MCP-based
+  coordinator access and git transport credentials (SSH keys, credential helpers,
+  `insteadOf` rewrites) configured under that HOME are therefore handled
+  operationally — a dedicated nightly user/HOME with no coordinator MCP config and no
+  GitHub push credentials (task 7.1) — and are named as a residual risk below.
 - **`gh` shim** — the executor writes a stub `gh` executable into
   `<workdir>.bin/` (sibling, outside the workspace) and prepends it to the vendor's
   `PATH`, for every live run. It serves a deliberately small surface from a state file
@@ -301,6 +338,16 @@ skill. `CLIVendorExecutor` gains:
   gaps surface as infrastructure errors (exit 3, no capability gap) rather than being
   blamed on the skill; the shim's surface is widened by later changes as such errors
   appear.
+- **Skill invocation** — copying the tree makes the skill *available*, not *used*.
+  Every seed scenario's `task_prompt` therefore opens with an explicit invocation of
+  its skill (`/<skill_under_test>` followed by the request), which both Claude Code
+  and Codex resolve against the project-local skill directories; the guard test
+  rejects a seed whose prompt does not contain `/<skill_under_test>`. Whether the
+  agent then *follows* the skill is verified only indirectly, by gates that check the
+  skill's distinctive artifacts (e.g. `## <Phase>` + `**Status**:` report sections,
+  OpenSpec change layout); there is no vendor-neutral trace of skill loading. This is
+  recorded as a residual risk and the live broken-skill drill (task 7.5) is the
+  end-to-end check.
 - `timeout_seconds` is fed from `caps.per_pair_timeout_seconds`, and a
   `TimeoutExpired` now yields an error message `vendor CLI timed out after <N>s`
   distinct from `vendor CLI unavailable` (today both return exit 127 with the same
@@ -353,7 +400,8 @@ fixture contents are authored during implementation and pinned by these tests.
 
 Guard test `test_seed_suite.py`: ≥ 10 scenarios; each of the four families has ≥ 2
 scenarios; every scenario declares ≥ 2 vendors; every scenario has a golden/broken
-outcome module; scenario ids are unique; no scenario uses a `pr` gate (GitHub side
+outcome module; scenario ids are unique; every `task_prompt` contains
+`/<skill_under_test>` (D5 skill invocation); no scenario uses a `pr` gate (GitHub side
 effect) unless it also sets `local_remote` — enforced so live runs never need GitHub.
 
 ### D7 — Deploy templates, never deployments
@@ -432,6 +480,14 @@ handled by the autopilot orchestrator's recorded `proposal_approval` gate.
 - **Live scenario flakiness** — LLM agents are nondeterministic; one failing night is
   weak evidence. Mitigation: stable gap keys so `/improve-harness` ranks by
   frequency; `trend` shows rates, not single results.
+- **Skill invocation vs. skill following** — the prompt invokes the skill, but no
+  vendor-neutral signal proves the agent followed it; gates check the skill's
+  artifacts instead (D5). A vendor that ignores the skill yet produces equivalent
+  artifacts passes. Mitigation: skill-distinctive gates and the live broken-skill
+  drill (task 7.5).
+- **HOME-scoped credentials** — vendor CLIs need the nightly user's HOME, so MCP
+  coordinator config and git push credentials there are outside the executor's
+  control. Mitigation: dedicated nightly user/HOME (task 7.1, runbook check).
 - **Skill materialization fidelity** — vendor CLIs may also load user-global skills
   (`~/.claude/skills`), shadowing or supplementing the project copy. Runbook
   instructs running the nightly under a dedicated user/HOME with no global skills;

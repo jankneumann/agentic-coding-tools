@@ -29,7 +29,12 @@
         "skill_family",
         "vendor",
         "deterministic_status",
-        "failed_gates"
+        "failed_gates",
+        "trajectory_status",
+        "duration_seconds",
+        "repo_sha",
+        "skills_sha",
+        "error"
       ],
       "properties": {
         "schema_version": {
@@ -113,7 +118,62 @@
             "null"
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "deterministic_status": {
+                "const": "fail"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "failed_gates": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "deterministic_status": {
+                "enum": [
+                  "pass",
+                  "skipped_budget"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "failed_gates": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "deterministic_status": {
+                "const": "error"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "error": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "Nullable fields are still required (explicit null), so a schema-valid record always carries the full D2 field set; status-dependent constraints reject contradictory states."
     },
     "run": {
       "type": "object",
@@ -125,7 +185,13 @@
         "started_at",
         "status",
         "planned_pairs",
-        "executed_pairs"
+        "executed_pairs",
+        "finished_at",
+        "vendors",
+        "config_digest",
+        "repo_sha",
+        "skills_sha",
+        "reason"
       ],
       "properties": {
         "schema_version": {
@@ -142,14 +208,7 @@
           "$ref": "#/$defs/iso_ts"
         },
         "finished_at": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/iso_ts"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "$ref": "#/$defs/iso_ts"
         },
         "status": {
           "enum": [
@@ -199,7 +258,8 @@
             "null"
           ]
         }
-      }
+      },
+      "description": "The run record is always written last, so finished_at is always set; vendors, config_digest, repo_sha, skills_sha and reason are required (nullable where the guard that wrote the record had no value)."
     }
   }
 }

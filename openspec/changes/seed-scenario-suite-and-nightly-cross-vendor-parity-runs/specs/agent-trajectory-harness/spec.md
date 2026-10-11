@@ -2,13 +2,18 @@
 
 ### Requirement: Seed scenario suite coverage floor
 
-The agent-scenarios package SHALL ship a seed suite of at least 10 scenarios covering the plan, implement, validate and merge skill families, with at least 2 scenarios per family and at least 2 declared vendors per scenario, and a guard test SHALL fail the build when the suite drops below this floor.
+The agent-scenarios package SHALL ship a seed suite of at least 10 scenarios covering the plan, implement, validate and merge skill families, with at least 2 scenarios per family and at least 2 declared vendors per scenario, every scenario's task prompt SHALL explicitly invoke its skill under test, and a guard test SHALL fail the build when the suite drops below this floor.
 
 #### Scenario: the shipped suite meets the coverage floor
 - **WHEN** the guard test loads every `*.scenario.yaml` under `packages/agent-scenarios/scenarios/`
 - **THEN** it SHALL find at least 10 scenarios with unique ids
 - **AND** each of the families plan, implement, validate and merge SHALL be represented by at least 2 scenarios according to the package's skill-family map
 - **AND** every scenario SHALL declare at least 2 vendors
+- **AND** every scenario's `task_prompt` SHALL contain `/<skill_under_test>`
+
+#### Scenario: a seed prompt that does not invoke its skill fails the guard
+- **WHEN** the guard test finds a seed scenario whose `task_prompt` does not contain `/<skill_under_test>`
+- **THEN** the guard test SHALL fail and name the scenario id
 
 #### Scenario: removing scenarios below the floor fails the guard
 - **WHEN** the guard test runs against a suite directory containing only 9 scenarios, or with no merge-family scenario
@@ -33,7 +38,7 @@ Every seed scenario SHALL have a scripted golden outcome and a scripted broken o
 
 ### Requirement: Live runs never reach real GitHub
 
-Seed scenarios SHALL NOT depend on GitHub side effects. Push and merge behaviour MUST be exercised against a fixture-local bare `origin` repository, every live run SHALL resolve `gh` to a local shim instead of the real GitHub CLI, and the live executor SHALL remove configured credential variables from the vendor subprocess environment and point skill coordinator detection at an unreachable address.
+Seed scenarios SHALL NOT depend on GitHub side effects. Push and merge behaviour MUST be exercised against a fixture-local bare `origin` repository, every live run SHALL resolve `gh` to a local shim instead of the real GitHub CLI, and the live executor SHALL always remove a built-in denylist of GitHub and coordinator credential and address variables from the vendor subprocess environment and point skill coordinator detection at an unreachable address; configuration MAY extend the denylist but MUST NOT remove from it or override the unreachable address.
 
 #### Scenario: local remote fixture
 - **WHEN** a scenario fixture sets `local_remote: true`
@@ -44,13 +49,22 @@ Seed scenarios SHALL NOT depend on GitHub side effects. Push and merge behaviour
 - **THEN** the guard test SHALL fail
 
 #### Scenario: credential variables are scrubbed
-- **WHEN** the live executor runs a vendor command with `env_scrub` containing `GH_TOKEN` and `GITHUB_TOKEN`
-- **THEN** neither variable SHALL be present in the vendor subprocess environment
+- **WHEN** the live executor runs a vendor command with an empty `env_scrub` while `GH_TOKEN`, `GITHUB_TOKEN`, `COORDINATOR_API_KEY`, `COORDINATOR_HTTP_URL`, `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` are set in the runner's environment
+- **THEN** none of those variables SHALL be present in the vendor subprocess environment
+
+#### Scenario: config cannot re-open the live coordinator path
+- **WHEN** a nightly config sets `env_set` with a key `COORDINATION_API_URL`, `COORDINATOR_URL` or any other built-in denylisted variable
+- **THEN** the config SHALL be rejected as invalid (exit 2, no record written)
+- **AND** for any valid config, `COORDINATION_API_URL` in the vendor subprocess environment SHALL equal `http://127.0.0.1:9`
+
+#### Scenario: the denylist covers every coordinator variable the skills read
+- **WHEN** the drift test compares the built-in denylist with the URL, API-key and Cloudflare Access variable names read by `skills/coordination-bridge/scripts/coordination_bridge.py`
+- **THEN** every such name SHALL be in the denylist
 
 #### Scenario: the runner's coordinator credential never reaches an agent
 - **WHEN** the live executor runs a vendor command while the variable named by `gaps.api_key_env` is set in the runner's environment, even if `env_scrub` omits it
 - **THEN** that variable SHALL NOT be present in the vendor subprocess environment
-- **AND** `COORDINATION_API_URL` in the vendor subprocess environment SHALL equal the configured `env_set` value (default `http://127.0.0.1:9`)
+- **AND** `COORDINATION_API_URL` in the vendor subprocess environment SHALL equal `http://127.0.0.1:9`
 
 #### Scenario: gh resolves to the shim
 - **WHEN** a live run executes and the vendor command invokes `gh pr merge <n> --squash` for a PR seeded in the fixture's `prs` list
@@ -72,6 +86,7 @@ When a skills root is configured, the live executor SHALL verify that the scenar
 - **AND** sibling skills such as `.claude/skills/worktree/` SHALL also exist, so `<skill-base-dir>/../<sibling>/` references resolve
 - **AND** no `tests/` or `.venv/` directory from `skills_root` SHALL be copied
 - **AND** those paths SHALL be excluded from git in the workspace so they never appear in agent commits
+- **AND** the resulting `result` record SHALL carry `skills_sha` equal to the git HEAD of the repository containing `skills_root`, suffixed `+dirty` when that checkout has uncommitted changes
 
 #### Scenario: missing skill is an executor error
 - **WHEN** `skills_root` does not contain the scenario's skill under test
@@ -89,11 +104,15 @@ Each nightly run SHALL append one schema-versioned result record per scenario an
 #### Scenario: results are appended per scenario and vendor
 - **WHEN** a nightly run executes 11 scenarios across 2 vendors
 - **THEN** the store SHALL gain 22 `result` records and 1 `run` record sharing one `run_id`
-- **AND** each `result` record SHALL include `scenario_id`, `skill_under_test`, `skill_family`, `vendor`, `deterministic_status`, `failed_gates`, `recorded_at` and `schema_version`
+- **AND** each `result` record SHALL include `scenario_id`, `skill_under_test`, `skill_family`, `vendor`, `deterministic_status`, `failed_gates`, `trajectory_status`, `duration_seconds`, `repo_sha`, `skills_sha`, `error`, `recorded_at` and `schema_version`, with nullable fields present as explicit null
 
 #### Scenario: query by vendor and skill over a time window
 - **WHEN** an operator runs `agent-scenarios results query --vendor codex --skill validate-feature --since <date>`
 - **THEN** only `result` records matching that vendor, skill and window SHALL be returned
+
+#### Scenario: query by skill family and scenario
+- **WHEN** an operator runs `agent-scenarios results query --family validate` or `agent-scenarios results query --scenario validate-feature-clean-pass --until <date>`
+- **THEN** only `result` records whose `skill_family` (respectively `scenario_id` and `recorded_at` window) match SHALL be returned
 
 #### Scenario: trend aggregates pass rate per bucket
 - **WHEN** an operator runs `agent-scenarios results trend --group-by vendor,skill --bucket day`
@@ -107,6 +126,10 @@ Each nightly run SHALL append one schema-versioned result record per scenario an
 - **WHEN** a nightly run is killed after 5 of its planned pairs have been scored
 - **THEN** the store SHALL contain those 5 `result` records and no `run` record for that `run_id`
 - **AND** `results query` SHALL return them marked as belonging to an interrupted run
+
+#### Scenario: a run in progress is not reported as interrupted
+- **WHEN** `results query` runs while a nightly run holds the run lock and has appended result records but no `run` record yet
+- **THEN** those records SHALL be marked as belonging to an in-progress run, not an interrupted one
 
 #### Scenario: latest result per scenario and vendor
 - **WHEN** an operator runs `agent-scenarios results latest --skill implement-feature`
@@ -133,6 +156,10 @@ Every deterministic scenario failure SHALL be emitted as a capability-gap episod
 - **WHEN** `agent-scenarios gaps flush` runs and the coordinator is reachable
 - **THEN** spooled entries SHALL be delivered and removed from the spool
 - **AND** entries that still fail delivery SHALL remain in the spool
+
+#### Scenario: an application-level rejection is not a delivery
+- **WHEN** the coordinator memory endpoint answers HTTP 200 with `success: false`, a non-JSON body, or a non-2xx status
+- **THEN** the entry SHALL be treated as undelivered: spooled on emission and kept in the spool on flush
 
 #### Scenario: no coordinator URL configured spools instead of guessing
 - **WHEN** the variable named by `gaps.coordinator_url_env` is unset
@@ -170,6 +197,7 @@ The package SHALL provide a nightly command that runs the suite across an allowl
 - **WHEN** elapsed run time reaches `caps.max_wall_clock_minutes` with pairs remaining
 - **THEN** remaining pairs SHALL NOT be launched and SHALL be recorded with status `skipped_budget`
 - **AND** the `run` record status SHALL be `budget_exhausted`
+- **AND** when no executed pair has status `fail`, the command SHALL exit 3, never 0
 
 #### Scenario: fewer than two effective vendors is a config error
 - **WHEN** the vendor allowlist intersected with the suite's declared vendors yields fewer than 2 vendors
@@ -194,7 +222,7 @@ The package SHALL provide a nightly command that runs the suite across an allowl
 - **THEN** the command SHALL exit 1 after writing results, findings and gaps, whether or not the wall-clock budget was exhausted
 
 #### Scenario: an infrastructure-only failure is not a green night
-- **WHEN** a nightly run has no `fail` result but at least one `error` result
+- **WHEN** a nightly run has no `fail` result but at least one `error` result or the run status `budget_exhausted`
 - **THEN** the command SHALL exit 3
 - **AND** no capability-gap entry SHALL be emitted for the `error` results
 
