@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "openrouter-review-lane",
-  "current_phase": "PLAN",
+  "current_phase": "PLAN_ITERATE",
   "iteration": 0,
-  "total_iterations": 2,
+  "total_iterations": 3,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -24,7 +24,7 @@
   ],
   "last_handoff_id": "local:gatekeeper-openrouter-review-lane-20261010T1050Z",
   "started_at": "2026-10-10T10:48:36.099038+00:00",
-  "phase_started_at": "2026-10-10T10:51:37.770500+00:00",
+  "phase_started_at": "2026-10-11T13:52:40.360756+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
@@ -36,64 +36,64 @@
   "gate_verdict": "proceed_with_review",
   "gate_decisions": [
     {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
       "gate": "proposal_approval",
+      "notified": null,
       "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
+      "phase": "PLAN",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
       "reason": "gate 'proposal_approval' parked: trust posture disposition is block (unscoped fallback: auto requires a launch marker carrying a roadmap_approval_ref)",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "posture",
-        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-      },
+      "recorded_at": "2026-10-10T10:51:43.189455+00:00",
+      "resolution": "posture_block",
       "scope": "unscoped",
-      "disposition": "block",
-      "phase": "PLAN",
-      "recorded_at": "2026-10-10T10:51:43.189455+00:00"
+      "timeout_seconds": null
     },
     {
-      "gate": "proposal_approval",
-      "outcome": "proceed",
-      "resolution": "auto",
+      "approval_id": null,
       "authorizing_disposition": "auto",
-      "reason": "gate 'proposal_approval' auto-approved by trust posture",
-      "approval_id": null,
       "default_action": null,
-      "posture_present": true,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "posture",
-        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-      },
-      "scope": "roadmap_approval",
       "disposition": "auto",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "proceed",
       "phase": "PLAN",
-      "recorded_at": "2026-10-10T13:35:48.613149+00:00"
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "recorded_at": "2026-10-10T13:35:48.613149+00:00",
+      "resolution": "auto",
+      "scope": "roadmap_approval",
+      "timeout_seconds": null
     },
     {
-      "gate": "escalate_resume",
-      "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' approved by the operator",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
-      "provenance": {
-        "source": "human",
-        "approval_ref": "gate-decision:a0408bee-2afc-4b03-8a84-b6daaf11326d"
-      },
       "disposition": "block",
+      "gate": "escalate_resume",
+      "note": null,
+      "notified": null,
+      "outcome": "proceed",
       "phase": "PLAN",
+      "posture_present": false,
+      "provenance": {
+        "approval_ref": "gate-decision:a0408bee-2afc-4b03-8a84-b6daaf11326d",
+        "source": "human"
+      },
+      "reason": "gate 'escalate_resume' approved by the operator",
       "recorded_at": "2026-10-11T13:50:04.379017+00:00",
-      "note": null
+      "resolution": "console_approved",
+      "timeout_seconds": null
     }
   ],
   "pending_gate": null,
@@ -107,8 +107,13 @@
     },
     {
       "code": "audit_sink_failed",
-      "phase": "PLAN",
-      "detail": "audit sink reported failure for gate proposal_approval decision posture_block"
+      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
+      "phase": "PLAN"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto (gen 3)",
+      "phase": "PLAN"
     }
   ]
 }
