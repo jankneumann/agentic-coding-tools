@@ -15,7 +15,8 @@ written back to episodic memory.
 Environment:
     COORDINATOR_URL           — base URL of the coordinator (default: http://localhost:8000)
     COORDINATION_API_KEY      — sent as ``Authorization: Bearer`` when set
-    IMPROVE_HARNESS_AGENT_ID  — ``agent_id`` for the memory query (default: improve-harness)
+    IMPROVE_HARNESS_AGENT_ID  — comma-separated ``agent_id``(s) to query
+                                (default: improve-harness,agent-scenarios-nightly)
 """
 
 from __future__ import annotations
@@ -52,10 +53,28 @@ COORDINATOR_URL = os.environ.get("COORDINATOR_URL", "http://localhost:8000")
 
 DEFAULT_AGENT_ID = "improve-harness"
 
+#: Writers of capability-gap memories that /improve-harness reads by default.
+#: The coordinator's ``get_relevant_memories`` filters ``agent_id`` exactly, so
+#: a gap written under another agent is invisible unless that agent is queried
+#: too. ``agent-scenarios-nightly`` is the scenario-parity emitter's default
+#: (``agent_scenarios.gap_emitter.DEFAULT_AGENT_ID``).
+DEFAULT_AGENT_IDS: tuple[str, ...] = (DEFAULT_AGENT_ID, "agent-scenarios-nightly")
+
 
 def resolve_agent_id(agent_id: str | None = None) -> str:
     """``agent_id`` argument, else ``IMPROVE_HARNESS_AGENT_ID``, else the default."""
     return agent_id or os.environ.get("IMPROVE_HARNESS_AGENT_ID") or DEFAULT_AGENT_ID
+
+
+def resolve_agent_ids(agent_id: str | None = None) -> list[str]:
+    """Every ``agent_id`` the memory query is issued for, in order, deduplicated.
+
+    ``agent_id`` (argument or ``--agent-id``) or ``IMPROVE_HARNESS_AGENT_ID`` --
+    each a comma-separated list -- replaces :data:`DEFAULT_AGENT_IDS` outright.
+    """
+    raw = agent_id or os.environ.get("IMPROVE_HARNESS_AGENT_ID") or ""
+    ids = [part.strip() for part in raw.split(",") if part.strip()] or list(DEFAULT_AGENT_IDS)
+    return list(dict.fromkeys(ids))
 
 
 def build_memory_query(
@@ -93,17 +112,8 @@ def _within_window(entry: dict[str, Any], cutoff: datetime) -> bool:
     return created >= cutoff
 
 
-def query_memory(
-    time_window_days: int = 30,
-    limit: int = 500,
-    agent_id: str | None = None,
-) -> list[dict[str, Any]]:
-    """Query the coordinator episodic memory for capability-gap entries.
-
-    Returns a list of memory entry dicts.  Falls back to an empty list with
-    a warning if the coordinator is unreachable.
-    """
-    payload = build_memory_query(time_window_days=time_window_days, limit=limit, agent_id=agent_id)
+def _post_memory_query(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """POST one ``MemoryQueryRequest``; ``[]`` with a warning on any failure."""
     url = f"{COORDINATOR_URL}/memory/query"
     headers = {"Content-Type": "application/json"}
     api_key = os.environ.get("COORDINATION_API_KEY", "").strip()
@@ -120,8 +130,8 @@ def query_memory(
             data = json.loads(resp.read().decode())
     except (URLError, OSError, json.JSONDecodeError) as exc:
         print(
-            f"WARNING: Coordinator unreachable at {url} — {exc}. "
-            "Returning empty result set.",
+            f"WARNING: Coordinator unreachable at {url} (agent_id="
+            f"{payload.get('agent_id')!r}) — {exc}. Returning empty result set.",
             file=sys.stderr,
         )
         return []
@@ -134,8 +144,34 @@ def query_memory(
             rows = data.get("entries", [])
     else:
         rows = []
+    return [r for r in rows if isinstance(r, dict)]
+
+
+def query_memory(
+    time_window_days: int = 30,
+    limit: int = 500,
+    agent_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Query the coordinator episodic memory for capability-gap entries.
+
+    Issues one request per :func:`resolve_agent_ids` entry (the coordinator
+    filters ``agent_id`` exactly; ``limit`` applies per request) and merges the
+    rows, deduplicated by memory ``id``.  A failing request -- unreachable
+    coordinator, or a key bound to a different agent (HTTP 403) -- is skipped
+    with a warning, so the result degrades to whatever the others returned.
+    """
     cutoff = datetime.now(UTC) - timedelta(days=time_window_days)
-    return [r for r in rows if isinstance(r, dict) and _within_window(r, cutoff)]
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for one_id in resolve_agent_ids(agent_id):
+        payload = build_memory_query(time_window_days=time_window_days, limit=limit, agent_id=one_id)
+        for row in _post_memory_query(payload):
+            key = str(row["id"]) if row.get("id") is not None else json.dumps(row, sort_keys=True)
+            if key in seen or not _within_window(row, cutoff):
+                continue
+            seen.add(key)
+            merged.append(row)
+    return merged
 
 
 # ---------------------------------------------------------------------------
@@ -526,8 +562,8 @@ def main() -> None:
     parser.add_argument(
         "--agent-id", type=str, default=None,
         help=(
-            "agent_id sent with the memory query (default: "
-            "$IMPROVE_HARNESS_AGENT_ID or 'improve-harness')"
+            "comma-separated agent_id(s) the memory query is issued for (default: "
+            "$IMPROVE_HARNESS_AGENT_ID or 'improve-harness,agent-scenarios-nightly')"
         ),
     )
     parser.add_argument(

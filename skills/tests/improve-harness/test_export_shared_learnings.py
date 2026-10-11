@@ -259,7 +259,10 @@ def test_export_calls_the_real_query_memory_signature(
     monkeypatch.setattr(af, "urlopen", fake_urlopen)
     _enable(tmp_path)
     assert exporter.export(tmp_path, time_window_days=7, limit=50) == 0
-    assert len(requests) == 1 and requests[0].endswith("/memory/query")
+    # One request per default capability-gap writer (agent_id is filtered exactly);
+    # the same row returned for both is merged by id, so one learning is exported.
+    assert len(requests) == len(af.DEFAULT_AGENT_IDS)
+    assert all(url.endswith("/memory/query") for url in requests)
     assert len(_read(tmp_path)) == 1
 
 

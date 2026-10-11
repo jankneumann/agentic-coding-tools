@@ -112,7 +112,7 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
   **Contracts**: contracts/examples/capability-gap-entry.example.json
   **Dependencies**: None
 - [x] 4.4a Repair (signatures unchanged — `skills/skill-audit/scripts/evidence_join.py` and `export_shared_learnings.py` call them) `analyze_failures.query_memory` / `build_memory_query` in `skills/improve-harness/scripts/analyze_failures.py` [S]
-  Send `agent_id` (default `improve-harness`, `--agent-id` / `IMPROVE_HARNESS_AGENT_ID` override) and `Authorization: Bearer` from `COORDINATION_API_KEY` when set; drop the unsupported `time_window_days` request field and filter by `created_at` client-side; read the `memories` envelope (keep `entries` / bare list for older coordinators). Ranking semantics unchanged (D3: frequency unit is (run, vendor)). Update the skill's existing tests that pin the old payload.
+  Send `agent_id` (one request per id, default `improve-harness` + `agent-scenarios-nightly` because the coordinator filters `agent_id` exactly, rows merged by id; `--agent-id` / `IMPROVE_HARNESS_AGENT_ID` comma-separated override — IMPL_REVIEW round 1) and `Authorization: Bearer` from `COORDINATION_API_KEY` when set; drop the unsupported `time_window_days` request field and filter by `created_at` client-side; read the `memories` envelope (keep `entries` / bare list for older coordinators). Ranking semantics unchanged (D3: frequency unit is (run, vendor)). Update the skill's existing tests that pin the old payload.
   **Design decisions**: D3
   **Dependencies**: 4.4
 - [x] 4.5 Add `scenario-parity` to `SOURCE_VOCABULARY` in `skills/session-log/tests/test_memory_tag_conventions.py` [XS]

@@ -2,8 +2,9 @@
 
 :func:`install_gh_shim` writes an executable ``gh`` into ``<workdir>.bin/`` (outside the
 workspace) plus a JSON state file seeded from the fixture's ``prs`` list. The shim serves a
-deliberately small surface against the fixture's local bare ``origin``; any other call exits
-1 and is appended to ``gh-unsupported.log`` so the executor can force an ``error`` verdict.
+deliberately small surface against the fixture's local bare ``origin``; any other call --
+including an implemented subcommand with a flag the shim does not honour -- exits 1 and is
+appended to ``gh-unsupported.log`` so the executor can force an ``error`` verdict.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ UNSUPPORTED_LOG = "gh-unsupported.log"
 
 # Stdlib-only script body; runs under the harness interpreter (shebang is filled at install).
 SHIM_SOURCE = r'''
-import json, os, subprocess, sys, tempfile
+import json, os, shutil, subprocess, sys, tempfile
 from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -83,6 +84,33 @@ def positional(argv, value_flags):
     return out
 
 
+JSON_FLAGS = {"--json", "--jq", "-q"}
+REPO_FLAGS = {"--repo", "-R"}  # single-repo shim: the fixture is the only repository
+
+
+def check_flags(argv, rest, value_flags, bool_flags=()):
+    """Route any flag the shim does not implement to unsupported() (design D5).
+
+    Silently ignoring an unknown flag (``--search``, ``--admin``, ``--draft``...)
+    would hand the agent wrong semantics, so the run would be blamed on the skill
+    instead of surfacing as a shim-coverage infrastructure error.
+    """
+    skip = False
+    for a in rest:
+        if skip:
+            skip = False
+            continue
+        if not a.startswith("-") or a == "-":
+            continue
+        name, has_value = a.split("=", 1)[0], "=" in a
+        if name in value_flags:
+            skip = not has_value
+            continue
+        if name in bool_flags and not has_value:
+            continue
+        unsupported(argv)
+
+
 def pr_view(st, pr):
     repo = st["repo"]
     merged = pr["state"] == "MERGED"
@@ -105,13 +133,26 @@ def pr_view(st, pr):
     }
 
 
-def emit(obj, fields):
+def emit(obj, fields, argv=None, rest=None):
     if fields:
         keys = [f for f in fields.split(",") if f]
         obj = [{k: o.get(k) for k in keys} for o in obj] if isinstance(obj, list) else {
             k: obj.get(k) for k in keys
         }
-    print(json.dumps(obj))
+    text = json.dumps(obj)
+    expr = opt(rest or [], "--jq", "-q")
+    if expr is None:
+        print(text)
+        return
+    # gh's --jq prints strings raw; `jq -r` matches. Without jq on PATH the
+    # filter cannot be honoured, which is a coverage gap, not a silent no-op.
+    jq = shutil.which("jq")
+    if jq is None:
+        unsupported(argv or [])
+    proc = subprocess.run([jq, "-r", expr], input=text, capture_output=True, text=True)
+    if proc.returncode != 0:
+        fail("gh shim: --jq failed: " + proc.stderr.strip())
+    sys.stdout.write(proc.stdout)
 
 
 def current_branch():
@@ -147,12 +188,18 @@ def merge_pr(st, pr, argv):
     git("config", "user.email", "gh-shim@agent-scenarios.local", cwd=work)
     git("config", "user.name", "gh-shim", cwd=work)
     git("checkout", "-q", base, cwd=work)
+    subject, body = opt(argv, "--subject", "-t"), opt(argv, "--body", "-b")
+    message = ["-m", subject] if subject else []
+    if body:
+        message += ["-m", body]
     if mode == "merge":
-        git("merge", "--no-ff", "-q", "-m", "Merge pull request #%d from %s" % (pr["number"], head),
+        git("merge", "--no-ff", "-q",
+            *(message or ["-m", "Merge pull request #%d from %s" % (pr["number"], head)]),
             "origin/" + head, cwd=work)
     elif mode == "squash":
         git("merge", "--squash", "origin/" + head, cwd=work)
-        git("commit", "-q", "-m", "%s (#%d)" % (pr["title"] or head, pr["number"]), cwd=work)
+        git("commit", "-q",
+            *(message or ["-m", "%s (#%d)" % (pr["title"] or head, pr["number"])]), cwd=work)
     else:
         git("checkout", "-q", "-b", "shim-rebase", "origin/" + head, cwd=work)
         git("rebase", "-q", base, cwd=work)
@@ -170,10 +217,12 @@ def main(argv):
     st = load()
     cmd = argv[:2]
     rest = argv[2:]
-    if argv[:2] == ["auth", "status"]:
+    if cmd == ["auth", "status"]:
+        check_flags(argv, rest, {"--hostname"})
         print("github.invalid\n  Logged in to github.invalid (gh shim)")
         return
-    if argv[:2] == ["repo", "view"]:
+    if cmd == ["repo", "view"]:
+        check_flags(argv, rest, JSON_FLAGS)
         repo = st["repo"]
         owner, name = repo.split("/", 1)
         data = {
@@ -183,53 +232,84 @@ def main(argv):
         }
         fields = opt(rest, "--json")
         if fields:
-            emit(data, fields)
+            emit(data, fields, argv, rest)
         else:
             print(repo)
         return
     if cmd == ["pr", "list"]:
+        check_flags(argv, rest, JSON_FLAGS | REPO_FLAGS | {
+            "--state", "-s", "--head", "-H", "--base", "-B", "--limit", "-L"})
         state = (opt(rest, "--state", "-s") or "open").upper()
         head = opt(rest, "--head", "-H")
         base = opt(rest, "--base", "-B")
+        limit = opt(rest, "--limit", "-L")
+        if limit is not None and not limit.isdigit():
+            fail("invalid value for --limit: %r" % limit)
         prs = [p for p in st["prs"] if state == "ALL" or p["state"] == state]
         prs = [p for p in prs if (not head or p["head"] == head) and (not base or p["base"] == base)]
-        emit([pr_view(st, p) for p in prs], opt(rest, "--json") or "number,title,headRefName")
+        if limit is not None:
+            prs = prs[: int(limit)]
+        emit([pr_view(st, p) for p in prs], opt(rest, "--json") or "number,title,headRefName",
+             argv, rest)
         return
     if cmd == ["pr", "view"]:
-        ref = (positional(rest, {"--json", "--jq", "-q", "--repo", "-R"}) or [None])[0]
+        check_flags(argv, rest, JSON_FLAGS | REPO_FLAGS)
+        ref = (positional(rest, JSON_FLAGS | REPO_FLAGS) or [None])[0]
         pr = find_pr(st, ref)
         if pr is None:
             fail("no pull requests found")
         fields = opt(rest, "--json")
         if fields:
-            emit(pr_view(st, pr), fields)
+            emit(pr_view(st, pr), fields, argv, rest)
+        elif opt(rest, "--jq", "-q") is not None:
+            fail("cannot use `--jq` without specifying `--json`")
         else:
             print("title:\t%s\nstate:\t%s\nnumber:\t%d" % (pr["title"], pr["state"], pr["number"]))
         return
     if cmd == ["pr", "status"]:
+        check_flags(argv, rest, JSON_FLAGS | REPO_FLAGS)
         cur = [p for p in st["prs"] if p["head"] == current_branch() and p["state"] == "OPEN"]
         emit({
             "currentBranch": pr_view(st, cur[0]) if cur else None,
             "createdBy": [pr_view(st, p) for p in st["prs"] if p["state"] == "OPEN"],
             "needsReview": [],
-        }, opt(rest, "--json"))
+        }, opt(rest, "--json"), argv, rest)
         return
     if cmd == ["pr", "create"]:
+        check_flags(argv, rest, REPO_FLAGS | {
+            "--head", "-H", "--base", "-B", "--title", "-t", "--body", "-b",
+            "--body-file", "-F"}, {"--fill", "-f"})
         head = opt(rest, "--head", "-H") or current_branch()
         base = opt(rest, "--base", "-B") or st["base"]
-        title = opt(rest, "--title", "-t") or head
+        title = opt(rest, "--title", "-t")
+        if title is None and ("--fill" in rest or "-f" in rest):
+            title = git("log", "-1", "--format=%s", head, check=False).stdout.strip() or None
+        title = title or head
+        body = opt(rest, "--body", "-b")
+        body_file = opt(rest, "--body-file", "-F")
+        if body is None and body_file is not None:
+            if body_file == "-":
+                body = sys.stdin.read()
+            else:
+                try:
+                    with open(body_file, encoding="utf-8") as fh:
+                        body = fh.read()
+                except OSError as exc:
+                    fail("could not read --body-file: %s" % exc)
         ls = git("ls-remote", "--heads", st["origin"], head, check=False)
         if ls.returncode != 0 or not ls.stdout.strip():
             fail("pull request create failed: head branch %r not pushed to origin" % head)
         number = max([p["number"] for p in st["prs"]] + [0]) + 1
         st["prs"].append({"number": number, "head": head, "base": base, "title": title,
-                          "body": opt(rest, "--body", "-b") or "", "state": "OPEN"})
+                          "body": body or "", "state": "OPEN"})
         save(st)
         print("https://github.invalid/%s/pull/%d" % (st["repo"], number))
         return
     if cmd == ["pr", "merge"]:
-        ref = (positional(rest, {"--json", "--jq", "-q", "--repo", "-R", "--subject", "-t",
-                                 "--body", "-b"}) or [None])[0]
+        merge_values = REPO_FLAGS | {"--subject", "-t", "--body", "-b"}
+        check_flags(argv, rest, merge_values, {
+            "--merge", "-m", "--squash", "-s", "--rebase", "-r", "--delete-branch", "-d"})
+        ref = (positional(rest, merge_values) or [None])[0]
         pr = find_pr(st, ref)
         if pr is None:
             fail("no pull requests found")
@@ -238,13 +318,14 @@ def main(argv):
         merge_pr(st, pr, rest)
         print("Merged pull request #%d" % pr["number"])
         return
-    if argv[:1] == ["api"] and len(argv) >= 2:
+    if argv[:1] == ["api"] and len(argv) >= 2 and not argv[1].startswith("-"):
+        check_flags(argv, rest, {"--jq", "-q"})
         endpoint = argv[1].lstrip("/")
         parts = endpoint.split("/")
         repo = st["repo"]
         if parts[0] == "repos" and len(parts) == 3:
-            print(json.dumps({"full_name": repo, "default_branch": st["base"],
-                              "permissions": {"admin": True, "push": True, "pull": True}}))
+            emit({"full_name": repo, "default_branch": st["base"],
+                  "permissions": {"admin": True, "push": True, "pull": True}}, None, argv, rest)
             return
         if parts[0] == "repos" and len(parts) >= 6 and parts[-1] == "protection":
             sys.stderr.write("gh: Branch not protected (HTTP 404)\n")

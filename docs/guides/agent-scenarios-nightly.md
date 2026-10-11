@@ -94,6 +94,11 @@ only on HTTP 2xx with `success: true`, and an unset URL variable spools without 
   (default; configurable via `gaps.coordinator_url_env`) and `COORDINATION_API_KEY`, whereas
   `/improve-harness` reads `COORDINATOR_URL`. Both must name the same coordinator or the
   emitted gaps are never read.
+- **agent_id must match**: the coordinator filters memory queries on `agent_id` exactly.
+  Gaps are written as `gaps.agent_id` (default `agent-scenarios-nightly`), and
+  `/improve-harness` queries `improve-harness` and `agent-scenarios-nightly` by default. If you
+  change `gaps.agent_id`, set `IMPROVE_HARNESS_AGENT_ID` (comma-separated) to include it; an
+  API key bound to a single agent can only read that agent's entries.
 
 ## Broken-skill drill (operator)
 
