@@ -813,16 +813,17 @@ def _identity_was_refused(result: dict[str, Any]) -> bool:
     )
 
 
-def _lock_request(
+def _identity_request(
     *,
     operation: str,
+    capability_flag: str,
     path: str,
     payload: dict[str, Any],
     identity: dict[str, Any],
     http_url: str | None,
     api_key: str | None,
 ) -> dict[str, Any]:
-    """Send a lock request, retrying once without identity if it is refused.
+    """Send an identity-bearing request, retrying once without identity if refused.
 
     Two deployment shapes have to work, and the client cannot tell them apart:
 
@@ -831,8 +832,8 @@ def _lock_request(
       caller cannot know the bound name, so it must send none.
     * a key in ``COORDINATION_API_KEYS`` with no identity entry is *unbound*,
       and the request's own identity is all the server has. Sending none there
-      collapses every agent to the ``cloud-agent`` default, so two agents could
-      release each other's locks.
+      collapses every agent to the ``cloud-agent`` default: two agents could
+      release each other's locks, and memory would lose its author.
 
     Blanking unconditionally fixes the first and breaks the second. So the
     caller's identity goes first, which is correct for an unbound key, and a
@@ -842,7 +843,7 @@ def _lock_request(
     """
     attempt = _execute_single_endpoint_operation(
         operation=operation,
-        capability_flag="CAN_LOCK",
+        capability_flag=capability_flag,
         method="POST",
         path=path,
         payload={**payload, **identity},
@@ -854,7 +855,7 @@ def _lock_request(
     blanked = dict.fromkeys(identity, "")
     return _execute_single_endpoint_operation(
         operation=operation,
-        capability_flag="CAN_LOCK",
+        capability_flag=capability_flag,
         method="POST",
         path=path,
         payload={**payload, **blanked},
@@ -875,8 +876,9 @@ def try_lock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Acquire a coordinator lock when lock capability is available."""
-    return _lock_request(
+    return _identity_request(
         operation="try_lock",
+        capability_flag="CAN_LOCK",
         path="/locks/acquire",
         payload={
             "file_path": file_path,
@@ -900,8 +902,9 @@ def try_unlock(
     """Release a coordinator lock when lock capability is available."""
     # Same binding rule as acquire: a release naming an identity the key is not
     # bound to is refused, stranding the lock until its TTL expires.
-    return _lock_request(
+    return _identity_request(
         operation="try_unlock",
+        capability_flag="CAN_LOCK",
         path="/locks/release",
         payload={"file_path": file_path},
         identity={"agent_id": agent_id},
@@ -1188,13 +1191,15 @@ def try_remember(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Store coordinator memory when memory capability is available."""
-    return _execute_single_endpoint_operation(
+    # A bound key refuses any other agent_id; before this retry that silently
+    # dropped every approval-gate audit record, whose sink writes as
+    # "approval-gate" (the logical actor still travels in ``details``).
+    return _identity_request(
         operation="try_remember",
         capability_flag="CAN_MEMORY",
-        method="POST",
         path="/memory/store",
+        identity={"agent_id": agent_id},
         payload={
-            "agent_id": agent_id,
             "session_id": session_id,
             "event_type": event_type,
             "summary": summary,
@@ -1218,13 +1223,12 @@ def try_recall(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Query coordinator memory when memory capability is available."""
-    return _execute_single_endpoint_operation(
+    return _identity_request(
         operation="try_recall",
         capability_flag="CAN_MEMORY",
-        method="POST",
         path="/memory/query",
+        identity={"agent_id": agent_id},
         payload={
-            "agent_id": agent_id,
             "tags": tags,
             "event_type": event_type,
             "limit": limit,
