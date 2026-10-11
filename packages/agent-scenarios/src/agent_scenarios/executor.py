@@ -19,11 +19,13 @@ Two implementations ship:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import ntpath
 import os
 import shlex
 import shutil
+import signal
 import subprocess
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path, PurePosixPath
@@ -178,6 +180,42 @@ def _run(
     )
 
 
+def _run_in_process_group(
+    argv: list[str], cwd: Path, env: Mapping[str, str], timeout: float
+) -> subprocess.CompletedProcess[str]:
+    """Run ``argv`` in its own session; on timeout kill the whole process group.
+
+    ``subprocess.run(timeout=...)`` kills only the direct child: tool processes the
+    vendor CLI spawned would keep running (and keep mutating the workspace) after the
+    pair is recorded as timed out, and while they hold the captured pipes the final
+    ``communicate()`` blocks on them. Killing the group makes the timeout a real cap.
+    """
+    with subprocess.Popen(
+        argv,
+        cwd=str(cwd),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=dict(env),
+        start_new_session=True,
+    ) as proc:
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
+            # A descendant that left the group (setsid) may still hold the pipes;
+            # drain briefly, then give up rather than block the parity loop.
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                proc.communicate(timeout=10)
+            raise
+        except BaseException:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
+            raise
+    return subprocess.CompletedProcess(argv, proc.returncode, stdout, stderr)
+
+
 def _fixture_error_result(
     scenario: AgentScenario, vendor: str, workdir: Path, exc: FixtureError
 ) -> RunResult:
@@ -269,15 +307,7 @@ class CLIVendorExecutor:
             for part in shlex.split(template)
         ]
         try:
-            proc = subprocess.run(
-                argv,
-                cwd=str(workdir),
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=self._timeout,
-                env=env,
-            )
+            proc = _run_in_process_group(argv, workdir, env, self._timeout)
         except subprocess.TimeoutExpired:
             return RunResult(
                 scenario_id=scenario.id,

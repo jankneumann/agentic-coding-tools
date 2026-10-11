@@ -30,7 +30,7 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 # ---------------------------------------------------------------------------
@@ -128,6 +128,14 @@ def _post_memory_query(payload: dict[str, Any]) -> list[dict[str, Any]]:
         )
         with urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
+    except HTTPError as exc:
+        hint = " (set COORDINATION_API_KEY)" if exc.code == 401 else ""
+        print(
+            f"WARNING: Coordinator at {url} rejected the memory query for agent_id="
+            f"{payload.get('agent_id')!r}: HTTP {exc.code}{hint}. Returning empty result set.",
+            file=sys.stderr,
+        )
+        return []
     except (URLError, OSError, json.JSONDecodeError) as exc:
         print(
             f"WARNING: Coordinator unreachable at {url} (agent_id="

@@ -292,8 +292,13 @@ def lock_is_held(lock_path: Path) -> bool:
 
 
 def run_states(store: JsonlResultsStore, lock_path: Path | None = None) -> dict[str, RunState]:
-    """Classify every run id: ``complete`` (has a run record), else ``in_progress`` when the
-    nightly lock is held, else ``interrupted``."""
+    """Classify every run id: ``complete`` (has a run record); else ``in_progress`` for the
+    newest unfinished run while the nightly lock is held; else ``interrupted``.
+
+    The lock admits one nightly at a time, so at most one unfinished run can be live: the
+    most recently appended one. Older unfinished runs were killed before writing their run
+    record and stay ``interrupted`` even while a later nightly holds the lock.
+    """
     lock = lock_path or lock_path_for(store.path)
     held = lock_is_held(lock)
     have_run: set[str] = set()
@@ -304,9 +309,11 @@ def run_states(store: JsonlResultsStore, lock_path: Path | None = None) -> dict[
         elif rec.run_id not in seen:
             seen.append(rec.run_id)
     states: dict[str, RunState] = dict.fromkeys(have_run, "complete")
-    for run_id in seen:
-        if run_id not in have_run:
-            states[run_id] = "in_progress" if held else "interrupted"
+    unfinished = [run_id for run_id in seen if run_id not in have_run]
+    for run_id in unfinished:
+        states[run_id] = "interrupted"
+    if held and unfinished:
+        states[unfinished[-1]] = "in_progress"
     return states
 
 

@@ -54,10 +54,24 @@ goal_gates:
       description: Work happened on a feature branch.
     - id: pushed-to-origin
       check: command
-      command: ["git", "ls-remote", "--exit-code", "--heads", "origin", "feature/fix-add"]
+      command:
+        - sh
+        - -c
+        - 'git fetch -q origin feature/fix-add && git show FETCH_HEAD:src/calc.py | grep -q "a + b"'
       expect:
         exit_code: 0
-      description: The feature branch was pushed to the local origin.
+      description: >-
+        The feature branch was pushed to the local origin and carries the fix
+        (an unchanged branch pushed beside a fix committed on main does not pass).
+    - id: origin-main-untouched
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git fetch -q origin main && test "$(git rev-parse FETCH_HEAD)" = "$(git rev-list --max-parents=0 HEAD)"'
+      expect:
+        exit_code: 0
+      description: origin/main still points at the fixture commit (nothing pushed to main).
   prohibit:
     - id: no-secrets-committed
       check: file

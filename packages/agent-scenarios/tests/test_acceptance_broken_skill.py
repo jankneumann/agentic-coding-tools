@@ -117,17 +117,18 @@ def test_broken_skill_fails_emits_gap_and_findings_then_intact_skill_passes(
         )
 
     # 2. /improve-harness failure analysis ranks the gap with scenario-parity as a source.
+    # This is acceptance evidence (D3/D4): a relocated script must fail loudly, never skip.
     analyze = SKILLS_PY / "analyze_failures.py"
-    if analyze.is_file():
-        spec = importlib.util.spec_from_file_location("af_acceptance", analyze)
-        assert spec and spec.loader
-        af: types.ModuleType = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(af)
-        ranked = af.rank_findings(sink.entries)
-        assert len(ranked) == 1
-        assert "scenario-parity" in ranked[0]["sources"]
-        assert ranked[0]["affected_skills"] == ["validate-feature"]
-        assert ranked[0]["frequency"] == 2  # (run, vendor) pairs
+    assert analyze.is_file(), f"/improve-harness analyzer missing at {analyze}"
+    spec = importlib.util.spec_from_file_location("af_acceptance", analyze)
+    assert spec and spec.loader
+    af: types.ModuleType = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(af)
+    ranked = af.rank_findings(sink.entries)
+    assert len(ranked) == 1
+    assert "scenario-parity" in ranked[0]["sources"]
+    assert ranked[0]["affected_skills"] == ["validate-feature"]
+    assert ranked[0]["frequency"] == 2  # (run, vendor) pairs
 
     # 3. Restore the skill: same scenario passes, no new gap.
     skill_md.write_text(intact)

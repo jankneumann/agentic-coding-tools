@@ -183,7 +183,13 @@ def merge_pr(st, pr, argv):
     else:
         mode = "merge"
     tmp = tempfile.mkdtemp(prefix="gh-shim-")
-    work = os.path.join(tmp, "r")
+    try:
+        _merge_in(st, pr, argv, mode, origin, base, head, os.path.join(tmp, "r"))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _merge_in(st, pr, argv, mode, origin, base, head, work):
     git("clone", "-q", origin, work)
     git("config", "user.email", "gh-shim@agent-scenarios.local", cwd=work)
     git("config", "user.name", "gh-shim", cwd=work)
@@ -217,6 +223,10 @@ def main(argv):
     st = load()
     cmd = argv[:2]
     rest = argv[2:]
+    if cmd in (["pr", "create"], ["pr", "merge"]) and not os.path.isdir(st["origin"]):
+        # The fixture has no local origin (local_remote: false), so there is nothing
+        # to push to or merge into: a scenario-coverage gap, not a skill failure.
+        unsupported(argv)
     if cmd == ["auth", "status"]:
         check_flags(argv, rest, {"--hostname"})
         print("github.invalid\n  Logged in to github.invalid (gh shim)")

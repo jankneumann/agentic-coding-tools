@@ -112,3 +112,24 @@ def test_fake_executor_opt_in_materialization(tmp_path: Path) -> None:
     bad = missing.run(_scenario().model_copy(update={"skill_under_test": "zzz"}), "claude",
                       tmp_path / "ws2")
     assert bad.error is not None and "zzz" in bad.error
+
+
+def test_in_tree_symlink_is_copied_but_an_escaping_one_is_refused(tmp_path: Path) -> None:
+    import pytest
+
+    from agent_scenarios.materialize import SkillMaterializationError
+
+    root = _make_skills(tmp_path / "skills")
+    skill = next(p for p in root.iterdir() if (p / "SKILL.md").is_file())
+    (skill / "CLAUDE.md").symlink_to("SKILL.md")  # in-tree, like CLAUDE.md -> AGENTS.md
+    materialize_skills(root, skill.name, tmp_path / "ws1")
+    assert (tmp_path / "ws1" / ".claude" / "skills" / skill.name / "CLAUDE.md").is_file()
+
+    secret = tmp_path / "home-credentials"
+    secret.write_text("token\n")
+    nested = skill / "deep"
+    nested.mkdir(exist_ok=True)
+    (nested / "creds").symlink_to(secret)
+    with pytest.raises(SkillMaterializationError, match="outside skills_root"):
+        materialize_skills(root, skill.name, tmp_path / "ws2")
+    assert not (tmp_path / "ws2" / ".claude").exists()

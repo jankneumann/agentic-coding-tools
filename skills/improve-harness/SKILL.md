@@ -88,7 +88,14 @@ from it.
 
 - Python 3.11+
 - Coordinator running at `COORDINATOR_URL` (default: http://localhost:8000)
-- Falls back gracefully with a warning if the coordinator is unreachable
+- `COORDINATION_API_KEY` set when the coordinator is secured (sent as `Authorization: Bearer`);
+  without it a secured coordinator answers HTTP 401 and the analysis is empty
+- The memory query is issued once per `agent_id`, because the coordinator filters memories on
+  `agent_id` exactly: by default `improve-harness` and `agent-scenarios-nightly` (the
+  scenario-parity emitter). Override with `--agent-id` or `IMPROVE_HARNESS_AGENT_ID`
+  (comma-separated); an API key bound to one agent can only read that agent's entries
+- Falls back gracefully with a warning (naming the HTTP status when the coordinator answered)
+  if a query fails
 
 ## Steps
 

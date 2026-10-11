@@ -524,13 +524,17 @@ def _locked_run(
             _remove_workspace(run_dir / f"{scenario.id}--{vendor}")
 
     ordered = [matrices[s.id] for s in sorted(scenarios, key=lambda s: s.id) if s.id in matrices]
+    findings_error: str | None = None
     try:
         emit_findings(
             matrices=ordered, output_path=cfg.findings_path(run_id), target=run_id,
             source_paths=source_paths,
         )
     except (OSError, ValueError) as exc:
-        logger.warning("findings emission failed: %s", exc)
+        # The review artifact is part of the run's contract; losing it is an
+        # infrastructure failure, so the run is recorded and exits non-green.
+        findings_error = f"findings emission failed: {exc}"
+        logger.warning("%s", findings_error)
     if cfg.gaps.enabled:
         entries = build_gap_entries(
             run_id, ordered, skill_of=skill_of, agent_id=cfg.gaps.agent_id,
@@ -540,9 +544,12 @@ def _locked_run(
 
     status_name: RunStatus = "budget_exhausted" if budget_hit else "completed"
     skipped = statuses.count("skipped_budget")
+    reasons = [f"{skipped} pair(s) skipped: wall-clock budget exhausted"] if budget_hit else []
+    if findings_error:
+        reasons.append(findings_error)
     finish(
         status_name,
-        reason=f"{skipped} pair(s) skipped: wall-clock budget exhausted" if budget_hit else None,
+        reason="; ".join(reasons) or None,
         planned=len(pairs), executed=executed, repo_sha=repo_sha, skills_sha=skills_sha,
     )
 
@@ -550,7 +557,9 @@ def _locked_run(
     print(f"nightly {run_id}: {status_name} {json.dumps(counts)}")
     if counts["fail"]:
         return EXIT_FAIL
-    if counts["error"] or budget_hit:
+    if counts["error"] or budget_hit or findings_error:
+        if findings_error:
+            print(f"nightly {run_id}: {findings_error}")
         return EXIT_NOT_GREEN
     return EXIT_OK
 

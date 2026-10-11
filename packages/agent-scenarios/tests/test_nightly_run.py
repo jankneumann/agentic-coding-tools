@@ -223,3 +223,21 @@ def test_default_executor_factory_wires_hermetic_settings(tmp_path: Path) -> Non
     assert ex._timeout == 77 and ex._env_scrub == ("EXTRA",) and ex._env_set == {"FOO": "bar"}
     assert set(ex._always_scrub) == {"COORDINATION_API_KEY", "COORDINATION_API_URL"}
     assert ex._skills_root == tmp_path / "repo" / "skills"
+
+
+def test_findings_emission_failure_is_not_a_green_night(
+    suite: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Results, findings and gaps are the run's contract: a lost findings file is an
+    infrastructure failure recorded on the run record, never exit 0."""
+    import agent_scenarios.nightly as nightly_mod
+
+    def boom(**_: Any) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(nightly_mod, "emit_findings", boom)
+    clock = Clock()
+    assert go(suite, TickingExecutor({"a-one": PASS, "b-two": PASS}, clock), clock) == 3
+    (run,) = run_records(suite)
+    assert run.status == "completed"
+    assert run.reason is not None and "findings emission failed: disk full" in run.reason

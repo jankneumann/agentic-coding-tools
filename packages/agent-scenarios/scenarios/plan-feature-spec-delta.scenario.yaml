@@ -61,6 +61,15 @@ goal_gates:
     - id: on-change-branch
       check: branch
       branch: openspec/add-invoice-export
+    - id: source-untouched
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git diff --quiet "$(git rev-list --max-parents=0 HEAD)" -- src/ && test -z "$(git ls-files --others --exclude-standard -- src/)"'
+      expect:
+        exit_code: 0
+      description: Planning left product source exactly as the fixture shipped it (no edit, deletion or new file under src/).
   prohibit:
     - id: spec-delta-no-full-requirements-header
       check: file

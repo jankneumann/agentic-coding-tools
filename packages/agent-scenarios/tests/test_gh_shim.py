@@ -204,3 +204,49 @@ def test_jq_filter_is_applied_or_reported_unsupported(shim: Shim) -> None:
     assert res.returncode == 0, res.stderr
     assert res.stdout.strip() == "OPEN"
     assert unsupported_calls(shim.bin) == []
+
+
+def test_merge_leaves_no_temp_clone_behind(tmp_path: Path) -> None:
+    s = Shim(tmp_path)
+    tmpdir = tmp_path / "tmp"
+    tmpdir.mkdir()
+    env = dict(os.environ, TMPDIR=str(tmpdir), PATH=f"{s.bin}{os.pathsep}{os.environ['PATH']}")
+    res = subprocess.run(
+        ["gh", "pr", "merge", "5", "--merge"], cwd=s.wd, env=env, capture_output=True, text=True
+    )
+    assert res.returncode == 0, res.stderr
+    assert list(tmpdir.iterdir()) == []
+
+
+def test_pr_write_without_a_local_origin_is_unsupported(tmp_path: Path) -> None:
+    """A fixture without local_remote has no origin to push to: a coverage gap that
+    must surface as the designed unsupported-call error, not an opaque git failure."""
+    s = Shim(tmp_path)
+    missing = tmp_path / "no-origin.git"
+    state_file = s.bin / "gh-state.json"
+    state = json.loads(state_file.read_text())
+    state["origin"] = str(missing)
+    state_file.write_text(json.dumps(state))
+    assert s.gh("pr", "create", "--head", "feature/x", "--title", "t").returncode == 1
+    assert s.gh("pr", "merge", "5", "--squash").returncode == 1
+    assert unsupported_calls(s.bin) == [
+        "gh pr create --head feature/x --title t",
+        "gh pr merge 5 --squash",
+    ]
+
+
+def test_timeout_kills_the_vendor_process_group(tmp_path: Path) -> None:
+    marker = tmp_path / "grandchild-survived"
+    script = tmp_path / "agent.py"
+    script.write_text(
+        "import subprocess, time\n"
+        f"subprocess.Popen(['sh', '-c', 'sleep 2; touch {marker}'])\n"
+        "time.sleep(30)\n"
+    )
+    ex = CLIVendorExecutor({"claude": f"{sys.executable} {script}"}, timeout_seconds=1)
+    res = ex.run(_scenario(), "claude", tmp_path / "ws")
+    assert res.exit_code == 124 and res.error and "timed out" in res.error
+    import time
+
+    time.sleep(2.5)
+    assert not marker.exists()

@@ -181,3 +181,16 @@ def test_run_in_progress_while_lock_held(tmp_path: Path) -> None:
         fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
         assert run_states(store) == {"live": "in_progress"}
     assert run_states(store) == {"live": "interrupted"}
+
+
+def test_older_unfinished_run_stays_interrupted_while_a_later_run_holds_the_lock(
+    tmp_path: Path,
+) -> None:
+    store = JsonlResultsStore(tmp_path / "r.jsonl")
+    store.append([result(run_id="killed")])  # an earlier nightly, killed before its RunRecord
+    store.append([result(run_id="done"), run_rec("done")])
+    store.append([result(run_id="live")])
+    with open(lock_path_for(store.path), "w") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        assert run_states(store) == {
+            "killed": "interrupted", "done": "complete", "live": "in_progress"}
