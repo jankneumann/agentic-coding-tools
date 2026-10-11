@@ -24,9 +24,20 @@ ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/gx10/job-started-hook.sh
 ENV UV_CACHE_DIR=/home/runner/.cache/uv
 RUN mkdir -p /home/runner/.cache/uv && chown -R runner:runner /home/runner/.cache
 
-# The upstream image may ship a passwordless-sudo grant for `runner`. Remove it: jobs must
-# not be able to escalate (and --cap-drop ALL / no-new-privileges back this up at runtime).
-RUN sed -i '/NOPASSWD/d' /etc/sudoers 2>/dev/null || true
+# The upstream image ships a passwordless-sudo grant for `runner` (in /etc/sudoers today; a
+# drop-in under /etc/sudoers.d is equally possible). Remove every route: NOPASSWD lines in
+# both places, and `runner`'s membership of the sudo/admin groups. Then prove it at build
+# time: `sudo -l -U runner` must list no runnable commands, or the build fails. Jobs must not
+# be able to escalate (--cap-drop ALL / no-new-privileges back this up at runtime).
+RUN set -eu; \
+    sed -i '/NOPASSWD/d' /etc/sudoers; \
+    if [ -d /etc/sudoers.d ]; then \
+      grep -lr 'NOPASSWD' /etc/sudoers.d | xargs -r rm -f; \
+    fi; \
+    for g in sudo admin wheel; do gpasswd -d runner "$g" 2>/dev/null || true; done; \
+    if command -v sudo >/dev/null 2>&1 && sudo -l -U runner | grep -q 'may run'; then \
+      echo 'runner still has a sudo grant' >&2; exit 1; \
+    fi
 
 USER runner
 WORKDIR /home/runner

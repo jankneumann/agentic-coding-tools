@@ -58,15 +58,19 @@ def _routed_jobs(manifest, load_workflow):
                 yield wf_name, job_id, jobs[job_id]
 
 
-def test_every_routed_job_uses_canonical_expression(manifest, load_workflow):
+def drifted_jobs(manifest, load_workflow) -> list[str]:
+    """Routed jobs whose runs-on is not the canonical expression, as ``wf:job``."""
     expected = normalize(CANONICAL_RUNS_ON)
-    seen = 0
-    for wf_name, job_id, job in _routed_jobs(manifest, load_workflow):
-        seen += 1
-        assert normalize(str(job.get("runs-on"))) == expected, (
-            f"{wf_name}:{job_id} drifted from the canonical runs-on expression"
-        )
-    assert seen == 23
+    return [
+        f"{wf_name}:{job_id}"
+        for wf_name, job_id, job in _routed_jobs(manifest, load_workflow)
+        if normalize(str(job.get("runs-on"))) != expected
+    ]
+
+
+def test_every_routed_job_uses_canonical_expression(manifest, load_workflow):
+    assert sum(1 for _ in _routed_jobs(manifest, load_workflow)) == 23
+    assert drifted_jobs(manifest, load_workflow) == []
 
 
 def check_expression_ties(expr: str, routing: dict) -> list[str]:
@@ -105,5 +109,13 @@ def test_mutating_any_routing_field_breaks_the_tie(manifest, field, value):
 
 
 def test_routed_job_drift_is_detected(manifest, load_workflow):
-    drifted = CANONICAL_RUNS_ON.replace("'push'", "'pull_request_target'", 1)
-    assert normalize(drifted) != normalize(CANONICAL_RUNS_ON)
+    wf_name, job_id, _ = next(_routed_jobs(manifest, load_workflow))
+    drifted = load_workflow(wf_name)
+    drifted["jobs"][job_id]["runs-on"] = CANONICAL_RUNS_ON.replace(
+        "'push'", "'pull_request_target'", 1
+    )
+
+    def loader(name):
+        return drifted if name == wf_name else load_workflow(name)
+
+    assert drifted_jobs(manifest, loader) == [f"{wf_name}:{job_id}"]

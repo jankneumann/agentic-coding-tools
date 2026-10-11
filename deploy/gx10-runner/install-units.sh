@@ -45,11 +45,12 @@ fi
 cat <<MSG
 
 Files installed under: $prefix
-Nothing was enabled or started. As the operator, run (as ghrunner where noted):
+Nothing was enabled or started. As the operator, run (the unit commands target ghrunner's
+user manager, not yours):
 
   sudo loginctl enable-linger ghrunner
-  systemctl --user daemon-reload
-  systemctl --user enable --now gx10-runner@{1..$instances}
+  sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/\$(id -u ghrunner) systemctl --user daemon-reload
+  sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/\$(id -u ghrunner) systemctl --user enable --now gx10-runner@{1..$instances}
 
 Token (mode 0600, read through LoadCredential=):  $conf_dir/token
 MSG

@@ -1077,6 +1077,295 @@
       ],
       "description": "The `Runners Are Ephemeral Per Job` requirement contains SHALL clauses that are not covered by a WHEN/THEN scenario as required by the review rules. In particular, no scenario asserts that `ExecStart` contains `--replace`, and no scenario asserts that `ExecStopPost` invokes `cleanup-runner.sh`; the current unit scenario checks neither despite tasks 3.1 planning both assertions. Add these outcomes to the unit scenario or create dedicated scenarios so the normative restart and cleanup contracts are represented in the spec itself.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 64,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "fingerprint": "62724454b1a151d2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "fetch_runs changes per_page between pages, which breaks GitHub's page*per_page offset arithmetic. With --limit 150 it requests page=1&per_page=100 (runs 1-100) and then page=2&per_page=50, which GitHub serves as runs 51-100: the second half is duplicated and runs 101-150 are never fetched. Any --limit that is not a multiple of 100 and exceeds 100 silently double-counts runs in `median` and `compare` (and `cmd_compare` fetches jobs for the duplicates too). Keep per_page fixed at 100 and truncate to --limit after the loop.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 65,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_ci_wallclock.py",
+      "fingerprint": "dd780a656529ad06",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_cli_median_pages_until_limit only asserts the count of collected runs and the number of requests. The gh stub reproduces GitHub's offset math ((page-1)*per : page*per), so under the current per_page bug it returns ids 1-100 then 51-100 and the test still passes with n == 150. The test does not fail when the behaviour it targets is broken. Make the stub expose ids in the output (or assert on the recorded per_page/page arguments) and assert that the 150 ids are distinct and contiguous.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 66,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "fingerprint": "8048a368e8a3b1e0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "main() catches only GhError. A missing --workflow-file or --manifest path (FileNotFoundError), a malformed YAML definition, a jobs-API entry without the expected keys, or a run payload without head_sha (KeyError) escapes as a raw traceback instead of the documented non-zero error exit. The CLI is operator-facing in O6-O12; a clean error message beats a traceback when the operator is mid-runbook.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 67,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_ci_wallclock.py",
+      "fingerprint": "f68eb377735a487e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The comment misdescribes why the test passes. The stub returns a single job `build` on ubuntu-latest for every run, so run_lane classifies every run as `hosted` (not mixed); the baseline sample gets all 12 runs and the candidate sample is empty, and compare fails for insufficient candidate samples. The assertion holds for a different reason than stated, which will mislead the next person who edits the fixture.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 68,
+      "status": "parked",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_manifest_completeness.py",
+      "fingerprint": "55c57bb4d9361019",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_job_counts (25/3), test_hosted_jobs_use_literal_hosted_label (n == 5) and test_routing_expression's `seen == 23` hard-code job counts that duplicate what the set-equality test already enforces. The design's stated mechanism for concurrent changes is 'manifest completeness test fails until they are classified'; with these counts, a correctly classified new job still fails three tests and forces an edit to the test files. The counts add brittleness without adding detection.",
+      "parked_reason": "advisory_low",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 69,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_routing_expression.py",
+      "fingerprint": "e77afe54ef604638",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_routed_job_drift_is_detected only asserts that two different strings normalise to different strings; it never runs the comparison logic against a workflow with a drifted job. Likewise test_manifest_completeness.test_unclassified_job_is_reported deletes a manifest entry and asserts a set difference, without exercising the assertion in test_job_sets_match_manifest or its message. Neither test fails if the real check regresses. Factor the check into a helper (e.g. `drifted_jobs(manifest, workflows) -> list[str]`) and assert on its output for a mutated input.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 70,
+      "status": "parked",
+      "axis": "security",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_tool_parity.py",
+      "fingerprint": "84ee6d26841401a5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "commands_in treats only line start, `;`, `&&`, `||`, `|`, `$(`, `sudo` and `env` as command position, matching D10. Common shell prefixes `if`, `!`, `time`, `exec`, `xargs`, `nohup`, and loop bodies after `do`/`then` are not stripped, so `if ! sudo -n true; then` or `xargs docker rmi` in a routed job's run: block is not flagged. This is inside the design's documented limit (O6 dry run is the backstop) but worth recording since the spec text calls the scan an enforcement test.",
+      "parked_reason": "advisory_low",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 71,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "79358941d8732787",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The runbook's own notation says every 'as ghrunner' command must be run as `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) <command>`, yet O3, O4 (install-units.sh, podman exec/inspect) and O9 (podman ps) use plain `sudo -u ghrunner podman ...`. Rootless podman resolves the runtime dir without XDG_RUNTIME_DIR only when /run/user/<uid> already exists, so O3 (run before linger has created a session in some orderings) can fall back to /tmp/podman-run-<uid> and build into a different storage than the units use. Separately, `deploy/gx10-runner` and `install-units.sh` are relative paths inside the operator's checkout; on Ubuntu 24.04 home directories are 0750, so ghrunner cannot read them and both commands fail with EACCES. The runbook should copy the kit to a world-readable location (e.g. /opt/gx10-runner-kit or ~ghrunner) before O3.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 72,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "fingerprint": "40a0c60fdf5ae991",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`systemctl enable --now nftables` starts the service only if it is inactive. On a host where nftables.service is already active (common when ufw or a previous ruleset is in use), the newly included file is not loaded, and the units enabled in the very next command start running PR code before the isolation rules exist. The O4 verify step would catch it afterwards, but the instruction should load the rules deterministically before the units are enabled.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 73,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "7145a3e1eef3ffb8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "tasks.md O4 (and the spec scenario 'Operator verifies host services are unreachable on every host address', which says the rules are 'present in /etc/nftables.conf') verify persistence with `grep -c skuid /etc/nftables.conf`. The runbook puts the rules in /etc/nftables.d/gx10-runner.nft and only an `include` line in /etc/nftables.conf, so that grep returns 0 on a correctly configured host. The runbook's own verify greps the include and the included file; the task and spec text should match it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 74,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "891efe6d4bb5eeff",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Task 2.9 is unchecked while the Status block marks Implementation complete and 6.1 (which depends on 2.9) is checked. The diff does include the edits 2.9 calls for (test_gate.py and test_ci_sweep_wiring.py were adjusted), so the box is stale rather than the work missing; but a goal gate reading tasks.md sees an incomplete phase.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 75,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/Containerfile",
+      "fingerprint": "288f7d77ff012481",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The sudo removal only deletes NOPASSWD lines from /etc/sudoers; the `runner` user remains in the `sudo` group, the sudo binary stays installed, and /etc/sudoers.d/ is untouched. Today the upstream image writes its grant into /etc/sudoers itself, so this works, and --cap-drop ALL plus no-new-privileges make setuid sudo inert at runtime. It is fragile against an upstream move to /etc/sudoers.d/, and test_runner_image only checks that no grant is added, not that the inherited one is removed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 76,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "45199f6950dc5190",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "scripts/ci/ci_wallclock.py classifies a job as self-hosted only when its labels contain \"gx10\". A job on any other self-hosted runner will therefore be classified as hosted, allowing verify-run and the rollback check to approve hosted-pinned jobs that did not run on GitHub-hosted infrastructure and potentially contaminating comparison samples. Detect the standard \"self-hosted\" label separately, then require \"gx10\" when the expected lane is the GX10 lane.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 77,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "8a807fc2c59b33e2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "mint-jitconfig.sh deletes matching runners while paginating the runners collection. Deleting entries from page 1 can shift entries formerly on page 2 onto page 1, causing the subsequent page-2 request to skip them. This violates the requirement to sweep every matching stale registration, and the fixed-page curl stub does not expose the defect. Collect matching IDs from all pages before deleting them, or repeatedly scan without page-shift gaps, and add a mutation-aware pagination test.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 78,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "af32c89bda983cab",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The Containerfile does not establish its claimed invariant that the runner user has no sudo grant. It removes NOPASSWD lines only from /etc/sudoers, silently ignores failures, and leaves grants under /etc/sudoers.d intact. test_runner_image.py additionally asserts that \"sudoers.d\" is absent from the Containerfile, preventing the straightforward hardening fix. Remove or disable applicable grants in both locations and verify the built image cannot execute sudo non-interactively.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 79,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "27e8a1f304b08e2d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "install-units.sh prints bare `systemctl --user` commands after it returns to the invoking operator. If those commands are copied from a normal administrator shell, they target that administrator's user manager rather than the dedicated, nologin ghrunner account. Print complete commands using `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) systemctl --user ...` (or the documented `--machine=ghrunner@` form) and update the tests to require the correct user context.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 80,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "783b2c2a808a48c6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "tasks.md task 2.9 explicitly says existing workflow-parsing test contracts must not be edited, but this change modifies both skills/tests/project-context-refresh/test_gate.py and skills/tests/validate-feature/test_ci_sweep_wiring.py. Since the new trigger and guard intentionally require these compatibility updates, revise the task contract to authorize and describe them rather than leaving the completed implementation in direct conflict with its approved plan.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }

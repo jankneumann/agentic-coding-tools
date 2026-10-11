@@ -107,4 +107,14 @@ def test_nft_ruleset_is_ordered_persistent_and_dual_stack(runbook):
     # persistence and re-check after reboot
     assert 'include "/etc/nftables.d/gx10-runner.nft"' in runbook
     assert "systemctl enable --now nftables" in runbook
+    # The table is loaded explicitly: `enable --now` does not reload an active service.
+    assert "sudo nft -f /etc/nftables.d/gx10-runner.nft" in runbook
+
+
+def test_ghrunner_commands_use_the_units_runtime_dir(runbook):
+    """Rootless podman/systemctl as ghrunner must share the units' XDG_RUNTIME_DIR."""
+    for line in runbook.splitlines():
+        if "sudo -u ghrunner podman" in line or "sudo -u ghrunner systemctl" in line:
+            raise AssertionError(f"ghrunner command without XDG_RUNTIME_DIR: {line}")
+    assert "journalctl --user -u" not in runbook  # would read the operator's own journal
     assert "nft list ruleset | grep skuid" in sections(runbook)["O10"]

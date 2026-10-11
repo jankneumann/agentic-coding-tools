@@ -56,7 +56,19 @@ def test_final_user_is_not_root(containerfile):
 def test_no_sudoers_grant_is_added(containerfile):
     assert not re.search(r"(echo|printf|tee|>>|>)\s.*sudoers", containerfile.replace("\\\n", " "))
     assert "usermod -aG sudo" not in containerfile
-    assert "sudoers.d" not in containerfile
+    assert not re.search(r"(COPY|ADD)\s.*sudoers", containerfile)
+
+
+def test_inherited_sudo_grant_is_removed_and_proven_gone(containerfile):
+    """The upstream image's grant must be removed from every place it can live, and the
+    build must fail if `runner` can still sudo (a static check cannot see the base image)."""
+    flat = containerfile.replace("\\\n", " ")
+    assert "sed -i '/NOPASSWD/d' /etc/sudoers" in flat
+    assert re.search(r"grep -lr 'NOPASSWD' /etc/sudoers\.d \| xargs -r rm -f", flat)
+    assert re.search(r"gpasswd -d runner", flat)
+    assert re.search(r"sudo -l -U runner .*exit 1", flat), "build-time proof is missing"
+    # The removal must not be silenced wholesale (the old `|| true` hid a failed sed).
+    assert "/etc/sudoers 2>/dev/null || true" not in flat
 
 
 def test_image_installs_the_hook(containerfile):

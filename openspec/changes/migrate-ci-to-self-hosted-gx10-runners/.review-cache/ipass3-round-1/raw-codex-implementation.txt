@@ -1,0 +1,49 @@
+{
+  "findings": [
+    {
+      "id": "R1-001",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "scripts/ci/ci_wallclock.py classifies a job as self-hosted only when its labels contain \"gx10\". A job on any other self-hosted runner will therefore be classified as hosted, allowing verify-run and the rollback check to approve hosted-pinned jobs that did not run on GitHub-hosted infrastructure and potentially contaminating comparison samples. Detect the standard \"self-hosted\" label separately, then require \"gx10\" when the expected lane is the GX10 lane.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-002",
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "mint-jitconfig.sh deletes matching runners while paginating the runners collection. Deleting entries from page 1 can shift entries formerly on page 2 onto page 1, causing the subsequent page-2 request to skip them. This violates the requirement to sweep every matching stale registration, and the fixed-page curl stub does not expose the defect. Collect matching IDs from all pages before deleting them, or repeatedly scan without page-shift gaps, and add a mutation-aware pagination test.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-003",
+      "type": "security",
+      "criticality": "medium",
+      "description": "The Containerfile does not establish its claimed invariant that the runner user has no sudo grant. It removes NOPASSWD lines only from /etc/sudoers, silently ignores failures, and leaves grants under /etc/sudoers.d intact. test_runner_image.py additionally asserts that \"sudoers.d\" is absent from the Containerfile, preventing the straightforward hardening fix. Remove or disable applicable grants in both locations and verify the built image cannot execute sudo non-interactively.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-004",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "install-units.sh prints bare `systemctl --user` commands after it returns to the invoking operator. If those commands are copied from a normal administrator shell, they target that administrator's user manager rather than the dedicated, nologin ghrunner account. Print complete commands using `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) systemctl --user ...` (or the documented `--machine=ghrunner@` form) and update the tests to require the correct user context.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-005",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "tasks.md task 2.9 explicitly says existing workflow-parsing test contracts must not be edited, but this change modifies both skills/tests/project-context-refresh/test_gate.py and skills/tests/validate-feature/test_ci_sweep_wiring.py. Since the new trigger and guard intentionally require these compatibility updates, revise the task contract to authorize and describe them rather than leaving the completed implementation in direct conflict with its approved plan.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit"
+    }
+  ]
+}

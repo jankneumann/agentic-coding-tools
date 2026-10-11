@@ -17,6 +17,9 @@
 #   GX10_HOSTNAME            override for `hostname -s` (tests)
 set -euo pipefail
 umask 077
+# EPOCHREALTIME and awk number formatting follow the locale's decimal separator; a
+# comma-decimal LANG inherited by the user manager would break the arithmetic below.
+export LC_ALL=C
 
 instance="${1:?usage: mint-jitconfig.sh <instance>}"
 repo="${GX10_RUNNER_REPO:?GX10_RUNNER_REPO is not set}"
@@ -65,8 +68,10 @@ api_call() {
 }
 
 # --- sweep stale registrations of THIS instance (best-effort) -------------------------
+# Two passes: list every bounded page first, then delete. Deleting while paging would shift
+# later runners onto pages already read, so the next page request would skip them.
 sweep() {
-  local page=1 url code id name status listing has_next
+  local page=1 url code id name status has_next stale=()
   while (( page <= max_pages )); do
     url="${api}/repos/${repo}/actions/runners?per_page=100&page=${page}"
     code="$(api_call GET "$url")"
@@ -74,22 +79,28 @@ sweep() {
       log "sweep: list runners returned HTTP $code (continuing without sweep)"
       return 0
     fi
-    # Snapshot the page before issuing DELETEs: api_call reuses the body/header files.
-    listing="$(jq -r '.runners[]? | [.id, .name, .status] | @tsv' "$work/body" 2>/dev/null || true)"
-    has_next=0
-    grep -qi '^link:.*rel="next"' "$work/hdr" 2>/dev/null && has_next=1
     while IFS=$'\t' read -r id name status; do
       [[ -z "$id" ]] && continue
       if [[ "$name" == "$prefix"* && "$status" == "offline" ]]; then
-        code="$(api_call DELETE "${api}/repos/${repo}/actions/runners/${id}")"
-        log "sweep: deleted stale offline runner $name (id $id): HTTP $code"
+        stale+=("${id}"$'\t'"${name}")
       fi
-    done <<< "$listing"
-    (( has_next )) || return 0
+    done < <(jq -r '.runners[]? | [.id, .name, .status] | @tsv' "$work/body" 2>/dev/null || true)
+    has_next=0
+    grep -qi '^link:.*rel="next"' "$work/hdr" 2>/dev/null && has_next=1
+    (( has_next )) || break
     page=$((page + 1))
   done
-  log "sweep: reached the ${max_pages}-page bound for instance ${instance}; stale runners beyond it" \
-    "are left for the next start (continuing to mint)"
+  if (( page > max_pages )); then
+    log "sweep: reached the ${max_pages}-page bound for instance ${instance}; stale runners beyond it" \
+      "are left for the next start (continuing to mint)"
+  fi
+  local entry
+  for entry in "${stale[@]}"; do
+    id="${entry%%$'\t'*}"
+    name="${entry#*$'\t'}"
+    code="$(api_call DELETE "${api}/repos/${repo}/actions/runners/${id}")"
+    log "sweep: deleted stale offline runner $name (id $id): HTTP $code"
+  done
 }
 sweep || log "sweep failed (ignored)"
 

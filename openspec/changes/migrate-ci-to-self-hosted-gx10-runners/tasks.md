@@ -164,14 +164,20 @@ Everything of that kind is in § 7 (operator-only).
     Test 2.4 asserts it for routed jobs.
 
   **Dependencies**: 2.4, 2.7 (serial; edits `ci.yml` after routing)
-- [ ] 2.9 Run the existing tests that parse workflows and confirm they stay green (XS)
+- [x] 2.9 Run the existing tests that parse workflows and confirm they stay green (XS)
   - `skills/tests/ci_coverage/`
   - `skills/tests/validate-feature/test_ci_sweep_wiring.py`
   - `skills/tests/project-context-refresh/test_gate.py`
   - `skills/tests/project-context-refresh/test_remediation_policy.py`
   - `skills/tests/install_sh/test_consumer_portability.py`
 
-  Fix only by adjusting this change's workflow edits, never by editing those tests' contracts.
+  Fix only by adjusting this change's workflow edits, never by weakening what those tests
+  protect. Recorded deviation (IMPL_REVIEW): two assertions could not survive edits this change
+  requires, and were narrowed rather than the edits dropped. `test_gate.py` now tolerates the
+  added manual `workflow_dispatch` trigger (it still requires exactly `push`, `pull_request` and
+  `merge_group` among the merge-gating events), and `test_ci_sweep_wiring.py` permits exactly
+  one step-level `if:`, the D4 fork guard, and only when its condition starts with
+  `runner.environment == 'self-hosted' &&` (so it can never skip the check on a hosted run).
 
   **Dependencies**: 2.5, 2.6, 2.7, 2.8
 - [x] Checkpoint: run tests (2.1–2.4 GREEN), review diff, verify scope
@@ -441,7 +447,10 @@ Everything of that kind is in § 7 (operator-only).
     the same rule for `tcp`, `meta skuid ghrunner fib daddr type local drop`, and drops for
     `ghrunner`-owned traffic to `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
     `100.64.0.0/10`, `169.254.0.0/16`, `fc00::/7`, `fe80::/10` and out of `tailscale0`.
-    Persist it in `/etc/nftables.conf` and `sudo systemctl enable nftables`. Fallback: rebind
+    Persist it in `/etc/nftables.d/gx10-runner.nft`, included from `/etc/nftables.conf`; load
+    it with `sudo nft -f /etc/nftables.d/gx10-runner.nft` (an already-active
+    `nftables.service` is not reloaded by `enable --now`) and `sudo systemctl enable nftables`
+    for boot persistence. Fallback: rebind
     every host service the runners must not reach to `127.0.0.1`.
   - Then run `deploy/gx10-runner/install-units.sh`, then `systemctl --user daemon-reload` and
     `systemctl --user enable --now gx10-runner@{1..8}` as `ghrunner`.
@@ -456,7 +465,8 @@ Everything of that kind is in § 7 (operator-only).
     the loop includes the host's IPv6 addresses;
     `podman exec gx10-runner-1 getent hosts api.github.com` resolves (the DNS exemption works;
     a host-side `getent` does not exercise it);
-    `grep -c skuid /etc/nftables.conf` is non-zero (the rules are persistent);
+    `grep -c 'nftables.d/gx10-runner.nft' /etc/nftables.conf` and
+    `grep -c skuid /etc/nftables.d/gx10-runner.nft` are non-zero (the rules are persistent);
     `sudo nft list ruleset | grep skuid` shows the rules (or `ss -ltnp` shows those ports bound
     to `127.0.0.1` only); and
     `podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'` shows `slirp4netns`.

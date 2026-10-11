@@ -33,6 +33,9 @@ import yaml
 
 DEFAULT_MANIFEST = Path(__file__).resolve().parents[2] / ".github" / "runner-lanes.yaml"
 SELF_HOSTED_MARKER = "gx10"
+# A job on a self-hosted runner that is NOT the GX10 pool. Never a valid placement: it is
+# neither GitHub-hosted nor the lane this change routes to.
+OTHER_SELF_HOSTED = "other-self-hosted"
 
 
 # ------------------------------------------------------------------------------ helpers
@@ -54,12 +57,17 @@ def _labels(job: dict[str, Any]) -> set[str]:
 
 
 def job_lane(job: dict[str, Any]) -> str | None:
-    """'self-hosted' if the job asked for the gx10 runner, 'hosted' if it ran on a GitHub-hosted
-    label, None if no runner was assigned (no labels recorded)."""
+    """'self-hosted' if the job asked for the gx10 runner, OTHER_SELF_HOSTED if it asked for
+    some other self-hosted runner, 'hosted' if it ran on a GitHub-hosted label, None if no
+    runner was assigned (no labels recorded)."""
     labels = _labels(job)
     if not labels:
         return None
-    return "self-hosted" if SELF_HOSTED_MARKER in labels else "hosted"
+    if SELF_HOSTED_MARKER in labels:
+        return "self-hosted"
+    if "self-hosted" in labels:
+        return OTHER_SELF_HOSTED
+    return "hosted"
 
 
 def _workflow_jobs(workflow: dict[str, Any]) -> dict[str, Any]:
@@ -299,11 +307,11 @@ def verify_run(
                     violations.append(item)
             actual = job_lane(entry)
             if lane == "hosted":
-                if actual == "self-hosted":
+                if actual is not None and actual != "hosted":
                     violation(
                         name,
                         "placement",
-                        "hosted job ran on a self-hosted (gx10) runner",
+                        f"hosted job ran on a self-hosted runner ({actual})",
                     )
             elif actual is not None and actual != expected_lane:
                 violation(
@@ -343,11 +351,15 @@ def _created_filter(since: str | None, until: str | None) -> str | None:
 
 
 def fetch_runs(args: argparse.Namespace) -> list[dict[str, Any]]:
-    """Page through workflow runs with explicit filters, stopping at ``--limit``."""
+    """Page through workflow runs with explicit filters, stopping at ``--limit``.
+
+    ``per_page`` stays fixed across pages: GitHub serves page N as the offset
+    ``(N-1)*per_page``, so shrinking it on the last page would re-fetch earlier runs.
+    """
     runs: list[dict[str, Any]] = []
     page = 1
+    per_page = min(100, args.limit)
     while len(runs) < args.limit:
-        per_page = min(100, args.limit - len(runs))
         params = [f"per_page={per_page}", f"page={page}", "status=completed"]
         for key, val in (("event", args.event), ("head_sha", args.head_sha)):
             if val:
@@ -524,8 +536,8 @@ def main(argv: list[str] | None = None) -> int:
             "compare": cmd_compare,
             "verify-run": cmd_verify_run,
         }[args.cmd](args)
-    except GhError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+    except (GhError, OSError, yaml.YAMLError, KeyError, ValueError) as exc:
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
 
 

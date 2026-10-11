@@ -166,7 +166,31 @@ def test_misrouted_and_wrongly_self_hosted_jobs(cw):
 
 
 def test_conditionally_skipped_job_is_not_a_violation(cw):
-    assert verify(cw, good_jobs())["violations"] == []
+    jobs = good_jobs()
+    assert jobs[5] == _job("maybe", [], "skipped")  # the fixture's job-level `if:` job
+    assert verify(cw, jobs)["violations"] == []
+    # The same skip on a job WITHOUT a job-level `if:` is a violation, so the pass above
+    # rests on the `if:` exemption and not on skipped jobs being ignored wholesale.
+    jobs[3] = _job("pinned", [], "skipped")
+    assert [v["job"] for v in verify(cw, jobs)["violations"]] == ["pinned"]
+
+
+OTHER_SELF = ["self-hosted", "linux", "X64", "someone-elses-pool"]
+
+
+def test_other_self_hosted_runner_is_never_a_valid_placement(cw):
+    assert cw.job_lane(_job("x", OTHER_SELF)) == cw.OTHER_SELF_HOSTED
+    jobs = good_jobs()
+    jobs[3] = _job("pinned", OTHER_SELF)  # hosted-pinned job on a non-GX10 self-hosted runner
+    res = verify(cw, jobs)
+    assert [v["job"] for v in res["violations"]] == ["pinned"]
+    hosted = [
+        _job(j["name"], HOSTED if j["conclusion"] != "skipped" else [], j["conclusion"])
+        for j in good_jobs()
+    ]
+    hosted[2] = _job("build", OTHER_SELF)  # rollback check: routed job not on GitHub-hosted
+    res = verify(cw, hosted, expected_lane="hosted")
+    assert [v["job"] for v in res["violations"]] == ["build"]
 
 
 def test_unconditional_skipped_job_is_a_violation(cw):
@@ -314,6 +338,35 @@ def test_cli_median_pages_until_limit(repo_root, tmp_path):
     assert res.returncode == 0, res.stderr
     assert json.loads(res.stdout)["n"] == 150
     assert len(calls) == 2
+    # per_page must stay fixed across pages: GitHub serves page N at offset (N-1)*per_page.
+    for page, call in enumerate(calls, start=1):
+        argv = " ".join(call["argv"])
+        assert "per_page=100" in argv and f"page={page}" in argv, argv
+
+
+def test_fetch_runs_returns_distinct_contiguous_runs(cw, monkeypatch):
+    from urllib.parse import parse_qs, urlparse
+
+    def fake_gh_get(path, raw=False):
+        q = {k: v[0] for k, v in parse_qs(urlparse(path).query).items()}
+        per, page = int(q["per_page"]), int(q["page"])
+        ids = list(range(1, 251))[(page - 1) * per : page * per]
+        return {"workflow_runs": [{"id": i} for i in ids]}
+
+    monkeypatch.setattr(cw, "gh_get", fake_gh_get)
+    args = cw.build_parser().parse_args(["median", "--workflow", "t.yml", "--limit", "150"])
+    assert [r["id"] for r in cw.fetch_runs(args)] == list(range(1, 151))
+
+
+def test_cli_reports_bad_input_files_without_traceback(repo_root, tmp_path):
+    res, _ = _cli(
+        repo_root,
+        tmp_path,
+        {"run": {"id": 7, "head_sha": "s"}, "default_jobs": []},
+        ["verify-run", "7", "--workflow", "t.yml", "--manifest", str(tmp_path / "missing.yaml")],
+    )
+    assert res.returncode == 2
+    assert res.stderr.startswith("error: ") and "Traceback" not in res.stderr
 
 
 def test_cli_verify_run_fetches_definition_at_head_sha(repo_root, tmp_path):
@@ -404,8 +457,12 @@ def test_cli_compare_parses_all_arguments(repo_root, tmp_path):
         ],
     )
     out = json.loads(res.stdout)
-    assert res.returncode == 1  # all runs are mixed/unclassifiable here, so it cannot pass
+    # Every stubbed run has a single hosted `build` job, so all 12 classify as hosted and
+    # land in the baseline; the self-hosted candidate sample is empty and compare fails on
+    # sample size, which is what this test needs: the CLI wiring, not a passing compare.
+    assert res.returncode == 1
     assert out["passed"] is False
+    assert "insufficient" in out["reason"] and out["n_candidate"] == 0
     assert len(calls) <= 1 + 12, "one listing plus at most one jobs GET per run"
     assert all("-X GET" in " ".join(c["argv"]) for c in calls)
 

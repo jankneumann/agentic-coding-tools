@@ -58,6 +58,11 @@ def test_host_commands_are_printed_not_executed(kit_dir, tmp_path, guarded_path)
     assert not marker.exists(), marker.read_text() if marker.exists() else ""
     assert "loginctl enable-linger ghrunner" in res.stdout
     assert "systemctl --user enable --now gx10-runner@{1..8}" in res.stdout
+    # Unit commands must target ghrunner's user manager, never the invoking operator's, and
+    # the `$(id -u ghrunner)` is printed for the operator's shell, not expanded by the script.
+    runas = "sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) systemctl --user"
+    unit_lines = [ln.strip() for ln in res.stdout.splitlines() if "systemctl --user" in ln]
+    assert unit_lines and all(ln.startswith(runas) for ln in unit_lines), unit_lines
 
 
 def test_instance_count_is_printed(kit_dir, tmp_path, guarded_path):
