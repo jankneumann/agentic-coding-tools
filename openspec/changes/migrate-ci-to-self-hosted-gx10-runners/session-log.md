@@ -258,3 +258,38 @@ Multi-vendor IMPL_REVIEW via convergence_loop.converge() (fix_mode=targeted, min
 ### Context
 Validation passed on-branch: 199 ci_runners tests, strict openspec valid, ruff clean (fixed one TRY004). Deploy/smoke/security/e2e skipped (no deployable service; scanners absent). O1-O12 pending-operator.
 
+---
+
+## Phase: VAL_REVIEW (2026-10-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Gate runner user manager on the isolation unit with Requires=/After=** — codex #109 (high, single-vendor; corroborated by claude_code in a quorum-lost pass): Before= orders but never gates, so an nft load failure would let lingering runners start unisolated on a host code-execution surface. Adjudicated valid; a user@<uid>.service drop-in fails closed.
+2. **Gate sweep requests on the whole mint budget** — codex #110: sweep checked only its half-budget cap; both list and delete now also require fits 0. Behavioural regression test with zero API calls.
+3. **Report uses validate-feature vocabulary and canonical headings** — codex #111/#115/#116: `skip` parsed as missing; Smoke/E2E headings non-canonical; Security not applicable for a non-deployable change. Severity of #115 overstated (not required for non-deployable) but fixed.
+
+### Trade-offs
+- Accepted Raise review dispatch timeout to 900s in the scratch driver over per-vendor 480s default because codex timed out at 480s on the 315k-char packet in pass 0 (quorum_lost); transport only, not committed
+
+### Completed Work
+- VAL_REVIEW pass 1 + VAL_FIX (77877458)
+- VAL_REVIEW pass 2 + VAL_FIX (11aa932f)
+- VAL_REVIEW pass 3 converged; Validation Review section written (pass)
+- Control run: ci_runners + multiplayer-simulation + roadmap-runtime = 477 passed, so ci_runners does not cause the 12 full-suite failures
+- Suites after VAL_FIX: 862 passed, 5 skipped; openspec validate --strict valid; ruff clean
+
+### Next Steps
+- Orchestrator: apply-outcome converged; goal gate (Spec Compliance + Validation Review both pass)
+- Operator items O1-O12 remain pending (HARD BOUNDARY)
+
+### Relevant Files
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/validation-report.md`
+- `docs/guides/self-hosted-ci-runners.md`
+- `deploy/gx10-runner/mint-jitconfig.sh`
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-val-pass1-round-1.json`
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-val-pass2-round-1.json`
+
+### Context
+VAL_REVIEW converged on pass 3/3 (claude_code + codex, min_quorum=2). Trend 3 -> 2 -> 0 high/medium findings; two VAL_FIX rounds applied after orchestrator adjudication. IMPL_REVIEW round-3 fixes (#99 mint budget, #88 isolation unit, #89 placement check) vendor-confirmed.
+

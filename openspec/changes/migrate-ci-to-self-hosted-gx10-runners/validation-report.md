@@ -52,3 +52,15 @@ Pending-operator, not passes; require the real GX10 host or repo-admin access. O
 - O10 reboot survival: `test_systemd_unit.py` (linger/restart properties)
 - O11 fork-PR end-to-end: `test_fork_guard.py`
 - O12 rollback drill: `test_routing_expression.py` (hosted fallback rows), runbook `test_runbook.py`
+
+## Validation Review
+
+**Status**: pass
+
+- Result: converged on pass 3 of 3 via `convergence_loop.converge()` (review_type=implementation, fix_mode=targeted), min_quorum=2.
+- Lanes: `claude_code` + `codex` (verified/counting lanes per supervisor policy). Excluded as unavailable: grok (HTTP 426, CLI too old), antigravity (E2BIG/timeouts), pi (unparseable output).
+- Trend (blocking/high-or-medium findings per pass): pass 1 = 3 (codex #109 high, #110, #111 medium) -> pass 2 = 2 (codex #115 high, #116 medium; report-only) -> pass 3 = 0 (codex 0 findings; claude_code 6 low verification notes).
+- VAL_FIX pass 1: user@<ghrunner uid>.service drop-in Requires=/After= the isolation unit (#109); sweep requests gated on the whole mint budget (#110); report status vocabulary + provenance (#111). VAL_FIX pass 2: canonical `Smoke Tests` / `E2E Tests` headings, Security not applicable (#115, #116); DNS-resolver note in runbook (#113).
+- IMPL_REVIEW round-3 fixes vendor-confirmed: mint single time budget (#99/#106), dedicated nftables isolation boot unit (#88/#107), unlabelled-job placement check (#89/#104).
+- Adjudications: `.review-ledger/adjudication-val-pass{1,2}-round-1.json`. Parked advisories (low): compare() sample-attrition warning, runner_name-based hosted placement proof, fork-guard carve-out pinning only the condition prefix.
+- O1-O12 remain pending-operator (not passes).
