@@ -44,6 +44,12 @@ def _api_headers() -> dict[str, str]:
     api_key = os.environ.get("COORDINATION_API_KEY", "")
     if api_key:
         headers["X-API-Key"] = api_key
+    # Behind Cloudflare Access the edge refuses requests without the service token.
+    cf_id = os.environ.get("CF_ACCESS_CLIENT_ID", "").strip()
+    cf_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET", "").strip()
+    if cf_id and cf_secret:
+        headers["CF-Access-Client-Id"] = cf_id
+        headers["CF-Access-Client-Secret"] = cf_secret
     return headers
 
 
