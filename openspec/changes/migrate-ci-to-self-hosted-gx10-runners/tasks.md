@@ -124,6 +124,8 @@ Everything of that kind is in § 7 (operator-only).
   - A path such as `scripts/check_docker_imports.py` is not an invocation (positive fixture).
   - A routed job that invokes `npm`/`npx`/`node`, `java` or `go` must have the matching
     `actions/setup-*` step.
+  - Every routed job's `astral-sh/setup-uv` step passes
+    `cache-local-path: /home/runner/.cache/uv` (D6; implemented by 2.8).
 
   **Spec scenarios**: ci-runner-infrastructure / "Container-engine job marked routed is
   rejected", "Command name inside a script path is not an invocation", "Routed job calls npm
@@ -230,7 +232,8 @@ Everything of that kind is in § 7 (operator-only).
   - The cleanup script issues a DELETE only for an offline runner id and always exits 0.
   - Before minting, the mint script DELETEs only **offline** runners whose name starts with
     `gx10-<hostname>-<instance>-`; an online runner, another instance's runner and another
-    host's runner are left alone, and a failing sweep does not stop the mint (D5).
+    host's runner are left alone, a match on the second page is found, and a failing sweep does
+    not stop the mint (D5).
 
   **Spec scenarios**: ci-runner-infrastructure / "Credential stays on the host", "Mint retries
   are bounded below the start timeout", "JIT labels match the routing labels", "Stale
@@ -243,7 +246,8 @@ Everything of that kind is in § 7 (operator-only).
   - Read the credential from `$CREDENTIALS_DIRECTORY/github-token`, falling back to
     `GX10_RUNNER_TOKEN_FILE`.
   - Write with umask 077.
-  - Sweep this instance's stale offline registrations before minting (D5).
+  - Sweep this instance's stale offline registrations before minting, across all pages up to
+    a 10-page bound (D5).
   - Use exponential backoff with a per-attempt cap of 300 s, inside the total budget
     `GX10_MINT_MAX_ELAPSED` (default 600 s).
 
@@ -258,16 +262,26 @@ Everything of that kind is in § 7 (operator-only).
     and does not use `latest`.
   - Every package in `toolchain.txt` is installed by the Containerfile.
   - The final `USER` is not root.
+  - The image copies `job-started-hook.sh` and sets `ACTIONS_RUNNER_HOOK_JOB_STARTED` to it
+    (D4).
+  - `job-started-hook.sh`, run under `bash` with fixture event payloads, exits 0 only for
+    `push` to `refs/heads/main`, `workflow_dispatch` and a same-repository `pull_request`, and
+    non-zero for a fork `pull_request`, `merge_group`, `pull_request_target` and a `push` to
+    another ref (D4).
   - The image sets `ENV UV_CACHE_DIR=/home/runner/.cache/uv` (D6).
   - No `sudoers` grant is added.
 
-  **Spec scenarios**: ci-runner-infrastructure / "Base image is pinned"
+  **Spec scenarios**: ci-runner-infrastructure / "Base image is pinned", "Runner image installs
+  the hook", "Runner hook refuses a fork PR that rewrote its workflow"
   **Design decisions**: D6
   **Dependencies**: 1.3
-- [ ] 3.7 Author `deploy/gx10-runner/Containerfile` and `deploy/gx10-runner/toolchain.txt` (S)
+- [ ] 3.7 Author `deploy/gx10-runner/Containerfile`, `deploy/gx10-runner/toolchain.txt` and
+      `deploy/gx10-runner/job-started-hook.sh` (S)
   - Pin the base image digest: read it from the registry manifest with `podman manifest
     inspect` or `skopeo inspect`. Reading is allowed; building or running an image is not.
   - Follow the D6 baseline toolchain.
+  - Write the D4 job-started hook (`set -euo pipefail`, `jq` over `$GITHUB_EVENT_PATH`) and
+    install it in the image with `ACTIONS_RUNNER_HOOK_JOB_STARTED`.
 
   **Dependencies**: 3.6
 - [ ] 3.8 Write `test_install_units.py` (XS)
@@ -377,6 +391,10 @@ Everything of that kind is in § 7 (operator-only).
   - If `actionlint` is available, run it over both workflows. Otherwise record it as skipped.
   - Confirm with `git diff origin/main --stat` that the diff touches only files inside the
     package scopes.
+  - Cross-check the runbook against the kit: every `GX10_*` variable and every
+    `deploy/gx10-runner/*` path that `docs/guides/self-hosted-ci-runners.md` names exists in
+    `gx10-runner.env.example` or the kit, and every `ci_wallclock.py` flag it uses is accepted by
+    the CLI's parser (wp-docs runs in parallel with the kit, so drift is caught here).
 
   **Dependencies**: 2.9, 3.2, 3.4, 3.5, 3.7, 3.9, 4.3, 5.3
 
@@ -392,14 +410,17 @@ Everything of that kind is in § 7 (operator-only).
 - [ ] O1 Create the dedicated host user and enable linger *(outcome 4, host half)*
   - Run `sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner`, then give it
     a subordinate id range, which `useradd --system` does not allocate and rootless podman
-    needs for the non-root `runner` user in the image:
-    `sudo usermod --add-subuids 200000-265535 --add-subgids 200000-265535 ghrunner`.
+    needs for the non-root `runner` user in the image. Pick a 65536-id range that overlaps no
+    entry in `/etc/subuid` or `/etc/subgid` (start above the highest existing end), then
+    `sudo usermod --add-subuids <start>-<start+65535> --add-subgids <start>-<start+65535> ghrunner`.
   - Run `sudo loginctl enable-linger ghrunner`.
   - Because the account has no login shell, run every later "as `ghrunner`" command as
     `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) <command>` (or
     `systemctl --user --machine=ghrunner@ …` for unit operations).
   - **Verify**: `loginctl show-user ghrunner -p Linger` prints `Linger=yes`, and
-    `grep ghrunner /etc/subuid /etc/subgid` shows one range in each file.
+    `grep ghrunner /etc/subuid /etc/subgid` shows one range in each file, and no two entries in
+    either file overlap (`sort -t: -k2 -n /etc/subuid` shows each start above the previous
+    entry's end).
 - [ ] O2 Provision the registration credential
   - Create a fine-grained PAT for this repository only, with *Administration: read and write*
     and an expiry of 90 days or less.
@@ -415,9 +436,12 @@ Everything of that kind is in § 7 (operator-only).
   - **Verify**: `podman image inspect localhost/gx10-runner:<sha> --format '{{.Architecture}}'`
     prints `arm64`.
 - [ ] O4 Install the host-service isolation control, then install and enable the units
-  - First, as root, install the isolation control (D6). Preferred: an nftables `output` hook
-    chain with, in order, `meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept`, the
-    same rule for `tcp`, and `meta skuid ghrunner fib daddr type local drop`. Fallback: rebind
+  - First, as root, install the isolation control (D6). Preferred: a `table inet` `output`
+    hook chain with, in order, `meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept`,
+    the same rule for `tcp`, `meta skuid ghrunner fib daddr type local drop`, and drops for
+    `ghrunner`-owned traffic to `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
+    `100.64.0.0/10`, `169.254.0.0/16`, `fc00::/7`, `fe80::/10` and out of `tailscale0`.
+    Persist it in `/etc/nftables.conf` and `sudo systemctl enable nftables`. Fallback: rebind
     every host service the runners must not reach to `127.0.0.1`.
   - Then run `deploy/gx10-runner/install-units.sh`, then `systemctl --user daemon-reload` and
     `systemctl --user enable --now gx10-runner@{1..8}` as `ghrunner`.
@@ -429,7 +453,10 @@ Everything of that kind is in § 7 (operator-only).
     `podman exec gx10-runner-1 bash -c 'timeout 3 bash -c "exec 3<>/dev/tcp/<addr>/<port>" && echo reachable || echo unreachable'`
     prints `unreachable` (a transport-level connect; an HTTP `curl` probe is wrong here, because
     it fails after connecting to a non-HTTP service such as Postgres);
-    `sudo -u ghrunner getent hosts api.github.com` resolves (the DNS exemption works);
+    the loop includes the host's IPv6 addresses;
+    `podman exec gx10-runner-1 getent hosts api.github.com` resolves (the DNS exemption works;
+    a host-side `getent` does not exercise it);
+    `grep -c skuid /etc/nftables.conf` is non-zero (the rules are persistent);
     `sudo nft list ruleset | grep skuid` shows the rules (or `ss -ltnp` shows those ports bound
     to `127.0.0.1` only); and
     `podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'` shows `slirp4netns`.
@@ -473,13 +500,19 @@ Everything of that kind is in § 7 (operator-only).
   - Run `sudo systemctl reboot`. Do not log in as `ghrunner`.
   - **Verify**: `sudo systemctl --user --machine=ghrunner@ is-active gx10-runner@1` prints
     `active`, and the runner shows `online` in the runners API within 2 minutes of boot.
+  - **Also verify** that host isolation survived the reboot: `sudo nft list ruleset | grep skuid`
+    lists the O4 rules (or `ss -ltnp` still shows loopback-only binding), and the O4
+    TCP-connect probes and in-container DNS check give the same results as before.
 - [ ] O11 Fork-PR end-to-end check *(outcome 3)*
-  - Open a trivial PR from a fork account.
+  - Open a trivial PR from a fork account, and a second one that edits `ci.yml` to set one
+    routed job's `runs-on` to the GX10 labels and delete its guard step.
   - **Verify**: `gh run list --branch <fork-branch> --json status,conclusion` shows the run
     awaiting approval (`action_required`).
   - After approval, `python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow ci.yml --expect-lane hosted`
     reports 0 violations: every job ran on GitHub-hosted runners (without `--expect-lane hosted`
     the default `self-hosted` expectation would flag every routed job).
+  - For the second PR, after approval, the rewritten job fails in its `Set up job` phase with
+    the job-started hook's refusal message and no step of that job runs (D4).
 - [ ] O12 Rollback drill
   - Run `gh variable set CI_RUNNER_LANE --body hosted`.
   - **Verify**: the next CI run's `verify-run --expect-lane hosted` shows every job on

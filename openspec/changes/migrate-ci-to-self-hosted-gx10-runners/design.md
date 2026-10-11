@@ -128,7 +128,33 @@ The labels inside `fromJSON(...)` must equal `routing.self_hosted_labels` in the
 references must name `routing.dispatch_input`. A test checks all three, so no field of the
 manifest's routing block is decorative.
 
-### D4 — Defense in depth: in-job fork guard and trigger allowlist
+### D4 — Enforcement outside PR-controlled YAML, plus in-job guard and trigger allowlist
+
+**The workflow YAML is not a security boundary for `pull_request` runs.** A `pull_request` run
+evaluates the workflow files from the PR's merge ref, so a fork PR can edit `ci.yml` to put the
+public GX10 labels in `runs-on` and delete the guard step. Once a maintainer approves the run
+(O5), that job would be scheduled on the repository-scoped runner. The D3 expression and the
+in-job guard below are therefore *routing* and *defense in depth*; the enforcement point is
+the runner image, which the PR cannot change.
+
+**Runner-side job-started hook (the enforcement point).** The image built from
+`deploy/gx10-runner/Containerfile` contains `deploy/gx10-runner/job-started-hook.sh` at
+`/opt/gx10/job-started-hook.sh` and sets
+`ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/gx10/job-started-hook.sh`. The runner executes this
+hook at the start of every job, before any job step, `container:` or `services:` setup, with
+the environment of the runner process (job-level `env:` cannot unset it). The hook reads the
+GitHub-generated event payload at `$GITHUB_EVENT_PATH` and exits non-zero, failing the job
+before any PR code runs, unless the run is one of:
+- `GITHUB_EVENT_NAME=push` with `GITHUB_REF=refs/heads/main`;
+- `GITHUB_EVENT_NAME=workflow_dispatch` (only users with write access can dispatch);
+- `GITHUB_EVENT_NAME=pull_request` with `.pull_request.head.repo.full_name` equal to
+  `$GITHUB_REPOSITORY` in the event payload.
+
+Every other event — a fork `pull_request`, `merge_group`, `pull_request_target`, any trigger a
+modified workflow adds — is refused. The payload is written by GitHub, not by the PR, so a fork
+cannot forge it. Same-repository branches can also edit workflows; they are inside the trust
+scope already accepted in A10 (write access), and the hook still confines them to the allowed
+event shapes.
 
 Each routed job's **first** step:
 
@@ -213,8 +239,10 @@ always exits 0.
 
 `ExecStopPost` does not run after a power loss or hard reboot, so never-used registrations can
 survive it. Before minting, `mint-jitconfig.sh <instance>` therefore **sweeps** stale
-registrations: it lists the repository's runners (read-only GET, bounded by `per_page=100`)
-and deletes every **offline** runner whose name starts with `gx10-<hostname>-<instance>-`
+registrations: it lists the repository's runners (read-only GETs with `per_page=100`)
+across all pages (following `Link: rel="next"`, up to a safety bound of 10 pages; reaching
+the bound logs an actionable diagnostic naming the instance and continues to mint) and deletes
+every **offline** runner whose name starts with `gx10-<hostname>-<instance>-`
 (the instance's own prefix, so it never touches another instance's or another host's runners).
 The sweep is best-effort: a failure is logged and does not consume the mint retry budget.
 
@@ -263,8 +291,8 @@ service listening on `0.0.0.0` or on the host's LAN or Tailscale address (a comp
 `0.0.0.0:54322` Postgres is the common case; the coordinator API and the ri-08 daemon may also
 bind non-loopback) stays reachable from PR code through the host's real IP. Isolation of host
 services therefore rests on one of two operator-enforced controls, and O4 must prove it:
-1. **Preferred — an nftables egress rule for the runner user**: in an `output` hook chain,
-   first accept DNS to the host stub resolver
+1. **Preferred — an nftables egress rule for the runner user**, in a `table inet` (so IPv4
+   and IPv6 are both filtered) `output` hook chain: first accept DNS to the host stub resolver
    (`meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept` and the same for `tcp`), then
    drop every other packet whose socket owner is `ghrunner` and whose destination is a local
    host address (`meta skuid ghrunner fib daddr type local drop`). Because slirp4netns runs as
@@ -272,7 +300,16 @@ services therefore rests on one of two operator-enforced controls, and O4 must p
    internet egress and name resolution intact (both for the mint script and for container DNS,
    which slirp4netns forwards through the host resolver). Without the DNS exemption the mint
    script cannot resolve `api.github.com`, burns its retry budget on every start, and no
-   instance ever comes online. Installing the rule is operator-only.
+   instance ever comes online. In the same chain, drop `ghrunner`-owned traffic to private
+   and link-local ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, the Tailscale CGNAT
+   range `100.64.0.0/10`, `169.254.0.0/16`, `fc00::/7`, `fe80::/10`) and out of `tailscale0`,
+   so PR code cannot move laterally to LAN or tailnet peers (other machines' coordinators,
+   Postgres, NAS); the runner only needs internet egress, and upstream DNS is queried by
+   systemd-resolved, not by `ghrunner`. The rules MUST be **persistent** — written to
+   `/etc/nftables.conf` (or an included file) with `nftables.service` enabled, and kept clear
+   of ufw/firewalld reloads that would flush a hand-added table — because the lingering units
+   restart at boot and would otherwise run PR code before anyone re-adds a runtime-only rule.
+   O10 re-verifies the rules after reboot. Installing and persisting them is operator-only.
 2. **Fallback — loopback-only binding**: every host service the runners must not reach binds to
    `127.0.0.1` only (compose ports published as `127.0.0.1:54322:5432`), checked with
    `ss -ltnp`.
@@ -283,7 +320,10 @@ runner container and requires every **TCP connect** to be refused or to time out
 transport-level (`timeout 3 bash -c 'exec 3<>/dev/tcp/<addr>/<port>'`), not an HTTP request:
 `curl` against a non-HTTP service such as Postgres fails *after* connecting, which would report
 "unreachable" exactly when the port is reachable. A probe of `10.0.2.2` alone is not sufficient
-evidence. O4 also confirms DNS still works for `ghrunner` (`getent hosts api.github.com`).
+evidence. The probe loop includes the host's IPv6 addresses from `hostname -I`. O4 also confirms
+DNS still works **from inside a runner container** (`podman exec gx10-runner-1 getent hosts
+api.github.com`): on the host, glibc reaches systemd-resolved over its unix socket and never
+exercises the UDP exemption, so a host-side `getent` would pass even with a mis-ordered rule.
 
 **Shared uv cache trade-off: off by default, explicit operator opt-in.** A cache shared across
 jobs speeds up `uv sync`. It is also a cross-trust poisoning vector: a same-repository PR job
@@ -326,7 +366,8 @@ pinned with no `latest`. It adds a baseline toolchain declared in
 - `git`, `curl`, `jq`, `make`, `build-essential`
 - `unzip`, `xz-utils`, `zstd`, `ca-certificates`, `python3`
 
-The entrypoint is `/home/runner/run.sh` with the JIT config from the environment. The runner
+The entrypoint is `/home/runner/run.sh` with the JIT config from the environment. The image
+also installs the D4 job-started hook and sets `ACTIONS_RUNNER_HOOK_JOB_STARTED` to it. The runner
 user stays non-root, and sudo is not granted to it.
 
 ### D7 — systemd user template unit, dedicated lingering user
@@ -436,7 +477,10 @@ jobs API. It is not derived from dispatch inputs, because the runs API does not 
 is classified only when **all** its routed jobs that were assigned a runner ran on the same
 lane. A run with mixed placement, or with no routed job assigned a runner, is **excluded** from
 both samples and listed in a diagnostic (`excluded_runs` with a reason), so it cannot distort
-the ratio.
+the ratio. Lane derivation costs one `actions/runs/<id>/jobs` GET per candidate run, so a
+comparison issues at most `--limit` such requests per side on top of the runs listing; with
+`--head-sha` selecting the paired O8 runs that is a few dozen requests, well inside a PAT's
+hourly budget. The CLI fetches jobs sequentially and stops at `--limit`.
 
 Run selection for `median` and `compare` is explicit, so that the A6 measurement is reproducible:
 - `--workflow <file>` (required);
@@ -509,6 +553,8 @@ implementation task, and nothing in the implementation phases performs them.
 | Host down with lane=self-hosted | D9 manual flip plus the queued-run detection command |
 | New jobs added by concurrent changes | Manifest completeness test fails until they are classified |
 | Podman upgrade changes the rootless network default to `pasta` and exposes host loopback | Explicit `--network slirp4netns:allow_host_loopback=false` in the unit, pinned by a test (D6) |
+| A fork PR rewrites `runs-on` in its own workflow YAML and drops the guard | Runner-image job-started hook refuses every event except `push` to `main`, `workflow_dispatch` and same-repo PRs, from the GitHub-written payload (D4); O11 exercises it |
+| Runtime-only nftables rule lost on reboot while the units restart | Rules persisted in `/etc/nftables.conf`; O10 re-verifies isolation after reboot (D6) |
 | PR code reaches a host service bound to `0.0.0.0` or a LAN/Tailscale address through slirp4netns NAT | Operator nftables rule dropping `ghrunner`-owned traffic to local addresses, or loopback-only binding; O4 probes every host address (D6) |
 | Mint script killed mid-backoff by the start timeout, hammering the API | Explicit `TimeoutStartSec` above the bounded `GX10_MINT_MAX_ELAPSED` budget, pinned by a test (D5, D7) |
 | Cache poisoning by a same-repository PR job (human, Dependabot or agent branch) | Cache off by default; enabling it is a recorded operator risk acceptance (A10); disabled again by emptying `GX10_RUNNER_CACHE_ARGS`, mandated on a move to team mode |

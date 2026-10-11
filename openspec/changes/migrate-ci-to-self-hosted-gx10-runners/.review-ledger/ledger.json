@@ -822,6 +822,261 @@
       ],
       "description": "wp-runner-kit still omits deploy/gx10-runner/gx10-runner.env.example from outputs.artifacts even though the package authors it and the unit depends on its configuration contract. Add it to the declared outputs so package handoff and evidence collection include the required operator configuration.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 49,
+      "status": "addressed",
+      "axis": "security",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "fingerprint": "ab7fc494891425c1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The preferred host-service isolation control (D6, O4) is an nftables ruleset installed ad hoc as root, but nothing in D6, O4, O10 or the spec requires it to be persisted (/etc/nftables.conf + nftables.service, or a ufw/firewalld-managed rule) or re-verified after reboot. O10 verifies only that the runner units come back after `systemctl reboot`; the units will come back and immediately run PR code while the drop rule is gone, and a later ufw/firewalld reload can also flush a hand-added table. Require persistence in D6/O4, and extend O10's verification to re-run the O4 TCP-connect probes (or at least `nft list ruleset | grep skuid`) after the reboot.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 50,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "fingerprint": "0d28985f1d5a7544",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "O4's DNS check (`sudo -u ghrunner getent hosts api.github.com`, mirrored in the spec scenario 'ghrunner can still resolve api.github.com') does not exercise the path the nftables exemption protects. On Ubuntu 24.04 nsswitch uses `resolve [!UNAVAIL=return]`, so glibc getaddrinfo (getent and the mint script's curl alike) talks to systemd-resolved over the varlink/D-Bus unix socket and never sends UDP to 127.0.0.53. The check therefore passes even when the `ip daddr 127.0.0.53 udp dport 53 accept` rule is missing or ordered after the drop. The traffic that does hit 127.0.0.53 over UDP is slirp4netns forwarding container DNS (10.0.2.3), which this check never touches: a wrongly ordered rule leaves every runner unable to resolve github.com while O4 reports success. Probe from inside the container (`podman exec gx10-runner-1 getent hosts api.github.com`) and note that newer systemd also listens on 127.0.0.54, which the exemption should cover.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 51,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "faadf3a07caf56ae",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The D6 drop rule `fib daddr type local` blocks only the host's own addresses. slirp4netns NATs container traffic out through every host interface as `ghrunner`, including `tailscale0` and the LAN, so PR code on the GX10 can reach every tailnet peer and LAN host the operator's machine can (other machines' coordinator/Postgres instances, NAS, dev boxes), a lateral-movement surface the hosted lane never had. The design and A11 scope the isolation claim to 'host services' without stating that LAN/tailnet peers remain reachable. Either add `meta skuid ghrunner oifname \"tailscale0\" drop` plus a drop for RFC1918/CGNAT (100.64.0.0/10) destinations, or record the residual explicitly as an accepted risk in A11 and the Risks table.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 52,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "5b20ba5b2f140f67",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D6 and O4 give the nftables rules but never the table family. An operator who follows the text literally with `table ip` leaves IPv6 unfiltered: `fib daddr type local` in an `ip` table never sees `::1`, the host's link-local or ULA addresses, and the Tailscale IPv6 address, so a service bound to `[::]:54322` or `::1` stays reachable. The DNS exemption likewise only names an IPv4 stub. Pin `table inet` (and the `ip6 daddr ::1` exemption if resolved listens there) in D6, O4 and the spec scenario, and have the O4 probe loop include the host's IPv6 addresses from `hostname -I`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 53,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "spec_file": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "0aadb5940075cea4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Three SHALL clauses still have no WHEN/THEN. (1) 'Runners Are Ephemeral Per Job' requires `--replace` and `ExecStopPost runs cleanup-runner.sh`, but the only unit scenario ('Unit runs a removable container with a single-use config') asserts neither; ledger #19/#34 were closed by adding the requirement text, while the scenario the ledger assumed already checked ExecStopPost does not. (2) The verify_run clause 'every manifest job missing from the run' has no scenario; task 4.1 tests it but the spec does not. Task 3.1 and 4.1 cover both, so this is spec-only drift.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 54,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "60d39605d58840f6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger #8 is recorded as addressed, but the spec still gives `median_wallclock(runs)` and positional `compare(baseline, candidate, threshold=0.85, min_n=5)` while D8 defines keyword-only signatures with a `conclusion=\"success\"` parameter on `median_wallclock`. Spec and design are both cited as contracts by task 4.1/4.2; the implementer has to pick one.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 55,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "7131aeb4997d1d0f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Task 2.8 says 'Test 2.4 asserts it [cache-local-path: /home/runner/.cache/uv] for routed jobs', but task 2.4's bullet list contains no such assertion and no spec scenario covers the setup-uv binding that the ledger #29 fix introduced in D6. Since 2.4 is written before 2.8 and is the RED test for it, the omission means the binding can be forgotten without any test failing, which is the exact failure mode #29 described.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 56,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml",
+      "fingerprint": "eda821c2d623349b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "wp-docs depends only on wp-contracts and runs in an isolated worktree in parallel with wp-runner-kit and wp-tooling, yet the runbook it writes is a contract over their outputs: script names, `GX10_RUNNER_CACHE_ARGS`, `GX10_MINT_MAX_ELAPSED`, the env/token paths, the ci_wallclock flags. test_runbook.py (task 5.1) checks only O1..O12 headings, fenced blocks and two literal commands, and wp-integration adds no cross-check, so a variable renamed during implementation (as happened in planning with GX10_RUNNER_UV_CACHE) ships with a stale runbook that passes every gate. Either sequence wp-docs after wp-runner-kit/wp-tooling, or add an integration assertion that every `GX10_*` variable and `deploy/gx10-runner/*.sh` path named in the runbook exists in the kit and env example.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 57,
+      "status": "addressed",
+      "axis": "performance",
+      "type": "performance",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "a16368d181c386a4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Because `compare` derives each run's lane from its jobs' runner labels, the CLI must issue one `actions/runs/<id>/jobs` GET per candidate run on top of the paginated runs listing. With the default `--limit 200` on each side that is up to ~400 extra requests per comparison against a 5000/hour PAT budget, and the mixed-placement exclusion rule means it cannot sample. D8 should state this cost and either default `--limit` lower for `compare`, or add `--jobs-concurrency`/caching of per-run lane results, so the O8 measurement does not stall on rate limiting.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 58,
+      "status": "parked",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-pass3-round-1.json",
+      "fingerprint": "cb5f57194f1457d2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Pass 3 records the pi lane as `auth_required` because pi wrote its findings to a file rather than stdout. That is pi's normal behaviour (it writes review_findings.json to the dispatcher's cwd), not an auth failure, so the lane's round-1 pass-3 findings were probably produced and discarded, and pi is now excluded from later rounds on a misclassification. Not a plan defect; the dispatcher's lane classifier should distinguish 'findings written to file' from auth failure, and the orchestrator may want to pick up the file before the next round.",
+      "resolution": "orchestrator adjudication: dispatcher lane-classification issue, not a plan defect; reported to orchestrator",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 59,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "critical",
+      "evidence_class": "judgment",
+      "fingerprint": "967a57905f535558",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The fork-safety guarantee is implemented inside `ci.yml` and `security.yml`, but a `pull_request` run evaluates workflow YAML from the pull request's merge ref. A fork can therefore modify an existing workflow to replace the canonical `runs-on` expression with the public GX10 labels and remove the first-step guard; after the required external-contributor approval, that untrusted workflow can schedule directly on the repository-scoped runner. Tests cannot prevent this because runner selection occurs before any test or guard executes. The plan must not route `pull_request` or `merge_group` events to repository-scoped self-hosted runners unless enforcement is outside pull-request-controlled workflow YAML; the safe baseline is self-hosting only trusted `push` and suitably constrained `workflow_dispatch` runs.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 60,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "329e70c445e202cb",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "D6 and O4 do not require the nftables isolation rules to be persisted across reboot, while lingering user units restart automatically at boot. O10 verifies only that the unit and runner return online, so a runtime-only nft rule can disappear during the reboot drill and expose LAN/Tailscale-bound host services as soon as the runners restart. Require persistent nftables configuration and extend O10 to recheck the rules, DNS exemption, and container TCP probes after reboot; the loopback-binding fallback must likewise be verified after reboot.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 61,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "6a45c091bd80a125",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Operator step O1 assigns the fixed subordinate-ID ranges `200000-265535` without first proving they are unused in `/etc/subuid` and `/etc/subgid`. Overlapping subordinate ranges can break rootless Podman isolation and allow different users' remapped container processes to share host IDs. The runbook should allocate a non-overlapping 65536-ID range using the host's account-management policy and verify that the resulting ranges do not overlap any existing entry.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 62,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "80b0e191c65f0268",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "D5 says the pre-mint sweep deletes every stale offline registration for an instance, but it performs only a runners-list request bounded to `per_page=100`. Once the repository has more than 100 registrations, a matching stale runner can fall outside that page and remain indefinitely; repeated hard reboots can accumulate registrations until runner creation or administration becomes unreliable. Specify bounded pagination across all available pages, or fail with an actionable diagnostic when the safety bound is reached, and test a match appearing after the first page.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 63,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "56d67ac56da6f85d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The `Runners Are Ephemeral Per Job` requirement contains SHALL clauses that are not covered by a WHEN/THEN scenario as required by the review rules. In particular, no scenario asserts that `ExecStart` contains `--replace`, and no scenario asserts that `ExecStopPost` invokes `cleanup-runner.sh`; the current unit scenario checks neither despite tasks 3.1 planning both assertions. Add these outcomes to the unit scenario or create dedicated scenarios so the normative restart and cleanup contracts are represented in the spec itself.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }

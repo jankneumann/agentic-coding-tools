@@ -77,7 +77,7 @@ Every `hosted` job SHALL declare a literal `runs-on: ubuntu-latest` and MUST NOT
 
 ### Requirement: Fork Pull Requests Never Execute On Self-Hosted Runners
 
-A `pull_request` event whose head repository differs from the base repository, and every `merge_group` event (whose merge commit can contain approved fork code), SHALL resolve to `ubuntu-latest` regardless of the variable value. Every `routed` job's first step SHALL be a guard that fails the job when it is running on a self-hosted runner for any event outside the D3 eligibility allowlist, which includes every fork pull request and every `merge_group` run. Neither workflow SHALL declare the triggers `pull_request_target`, `workflow_run` or `issue_comment`. The repository's fork-PR contributor approval policy MUST be set to require approval for all external contributors; this is an operator-only step with a verification command.
+A `pull_request` event whose head repository differs from the base repository, and every `merge_group` event (whose merge commit can contain approved fork code), SHALL resolve to `ubuntu-latest` regardless of the variable value. Every `routed` job's first step SHALL be a guard that fails the job when it is running on a self-hosted runner for any event outside the D3 eligibility allowlist, which includes every fork pull request and every `merge_group` run. Because a `pull_request` run uses the pull request's own workflow YAML, the runner image SHALL enforce this independently of the workflows: it SHALL install a job-started hook (`ACTIONS_RUNNER_HOOK_JOB_STARTED`) that fails the job before any step runs unless the GitHub-written event payload shows a `push` to `refs/heads/main`, a `workflow_dispatch`, or a `pull_request` whose head repository equals the base repository. Neither workflow SHALL declare the triggers `pull_request_target`, `workflow_run` or `issue_comment`. The repository's fork-PR contributor approval policy MUST be set to require approval for all external contributors; this is an operator-only step with a verification command.
 
 #### Scenario: Fork pull request routes to hosted even with the self-hosted lane enabled
 - **WHEN** the reference evaluator resolves the expression for a fork `pull_request` with `CI_RUNNER_LANE` set to `self-hosted`
@@ -86,6 +86,16 @@ A `pull_request` event whose head repository differs from the base repository, a
 #### Scenario: Routed job lacks the in-job fork guard
 - **WHEN** a routed job's first step is not the canonical guard, with condition `runner.environment == 'self-hosted'` combined with the negation of the D3 event-eligibility clause
 - **THEN** the fork guard test fails and names the job
+
+#### Scenario: Runner hook refuses a fork PR that rewrote its workflow
+- **WHEN** the hook test runs `job-started-hook.sh` with `GITHUB_EVENT_NAME=pull_request` and an event payload whose `pull_request.head.repo.full_name` differs from `GITHUB_REPOSITORY`
+- **THEN** the hook exits non-zero
+- **AND** it also exits non-zero for `merge_group`, for `pull_request_target`, and for `push` to a ref other than `refs/heads/main`
+- **AND** it exits zero for `push` to `refs/heads/main`, for `workflow_dispatch`, and for a same-repository `pull_request`
+
+#### Scenario: Runner image installs the hook
+- **WHEN** the image test reads `deploy/gx10-runner/Containerfile`
+- **THEN** it copies `job-started-hook.sh` into the image and sets `ACTIONS_RUNNER_HOOK_JOB_STARTED` to its path
 
 #### Scenario: Privileged trigger is introduced
 - **WHEN** `ci.yml` or `security.yml` declares `pull_request_target`, `workflow_run` or `issue_comment`
@@ -100,7 +110,7 @@ A `pull_request` event whose head repository differs from the base repository, a
 The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 - It SHALL register each runner with a single-use just-in-time configuration minted on the host before the container starts.
 - It SHALL run the runner in a container started with `--rm`, so that one container serves exactly one job, and with `--replace`, so that a container left over from an unclean stop cannot wedge the restart loop.
-- It SHALL delete the instance's own registration on stop (`ExecStopPost` runs `cleanup-runner.sh`) and, before minting, SHALL delete only the instance's own stale offline registrations, identified by the runner-name prefix `gx10-<hostname>-<instance>-`.
+- It SHALL delete the instance's own registration on stop (`ExecStopPost` runs `cleanup-runner.sh`) and, before minting, SHALL delete only the instance's own stale offline registrations, identified by the runner-name prefix `gx10-<hostname>-<instance>-`, searching every page of the runners list up to a bounded page count.
 - It SHALL load its operator configuration through `EnvironmentFile=` and deliver the registration credential through `LoadCredential=`.
 - It SHALL NOT pass the registration credential, a container engine socket, host networking or privileged mode into the container.
 - It SHALL pin the container network explicitly to `slirp4netns:allow_host_loopback=false`, so that host loopback services stay unreachable regardless of the host's podman default.
@@ -113,7 +123,8 @@ The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 #### Scenario: Unit runs a removable container with a single-use config
 - **WHEN** the unit test parses `gx10-runner@.service`
 - **THEN** `ExecStartPre` invokes `mint-jitconfig.sh`
-- **AND** `ExecStart` invokes `podman run` with `--rm`, `--pull=never`, `--env-file`, `--cap-drop ALL`, `--security-opt no-new-privileges` and `--network slirp4netns:allow_host_loopback=false`
+- **AND** `ExecStart` invokes `podman run` with `--rm`, `--replace`, `--pull=never`, `--env-file`, `--cap-drop ALL`, `--security-opt no-new-privileges` and `--network slirp4netns:allow_host_loopback=false`
+- **AND** `ExecStopPost` invokes `cleanup-runner.sh`
 
 #### Scenario: Dangerous container options are absent
 - **WHEN** the unit test scans `ExecStart`
@@ -137,6 +148,7 @@ The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 #### Scenario: Stale registrations of the instance are swept before minting
 - **WHEN** the stubbed runners API lists an offline runner `gx10-<host>-1-<epoch>`, an online runner with the same prefix, and an offline runner `gx10-<host>-2-<epoch>`, and `mint-jitconfig.sh 1` runs
 - **THEN** it deletes only the offline instance-1 runner before requesting a new JIT config
+- **AND** a matching offline runner served on the second page of the runners list is also deleted
 
 #### Scenario: Shared cache is off unless the operator opts in
 - **WHEN** the unit test expands `ExecStart` with the example env file's `GX10_RUNNER_CACHE_ARGS` (empty)
@@ -146,8 +158,9 @@ The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 #### Scenario: Operator verifies host services are unreachable on every host address
 - **WHEN** the operator attempts a TCP connect (not an HTTP request) to `:54322` and the coordinator API port from inside a runner container at `10.0.2.2` and at every address printed by `hostname -I`
 - **THEN** every connect is refused or times out
-- **AND** either the nftables rules (a DNS exemption for the host stub resolver followed by a drop of `ghrunner`-owned traffic to local addresses) are listed, or `ss -ltnp` shows those ports bound to `127.0.0.1` only
-- **AND** `ghrunner` can still resolve `api.github.com`
+- **AND** either the persistent `table inet` nftables rules (a DNS exemption for the host stub resolver, then drops of `ghrunner`-owned traffic to local addresses and to private, CGNAT and link-local ranges) are listed and present in `/etc/nftables.conf`, or `ss -ltnp` shows those ports bound to `127.0.0.1` only
+- **AND** `api.github.com` resolves from inside the runner container
+- **AND** after a host reboot the same rules are listed and the same probes still fail
 
 #### Scenario: JIT labels match the routing labels
 - **WHEN** the runner-kit test compares the labels requested by `mint-jitconfig.sh` with `routing.self_hosted_labels`
@@ -186,8 +199,8 @@ The runner kit SHALL provide a systemd user template unit, `gx10-runner@.service
 ### Requirement: CI Wall-Clock Measurement And Run Verification
 
 The repository SHALL provide `scripts/ci/ci_wallclock.py` with three functions:
-- `median_wallclock(runs)` SHALL compute the median wall-clock seconds over successful runs only.
-- `compare(baseline, candidate, threshold=0.85, min_n=5)` SHALL pass only when the candidate median is at most `threshold` times the baseline median and both samples meet `min_n`.
+- `median_wallclock(runs, *, conclusion="success")` SHALL compute the median wall-clock seconds over successful runs only.
+- `compare(baseline, candidate, *, threshold=0.85, min_n=5)` SHALL pass only when the candidate median is at most `threshold` times the baseline median and both samples meet `min_n`.
 - `verify_run(jobs, manifest, workflow, expected_lane="self-hosted")` SHALL report: every routed job that did not run on a `gx10`-labelled runner (or, with `expected_lane="hosted"`, every routed job that ran on a self-hosted runner); every hosted job that ran on a self-hosted runner; every job that concluded anything other than `success` or `skipped`, except that a job declared `continue-on-error: true` SHALL be reported as a warning rather than a violation; every `skipped` job whose definition has no job-level `if:`; and every manifest job missing from the run. A `skipped` job that has a job-level `if:` SHALL NOT be reported, and its runner placement SHALL NOT be checked. `verify_run` SHALL correlate manifest job ids with jobs-API entries through the display name derived from the workflow definition (the job id, or a literal `name:`; matrix expansions match `<display name> (` and are each checked), and SHALL report any jobs-API entry that matches no manifest job.
 
 The CLI SHALL select runs only through explicit filters (`--workflow`, `--head-sha`, `--event`, `--since`, `--until`) and SHALL cap fetched runs with `--limit`.
@@ -222,6 +235,10 @@ The CLI SHALL select runs only through explicit filters (`--workflow`, `--head-s
 - **WHEN** `verify_run` receives a workflow definition whose job `lint` has a two-entry `strategy.matrix`, and the jobs API returns `lint (a)` on a `gx10` runner and `lint (b)` on a hosted runner while the lane is self-hosted
 - **THEN** it returns a violation for `lint (b)` and none for `lint (a)`
 - **AND** a jobs-API entry whose name matches no manifest job is reported as an unknown job
+
+#### Scenario: Manifest job missing from the run is a violation
+- **WHEN** `verify_run` receives a jobs list that lacks a job the manifest names for that workflow
+- **THEN** it returns a violation naming the missing job
 
 #### Scenario: Unconditional job skipped by an upstream failure is a violation
 - **WHEN** a job with no job-level `if:` concluded `skipped`

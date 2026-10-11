@@ -255,6 +255,7 @@ packages:
         - "deploy/gx10-runner/install-units.sh"
         - "deploy/gx10-runner/gx10-runner.env.example"
         - "deploy/gx10-runner/toolchain.txt"
+        - "deploy/gx10-runner/job-started-hook.sh"
 
   # ─────────────────────────────────────────────────────────────────────
   # wp-tooling — wall-clock measurement + run verification CLI

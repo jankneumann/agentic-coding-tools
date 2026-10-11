@@ -43,6 +43,10 @@ requirements, not as hardening to add later.
      an operator sets the variable.
    - Every routed job's first step is an in-job guard. It fails the job if a fork pull request
      or a `merge_group` run ever reaches a self-hosted runner.
+   - Because a fork PR's run uses the PR's own workflow YAML (it could rewrite `runs-on` and
+     drop the guard), the enforcement point is a **job-started hook baked into the runner
+     image** (design D4). It refuses every run except `push` to `main`, `workflow_dispatch` and
+     a same-repository pull request, judged from the GitHub-written event payload.
    - Hosted-pinned jobs keep a literal `runs-on: ubuntu-latest`. Each has a justification in
      the manifest. The pinned jobs are the container-engine jobs (`test-integration`,
      `gen-eval`, `test-openbao-live`), `docker-smoke-import` (production image architecture is
