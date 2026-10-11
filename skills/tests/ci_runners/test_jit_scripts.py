@@ -35,6 +35,7 @@ def _run(script: Path, args: list[str], env_extra: dict[str, str], tmp: Path, co
         "GX10_RUNNER_LABELS": "self-hosted,linux,ARM64,gx10",
         "GX10_MINT_BASE_DELAY": "0.01",
         "GX10_MINT_MAX_ELAPSED": "5",
+        "GX10_MINT_FAIL_HOLDOFF": "0",
         **stub_env,
         **env_extra,
     }
@@ -138,6 +139,49 @@ def test_mint_does_not_retry_client_errors(mint, tmp_path):
     assert res.returncode != 0
     assert len([c for c in calls if c["method"] == "POST"]) == 1
     assert not (env_dir / "1.env").exists()
+
+
+def test_non_retryable_failure_holds_off_before_exiting(mint, tmp_path):
+    """Restart=always re-runs the mint every RestartSec: a revoked token must not hot-loop."""
+    import time
+
+    cfg = {
+        "routes": [{"method": "POST", "pattern": r"generate-jitconfig$", "status": 401, "body": {}}]
+    }
+    start = time.monotonic()
+    res, _, _ = _run(mint, ["1"], {"GX10_MINT_FAIL_HOLDOFF": "1"}, tmp_path, cfg)
+    assert res.returncode != 0
+    assert time.monotonic() - start >= 1, "exited without the hold-off"
+    assert "holding off 1s" in res.stderr
+
+
+def test_mint_default_hold_off_fits_inside_the_start_timeout(mint, kit_dir):
+    import re
+
+    unit_text = (kit_dir / "systemd" / "gx10-runner@.service").read_text()
+
+    default = int(re.search(r"GX10_MINT_FAIL_HOLDOFF:-(\d+)", mint.read_text()).group(1))
+    timeout = int(re.search(r"^TimeoutStartSec=(\d+)", unit_text, re.M).group(1))
+    assert default < timeout
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["--privileged", "--network host", "--volume /:/host", "--volume gx10-runner-uv-cache:/home/runner/.cache/uv --cap-add ALL"],
+)
+def test_mint_refuses_unexpected_cache_args(mint, tmp_path, value):
+    cfg = {"routes": [_mint_ok_route()]}
+    res, calls, env_dir = _run(mint, ["1"], {"GX10_RUNNER_CACHE_ARGS": value}, tmp_path, cfg)
+    assert res.returncode != 0 and "refusing GX10_RUNNER_CACHE_ARGS" in res.stderr
+    assert calls == [] and not (env_dir / "1.env").exists()
+
+
+@pytest.mark.parametrize("value", ["", "--volume gx10-runner-uv-cache:/home/runner/.cache/uv"])
+def test_mint_accepts_documented_cache_args(mint, tmp_path, value):
+    cfg = {"routes": [_mint_ok_route()]}
+    res, _, env_dir = _run(mint, ["1"], {"GX10_RUNNER_CACHE_ARGS": value}, tmp_path, cfg)
+    assert res.returncode == 0, res.stderr
+    assert (env_dir / "1.env").exists()
 
 
 def _runner(rid, name, status):

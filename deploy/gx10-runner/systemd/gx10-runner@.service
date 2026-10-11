@@ -5,6 +5,9 @@
 # (`--rm`), and `Restart=always` starts a fresh one with a freshly minted JIT config.
 [Unit]
 Description=GX10 ephemeral GitHub Actions runner %i
+# Informational only: a user manager has no wait-online job, so this target is reached at
+# once. The real boot gate is mint-jitconfig.sh's bounded retry, which absorbs a network
+# that is not yet routable.
 After=network-online.target
 Wants=network-online.target
 # Restarts after every job are normal and frequent. Back-off on persistent API failure

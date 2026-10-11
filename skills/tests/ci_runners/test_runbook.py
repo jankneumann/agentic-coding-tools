@@ -104,11 +104,23 @@ def test_nft_ruleset_is_ordered_persistent_and_dual_stack(runbook):
                    "169.254.0.0/16", "fc00::/7", "fe80::/10", 'oifname "tailscale0"'):
         assert needle in rules, needle
     assert all("meta skuid ghrunner" in ln for ln in lines if ln.endswith(("accept", "drop")))
-    # persistence and re-check after reboot
-    assert 'include "/etc/nftables.d/gx10-runner.nft"' in runbook
-    assert "systemctl enable --now nftables" in runbook
-    # The table is loaded explicitly: `enable --now` does not reload an active service.
-    assert "sudo nft -f /etc/nftables.d/gx10-runner.nft" in runbook
+    # Persistence through a dedicated boot unit that loads only this table, never through
+    # nftables.service, whose stock config begins with `flush ruleset` (wipes host firewalls).
+    assert "ExecStart=/usr/sbin/nft -f /etc/nftables.d/gx10-runner.nft" in runbook
+    assert "Before=network-pre.target systemd-user-sessions.service" in runbook
+    assert "systemctl enable --now gx10-runner-isolation.service" in runbook
+    assert "flush ruleset" not in rules
+    for banned in ("enable --now nftables", "enable nftables", "restart nftables",
+                   'include "/etc/nftables.d/gx10-runner.nft"'):
+        assert banned not in runbook, banned
+    # /etc/nftables.d is not shipped by Debian/Ubuntu: it is created before the tee.
+    assert runbook.index("mkdir -p /etc/nftables.d") < runbook.index("tee /etc/nftables.d/gx10-runner.nft")
+
+
+def test_o1_delegates_cgroup_controllers_for_rootless_limits(runbook):
+    o1 = sections(runbook)["O1"]
+    assert "Delegate=cpu cpuset io memory pids" in o1
+    assert "cgroup.controllers" in o1
 
 
 def test_ghrunner_commands_use_the_units_runtime_dir(runbook):

@@ -12,6 +12,11 @@
 #   GX10_RUNNER_LABELS       comma-separated full label set; runner-assigned defaults are stripped
 #   GX10_MINT_MAX_ELAPSED    total retry budget in seconds (default 600; keep < TimeoutStartSec)
 #   GX10_MINT_BASE_DELAY     first retry delay in seconds (default 5; doubles, capped at 300)
+#   GX10_MINT_FAIL_HOLDOFF   seconds to wait before exiting on a NON-retryable failure
+#                            (default 300; keep < TimeoutStartSec). Restart=always re-runs this
+#                            script every RestartSec, so without it a revoked token or a bad
+#                            config would hot-loop every instance against the API.
+#   GX10_RUNNER_CACHE_ARGS   validated here: empty, or exactly the documented cache volume
 #   GX10_RUNNER_TOKEN_FILE   credential fallback when $CREDENTIALS_DIRECTORY is unset
 #   GX10_GITHUB_API          API base (default https://api.github.com)
 #   GX10_HOSTNAME            override for `hostname -s` (tests)
@@ -32,6 +37,22 @@ max_pages=10
 
 log() { printf 'mint-jitconfig[%s]: %s\n' "$instance" "$*" >&2; }
 
+# Non-retryable failure: hold off, then fail, so the unit's restart loop polls slowly.
+fail_slow() {
+  log "$* (holding off ${GX10_MINT_FAIL_HOLDOFF:-300}s before exiting)"
+  sleep "${GX10_MINT_FAIL_HOLDOFF:-300}"
+  exit 1
+}
+
+# --- config: GX10_RUNNER_CACHE_ARGS is spliced into `podman run` after the hardening flags,
+# so anything but the one documented value could override them (--privileged, --network
+# host, a bind mount). Refuse to start otherwise.
+cache_args="${GX10_RUNNER_CACHE_ARGS:-}"
+if [[ -n "$cache_args" && "$cache_args" != "--volume gx10-runner-uv-cache:/home/runner/.cache/uv" ]]; then
+  fail_slow "refusing GX10_RUNNER_CACHE_ARGS='${cache_args}': only empty or" \
+    "'--volume gx10-runner-uv-cache:/home/runner/.cache/uv' is allowed"
+fi
+
 # --- credential -----------------------------------------------------------------------
 token_file=""
 if [[ -n "${CREDENTIALS_DIRECTORY:-}" && -f "${CREDENTIALS_DIRECTORY}/github-token" ]]; then
@@ -40,13 +61,11 @@ elif [[ -n "${GX10_RUNNER_TOKEN_FILE:-}" ]]; then
   token_file="${GX10_RUNNER_TOKEN_FILE}"
 fi
 if [[ -z "$token_file" || ! -f "$token_file" ]]; then
-  log "no credential: expected \$CREDENTIALS_DIRECTORY/github-token or GX10_RUNNER_TOKEN_FILE"
-  exit 1
+  fail_slow "no credential: expected \$CREDENTIALS_DIRECTORY/github-token or GX10_RUNNER_TOKEN_FILE"
 fi
 mode="$(stat -c '%a' "$token_file")"
 if (( (8#$mode) & ~8#600 )); then
-  log "refusing credential file $token_file with mode $mode (must be 0600 or narrower)"
-  exit 1
+  fail_slow "refusing credential file $token_file with mode $mode (must be 0600 or narrower)"
 fi
 
 work="$(mktemp -d)"
@@ -140,8 +159,7 @@ while :; do
     fi
     log "HTTP $code but the response lacked encoded_jit_config/runner.id"
   elif [[ "$code" != 5* && "$code" != "000" && "$code" != "429" ]]; then
-    log "generate-jitconfig failed with non-retryable HTTP $code"
-    exit 1
+    fail_slow "generate-jitconfig failed with non-retryable HTTP $code"
   fi
   delay="$(awk -v b="$base_delay" -v n="$attempt" 'BEGIN { d = b * (2 ^ n); if (d > 300) d = 300; print d }')"
   elapsed_us=$(( $(now_us) - start_us ))

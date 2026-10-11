@@ -193,6 +193,32 @@ def test_other_self_hosted_runner_is_never_a_valid_placement(cw):
     assert [v["job"] for v in res["violations"]] == ["build"]
 
 
+@pytest.mark.parametrize("expected_lane", ["self-hosted", "hosted"])
+@pytest.mark.parametrize("index,name", [(2, "build"), (3, "pinned")])
+def test_job_that_ran_without_labels_is_a_placement_violation(cw, expected_lane, index, name):
+    jobs = good_jobs() if expected_lane == "self-hosted" else [
+        _job(j["name"], HOSTED if j["conclusion"] != "skipped" else [], j["conclusion"])
+        for j in good_jobs()
+    ]
+    jobs[index] = _job(name, [])  # concluded success, but no placement evidence
+    res = verify(cw, jobs, expected_lane=expected_lane)
+    assert [v["job"] for v in res["violations"]] == [name]
+    assert "unproven" in res["violations"][0]["message"]
+
+
+def test_compare_reports_runs_on_another_self_hosted_pool(cw, manifest):
+    wf = {"jobs": {j: {} for j in manifest["workflows"]["security.yml"]["jobs"]}}
+    other = ["self-hosted", "linux", "X64", "someone-elses-pool"]
+    baseline = [run(i, 600, jobs=[_job(j, HOSTED) for j in wf["jobs"]]) for i in range(10, 16)]
+    cand = [run(i, 400, jobs=[_job(j, SELF) for j in wf["jobs"]]) for i in range(20, 26)]
+    stray = run(97, 1, jobs=[_job(j, other) for j in wf["jobs"]])
+    runs = baseline + cand + [stray]
+    result = cw.compare(runs, runs, manifest=manifest, workflow=wf, workflow_file="security.yml")
+    reasons = {e["run_id"]: e["reason"] for e in result["excluded_runs"]}
+    assert "non-GX10 self-hosted" in reasons[97]
+    assert result["n_baseline"] == 6 and result["n_candidate"] == 6
+
+
 def test_unconditional_skipped_job_is_a_violation(cw):
     jobs = good_jobs()
     jobs[2] = _job("build", [], "skipped")

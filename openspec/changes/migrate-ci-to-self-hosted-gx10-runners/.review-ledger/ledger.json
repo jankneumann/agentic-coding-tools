@@ -1366,6 +1366,173 @@
       ],
       "description": "tasks.md task 2.9 explicitly says existing workflow-parsing test contracts must not be edited, but this change modifies both skills/tests/project-context-refresh/test_gate.py and skills/tests/validate-feature/test_ci_sweep_wiring.py. Since the new trigger and guard intentionally require these compatibility updates, revise the task contract to authorize and describe them rather than leaving the completed implementation in direct conflict with its approved plan.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 81,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/mint-jitconfig.sh",
+      "fingerprint": "f183f2e7cc114be7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "mint-jitconfig.sh exits 1 immediately on any non-retryable HTTP status (401/403/404/422 \u2014 e.g. an expired or revoked 90-day PAT, a renamed repo, a deleted runner group). The unit runs with Restart=always, RestartSec=10 and StartLimitIntervalSec=0, so ExecStartPre is re-run every ~10 s on every instance indefinitely: with 8 instances that is ~48 generate-jitconfig POSTs per minute against the GitHub API with no back-off and no stopping condition. The unit comment promises 'back-off on persistent API failure', but the GX10_MINT_MAX_ELAPSED backoff only covers 5xx/429/000; the non-retryable branch is the one that will fire during a credential outage. Fix: on a non-retryable code, sleep for a long bounded interval (e.g. min(GX10_MINT_MAX_ELAPSED, 600)) before exiting, or write a sentinel the unit's ExecCondition honours, so a dead token degrades to a slow poll rather than a hot loop.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 82,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "fingerprint": "afaa544ed7c8516d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Runbook O4 writes the nftables ruleset with `sudo tee /etc/nftables.d/gx10-runner.nft` and later includes it from /etc/nftables.conf. Neither Debian nor Ubuntu ships an /etc/nftables.d/ directory (the stock nftables.conf has no include line and no drop-in dir), so on a fresh GX10 host `tee` fails with 'No such file or directory' and the operator continues to the `nft -f` step with no file. The step needs `sudo mkdir -p /etc/nftables.d` first, and the test for the runbook should assert that mkdir precedes tee.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 83,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "fingerprint": "3f467e4081900628",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Runbook O4 runs `sudo systemctl enable --now nftables` after loading the ruleset with `nft -f`. On Ubuntu the nftables service is installed but inactive by default; `--now` therefore starts it, which executes /etc/nftables.conf whose first statement in the stock file is `flush ruleset`. That wipes every table on the host \u2014 including podman's netavark/CNI tables and ufw's \u2014 and then reloads only what the conf includes. The runbook warns only against `systemctl restart nftables`; the `--now` on enable has the identical effect on a host where the service was not already running. Use `sudo systemctl enable nftables` (no --now) after the explicit `nft -f`, and tell the operator to verify `nft list ruleset | grep -c table` is unchanged afterwards.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 84,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/systemd/gx10-runner@.service",
+      "fingerprint": "e5fa61cae1fe19d6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "gx10-runner@.service passes `--cpus ${GX10_RUNNER_CPUS}` to a rootless `podman run`. Rootless cgroup v2 limits require the `cpu` controller to be delegated to the user's `user@<uid>.service`; systemd's default delegation for user sessions is `memory pids` (plus `cpuset io cpu` only on newer distros when configured), so on a stock Ubuntu host every container start fails with 'requested cgroup controller `cpu` is not available' and, combined with Restart=always, the eight instances enter an infinite 10 s restart loop before a single job runs. The runbook O1 (ghrunner setup) must install a `/etc/systemd/system/user@.service.d/delegate.conf` drop-in with `[Service]\\nDelegate=cpu cpuset io memory pids`, run daemon-reload, and O4 should verify `cat /sys/fs/cgroup/user.slice/user-$(id -u ghrunner).slice/user@$(id -u ghrunner).service/cgroup.controllers` lists `cpu`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 85,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "fingerprint": "2fd70d1d036ff342",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "tasks.md step O9 still instructs `journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'`. The runbook replaced this with `sudo journalctl _UID=$(id -u ghrunner) --user-unit gx10-runner@1.service` because the operator is not the ghrunner user and `--user` reads the caller's own journal; the runbook test forbids the old form. The task list and runbook now disagree on the verification command, so an operator following tasks.md gets an empty count and a false failure.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 86,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/systemd/gx10-runner@.service",
+      "fingerprint": "7e75b130c17ad1aa",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "gx10-runner@.service declares `After=network-online.target` / `Wants=network-online.target`. Inside the user manager (systemd --user) there is no network-online.target with system semantics; the user instance has no NetworkManager-wait-online / systemd-networkd-wait-online job, so the target activates immediately and the ordering is a no-op. The mint script's retry/backoff already absorbs a not-yet-routable boot window, so this is informational: either remove the lines or add a comment that the real boot gate is the mint backoff, so a future reader does not rely on the directive.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 87,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "fingerprint": "4a9f2ad708f116d4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "In ci_wallclock.compare(), a run whose routed jobs executed on a non-GX10 self-hosted pool (job_lane returns OTHER_SELF_HOSTED) is silently dropped from both the hosted and the self-hosted sample: select() only records an exclusion when the lane is None or when the run belongs to the other side, and in the CLI path cmd_compare passes the same list as both sides, so the 'wrong lane' branch can never fire. An operator comparing during a partial cutover (or with a stray org-level runner picking up jobs) sees n shrink with nothing in excluded_runs to explain why, and can misread a thin sample as a scheduling problem. Record OTHER_SELF_HOSTED runs in excluded_runs with a reason.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 88,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "3938c8a50051445b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The O4 nftables persistence procedure can erase the host's existing firewall rules. The runbook appends the runner table to `/etc/nftables.conf`, whose stock configuration may contain `flush ruleset`, and then enables `nftables.service`. Although the text correctly warns that restarting the service would replay the flush, `systemctl enable --now nftables` does exactly that when the service is inactive, and the same flush occurs at boot. This can wipe UFW/firewalld or other host rules before recreating only the GX10 table. Persist the runner table through a dedicated ordered unit or integrate it with the host's authoritative firewall manager without replaying a global flush.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 89,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "9f8b3076983824a8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`verify_run` silently accepts a successful non-skipped job when the jobs API entry has no runner labels. Both hosted and routed placement checks are conditional on `actual is not None`, so missing placement evidence produces no violation. This contradicts the requirement to report every routed job that did not run on a `gx10`-labelled runner and can let O6/O7/O12 report zero violations without proving placement. Treat an unassigned/unknown lane on every non-skipped job as a placement violation and add tests for both expected lanes and hosted-pinned jobs.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 90,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "0c9df801fc5af8b1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`GX10_RUNNER_CACHE_ARGS` is expanded as unrestricted Podman arguments after the hardening flags, but nothing enforces the documented single allowed value. A configured value such as `--network host`, `--privileged`, `--cap-add ALL`, or an arbitrary bind mount can override or defeat the unit's isolation; the tests only exercise the empty and expected named-volume values and therefore do not detect this. Replace the free-form argument variable with a validated boolean/fixed wrapper or reject every value except empty and the exact documented volume pair before `ExecStart`.",
+      "consensus_status": "unconfirmed"
     }
   ]
 }

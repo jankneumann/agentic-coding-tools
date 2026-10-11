@@ -205,6 +205,8 @@ def compare(
             lane = lane_of(r)
             if lane == want:
                 kept.append(r)
+            elif lane == OTHER_SELF_HOSTED:
+                excluded[r["id"]] = "routed jobs ran on a non-GX10 self-hosted runner"
             elif lane is not None and r["id"] not in other_ids:
                 excluded[r["id"]] = f"ran on the {lane} lane, expected {want}"
         return kept
@@ -306,14 +308,21 @@ def verify_run(
                 else:
                     violations.append(item)
             actual = job_lane(entry)
+            if actual is None:
+                violation(
+                    name,
+                    "placement",
+                    "no runner labels recorded for a job that ran: placement is unproven",
+                )
+                continue
             if lane == "hosted":
-                if actual is not None and actual != "hosted":
+                if actual != "hosted":
                     violation(
                         name,
                         "placement",
                         f"hosted job ran on a self-hosted runner ({actual})",
                     )
-            elif actual is not None and actual != expected_lane:
+            elif actual != expected_lane:
                 violation(
                     name,
                     "placement",

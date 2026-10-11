@@ -40,6 +40,13 @@ sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner
 sort -t: -k2 -n /etc/subuid
 sudo usermod --add-subuids <start>-<start+65535> --add-subgids <start>-<start+65535> ghrunner
 sudo loginctl enable-linger ghrunner
+# The unit passes --cpus/--memory/--pids-limit to rootless podman, which needs the cpu, io,
+# memory and pids cgroup controllers delegated to the user manager. Stock Ubuntu delegates
+# only some of them; without `cpu` every container start fails and the units restart-loop.
+sudo mkdir -p /etc/systemd/system/user@.service.d
+printf '[Service]\nDelegate=cpu cpuset io memory pids\n' |
+  sudo tee /etc/systemd/system/user@.service.d/delegate.conf >/dev/null
+sudo systemctl daemon-reload
 ```
 
 Verify:
@@ -48,6 +55,9 @@ Verify:
 loginctl show-user ghrunner -p Linger        # Linger=yes
 grep ghrunner /etc/subuid /etc/subgid        # one range in each file
 sort -t: -k2 -n /etc/subuid                  # each start is above the previous entry's end
+cat /sys/fs/cgroup/user.slice/user-$(id -u ghrunner).slice/user@$(id -u ghrunner).service/cgroup.controllers
+                                             # lists cpu, io, memory and pids (after a reboot
+                                             # or `sudo systemctl restart user@$(id -u ghrunner)`)
 ```
 
 ## O2 - Provision the registration credential
@@ -105,6 +115,7 @@ first, otherwise the mint script and container DNS cannot resolve `api.github.co
 instance ever comes online.
 
 ```bash
+sudo mkdir -p /etc/nftables.d          # not shipped by Debian/Ubuntu
 sudo tee /etc/nftables.d/gx10-runner.nft >/dev/null <<'NFT'
 table inet gx10_runner_isolation
 delete table inet gx10_runner_isolation
@@ -120,17 +131,32 @@ table inet gx10_runner_isolation {
   }
 }
 NFT
-# Persist it: include the file from /etc/nftables.conf and enable the service. Keep it clear of
-# ufw/firewalld reloads that would flush a hand-added table.
-grep -q 'nftables.d/gx10-runner.nft' /etc/nftables.conf || \
-  echo 'include "/etc/nftables.d/gx10-runner.nft"' | sudo tee -a /etc/nftables.conf
-sudo nft -c -f /etc/nftables.conf
-# Load the table now, explicitly: `systemctl enable --now nftables` does NOT reload an
-# nftables.service that is already active, and `systemctl restart nftables` would replay the
-# stock config's `flush ruleset`, wiping ufw/podman tables. The file is idempotent
-# (declare, delete, redefine), so loading it directly is safe. `enable` gives boot persistence.
-sudo nft -f /etc/nftables.d/gx10-runner.nft
-sudo systemctl enable --now nftables
+# Persist it with a DEDICATED boot unit, not nftables.service: the stock /etc/nftables.conf
+# starts with `flush ruleset`, so starting or restarting nftables.service (and every boot with
+# it enabled) wipes ufw/firewalld/podman tables. The file above is idempotent (declare,
+# delete, redefine) and touches only its own table, so loading it directly is safe. The unit
+# runs before user sessions, so the lingering runner units never start without the rules.
+sudo tee /etc/systemd/system/gx10-runner-isolation.service >/dev/null <<'UNIT'
+[Unit]
+Description=GX10 runner host-service isolation (nftables table inet gx10_runner_isolation)
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target systemd-user-sessions.service
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/gx10-runner.nft
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+sudo nft -c -f /etc/nftables.d/gx10-runner.nft
+sudo nft list ruleset | grep -c '^table'          # note the count: it must not drop below
+sudo systemctl daemon-reload
+sudo systemctl enable --now gx10-runner-isolation.service
+sudo nft list ruleset | grep -c '^table'          # previous count, plus one on first install
 sudo nft list table inet gx10_runner_isolation >/dev/null && echo loaded   # before any unit starts
 ```
 
@@ -162,8 +188,8 @@ for addr in 10.0.2.2 $(hostname -I); do
 done                                                                # every line: unreachable
 
 sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman exec gx10-runner-1 getent hosts api.github.com   # resolves (DNS exemption works)
-grep -c 'nftables.d/gx10-runner.nft' /etc/nftables.conf                  # non-zero: the include is persistent
-grep -c skuid /etc/nftables.d/gx10-runner.nft                            # non-zero: the rules are in the included file
+systemctl is-enabled gx10-runner-isolation.service                       # enabled: loaded at every boot
+grep -c skuid /etc/nftables.d/gx10-runner.nft                            # non-zero: the rules are in the loaded file
 sudo nft list ruleset | grep skuid                                       # rules are loaded
 sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'   # slirp4netns
 ```
