@@ -2,7 +2,7 @@
 
 ## Spec Compliance
 **Status**: pass
-`openspec validate --strict` valid; all tasks checked; sync-window tests cover each spec scenario.
+`openspec validate --strict` valid; all tasks checked. Unit tests cover the `trust-posture` sync-window contract (loader validation, schema parity, digest) and the authorization surface (`authorize_sync_window`, ceiling ordering) that the `skill-workflow` scenarios rely on. The `skill-workflow` scheduled-invocation scenarios are not exercised end to end: no scheduled caller exists in this change. Per design D6 (verification boundary) and task 1.1 they are acceptance contracts that `ri-12` and `ri-13` must test at their call sites.
 
 ## Evidence
 **Status**: pass

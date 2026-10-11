@@ -97,3 +97,25 @@ Two iterations; converged with no medium-or-higher findings left. Fixed a contra
 ### Context
 Added PR_ORIGINS export, sync_windows parsing/validation, authorize_sync_window, digest extension, show output, JSON schema mirror and template docs. No deviations from plan.
 
+
+---
+
+## Phase: Validation Review (2026-10-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Adjudicate the single-vendor high (ledger 28) to low** `architectural: trust-posture` — JSON Schema cannot express per-property uniqueness; the schema already names the loader as authoritative for unique ids, and a test pins the loader's rejection of duplicate ids
+2. **VAL_FIX the validation report's coverage claim (ledger 30)** `architectural: skill-workflow` — The report now states the verification boundary from design D6 instead of claiming every scenario is covered
+3. **Deviation: no confirmation round after adjudication** `architectural: skill-procedure-deviation` — The fix only rewords the report and the ledger has 0 blocking items; this follows the IMPL_REVIEW precedent
+
+### Completed Work
+- converge() round 1: quorum met by claude_code + codex; result `adjudication_required` with 0 blocking items
+- Ledger after adjudication: 0 blocking items, 0 adjudication items
+
+### Relevant Files
+- `val-findings.md` — dispatch record and adjudication table
+- `validation-report.md` — corrected Spec Compliance text
+
+### Context
+The IMPL_REVIEW checkpoint is preserved as `.review-cache/impl-review-round-1/`. The VAL_REVIEW checkpoint is `.review-cache/round-1/`.
