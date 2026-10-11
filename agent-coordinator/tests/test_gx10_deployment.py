@@ -241,3 +241,37 @@ def test_only_the_analyzers_caddy_skips_access(compose: dict) -> None:
     assert env["CF_ACCESS_TRUSTED_PEERS"] == "10.89.1.250"
     assert "FORWARDED_ALLOW_IPS" not in env
     assert "forwarded-allow-ips" not in COMPOSE.read_text(encoding="utf-8")
+
+
+SEED = DEPLOY / "seed-from-railway.sh"
+
+
+def test_the_seed_refuses_a_migration_that_changed_since_railway_applied_it() -> None:
+    """The runner only WARNS on a checksum mismatch and skips the file, so a
+    drifted migration would leave a silently half-migrated database."""
+    script = SEED.read_text(encoding="utf-8")
+    assert "CHANGED since Railway applied it" in script
+    restore = script[script.index("restore)"):]
+    assert '"$0" check "$dump"' in restore
+
+
+def test_the_seed_only_restores_into_an_empty_database() -> None:
+    """An API that started first has migrated an empty schema; restoring on
+    top collides object by object."""
+    script = SEED.read_text(encoding="utf-8")
+    assert "restore needs a fresh database" in script
+    assert "--single-transaction" in script
+
+
+def test_the_seed_creates_the_roles_the_policies_name() -> None:
+    """Roles are cluster-level, so no pg_dump carries them."""
+    script = SEED.read_text(encoding="utf-8")
+    for role in ("anon", "authenticated", "service_role"):
+        assert f"CREATE ROLE {role} NOLOGIN" in script
+
+
+def test_the_railway_password_never_reaches_argv() -> None:
+    script = SEED.read_text(encoding="utf-8")
+    assert "RAILWAY_COORD_DSN_FILE" in script
+    assert "--dbname" not in script
+    assert "PGPASSWORD" in script
