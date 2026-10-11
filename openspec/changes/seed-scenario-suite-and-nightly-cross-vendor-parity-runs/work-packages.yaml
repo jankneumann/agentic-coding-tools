@@ -1,0 +1,574 @@
+# Work packages for seed-scenario-suite-and-nightly-cross-vendor-parity-runs (ri-16).
+# DAG: wp-foundation -> {wp-scenarios, wp-results, wp-gaps} (parallel, disjoint write scopes)
+#      -> wp-nightly (needs results + gaps) -> wp-integration (needs scenarios + nightly).
+# No OpenAPI/DB surface: contracts/README.md is the contracts entrypoint; payload
+# schemas live under contracts/schemas/ (design D2/D3/D4).
+schema_version: 1
+feature:
+  id: seed-scenario-suite-and-nightly-cross-vendor-parity-runs
+  title: Seed scenario suite and nightly cross-vendor parity runs
+  plan_revision: 1
+  created_by: claude-code
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/README.md
+    files:
+    - openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/README.md
+    - openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/results-record.schema.json
+    - openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/capability-gap-entry.schema.json
+    - openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/nightly-config.schema.json
+    - openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/examples/capability-gap-entry.example.json
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+- package_id: wp-foundation
+  title: Foundation — package schemas, local_remote fixture, env scrub, skill materialization
+  task_type: implementation
+  description: 'Tasks 1.1–1.5. Promote contracts/schemas/*.json into package data; add FixtureSpec.local_remote
+
+    (sibling bare origin), CLIVendorExecutor env_scrub, and skills_root/support_skills materialization
+
+    with git-exclude and skills_sha capture. Backward-compatible defaults. Design D5.
+
+    '
+  role: implementer
+  archetype: implementer
+  priority: 1
+  depends_on: []
+  locks:
+    files:
+    - packages/agent-scenarios/src/agent_scenarios/models.py
+    - packages/agent-scenarios/src/agent_scenarios/executor.py
+    keys:
+    - feature:seed-scenario-suite-and-nightly-cross-vendor-parity-runs:foundation
+    ttl_minutes: 120
+    reason: Foundation — package schemas, local_remote fixture, env scrub, skill materialization
+  scope:
+    write_allow:
+    - packages/agent-scenarios/src/agent_scenarios/schemas/**
+    - packages/agent-scenarios/src/agent_scenarios/models.py
+    - packages/agent-scenarios/src/agent_scenarios/executor.py
+    - packages/agent-scenarios/src/agent_scenarios/materialize.py
+    - packages/agent-scenarios/tests/test_schemas.py
+    - packages/agent-scenarios/tests/test_fixture_extensions.py
+    - packages/agent-scenarios/tests/test_skill_materialization.py
+    - packages/agent-scenarios/pyproject.toml
+    - packages/agent-scenarios/uv.lock
+    read_allow:
+    - '**'
+    deny: []
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: ssn-wp-foundation
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: agent-scenarios suite passes
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run pytest -q'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - foundation_pytest_green
+    - name: ruff clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run ruff check src tests'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - foundation_ruff_clean
+    - name: mypy strict clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run mypy src'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - foundation_mypy_clean
+  metadata:
+    loc_estimate: 350
+    complexity: medium
+    package_kind: data_model
+  inputs: {}
+  outputs:
+    result_keys:
+    - foundation_pytest_green
+    - foundation_ruff_clean
+    - foundation_mypy_clean
+- package_id: wp-scenarios
+  title: Seed suite — 9 new scenarios, revised implement-feature-basic, golden/broken self-tests, coverage guard
+  task_type: implementation
+  description: 'Tasks 2.1–2.9. suite.py SKILL_FAMILIES; scenarios/*.scenario.yaml (11 total across plan/implement/
+
+    validate/merge, ≥2 vendors each); tests/scenario_outcomes/<id>.py golden+broken outcomes;
+
+    test_seed_suite.py floor guard; test_seed_outcomes.py self-test. Design D6.
+
+    '
+  role: implementer
+  archetype: implementer
+  priority: 2
+  depends_on:
+  - wp-foundation
+  locks:
+    files:
+    - packages/agent-scenarios/scenarios/implement-feature-basic.scenario.yaml
+    keys:
+    - feature:seed-scenario-suite-and-nightly-cross-vendor-parity-runs:scenarios
+    ttl_minutes: 120
+    reason: Seed suite — 9 new scenarios, revised implement-feature-basic, golden/broken self-tests, coverage guard
+  scope:
+    write_allow:
+    - packages/agent-scenarios/scenarios/**
+    - packages/agent-scenarios/src/agent_scenarios/suite.py
+    - packages/agent-scenarios/tests/scenario_outcomes/**
+    - packages/agent-scenarios/tests/test_seed_suite.py
+    - packages/agent-scenarios/tests/test_seed_outcomes.py
+    read_allow:
+    - '**'
+    deny: []
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: ssn-wp-scenarios
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: agent-scenarios suite passes
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run pytest -q'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - scenarios_pytest_green
+    - name: ruff clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run ruff check src tests'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - scenarios_ruff_clean
+    - name: mypy strict clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run mypy src'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - scenarios_mypy_clean
+  metadata:
+    loc_estimate: 900
+    complexity: medium
+    package_kind: config
+  inputs: {}
+  outputs:
+    result_keys:
+    - scenarios_pytest_green
+    - scenarios_ruff_clean
+    - scenarios_mypy_clean
+- package_id: wp-results
+  title: Results store — append-only JSONL ResultsStore and results query/trend/latest CLI
+  task_type: implementation
+  description: 'Tasks 3.1–3.5. results_store.py (ResultsStore protocol, JsonlResultsStore with flock append,
+
+    torn-line/unknown-version tolerant reader, records_from_matrices with injected family_of);
+
+    results_cli.py add_parser + query/trend/latest. Design D2.
+
+    '
+  role: implementer
+  archetype: implementer
+  priority: 2
+  depends_on:
+  - wp-foundation
+  locks:
+    files: []
+    keys:
+    - feature:seed-scenario-suite-and-nightly-cross-vendor-parity-runs:results
+    ttl_minutes: 120
+    reason: Results store — append-only JSONL ResultsStore and results query/trend/latest CLI
+  scope:
+    write_allow:
+    - packages/agent-scenarios/src/agent_scenarios/results_store.py
+    - packages/agent-scenarios/src/agent_scenarios/results_cli.py
+    - packages/agent-scenarios/tests/test_results_store.py
+    - packages/agent-scenarios/tests/test_results_cli.py
+    read_allow:
+    - '**'
+    deny: []
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: ssn-wp-results
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: agent-scenarios suite passes
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run pytest -q'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - results_pytest_green
+    - name: ruff clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run ruff check src tests'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - results_ruff_clean
+    - name: mypy strict clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run mypy src'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - results_mypy_clean
+  metadata:
+    loc_estimate: 450
+    complexity: medium
+    package_kind: crud
+  inputs: {}
+  outputs:
+    result_keys:
+    - results_pytest_green
+    - results_ruff_clean
+    - results_mypy_clean
+- package_id: wp-gaps
+  title: Capability gaps — scenario-parity emitter, memory/spool sinks, improve-harness consumer test, tag docs
+  task_type: implementation
+  description: 'Tasks 4.1–4.7. gap_emitter.py (D3 tag set incl. bare capability_gap tag, CoordinatorMemorySink via
+
+    POST /memory/store, SpoolMemorySink, flush). Skills side: SOURCE_VOCABULARY += scenario-parity,
+
+    memory-conventions.md, improve-harness SKILL.md row, consumer test over the example payload.
+
+    '
+  role: implementer
+  archetype: implementer
+  priority: 2
+  depends_on:
+  - wp-foundation
+  locks:
+    files:
+    - docs/guides/memory-conventions.md
+    - skills/improve-harness/SKILL.md
+    - skills/session-log/tests/test_memory_tag_conventions.py
+    keys:
+    - feature:seed-scenario-suite-and-nightly-cross-vendor-parity-runs:gaps
+    ttl_minutes: 120
+    reason: Capability gaps — scenario-parity emitter, memory/spool sinks, improve-harness consumer test, tag docs
+  scope:
+    write_allow:
+    - packages/agent-scenarios/src/agent_scenarios/gap_emitter.py
+    - packages/agent-scenarios/tests/test_gap_emitter.py
+    - skills/tests/improve-harness/test_scenario_parity_source.py
+    - skills/tests/improve-harness/fixtures/**
+    - skills/session-log/tests/test_memory_tag_conventions.py
+    - skills/improve-harness/SKILL.md
+    - docs/guides/memory-conventions.md
+    read_allow:
+    - '**'
+    deny: []
+  context_impact:
+    surfaces:
+    - semantic_code
+    - documentation
+  worktree:
+    name: ssn-wp-gaps
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: agent-scenarios suite passes
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run pytest -q'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - gaps_pytest_green
+    - name: ruff clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run ruff check src tests'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - gaps_ruff_clean
+    - name: mypy strict clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run mypy src'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - gaps_mypy_clean
+    - name: improve-harness + session-log tag tests pass
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/improve-harness skills/session-log/tests/test_memory_tag_conventions.py
+        -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - gaps_skills_tests_green
+    - name: skills install payload valid
+      kind: command
+      command: bash -c 'cd skills && bash install.sh --check && python3 validate-feature/scripts/linters/dependency_direction.py
+        --skills-root .'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - gaps_install_check_green
+  metadata:
+    loc_estimate: 350
+    complexity: medium
+    package_kind: integration
+  inputs: {}
+  outputs:
+    result_keys:
+    - gaps_pytest_green
+    - gaps_ruff_clean
+    - gaps_mypy_clean
+    - gaps_skills_tests_green
+    - gaps_install_check_green
+- package_id: wp-nightly
+  title: Nightly runner — guards, caps, run loop, subcommand CLI, systemd templates, runbook
+  task_type: implementation
+  description: 'Tasks 5.1–5.8. nightly.py (config model, enabled/kill-file/lock/cap/vendor guards, budgeted run
+
+    loop wiring results store + findings + gaps, executor factory); __main__.py subcommand dispatcher
+
+    (legacy form preserved); deploy/systemd/*.template + nightly.example.yaml (enabled: false);
+
+    runbook. Never invokes systemctl. Design D4, D7, D8.
+
+    '
+  role: implementer
+  archetype: implementer
+  priority: 3
+  depends_on:
+  - wp-foundation
+  - wp-results
+  - wp-gaps
+  locks:
+    files:
+    - packages/agent-scenarios/src/agent_scenarios/__main__.py
+    - packages/agent-scenarios/README.md
+    keys:
+    - feature:seed-scenario-suite-and-nightly-cross-vendor-parity-runs:nightly
+    ttl_minutes: 120
+    reason: Nightly runner — guards, caps, run loop, subcommand CLI, systemd templates, runbook
+  scope:
+    write_allow:
+    - packages/agent-scenarios/src/agent_scenarios/nightly.py
+    - packages/agent-scenarios/src/agent_scenarios/__main__.py
+    - packages/agent-scenarios/deploy/**
+    - packages/agent-scenarios/README.md
+    - packages/agent-scenarios/tests/test_nightly_config.py
+    - packages/agent-scenarios/tests/test_nightly_run.py
+    - packages/agent-scenarios/tests/test_main_cli.py
+    - packages/agent-scenarios/tests/test_deploy_assets.py
+    - docs/guides/agent-scenarios-nightly.md
+    read_allow:
+    - '**'
+    deny: []
+  context_impact:
+    surfaces:
+    - semantic_code
+    - documentation
+  worktree:
+    name: ssn-wp-nightly
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: B
+    steps:
+    - name: agent-scenarios suite passes
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run pytest -q'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - nightly_pytest_green
+    - name: ruff clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run ruff check src tests'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - nightly_ruff_clean
+    - name: mypy strict clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run mypy src'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - nightly_mypy_clean
+  metadata:
+    loc_estimate: 700
+    complexity: high
+    package_kind: algorithm
+  inputs: {}
+  outputs:
+    result_keys:
+    - nightly_pytest_green
+    - nightly_ruff_clean
+    - nightly_mypy_clean
+- package_id: wp-integration
+  title: Integration — broken-skill acceptance drill, 2-vendor full-suite acceptance, quality gates
+  task_type: integration
+  description: 'Tasks 6.1–6.3. Acceptance tests proving outcome 2 (broken skill → fail → scenario-parity gap →
+
+    improve-harness ranking) and outcomes 1/3 in-container (11 scenarios × 2 vendors → 22 result
+
+    records, trend per vendor × skill). Full package + skills gates + openspec validate.
+
+    '
+  role: integrator
+  archetype: architect
+  priority: 4
+  depends_on:
+  - wp-scenarios
+  - wp-nightly
+  locks:
+    files: []
+    keys:
+    - feature:seed-scenario-suite-and-nightly-cross-vendor-parity-runs:integration
+    ttl_minutes: 120
+    reason: Integration — broken-skill acceptance drill, 2-vendor full-suite acceptance, quality gates
+  scope:
+    write_allow:
+    - packages/agent-scenarios/tests/test_acceptance_broken_skill.py
+    - packages/agent-scenarios/tests/test_acceptance_nightly_suite.py
+    - openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/tasks.md
+    - openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/session-log.md
+    - openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/handoffs/**
+    read_allow:
+    - '**'
+    deny: []
+  context_impact:
+    surfaces:
+    - semantic_code
+  worktree:
+    name: ssn-wp-integration
+    mode: isolated
+  timeout_minutes: 90
+  retry_budget: 2
+  min_trust_level: 2
+  verification:
+    tier_required: A
+    steps:
+    - name: agent-scenarios suite passes
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run pytest -q'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - integration_pytest_green
+    - name: ruff clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run ruff check src tests'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - integration_ruff_clean
+    - name: mypy strict clean
+      kind: command
+      command: bash -c 'cd packages/agent-scenarios && uv run mypy src'
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - integration_mypy_clean
+    - name: skills suites for touched skills pass
+      kind: command
+      command: skills/.venv/bin/python -m pytest skills/tests/improve-harness skills/session-log/tests -q
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - integration_skills_green
+    - name: OpenSpec validates strictly
+      kind: command
+      command: openspec validate seed-scenario-suite-and-nightly-cross-vendor-parity-runs --strict
+      cwd: .
+      expect_exit_code: 0
+      evidence:
+        artifacts: []
+        result_keys:
+        - openspec_valid
+  metadata:
+    loc_estimate: 300
+    complexity: medium
+    package_kind: integration
+  inputs: {}
+  outputs:
+    result_keys:
+    - integration_pytest_green
+    - integration_ruff_clean
+    - integration_mypy_clean
+    - integration_skills_green
+    - openspec_valid

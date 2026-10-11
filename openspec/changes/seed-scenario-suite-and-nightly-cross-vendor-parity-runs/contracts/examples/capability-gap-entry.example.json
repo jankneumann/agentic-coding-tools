@@ -1,0 +1,25 @@
+{
+  "agent_id": "agent-scenarios-nightly",
+  "session_id": "nightly-20261012T023000Z-3f9a1c",
+  "event_type": "capability_gap",
+  "summary": "[codex] scenario validate-feature-clean-pass failed gates: report-has-status",
+  "details": {
+    "scenario_id": "validate-feature-clean-pass",
+    "vendor": "codex",
+    "failed_gates": [
+      {"gate_id": "report-has-status", "detail": "file validation-report.md does not match '\\*\\*Status\\*\\*:'"}
+    ],
+    "skills_sha": "0123abcd",
+    "repo_sha": "0123abcd"
+  },
+  "tags": [
+    "capability_gap",
+    "capability_gap:scenario-parity/validate-feature-clean-pass/report-has-status",
+    "failure_type:verification_failed",
+    "affected_skill:validate-feature",
+    "severity:high",
+    "source:scenario-parity",
+    "vendor:codex",
+    "scenario:validate-feature-clean-pass"
+  ]
+}

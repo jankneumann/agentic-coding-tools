@@ -1,0 +1,166 @@
+# Tasks: seed-scenario-suite-and-nightly-cross-vendor-parity-runs
+
+Spec scenario references use `<capability>.<requirement>/<scenario>` shorthand:
+`ath` = `agent-trajectory-harness`, `he` = `harness-engineering`.
+Design decisions are `D1`–`D8` in `design.md`. All tests use `FakeExecutor` or test
+doubles — no vendor CLI, no network, no `systemctl`, no database.
+
+## 1. Foundation — schemas and harness extensions (wp-foundation)
+
+- [ ] 1.1 Promote contract schemas into package data (with schema tests) [S]
+  Copy `contracts/schemas/*.json` into `packages/agent-scenarios/src/agent_scenarios/schemas/`
+  (package data); write `tests/test_schemas.py` asserting each is a valid Draft 2020-12
+  schema and that the capability-gap example payload validates.
+  **Contracts**: contracts/schemas/results-record.schema.json, capability-gap-entry.schema.json, nightly-config.schema.json
+  **Dependencies**: None
+- [ ] 1.2 Write tests for fixture `local_remote` + env scrub [S]
+  **Spec scenarios**: ath.Live runs never reach real GitHub/local remote fixture; ath.Live runs never reach real GitHub/credential variables are scrubbed
+  **Design decisions**: D5
+  **Dependencies**: None
+- [ ] 1.3 Implement `FixtureSpec.local_remote` + `CLIVendorExecutor(env_scrub=...)` [M]
+  Sibling bare repo `<workdir>.origin.git`, `origin` remote, base branch pushed; backward-compatible defaults.
+  **Dependencies**: 1.2
+- [ ] 1.4 Write tests for skill-under-test materialization [S]
+  **Spec scenarios**: ath.Skill under test is materialized/skill copied into the workspace; ath.Skill under test is materialized/missing skill is an executor error
+  **Design decisions**: D5
+  **Dependencies**: None
+- [ ] 1.5 Implement `skills_root` + `support_skills` materialization with git-exclude and `skills_sha` capture [M]
+  Shared helper usable by both `CLIVendorExecutor` and `FakeExecutor` (opt-in) so the acceptance drill can exercise it.
+  **Dependencies**: 1.4
+- [ ] Checkpoint: run `uv run pytest` in packages/agent-scenarios, review diff, verify scope
+
+## 2. Seed suite (wp-scenarios)
+
+- [ ] 2.1 Write suite guard test `tests/test_seed_suite.py` [S]
+  Floor (≥10, ≥2 per family, ≥2 vendors, unique ids), outcome-module presence, `pr`-gate-requires-`local_remote` rule, plus negative cases against temp suite dirs.
+  **Spec scenarios**: ath.Seed scenario suite coverage floor/the shipped suite meets the coverage floor; ath.Seed scenario suite coverage floor/removing scenarios below the floor fails the guard; ath.Seed scenarios are self-tested/a seed scenario without outcomes is rejected; ath.Live runs never reach real GitHub/PR gates require a local remote
+  **Design decisions**: D6
+  **Dependencies**: None
+- [ ] 2.2 Add `suite.py` with `SKILL_FAMILIES` and `skill_family()` [XS]
+  **Dependencies**: 2.1
+- [ ] 2.3 Write parametrized golden/broken self-test `tests/test_seed_outcomes.py` [S]
+  **Spec scenarios**: ath.Seed scenarios are self-tested/golden outcome passes every gate; ath.Seed scenarios are self-tested/broken outcome fails a named gate
+  **Design decisions**: D6
+  **Dependencies**: None
+- [ ] 2.4 Revise `implement-feature-basic` to gate on a push to the local origin [S]
+  Replace the GitHub `pr` gate; set `local_remote: true`; add its outcomes module.
+  **Dependencies**: 1.3, 2.3
+- [ ] 2.5 Add outcomes module for `plan-feature-basic` [XS]
+  **Dependencies**: 2.3
+- [ ] Checkpoint: run tests, review diff, verify scope
+- [ ] 2.6 Author plan scenarios `plan-feature-spec-delta` + `iterate-on-plan-split-fused-task` with outcome modules [M]
+  **Dependencies**: 2.3
+- [ ] 2.7 Author implement scenarios `implement-feature-tdd-new-function` + `implement-feature-respects-scope` with outcome modules [M]
+  **Dependencies**: 2.3
+- [ ] Checkpoint: run tests, review diff, verify scope
+- [ ] 2.8 Author validate scenarios `validate-feature-flags-failing-test`, `validate-feature-clean-pass`, `validate-feature-spec-gap` with outcome modules [M]
+  **Dependencies**: 2.3
+- [ ] 2.9 Author merge scenarios `merge-pull-requests-local-merge` + `cleanup-feature-archive` (`local_remote: true`) with outcome modules [M]
+  **Dependencies**: 1.3, 2.3
+- [ ] Checkpoint: guard test green with 11 scenarios; review diff, verify scope
+
+## 3. Results store and query CLI (wp-results)
+
+- [ ] 3.1 Write tests for `ResultsStore` append/read [S]
+  Record shape vs schema, flock-protected append, torn final line and unknown `schema_version` skipped with warning.
+  **Spec scenarios**: ath.Durable per-vendor per-skill results store/results are appended per scenario and vendor; ath.Durable results store/reader tolerates a torn final line and unknown versions
+  **Contracts**: contracts/schemas/results-record.schema.json
+  **Design decisions**: D2
+  **Dependencies**: 1.1
+- [ ] 3.2 Implement `results_store.py` (`ResultsStore` protocol, `JsonlResultsStore`, `records_from_matrices`) [M]
+  `records_from_matrices` takes an injected `family_of(skill) -> str` callable (wired to `suite.skill_family` by the nightly runner), so this package does not depend on wp-scenarios.
+  **Dependencies**: 3.1
+- [ ] 3.3 Write tests for `results query` filters + `results latest` [S]
+  **Spec scenarios**: ath.Durable results store/query by vendor and skill over a time window; ath.Durable results store/latest result per scenario and vendor
+  **Dependencies**: 3.2
+- [ ] 3.4 Write tests for `results trend` bucketing/pass-rate denominator, plus a 15k-record performance test (< 2 s) [S]
+  **Spec scenarios**: ath.Durable results store/trend aggregates pass rate per bucket
+  **Dependencies**: 3.2
+- [ ] 3.5 Implement `results_cli.py` (`add_parser(subparsers)`, `query`, `trend`, `latest`; json and table output) [M]
+  **Dependencies**: 3.3, 3.4
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## 4. Capability-gap emission (wp-gaps)
+
+- [ ] 4.1 Write tests for gap entry construction [S]
+  Fail → one entry with the D3 tag set and `session_id = run_id`; error / skipped_budget / judge-only → none; payload validates against the schema and matches the example's tag shape.
+  **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/a failing gate produces a tagged gap entry; ath.Scenario failures feed the capability-gap pipeline/errors and judge findings do not emit gaps
+  **Contracts**: contracts/schemas/capability-gap-entry.schema.json, contracts/examples/capability-gap-entry.example.json
+  **Design decisions**: D3
+  **Dependencies**: 1.1
+- [ ] 4.2 Write tests for sinks: coordinator sink against a local `http.server` stub (headers, body), spool on unreachable port, flush retains still-failing entries [S]
+  **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/coordinator unreachable spools entries; ath.Scenario failures feed the capability-gap pipeline/spool replay
+  **Dependencies**: 1.1
+- [ ] 4.3 Implement `gap_emitter.py` (`build_gap_entries`, `MemorySink`, `CoordinatorMemorySink`, `SpoolMemorySink`, `emit_gaps`, `flush_spool`, `add_parser` for `gaps flush`) [M]
+  **Dependencies**: 4.1, 4.2
+- [ ] Checkpoint: run tests, review diff, verify scope
+- [ ] 4.4 Write improve-harness consumer test `skills/tests/improve-harness/test_scenario_parity_source.py` [S]
+  Copies the example payload to `skills/tests/improve-harness/fixtures/`; feeds it (and a second run's copy) through `normalize_memory_entries`/`rank_findings`; asserts `scenario-parity` in sources and frequency 2.
+  **Spec scenarios**: he.Scenario-parity capability-gap source/improve-harness attributes scenario-parity findings; he.Scenario-parity capability-gap source/scenario-parity entries are retrievable by the improve-harness memory query
+  **Contracts**: contracts/examples/capability-gap-entry.example.json
+  **Dependencies**: None
+- [ ] 4.5 Add `scenario-parity` to `SOURCE_VOCABULARY` in `skills/session-log/tests/test_memory_tag_conventions.py` [XS]
+  **Spec scenarios**: he.Scenario-parity capability-gap source/source value is documented and pinned
+  **Dependencies**: None
+- [ ] 4.6 Document `source:scenario-parity`, `vendor:`, `scenario:` in `docs/guides/memory-conventions.md` [XS]
+  **Dependencies**: 4.5
+- [ ] 4.7 Add the scenario-parity row to the data-sources table in `skills/improve-harness/SKILL.md`; sync runtime copies via `install.sh` [XS]
+  **Dependencies**: 4.4
+- [ ] Checkpoint: run skills gate set (touched skill tests, `install.sh --check`), review diff, verify scope
+
+## 5. Nightly runner, CLI and deploy templates (wp-nightly)
+
+- [ ] 5.1 Write tests for nightly config loading and guards [M]
+  `enabled: false` (executor factory never called), kill-file, run lock, over-cap (`max_pairs` and per-vendor) exit 2 with nothing launched, < 2 effective vendors exit 2, `--dry-run`.
+  **Spec scenarios**: ath.Nightly runner/disabled by default; ath.Nightly runner/kill-file disables an enabled config; ath.Nightly runner/over-cap plan refuses to start; ath.Nightly runner/fewer than two effective vendors is a config error; ath.Nightly runner/overlapping runs are refused; ath.Nightly runner/dry run plans without executing
+  **Contracts**: contracts/schemas/nightly-config.schema.json
+  **Design decisions**: D4
+  **Dependencies**: 1.1
+- [ ] 5.2 Write tests for the run loop with an injected fake clock [M]
+  Wall-clock budget → `skipped_budget` + `budget_exhausted`; results/findings/gaps written; exit 1 on any fail, 0 on all pass; spool flushed first.
+  **Spec scenarios**: ath.Nightly runner/wall-clock budget stops launching new pairs; ath.Nightly runner/failing scenarios make the run exit non-zero; ath.Durable results store/results are appended per scenario and vendor
+  **Design decisions**: D4
+  **Dependencies**: 1.1
+- [ ] 5.3 Implement `nightly.py` (config model, guards, pair planning, run loop with budget, wiring of results store, findings emitter, gap emitter, executor factory with `skills_root`/`env_scrub`/timeout) [L]
+  Kept L rather than split: guards and loop share the run-record lifecycle; tests 5.1/5.2 bound it. Flagged per sizing rules.
+  **Dependencies**: 5.1, 5.2, 3.2, 4.3, 1.5
+- [ ] Checkpoint: run tests, review diff, verify scope
+- [ ] 5.4 Write tests for the `__main__` subcommand dispatcher (legacy `--scenarios`/`--validate-only` form unchanged; `validate`, `nightly`, `results`, `gaps` routed) [S]
+  **Design decisions**: D8
+  **Dependencies**: None
+- [ ] 5.5 Rewrite `__main__.py` as a subcommand dispatcher [S]
+  **Dependencies**: 5.4, 3.5, 4.3, 5.3
+- [ ] 5.6 Write tests for deploy assets (placeholders present, example config parses with `enabled: false`, no `systemctl` invocation anywhere in package code/tests) [XS]
+  **Spec scenarios**: ath.Schedule shipped as templates only/templates and example config are inert
+  **Design decisions**: D7
+  **Dependencies**: None
+- [ ] 5.7 Add `deploy/systemd/*.template` + `deploy/nightly.example.yaml` [S]
+  **Dependencies**: 5.6
+- [ ] 5.8 Write runbook `docs/guides/agent-scenarios-nightly.md` (+ package README update) [S]
+  **Dependencies**: 5.7
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## 6. Integration and acceptance (wp-integration)
+
+- [ ] 6.1 Write broken-skill acceptance test `tests/test_acceptance_broken_skill.py` [M]
+  Temp `skills_root` with a skill; a test executor that reads the materialized SKILL.md and plays the scenario's golden outcome, or its broken outcome when the skill carries the break marker; run `nightly` (enabled, temp state dir, stub coordinator) → `fail` result in store, gap entry with `affected_skill` and `source:scenario-parity`, findings file; then the same with the intact skill → pass, no gap.
+  **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/a deliberately broken skill change produces a capability gap
+  **Design decisions**: D3, D5
+  **Dependencies**: 5.3, 2.9
+- [ ] 6.2 Write 2-vendor nightly acceptance test over the full seed suite with golden outcomes (22 result records + 1 run record; `results trend` per vendor × skill returns 100% pass) [S]
+  **Spec scenarios**: ath.Durable results store/results are appended per scenario and vendor; ath.Durable results store/trend aggregates pass rate per bucket
+  **Dependencies**: 5.5, 2.9
+- [ ] 6.3 Run full quality gates: package `uv run pytest`, `ruff`, `mypy --strict`; skills gate set; `openspec validate seed-scenario-suite-and-nightly-cross-vendor-parity-runs --strict` [S]
+  **Dependencies**: 6.1, 6.2, 4.7, 5.8
+
+## 7. Operator tasks (post-merge)
+
+These require the GX10 host, real vendor CLIs/keys, and human authorization. They are
+NOT part of implementation and remain unchecked when the change merges.
+
+- [ ] 7.1 Create a dedicated nightly user/HOME on the GX10 without user-global skills; install `claude` and `codex` CLIs and keys for it
+- [ ] 7.2 Copy `deploy/nightly.example.yaml` to `~/.config/agent-scenarios/nightly.yaml`, fill `vendor_commands`/paths, keep `enabled: false`, run `agent-scenarios nightly --dry-run` and review the planned pairs and caps
+- [ ] 7.3 Render and install the systemd user service/timer from the templates (`systemctl --user daemon-reload`), still with `enabled: false`
+- [ ] 7.4 Flip `enabled: true`, run the service once manually, review results/findings/gaps, then `systemctl --user enable --now agent-scenarios-nightly.timer`
+- [ ] 7.5 Live broken-skill drill: on a throwaway branch break one plan/validate skill, point a one-off config's `repo_root` at it, run once, confirm a `fail` result and a `source:scenario-parity` gap surfaces in `/improve-harness`; restore
+- [ ] 7.6 After one week of nightly runs, confirm `results trend --group-by vendor,skill` shows ≥ 2 vendors × 4 families and record the baseline in the roadmap learning log
