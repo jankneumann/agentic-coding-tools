@@ -157,6 +157,34 @@ items:
     polls.
   - Fifty or more issues can be enumerated and claimed with no duplicate dispatch
     in an integration test.
+- item_id: ri-25
+  title: Commit a supervise execute driver core with per-harness host bindings
+  description: Add a committed, harness-neutral driver for /supervise execute that
+    owns the ExecutionAdapter call order (prepare, child-start, acknowledge, enter,
+    collect, apply, route escalations, reconcile) and a per-harness host binding interface
+    for the four injected seams (launch, handle, liveness, entry), keyed by a stable
+    harness identity. A harness with no committed binding runs with an ephemeral binding,
+    records a host_binding_ephemeral degradation, and files the binding as candidate
+    work rather than self-committing it. Bindings may be part code and part procedure
+    where liveness is only observable by the host session (Claude Code task notifications).
+  rationale: Makes delegated roadmap execution repeatable across harnesses, keeps
+    the risky sequencing logic in one tested place, and gives the ri-08 dispatcher
+    daemon a binding slot instead of a parallel implementation.
+  effort: M
+  depends_on: []
+  acceptance_outcomes:
+  - A committed execute driver core drives ExecutionAdapter end to end with no harness-specific
+    code in it.
+  - A binding is accepted only when the supervised-dispatch and dispatch-contract
+    e2e suites pass against it in place of their fakes.
+  - The supervisor deterministically detects a missing binding for its harness identity,
+    runs with an ephemeral binding, records a host_binding_ephemeral degradation,
+    and emits a candidate-work stub for the binding.
+  - A local Claude Code binding (GX10) is committed and used by a subsequent /supervise
+    execute run without regenerating driver code.
+  change_id: add-supervise-execute-driver-and-host-bindings
+  priority: 2
+  status: candidate
 - item_id: ri-08
   title: Build dispatcher daemon on the always-on host
   status: candidate
@@ -165,6 +193,7 @@ items:
   depends_on:
   - ri-06
   - ri-07
+  - ri-25
   description: 'A long-running systemd service on the GX10 polling the tracker adapter
     on a fixed cadence, spawning headless vendor-CLI sessions running /autopilot or
     /autopilot-roadmap under a global concurrency cap, each with a distinct AGENT_ID,
@@ -514,4 +543,18 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-09-03T03:06:14.456974+00:00'
+updated_at: '2026-10-10T21:15:13.046973+00:00'
+refinements:
+- timestamp: '2026-10-10T21:15:13.046973+00:00'
+  actor: supervisor (operator-approved, Jan Neumann)
+  source: operator request during /supervise execute roadmap-always-on-agent-automation,
+    2026-10-10
+  rationale: /supervise execute has no committed host driver; ExecutionAdapter is
+    only constructed in tests, so every harness (cloud Claude, local Claude Code on
+    GX10) rebuilds the prepare/child-start/ack/enter/apply glue ad hoc and discards
+    it. The ri-08 daemon is itself a host binding, so it should build on a shared
+    driver core rather than a third copy.
+  base_sha256: a3c9640f0fcd2df9dd306ce14037107a0645d58441c1fc1518d4577f04e295a9
+  operations:
+  - add:ri-25
+  - edit:ri-08
