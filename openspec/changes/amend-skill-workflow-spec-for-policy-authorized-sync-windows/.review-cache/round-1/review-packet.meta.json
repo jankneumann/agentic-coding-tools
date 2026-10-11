@@ -3,8 +3,8 @@
   "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
   "round": 1,
   "body_path": "review-packet.md",
-  "sha256": "e0ef6bf632d8d70f19bf3d4cc3b15311e4fa7d1459f5bfc3ccdb432359232423",
-  "char_length": 73382,
+  "sha256": "c85d85bbcb8c232a49e509128403ad871db679d1630961fa26902a9b0bf5d337",
+  "char_length": 104217,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -12,6 +12,13 @@
   "selection": {
     "per_file_token_ceiling": 64000,
     "selected": [
+      {
+        "path": "TRUST_POSTURE.template.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 721
+      },
       {
         "path": "docs/decisions/skill-workflow.md",
         "status": "modified",
@@ -24,7 +31,7 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 782
+        "est_tokens": 899
       },
       {
         "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md",
@@ -38,66 +45,186 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1947
-      },
-      {
-        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 771
-      },
-      {
-        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/plan-findings.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 1231
+        "est_tokens": 2110
       },
       {
         "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2244
-      },
-      {
-        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md",
-        "status": "added",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 1908
+        "est_tokens": 2306
       },
       {
         "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1652
+        "est_tokens": 1865
       },
       {
         "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1175
+        "est_tokens": 1384
       },
       {
         "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1479
+        "est_tokens": 1549
       },
       {
         "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1128
+        "est_tokens": 1150
+      },
+      {
+        "path": "openspec/schemas/trust-posture.schema.json",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1081
+      },
+      {
+        "path": "skills/shared/github_classifier.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 231
+      },
+      {
+        "path": "skills/shared/tests/test_trust_posture_sync_windows.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3694
+      },
+      {
+        "path": "skills/shared/trust_posture.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2737
+      },
+      {
+        "path": "skills/tests/merge-pull-requests/test_classify.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 405
       }
     ],
-    "excluded": [],
+    "excluded": [
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 296
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/fact-check-pi.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 221
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2835
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/findings-pi-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 691
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/raw-antigravity-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 206
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 207
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 211
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/raw-grok-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 197
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 196
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 864
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-cache/round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1311
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/.review-ledger/ledger.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2961
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 933
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/plan-findings.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2041
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 2074
+      }
+    ],
     "truncated": []
   },
   "rule_groups": [
@@ -106,14 +233,12 @@
       "source": "default",
       "pattern": "(default)",
       "files": [
+        "TRUST_POSTURE.template.md",
         "docs/decisions/skill-workflow.md",
         "docs/decisions/trust-posture.md",
         "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md",
         "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/design.md",
-        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json",
-        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/plan-findings.md",
         "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md",
-        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md",
         "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md",
         "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml"
       ]
@@ -125,6 +250,32 @@
       "files": [
         "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
         "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "openspec/schemas/*.schema.json",
+      "files": [
+        "openspec/schemas/trust-posture.schema.json"
+      ]
+    },
+    {
+      "group_id": 4,
+      "source": "default",
+      "pattern": "**/*.py",
+      "files": [
+        "skills/shared/github_classifier.py",
+        "skills/shared/tests/test_trust_posture_sync_windows.py",
+        "skills/shared/trust_posture.py"
+      ]
+    },
+    {
+      "group_id": 5,
+      "source": "default",
+      "pattern": "skills/tests/**",
+      "files": [
+        "skills/tests/merge-pull-requests/test_classify.py"
       ]
     }
   ]

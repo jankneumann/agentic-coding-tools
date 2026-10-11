@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "review_type": "implementation",
+  "created_at": "2026-10-11T05:28:20Z",
+  "target": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [],
+      "elapsed_seconds": 0.0,
+      "error": "[Errno 7] Argument list too long: 'agy'",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 201.5605642022565,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [],
+      "elapsed_seconds": 0.0,
+      "error": "[Errno 7] Argument list too long: 'codex'",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 2.2620776211842895,
+      "error": "Error: Internal error: {\n  \"message\": \"API error (status 426 Upgrade Required): Your Grok CLI version (1.0.5) is outdated. Please update to version 1.0.13 or later via `grok update` or the installation documentation.\",\n  \"http_status\": 426\n}\n",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [],
+      "elapsed_seconds": 0.0,
+      "error": "[Errno 7] Argument list too long: 'pi'",
+      "error_class": "unknown"
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 14,
+      "unanchored_findings": 1
+    }
+  ]
+}

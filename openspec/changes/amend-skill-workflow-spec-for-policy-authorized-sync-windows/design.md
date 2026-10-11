@@ -56,11 +56,12 @@ unnoticed.
 
 ### D4: Cadence shape only
 
-`cadence` must be exactly five whitespace-separated fields, each matching
-`[0-9*/,-]+`. Named months and days, `@daily` macros and six-field forms are
-rejected. This is deliberately a cron-*shaped* string, not a full cron grammar:
-`99 * * * *` or `*/0 * * * *` pass the loader, and the spec requires the
-scheduler to refuse a window it cannot schedule.
+`cadence` must be exactly five fields separated by ASCII spaces (no tabs, no
+leading or trailing whitespace), each matching `[0-9*/,-]+`. The loader and the
+JSON schema use the same pattern, so the two validators accept the same strings.
+Named months and days, `@daily` macros and six-field forms are rejected. This is deliberately a cron-*shaped* string, not a full cron grammar:
+`99 * * * *` or `*/0 * * * *` pass the loader; refusing a cadence it cannot
+schedule is the scheduler's obligation, specified by `ri-13`, not by this change.
 
 Computing the next fire time is the scheduler's job (`ri-13`), so this module
 does not depend on a cron library. Times are interpreted as UTC, and the

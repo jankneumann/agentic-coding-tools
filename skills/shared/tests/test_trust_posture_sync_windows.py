@@ -5,6 +5,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -17,6 +18,9 @@ sys.path.insert(0, str(SKILLS_ROOT))
 from shared import github_classifier  # noqa: E402
 from shared import trust_posture as tp  # noqa: E402
 
+#: Digest of the live TRUST_POSTURE.md (no windows). Refresh this literal on any
+#: legitimate gate edit to the live posture; the structural invariant is pinned
+#: separately by test_digest_without_windows_is_gates_only.
 LIVE_DIGEST = "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
 
 GATES_BLOCK = "gates:\n  merge:\n    disposition: block\n"
@@ -136,6 +140,8 @@ MALFORMED = {
     "macro cadence": (_bad(cadence="@daily"), "cadence"),
     "named day cadence": (_bad(cadence="0 3 * * MON"), "cadence"),
     "non-string cadence": (_bad(cadence=5), "cadence"),
+    "tab-separated cadence": (_bad(cadence="0\t3 * * 1"), "cadence"),
+    "padded cadence": (_bad(cadence=" 0 3 * * 1"), "cadence"),
     "scalar skills": (_bad(skills="update-specs"), "skills"),
 }
 
@@ -150,6 +156,15 @@ def test_malformed_window_rejected_naming_window(tmp_path: Path, name: str) -> N
     assert "sync_windows[0]" in msg
     assert needle in msg
     assert tp.validate_posture_file(path)
+
+
+def test_duplicate_of_invalid_window_still_reported(tmp_path: Path) -> None:
+    path = contract(tmp_path, [window(cadence="bad"), window(cadence="5 4 * * *")])
+    with pytest.raises(tp.PostureValidationError) as exc:
+        tp.load_posture(path=path)
+    msg = str(exc.value)
+    assert "sync_windows[0]" in msg and "cadence" in msg
+    assert re.search(r"sync_windows\[1\].*duplicate", msg)
 
 
 def test_duplicate_id_rejected(tmp_path: Path) -> None:
@@ -358,6 +373,8 @@ def test_schema_absent_null_empty_validate(value: object) -> None:
         window(cadence="0 3 * * MON"),
         window(cadence="0 3 * *"),
         window(cadence="0 0 3 * * 1"),
+        window(cadence="0\t3 * * 1"),
+        window(cadence=" 0 3 * * 1"),
         window(cadence=5),
         "not-a-mapping",
     ],
@@ -378,3 +395,24 @@ def test_schema_enums_equal_python_frozensets() -> None:
     assert set(props["skills"]["items"]["enum"]) == tp.SYNC_SKILLS
     assert set(props["allowed_sources"]["items"]["enum"]) == tp.SYNC_SOURCES
     assert set(props["auto_merge_ceiling"]["enum"]) == {c.value for c in tp.MergeCeiling}
+
+
+@needs_jsonschema
+@pytest.mark.parametrize(
+    "cadence",
+    ["0 3 * * 1-5", "0  3 * * 1", "*/15 * * * *", "0\t3 * * 1", " 0 3 * * 1",
+     "0 3 * * 1 ", "0 3 * *", "0 3 * * MON", "@daily"],
+)
+def test_cadence_loader_and_schema_agree(tmp_path: Path, cadence: str) -> None:
+    # A trailing newline is not compared: Python's jsonschema evaluates "$" with
+    # re.search, which matches before a final newline, unlike ECMA-262; the
+    # loader (the authoritative validator) rejects it.
+    props = SCHEMA["$defs"]["SyncWindow"]["properties"]
+    assert props["cadence"]["pattern"] == f"^{tp._CADENCE_PATTERN}$"
+    schema_ok = not _schema_errors(_front([window(cadence=cadence)]))
+    try:
+        load(tmp_path, [window(cadence=cadence)])
+        loader_ok = True
+    except tp.PostureValidationError:
+        loader_ok = False
+    assert loader_ok == schema_ok

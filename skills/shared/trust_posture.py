@@ -234,7 +234,11 @@ _SYNC_WINDOW_FIELDS = (
     "id", "cadence", "skills", "allowed_sources", "auto_merge_ceiling",
 )
 _SYNC_ID_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
-_CADENCE_FIELD_RE = re.compile(r"[0-9*/,-]+")
+#: Five fields of ``[0-9*/,-]`` separated by ASCII spaces, no padding. Kept
+#: character-identical to the JSON schema's ``cadence`` pattern so the loader and
+#: its declarative mirror accept exactly the same strings.
+_CADENCE_PATTERN = r"[0-9*/,-]+( +[0-9*/,-]+){4}"
+_CADENCE_RE = re.compile(_CADENCE_PATTERN)
 
 
 class MergeCeiling(str, enum.Enum):
@@ -334,13 +338,16 @@ def _build_sync_window(
         errors.append(f"{label}: 'id' must be kebab-case, got {wid!r}")
     elif wid in seen_ids:
         errors.append(f"{label}: duplicate window id {wid!r}")
+    else:
+        # Recorded before the other checks, so a later duplicate is reported
+        # even when this entry is rejected for another reason.
+        seen_ids.add(wid)
 
     cadence = raw["cadence"]
-    fields = cadence.split() if isinstance(cadence, str) else []
-    if len(fields) != 5 or not all(_CADENCE_FIELD_RE.fullmatch(f) for f in fields):
+    if not isinstance(cadence, str) or not _CADENCE_RE.fullmatch(cadence):
         errors.append(
-            f"{label}: 'cadence' must be five whitespace-separated fields of "
-            f"[0-9*/,-], got {cadence!r}"
+            f"{label}: 'cadence' must be five space-separated fields of "
+            f"[0-9*/,-] with no leading or trailing whitespace, got {cadence!r}"
         )
 
     skills, e = _check_list_field(label, "skills", raw["skills"], SYNC_SKILLS)
@@ -376,7 +383,6 @@ def _build_sync_windows(raw: object) -> tuple[tuple, list]:
         window, window_errors = _build_sync_window(index, entry, seen_ids)
         errors.extend(window_errors)
         if window is not None:
-            seen_ids.add(window.id)
             windows.append(window)
     return tuple(windows), errors
 

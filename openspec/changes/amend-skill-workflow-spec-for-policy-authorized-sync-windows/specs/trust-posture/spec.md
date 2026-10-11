@@ -7,12 +7,14 @@ The trust posture contract front matter SHALL accept an optional top-level
 
 - `id`: a kebab-case string matching `^[a-z0-9]+(-[a-z0-9]+)*$`, unique within
   the list
-- `cadence`: a cron-shaped string of exactly five whitespace-separated fields,
-  each matching `[0-9*/,-]+`, interpreted in UTC. The loader validates only
-  this shape; named months and days, `@` macros, and six-field forms are
-  rejected, and value ranges (for example `99 * * * *`) are validated by the
-  scheduler that computes fire times, which SHALL refuse a window whose cadence
-  it cannot schedule
+- `cadence`: a cron-shaped string of exactly five fields separated by ASCII
+  spaces with no leading or trailing whitespace, each field matching
+  `[0-9*/,-]+`, interpreted in UTC. The loader validates only this shape; named
+  months and days, `@` macros, six-field forms, and tab- or padded forms are
+  rejected. Value ranges (for example `99 * * * *`) are outside this
+  requirement: they are left to the scheduler that computes fire times
+  (`ri-13`), whose own specification owns refusing a cadence it cannot
+  schedule
 - `skills`: a non-empty list drawn from `merge-pull-requests`, `update-specs`,
   and `cleanup-feature`
 - `allowed_sources`: a non-empty list of PR origins drawn from `openspec`,
@@ -68,7 +70,7 @@ error.
 - **WHEN** a sync window has an unknown field, omits a required field, has an
   empty or repeated-value list field, names an unknown skill, source, or
   ceiling, has an `id` that is not kebab-case, has a cadence that is not five
-  fields of the permitted shape, or repeats another window's `id`
+  space-separated fields of the permitted shape, or repeats another window's `id`
 - **THEN** validation SHALL fail with an error naming the window and the problem
 - **AND** the loader SHALL NOT return a posture that omits the malformed window
 
