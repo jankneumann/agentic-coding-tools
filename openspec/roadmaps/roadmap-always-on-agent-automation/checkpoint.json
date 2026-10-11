@@ -4,7 +4,7 @@
   "current_item_id": "ri-11",
   "phase": "planning",
   "created_at": "2026-10-10T21:03:19.589753+00:00",
-  "updated_at": "2026-10-10T21:03:22.030442+00:00",
+  "updated_at": "2026-10-11T01:48:55.896062+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -54,6 +54,55 @@
       "roadmap_id": "roadmap-always-on-agent-automation",
       "roadmap_fingerprint": "83b74d875f9fa608aee330e66a8ed5e0d322c9c4de9b3c568f2a35702bc4a1e0",
       "note": "operator approved via /supervise execute (2026-10-09/10 session)"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-11T01:48:46.804729+00:00",
+      "decision_id": "946c6fcb-6f2d-48f8-bb14-7243ddb5a131",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "roadmap-always-on-agent-automation",
+      "roadmap_fingerprint": "9094ab852ea06a35a472da50a9a800f0bd5cf2ac7fb9921de686efab27a142f8"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 operator re-approved after ri-25 refinement (3019b27e); same /supervise execute session",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-11T01:48:55.894436+00:00",
+      "decision_id": "2d683b7a-2f39-4b59-96d9-3abdf22f8a8f",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "roadmap-always-on-agent-automation",
+      "roadmap_fingerprint": "9094ab852ea06a35a472da50a9a800f0bd5cf2ac7fb9921de686efab27a142f8",
+      "note": "operator re-approved after ri-25 refinement (3019b27e); same /supervise execute session"
     }
   ]
 }

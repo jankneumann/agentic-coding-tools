@@ -36,12 +36,12 @@
       "scope": "multiplayer-collaboration"
     },
     {
-      "decided_at": "2026-10-10T21:03:22.028844+00:00",
+      "decided_at": "2026-10-11T01:48:55.894436+00:00",
       "decision": "roadmap_approval:proceed",
-      "id": "600b975a-f130-4eaa-b1b8-22cb95d20be0",
-      "rationale": "operator approved via /supervise execute (2026-10-09/10 session)",
+      "id": "2d683b7a-2f39-4b59-96d9-3abdf22f8a8f",
+      "rationale": "operator re-approved after ri-25 refinement (3019b27e); same /supervise execute session",
       "scope": "roadmap-always-on-agent-automation"
     }
   ],
-  "written_at": "2026-10-10T21:03:22.012153Z"
+  "written_at": "2026-10-11T01:48:55.876813Z"
 }
