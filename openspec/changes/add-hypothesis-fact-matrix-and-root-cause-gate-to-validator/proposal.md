@@ -7,7 +7,7 @@
 
 ## Summary
 
-Extend the ledger validator to compute the hypothesis-by-fact matrix (consistent / contradicted / unknown), per-fact column counts as signal strength, and all-consistent survivor rows. Reject any root_cause that cites no facts, is contradicted by a fact, or is a multi-cause hypothesis containing a non-necessary component.
+Extend the ledger validator to compute the hypothesis-by-fact matrix (consistent / contradicted / unknown), per-fact column counts as signal strength, and all-consistent survivor rows. Reject any root_cause that cites no facts, is not an all-consistent survivor row (any contradicted or unknown cell), or is a multi-cause hypothesis containing a non-necessary component.
 
 ## Dependencies
 
@@ -15,7 +15,7 @@ Extend the ledger validator to compute the hypothesis-by-fact matrix (consistent
 
 ## Acceptance Outcomes
 
-- The validator rejects fixtures with an uncited root cause and with a root cause contradicted by a recorded fact.
+- The validator rejects fixtures with an uncited root cause, a root cause contradicted by a recorded fact, and a root cause with any unknown cell against a recorded fact.
 - The validator emits the matrix with per-signal hypothesis counts and flags the all-consistent rows.
 - The necessity check fails a combined hypothesis when removing one component leaves no fact unexplained.
 
