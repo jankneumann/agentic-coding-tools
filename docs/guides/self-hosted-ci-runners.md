@@ -138,8 +138,7 @@ NFT
 # Persist it with a DEDICATED boot unit, not nftables.service: the stock /etc/nftables.conf
 # starts with `flush ruleset`, so starting or restarting nftables.service (and every boot with
 # it enabled) wipes ufw/firewalld/podman tables. The file above is idempotent (declare,
-# delete, redefine) and touches only its own table, so loading it directly is safe. The unit
-# runs before user sessions, so the lingering runner units never start without the rules.
+# delete, redefine) and touches only its own table, so loading it directly is safe.
 sudo tee /etc/systemd/system/gx10-runner-isolation.service >/dev/null <<'UNIT'
 [Unit]
 Description=GX10 runner host-service isolation (nftables table inet gx10_runner_isolation)
@@ -156,6 +155,17 @@ ExecStart=/usr/sbin/nft -f /etc/nftables.d/gx10-runner.nft
 [Install]
 WantedBy=multi-user.target
 UNIT
+# Ordering alone (Before=) never stops a dependent unit when nft fails, and the lingering
+# user manager does not wait for user sessions. Make ghrunner's user manager -- and so every
+# runner unit -- REQUIRE the isolation unit: if the rules fail to load at boot, user@ fails
+# and no runner starts; stopping the isolation unit stops the runners with it.
+gx10_uid=$(id -u ghrunner)
+sudo mkdir -p /etc/systemd/system/user@${gx10_uid}.service.d
+sudo tee /etc/systemd/system/user@${gx10_uid}.service.d/gx10-runner-isolation.conf >/dev/null <<'DROPIN'
+[Unit]
+Requires=gx10-runner-isolation.service
+After=gx10-runner-isolation.service
+DROPIN
 sudo nft -c -f /etc/nftables.d/gx10-runner.nft
 sudo nft list ruleset | grep -c '^table'          # note the count: it must not drop below
 sudo systemctl daemon-reload
@@ -193,6 +203,7 @@ done                                                                # every line
 
 sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman exec gx10-runner-1 getent hosts api.github.com   # resolves (DNS exemption works)
 systemctl is-enabled gx10-runner-isolation.service                       # enabled: loaded at every boot
+systemctl show -p Requires -p After user@$(id -u ghrunner).service | grep -c gx10-runner-isolation   # 2: runners gated on the rules
 grep -c skuid /etc/nftables.d/gx10-runner.nft                            # non-zero: the rules are in the loaded file
 sudo nft list ruleset | grep skuid                                       # rules are loaded
 sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'   # slirp4netns

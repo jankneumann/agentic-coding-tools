@@ -174,7 +174,22 @@ def test_whole_mint_run_is_bounded_below_the_start_timeout(mint, kit_dir):
     # The clock starts before the sweep, and every request goes through the budget check.
     assert text.index('start_us="$(now_us)"') < text.index("\nsweep() {")
     assert "sweep_cap_us" in text and "if ! fits 0; then" in text
+    assert text.count("(( $(elapsed_us) > sweep_cap_us )) || ! fits 0") == 2  # list + delete
     assert '--max-time "$req_max"' in text and "--max-time 30" not in text
+
+
+def test_no_request_starts_when_it_cannot_finish_inside_the_budget(mint, tmp_path):
+    """Sweep requests share the mint's budget check: with a per-request bound larger than
+    the whole budget, neither the sweep nor the mint may start a request (VAL_REVIEW)."""
+    cfg = {"routes": [_mint_ok_route()]}
+    res, calls, env_dir = _run(
+        mint, ["1"], {"GX10_MINT_MAX_ELAPSED": "1", "GX10_MINT_REQ_MAX": "5"}, tmp_path, cfg
+    )
+    assert res.returncode != 0
+    assert calls == [], calls
+    assert "sweep: time cap reached" in res.stderr
+    assert "retry budget of 1s spent" in res.stderr
+    assert not (env_dir / "1.env").exists()
 
 
 def test_hold_off_is_clipped_to_the_remaining_budget(mint, tmp_path):
