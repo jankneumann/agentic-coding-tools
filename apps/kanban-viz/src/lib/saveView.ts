@@ -13,6 +13,7 @@
  * Callers receive { saved: boolean; path: string; git_sha: string }.
  */
 import { isTauri } from "./runtime";
+import { authHeaders } from "./coordinatorAuth";
 
 export interface SavedViewPayload {
   name: string;
@@ -54,7 +55,7 @@ async function saveBrowser(
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      ...authHeaders(apiKey),
     },
     body: JSON.stringify({ view }),
   });
