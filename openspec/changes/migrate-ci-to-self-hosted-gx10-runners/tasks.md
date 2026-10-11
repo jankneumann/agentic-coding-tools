@@ -136,7 +136,7 @@ Everything of that kind is in § 7 (operator-only).
 > **Same-file chain.** 2.5 → 2.6 → 2.7 → 2.8 all edit `ci.yml` and/or `security.yml` and run
 > serially inside `wp-workflows`; they are never split across agents.
 
-- [ ] 2.5 Route the 20 routed `ci.yml` jobs (M)
+- [x] 2.5 Route the 20 routed `ci.yml` jobs (M)
   - Replace their `runs-on` with the canonical expression and insert the D4 guard as their
     first step.
   - Leave the 5 hosted jobs on a literal `ubuntu-latest`, each with a one-line comment that
@@ -144,17 +144,17 @@ Everything of that kind is in § 7 (operator-only).
   - Do not change job ids, `needs`, `permissions`, `concurrency` or `timeout-minutes`.
 
   **Dependencies**: 2.1, 2.2, 2.3
-- [ ] 2.6 Route the 3 `security.yml` jobs (S)
+- [x] 2.6 Route the 3 `security.yml` jobs (S)
   - Apply the canonical expression and the D4 guard, as in 2.5.
 
   **Dependencies**: 2.1, 2.2, 2.3, 2.5 (serial; same package)
-- [ ] 2.7 Add the `workflow_dispatch` trigger to both workflows (XS)
+- [x] 2.7 Add the `workflow_dispatch` trigger to both workflows (XS)
   - Add the trigger with the `runner_lane` choice input: `auto` | `hosted` | `self-hosted`,
     default `auto`.
   - Leave the existing triggers unchanged.
 
   **Dependencies**: 2.3, 2.6 (serial; edits both workflows after routing)
-- [ ] 2.8 Add explicit setup steps to routed jobs that rely on hosted-preinstalled tools (S)
+- [x] 2.8 Add explicit setup steps to routed jobs that rely on hosted-preinstalled tools (S)
   - `validate-specs` needs `npm` and gets `actions/setup-node` at the repository's pinned
     major version. Any other job that 2.4 flags gets the same treatment.
   - The setup step goes after the D4 guard, which must stay the first step.
@@ -178,7 +178,7 @@ Everything of that kind is in § 7 (operator-only).
 
 ## Phase 3 — Runner kit (`deploy/gx10-runner/`), written and never installed
 
-- [ ] 3.1 Write `test_systemd_unit.py` (S)
+- [x] 3.1 Write `test_systemd_unit.py` (S)
   - Parse `systemd/gx10-runner@.service` with an INI parser that allows repeated keys.
   - `Restart=always` and `StartLimitIntervalSec=0` are set, and `WantedBy=default.target` is
     present.
@@ -207,7 +207,7 @@ Everything of that kind is in § 7 (operator-only).
   the operator opts in"
   **Design decisions**: D5, D6, D7
   **Dependencies**: 1.3
-- [ ] 3.2 Author `deploy/gx10-runner/systemd/gx10-runner@.service` and
+- [x] 3.2 Author `deploy/gx10-runner/systemd/gx10-runner@.service` and
       `deploy/gx10-runner/gx10-runner.env.example` (S)
   - The example env file sets: repo slug, instance CPU and memory limits, image reference,
     `GX10_RUNNER_CACHE_ARGS=` (empty: no shared cache, D6/A10), `GX10_MINT_MAX_ELAPSED`

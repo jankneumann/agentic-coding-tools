@@ -43,3 +43,8 @@ def load_workflow(repo_root: Path):
         return data
 
     return _load
+
+
+@pytest.fixture(scope="session")
+def kit_dir(repo_root: Path) -> Path:
+    return repo_root / "deploy" / "gx10-runner"

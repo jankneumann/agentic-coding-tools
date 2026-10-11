@@ -1,0 +1,40 @@
+# GX10 ephemeral GitHub Actions runner -- systemd USER template unit (design D6/D7).
+#
+# Installed for the dedicated, lingering `ghrunner` account by install-units.sh. One
+# instance == one container == one job: the container exits after its single job
+# (`--rm`), and `Restart=always` starts a fresh one with a freshly minted JIT config.
+[Unit]
+Description=GX10 ephemeral GitHub Actions runner %i
+After=network-online.target
+Wants=network-online.target
+# Restarts after every job are normal and frequent. Back-off on persistent API failure
+# lives in mint-jitconfig.sh, not in the start limit. (Must be in [Unit]; in [Service]
+# systemd ignores it with a warning.)
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+# Bounds ExecStartPre. Must exceed GX10_MINT_MAX_ELAPSED (default 600) or systemd kills
+# the mint script mid-backoff and the API is hammered every RestartSec instead.
+TimeoutStartSec=900
+TimeoutStopSec=90
+# Operator copy of gx10-runner.env.example: repo slug, image, limits, labels, mint budget,
+# cache switch. Distinct from the per-instance container env file written by the mint
+# script (JIT config and runner id only).
+EnvironmentFile=%h/.config/gx10-runner/env
+# The registration credential, exposed to ExecStartPre as
+# $CREDENTIALS_DIRECTORY/github-token. It never enters the container.
+LoadCredential=github-token:%h/.config/gx10-runner/token
+ExecStartPre=%h/.local/lib/gx10-runner/mint-jitconfig.sh %i
+# --replace: a container left over from an unclean stop must not wedge the restart loop.
+# --pull=never: start only the locally built image (O3), never one pulled from a registry.
+# --network is pinned: podman 5 defaults to pasta, which maps the gateway to the host.
+# $GX10_RUNNER_CACHE_ARGS is deliberately a bare, unbraced word: systemd splits it on
+# whitespace into zero or more arguments. Empty (the default) means no shared cache volume.
+ExecStart=/usr/bin/podman run --rm --replace --pull=never --name gx10-runner-%i --env-file %t/gx10-runner/%i.env --security-opt no-new-privileges --cap-drop ALL --network slirp4netns:allow_host_loopback=false --pids-limit 4096 --cpus ${GX10_RUNNER_CPUS} --memory ${GX10_RUNNER_MEMORY} --tmpfs /tmp $GX10_RUNNER_CACHE_ARGS ${GX10_RUNNER_IMAGE}
+ExecStopPost=%h/.local/lib/gx10-runner/cleanup-runner.sh %i
+
+[Install]
+WantedBy=default.target
