@@ -275,3 +275,23 @@ def test_the_railway_password_never_reaches_argv() -> None:
     assert "RAILWAY_COORD_DSN_FILE" in script
     assert "--dbname" not in script
     assert "PGPASSWORD" in script
+
+
+def test_the_seed_never_drops_anything() -> None:
+    """The ParadeDB image pre-creates its extensions in the fresh database.
+    The restore skips the dump's copies of exactly those, instead of clearing
+    the target: a restore script that can drop a database is one typo from
+    dropping the wrong one."""
+    script = SEED.read_text(encoding="utf-8")
+    assert "DROP " not in script.upper().replace("NOTHING IS DROPPED", "")
+    assert "--clean" not in script
+    assert "--use-list=/tmp/seed.toc" in script
+    assert "skip (already in target)" in script
+
+
+def test_the_seed_tools_container_inherits_the_password() -> None:
+    """`-e NAME` copies the caller's value; `-e NAME=value` would put the
+    password in podman's argv."""
+    script = SEED.read_text(encoding="utf-8")
+    assert "-e PGPASSWORD " in script
+    assert "-e PGPASSWORD=" not in script
