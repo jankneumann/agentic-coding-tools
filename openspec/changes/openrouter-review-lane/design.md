@@ -56,7 +56,8 @@ The first lane is a new agent `openrouter-review`:
 - `type: openrouter`, `endpoint_kind: openrouter`, `base_url: https://openrouter.ai/api/v1`
 - `location: cloud`, `transport: http`, `trust_level: 1`, `capabilities: [discover]`
 - `archetypes: [reviewer]`, `vendor_credentials: [openrouter]`
-- no `cli` and no `sdk` block, the same shape as `ocr-local`
+- no `cli` and no `sdk` block: the dispatcher builds only the tier-2.5 `OpenAICompatAdapter` for it
+  (`from_config_dict` already accepts an agent whose only dispatch surface is `endpoint_kind` + `base_url`)
 - no `api_key`. The lane never calls the coordinator under its own identity. Without a principal, key resolution falls back to the dispatcher's existing `OPENROUTER_API_KEY` default for `endpoint_kind: openrouter`, which works in non-OpenBao mode (cloud). On an OpenBao host the lane reports `auth_failed`. That is acceptable: hosts have CLI lanes, and D5 would not select it there. The agent schema has `additionalProperties: false`, so no agent-level `api_key_env` field is added.
 
 Its model comes from a new provider `openrouter` in `agent-coordinator/archetypes.yaml`. The
@@ -67,6 +68,14 @@ and in ConsensusSynthesizer attribution.
 
 More lanes are added the same way, each with its own `type` and provider key. Lane ids must be
 unique because `converge()` keys checkpointed results by `vendor`.
+
+`location: cloud` needs a matching cost tier. Today the only `routing.yaml` tier carrying
+`endpoint_kind: openrouter` is `metered-api` with `location: local`, so
+`RoutingPolicy.cost_tier("cloud", "openrouter")` returns `None` and `select_model` would exclude
+the agent. Group 2 therefore appends a tier `metered-api-cloud` (`location: cloud`,
+`endpoint_kinds: [openrouter]`) after `metered-api`. It is the last rung, so it never outranks a
+subscription tier, and the supervisor's `_tier_order()` (which reads only `endpoint_kinds`, first
+index wins) is unchanged. A group-2 test asserts `cost_tier("cloud", "openrouter")` is not `None`.
 
 *Alternatives considered*
 - Add `base_url` to `pi-local` and reuse the `pi` provider. Rejected: it couples the pi
@@ -93,6 +102,18 @@ reason `duplicate_model_family`. An Anthropic-family lane is reported with the r
 `anthropic_family`. Both reasons appear in the `unverified` list of `--check-vendors --json`.
 
 A vendor missing from `vendor_families` has unknown family and is never treated as a duplicate.
+
+**Selection is two-pass.** Today `discover_reviewers` makes one pass over `sorted(all_vendors)`,
+so a tier-2.5 lane such as `openrouter` would be decided before tier-1/2 vendors that sort after
+it (for example `pi`). The family rule (D2) and the fill rule (D5) both read the complete
+non-metered selection, so discovery becomes:
+
+1. Pass 1 selects every tier-1 (CLI) and tier-2 (SDK) lane exactly as today.
+2. Pass 2 walks the remaining tier-2.5 candidates in `agents.yaml` roster order (the insertion
+   order of `openai_adapters`, not the sorted vendor order). It applies the Anthropic rule, the
+   duplicate-family rule against the pass-1 set, and then the fill rule (D5).
+
+Tests cover a non-metered vendor that sorts after the metered lane.
 
 *Trade-off accepted:* fallback models may belong to a different family from the primary
 model. The family check uses the primary model only, and `model_used` is recorded so audits
@@ -180,8 +201,8 @@ The key's credit limit bounds spend while rows sit in the spool.
 An agent with `endpoint_kind: openrouter` that is selected at tier 2.5 is a metered lane.
 `discover_reviewers` includes metered lanes only while the non-metered lanes it has selected
 number fewer than `metered_lanes.fill_target`. `fill_target` defaults to the policy file's
-`default_min_quorum`, which is 2. Metered lanes are added in roster order until the target is
-reached.
+`default_min_quorum`, which is 2. Metered lanes are added in `agents.yaml` roster order, during
+pass 2 of the two-pass selection (D2), until the target is reached.
 
 A host with two CLI lanes therefore pays nothing. A cloud container with only `claude_code`
 gets exactly one metered lane.
@@ -205,6 +226,27 @@ lanes.
 The packet metadata is the sidecar `build_review_packet` writes next to `packet_path`.
 `dispatch_and_wait` already receives `packet_path`, and passes the `tools_overflow` flag to
 the adapter.
+
+**Refusal must stay rare.** Refusal alone would make the lane useless in practice. Plan-review
+packets on long-lived branches routinely overflow: the round-1 PLAN_REVIEW packet for this change
+was 320000/320000 chars with `tools_overflow: true`, because the diff against `origin/main` spans
+about 420 files. To avoid this, `converge()` builds a second, tool-less packet for HTTP lanes
+whenever the primary packet overflows:
+
+- For `review_type == "plan"`, the tool-less packet's diff is limited to
+  `openspec/changes/<change-id>/**`. It includes the full text of `proposal.md`, `design.md`,
+  `tasks.md` and the spec deltas, all within the same `BUDGET_CHARS`. A plan review judges the plan
+  artifacts, and the unrelated branch diff is not needed for that.
+- For `review_type == "implementation"`, the tool-less packet keeps the existing rule-group
+  selection but drops the excluded and truncated files. Its sidecar lists them as `coverage.skipped`
+  (the blinded-review floor still applies).
+- The tool-less packet gets its own sidecar (`review-packet.toolless.meta.json`). An HTTP lane
+  refuses with `packet_requires_tools` only when this packet *also* has `tools_overflow: true`.
+  The CLI and handshake lanes keep the primary packet.
+
+A scenario covers a plan review whose full branch diff overflows: the HTTP lane receives a
+tool-less packet that fits, and it is dispatched. The D9 evidence run must use a change whose
+primary packet overflows, so that a small fixture cannot hide the problem.
 
 ### D7 — Composite orchestrator in `agent_lane.py`, and honest mid-run loss
 
@@ -254,7 +296,10 @@ only if the evidence file `openspec/changes/openrouter-review-lane/evidence/clou
 shows all of the following:
 
 - `PLAN_REVIEW` with `min_quorum=2`
-- two attributed lanes in `consensus-plan.json`
+- two attributed lanes in `reviews/consensus-plan.json`. `converge()` itself never writes this
+  file (only `/parallel-review-plan` does), so `agent_lane.py` persists `ConvergenceResult.consensus`
+  to `reviews/consensus-<review_type>.json` after each run (task 5.5), alongside `quorum_received`
+  and the per-lane index already in `.review-cache/round-N/`
 - a `routing_spend_ledger` row, or a spool row, carrying the `generation_id`
 
 Only then does the final task:

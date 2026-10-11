@@ -21,10 +21,12 @@ parallel after group 3. Group 7 runs last. Sequential chain length is 4.
 
 **Files:** `skills/parallel-infrastructure/scripts/openai_compat_adapter.py`,
 `skills/parallel-infrastructure/scripts/review_dispatcher.py` (only the `ReviewResult`
-dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adapter.py`
+dataclass fields and the shared ingest helper extracted in 1.7),
+`skills/tests/parallel-infrastructure/test_openai_compat_adapter.py`
 **Depends:** none
 **Specs:** parallel-infrastructure "Dispatchable Vendor Verification" (probe part),
 "Metered Review Lane Spend Accounting" (capture part), "Tool-less Lane Packet Refusal"
+(including "Fast empty HTTP review does not count"); acceptance outcome 4
 
 - [ ] 1.1 Write the failing tests, all using an injected transport:
   - `probe()` for `openrouter` sends `GET {base_url}/key`, and for `local` sends `GET /models`.
@@ -48,10 +50,25 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
 - [ ] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
   `packet_requires_tools` / `vendor_unavailable` with zero transport calls. Then implement the
   `tools_overflow` keyword (default False).
+- [ ] 1.6 Write failing tests: HTTP findings go through the same ingest pipeline as CLI findings.
+  Today `OpenAICompatAdapter.dispatch` only calls `CliVendorAdapter._parse_findings`. The tests,
+  each using an injected transport, cover:
+  - a fast `{"findings": []}` (under `empty_findings_min_seconds()`) → `success=False`,
+    `error="empty_findings_too_fast"`;
+  - a schema-invalid payload → `success=False`, `error_class=unknown`;
+  - a placeholder-only payload → `success=False`, `error="non_substantive_placeholder"`;
+  - a valid payload → findings coerced (`coerce_findings_payload`), stamped
+    `evidence_class: judgment` (`stamp_judgment_ingest`), and line-resolved against the packet diff,
+    exactly as on the CLI path.
+- [ ] 1.7 Factor the CLI ingest steps (coerce → validate → judgment stamp → line resolve →
+  placeholder check → empty-findings floor) out of `CliVendorAdapter` into a shared helper in
+  `review_dispatcher.py`. Call it from both adapters. CLI behaviour must not change: the existing
+  `test_fast_empty_findings_are_unsuccessful` and the related ingest tests stay green.
 
 ## 2. Lane roster
 
 **Files:** `agent-coordinator/agents.yaml`, `agent-coordinator/archetypes.yaml`,
+`agent-coordinator/routing.yaml` (append the `metered-api-cloud` tier only),
 `agent-coordinator/tests/test_agents_config.py`, `agent-coordinator/tests/test_archetypes_yaml.py`
 (add tests only)
 **Depends:** none
@@ -63,7 +80,11 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
   - `get_dispatch_configs()` emits it.
   - The `openrouter` provider resolves `premium`, `standard` and `economy` slugs, none with
     publisher `anthropic`.
-- [ ] 2.2 Add the agent entry (design D1) and the `openrouter` provider tier map. Choose the
+  - `RoutingPolicy.cost_tier("cloud", "openrouter")` is not `None` (design D1), and
+    `cost_tier("local", "openrouter")` still returns `metered-api`.
+- [ ] 2.2 Add the agent entry (design D1), the `openrouter` provider tier map, and the
+  `metered-api-cloud` tier (`location: cloud`, `endpoint_kinds: [openrouter]`), appended last to
+  `routing.yaml` `cost_policy.tiers`. Choose the
   premium slug from the live OpenRouter model catalog: it must be non-Anthropic and preferably
   a family not served by a host CLI. Record the catalog URL and the date in a YAML comment.
 - [ ] 2.3 Run the registry projection tests (`test_registry_projection.py`,
@@ -75,7 +96,9 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
 **Files:** `skills/parallel-infrastructure/scripts/review_dispatcher.py` (excluding the
 `ReviewResult` dataclass, which group 1 owns), `skills/parallel-infrastructure/review_quorum_policy.json`
 (add `vendor_families` and `metered_lanes` only; do not touch `policies`),
+`skills/parallel-infrastructure/scripts/review_packet.py` (the tool-less packet builder only),
 `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`,
+`skills/parallel-infrastructure/scripts/tests/test_review_packet.py`,
 `skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py` (new)
 **Depends:** 1, 2 (the roster is needed only for the integration test in 3.9; tests 3.1–3.8 use inline config dicts)
 **Specs:** parallel-infrastructure "OpenAI-Compatible Dispatcher Discovery" (MODIFIED),
@@ -85,6 +108,8 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
   - An `anthropic/` primary or fallback → `unverified` with reason `anthropic_family`.
   - `codex` at tier 1 plus an `openai/` OpenRouter lane → `duplicate_model_family`.
   - A vendor missing from `vendor_families` is never a duplicate.
+  - Two-pass order (design D2): a non-metered vendor that sorts after `openrouter` (for example
+    `pi`, mapped to `openai`) still makes an `openai/` OpenRouter lane a `duplicate_model_family`.
 - [ ] 3.2 Add `vendor_families` and `metered_lanes {fill_target, review_reservation_usd}` to
   `review_quorum_policy.json`, plus a loader. Implement the family rule in
   `from_config_dict` / `discover_reviewers` (design D2).
@@ -93,7 +118,10 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
   - one non-metered lane → exactly one metered lane is selected.
   
   Also test that `dispatch_and_wait(include_lanes=...)` restricts dispatch.
-- [ ] 3.4 Implement the metered fill selection (design D5) and the `include_lanes` filter.
+- [ ] 3.4 Implement the two-pass selection (design D2): pass 1 for tier 1/2, pass 2 for tier-2.5
+  candidates in `agents.yaml` roster order. Then implement the metered fill selection (design D5)
+  and the `include_lanes` filter. Add a fill-rule test where the non-metered lane sorts after the
+  metered one.
 - [ ] 3.5 Write failing tests for `_probe_mode` on API lanes, using an injected probe and an
   injected coordinator-usage function:
   - verified when the key limit leaves enough budget;
@@ -110,6 +138,14 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
   OpenRouter lane with an echoing transport.
 - [ ] 3.8 Write a failing test, then implement: `dispatch_and_wait` reads `tools_overflow` from
   the packet sidecar next to `packet_path` and passes it to OpenAI-compatible adapters.
+- [ ] 3.8a Write failing tests, then implement in `review_packet.py`: a `build_toolless_packet`
+  (design D6) and its `review-packet.toolless.meta.json` sidecar. Tests:
+  - For `review_type="plan"`, a branch whose full diff overflows `BUDGET_CHARS` yields a tool-less
+    packet with `tools_overflow: false` that contains the full `proposal.md`, `design.md`,
+    `tasks.md` and spec deltas.
+  - For `implementation`, the dropped files appear in `coverage.skipped`.
+  - `dispatch_and_wait` passes the tool-less body and flag to OpenAI-compatible adapters, and the
+    primary body to CLI lanes.
 - [ ] 3.9 Integration test: with the repository's `agents.yaml`, an injected transport and no
   `pi`/`codex` binaries on `PATH`, `--check-vendors --json` lists `openrouter` as verified and
   maps it to `openrouter` in `lane_kinds`.
@@ -171,6 +207,17 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
   metered result, call `spend_recorder.record()`. On `recorded=False`, record the
   `metered_spend_unrecorded` degradation through the result payload. Update
   `_review_body` to list the lanes.
+- [ ] 5.6 Write failing tests, then implement:
+  - `converge()` builds the tool-less packet (task 3.8a) when the primary packet overflows, and
+    passes both paths to `dispatch_and_wait`.
+  - `agent_lane.py` `result.json` carries `missing_lanes` (from `ConvergenceResult.missing_lanes`),
+    `lanes` (the lane ids that returned a successful result), `quorum_received`, a per-lane
+    `{model_used, generation_id, cost_usd, cost_source}` map, and `degradations` (including
+    `metered_spend_unrecorded`). Task 6.4's park and degradation rules read these fields.
+  - After each run, `agent_lane.py` writes `ConvergenceResult.consensus` to
+    `openspec/changes/<id>/reviews/consensus-<review_type>.json` (for PLAN_REVIEW:
+    `consensus-plan.json`), which the D9 evidence and task 7.2 cite. `converge()` itself never
+    writes this file.
 
 ## 6. Supervisor ranking, apply-time replay, and worker protocol
 
@@ -230,9 +277,10 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 | parallel-infrastructure: OpenAI-Compatible Dispatcher Discovery | 2.1–2.3, 3.1–3.4, 3.9 |
 | parallel-infrastructure: Dispatchable Vendor Verification | 1.1–1.2, 3.5–3.7, 3.9 |
 | parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 4.3–4.4, 5.2, 5.5 |
-| parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5, 3.8 |
+| parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
 | skill-workflow: Honest Review Quorum | 5.1–5.3 |
-| skill-workflow: Composite Agent-Lane Review | 5.4–5.5, 6.4 |
-| skill-workflow: Cloud Single-Vendor Policy Retirement | 7.1–7.4 |
+| skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |
+| skill-workflow: Cloud Single-Vendor Policy Retirement | 5.6, 7.1–7.4 |
 | supervise: Execution Profile and Review Requirements | 6.1–6.3 |
 | model-routing: Review Spend Recording Route | 4.1–4.2 |
+| Acceptance outcome 4 (schema-conformant HTTP findings, synthesized like CLI lanes) | 1.6–1.7 |
