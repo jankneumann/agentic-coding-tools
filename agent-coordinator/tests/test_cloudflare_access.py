@@ -201,6 +201,54 @@ def test_middleware_allows_options_preflight(verifier):
     assert resp.status_code != 403
 
 
+# ── Trusted peers (GX-10: the analyzer's Caddy serves the kanban board) ─────
+
+CADDY = "10.89.1.250"
+
+
+def _app_from(verifier: CloudflareAccessVerifier, peer: str, trusted: list[str]) -> TestClient:
+    """The app as seen from ``peer``: the ASGI scope's client address, which
+    uvicorn sets from the TCP connection, not from any request header."""
+    async def protected(_request):
+        return PlainTextResponse("ok")
+
+    inner = Starlette(routes=[Route("/locks/status/x", protected)])
+    inner.add_middleware(
+        CloudflareAccessMiddleware, verifier=verifier, trusted_peers=trusted
+    )
+
+    async def from_peer(scope, receive, send):
+        if scope["type"] == "http":
+            scope = {**scope, "client": (peer, 40000)}
+        await inner(scope, receive, send)
+
+    return TestClient(from_peer, raise_server_exceptions=False)
+
+
+def test_trusted_peer_needs_no_assertion(verifier):
+    resp = _app_from(verifier, CADDY, [CADDY]).get("/locks/status/x")
+    assert resp.status_code == 200
+
+
+def test_untrusted_peer_still_needs_an_assertion(verifier):
+    # The tunnel's cloudflared arrives from another address on another network.
+    resp = _app_from(verifier, "10.89.3.7", [CADDY]).get("/locks/status/x")
+    assert resp.status_code == 403
+
+
+def test_a_forwarded_for_header_cannot_claim_a_trusted_peer(verifier):
+    # Only the connection address counts; a client cannot name its own.
+    resp = _app_from(verifier, "10.89.3.7", [CADDY]).get(
+        "/locks/status/x", headers={"X-Forwarded-For": CADDY, "X-Real-IP": CADDY}
+    )
+    assert resp.status_code == 403
+
+
+def test_no_peer_is_trusted_by_default(verifier):
+    resp = _app_from(verifier, CADDY, []).get("/locks/status/x")
+    assert resp.status_code == 403
+
+
 # ── Config tests ─────────────────────────────────────────────────────────────
 
 
@@ -212,6 +260,7 @@ def clean_cf_env(monkeypatch):
         "CF_ACCESS_ENABLED",
         "CF_ACCESS_EXEMPT_PATHS",
         "CF_ACCESS_JWKS_CACHE_SECONDS",
+        "CF_ACCESS_TRUSTED_PEERS",
     ):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
@@ -256,3 +305,20 @@ def test_config_default_exempt_paths(clean_cf_env):
         "/health",
         "/metrics",
     ]
+
+
+def test_config_trusted_peers_default_empty(clean_cf_env):
+    assert CloudflareAccessConfig.from_env().trusted_peers == []
+
+
+def test_config_trusted_peers_parsed(clean_cf_env):
+    clean_cf_env.setenv("CF_ACCESS_TRUSTED_PEERS", " 10.89.1.250 ,10.89.1.251")
+    assert CloudflareAccessConfig.from_env().trusted_peers == ["10.89.1.250", "10.89.1.251"]
+
+
+@pytest.mark.parametrize("bad", ["10.89.1.0/24", "caddy", "10.89.1.999"])
+def test_config_trusted_peers_are_exact_addresses_only(clean_cf_env, bad):
+    # A range or a hostname would widen the exception beyond one container.
+    clean_cf_env.setenv("CF_ACCESS_TRUSTED_PEERS", bad)
+    with pytest.raises(ValueError):
+        CloudflareAccessConfig.from_env()

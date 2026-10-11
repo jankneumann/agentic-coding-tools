@@ -137,9 +137,15 @@ class CloudflareAccessMiddleware:
         *,
         verifier: CloudflareAccessVerifier,
         exempt_paths: list[str] | None = None,
+        trusted_peers: list[str] | None = None,
     ) -> None:
         self.app = app
         self.verifier = verifier
+        # Exact connection addresses allowed without an assertion: a local
+        # reverse proxy that is not Cloudflare (GX-10: the analyzer's Caddy,
+        # serving the kanban board behind its own basic_auth). Matched against
+        # the ASGI client -- the TCP peer -- never a forwarded-for header.
+        self.trusted_peers = frozenset(trusted_peers or ())
         # Normalize (strip trailing slash) for consistent prefix matching.
         self.exempt = [p.rstrip("/") or "/" for p in (exempt_paths or [])]
 
@@ -164,6 +170,11 @@ class CloudflareAccessMiddleware:
         # CORS preflight carries no assertion; the browser is redirected to the
         # Access login by Cloudflare before any real request is made.
         if method == "OPTIONS" or self._is_exempt(path):
+            await self.app(scope, receive, send)
+            return
+
+        client = scope.get("client")
+        if client and client[0] in self.trusted_peers:
             await self.app(scope, receive, send)
             return
 
@@ -209,11 +220,14 @@ def install_cloudflare_access(app: ASGIApp, config: Any) -> bool:
         CloudflareAccessMiddleware,
         verifier=verifier,
         exempt_paths=config.exempt_paths,
+        trusted_peers=config.trusted_peers,
     )
     logger.info(
-        "Cloudflare Access origin verification enabled (team=%s, audiences=%d, exempt=%s)",
+        "Cloudflare Access origin verification enabled "
+        "(team=%s, audiences=%d, exempt=%s, trusted_peers=%s)",
         config.team_domain,
         len(config.audiences),
         ",".join(config.exempt_paths),
+        ",".join(config.trusted_peers) or "none",
     )
     return True
