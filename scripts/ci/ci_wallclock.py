@@ -406,7 +406,7 @@ def _mapping(doc: Any, what: str, key: str) -> dict[str, Any]:
     """Reject valid YAML of the wrong shape with a ValueError (a clean CLI error) instead of
     letting it surface later as an AttributeError/TypeError traceback."""
     if not isinstance(doc, dict) or not isinstance(doc.get(key), dict):
-        raise ValueError(f"{what} is not a mapping with a '{key}' mapping")
+        raise ValueError(f"{what} is not a mapping with a '{key}' mapping")  # noqa: TRY004 - CLI maps ValueError to a clean error
     return doc
 
 

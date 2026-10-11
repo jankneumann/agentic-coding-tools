@@ -237,3 +237,24 @@ Reviewed IMPLEMENT: runs-on expression and hook fail closed (verified); tightene
 ### Context
 Multi-vendor IMPL_REVIEW via convergence_loop.converge() (fix_mode=targeted, min_quorum=2, verified lanes antigravity/claude_code/codex/grok/pi): three quorum rounds with claude_code + codex. Each round stopped on adjudication_required for single-vendor high judgment findings; the orchestrator adjudicated them against the rubric (all valid) and applied IMPL_FIX scoped to the cited files. Findings 17 -> 10 -> 11, high-judgment 1 -> 2 -> 1; ledger ends with 0 open, 0 blocking, 1 parked advisory (#96). Two earlier passes lost quorum to lane faults (codex schema drift misclassified auth_required; pi writing findings into the worktree). Both PLAN_REVIEW-only fixes (job-started fork-guard hook, persistent nftables isolation) were in every packet; the nftables persistence was redesigned after #83/#88.
 
+---
+
+## Phase: VALIDATE (2026-10-11)
+
+**Agent**: validator | **Session**: N/A
+
+### Completed Work
+- ci_runners 199 passed; workflow-parsing suites 660 passed
+- full skills suite: 12 failures + 1 collection error all in unrelated multiplayer-simulation/roadmap-runtime, pass in isolation
+- ruff noqa fix in scripts/ci/ci_wallclock.py
+- validation-report.md written
+
+### Next Steps
+- Operator performs O1-O12 post-merge
+
+### Relevant Files
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/validation-report.md` — validation report
+
+### Context
+Validation passed on-branch: 199 ci_runners tests, strict openspec valid, ruff clean (fixed one TRY004). Deploy/smoke/security/e2e skipped (no deployable service; scanners absent). O1-O12 pending-operator.
+
