@@ -18,11 +18,13 @@ The repository SHALL maintain a lane manifest at `.github/runner-lanes.yaml`, va
 
 ### Requirement: Routed Jobs Default To The Hosted Lane
 
-Every `routed` job SHALL use the single canonical `runs-on` expression defined in design D3. Under that expression a job SHALL resolve to `ubuntu-latest` unless the event is not a fork pull request and one of the following holds:
+Every `routed` job SHALL use the single canonical `runs-on` expression defined in design D3. Under that expression a job SHALL resolve to `ubuntu-latest` unless the event is eligible — a `push`, a `workflow_dispatch`, or a same-repository `pull_request` (never a fork `pull_request`, never `merge_group`, never any other event) — and one of the following holds:
 - a `workflow_dispatch` `runner_lane` input of `self-hosted` is supplied;
 - the `CI_RUNNER_LANE` repository variable equals `self-hosted`, and no dispatch override of `hosted` is supplied.
 
 The self-hosted label set inside the expression MUST equal the manifest's `routing.self_hosted_labels`.
+
+Both `ci.yml` and `security.yml` SHALL declare a `workflow_dispatch` trigger with a `runner_lane` choice input whose options are exactly `auto`, `hosted` and `self-hosted`, with default `auto`.
 
 #### Scenario: Unset variable keeps CI on hosted runners
 - **WHEN** the reference evaluator resolves the canonical expression for a same-repository `pull_request`, `push` or `merge_group` event with `CI_RUNNER_LANE` unset
@@ -36,6 +38,14 @@ The self-hosted label set inside the expression MUST equal the manifest's `routi
 - **WHEN** the expression is resolved for a `workflow_dispatch` event with `runner_lane` set to `hosted` while `CI_RUNNER_LANE` is `self-hosted`
 - **THEN** the result is `ubuntu-latest`
 - **AND** with `runner_lane` set to `self-hosted` while the variable is unset, the result is the self-hosted label set
+
+#### Scenario: Merge queue runs stay hosted
+- **WHEN** the reference evaluator resolves the expression for a `merge_group` event with `CI_RUNNER_LANE` set to `self-hosted`
+- **THEN** the result is `ubuntu-latest`, because a merge-group commit can contain an approved fork pull request's code
+
+#### Scenario: Dispatch trigger and lane input are declared
+- **WHEN** the fork guard test reads `ci.yml` and `security.yml`
+- **THEN** each declares `workflow_dispatch` with a `runner_lane` choice input of options `auto`, `hosted`, `self-hosted` and default `auto`
 
 #### Scenario: Routed job drifts from the canonical expression
 - **WHEN** any `routed` job's `runs-on` differs from the canonical expression after whitespace normalization
@@ -63,14 +73,14 @@ Every `hosted` job SHALL declare a literal `runs-on: ubuntu-latest` and MUST NOT
 
 ### Requirement: Fork Pull Requests Never Execute On Self-Hosted Runners
 
-A `pull_request` event whose head repository differs from the base repository SHALL resolve to `ubuntu-latest` regardless of the variable value. Every `routed` job's first step SHALL be a guard that fails the job when it is running on a self-hosted runner for a fork pull request. Neither workflow SHALL declare the triggers `pull_request_target`, `workflow_run` or `issue_comment`. The repository's fork-PR contributor approval policy MUST be set to require approval for all external contributors; this is an operator-only step with a verification command.
+A `pull_request` event whose head repository differs from the base repository, and every `merge_group` event (whose merge commit can contain approved fork code), SHALL resolve to `ubuntu-latest` regardless of the variable value. Every `routed` job's first step SHALL be a guard that fails the job when it is running on a self-hosted runner for any event outside the D3 eligibility allowlist, which includes every fork pull request and every `merge_group` run. Neither workflow SHALL declare the triggers `pull_request_target`, `workflow_run` or `issue_comment`. The repository's fork-PR contributor approval policy MUST be set to require approval for all external contributors; this is an operator-only step with a verification command.
 
 #### Scenario: Fork pull request routes to hosted even with the self-hosted lane enabled
 - **WHEN** the reference evaluator resolves the expression for a fork `pull_request` with `CI_RUNNER_LANE` set to `self-hosted`
 - **THEN** the result is `ubuntu-latest`
 
 #### Scenario: Routed job lacks the in-job fork guard
-- **WHEN** a routed job's first step is not the canonical fork guard, with condition `runner.environment == 'self-hosted'` combined with the fork test
+- **WHEN** a routed job's first step is not the canonical guard, with condition `runner.environment == 'self-hosted'` combined with the negation of the D3 event-eligibility clause
 - **THEN** the fork guard test fails and names the job
 
 #### Scenario: Privileged trigger is introduced
@@ -91,6 +101,8 @@ The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 - It SHALL start only the locally built image (`--pull=never`).
 - It SHALL bound the mint script's total retry time below the unit's start timeout.
 - It SHALL pin its base image by version and digest.
+- It SHALL mount no shared cache volume by default; a shared uv cache volume is mounted only when the operator sets `GX10_RUNNER_CACHE_ARGS` to the documented named-volume value after recording a risk acceptance.
+- Its runbook SHALL require an operator-installed control that keeps host services unreachable from runner containers on every host address, not only through the loopback mapping.
 
 #### Scenario: Unit runs a removable container with a single-use config
 - **WHEN** the unit test parses `gx10-runner@.service`
@@ -110,6 +122,16 @@ The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 - **WHEN** the stubbed GitHub API returns HTTP 503 on every call and the test sets a short retry budget
 - **THEN** `mint-jitconfig.sh` retries with growing delays, exits non-zero once the budget is spent, and writes no env file
 - **AND** the unit's `TimeoutStartSec` is greater than the default `GX10_MINT_MAX_ELAPSED` in the example env file
+
+#### Scenario: Shared cache is off unless the operator opts in
+- **WHEN** the unit test expands `ExecStart` with the example env file's `GX10_RUNNER_CACHE_ARGS` (empty)
+- **THEN** no `--volume` argument is present
+- **AND** with the documented opt-in value the only added arguments are `--volume gx10-runner-uv-cache:/home/runner/.cache/uv`
+
+#### Scenario: Operator verifies host services are unreachable on every host address
+- **WHEN** the operator probes `:54322` and the coordinator API port from inside a runner container at `10.0.2.2` and at every address printed by `hostname -I`
+- **THEN** every probe fails
+- **AND** either the nftables rule dropping `ghrunner`-owned traffic to local addresses is listed, or `ss -ltnp` shows those ports bound to `127.0.0.1` only
 
 #### Scenario: JIT labels match the routing labels
 - **WHEN** the runner-kit test compares the labels requested by `mint-jitconfig.sh` with `routing.self_hosted_labels`
@@ -149,7 +171,7 @@ The runner kit SHALL provide a systemd user template unit, `gx10-runner@.service
 The repository SHALL provide `scripts/ci/ci_wallclock.py` with three functions:
 - `median_wallclock(runs)` SHALL compute the median wall-clock seconds over successful runs only.
 - `compare(baseline, candidate, threshold=0.85, min_n=5)` SHALL pass only when the candidate median is at most `threshold` times the baseline median and both samples meet `min_n`.
-- `verify_run(jobs, manifest, workflow, expected_lane="self-hosted")` SHALL report: every routed job that did not run on a `gx10`-labelled runner (or, with `expected_lane="hosted"`, every routed job that ran on a self-hosted runner); every hosted job that ran on a self-hosted runner; every job that concluded anything other than `success` or `skipped`; every `skipped` job whose definition has no job-level `if:`; and every manifest job missing from the run. A `skipped` job that has a job-level `if:` SHALL NOT be reported, and its runner placement SHALL NOT be checked.
+- `verify_run(jobs, manifest, workflow, expected_lane="self-hosted")` SHALL report: every routed job that did not run on a `gx10`-labelled runner (or, with `expected_lane="hosted"`, every routed job that ran on a self-hosted runner); every hosted job that ran on a self-hosted runner; every job that concluded anything other than `success` or `skipped`, except that a job declared `continue-on-error: true` SHALL be reported as a warning rather than a violation; every `skipped` job whose definition has no job-level `if:`; and every manifest job missing from the run. A `skipped` job that has a job-level `if:` SHALL NOT be reported, and its runner placement SHALL NOT be checked. `verify_run` SHALL correlate manifest job ids with jobs-API entries through the display name derived from the workflow definition (the job id, or a literal `name:`; matrix expansions match `<display name> (` and are each checked), and SHALL report any jobs-API entry that matches no manifest job.
 
 The CLI SHALL select runs only through explicit filters (`--workflow`, `--head-sha`, `--event`, `--since`, `--until`) and SHALL cap fetched runs with `--limit`.
 
@@ -171,9 +193,19 @@ The CLI SHALL select runs only through explicit filters (`--workflow`, `--head-s
 - **WHEN** `verify_run` receives a run in which `dependency-update-remediation`, which has a job-level `if:`, concluded `skipped` with no runner assigned, and every other job succeeded on its expected lane
 - **THEN** it returns zero violations
 
+#### Scenario: Matrix expansions are correlated to their job id
+- **WHEN** `verify_run` receives a workflow definition whose job `lint` has a two-entry `strategy.matrix`, and the jobs API returns `lint (a)` on a `gx10` runner and `lint (b)` on a hosted runner while the lane is self-hosted
+- **THEN** it returns a violation for `lint (b)` and none for `lint (a)`
+- **AND** a jobs-API entry whose name matches no manifest job is reported as an unknown job
+
 #### Scenario: Unconditional job skipped by an upstream failure is a violation
 - **WHEN** a job with no job-level `if:` concluded `skipped`
 - **THEN** `verify_run` returns a violation naming that job
+
+#### Scenario: Failed continue-on-error job is a warning
+- **WHEN** a job declared `continue-on-error: true` concluded `failure` and every other job succeeded on its expected lane
+- **THEN** `verify_run` returns zero violations and one warning naming that job
+- **AND** the `verify-run` CLI exits zero, printing the warning (it exits non-zero only on violations)
 
 #### Scenario: Rollback check expects hosted placement
 - **WHEN** `verify_run` is called with `expected_lane="hosted"` and a routed job ran on a runner labelled `gx10`

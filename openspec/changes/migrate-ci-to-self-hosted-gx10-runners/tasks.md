@@ -81,8 +81,9 @@ Everything of that kind is in § 7 (operator-only).
 
   **Spec scenarios**: ci-runner-infrastructure / "Unset variable keeps CI on hosted runners",
   "Variable opts same-repository events into the self-hosted lane", "Dispatch input overrides
-  the variable in both directions", "Routed job drifts from the canonical expression", "Fork
-  pull request routes to hosted even with the self-hosted lane enabled"
+  the variable in both directions", "Merge queue runs stay hosted", "Routed job drifts from the
+  canonical expression", "Fork pull request routes to hosted even with the self-hosted lane
+  enabled"
   **Contracts**: .github/runner-lanes.schema.json
   **Design decisions**: D3
   **Dependencies**: 1.2, 1.3
@@ -90,6 +91,8 @@ Everything of that kind is in § 7 (operator-only).
   - The set of job ids in each workflow equals the manifest's job set for that workflow, so
     unclassified and stale entries are both caught.
   - Every hosted job has `runs-on == "ubuntu-latest"` as a literal string.
+  - Derived display names (D8 correlation contract: job id, or a literal `name:`) are unique
+    within each workflow, and no job uses an expression in `name:`.
 
   **Spec scenarios**: ci-runner-infrastructure / "Unclassified job fails the suite", "Stale
   manifest entry fails the suite", "Hosted job uses a literal hosted label"
@@ -97,13 +100,16 @@ Everything of that kind is in § 7 (operator-only).
   **Dependencies**: 1.2, 1.3
 - [ ] 2.3 Write `test_fork_guard.py` (S)
   - Every routed job's first step is the D4 guard: its `if` condition and its `exit 1`.
+  - The guard's eligibility clause equals, after whitespace normalization, the negated
+    event-eligibility clause of the canonical D3 expression (so `merge_group` and fork PRs are
+    refused on a self-hosted runner).
   - Both workflows' triggers are a subset of `{push, pull_request, merge_group,
     workflow_dispatch}`.
   - Both workflows declare a `workflow_dispatch` `runner_lane` choice input with options
     `[auto, hosted, self-hosted]` and default `auto`.
 
   **Spec scenarios**: ci-runner-infrastructure / "Routed job lacks the in-job fork guard",
-  "Privileged trigger is introduced"
+  "Privileged trigger is introduced", "Dispatch trigger and lane input are declared"
   **Design decisions**: D4
   **Dependencies**: 1.2, 1.3
 - [ ] 2.4 Write `test_tool_parity.py` (S)
@@ -174,6 +180,11 @@ Everything of that kind is in § 7 (operator-only).
     `--network slirp4netns:allow_host_loopback=false`, `--pids-limit`, `--cpus`, `--memory`.
   - `ExecStart` contains none of these: `--privileged`, `--network host`/`--network=host`, any
     other `--network` value, a `*.sock` volume source, or `%h`/`$HOME` as a bind source.
+  - Cache switch (D6/A10): `ExecStart` contains `$GX10_RUNNER_CACHE_ARGS` as a standalone,
+    unbraced word and no literal cache `--volume`; the example env file sets it empty. Expanding
+    `ExecStart` with systemd word-splitting semantics yields no `--volume` argument when the
+    value is empty, and exactly `--volume gx10-runner-uv-cache:/home/runner/.cache/uv` (a named
+    volume, never a bind path) when it holds the documented opt-in value.
   - If `systemd-analyze` is present, also run `systemd-analyze verify --user` on a copy whose
     `Exec*` paths are stubbed. Otherwise skip that check.
 
@@ -185,7 +196,8 @@ Everything of that kind is in § 7 (operator-only).
 - [ ] 3.2 Author `deploy/gx10-runner/systemd/gx10-runner@.service` and
       `deploy/gx10-runner/gx10-runner.env.example` (S)
   - The example env file sets: repo slug, instance CPU and memory limits, image reference,
-    `GX10_RUNNER_UV_CACHE`, `GX10_MINT_MAX_ELAPSED` (default 600), and labels mirrored from the
+    `GX10_RUNNER_CACHE_ARGS=` (empty: no shared cache, D6/A10), `GX10_MINT_MAX_ELAPSED`
+    (default 600), and labels mirrored from the
     manifest.
 
   **Dependencies**: 3.1
@@ -266,7 +278,10 @@ Everything of that kind is in § 7 (operator-only).
     - a conclusion other than `success`/`skipped`, with jobs marked `continue-on-error`
       reported as warnings;
     - a `skipped` job that has no job-level `if:`;
-    - a missing job.
+    - a missing job;
+    - a jobs-API entry that matches no manifest job (unknown job).
+  - Correlation follows the D8 contract: display name = job id or literal `name:`, matrix
+    expansions matched by `<display name> (` prefix and each checked (fixture with a matrix job).
   - `verify_run` does **not** flag `dependency-update-remediation` concluding `skipped` with no
     runner (it has a job-level `if:`).
   - The CLI's argument parsing, including `--head-sha`, `--event`, `--since`, `--until`,
@@ -275,7 +290,8 @@ Everything of that kind is in § 7 (operator-only).
   **Spec scenarios**: ci-runner-infrastructure / "Median ignores cancelled and failed runs",
   "Comparison enforces threshold and sample size", "Run verification flags misrouted jobs",
   "Conditionally skipped job is not a violation", "Unconditional job skipped by an upstream
-  failure is a violation", "Rollback check expects hosted placement"
+  failure is a violation", "Rollback check expects hosted placement", "Matrix expansions are
+  correlated to their job id"
   **Design decisions**: D8
   **Dependencies**: 1.2, 1.3
 - [ ] 4.2 Implement the pure functions `median_wallclock`, `compare` and `verify_run` in
@@ -288,7 +304,8 @@ Everything of that kind is in § 7 (operator-only).
   - `median` and `compare` select runs with `--workflow` (required), `--head-sha`, `--event`,
     `--since` and `--until` (D8).
   - `verify-run` takes `--expect-lane self-hosted|hosted` (default `self-hosted`) and exits
-    non-zero on any violation.
+    non-zero on any violation; warnings (failed `continue-on-error` jobs) are printed and do
+    not change the exit code.
 
   **Dependencies**: 4.2
 - [ ] Checkpoint: run tests, review diff, verify scope
@@ -309,8 +326,11 @@ Everything of that kind is in § 7 (operator-only).
   - Write steps O1–O12 from § 7, each with its exact commands and verification.
   - Include the queued-run detection command for D9.
   - Include the GitHub App upgrade path for D5.
-  - Include the cache-disable switch for D6, and the rule that a move to team mode sets it to
-    `off` (A10).
+  - Include the cache opt-in for D6: it is off by default; enabling it sets
+    `GX10_RUNNER_CACHE_ARGS=--volume gx10-runner-uv-cache:/home/runner/.cache/uv` only after the
+    operator fills in a recorded risk-acceptance line (date, confirmation that every
+    same-repository writer, including Dependabot and agent branches, is acceptable); disabling
+    empties it and removes the volume; a move to team mode requires disabling it (A10).
   - Include the podman-5 note: keep the explicit `slirp4netns` network, or switch to
     `pasta:--no-map-gw` only through a reviewed unit change (A11).
 
@@ -341,9 +361,16 @@ Everything of that kind is in § 7 (operator-only).
 > O12 to roll back if needed.
 
 - [ ] O1 Create the dedicated host user and enable linger *(outcome 4, host half)*
-  - Run `sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner` and
-    `sudo loginctl enable-linger ghrunner`.
-  - **Verify**: `loginctl show-user ghrunner -p Linger` prints `Linger=yes`.
+  - Run `sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner`, then give it
+    a subordinate id range, which `useradd --system` does not allocate and rootless podman
+    needs for the non-root `runner` user in the image:
+    `sudo usermod --add-subuids 200000-265535 --add-subgids 200000-265535 ghrunner`.
+  - Run `sudo loginctl enable-linger ghrunner`.
+  - Because the account has no login shell, run every later "as `ghrunner`" command as
+    `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) <command>` (or
+    `systemctl --user --machine=ghrunner@ …` for unit operations).
+  - **Verify**: `loginctl show-user ghrunner -p Linger` prints `Linger=yes`, and
+    `grep ghrunner /etc/subuid /etc/subgid` shows one range in each file.
 - [ ] O2 Provision the registration credential
   - Create a fine-grained PAT for this repository only, with *Administration: read and write*
     and an expiry of 90 days or less.
@@ -361,9 +388,16 @@ Everything of that kind is in § 7 (operator-only).
   - **Verify**:
     `gh api repos/{owner}/{repo}/actions/runners --jq '[.runners[]|select(any(.labels[];.name=="gx10"))|.status]'`
     lists 8 entries, all `online`.
-  - **Also verify**: `podman exec gx10-runner-1 bash -c 'curl -sm 3 http://10.0.2.2:54322 >/dev/null && echo reachable || echo unreachable'`
-    prints `unreachable`, and `podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'`
-    shows `slirp4netns`. This shows that host loopback is isolated (D6).
+  - Before enabling the units, install the host-service isolation control (D6): the nftables
+    rule `meta skuid ghrunner fib daddr type local drop` in an `output` hook chain (preferred),
+    or rebind every host service the runners must not reach to `127.0.0.1` (fallback).
+  - **Also verify**: for each address in `10.0.2.2 $(hostname -I)` and each port in
+    `54322 <coordinator-port>`,
+    `podman exec gx10-runner-1 bash -c 'curl -sm 3 http://<addr>:<port> >/dev/null && echo reachable || echo unreachable'`
+    prints `unreachable`; `sudo nft list ruleset | grep 'skuid'` shows the rule (or
+    `ss -ltnp` shows those ports bound to `127.0.0.1` only); and
+    `podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'` shows `slirp4netns`.
+    A probe of `10.0.2.2` alone is not sufficient (D6).
 - [ ] O5 Set the fork-PR approval policy *(outcome 3, settings half)*
   - Run `gh api -X PUT repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors`.
   - Confirm the runners are repository-scoped, not organization-scoped.
@@ -404,8 +438,9 @@ Everything of that kind is in § 7 (operator-only).
   - Open a trivial PR from a fork account.
   - **Verify**: `gh run list --branch <fork-branch> --json status,conclusion` shows the run
     awaiting approval (`action_required`).
-  - After approval, `verify-run` shows 0 jobs on `gx10` runners: every job ran on GitHub-hosted
-    runners.
+  - After approval, `python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow ci.yml --expect-lane hosted`
+    reports 0 violations: every job ran on GitHub-hosted runners (without `--expect-lane hosted`
+    the default `self-hosted` expectation would flag every routed job).
 - [ ] O12 Rollback drill
   - Run `gh variable set CI_RUNNER_LANE --body hosted`.
   - **Verify**: the next CI run's `verify-run --expect-lane hosted` shows every job on

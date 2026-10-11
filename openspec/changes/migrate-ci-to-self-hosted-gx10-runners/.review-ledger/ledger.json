@@ -1,0 +1,438 @@
+{
+  "schema_version": 1,
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "items": [
+    {
+      "id": 1,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "c9581b9d73aa9e3b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D6 (and A11, the Risks table, and O4) treat `--network slirp4netns:allow_host_loopback=false` as proof that host services are unreachable from PR code. That option only disables the 10.0.2.2 -> 127.0.0.1 mapping. slirp4netns still NATs container traffic through the host stack, so any host service bound to 0.0.0.0 or to the host's LAN/Tailscale address (a compose-published Postgres `0.0.0.0:54322` is the common case, and the ri-08 dispatcher daemon may also listen non-loopback) remains reachable by connecting to the host's real IP. The O4 verification (`curl http://10.0.2.2:54322`) would pass while Postgres is reachable at `http://<host-lan-ip>:54322`, so the isolation claim is unverified by the test the runbook prescribes. Fix: (a) state the binding assumption explicitly in D6/A11 (host services must bind to 127.0.0.1 only, verified in O4 with `ss -ltnp` for :54322 and the coordinator port); (b) extend the O4 check to `curl` the host's primary address (`hostname -I | awk '{print $1}'`) from inside the container; (c) optionally add a host nftables/ufw rule in O1 that drops `owner uid ghrunner` OUTPUT traffic to the host's own addresses, which is the only control that holds regardless of how services are bound.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 2,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md",
+      "fingerprint": "e4f51b046bfc2344",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "A10 and D6 argue that every same-repository branch author is a trusted human principal. This repository explicitly accepts PRs from automated authors with push access (Dependabot, Jules, Codex and other agent PRs, per the merge-pull-requests skill and the `dependency-update-remediation` job). Their branches satisfy `head.repo.full_name == github.repository`, so with `CI_RUNNER_LANE=self-hosted` unreviewed agent-generated code and freshly bumped third-party packages execute on the GX10 host (shared kernel, shared uv cache that later `main` jobs read) before any human has looked at the diff. The hardening in D6 is good, but the written trust argument is wrong as stated, and the acceptance of the cache-poisoning risk rests on it. This is a threat-model call for the owner: either extend A10 to name automated same-repo authors and accept it, or add `github.actor` / branch-prefix exclusions (e.g. `dependabot/*`, bot actors) to the D3 expression so those PRs stay on hosted runners.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 3,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "spec_file": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "44ac3e95097d111d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Two normative clauses in the spec have no WHEN/THEN scenario. (1) In 'Routed Jobs Default To The Hosted Lane', the MUST that the `fromJSON` label set equals `routing.self_hosted_labels` is asserted only in design D3 and task 2.1; no scenario covers it (the 'JIT labels match the routing labels' scenario is about `mint-jitconfig.sh`, not the expression). The same test should also tie `vars.CI_RUNNER_LANE` and `inputs.runner_lane` in the expression to `routing.repository_variable` / `routing.dispatch_input`, otherwise the manifest's routing block is partially decorative. (2) In 'CI Wall-Clock Measurement And Run Verification', 'The CLI SHALL select runs only through explicit filters ... and SHALL cap fetched runs with `--limit`' has no scenario, although task 4.1 tests it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 4,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "fingerprint": "bc91c408e26681e9",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "O1 creates `ghrunner` with `useradd --system`. On Ubuntu, system accounts receive no `/etc/subuid` / `/etc/subgid` range, and rootless podman cannot run an image whose process user is non-root (the actions-runner image runs as `runner`, uid 1001) without one: O3 (`podman build`) and O4 (`podman run`) fail with a 'no subuid ranges found' class error. Also, `--shell /usr/sbin/nologin` means the 'as `ghrunner`' instructions in O3/O4 cannot be followed via `su`/`machinectl shell`; the runbook should say `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) ...` or `systemd-run --user --machine=ghrunner@`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 5,
+      "status": "open",
+      "axis": "readability",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "413fcc05ae41a970",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The design uses 'the env file' for two different files: the operator configuration (`gx10-runner.env.example`: repo slug, limits, image ref, labels, `GX10_MINT_MAX_ELAPSED`) and the per-instance container env file written by the mint script (`%t/gx10-runner/%i.env`, JIT config and runner id only). D7's property list never names the `EnvironmentFile=` line that must load the former, nor how the credential reaches the unit (`LoadCredential=github-token:<path>` vs `GX10_RUNNER_TOKEN_FILE`), and test 3.1 does not assert either. Relatedly, 'GX10_RUNNER_UV_CACHE=off drops the volume' is not expressible in a plain `ExecStart=` line; it needs an unquoted `$GX10_UV_CACHE_ARGS` word-split variable or a wrapper, and either choice interacts with the test that scans `ExecStart` for a literal volume flag.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 6,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "978871e3e51b973b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`podman run --rm --name gx10-runner-%i` without `--replace` makes the restart loop wedge after any unclean stop: if conmon is left holding a container of that name (podman client killed by `TimeoutStopSec`, host crash before cleanup), every subsequent `ExecStart` fails on the name conflict, `Restart=always` retries every 10 s forever, and the instance silently drops out of the pool. Separately, `ExecStopPost` cleanup does not run on power loss or hard reboot (O10), so never-used JIT registrations accumulate as offline runners; the mint script or cleanup script should sweep offline runners matching `gx10-<hostname>-<instance>-*` before minting a new one.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "addressed",
+      "axis": "performance",
+      "type": "performance",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "0c093c50516d6589",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The session log records the shared uv cache as 'the main source of speedup' for outcome 2, but nothing in D6/D10 ensures routed jobs actually use the mounted path. If the workflows use `astral-sh/setup-uv` with its default caching (the design does not say), the action exports `UV_CACHE_DIR` under `$RUNNER_TEMP` and round-trips the cache through GitHub's cache service, bypassing `/home/runner/.cache/uv` entirely; the volume would then be dead weight and the A6 threshold would be measured against a cold cache. The design should state the binding: set `UV_CACHE_DIR=/home/runner/.cache/uv` in the container image/env, and either set `cache-local-path` to it or `enable-cache: false` when `runner.environment == 'self-hosted'`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 8,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "d56231a10286766f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Stale or duplicated text left by the iteration edits: (1) D6 repeats the 'operator can disable the cache with GX10_RUNNER_UV_CACHE=off' paragraph twice in succession; (2) session-log.md PLAN section still says 'assumptions A1-A9' and its trade-off entry still claims 'locked hash verification applies', which plan-findings #4 and A10 explicitly retract; (3) spec signatures `median_wallclock(runs)` / `compare(baseline, candidate, threshold=0.85, min_n=5)` differ from design D8's keyword-only forms with a `conclusion` parameter.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "fingerprint": "c65bbf3ffaebe448",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "'A job that reads it gains nothing' overstates the case. `ACTIONS_RUNNER_INPUT_JITCONFIG` is inherited by every job step's process environment and encodes the runner's RSA key and Actions-service credentials; while the job runs, PR code can use them to act as that runner against the Actions broker (read the job message, post telemetry). Ephemerality bounds the window to the job's lifetime, so this is an acceptable residual, but the design should say so rather than claim zero value. An entrypoint wrapper that reads the variable, `unset`s it and passes `--jitconfig` would narrow it further at the cost of the value appearing in `ps` briefly.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "critical",
+      "evidence_class": "judgment",
+      "fingerprint": "0cbdfa63f789f826",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Design D3 excludes fork code only when `github.event_name == 'pull_request'`. A `merge_group` run can execute a temporary merge commit containing an approved fork PR, but the expression treats every `merge_group` as non-fork and routes it to GX10 whenever `CI_RUNNER_LANE=self-hosted`. This violates the requirement that fork code never execute on self-hosted runners. Route all `merge_group` runs to hosted runners unless fork provenance can be established safely.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "37a99ecb7a21e25f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "D8 requires `verify_run` to correlate manifest job IDs with jobs returned by GitHub's workflow-jobs API, but that API exposes display names rather than stable YAML job IDs; matrix jobs can also produce multiple names from one job definition. No mapping or naming contract is defined, so missing-job, lane, conditional-skip, and hosted/routed checks cannot be implemented reliably. Define and test a stable correlation mechanism, including matrix expansions.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "406c53b7e351df2b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Assumption A10 equates the ability to create a same-repository branch with authorization to persist code into later trusted runs through the shared uv cache. That premise ignores Dependabot and other automation, compromised collaborator credentials, and branch-protection distinctions between pushing a branch and merging to protected main. A PR can poison the writable cache and influence a later main job with stronger credentials. Disable cross-trust cache sharing or isolate caches by trust level; otherwise require explicit human risk acceptance.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "e01a3b397f3dc508",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Operator step O11 invokes `verify-run` without `--expect-lane hosted`, although `verify-run` defaults to `self-hosted`. A correctly routed fork PR would therefore report every routed job on GitHub-hosted runners as a violation instead of producing the stated zero-violation result. O11 and its runbook command must pass `--expect-lane hosted`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 14,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "8b78de0ce13095fd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "D6 promises that `GX10_RUNNER_UV_CACHE=off` removes the cache volume, but neither the systemd-unit contract nor tasks 3.1\u20133.2 define or test how that switch changes `ExecStart`. An implementation can satisfy the planned tests while always mounting the cache or passing the literal value `off` to Podman. Specify the argument-expansion or wrapper mechanism and add positive tests for both enabled and disabled modes.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "edf215a657f5c2ed",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The artifacts disagree on failed `continue-on-error` jobs. Design D8 and task 4.1 require them to be warnings, while the specification says `verify_run` SHALL report every conclusion other than `success` or `skipped`, and the CLI exits nonzero on every violation. Define the result model and exit behavior explicitly and add a WHEN/THEN scenario for the warning exception.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 16,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "13a65dafa7174bd8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The specification's normative CLI clause requiring explicit run filters and a bounded `--limit` has no WHEN/THEN scenario that verifies filtering or bounded pagination. Task 4.1 only checks argument parsing, which would not detect an implementation that fetches all pages before truncating. Add a scenario covering request selection and the maximum number of fetched results/pages.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "caaf6d64d1eaf9c7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "work-packages.yaml contracts.openapi.primary and files reference openspec/changes/migrate-ci-to-self-hosted-gx10-runners/... paths directly. Per OpenSpec path stability guide (docs/guides/openspec-path-stability.md), these paths are unstable \u2014 archival moves them to openspec/changes/archive/<date>-<id>/. Any tooling consuming work-packages.yaml for contract resolution may break post-archive. The package verification commands correctly use promoted .github/ paths.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "6fd69e129cff15a1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "spec.md lacks an explicit SHALL requirement that both workflows MUST declare a workflow_dispatch trigger with runner_lane choice input (auto | hosted | self-hosted). Multiple scenarios (e.g., 'Dispatch input overrides the variable in both directions', 'Unset variable keeps CI on hosted runners') reference workflow_dispatch events and the runner_lane input, but no requirement mandates the trigger's existence. Tasks.md 2.7 and design.md D3 implement it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "0ffdda7f9c2d26d5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "spec.md 'Requirement: Runners Are Ephemeral Per Job' lists 7 SHALL statements but omits the cleanup-runner.sh ExecStopPost requirement. The scenario 'Unit runs a removable container with a single-use config' checks that ExecStopPost invokes cleanup-runner.sh, but the requirement text should include it for completeness.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "c34b6c06ab488508",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "spec.md 'Requirement: Runners Survive Host Reboot Via systemd' does not explicitly require the install-units.sh script to be copy-and-print-only (non-mutating during tests). The scenario 'Install script does not mutate the host during tests' covers this behavior, but the requirement text should mandate it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "open",
+      "axis": "observability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "fingerprint": "f70da5bed79eb633",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "spec.md does not document the known limit that the tool-parity static scan only examines run: blocks and cannot detect container-engine commands invoked indirectly through scripts (e.g., run_live_matrix.sh calling podman). Design.md D10 explicitly documents this limit and the O6 dry-run backstop. The spec should include a scenario or note acknowledging this limitation.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 22,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "7828314fe3659e34",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "runner-lanes.schema.json allows arbitrary self_hosted_labels array (minItems: 2, uniqueItems: true, contains: 'self-hosted') but the canonical D3 runs-on expression hardcodes fromJSON('[\"self-hosted\",\"linux\",\"ARM64\",\"gx10\"]'). The schema should constrain self_hosted_labels to exactly these 4 labels (or at minimum enforce the exact array) to prevent drift between manifest and expression. The spec scenario 'JIT labels match the routing labels' tests equality but the schema permits divergence.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 23,
+      "status": "open",
+      "axis": "architecture",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "b7b6dc89932b4b8a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "wp-runner-kit package outputs.artifacts list omits gx10-runner.env.example, which is authored in task 3.2, referenced in design.md D7, and required for operator configuration. The artifact should be listed for completeness.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 24,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "53b303ad00b07601",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "work-packages.yaml contracts.openapi.primary points to a README.md file instead of an OpenAPI spec. The comment acknowledges 'The schema requires an openapi block, so primary points at the README that records that decision.' This workaround may cause tooling that expects a valid OpenAPI document to fail or misbehave.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "e57230fe6b51e883",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "proposal.md assumptions list has inconsistent formatting: A1-A9 use '- **A1.**' format with no blank lines between entries, but a blank line separates A9 from A10/A11, making them appear as a separate list. Minor readability issue.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "14f9da639442c346",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "loop-state.json records two degradations: 'coordinator_projection_forbidden' (project-state submit returned forbidden) and 'audit_sink_failed' (audit sink reported failure for gate proposal_approval decision auto). These are infrastructure issues in the coordinator environment, not plan defects, but should be monitored as they may affect subsequent phases.",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}
