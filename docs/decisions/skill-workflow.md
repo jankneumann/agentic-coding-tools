@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Plan
+
+**Absent/empty sync_windows fails closed; scheduled runs never use the force escape hatch** — Mirrors absent-file all-block invariant; only an explicit operator may force past the active-agent guard
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)
+
+---
+
 ## 2026-10-09 — 2026-10-10-dispatch-contract
 
 ### Phase: Plan Review
