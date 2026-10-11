@@ -216,7 +216,7 @@ Everything of that kind is in § 7 (operator-only).
     through `LoadCredential=` (D7).
 
   **Dependencies**: 3.1
-- [ ] 3.3 Write `test_jit_scripts.py` (M)
+- [x] 3.3 Write `test_jit_scripts.py` (M)
   - Run `mint-jitconfig.sh` and `cleanup-runner.sh` under `bash` with a stub `curl` on `PATH`.
     The stub records its arguments and returns fixture JSON, so the test never touches the
     network.
@@ -241,7 +241,7 @@ Everything of that kind is in § 7 (operator-only).
   **Design decisions**: D5
   **Dependencies**: 1.2, 1.3
 - [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 3.4 Author `deploy/gx10-runner/mint-jitconfig.sh` (S)
+- [x] 3.4 Author `deploy/gx10-runner/mint-jitconfig.sh` (S)
   - Use `set -euo pipefail`.
   - Read the credential from `$CREDENTIALS_DIRECTORY/github-token`, falling back to
     `GX10_RUNNER_TOKEN_FILE`.
@@ -252,7 +252,7 @@ Everything of that kind is in § 7 (operator-only).
     `GX10_MINT_MAX_ELAPSED` (default 600 s).
 
   **Dependencies**: 3.3
-- [ ] 3.5 Author `deploy/gx10-runner/cleanup-runner.sh` (XS)
+- [x] 3.5 Author `deploy/gx10-runner/cleanup-runner.sh` (XS)
   - Delete the runner registration only if it is still registered and offline. Cleanup is
     best-effort and always exits 0.
 
