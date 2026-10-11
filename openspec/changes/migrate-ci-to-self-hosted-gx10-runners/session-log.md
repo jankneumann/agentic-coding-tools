@@ -144,3 +144,36 @@ Iterate-on-plan converged in one fix iteration plus a clean re-review: 4 high an
 ### Context
 Multi-vendor PLAN_REVIEW via convergence_loop.converge() (min_quorum=2): three quorum review rounds (claude_code+codex+pi, then claude_code+codex twice; one extra pass lost quorum to an argv-size failure). Each round stopped on adjudication_required for single-vendor high/critical judgment findings, which the orchestrator adjudicated against the rubric and fixed inline (PLAN_FIX). High/critical trend 4 -> 5 -> 2; ledger ends with 0 open, 0 blocking. Key fixes: merge_group always hosted; runner-image job-started hook as the real fork-enforcement point; uv cache opt-in only; persistent nftables host/LAN isolation with DNS exemption; unit EnvironmentFile/LoadCredential/--replace wiring; verify_run job correlation contract.
 
+---
+
+## Phase: IMPLEMENT (2026-10-11)
+
+**Agent**: claude-code | **Session**: N/A
+
+### Decisions
+1. **Widen two existing wiring tests for the new dispatch trigger and guard step** `architectural: ci-runner-infrastructure` — test_gate.py asserted the exact trigger set and test_ci_sweep_wiring.py forbade any step-level if; both conflict with the spec (workflow_dispatch input, D4 guard). Minimal widening: allow workflow_dispatch, and the named guard step.
+2. **Base image pinned to actions-runner 2.338.0 index digest** `architectural: ci-runner-infrastructure` — Digest read read-only with skopeo inspect --raw | sha256sum; sudoers NOPASSWD grant stripped in the image.
+3. **verify_run takes workflow_file kwarg (inferred from job set when omitted)** `architectural: ci-runner-infrastructure` — Manifest is keyed by workflow file; the parsed definition alone does not carry it.
+
+### Completed Work
+- wp-contracts 1.1-1.3
+- wp-workflows 2.1-2.9
+- runner kit 3.1-3.9
+- ci_wallclock 4.1-4.3
+- runbook 5.1-5.3
+- integration 6.1
+
+### Next Steps
+- Run IMPLEMENT review/validate
+- Operator performs O1-O12 post-merge
+
+### Relevant Files
+- `.github/runner-lanes.yaml`
+- `.github/workflows/ci.yml`
+- `deploy/gx10-runner/`
+- `scripts/ci/ci_wallclock.py`
+- `docs/guides/self-hosted-ci-runners.md`
+
+### Context
+Implemented all non-operator tasks (phases 1-6): lane manifest, canonical runs-on routing with fork guard, runner kit (unit, JIT scripts, image + job-started hook, install script), ci_wallclock tooling and operator runbook. Operator steps O1-O12 untouched.
+
