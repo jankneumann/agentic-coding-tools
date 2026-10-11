@@ -1,0 +1,27 @@
+{
+  "review_type": "implementation",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "`validation-report.md` uses the headings `## Smoke` and `## E2E`, but the validation contract parses `## Smoke Tests` and `## E2E Tests`. Running `gate_logic.py` against the report classifies both phases as `missing` and halts the pre-merge gate. Regenerate the report with the canonical headings so its not-applicable outcomes are machine-readable.",
+      "disposition": "regenerate",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The report marks Security as `degraded` while declaring that the change has no deployable surface. The repository's surface classifier returns `deployable: false` with only Spec Compliance required, and `validate-feature` requires Deploy, Smoke, Security, and E2E to be `not applicable` in that case. As written, Security is treated as an unchecked required phase and blocks the gate despite the overall PASS claim. Mark Security `not applicable`; the unavailable scanners may remain documented as context.",
+      "disposition": "regenerate",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    }
+  ]
+}
